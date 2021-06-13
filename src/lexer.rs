@@ -20,8 +20,8 @@ static INT_LITERAL: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[0-9]+").unwrap());
 
 #[derive(PartialEq, Debug)]
 pub struct Token {
-    lexeme: Lexeme,
-    position: usize,
+    pub lexeme: Lexeme,
+    pub position: usize,
 }
 
 struct TokenReader {
