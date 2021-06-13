@@ -99,13 +99,16 @@ impl Parser {
             Ok(Expr::Const(var, Box::new(expr)))
         })
         .or_else(|_| -> Result<Expr> {
-            // s = e;
+            // exprStatement (s) OR s = e;
             let s = self.expr_short()?;
-            self.expect_lexeme(Lexeme::Equal)?;
-            let e = self.expr()?;
-            self.expect_lexeme(Lexeme::SemiColon)?;
+            if self.expect_lexeme(Lexeme::Equal).is_err() {
+                Ok(s)
+            } else {
+                let e = self.expr()?;
+                self.expect_lexeme(Lexeme::SemiColon)?;
 
-            Ok(Expr::Assign(Box::new(s), Box::new(e)))
+                Ok(Expr::Assign(Box::new(s), Box::new(e)))
+            }
         })
     }
 
@@ -113,8 +116,17 @@ impl Parser {
         self.expect_lexeme(Lexeme::LBrace)?;
 
         let mut stmts = vec![];
-        while let Ok(stmt) = self.statement() {
-            stmts.push(stmt);
+        loop {
+            match self.statement() {
+                Ok(r) => {
+                    stmts.push(r);
+                    continue;
+                }
+                Err(_) => {
+                    // need recover
+                    break;
+                }
+            }
         }
 
         self.expect_lexeme(Lexeme::RBrace)?;
@@ -145,7 +157,13 @@ impl Parser {
 
 pub fn run_parser_from_tokens(tokens: Vec<Token>) -> Result<Decl> {
     let mut parser = Parser::new();
-    parser.run_parser(tokens)
+    let result = parser.run_parser(tokens)?;
+
+    if parser.input.len() != parser.position {
+        bail!("Unexpected token: {:?}", &parser.input[parser.position..]);
+    }
+
+    Ok(result)
 }
 
 pub fn run_parser(input: &str) -> Result<Decl> {
@@ -158,36 +176,58 @@ mod tests {
 
     #[test]
     fn test_run_parser() {
-        let cases = vec![(
-            r#"func main() {
-                const x = 10;
-                let y = 10;
-                y = 20;
+        let cases = vec![
+            (
+                r#"func main() {
+                    const x = 10;
+                    let y = 10;
+                    y = 20;
 
-                return 10;
-            }"#,
-            Decl::Func(
-                "main".to_string(),
-                vec![
-                    Expr::Const(
-                        "x".to_string(),
-                        Box::new(Expr::Lit(Literal::IntLiteral(10))),
-                    ),
-                    Expr::Let(
-                        "y".to_string(),
-                        Box::new(Expr::Lit(Literal::IntLiteral(10))),
-                    ),
-                    Expr::Assign(
-                        Box::new(Expr::Var("y".to_string())),
-                        Box::new(Expr::Lit(Literal::IntLiteral(20))),
-                    ),
-                    Expr::Return(Box::new(Expr::Lit(Literal::IntLiteral(10)))),
-                ],
+                    return 10;
+                }"#,
+                Decl::Func(
+                    "main".to_string(),
+                    vec![
+                        Expr::Const(
+                            "x".to_string(),
+                            Box::new(Expr::Lit(Literal::IntLiteral(10))),
+                        ),
+                        Expr::Let(
+                            "y".to_string(),
+                            Box::new(Expr::Lit(Literal::IntLiteral(10))),
+                        ),
+                        Expr::Assign(
+                            Box::new(Expr::Var("y".to_string())),
+                            Box::new(Expr::Lit(Literal::IntLiteral(20))),
+                        ),
+                        Expr::Return(Box::new(Expr::Lit(Literal::IntLiteral(10)))),
+                    ],
+                ),
             ),
-        )];
+            (
+                // 最後にexprを返す形
+                r#"func main() {
+                    x = 10;
+
+                    200
+                }"#,
+                Decl::Func(
+                    "main".to_string(),
+                    vec![
+                        Expr::Assign(
+                            Box::new(Expr::Var("x".to_string())),
+                            Box::new(Expr::Lit(Literal::IntLiteral(10))),
+                        ),
+                        Expr::Lit(Literal::IntLiteral(200)),
+                    ],
+                ),
+            ),
+        ];
 
         for c in cases {
-            assert_eq!(run_parser(c.0).unwrap(), c.1, "{:?}", c.0);
+            let result = run_parser(c.0);
+            assert!(matches!(result, Ok(_)), "{:?} {:?}", c.0, result);
+            assert_eq!(result.unwrap(), c.1, "{:?}", c.0);
         }
     }
 }
