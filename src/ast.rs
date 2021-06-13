@@ -7,6 +7,9 @@ pub enum Literal {
 pub enum Expr {
     Var(String),
     Lit(Literal),
+    Let(String, Box<Expr>),
+    Const(String, Box<Expr>),
+    Assign(Box<Expr>, Box<Expr>),
     Return(Box<Expr>),
 }
 

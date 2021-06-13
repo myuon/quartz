@@ -5,11 +5,14 @@ use regex::Regex;
 pub enum Lexeme {
     Func,
     Return,
+    Let,
+    Const,
     LParen,
     RParen,
     LBrace,
     RBrace,
     SemiColon,
+    Equal,
     Ident(String),
     IntLiteral(i32),
 }
@@ -77,11 +80,14 @@ impl TokenReader {
                 vec![
                     ("func", Lexeme::Func),
                     ("return", Lexeme::Return),
+                    ("let", Lexeme::Let),
+                    ("const", Lexeme::Const),
                     ("(", Lexeme::LParen),
                     (")", Lexeme::RParen),
                     ("{", Lexeme::LBrace),
                     ("}", Lexeme::RBrace),
                     (";", Lexeme::SemiColon),
+                    ("=", Lexeme::Equal),
                 ],
             ) {
                 continue;

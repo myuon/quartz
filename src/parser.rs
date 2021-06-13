@@ -57,7 +57,7 @@ impl Parser {
         }
     }
 
-    fn expr(&mut self) -> Result<Expr> {
+    fn expr_short(&mut self) -> Result<Expr> {
         // var
         (self.ident().map(|v| Expr::Var(v))).or_else(
             // literal
@@ -65,23 +65,61 @@ impl Parser {
         )
     }
 
-    fn statement(&mut self) -> Result<Expr> {
-        // return expr;
-        self.expect_lexeme(Lexeme::Return)?;
-        let expr = self.expr()?;
+    fn expr(&mut self) -> Result<Expr> {
+        self.expr_short()
+    }
 
-        Ok(Expr::Return(Box::new(expr)))
+    fn statement(&mut self) -> Result<Expr> {
+        (|| -> Result<Expr> {
+            // return expr;
+            self.expect_lexeme(Lexeme::Return)?;
+            let expr = self.expr()?;
+            self.expect_lexeme(Lexeme::SemiColon)?;
+
+            Ok(Expr::Return(Box::new(expr)))
+        }())
+        .or_else(|_| -> Result<Expr> {
+            // let v = e;
+            self.expect_lexeme(Lexeme::Let)?;
+            let var = self.ident()?;
+            self.expect_lexeme(Lexeme::Equal)?;
+            let expr = self.expr()?;
+            self.expect_lexeme(Lexeme::SemiColon)?;
+
+            Ok(Expr::Let(var, Box::new(expr)))
+        })
+        .or_else(|_| -> Result<Expr> {
+            // const v = e;
+            self.expect_lexeme(Lexeme::Const)?;
+            let var = self.ident()?;
+            self.expect_lexeme(Lexeme::Equal)?;
+            let expr = self.expr()?;
+            self.expect_lexeme(Lexeme::SemiColon)?;
+
+            Ok(Expr::Const(var, Box::new(expr)))
+        })
+        .or_else(|_| -> Result<Expr> {
+            // s = e;
+            let s = self.expr_short()?;
+            self.expect_lexeme(Lexeme::Equal)?;
+            let e = self.expr()?;
+            self.expect_lexeme(Lexeme::SemiColon)?;
+
+            Ok(Expr::Assign(Box::new(s), Box::new(e)))
+        })
     }
 
     fn statments_block(&mut self) -> Result<Vec<Expr>> {
         self.expect_lexeme(Lexeme::LBrace)?;
 
-        // single statement
-        let s = self.statement()?;
+        let mut stmts = vec![];
+        while let Ok(stmt) = self.statement() {
+            stmts.push(stmt);
+        }
 
         self.expect_lexeme(Lexeme::RBrace)?;
 
-        Ok(vec![s])
+        Ok(stmts)
     }
 
     fn parse_decl(&mut self) -> Result<Decl> {
@@ -121,10 +159,30 @@ mod tests {
     #[test]
     fn test_run_parser() {
         let cases = vec![(
-            "func main() { return 10; }",
+            r#"func main() {
+                const x = 10;
+                let y = 10;
+                y = 20;
+
+                return 10;
+            }"#,
             Decl::Func(
                 "main".to_string(),
-                vec![Expr::Return(Box::new(Expr::Lit(Literal::IntLiteral(10))))],
+                vec![
+                    Expr::Const(
+                        "x".to_string(),
+                        Box::new(Expr::Lit(Literal::IntLiteral(10))),
+                    ),
+                    Expr::Let(
+                        "y".to_string(),
+                        Box::new(Expr::Lit(Literal::IntLiteral(10))),
+                    ),
+                    Expr::Assign(
+                        Box::new(Expr::Var("y".to_string())),
+                        Box::new(Expr::Lit(Literal::IntLiteral(20))),
+                    ),
+                    Expr::Return(Box::new(Expr::Lit(Literal::IntLiteral(10)))),
+                ],
             ),
         )];
 
