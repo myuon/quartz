@@ -99,16 +99,40 @@ impl Parser {
             Ok(Expr::Const(var, Box::new(expr)))
         })
         .or_else(|_| -> Result<Expr> {
-            // exprStatement (s) OR s = e;
-            let s = self.expr_short()?;
-            if self.expect_lexeme(Lexeme::Equal).is_err() {
-                Ok(s)
-            } else {
+            let current = self.position;
+
+            // s = e;
+            (|| {
+                let s = self.expr_short()?;
+                self.expect_lexeme(Lexeme::Equal)?;
                 let e = self.expr()?;
                 self.expect_lexeme(Lexeme::SemiColon)?;
 
                 Ok(Expr::Assign(Box::new(s), Box::new(e)))
-            }
+            })()
+            .map_err(|err| {
+                // recover
+                self.position = current;
+
+                err
+            })
+        })
+        .or_else(|_| -> Result<Expr> {
+            let current = self.position;
+
+            // exprStatement
+            (|| {
+                let e = self.expr()?;
+                self.expect_lexeme(Lexeme::SemiColon)?;
+
+                Ok(e)
+            })()
+            .map_err(|err| {
+                // recover
+                self.position = current;
+
+                err
+            })
         })
     }
 
@@ -123,12 +147,19 @@ impl Parser {
                     continue;
                 }
                 Err(_) => {
-                    // need recover
                     break;
                 }
             }
         }
 
+        // 最後の行でreturnのないexprを許容する
+        // ここ明らかに無駄なのでやめたい(2回recoverすることになるため)
+        match self.expr() {
+            Ok(r) => {
+                stmts.push(r);
+            }
+            _ => {}
+        }
         self.expect_lexeme(Lexeme::RBrace)?;
 
         Ok(stmts)
@@ -208,6 +239,7 @@ mod tests {
                 // 最後にexprを返す形
                 r#"func main() {
                     x = 10;
+                    30;
 
                     200
                 }"#,
@@ -218,6 +250,7 @@ mod tests {
                             Box::new(Expr::Var("x".to_string())),
                             Box::new(Expr::Lit(Literal::IntLiteral(10))),
                         ),
+                        Expr::Lit(Literal::IntLiteral(30)),
                         Expr::Lit(Literal::IntLiteral(200)),
                     ],
                 ),
