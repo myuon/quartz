@@ -22,12 +22,16 @@ impl Parser {
     }
 
     fn expect_lexeme(&mut self, lexeme: Lexeme) -> Result<()> {
-        ensure!(
-            self.input[self.position].lexeme == lexeme,
-            "Expected {:?} but found {:?}",
-            lexeme,
-            &self.input[self.position..]
-        );
+        if self.is_end() {
+            bail!("Expected {:?} but EOS", lexeme);
+        } else {
+            ensure!(
+                self.input[self.position].lexeme == lexeme,
+                "Expected {:?} but found {:?}",
+                lexeme,
+                &self.input[self.position..]
+            );
+        }
         self.position += 1;
 
         Ok(())
@@ -282,6 +286,16 @@ mod tests {
                         "main".to_string(),
                         vec![],
                     )))),
+                ]),
+            ),
+            (
+                r#"let x = 10; x"#,
+                Module(vec![
+                    Expr::Statement(Box::new(Statement::Let(
+                        "x".to_string(),
+                        Expr::Lit(Literal::Int(10)),
+                    ))),
+                    Expr::Var("x".to_string()),
                 ]),
             ),
         ];
