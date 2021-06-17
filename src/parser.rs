@@ -121,18 +121,21 @@ impl Parser {
             let st = self.statement()?;
 
             let semicolon = self.expect_lexeme(Lexeme::SemiColon);
-            if semicolon.is_ok() {
-                statements.push(Expr::Statement(Box::new(st)));
-            } else {
-                match st {
-                    Statement::Expr(e) => {
-                        // if trailing semicolon is omitted, last statement would be treated as an naked expr
-                        statements.push(e);
+            match semicolon {
+                Ok(_) => {
+                    statements.push(Expr::Statement(Box::new(st)));
+                }
+                Err(err) => {
+                    match st {
+                        Statement::Expr(e) => {
+                            // if trailing semicolon is omitted, last statement would be treated as an naked expr
+                            statements.push(e);
 
-                        return Ok(statements);
-                    }
-                    _ => {
-                        semicolon?;
+                            return Ok(statements);
+                        }
+                        _ => {
+                            return Err(err);
+                        }
                     }
                 }
             }
@@ -143,19 +146,6 @@ impl Parser {
 
     fn expr(&mut self) -> Result<Expr> {
         (self.literal().map(|lit| Expr::Lit(lit)))
-            .or_else(|_| -> Result<Expr> {
-                self.expect_lexeme(Lexeme::Fn)?;
-
-                self.expect_lexeme(Lexeme::LParen)?;
-                let args = self.many_idents()?;
-                self.expect_lexeme(Lexeme::RParen)?;
-
-                self.expect_lexeme(Lexeme::LBrace)?;
-                let statements = self.many_statements()?;
-                self.expect_lexeme(Lexeme::RBrace)?;
-
-                Ok(Expr::Fun(args, statements))
-            })
             .or_else(|_| -> Result<Expr> {
                 // var or fun call
                 let v = self.ident()?;
@@ -173,6 +163,19 @@ impl Parser {
                         Ok(Expr::Var(v))
                     }
                 }
+            })
+            .or_else(|_| -> Result<Expr> {
+                self.expect_lexeme(Lexeme::Fn)?;
+
+                self.expect_lexeme(Lexeme::LParen)?;
+                let args = self.many_idents()?;
+                self.expect_lexeme(Lexeme::RParen)?;
+
+                self.expect_lexeme(Lexeme::LBrace)?;
+                let statements = self.many_statements()?;
+                self.expect_lexeme(Lexeme::RBrace)?;
+
+                Ok(Expr::Fun(args, statements))
             })
     }
 
@@ -287,6 +290,19 @@ mod tests {
             let result = run_parser(c.0);
             assert!(matches!(result, Ok(_)), "{:?} {:?}", c.0, result);
             assert_eq!(result.unwrap(), c.1, "{:?}", c.0);
+        }
+    }
+
+    #[test]
+    fn test_run_parser_fail() {
+        let cases = vec![(r#"fn () { let u = 10 }"#, "Expected SemiColon")];
+
+        for c in cases {
+            let result = run_parser(c.0);
+            assert!(matches!(result, Err(_)), "{:?} {:?}", c.0, result);
+
+            let err = result.unwrap_err();
+            assert!(err.to_string().contains(c.1), "{:?}", err);
         }
     }
 }
