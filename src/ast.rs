@@ -1,16 +1,16 @@
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum Literal {
     Int(i32),
     String(String),
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum Statement {
     Let(String, Expr),
     Expr(Expr),
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum Expr {
     Var(String),
     Lit(Literal),
@@ -19,5 +19,5 @@ pub enum Expr {
     Statement(Box<Statement>),
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct Module(pub Vec<Expr>);
