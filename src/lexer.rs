@@ -3,23 +3,24 @@ use regex::Regex;
 
 #[derive(PartialEq, Debug)]
 pub enum Lexeme {
-    Func,
-    Return,
+    Fn,
     Let,
-    Const,
     LParen,
     RParen,
     LBrace,
     RBrace,
     SemiColon,
+    Comma,
     Equal,
     Ident(String),
-    IntLiteral(i32),
+    Int(i32),
+    String(String),
 }
 
 static SPACE_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"^\s+").unwrap());
 static IDENT_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[a-zA-Z_][a-zA-Z0-9_]*").unwrap());
 static INT_LITERAL: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[0-9]+").unwrap());
+static STRING_LITERAL: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^"([^"]*)""#).unwrap());
 
 #[derive(PartialEq, Debug)]
 pub struct Token {
@@ -78,15 +79,14 @@ impl TokenReader {
             if self.matches_any(
                 input,
                 vec![
-                    ("func", Lexeme::Func),
-                    ("return", Lexeme::Return),
+                    ("fn", Lexeme::Fn),
                     ("let", Lexeme::Let),
-                    ("const", Lexeme::Const),
                     ("(", Lexeme::LParen),
                     (")", Lexeme::RParen),
                     ("{", Lexeme::LBrace),
                     ("}", Lexeme::RBrace),
                     (";", Lexeme::SemiColon),
+                    (",", Lexeme::Comma),
                     ("=", Lexeme::Equal),
                 ],
             ) {
@@ -109,11 +109,24 @@ impl TokenReader {
             match INT_LITERAL.find(&input[self.position..]) {
                 Some(m) => {
                     self.tokens.push(Token {
-                        lexeme: Lexeme::IntLiteral(m.as_str().parse::<i32>().unwrap()),
+                        lexeme: Lexeme::Int(m.as_str().parse::<i32>().unwrap()),
                         position: self.position,
                     });
 
                     self.position += m.end();
+                    continue;
+                }
+                None => (),
+            }
+
+            match STRING_LITERAL.captures(&input[self.position..]) {
+                Some(m) => {
+                    self.tokens.push(Token {
+                        lexeme: Lexeme::String(m.get(1).unwrap().as_str().to_string()),
+                        position: self.position,
+                    });
+
+                    self.position += m.get(0).unwrap().end();
                     continue;
                 }
                 None => (),
@@ -139,19 +152,50 @@ mod tests {
     fn test_run_lexer() {
         use Lexeme::*;
         let cases = vec![(
-            r#"func main() {
-                    return 10;
-                }"#,
+            r#"let main = fn () {
+                f(10, 20, 40);
+                100;
+                "foo";
+                let u = fn () { 20 };
+            };
+            main();"#,
             vec![
-                Func,
+                Let,
                 Ident("main".to_string()),
+                Equal,
+                Fn,
                 LParen,
                 RParen,
                 LBrace,
-                Return,
-                IntLiteral(10),
+                Ident("f".to_string()),
+                LParen,
+                Int(10),
+                Comma,
+                Int(20),
+                Comma,
+                Int(40),
+                RParen,
+                SemiColon,
+                Int(100),
+                SemiColon,
+                String("foo".to_string()),
+                SemiColon,
+                Let,
+                Ident("u".to_string()),
+                Equal,
+                Fn,
+                LParen,
+                RParen,
+                LBrace,
+                Int(20),
+                RBrace,
                 SemiColon,
                 RBrace,
+                SemiColon,
+                Ident("main".to_string()),
+                LParen,
+                RParen,
+                SemiColon,
             ],
         )];
 

@@ -1,5 +1,5 @@
 use crate::{
-    ast::{Decl, Expr, Literal},
+    ast::{Expr, Literal, Module, Statement},
     lexer::{run_lexer, Lexeme, Token},
 };
 use anyhow::{bail, ensure, Result};
@@ -15,6 +15,10 @@ impl Parser {
             position: 0,
             input: vec![],
         }
+    }
+
+    fn peek(&self) -> &Token {
+        &self.input[self.position]
     }
 
     fn expect_lexeme(&mut self, lexeme: Lexeme) -> Result<()> {
@@ -44,11 +48,16 @@ impl Parser {
     }
 
     fn literal(&mut self) -> Result<Literal> {
-        match self.input[self.position].lexeme {
-            Lexeme::IntLiteral(n) => {
+        match &self.input[self.position].lexeme {
+            Lexeme::Int(n) => {
                 self.position += 1;
 
-                Ok(Literal::IntLiteral(n))
+                Ok(Literal::Int(*n))
+            }
+            Lexeme::String(s) => {
+                self.position += 1;
+
+                Ok(Literal::String(s.clone()))
             }
             _ => bail!(
                 "Expected a literal but found {:?}",
@@ -57,147 +66,146 @@ impl Parser {
         }
     }
 
-    fn expr_short(&mut self) -> Result<Expr> {
-        // var
-        (self.ident().map(|v| Expr::Var(v))).or_else(
-            // literal
-            |_| self.literal().map(|v| Expr::Lit(v)),
-        )
+    fn statement_let(&mut self) -> Result<Statement> {
+        self.expect_lexeme(Lexeme::Let)?;
+        let x = self.ident()?;
+        self.expect_lexeme(Lexeme::Equal)?;
+        let e = self.expr()?;
+
+        Ok(Statement::Let(x, e))
+    }
+
+    fn statement(&mut self) -> Result<Statement> {
+        self.statement_let()
+            .or_else(|_| self.expr().map(|e| Statement::Expr(e)))
+    }
+
+    fn many_idents(&mut self) -> Result<Vec<String>> {
+        let mut idents = vec![];
+
+        while self.peek().lexeme != Lexeme::RParen {
+            let e = self.ident()?;
+            idents.push(e);
+
+            // allow trailing comma
+            match self.expect_lexeme(Lexeme::Comma) {
+                Err(_) => return Ok(idents),
+                r => r,
+            }?
+        }
+
+        Ok(idents)
+    }
+
+    fn many_exprs(&mut self) -> Result<Vec<Expr>> {
+        let mut exprs = vec![];
+
+        while self.peek().lexeme != Lexeme::RParen {
+            let e = self.expr()?;
+            exprs.push(e);
+
+            // allow trailing comma
+            match self.expect_lexeme(Lexeme::Comma) {
+                Err(_) => return Ok(exprs),
+                r => r,
+            }?
+        }
+
+        Ok(exprs)
+    }
+
+    fn many_statements(&mut self) -> Result<Vec<Expr>> {
+        let mut statements = vec![];
+
+        while !self.is_end() && self.peek().lexeme != Lexeme::RBrace {
+            let st = self.statement()?;
+
+            let semicolon = self.expect_lexeme(Lexeme::SemiColon);
+            if semicolon.is_ok() {
+                statements.push(Expr::Statement(Box::new(st)));
+            } else {
+                match st {
+                    Statement::Expr(e) => {
+                        // if trailing semicolon is omitted, last statement would be treated as an naked expr
+                        statements.push(e);
+
+                        return Ok(statements);
+                    }
+                    _ => {
+                        semicolon?;
+                    }
+                }
+            }
+        }
+
+        Ok(statements)
     }
 
     fn expr(&mut self) -> Result<Expr> {
-        self.expr_short()
-    }
+        (self.literal().map(|lit| Expr::Lit(lit)))
+            .or_else(|_| -> Result<Expr> {
+                self.expect_lexeme(Lexeme::Fn)?;
 
-    fn statement(&mut self) -> Result<Expr> {
-        (|| -> Result<Expr> {
-            // return expr;
-            self.expect_lexeme(Lexeme::Return)?;
-            let expr = self.expr()?;
-            self.expect_lexeme(Lexeme::SemiColon)?;
+                self.expect_lexeme(Lexeme::LParen)?;
+                let args = self.many_idents()?;
+                self.expect_lexeme(Lexeme::RParen)?;
 
-            Ok(Expr::Return(Box::new(expr)))
-        }())
-        .or_else(|_| -> Result<Expr> {
-            // let v = e;
-            self.expect_lexeme(Lexeme::Let)?;
-            let var = self.ident()?;
-            self.expect_lexeme(Lexeme::Equal)?;
-            let expr = self.expr()?;
-            self.expect_lexeme(Lexeme::SemiColon)?;
+                self.expect_lexeme(Lexeme::LBrace)?;
+                let statements = self.many_statements()?;
+                self.expect_lexeme(Lexeme::RBrace)?;
 
-            Ok(Expr::Let(var, Box::new(expr)))
-        })
-        .or_else(|_| -> Result<Expr> {
-            // const v = e;
-            self.expect_lexeme(Lexeme::Const)?;
-            let var = self.ident()?;
-            self.expect_lexeme(Lexeme::Equal)?;
-            let expr = self.expr()?;
-            self.expect_lexeme(Lexeme::SemiColon)?;
-
-            Ok(Expr::Const(var, Box::new(expr)))
-        })
-        .or_else(|_| -> Result<Expr> {
-            let current = self.position;
-
-            // s = e;
-            (|| {
-                let s = self.expr_short()?;
-                self.expect_lexeme(Lexeme::Equal)?;
-                let e = self.expr()?;
-                self.expect_lexeme(Lexeme::SemiColon)?;
-
-                Ok(Expr::Assign(Box::new(s), Box::new(e)))
-            })()
-            .map_err(|err| {
-                // recover
-                self.position = current;
-
-                err
+                Ok(Expr::Fun(args, statements))
             })
-        })
-        .or_else(|_| -> Result<Expr> {
-            let current = self.position;
+            .or_else(|_| -> Result<Expr> {
+                // var or fun call
+                let v = self.ident()?;
 
-            // exprStatement
-            (|| {
-                let e = self.expr()?;
-                self.expect_lexeme(Lexeme::SemiColon)?;
+                match self.expect_lexeme(Lexeme::LParen) {
+                    Ok(_) => {
+                        // function call
+                        let args = self.many_exprs()?;
+                        self.expect_lexeme(Lexeme::RParen)?;
 
-                Ok(e)
-            })()
-            .map_err(|err| {
-                // recover
-                self.position = current;
-
-                err
+                        Ok(Expr::Call(v, args))
+                    }
+                    Err(_) => {
+                        // var
+                        Ok(Expr::Var(v))
+                    }
+                }
             })
-        })
     }
 
-    fn statments_block(&mut self) -> Result<Vec<Expr>> {
-        self.expect_lexeme(Lexeme::LBrace)?;
+    fn parse_module(&mut self) -> Result<Module> {
+        let statements = self.many_statements()?;
 
-        let mut stmts = vec![];
-        loop {
-            match self.statement() {
-                Ok(r) => {
-                    stmts.push(r);
-                    continue;
-                }
-                Err(_) => {
-                    break;
-                }
-            }
-        }
-
-        // 最後の行でreturnのないexprを許容する
-        // ここ明らかに無駄なのでやめたい(2回recoverすることになるため)
-        match self.expr() {
-            Ok(r) => {
-                stmts.push(r);
-            }
-            _ => {}
-        }
-        self.expect_lexeme(Lexeme::RBrace)?;
-
-        Ok(stmts)
+        Ok(Module(statements))
     }
 
-    fn parse_decl(&mut self) -> Result<Decl> {
-        // func
-        self.expect_lexeme(Lexeme::Func)?;
-        let name = self.ident()?;
-
-        self.expect_lexeme(Lexeme::LParen)?;
-        self.expect_lexeme(Lexeme::RParen)?;
-
-        let body = self.statments_block()?;
-
-        Ok(Decl::Func(name, body))
-    }
-
-    pub fn run_parser(&mut self, tokens: Vec<Token>) -> Result<Decl> {
+    pub fn run_parser(&mut self, tokens: Vec<Token>) -> Result<Module> {
         self.position = 0;
         self.input = tokens;
 
-        self.parse_decl()
+        self.parse_module()
+    }
+
+    pub fn is_end(&self) -> bool {
+        self.input.len() == self.position
     }
 }
 
-pub fn run_parser_from_tokens(tokens: Vec<Token>) -> Result<Decl> {
+pub fn run_parser_from_tokens(tokens: Vec<Token>) -> Result<Module> {
     let mut parser = Parser::new();
     let result = parser.run_parser(tokens)?;
 
-    if parser.input.len() != parser.position {
+    if !parser.is_end() {
         bail!("Unexpected token: {:?}", &parser.input[parser.position..]);
     }
 
     Ok(result)
 }
 
-pub fn run_parser(input: &str) -> Result<Decl> {
+pub fn run_parser(input: &str) -> Result<Module> {
     run_parser_from_tokens(run_lexer(input))
 }
 
@@ -209,51 +217,69 @@ mod tests {
     fn test_run_parser() {
         let cases = vec![
             (
-                r#"func main() {
-                    const x = 10;
+                r#"let main = fn () {
                     let y = 10;
-                    y = 20;
-
-                    return 10;
-                }"#,
-                Decl::Func(
+                    _assign(y, 20);
+                    y
+                };"#,
+                Module(vec![Expr::Statement(Box::new(Statement::Let(
                     "main".to_string(),
-                    vec![
-                        Expr::Const(
-                            "x".to_string(),
-                            Box::new(Expr::Lit(Literal::IntLiteral(10))),
-                        ),
-                        Expr::Let(
-                            "y".to_string(),
-                            Box::new(Expr::Lit(Literal::IntLiteral(10))),
-                        ),
-                        Expr::Assign(
-                            Box::new(Expr::Var("y".to_string())),
-                            Box::new(Expr::Lit(Literal::IntLiteral(20))),
-                        ),
-                        Expr::Return(Box::new(Expr::Lit(Literal::IntLiteral(10)))),
-                    ],
-                ),
+                    Expr::Fun(
+                        vec![],
+                        vec![
+                            Expr::Statement(Box::new(Statement::Let(
+                                "y".to_string(),
+                                Expr::Lit(Literal::Int(10)),
+                            ))),
+                            Expr::Statement(Box::new(Statement::Expr(Expr::Call(
+                                "_assign".to_string(),
+                                vec![Expr::Var("y".to_string()), Expr::Lit(Literal::Int(20))],
+                            )))),
+                            Expr::Var("y".to_string()),
+                        ],
+                    ),
+                )))]),
             ),
             (
-                // 最後にexprを返す形
-                r#"func main() {
-                    x = 10;
-                    30;
-
-                    200
-                }"#,
-                Decl::Func(
-                    "main".to_string(),
-                    vec![
-                        Expr::Assign(
-                            Box::new(Expr::Var("x".to_string())),
-                            Box::new(Expr::Lit(Literal::IntLiteral(10))),
+                r#"let main = fn () {
+                    f(10, 20, 40);
+                    100;
+                    "foo";
+                    let u = fn () { 20 };
+                };
+                main();"#,
+                Module(vec![
+                    Expr::Statement(Box::new(Statement::Let(
+                        "main".to_string(),
+                        Expr::Fun(
+                            vec![],
+                            vec![
+                                Expr::Statement(Box::new(Statement::Expr(Expr::Call(
+                                    "f".to_string(),
+                                    vec![
+                                        Expr::Lit(Literal::Int(10)),
+                                        Expr::Lit(Literal::Int(20)),
+                                        Expr::Lit(Literal::Int(40)),
+                                    ],
+                                )))),
+                                Expr::Statement(Box::new(Statement::Expr(Expr::Lit(
+                                    Literal::Int(100),
+                                )))),
+                                Expr::Statement(Box::new(Statement::Expr(Expr::Lit(
+                                    Literal::String("foo".to_string()),
+                                )))),
+                                Expr::Statement(Box::new(Statement::Let(
+                                    "u".to_string(),
+                                    Expr::Fun(vec![], vec![Expr::Lit(Literal::Int(20))]),
+                                ))),
+                            ],
                         ),
-                        Expr::Lit(Literal::IntLiteral(30)),
-                        Expr::Lit(Literal::IntLiteral(200)),
-                    ],
-                ),
+                    ))),
+                    Expr::Statement(Box::new(Statement::Expr(Expr::Call(
+                        "main".to_string(),
+                        vec![],
+                    )))),
+                ]),
             ),
         ];
 
