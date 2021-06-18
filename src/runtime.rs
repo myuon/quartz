@@ -32,30 +32,24 @@ impl Interpreter {
         Ok(v.clone())
     }
 
-    fn statement(&mut self, stmt: Statement) -> Result<RuntimeData> {
-        match stmt {
-            Statement::Let(x, e) => {
-                let val = self.expr(e.clone())?;
-                self.variables.insert(x.clone(), val);
-
-                Ok(RuntimeData::Nil)
-            }
-            Statement::Return(e) => Ok(self.expr(e.clone())?),
-            Statement::Expr(e) => {
-                self.expr(e.clone())?;
-
-                Ok(RuntimeData::Nil)
-            }
-        }
-    }
-
     fn statements(&mut self, stmts: Vec<Statement>) -> Result<RuntimeData> {
-        let mut result = RuntimeData::Nil;
         for stmt in stmts {
-            result = self.statement(stmt)?;
+            match stmt {
+                Statement::Let(x, e) => {
+                    let val = self.expr(e.clone())?;
+                    self.variables.insert(x.clone(), val);
+                }
+                Statement::Return(e) => {
+                    // statementsではreturnしたら以後の部分は評価されない
+                    return Ok(self.expr(e.clone())?);
+                }
+                Statement::Expr(e) => {
+                    self.expr(e.clone())?;
+                }
+            }
         }
 
-        Ok(result)
+        Ok(RuntimeData::Nil)
     }
 
     fn expr(&mut self, expr: Expr) -> Result<RuntimeData> {
@@ -140,6 +134,11 @@ mod tests {
                 // 日本語
                 r#"let u = "こんにちは、世界"; return u;"#,
                 RuntimeData::String("こんにちは、世界".to_string()),
+            ),
+            (
+                // early return
+                r#"return 1; return 2; return 3;"#,
+                RuntimeData::Int(1),
             ),
         ];
 
