@@ -9,6 +9,7 @@ pub enum Statement {
     Let(String, Expr),
     Expr(Expr),
     Return(Expr),
+    Panic,
 }
 
 #[derive(PartialEq, Debug, Clone)]

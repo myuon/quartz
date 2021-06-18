@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, panic::catch_unwind};
 
 use anyhow::{bail, ensure, Result};
 
@@ -72,6 +72,7 @@ impl Interpreter {
                 Statement::Expr(e) => {
                     self.expr(e.clone())?;
                 }
+                Statement::Panic => return Ok(()),
             }
         }
 
@@ -225,6 +226,11 @@ mod tests {
                 // no return functionでもローカル変数は全てpopされること
                 r#"let x = 1; x;"#,
                 vec![RuntimeData::Nil],
+            ),
+            (
+                // just panic
+                r#"let x = 1; panic;"#,
+                vec![RuntimeData::Int(1)],
             ),
         ];
 
