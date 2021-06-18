@@ -35,6 +35,12 @@ impl Interpreter {
         u
     }
 
+    fn pop(&mut self, n: i32) {
+        for _ in 0..n {
+            self.stack.pop();
+        }
+    }
+
     fn load(&mut self, ident: String) -> Result<RuntimeData> {
         let v = self
             .variables
@@ -45,16 +51,19 @@ impl Interpreter {
     }
 
     fn statements(&mut self, stmts: Vec<Statement>) -> Result<RuntimeData> {
+        let mut pop_count = 0;
         for stmt in stmts {
             match stmt {
                 Statement::Let(x, e) => {
                     let val = self.expr(e.clone())?;
                     let p = self.push(val);
                     self.variables.insert(x.clone(), p);
+                    pop_count += 1;
                 }
                 Statement::Return(e) => {
-                    // statementsではreturnしたら以後の部分は評価されない
-                    return Ok(self.expr(e.clone())?);
+                    let val = Ok(self.expr(e.clone())?);
+                    self.pop(pop_count);
+                    return val;
                 }
                 Statement::Expr(e) => {
                     self.expr(e.clone())?;
@@ -80,9 +89,11 @@ impl Interpreter {
                     vargs.push(self.expr(a)?);
                 }
 
-                // ffi
                 match self.ffi_table.get(&f) {
-                    Some(f) => Ok(f(vargs)),
+                    Some(f) => {
+                        // ffi
+                        Ok(f(vargs))
+                    }
                     _ => match self.load(f)? {
                         RuntimeData::Closure(vs, body) => {
                             ensure!(
@@ -127,6 +138,26 @@ mod tests {
 
     use super::*;
 
+    fn create_ffi_table() -> FFITable {
+        let mut ffi_table: FFITable = HashMap::new();
+        ffi_table.insert(
+            "_add".to_string(),
+            Box::new(|vs: Vec<RuntimeData>| match (&vs[0], &vs[1]) {
+                (RuntimeData::Int(x), RuntimeData::Int(y)) => RuntimeData::Int(x + y),
+                _ => todo!(),
+            }),
+        );
+        ffi_table.insert(
+            "_minus".to_string(),
+            Box::new(|vs: Vec<RuntimeData>| match (&vs[0], &vs[1]) {
+                (RuntimeData::Int(x), RuntimeData::Int(y)) => RuntimeData::Int(x - y),
+                _ => todo!(),
+            }),
+        );
+
+        ffi_table
+    }
+
     #[test]
     fn test_runtime() {
         let cases = vec![
@@ -152,26 +183,29 @@ mod tests {
             (r#"return _add(1,2);"#, RuntimeData::Int(3)),
         ];
 
-        let mut ffi_table: FFITable = HashMap::new();
-        ffi_table.insert(
-            "_add".to_string(),
-            Box::new(|vs: Vec<RuntimeData>| match (&vs[0], &vs[1]) {
-                (RuntimeData::Int(x), RuntimeData::Int(y)) => RuntimeData::Int(x + y),
-                _ => todo!(),
-            }),
-        );
-        ffi_table.insert(
-            "_minus".to_string(),
-            Box::new(|vs: Vec<RuntimeData>| match (&vs[0], &vs[1]) {
-                (RuntimeData::Int(x), RuntimeData::Int(y)) => RuntimeData::Int(x - y),
-                _ => todo!(),
-            }),
-        );
-
         for c in cases {
             let m = run_parser(c.0).unwrap();
-            let result = interpret(ffi_table.clone(), m).unwrap();
+            let result = interpret(create_ffi_table(), m).unwrap();
             assert_eq!(result, c.1, "{:?}", c.0);
         }
+    }
+
+    #[test]
+    fn test_interpreter_stack() {
+        let mut interpreter = Interpreter::new(create_ffi_table());
+        let m = run_parser(
+            r#"
+            let f = fn () {
+                let y = 1;
+                let z = 2;
+                return _add(y,z);
+            };
+            return f();
+        "#,
+        )
+        .unwrap();
+        let result = interpreter.module(m).unwrap();
+        assert_eq!(result, RuntimeData::Int(3));
+        assert_eq!(interpreter.stack, vec![]);
     }
 }
