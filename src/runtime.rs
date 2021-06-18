@@ -262,16 +262,29 @@ mod tests {
                     return f();
                 "#,
                 vec![RuntimeData::Int(3)],
+                vec![RuntimeData::Closure(
+                    vec![],
+                    vec![
+                        Statement::Let("y".to_string(), Expr::Lit(Literal::Int(1))),
+                        Statement::Let("z".to_string(), Expr::Lit(Literal::Int(2))),
+                        Statement::Return(Expr::Call(
+                            "_add".to_string(),
+                            vec![Expr::Var("y".to_string()), Expr::Var("z".to_string())],
+                        )),
+                    ],
+                )],
             ),
             (
                 // no return functionでもローカル変数は全てpopされること
                 r#"let x = 1; x;"#,
                 vec![RuntimeData::Nil],
+                vec![],
             ),
             (
                 // just panic
                 r#"let x = 1; panic;"#,
                 vec![RuntimeData::Int(1)],
+                vec![],
             ),
             (
                 // 関数呼び出しの際には引数がstackに積まれ、その後returnするときにそれらがpopされて値が返却される
@@ -280,6 +293,21 @@ mod tests {
                     return f(1,2,3,4,5);
                 "#,
                 vec![RuntimeData::HeapAddr(1)],
+                vec![
+                    RuntimeData::Closure(
+                        vec![
+                            "a".to_string(),
+                            "b".to_string(),
+                            "c".to_string(),
+                            "d".to_string(),
+                            "e".to_string(),
+                        ],
+                        vec![Statement::Return(Expr::Lit(Literal::String(
+                            "hello".to_string(),
+                        )))],
+                    ),
+                    RuntimeData::String("hello".to_string()),
+                ],
             ),
         ];
 
@@ -288,6 +316,7 @@ mod tests {
             let m = run_parser(case.0).unwrap();
             interpreter.module(m).unwrap();
             assert_eq!(interpreter.stack, case.1);
+            assert_eq!(interpreter.heap, case.2);
         }
     }
 }
