@@ -35,10 +35,13 @@ impl Interpreter {
         u
     }
 
-    fn pop(&mut self, n: i32) {
+    fn pop(&mut self, n: i32) -> RuntimeData {
+        let mut result = RuntimeData::Nil;
         for _ in 0..n {
-            self.stack.pop();
+            result = self.stack.pop().unwrap();
         }
+
+        result
     }
 
     fn load(&mut self, ident: String) -> Result<RuntimeData> {
@@ -50,7 +53,7 @@ impl Interpreter {
         Ok(self.stack[*v].clone())
     }
 
-    fn statements(&mut self, stmts: Vec<Statement>) -> Result<RuntimeData> {
+    fn statements(&mut self, stmts: Vec<Statement>) -> Result<()> {
         let mut pop_count = 0;
         for stmt in stmts {
             match stmt {
@@ -61,9 +64,10 @@ impl Interpreter {
                     pop_count += 1;
                 }
                 Statement::Return(e) => {
-                    let val = Ok(self.expr(e.clone())?);
+                    let val = self.expr(e.clone())?;
                     self.pop(pop_count);
-                    return val;
+                    self.push(val);
+                    return Ok(());
                 }
                 Statement::Expr(e) => {
                     self.expr(e.clone())?;
@@ -71,9 +75,10 @@ impl Interpreter {
             }
         }
 
-        // returnがない場合はnilをreturnするのと同等
+        // returnがない場合はreturn nil;と同等
         self.pop(pop_count);
-        Ok(RuntimeData::Nil)
+        self.push(RuntimeData::Nil);
+        Ok(())
     }
 
     fn expr(&mut self, expr: Expr) -> Result<RuntimeData> {
@@ -111,11 +116,11 @@ impl Interpreter {
                                 self.variables.insert(v, p);
                             }
 
-                            let result = self.statements(body)?;
+                            self.statements(body)?;
 
                             self.variables = prev;
 
-                            Ok(result)
+                            Ok(self.pop(1))
                         }
                         r => bail!("Expected closure but found {:?}", r),
                     },
@@ -124,14 +129,15 @@ impl Interpreter {
         }
     }
 
-    pub fn module(&mut self, module: Module) -> Result<RuntimeData> {
+    pub fn module(&mut self, module: Module) -> Result<()> {
         self.statements(module.0)
     }
 }
 
 pub fn interpret(ffi_table: FFITable, module: Module) -> Result<RuntimeData> {
     let mut interpreter = Interpreter::new(ffi_table);
-    interpreter.module(module)
+    interpreter.module(module)?;
+    Ok(interpreter.pop(1))
 }
 
 #[cfg(test)]
@@ -213,23 +219,20 @@ mod tests {
                     };
                     return f();
                 "#,
-                RuntimeData::Int(3),
-                vec![],
+                vec![RuntimeData::Int(3)],
             ),
             (
                 // no return functionでもローカル変数は全てpopされること
                 r#"let x = 1; x;"#,
-                RuntimeData::Nil,
-                vec![],
+                vec![RuntimeData::Nil],
             ),
         ];
 
         for case in cases {
             let mut interpreter = Interpreter::new(create_ffi_table());
             let m = run_parser(case.0).unwrap();
-            let result = interpreter.module(m).unwrap();
-            assert_eq!(result, case.1);
-            assert_eq!(interpreter.stack, case.2);
+            interpreter.module(m).unwrap();
+            assert_eq!(interpreter.stack, case.1);
         }
     }
 }
