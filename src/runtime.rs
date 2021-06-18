@@ -15,16 +15,24 @@ pub enum RuntimeData {
 type FFITable = HashMap<String, Box<fn(Vec<RuntimeData>) -> RuntimeData>>;
 
 struct Interpreter {
-    variables: HashMap<String, RuntimeData>,
+    stack: Vec<RuntimeData>,
+    variables: HashMap<String, usize>,
     ffi_table: FFITable,
 }
 
 impl Interpreter {
     pub fn new(ffi_table: FFITable) -> Interpreter {
         Interpreter {
+            stack: vec![],
             variables: HashMap::new(),
             ffi_table,
         }
+    }
+
+    fn push(&mut self, val: RuntimeData) -> usize {
+        let u = self.stack.len();
+        self.stack.push(val);
+        u
     }
 
     fn load(&mut self, ident: String) -> Result<RuntimeData> {
@@ -33,7 +41,7 @@ impl Interpreter {
             .get(&ident)
             .ok_or(anyhow::anyhow!("Ident {} not found", ident))?;
 
-        Ok(v.clone())
+        Ok(self.stack[*v].clone())
     }
 
     fn statements(&mut self, stmts: Vec<Statement>) -> Result<RuntimeData> {
@@ -41,7 +49,8 @@ impl Interpreter {
             match stmt {
                 Statement::Let(x, e) => {
                     let val = self.expr(e.clone())?;
-                    self.variables.insert(x.clone(), val);
+                    let p = self.push(val);
+                    self.variables.insert(x.clone(), p);
                 }
                 Statement::Return(e) => {
                     // statementsではreturnしたら以後の部分は評価されない
@@ -85,7 +94,8 @@ impl Interpreter {
 
                             let prev = self.variables.clone();
                             for (v, val) in vs.into_iter().zip(vargs) {
-                                self.variables.insert(v, val);
+                                let p = self.push(val);
+                                self.variables.insert(v, p);
                             }
 
                             let result = self.statements(body)?;
