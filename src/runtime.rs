@@ -180,7 +180,16 @@ mod tests {
                 r#"return 1; return 2; return 3;"#,
                 RuntimeData::Int(1),
             ),
-            (r#"return _add(1,2);"#, RuntimeData::Int(3)),
+            (
+                // using ffi table
+                r#"return _add(1,2);"#,
+                RuntimeData::Int(3),
+            ),
+            (
+                // no return function
+                r#"1; 2; 3;"#,
+                RuntimeData::Nil,
+            ),
         ];
 
         for c in cases {
