@@ -9,7 +9,7 @@ pub enum RuntimeData {
     Nil,
     Int(i32),
     String(String),
-    Closure(Vec<String>, Vec<Expr>),
+    Closure(Vec<String>, Vec<Statement>),
 }
 
 struct Interpreter {
@@ -30,6 +30,32 @@ impl Interpreter {
             .ok_or(anyhow::anyhow!("Ident {} not found", ident))?;
 
         Ok(v.clone())
+    }
+
+    fn statement(&mut self, stmt: Statement) -> Result<RuntimeData> {
+        match stmt {
+            Statement::Let(x, e) => {
+                let val = self.expr(e.clone())?;
+                self.variables.insert(x.clone(), val);
+
+                Ok(RuntimeData::Nil)
+            }
+            Statement::Return(e) => Ok(self.expr(e.clone())?),
+            Statement::Expr(e) => {
+                self.expr(e.clone())?;
+
+                Ok(RuntimeData::Nil)
+            }
+        }
+    }
+
+    fn statements(&mut self, stmts: Vec<Statement>) -> Result<RuntimeData> {
+        let mut result = RuntimeData::Nil;
+        for stmt in stmts {
+            result = self.statement(stmt)?;
+        }
+
+        Ok(result)
     }
 
     fn expr(&mut self, expr: Expr) -> Result<RuntimeData> {
@@ -61,7 +87,7 @@ impl Interpreter {
                             self.variables.insert(v, val);
                         }
 
-                        let result = self.exprs(body)?;
+                        let result = self.statements(body)?;
 
                         self.variables = prev;
 
@@ -70,20 +96,6 @@ impl Interpreter {
                     r => bail!("Expected closure but found {:?}", r),
                 }
             }
-            Expr::Statement(s) => match s.as_ref() {
-                Statement::Let(x, e) => {
-                    let val = self.expr(e.clone())?;
-                    self.variables.insert(x.clone(), val);
-
-                    Ok(RuntimeData::Nil)
-                }
-                Statement::Return(e) => Ok(self.expr(e.clone())?),
-                Statement::Expr(e) => {
-                    self.expr(e.clone())?;
-
-                    Ok(RuntimeData::Nil)
-                }
-            },
         }
     }
 
@@ -97,7 +109,7 @@ impl Interpreter {
     }
 
     pub fn module(&mut self, module: Module) -> Result<RuntimeData> {
-        self.exprs(module.0)
+        self.statements(module.0)
     }
 }
 

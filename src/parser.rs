@@ -124,14 +124,14 @@ impl Parser {
         Ok(exprs)
     }
 
-    fn many_statements(&mut self) -> Result<Vec<Expr>> {
+    fn many_statements(&mut self) -> Result<Vec<Statement>> {
         let mut statements = vec![];
 
         while !self.is_end() && self.peek().lexeme != Lexeme::RBrace {
             let st = self.statement()?;
 
             self.expect_lexeme(Lexeme::SemiColon)?;
-            statements.push(Expr::Statement(Box::new(st)));
+            statements.push(st);
         }
 
         Ok(statements)
@@ -218,25 +218,20 @@ mod tests {
                     _assign(y, 20);
                     return y;
                 };"#,
-                Module(vec![Expr::Statement(Box::new(Statement::Let(
+                Module(vec![Statement::Let(
                     "main".to_string(),
                     Expr::Fun(
                         vec![],
                         vec![
-                            Expr::Statement(Box::new(Statement::Let(
-                                "y".to_string(),
-                                Expr::Lit(Literal::Int(10)),
-                            ))),
-                            Expr::Statement(Box::new(Statement::Expr(Expr::Call(
+                            Statement::Let("y".to_string(), Expr::Lit(Literal::Int(10))),
+                            Statement::Expr(Expr::Call(
                                 "_assign".to_string(),
                                 vec![Expr::Var("y".to_string()), Expr::Lit(Literal::Int(20))],
-                            )))),
-                            Expr::Statement(Box::new(Statement::Return(Expr::Var(
-                                "y".to_string(),
-                            )))),
+                            )),
+                            Statement::Return(Expr::Var("y".to_string())),
                         ],
                     ),
-                )))]),
+                )]),
             ),
             (
                 r#"let main = fn () {
@@ -247,51 +242,39 @@ mod tests {
                 };
                 main();"#,
                 Module(vec![
-                    Expr::Statement(Box::new(Statement::Let(
+                    (Statement::Let(
                         "main".to_string(),
                         Expr::Fun(
                             vec![],
                             vec![
-                                Expr::Statement(Box::new(Statement::Expr(Expr::Call(
+                                (Statement::Expr(Expr::Call(
                                     "f".to_string(),
                                     vec![
                                         Expr::Lit(Literal::Int(10)),
                                         Expr::Lit(Literal::Int(20)),
                                         Expr::Lit(Literal::Int(40)),
                                     ],
-                                )))),
-                                Expr::Statement(Box::new(Statement::Expr(Expr::Lit(
-                                    Literal::Int(100),
-                                )))),
-                                Expr::Statement(Box::new(Statement::Expr(Expr::Lit(
-                                    Literal::String("foo".to_string()),
-                                )))),
-                                Expr::Statement(Box::new(Statement::Let(
+                                ))),
+                                (Statement::Expr(Expr::Lit(Literal::Int(100)))),
+                                (Statement::Expr(Expr::Lit(Literal::String("foo".to_string())))),
+                                (Statement::Let(
                                     "u".to_string(),
                                     Expr::Fun(
                                         vec![],
-                                        vec![Expr::Statement(Box::new(Statement::Return(
-                                            Expr::Lit(Literal::Int(20)),
-                                        )))],
+                                        vec![(Statement::Return(Expr::Lit(Literal::Int(20))))],
                                     ),
-                                ))),
+                                )),
                             ],
                         ),
-                    ))),
-                    Expr::Statement(Box::new(Statement::Expr(Expr::Call(
-                        "main".to_string(),
-                        vec![],
-                    )))),
+                    )),
+                    (Statement::Expr(Expr::Call("main".to_string(), vec![]))),
                 ]),
             ),
             (
                 r#"let x = 10; return x;"#,
                 Module(vec![
-                    Expr::Statement(Box::new(Statement::Let(
-                        "x".to_string(),
-                        Expr::Lit(Literal::Int(10)),
-                    ))),
-                    Expr::Statement(Box::new(Statement::Return(Expr::Var("x".to_string())))),
+                    (Statement::Let("x".to_string(), Expr::Lit(Literal::Int(10)))),
+                    (Statement::Return(Expr::Var("x".to_string()))),
                 ]),
             ),
         ];

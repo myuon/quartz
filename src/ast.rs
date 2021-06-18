@@ -15,10 +15,9 @@ pub enum Statement {
 pub enum Expr {
     Var(String),
     Lit(Literal),
-    Fun(Vec<String>, Vec<Expr>),
+    Fun(Vec<String>, Vec<Statement>),
     Call(String, Vec<Expr>),
-    Statement(Box<Statement>),
 }
 
 #[derive(PartialEq, Debug, Clone)]
-pub struct Module(pub Vec<Expr>);
+pub struct Module(pub Vec<Statement>);
