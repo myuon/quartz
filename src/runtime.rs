@@ -12,14 +12,18 @@ pub enum RuntimeData {
     Closure(Vec<String>, Vec<Statement>),
 }
 
+type FFITable = HashMap<String, Box<fn(Vec<RuntimeData>) -> RuntimeData>>;
+
 struct Interpreter {
     variables: HashMap<String, RuntimeData>,
+    ffi_table: FFITable,
 }
 
 impl Interpreter {
-    pub fn new() -> Interpreter {
+    pub fn new(ffi_table: FFITable) -> Interpreter {
         Interpreter {
             variables: HashMap::new(),
+            ffi_table,
         }
     }
 
@@ -67,39 +71,34 @@ impl Interpreter {
                     vargs.push(self.expr(a)?);
                 }
 
-                match self.load(f)? {
-                    RuntimeData::Closure(vs, body) => {
-                        ensure!(
-                            vs.len() == arity,
-                            "Expected {} arguments but {} given",
-                            vs.len(),
-                            arity,
-                        );
+                // ffi
+                match self.ffi_table.get(&f) {
+                    Some(f) => Ok(f(vargs)),
+                    _ => match self.load(f)? {
+                        RuntimeData::Closure(vs, body) => {
+                            ensure!(
+                                vs.len() == arity,
+                                "Expected {} arguments but {} given",
+                                vs.len(),
+                                arity,
+                            );
 
-                        let prev = self.variables.clone();
-                        for (v, val) in vs.into_iter().zip(vargs) {
-                            self.variables.insert(v, val);
+                            let prev = self.variables.clone();
+                            for (v, val) in vs.into_iter().zip(vargs) {
+                                self.variables.insert(v, val);
+                            }
+
+                            let result = self.statements(body)?;
+
+                            self.variables = prev;
+
+                            Ok(result)
                         }
-
-                        let result = self.statements(body)?;
-
-                        self.variables = prev;
-
-                        Ok(result)
-                    }
-                    r => bail!("Expected closure but found {:?}", r),
+                        r => bail!("Expected closure but found {:?}", r),
+                    },
                 }
             }
         }
-    }
-
-    fn exprs(&mut self, exprs: Vec<Expr>) -> Result<RuntimeData> {
-        let mut result = RuntimeData::Nil;
-        for expr in exprs {
-            result = self.expr(expr)?;
-        }
-
-        Ok(result)
     }
 
     pub fn module(&mut self, module: Module) -> Result<RuntimeData> {
@@ -107,8 +106,8 @@ impl Interpreter {
     }
 }
 
-pub fn interpret(module: Module) -> Result<RuntimeData> {
-    let mut interpreter = Interpreter::new();
+pub fn interpret(ffi_table: FFITable, module: Module) -> Result<RuntimeData> {
+    let mut interpreter = Interpreter::new(ffi_table);
     interpreter.module(module)
 }
 
@@ -140,11 +139,28 @@ mod tests {
                 r#"return 1; return 2; return 3;"#,
                 RuntimeData::Int(1),
             ),
+            (r#"return _add(1,2);"#, RuntimeData::Int(3)),
         ];
+
+        let mut ffi_table: FFITable = HashMap::new();
+        ffi_table.insert(
+            "_add".to_string(),
+            Box::new(|vs: Vec<RuntimeData>| match (&vs[0], &vs[1]) {
+                (RuntimeData::Int(x), RuntimeData::Int(y)) => RuntimeData::Int(x + y),
+                _ => todo!(),
+            }),
+        );
+        ffi_table.insert(
+            "_minus".to_string(),
+            Box::new(|vs: Vec<RuntimeData>| match (&vs[0], &vs[1]) {
+                (RuntimeData::Int(x), RuntimeData::Int(y)) => RuntimeData::Int(x - y),
+                _ => todo!(),
+            }),
+        );
 
         for c in cases {
             let m = run_parser(c.0).unwrap();
-            let result = interpret(m).unwrap();
+            let result = interpret(ffi_table.clone(), m).unwrap();
             assert_eq!(result, c.1, "{:?}", c.0);
         }
     }
