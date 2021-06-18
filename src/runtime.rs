@@ -1,4 +1,4 @@
-use std::{collections::HashMap, panic::catch_unwind};
+use std::collections::HashMap;
 
 use anyhow::{bail, ensure, Result};
 
@@ -9,6 +9,7 @@ pub enum RuntimeData {
     Nil,
     Int(i32),
     String(String),
+    Pointer(usize),
     Closure(Vec<String>, Vec<Statement>),
 }
 
@@ -16,6 +17,7 @@ type FFITable = HashMap<String, Box<fn(Vec<RuntimeData>) -> RuntimeData>>;
 
 struct Interpreter {
     stack: Vec<RuntimeData>,
+    heap: Vec<RuntimeData>,
     variables: HashMap<String, usize>,
     ffi_table: FFITable,
 }
@@ -24,6 +26,7 @@ impl Interpreter {
     pub fn new(ffi_table: FFITable) -> Interpreter {
         Interpreter {
             stack: vec![],
+            heap: vec![],
             variables: HashMap::new(),
             ffi_table,
         }
@@ -42,6 +45,38 @@ impl Interpreter {
         }
 
         result
+    }
+
+    // TODO: 空いてるところを探すようにする
+    fn alloc(&mut self, val: RuntimeData) -> RuntimeData {
+        let p = self.heap.len();
+        self.heap.push(val);
+        RuntimeData::Pointer(p)
+    }
+
+    fn free(&mut self, pointer: RuntimeData) -> Result<()> {
+        match pointer {
+            RuntimeData::Pointer(p) => {
+                if p < self.heap.len() && !matches!(self.heap[p], RuntimeData::Nil) {
+                    self.heap[p] = RuntimeData::Nil;
+
+                    Ok(())
+                } else {
+                    bail!("Failed to free this object");
+                }
+            }
+            _ => {
+                bail!("Expected pointer but found {:?}", pointer);
+            }
+        }
+    }
+
+    // deref heap address
+    fn deref(&mut self, pointer: RuntimeData) -> Result<RuntimeData> {
+        match pointer {
+            RuntimeData::Pointer(p) => Ok(self.heap[p].clone()),
+            _ => bail!("Expected pointer but found {:?}", pointer),
+        }
     }
 
     fn load(&mut self, ident: String) -> Result<RuntimeData> {
@@ -89,7 +124,7 @@ impl Interpreter {
                 Literal::Int(n) => RuntimeData::Int(n),
                 Literal::String(s) => RuntimeData::String(s),
             }),
-            Expr::Fun(args, body) => Ok(RuntimeData::Closure(args, body)),
+            Expr::Fun(args, body) => Ok(self.alloc(RuntimeData::Closure(args, body))),
             Expr::Call(f, args) => {
                 let arity = args.len();
                 let mut vargs = vec![];
@@ -102,29 +137,33 @@ impl Interpreter {
                         // ffi
                         Ok(f(vargs))
                     }
-                    _ => match self.load(f)? {
-                        RuntimeData::Closure(vs, body) => {
-                            ensure!(
-                                vs.len() == arity,
-                                "Expected {} arguments but {} given",
-                                vs.len(),
-                                arity,
-                            );
+                    _ => {
+                        let faddr = self.load(f)?;
+                        let closure = self.deref(faddr)?;
+                        match closure {
+                            RuntimeData::Closure(vs, body) => {
+                                ensure!(
+                                    vs.len() == arity,
+                                    "Expected {} arguments but {} given",
+                                    vs.len(),
+                                    arity,
+                                );
 
-                            let prev = self.variables.clone();
-                            for (v, val) in vs.into_iter().zip(vargs) {
-                                let p = self.push(val);
-                                self.variables.insert(v, p);
+                                let prev = self.variables.clone();
+                                for (v, val) in vs.into_iter().zip(vargs) {
+                                    let p = self.push(val);
+                                    self.variables.insert(v, p);
+                                }
+
+                                self.statements(arity, body)?;
+
+                                self.variables = prev;
+
+                                Ok(self.pop(1))
                             }
-
-                            self.statements(arity, body)?;
-
-                            self.variables = prev;
-
-                            Ok(self.pop(1))
+                            r => bail!("Expected closure but found {:?}", r),
                         }
-                        r => bail!("Expected closure but found {:?}", r),
-                    },
+                    }
                 }
             }
         }
