@@ -177,7 +177,12 @@ impl Interpreter {
                 }
 
                 // ヒープ領域の開放
-                if &f == "_free" {}
+                if &f == "_free" {
+                    ensure!(arity == 1, "Expected 1 arguments but {:?} given", arity);
+
+                    self.free(vargs[0].clone())?;
+                    return Ok(DataType::Nil);
+                }
 
                 if let Some(f) = self.ffi_table.get(&f) {
                     return Ok(f(vargs));
@@ -368,6 +373,11 @@ mod tests {
                 r#"let x = "hello, world"; let y = &x; panic;"#,
                 vec![DataType::HeapAddr(0), DataType::StackAddr(0)],
                 vec![UnsizedDataType::String("hello, world".to_string())],
+            ),
+            (
+                r#"let x = "hello, world"; _free(x); panic;"#,
+                vec![DataType::HeapAddr(0)],
+                vec![UnsizedDataType::Nil],
             ),
         ];
 

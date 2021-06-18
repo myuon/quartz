@@ -1,10 +1,10 @@
+/*
 use std::collections::HashMap;
 
 use anyhow::Result;
 
 use crate::ast::{Expr, Literal, Module, Statement};
 
-/*
 #[derive(PartialEq, Debug)]
 pub enum OpCode {
     PushInt(i32),
