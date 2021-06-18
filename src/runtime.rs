@@ -9,7 +9,8 @@ pub enum RuntimeData {
     Nil,
     Int(i32),
     String(String),
-    Pointer(usize),
+    HeapAddr(usize),
+    StackAddr(usize),
     Closure(Vec<String>, Vec<Statement>),
 }
 
@@ -51,12 +52,12 @@ impl Interpreter {
     fn alloc(&mut self, val: RuntimeData) -> RuntimeData {
         let p = self.heap.len();
         self.heap.push(val);
-        RuntimeData::Pointer(p)
+        RuntimeData::HeapAddr(p)
     }
 
     fn free(&mut self, pointer: RuntimeData) -> Result<()> {
         match pointer {
-            RuntimeData::Pointer(p) => {
+            RuntimeData::HeapAddr(p) => {
                 if p < self.heap.len() && !matches!(self.heap[p], RuntimeData::Nil) {
                     self.heap[p] = RuntimeData::Nil;
 
@@ -66,15 +67,15 @@ impl Interpreter {
                 }
             }
             _ => {
-                bail!("Expected pointer but found {:?}", pointer);
+                bail!("Expected HeapAddr but found {:?}", pointer);
             }
         }
     }
 
-    // deref heap address
     fn deref(&mut self, pointer: RuntimeData) -> Result<RuntimeData> {
         match pointer {
-            RuntimeData::Pointer(p) => Ok(self.heap[p].clone()),
+            RuntimeData::HeapAddr(p) => Ok(self.heap[p].clone()),
+            RuntimeData::StackAddr(p) => Ok(self.stack[p].clone()),
             _ => bail!("Expected pointer but found {:?}", pointer),
         }
     }
