@@ -5,20 +5,25 @@ use anyhow::{bail, ensure, Result};
 use crate::ast::{Expr, Literal, Module, Statement};
 
 #[derive(PartialEq, Debug, Clone)]
-pub enum RuntimeData {
+pub enum UnsizedDataType {
     Nil,
-    Int(i32),
     String(String),
-    HeapAddr(usize),
-    StackAddr(usize),
     Closure(Vec<String>, Vec<Statement>),
 }
 
-type FFITable = HashMap<String, Box<fn(Vec<RuntimeData>) -> RuntimeData>>;
+#[derive(PartialEq, Debug, Clone)]
+pub enum DataType {
+    Nil,
+    Int(i32),
+    HeapAddr(usize),
+    StackAddr(usize),
+}
+
+type FFITable = HashMap<String, Box<fn(Vec<DataType>) -> DataType>>;
 
 struct Interpreter {
-    stack: Vec<RuntimeData>,
-    heap: Vec<RuntimeData>,
+    stack: Vec<DataType>,
+    heap: Vec<UnsizedDataType>,
     variables: HashMap<String, usize>,
     ffi_table: FFITable,
 }
@@ -33,14 +38,14 @@ impl Interpreter {
         }
     }
 
-    fn push(&mut self, val: RuntimeData) -> usize {
+    fn push(&mut self, val: DataType) -> usize {
         let u = self.stack.len();
         self.stack.push(val);
         u
     }
 
-    fn pop(&mut self, n: usize) -> RuntimeData {
-        let mut result = RuntimeData::Nil;
+    fn pop(&mut self, n: usize) -> DataType {
+        let mut result = DataType::Nil;
         for _ in 0..n {
             result = self.stack.pop().unwrap();
         }
@@ -49,17 +54,17 @@ impl Interpreter {
     }
 
     // TODO: 空いてるところを探すようにする
-    fn alloc(&mut self, val: RuntimeData) -> RuntimeData {
+    fn alloc(&mut self, val: UnsizedDataType) -> DataType {
         let p = self.heap.len();
         self.heap.push(val);
-        RuntimeData::HeapAddr(p)
+        DataType::HeapAddr(p)
     }
 
-    fn free(&mut self, pointer: RuntimeData) -> Result<()> {
+    fn free(&mut self, pointer: DataType) -> Result<()> {
         match pointer {
-            RuntimeData::HeapAddr(p) => {
-                if p < self.heap.len() && !matches!(self.heap[p], RuntimeData::Nil) {
-                    self.heap[p] = RuntimeData::Nil;
+            DataType::HeapAddr(p) => {
+                if p < self.heap.len() && !matches!(self.heap[p], UnsizedDataType::Nil) {
+                    self.heap[p] = UnsizedDataType::Nil;
 
                     Ok(())
                 } else {
@@ -72,15 +77,14 @@ impl Interpreter {
         }
     }
 
-    fn deref(&mut self, pointer: RuntimeData) -> Result<RuntimeData> {
+    fn deref(&mut self, pointer: DataType) -> Result<UnsizedDataType> {
         match pointer {
-            RuntimeData::HeapAddr(p) => Ok(self.heap[p].clone()),
-            RuntimeData::StackAddr(p) => Ok(self.stack[p].clone()),
+            DataType::HeapAddr(p) => Ok(self.heap[p].clone()),
             _ => bail!("Expected pointer but found {:?}", pointer),
         }
     }
 
-    fn load(&mut self, ident: String) -> Result<RuntimeData> {
+    fn load(&mut self, ident: String) -> Result<DataType> {
         let v = self
             .variables
             .get(&ident)
@@ -114,18 +118,18 @@ impl Interpreter {
 
         // returnがない場合はreturn nil;と同等
         self.pop(pop_count + arity);
-        self.push(RuntimeData::Nil);
+        self.push(DataType::Nil);
         Ok(())
     }
 
-    fn expr(&mut self, expr: Expr) -> Result<RuntimeData> {
+    fn expr(&mut self, expr: Expr) -> Result<DataType> {
         match expr {
             Expr::Var(v) => self.load(v),
             Expr::Lit(lit) => Ok(match lit {
-                Literal::Int(n) => RuntimeData::Int(n),
-                Literal::String(s) => self.alloc(RuntimeData::String(s)),
+                Literal::Int(n) => DataType::Int(n),
+                Literal::String(s) => self.alloc(UnsizedDataType::String(s)),
             }),
-            Expr::Fun(args, body) => Ok(self.alloc(RuntimeData::Closure(args, body))),
+            Expr::Fun(args, body) => Ok(self.alloc(UnsizedDataType::Closure(args, body))),
             Expr::Call(f, args) => {
                 let arity = args.len();
                 let mut vargs = vec![];
@@ -142,7 +146,7 @@ impl Interpreter {
                         let faddr = self.load(f)?;
                         let closure = self.deref(faddr)?;
                         match closure {
-                            RuntimeData::Closure(vs, body) => {
+                            UnsizedDataType::Closure(vs, body) => {
                                 ensure!(
                                     vs.len() == arity,
                                     "Expected {} arguments but {} given",
@@ -176,7 +180,7 @@ impl Interpreter {
     }
 }
 
-pub fn interpret(ffi_table: FFITable, module: Module) -> Result<RuntimeData> {
+pub fn interpret(ffi_table: FFITable, module: Module) -> Result<DataType> {
     let mut interpreter = Interpreter::new(ffi_table);
     interpreter.module(module)?;
     Ok(interpreter.pop(1))
@@ -192,15 +196,15 @@ mod tests {
         let mut ffi_table: FFITable = HashMap::new();
         ffi_table.insert(
             "_add".to_string(),
-            Box::new(|vs: Vec<RuntimeData>| match (&vs[0], &vs[1]) {
-                (RuntimeData::Int(x), RuntimeData::Int(y)) => RuntimeData::Int(x + y),
+            Box::new(|vs: Vec<DataType>| match (&vs[0], &vs[1]) {
+                (DataType::Int(x), DataType::Int(y)) => DataType::Int(x + y),
                 _ => todo!(),
             }),
         );
         ffi_table.insert(
             "_minus".to_string(),
-            Box::new(|vs: Vec<RuntimeData>| match (&vs[0], &vs[1]) {
-                (RuntimeData::Int(x), RuntimeData::Int(y)) => RuntimeData::Int(x - y),
+            Box::new(|vs: Vec<DataType>| match (&vs[0], &vs[1]) {
+                (DataType::Int(x), DataType::Int(y)) => DataType::Int(x - y),
                 _ => todo!(),
             }),
         );
@@ -213,32 +217,32 @@ mod tests {
         let cases = vec![
             (
                 r#"let x = 10; let f = fn (a,b) { return a; }; return f(x,x);"#,
-                RuntimeData::Int(10),
+                DataType::Int(10),
             ),
             (
                 // shadowingが起こる例
                 r#"let x = 10; let f = fn (x) { let x = 5; return x; }; f(x); return x;"#,
-                RuntimeData::Int(10),
+                DataType::Int(10),
             ),
             (
                 // 日本語
                 r#"let u = "こんにちは、世界"; return u;"#,
-                RuntimeData::HeapAddr(0),
+                DataType::HeapAddr(0),
             ),
             (
                 // early return
                 r#"return 1; return 2; return 3;"#,
-                RuntimeData::Int(1),
+                DataType::Int(1),
             ),
             (
                 // using ffi table
                 r#"return _add(1,2);"#,
-                RuntimeData::Int(3),
+                DataType::Int(3),
             ),
             (
                 // no return function
                 r#"1; 2; 3;"#,
-                RuntimeData::Nil,
+                DataType::Nil,
             ),
         ];
 
@@ -261,8 +265,8 @@ mod tests {
                     };
                     return f();
                 "#,
-                vec![RuntimeData::Int(3)],
-                vec![RuntimeData::Closure(
+                vec![DataType::Int(3)],
+                vec![UnsizedDataType::Closure(
                     vec![],
                     vec![
                         Statement::Let("y".to_string(), Expr::Lit(Literal::Int(1))),
@@ -277,13 +281,13 @@ mod tests {
             (
                 // no return functionでもローカル変数は全てpopされること
                 r#"let x = 1; x;"#,
-                vec![RuntimeData::Nil],
+                vec![DataType::Nil],
                 vec![],
             ),
             (
                 // just panic
                 r#"let x = 1; panic;"#,
-                vec![RuntimeData::Int(1)],
+                vec![DataType::Int(1)],
                 vec![],
             ),
             (
@@ -292,9 +296,9 @@ mod tests {
                     let f = fn (a,b,c,d,e) { return "hello"; };
                     return f(1,2,3,4,5);
                 "#,
-                vec![RuntimeData::HeapAddr(1)],
+                vec![DataType::HeapAddr(1)],
                 vec![
-                    RuntimeData::Closure(
+                    UnsizedDataType::Closure(
                         vec![
                             "a".to_string(),
                             "b".to_string(),
@@ -306,7 +310,7 @@ mod tests {
                             "hello".to_string(),
                         )))],
                     ),
-                    RuntimeData::String("hello".to_string()),
+                    UnsizedDataType::String("hello".to_string()),
                 ],
             ),
         ];
