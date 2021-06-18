@@ -123,7 +123,7 @@ impl Interpreter {
             Expr::Var(v) => self.load(v),
             Expr::Lit(lit) => Ok(match lit {
                 Literal::Int(n) => RuntimeData::Int(n),
-                Literal::String(s) => RuntimeData::String(s),
+                Literal::String(s) => self.alloc(RuntimeData::String(s)),
             }),
             Expr::Fun(args, body) => Ok(self.alloc(RuntimeData::Closure(args, body))),
             Expr::Call(f, args) => {
@@ -223,7 +223,7 @@ mod tests {
             (
                 // 日本語
                 r#"let u = "こんにちは、世界"; return u;"#,
-                RuntimeData::String("こんにちは、世界".to_string()),
+                RuntimeData::HeapAddr(0),
             ),
             (
                 // early return
@@ -279,7 +279,7 @@ mod tests {
                     let f = fn (a,b,c,d,e) { return "hello"; };
                     return f(1,2,3,4,5);
                 "#,
-                vec![RuntimeData::String("hello".to_string())],
+                vec![RuntimeData::HeapAddr(1)],
             ),
         ];
 
