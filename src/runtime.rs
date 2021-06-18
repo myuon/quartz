@@ -171,6 +171,8 @@ impl Interpreter {
                     }
                 }
             }
+            Expr::Ref(_) => todo!(),
+            Expr::Deref(_) => todo!(),
         }
     }
 

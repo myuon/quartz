@@ -18,6 +18,8 @@ pub enum Expr {
     Lit(Literal),
     Fun(Vec<String>, Vec<Statement>),
     Call(String, Vec<Expr>),
+    Ref(Box<Expr>),
+    Deref(Box<Expr>),
 }
 
 #[derive(PartialEq, Debug, Clone)]

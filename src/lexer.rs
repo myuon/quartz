@@ -14,6 +14,8 @@ pub enum Lexeme {
     SemiColon,
     Comma,
     Equal,
+    And,
+    Star,
     Ident(String),
     Int(i32),
     String(String),
@@ -92,6 +94,8 @@ impl TokenReader {
                     (";", Lexeme::SemiColon),
                     (",", Lexeme::Comma),
                     ("=", Lexeme::Equal),
+                    ("&", Lexeme::And),
+                    ("*", Lexeme::Star),
                 ],
             ) {
                 continue;
@@ -224,6 +228,10 @@ mod tests {
                     SemiColon,
                     RBrace,
                 ],
+            ),
+            (
+                r#"&10; *v"#,
+                vec![And, Int(10), SemiColon, Star, Ident("v".to_string())],
             ),
         ];
 

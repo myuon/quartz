@@ -142,6 +142,18 @@ impl Parser {
     fn expr(&mut self) -> Result<Expr> {
         (self.literal().map(|lit| Expr::Lit(lit)))
             .or_else(|_| -> Result<Expr> {
+                self.expect_lexeme(Lexeme::And)?;
+                let e = self.expr()?;
+
+                Ok(Expr::Ref(Box::new(e)))
+            })
+            .or_else(|_| -> Result<Expr> {
+                self.expect_lexeme(Lexeme::Star)?;
+                let e = self.expr()?;
+
+                Ok(Expr::Deref(Box::new(e)))
+            })
+            .or_else(|_| -> Result<Expr> {
                 // var or fun call
                 let v = self.ident()?;
 
@@ -285,6 +297,13 @@ mod tests {
                     Statement::Expr(Expr::Lit(Literal::Int(1))),
                     Statement::Panic,
                     Statement::Expr(Expr::Lit(Literal::Int(10))),
+                ]),
+            ),
+            (
+                r#"let x = 10; return &x;"#,
+                Module(vec![
+                    Statement::Let("x".to_string(), Expr::Lit(Literal::Int(10))),
+                    Statement::Return(Expr::Ref(Box::new(Expr::Var("x".to_string())))),
                 ]),
             ),
         ];
