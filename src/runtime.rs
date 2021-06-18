@@ -84,10 +84,10 @@ impl Interpreter {
         }
     }
 
-    fn load(&mut self, ident: String) -> Result<DataType> {
+    fn load(&mut self, ident: &String) -> Result<DataType> {
         let v = self
             .variables
-            .get(&ident)
+            .get(ident)
             .ok_or(anyhow::anyhow!("Ident {} not found", ident))?;
 
         Ok(self.stack[*v].clone())
@@ -122,9 +122,10 @@ impl Interpreter {
         Ok(())
     }
 
+    // &Exprで十分？
     fn expr(&mut self, expr: Expr) -> Result<DataType> {
         match expr {
-            Expr::Var(v) => self.load(v),
+            Expr::Var(v) => self.load(&v),
             Expr::Lit(lit) => Ok(match lit {
                 Literal::Int(n) => DataType::Int(n),
                 Literal::String(s) => self.alloc(UnsizedDataType::String(s)),
@@ -143,7 +144,7 @@ impl Interpreter {
                         Ok(f(vargs))
                     }
                     _ => {
-                        let faddr = self.load(f)?;
+                        let faddr = self.load(&f)?;
                         let closure = self.deref(faddr)?;
                         match closure {
                             UnsizedDataType::Closure(vs, body) => {
@@ -171,8 +172,21 @@ impl Interpreter {
                     }
                 }
             }
-            Expr::Ref(_) => todo!(),
-            Expr::Deref(_) => todo!(),
+            Expr::Ref(expr) => match expr.as_ref() {
+                Expr::Var(v) => {
+                    let p = self
+                        .variables
+                        .get(v)
+                        .ok_or(anyhow::anyhow!("Ident {} not found", v))?;
+
+                    Ok(DataType::StackAddr(*p))
+                }
+                _ => bail!("Cannot take the address of {:?}", expr),
+            },
+            Expr::Deref(expr) => match self.expr(expr.as_ref().clone())? {
+                DataType::StackAddr(p) => Ok(self.stack[p].clone()),
+                r => bail!("Cannot deref non-pointer value: {:?}", r),
+            },
         }
     }
 
@@ -246,6 +260,12 @@ mod tests {
                 r#"1; 2; 3;"#,
                 DataType::Nil,
             ),
+            (
+                // ローカル変数や関数の引数のrefをとることはdangling pointerを生成するのでやってはいけない
+                // refで渡ってきたものをderefするのは安全
+                r#"let x = 10; let f = fn (a) { return *a; }; return f(&x);"#,
+                DataType::Int(10),
+            ),
         ];
 
         for c in cases {
@@ -314,6 +334,12 @@ mod tests {
                     ),
                     UnsizedDataType::String("hello".to_string()),
                 ],
+            ),
+            (
+                // take the address of string
+                r#"let x = "hello, world"; let y = &x; panic;"#,
+                vec![DataType::HeapAddr(0), DataType::StackAddr(0)],
+                vec![UnsizedDataType::String("hello, world".to_string())],
             ),
         ];
 
