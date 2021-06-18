@@ -35,7 +35,7 @@ impl Interpreter {
         u
     }
 
-    fn pop(&mut self, n: i32) -> RuntimeData {
+    fn pop(&mut self, n: usize) -> RuntimeData {
         let mut result = RuntimeData::Nil;
         for _ in 0..n {
             result = self.stack.pop().unwrap();
@@ -53,7 +53,7 @@ impl Interpreter {
         Ok(self.stack[*v].clone())
     }
 
-    fn statements(&mut self, stmts: Vec<Statement>) -> Result<()> {
+    fn statements(&mut self, arity: usize, stmts: Vec<Statement>) -> Result<()> {
         let mut pop_count = 0;
         for stmt in stmts {
             match stmt {
@@ -65,7 +65,7 @@ impl Interpreter {
                 }
                 Statement::Return(e) => {
                     let val = self.expr(e.clone())?;
-                    self.pop(pop_count);
+                    self.pop(pop_count + arity);
                     self.push(val);
                     return Ok(());
                 }
@@ -77,7 +77,7 @@ impl Interpreter {
         }
 
         // returnがない場合はreturn nil;と同等
-        self.pop(pop_count);
+        self.pop(pop_count + arity);
         self.push(RuntimeData::Nil);
         Ok(())
     }
@@ -117,7 +117,7 @@ impl Interpreter {
                                 self.variables.insert(v, p);
                             }
 
-                            self.statements(body)?;
+                            self.statements(arity, body)?;
 
                             self.variables = prev;
 
@@ -131,7 +131,8 @@ impl Interpreter {
     }
 
     pub fn module(&mut self, module: Module) -> Result<()> {
-        self.statements(module.0)
+        // moduleは引数のない関数とみなす
+        self.statements(0, module.0)
     }
 }
 
@@ -231,6 +232,14 @@ mod tests {
                 // just panic
                 r#"let x = 1; panic;"#,
                 vec![RuntimeData::Int(1)],
+            ),
+            (
+                // 関数呼び出しの際には引数がstackに積まれ、その後returnするときにそれらがpopされて値が返却される
+                r#"
+                    let f = fn (a,b,c,d,e) { return "hello"; };
+                    return f(1,2,3,4,5);
+                "#,
+                vec![RuntimeData::String("hello".to_string())],
             ),
         ];
 
