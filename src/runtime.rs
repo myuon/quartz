@@ -19,6 +19,19 @@ pub enum DataType {
     StackAddr(usize),
 }
 
+impl DataType {
+    pub fn type_of(&self) -> &str {
+        use DataType::*;
+
+        match self {
+            Nil => "nil",
+            Int(_) => "int",
+            HeapAddr(_) => "heap_addr",
+            StackAddr(_) => "stack_addr",
+        }
+    }
+}
+
 type FFITable = HashMap<String, Box<fn(Vec<DataType>) -> DataType>>;
 
 struct Interpreter {
@@ -138,38 +151,59 @@ impl Interpreter {
                     vargs.push(self.expr(a)?);
                 }
 
-                match self.ffi_table.get(&f) {
-                    Some(f) => {
-                        // ffi
-                        Ok(f(vargs))
-                    }
-                    _ => {
-                        let faddr = self.load(&f)?;
-                        let closure = self.deref(faddr)?;
-                        match closure {
-                            UnsizedDataType::Closure(vs, body) => {
-                                ensure!(
-                                    vs.len() == arity,
-                                    "Expected {} arguments but {} given",
-                                    vs.len(),
-                                    arity,
-                                );
+                // 特別な組み込み関数(stack, heapに干渉する必要があるものはここで)
 
-                                let prev = self.variables.clone();
-                                for (v, val) in vs.into_iter().zip(vargs) {
-                                    let p = self.push(val);
-                                    self.variables.insert(v, p);
-                                }
+                // ポインタ経由の代入: _passign(p,v) == (*p = v)
+                if &f == "_passign" {
+                    ensure!(arity == 2, "Expected 2 arguments but {:?} given", arity);
 
-                                self.statements(arity, body)?;
+                    match vargs[0] {
+                        DataType::StackAddr(p) => {
+                            ensure!(
+                                self.stack[p].type_of() == vargs[1].type_of(),
+                                "Cannot assign to different types, left {:?} right {:?}",
+                                self.stack[p],
+                                vargs[1]
+                            );
 
-                                self.variables = prev;
-
-                                Ok(self.pop(1))
-                            }
-                            r => bail!("Expected closure but found {:?}", r),
+                            self.stack[p] = vargs[1].clone();
+                        }
+                        _ => {
+                            bail!("Expected stack address but found {:?}", vargs[0]);
                         }
                     }
+
+                    return Ok(DataType::Nil);
+                }
+
+                if let Some(f) = self.ffi_table.get(&f) {
+                    return Ok(f(vargs));
+                }
+
+                let faddr = self.load(&f)?;
+                let closure = self.deref(faddr)?;
+                match closure {
+                    UnsizedDataType::Closure(vs, body) => {
+                        ensure!(
+                            vs.len() == arity,
+                            "Expected {} arguments but {} given",
+                            vs.len(),
+                            arity,
+                        );
+
+                        let prev = self.variables.clone();
+                        for (v, val) in vs.into_iter().zip(vargs) {
+                            let p = self.push(val);
+                            self.variables.insert(v, p);
+                        }
+
+                        self.statements(arity, body)?;
+
+                        self.variables = prev;
+
+                        Ok(self.pop(1))
+                    }
+                    r => bail!("Expected closure but found {:?}", r),
                 }
             }
             Expr::Ref(expr) => match expr.as_ref() {
@@ -265,6 +299,17 @@ mod tests {
                 // refで渡ってきたものをderefするのは安全
                 r#"let x = 10; let f = fn (a) { return *a; }; return f(&x);"#,
                 DataType::Int(10),
+            ),
+            (
+                r#"
+                    let x = 10;
+                    let f = fn (p) {
+                        _passign(p, 30);
+                    };
+                    f(&x);
+                    return x;
+                "#,
+                DataType::Int(30),
             ),
         ];
 
