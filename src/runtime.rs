@@ -71,6 +71,8 @@ impl Interpreter {
             }
         }
 
+        // returnがない場合はnilをreturnするのと同等
+        self.pop(pop_count);
         Ok(RuntimeData::Nil)
     }
 
@@ -201,20 +203,33 @@ mod tests {
 
     #[test]
     fn test_interpreter_stack() {
-        let mut interpreter = Interpreter::new(create_ffi_table());
-        let m = run_parser(
-            r#"
-            let f = fn () {
-                let y = 1;
-                let z = 2;
-                return _add(y,z);
-            };
-            return f();
-        "#,
-        )
-        .unwrap();
-        let result = interpreter.module(m).unwrap();
-        assert_eq!(result, RuntimeData::Int(3));
-        assert_eq!(interpreter.stack, vec![]);
+        let cases = vec![
+            (
+                r#"
+                    let f = fn () {
+                        let y = 1;
+                        let z = 2;
+                        return _add(y,z);
+                    };
+                    return f();
+                "#,
+                RuntimeData::Int(3),
+                vec![],
+            ),
+            (
+                // no return functionでもローカル変数は全てpopされること
+                r#"let x = 1; x;"#,
+                RuntimeData::Nil,
+                vec![],
+            ),
+        ];
+
+        for case in cases {
+            let mut interpreter = Interpreter::new(create_ffi_table());
+            let m = run_parser(case.0).unwrap();
+            let result = interpreter.module(m).unwrap();
+            assert_eq!(result, case.1);
+            assert_eq!(interpreter.stack, case.2);
+        }
     }
 }
