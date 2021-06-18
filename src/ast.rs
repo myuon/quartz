@@ -8,6 +8,7 @@ pub enum Literal {
 pub enum Statement {
     Let(String, Expr),
     Expr(Expr),
+    Return(Expr),
 }
 
 #[derive(PartialEq, Debug, Clone)]

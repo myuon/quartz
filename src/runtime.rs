@@ -77,6 +77,7 @@ impl Interpreter {
 
                     Ok(RuntimeData::Nil)
                 }
+                Statement::Return(e) => Ok(self.expr(e.clone())?),
                 Statement::Expr(e) => {
                     self.expr(e.clone())?;
 
@@ -115,17 +116,17 @@ mod tests {
     fn test_runtime() {
         let cases = vec![
             (
-                r#"let x = 10; let f = fn (a,b) { a }; f(x,x)"#,
+                r#"let x = 10; let f = fn (a,b) { return a; }; return f(x,x);"#,
                 RuntimeData::Int(10),
             ),
             (
                 // shadowingが起こる例
-                r#"let x = 10; let f = fn (x) { let x = 5; x }; f(x); x"#,
+                r#"let x = 10; let f = fn (x) { let x = 5; return x; }; f(x); return x;"#,
                 RuntimeData::Int(10),
             ),
             (
                 // 日本語
-                r#"let u = "こんにちは、世界"; u"#,
+                r#"let u = "こんにちは、世界"; return u;"#,
                 RuntimeData::String("こんにちは、世界".to_string()),
             ),
         ];

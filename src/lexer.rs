@@ -5,6 +5,7 @@ use regex::Regex;
 pub enum Lexeme {
     Fn,
     Let,
+    Return,
     LParen,
     RParen,
     LBrace,
@@ -81,6 +82,7 @@ impl TokenReader {
                 vec![
                     ("fn", Lexeme::Fn),
                     ("let", Lexeme::Let),
+                    ("return", Lexeme::Return),
                     ("(", Lexeme::LParen),
                     (")", Lexeme::RParen),
                     ("{", Lexeme::LBrace),
@@ -206,6 +208,19 @@ mod tests {
                     LParen,
                     String("日本語".to_string()),
                     RParen,
+                ],
+            ),
+            (
+                r#"fn () { return 10; }"#,
+                vec![
+                    Fn,
+                    LParen,
+                    RParen,
+                    LBrace,
+                    Return,
+                    Int(10),
+                    SemiColon,
+                    RBrace,
                 ],
             ),
         ];

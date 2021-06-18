@@ -81,6 +81,12 @@ impl Parser {
 
     fn statement(&mut self) -> Result<Statement> {
         self.statement_let()
+            .or_else(|_| -> Result<Statement> {
+                self.expect_lexeme(Lexeme::Return)?;
+                let e = self.expr()?;
+
+                Ok(Statement::Return(e))
+            })
             .or_else(|_| self.expr().map(|e| Statement::Expr(e)))
     }
 
@@ -124,25 +130,8 @@ impl Parser {
         while !self.is_end() && self.peek().lexeme != Lexeme::RBrace {
             let st = self.statement()?;
 
-            let semicolon = self.expect_lexeme(Lexeme::SemiColon);
-            match semicolon {
-                Ok(_) => {
-                    statements.push(Expr::Statement(Box::new(st)));
-                }
-                Err(err) => {
-                    match st {
-                        Statement::Expr(e) => {
-                            // if trailing semicolon is omitted, last statement would be treated as an naked expr
-                            statements.push(e);
-
-                            return Ok(statements);
-                        }
-                        _ => {
-                            return Err(err);
-                        }
-                    }
-                }
-            }
+            self.expect_lexeme(Lexeme::SemiColon)?;
+            statements.push(Expr::Statement(Box::new(st)));
         }
 
         Ok(statements)
@@ -227,7 +216,7 @@ mod tests {
                 r#"let main = fn () {
                     let y = 10;
                     _assign(y, 20);
-                    y
+                    return y;
                 };"#,
                 Module(vec![Expr::Statement(Box::new(Statement::Let(
                     "main".to_string(),
@@ -242,7 +231,9 @@ mod tests {
                                 "_assign".to_string(),
                                 vec![Expr::Var("y".to_string()), Expr::Lit(Literal::Int(20))],
                             )))),
-                            Expr::Var("y".to_string()),
+                            Expr::Statement(Box::new(Statement::Return(Expr::Var(
+                                "y".to_string(),
+                            )))),
                         ],
                     ),
                 )))]),
@@ -252,7 +243,7 @@ mod tests {
                     f(10, 20, 40);
                     100;
                     "foo";
-                    let u = fn () { 20 };
+                    let u = fn () { return 20; };
                 };
                 main();"#,
                 Module(vec![
@@ -277,7 +268,12 @@ mod tests {
                                 )))),
                                 Expr::Statement(Box::new(Statement::Let(
                                     "u".to_string(),
-                                    Expr::Fun(vec![], vec![Expr::Lit(Literal::Int(20))]),
+                                    Expr::Fun(
+                                        vec![],
+                                        vec![Expr::Statement(Box::new(Statement::Return(
+                                            Expr::Lit(Literal::Int(20)),
+                                        )))],
+                                    ),
                                 ))),
                             ],
                         ),
@@ -289,13 +285,13 @@ mod tests {
                 ]),
             ),
             (
-                r#"let x = 10; x"#,
+                r#"let x = 10; return x;"#,
                 Module(vec![
                     Expr::Statement(Box::new(Statement::Let(
                         "x".to_string(),
                         Expr::Lit(Literal::Int(10)),
                     ))),
-                    Expr::Var("x".to_string()),
+                    Expr::Statement(Box::new(Statement::Return(Expr::Var("x".to_string())))),
                 ]),
             ),
         ];
