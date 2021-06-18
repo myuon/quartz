@@ -32,7 +32,7 @@ impl DataType {
     }
 }
 
-type FFITable = HashMap<String, Box<fn(Vec<DataType>) -> DataType>>;
+pub type FFITable = HashMap<String, Box<fn(Vec<DataType>) -> DataType>>;
 
 struct Interpreter {
     stack: Vec<DataType>,
@@ -176,6 +176,9 @@ impl Interpreter {
                     return Ok(DataType::Nil);
                 }
 
+                // ヒープ領域の開放
+                if &f == "_free" {}
+
                 if let Some(f) = self.ffi_table.get(&f) {
                     return Ok(f(vargs));
                 }
@@ -238,29 +241,9 @@ pub fn interpret(ffi_table: FFITable, module: Module) -> Result<DataType> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parser::run_parser;
+    use crate::{create_ffi_table, parser::run_parser};
 
     use super::*;
-
-    fn create_ffi_table() -> FFITable {
-        let mut ffi_table: FFITable = HashMap::new();
-        ffi_table.insert(
-            "_add".to_string(),
-            Box::new(|vs: Vec<DataType>| match (&vs[0], &vs[1]) {
-                (DataType::Int(x), DataType::Int(y)) => DataType::Int(x + y),
-                _ => todo!(),
-            }),
-        );
-        ffi_table.insert(
-            "_minus".to_string(),
-            Box::new(|vs: Vec<DataType>| match (&vs[0], &vs[1]) {
-                (DataType::Int(x), DataType::Int(y)) => DataType::Int(x - y),
-                _ => todo!(),
-            }),
-        );
-
-        ffi_table
-    }
 
     #[test]
     fn test_runtime() {
