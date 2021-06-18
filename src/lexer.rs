@@ -42,7 +42,7 @@ impl TokenReader {
     }
 
     fn matches(&mut self, input: &str, keyword: &str, lexeme: Lexeme) -> bool {
-        if &input[self.position..(self.position + keyword.len()).min(input.len())] == keyword {
+        if input[self.position..].starts_with(keyword) {
             self.tokens.push(Token {
                 lexeme,
                 position: self.position,
@@ -151,53 +151,64 @@ mod tests {
     #[test]
     fn test_run_lexer() {
         use Lexeme::*;
-        let cases = vec![(
-            r#"let main = fn () {
+        let cases = vec![
+            (
+                r#"let main = fn () {
                 f(10, 20, 40);
                 100;
                 "foo";
                 let u = fn () { 20 };
             };
             main();"#,
-            vec![
-                Let,
-                Ident("main".to_string()),
-                Equal,
-                Fn,
-                LParen,
-                RParen,
-                LBrace,
-                Ident("f".to_string()),
-                LParen,
-                Int(10),
-                Comma,
-                Int(20),
-                Comma,
-                Int(40),
-                RParen,
-                SemiColon,
-                Int(100),
-                SemiColon,
-                String("foo".to_string()),
-                SemiColon,
-                Let,
-                Ident("u".to_string()),
-                Equal,
-                Fn,
-                LParen,
-                RParen,
-                LBrace,
-                Int(20),
-                RBrace,
-                SemiColon,
-                RBrace,
-                SemiColon,
-                Ident("main".to_string()),
-                LParen,
-                RParen,
-                SemiColon,
-            ],
-        )];
+                vec![
+                    Let,
+                    Ident("main".to_string()),
+                    Equal,
+                    Fn,
+                    LParen,
+                    RParen,
+                    LBrace,
+                    Ident("f".to_string()),
+                    LParen,
+                    Int(10),
+                    Comma,
+                    Int(20),
+                    Comma,
+                    Int(40),
+                    RParen,
+                    SemiColon,
+                    Int(100),
+                    SemiColon,
+                    String("foo".to_string()),
+                    SemiColon,
+                    Let,
+                    Ident("u".to_string()),
+                    Equal,
+                    Fn,
+                    LParen,
+                    RParen,
+                    LBrace,
+                    Int(20),
+                    RBrace,
+                    SemiColon,
+                    RBrace,
+                    SemiColon,
+                    Ident("main".to_string()),
+                    LParen,
+                    RParen,
+                    SemiColon,
+                ],
+            ),
+            (
+                r#"f("日本語")"#,
+                vec![
+                    Ident("f".to_string()),
+                    LParen,
+                    String("日本語".to_string()),
+                    RParen,
+                ],
+            ),
+        ];
 
         for c in cases {
             assert_eq!(
