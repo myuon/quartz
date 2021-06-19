@@ -42,47 +42,43 @@ impl CodeGenerator {
         }
     }
 
-    fn push(&mut self, val: DataType) -> usize {
-        let p = self.stackCount;
+    fn push(&mut self, val: DataType) {
         self.codes.push(OpCode::Push(val));
         self.stackCount += 1;
-
-        p
     }
 
-    fn alloc(&mut self, val: UnsizedDataType) -> usize {
-        let p = self.stackCount;
-        self.stackCount += 1;
-
+    fn alloc(&mut self, val: UnsizedDataType) {
         match val {
             UnsizedDataType::Nil => self.codes.push(OpCode::Alloc(HeapData::Nil)),
             UnsizedDataType::String(s) => self.codes.push(OpCode::Alloc(HeapData::String(s))),
             // StackAddress, Copyのindexを逆順にしたらここのコンパイル処理を追加する
             UnsizedDataType::Closure(args, body) => todo!(),
         }
-
-        p
+        self.stackCount += 1;
     }
 
-    fn load(&mut self, ident: &String) -> Result<usize> {
+    fn load(&mut self, ident: &String) -> Result<()> {
         let v = self
             .variables
             .get(ident)
             .ok_or(anyhow::anyhow!("Ident {} not found", ident))?;
 
-        let p = self.stackCount;
         self.codes.push(OpCode::Copy(*v));
         self.stackCount += 1;
-        Ok(p)
+        Ok(())
     }
 
-    fn expr(&mut self, expr: Expr) -> Result<usize> {
+    fn expr(&mut self, expr: Expr) -> Result<()> {
         match expr {
             Expr::Var(v) => self.load(&v),
-            Expr::Lit(lit) => Ok(match lit {
-                Literal::Int(n) => self.push(DataType::Int(n)),
-                Literal::String(s) => self.alloc(UnsizedDataType::String(s)),
-            }),
+            Expr::Lit(lit) => {
+                match lit {
+                    Literal::Int(n) => self.push(DataType::Int(n)),
+                    Literal::String(s) => self.alloc(UnsizedDataType::String(s)),
+                };
+
+                Ok(())
+            }
             Expr::Fun(args, body) => Ok(self.alloc(UnsizedDataType::Closure(args, body))),
             Expr::Call(f, args) => {
                 let arity = args.len();
@@ -97,7 +93,7 @@ impl CodeGenerator {
                     ensure!(arity == 2, "Expected 2 arguments but {:?} given", arity);
                     self.codes.push(OpCode::PAssign);
 
-                    return Ok(self.stackCount);
+                    return Ok(());
                 }
 
                 // ヒープ領域の開放
@@ -105,7 +101,7 @@ impl CodeGenerator {
                     ensure!(arity == 1, "Expected 1 arguments but {:?} given", arity);
                     self.codes.push(OpCode::Free);
 
-                    return Ok(self.stackCount);
+                    return Ok(());
                 }
 
                 let faddr = self.load(&f)?;
@@ -120,14 +116,15 @@ impl CodeGenerator {
                         .get(v)
                         .ok_or(anyhow::anyhow!("Ident {} not found", v))?;
 
-                    Ok(self.push(DataType::StackAddr(*p)))
+                    self.push(DataType::StackAddr(*p));
+                    Ok(())
                 }
                 _ => bail!("Cannot take the address of {:?}", expr),
             },
             Expr::Deref(expr) => {
                 self.expr(expr.as_ref().clone())?;
                 self.codes.push(OpCode::Deref);
-                Ok(self.stackCount)
+                Ok(())
             }
         }
     }
@@ -137,8 +134,8 @@ impl CodeGenerator {
         for stmt in stmts {
             match stmt {
                 Statement::Let(x, e) => {
-                    let p = self.expr(e.clone())?;
-                    self.variables.insert(x.clone(), p);
+                    self.expr(e.clone())?;
+                    self.variables.insert(x.clone(), self.stackCount);
                     pop_count += 1;
                 }
                 Statement::Return(e) => {

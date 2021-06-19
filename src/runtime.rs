@@ -4,7 +4,7 @@ use anyhow::{bail, ensure, Result};
 
 use crate::{
     ast::{Expr, Literal, Module, Statement},
-    code_gen::OpCode,
+    code_gen::{HeapData, OpCode},
 };
 
 #[derive(PartialEq, Debug, Clone)]
@@ -39,7 +39,7 @@ struct Runtime {
     pc: usize,
     program: Vec<OpCode>,
     stack: Vec<DataType>,
-    heap: Vec<UnsizedDataType>,
+    heap: Vec<HeapData>,
 }
 
 impl Runtime {
@@ -68,7 +68,7 @@ impl Runtime {
     }
 
     // TODO: 空いてるところを探すようにする
-    fn alloc(&mut self, val: UnsizedDataType) -> DataType {
+    fn alloc(&mut self, val: HeapData) -> DataType {
         let p = self.heap.len();
         self.heap.push(val);
         DataType::HeapAddr(p)
@@ -77,8 +77,8 @@ impl Runtime {
     fn free(&mut self, pointer: DataType) -> Result<()> {
         match pointer {
             DataType::HeapAddr(p) => {
-                if p < self.heap.len() && !matches!(self.heap[p], UnsizedDataType::Nil) {
-                    self.heap[p] = UnsizedDataType::Nil;
+                if p < self.heap.len() && !matches!(self.heap[p], HeapData::Nil) {
+                    self.heap[p] = HeapData::Nil;
 
                     Ok(())
                 } else {
@@ -91,7 +91,7 @@ impl Runtime {
         }
     }
 
-    fn deref(&mut self, pointer: DataType) -> Result<UnsizedDataType> {
+    fn deref(&mut self, pointer: DataType) -> Result<HeapData> {
         match pointer {
             DataType::HeapAddr(p) => Ok(self.heap[p].clone()),
             _ => bail!("Expected pointer but found {:?}", pointer),
@@ -127,7 +127,7 @@ impl Runtime {
                     let addr = self.pop(1);
                     let closure = self.deref(addr)?;
                     match closure {
-                        UnsizedDataType::Closure(vs, body) => {
+                        HeapData::Closure(body) => {
                             /*
                             let prev = self.variables.clone();
                             for (v, val) in vs.into_iter().zip(vargs) {
@@ -146,9 +146,9 @@ impl Runtime {
                         r => bail!("Expected a closure but found {:?}", r),
                     }
                 }
-                OpCode::PAssign() => todo!(),
-                OpCode::Free() => todo!(),
-                OpCode::Deref() => todo!(),
+                OpCode::PAssign => todo!(),
+                OpCode::Free => todo!(),
+                OpCode::Deref => todo!(),
             }
 
             self.pc += 1;
