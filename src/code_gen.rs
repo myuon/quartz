@@ -46,6 +46,7 @@ impl CodeGenerator {
     fn push(&mut self, val: DataType) {
         self.codes.push(OpCode::Push(val));
         self.stack_count += 1;
+        self.pop_count += 1;
     }
 
     fn alloc(&mut self, val: UnsizedDataType) -> Result<()> {
@@ -76,6 +77,7 @@ impl CodeGenerator {
             }
         }
         self.stack_count += 1;
+        self.pop_count += 1;
         Ok(())
     }
 
@@ -87,11 +89,16 @@ impl CodeGenerator {
 
         self.codes.push(OpCode::Copy(self.stack_count - *v));
         self.stack_count += 1;
+        self.pop_count += 1;
         Ok(())
     }
 
     fn ret(&mut self, arity: usize) {
-        self.codes.push(OpCode::Return(self.pop_count + arity));
+        // return expr;のときexprがstackに乗っている分があるので1を引いておく
+        let pop = self.pop_count + arity - 1;
+
+        self.codes.push(OpCode::Return(pop));
+        self.stack_count -= pop;
     }
 
     fn expr(&mut self, expr: Expr) -> Result<()> {
@@ -133,8 +140,8 @@ impl CodeGenerator {
                 self.load(&f)?;
                 self.codes.push(OpCode::Call(arity));
 
-                // 関数ポインタの分はpopされるので1を引いておく
-                self.stack_count -= 1;
+                // call実行後はarityはすべてpopされるのでその分popする数が減る
+                self.pop_count -= arity;
 
                 Ok(())
             }
@@ -147,9 +154,6 @@ impl CodeGenerator {
                         .clone();
 
                     self.push(DataType::StackAddr(self.stack_count - p));
-
-                    // &xはlet文のような変数宣言ではないがアドレスをstackに余分に載せpopするやつがいないので、pop_countを増やす必要がある
-                    self.pop_count += 1;
 
                     Ok(())
                 }
@@ -170,7 +174,6 @@ impl CodeGenerator {
                 Statement::Let(x, e) => {
                     self.expr(e.clone())?;
                     self.variables.insert(x.clone(), self.stack_count);
-                    self.pop_count += 1;
                 }
                 Statement::Return(e) => {
                     self.expr(e.clone())?;
@@ -179,7 +182,6 @@ impl CodeGenerator {
                 }
                 Statement::Expr(e) => {
                     self.expr(e.clone())?;
-                    self.pop_count += 1;
                 }
                 Statement::Panic => return Ok(()),
             }
@@ -227,7 +229,7 @@ mod tests {
                 vec![
                     Push(DataType::Int(10)),
                     Push(DataType::StackAddr(0)),
-                    Return(2),
+                    Return(1),
                 ],
             ),
             (

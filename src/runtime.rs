@@ -146,7 +146,7 @@ impl Runtime {
                     self.push(p);
                 }
                 OpCode::Call(t) => {
-                    let addr = self.pop(1);
+                    let addr = self.stack[self.stack.len() - 1].clone();
                     let closure = self.deref(addr)?;
                     match closure {
                         HeapData::Closure(body) => {
