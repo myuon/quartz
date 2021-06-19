@@ -2,7 +2,10 @@ use std::collections::HashMap;
 
 use anyhow::{bail, ensure, Result};
 
-use crate::ast::{Expr, Literal, Module, Statement};
+use crate::{
+    ast::{Expr, Literal, Module, Statement},
+    code_gen::OpCode,
+};
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum UnsizedDataType {
@@ -30,6 +33,136 @@ impl DataType {
             StackAddr(_) => "stack_addr",
         }
     }
+}
+
+struct Runtime {
+    pc: usize,
+    program: Vec<OpCode>,
+    stack: Vec<DataType>,
+    heap: Vec<UnsizedDataType>,
+}
+
+impl Runtime {
+    pub fn new(program: Vec<OpCode>) -> Runtime {
+        Runtime {
+            pc: 0,
+            program,
+            stack: vec![],
+            heap: vec![],
+        }
+    }
+
+    fn push(&mut self, val: DataType) -> usize {
+        let u = self.stack.len();
+        self.stack.push(val);
+        u
+    }
+
+    fn pop(&mut self, n: usize) -> DataType {
+        let mut result = DataType::Nil;
+        for _ in 0..n {
+            result = self.stack.pop().unwrap();
+        }
+
+        result
+    }
+
+    // TODO: 空いてるところを探すようにする
+    fn alloc(&mut self, val: UnsizedDataType) -> DataType {
+        let p = self.heap.len();
+        self.heap.push(val);
+        DataType::HeapAddr(p)
+    }
+
+    fn free(&mut self, pointer: DataType) -> Result<()> {
+        match pointer {
+            DataType::HeapAddr(p) => {
+                if p < self.heap.len() && !matches!(self.heap[p], UnsizedDataType::Nil) {
+                    self.heap[p] = UnsizedDataType::Nil;
+
+                    Ok(())
+                } else {
+                    bail!("Failed to free this object");
+                }
+            }
+            _ => {
+                bail!("Expected HeapAddr but found {:?}", pointer);
+            }
+        }
+    }
+
+    fn deref(&mut self, pointer: DataType) -> Result<UnsizedDataType> {
+        match pointer {
+            DataType::HeapAddr(p) => Ok(self.heap[p].clone()),
+            _ => bail!("Expected pointer but found {:?}", pointer),
+        }
+    }
+
+    fn is_end(&self) -> bool {
+        self.pc == self.program.len()
+    }
+
+    pub fn execute(&mut self) -> Result<()> {
+        while !self.is_end() {
+            match self.program[self.pc].clone() {
+                OpCode::Pop(p) => {
+                    self.pop(p);
+                }
+                OpCode::Push(v) => {
+                    self.push(v);
+                }
+                OpCode::Return(r) => {
+                    let ret = self.pop(1);
+                    self.pop(r);
+                    self.push(ret);
+                }
+                OpCode::Copy(p) => {
+                    self.push(self.stack[p].clone());
+                }
+                OpCode::Alloc(h) => {
+                    let p = self.alloc(h);
+                    self.push(p);
+                }
+                OpCode::Call(t) => {
+                    let addr = self.pop(1);
+                    let closure = self.deref(addr)?;
+                    match closure {
+                        UnsizedDataType::Closure(vs, body) => {
+                            /*
+                            let prev = self.variables.clone();
+                            for (v, val) in vs.into_iter().zip(vargs) {
+                                let p = self.push(val);
+                                self.variables.insert(v, p);
+                            }
+
+                            self.statements(arity, body)?;
+
+                            self.variables = prev;
+
+                            Ok(self.pop(1))
+                             */
+                            todo!()
+                        }
+                        r => bail!("Expected a closure but found {:?}", r),
+                    }
+                }
+                OpCode::PAssign() => todo!(),
+                OpCode::Free() => todo!(),
+                OpCode::Deref() => todo!(),
+            }
+
+            self.pc += 1;
+        }
+
+        Ok(())
+    }
+}
+
+pub fn execute(program: Vec<OpCode>) -> Result<DataType> {
+    let mut runtime = Runtime::new(program);
+    runtime.execute()?;
+
+    Ok(runtime.pop(1))
 }
 
 pub type FFITable = HashMap<String, Box<fn(Vec<DataType>) -> DataType>>;

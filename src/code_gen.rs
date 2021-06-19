@@ -7,17 +7,24 @@ use crate::{
     runtime::{DataType, UnsizedDataType},
 };
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
+pub enum HeapData {
+    Nil,
+    String(String),
+    Closure(Vec<OpCode>),
+}
+
+#[derive(PartialEq, Debug, Clone)]
 pub enum OpCode {
     Pop(usize),
     Push(DataType),
     Return(usize),
     Copy(usize),
-    Alloc(UnsizedDataType),
+    Alloc(HeapData),
     Call(usize),
-    PAssign(),
-    Free(),
-    Deref(),
+    PAssign,
+    Free,
+    Deref,
 }
 
 struct CodeGenerator {
@@ -46,7 +53,13 @@ impl CodeGenerator {
     fn alloc(&mut self, val: UnsizedDataType) -> usize {
         let p = self.stackCount;
         self.stackCount += 1;
-        self.codes.push(OpCode::Alloc(val));
+
+        match val {
+            UnsizedDataType::Nil => self.codes.push(OpCode::Alloc(HeapData::Nil)),
+            UnsizedDataType::String(s) => self.codes.push(OpCode::Alloc(HeapData::String(s))),
+            // StackAddress, Copyのindexを逆順にしたらここのコンパイル処理を追加する
+            UnsizedDataType::Closure(args, body) => todo!(),
+        }
 
         p
     }
@@ -82,7 +95,7 @@ impl CodeGenerator {
                 // ポインタ経由の代入: _passign(p,v) == (*p = v)
                 if &f == "_passign" {
                     ensure!(arity == 2, "Expected 2 arguments but {:?} given", arity);
-                    self.codes.push(OpCode::PAssign());
+                    self.codes.push(OpCode::PAssign);
 
                     return Ok(self.stackCount);
                 }
@@ -90,7 +103,7 @@ impl CodeGenerator {
                 // ヒープ領域の開放
                 if &f == "_free" {
                     ensure!(arity == 1, "Expected 1 arguments but {:?} given", arity);
-                    self.codes.push(OpCode::Free());
+                    self.codes.push(OpCode::Free);
 
                     return Ok(self.stackCount);
                 }
@@ -113,7 +126,7 @@ impl CodeGenerator {
             },
             Expr::Deref(expr) => {
                 self.expr(expr.as_ref().clone())?;
-                self.codes.push(OpCode::Deref());
+                self.codes.push(OpCode::Deref);
                 Ok(self.stackCount)
             }
         }
@@ -176,10 +189,7 @@ mod tests {
             r#"let x = 10; let f = fn (a,b) { return a; }; f(x,x);"#,
             vec![
                 Push(DataType::Int(10)),
-                Alloc(UnsizedDataType::Closure(
-                    vec!["a".to_string(), "b".to_string()],
-                    vec![Statement::Return(Expr::Var("a".to_string()))],
-                )),
+                Alloc(HeapData::Closure(vec![])),
                 Copy(0),
                 Copy(0),
                 Copy(1),
