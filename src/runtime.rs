@@ -379,13 +379,17 @@ pub fn interpret(ffi_table: FFITable, module: Module) -> Result<DataType> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{create_ffi_table, parser::run_parser};
+    use crate::{code_gen::gen_code, create_ffi_table, parser::run_parser};
 
     use super::*;
 
     #[test]
     fn test_runtime() {
         let cases = vec![
+            (
+                r#"let x = 10; let y = x; let z = y; return z;"#,
+                DataType::Int(10),
+            ),
             (
                 r#"let x = 10; let f = fn (a,b) { return a; }; return f(x,x);"#,
                 DataType::Int(10),
@@ -436,7 +440,8 @@ mod tests {
 
         for c in cases {
             let m = run_parser(c.0).unwrap();
-            let result = interpret(create_ffi_table(), m).unwrap();
+            let code = gen_code(m).unwrap();
+            let result = execute(code).unwrap();
             assert_eq!(result, c.1, "{:?}", c.0);
         }
     }

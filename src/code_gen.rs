@@ -16,7 +16,6 @@ pub enum HeapData {
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum OpCode {
-    Pop(usize),
     Push(DataType),
     Return(usize),
     Copy(usize),
@@ -50,15 +49,34 @@ impl CodeGenerator {
         self.pop_count += 1;
     }
 
-    fn alloc(&mut self, val: UnsizedDataType) {
+    fn alloc(&mut self, val: UnsizedDataType) -> Result<()> {
         match val {
-            UnsizedDataType::Nil => self.codes.push(OpCode::Alloc(HeapData::Nil)),
-            UnsizedDataType::String(s) => self.codes.push(OpCode::Alloc(HeapData::String(s))),
-            // StackAddress, Copyのindexを逆順にしたらここのコンパイル処理を追加する
-            UnsizedDataType::Closure(args, body) => todo!(),
+            UnsizedDataType::Nil => {
+                self.codes.push(OpCode::Alloc(HeapData::Nil));
+            }
+            UnsizedDataType::String(s) => {
+                self.codes.push(OpCode::Alloc(HeapData::String(s)));
+            }
+            UnsizedDataType::Closure(args, body) => {
+                let mut generator = CodeGenerator::new();
+                generator.variables = self.variables.clone();
+                generator.stack_count = self.stack_count;
+
+                let arity = args.len();
+                for a in args {
+                    generator.variables.insert(a, self.stack_count);
+                    generator.stack_count += 1;
+                }
+
+                generator.statements(arity, body)?;
+
+                self.codes
+                    .push(OpCode::Alloc(HeapData::Closure(generator.codes)));
+            }
         }
         self.stack_count += 1;
         self.pop_count += 1;
+        Ok(())
     }
 
     fn load(&mut self, ident: &String) -> Result<()> {
@@ -85,12 +103,12 @@ impl CodeGenerator {
             Expr::Lit(lit) => {
                 match lit {
                     Literal::Int(n) => self.push(DataType::Int(n)),
-                    Literal::String(s) => self.alloc(UnsizedDataType::String(s)),
+                    Literal::String(s) => self.alloc(UnsizedDataType::String(s))?,
                 };
 
                 Ok(())
             }
-            Expr::Fun(args, body) => Ok(self.alloc(UnsizedDataType::Closure(args, body))),
+            Expr::Fun(args, body) => self.alloc(UnsizedDataType::Closure(args, body)),
             Expr::Call(f, args) => {
                 let arity = args.len();
                 for a in args {
@@ -217,16 +235,19 @@ mod tests {
                 ],
             ),
             (
-                r#"let x = 10; let f = fn (a,b) { return a; }; f(x,x);"#,
+                r#"let x = 10; let f = fn (a,b,c,d,e) { return a; }; f(x,x,x,x,x);"#,
                 vec![
                     Push(DataType::Int(10)),
-                    Alloc(HeapData::Closure(vec![])),
-                    Copy(0),
-                    Copy(0),
+                    Alloc(HeapData::Closure(vec![Copy(5), Return(5)])),
                     Copy(1),
-                    Call(2),
-                    Pop(2),
+                    Copy(2),
+                    Copy(3),
+                    Copy(4),
+                    Copy(5),
+                    Copy(5),
+                    Call(5),
                     Push(DataType::Nil),
+                    Return(8),
                 ],
             ),
         ];
