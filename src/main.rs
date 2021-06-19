@@ -3,7 +3,7 @@ use std::{collections::HashMap, io::Read};
 use anyhow::Result;
 
 use crate::{
-    code_gen::gen_code,
+    code_gen::{gen_code, HeapData},
     parser::run_parser,
     runtime::{execute, DataType, FFIFunction},
 };
@@ -18,7 +18,7 @@ pub fn create_ffi_table() -> (HashMap<String, usize>, Vec<FFIFunction>) {
     let mut ffi_table: Vec<(String, FFIFunction)> = vec![];
     ffi_table.push((
         "_add".to_string(),
-        Box::new(|mut vs: Vec<DataType>| {
+        Box::new(|mut vs: Vec<DataType>, _| {
             let x = vs.pop().unwrap();
             let y = vs.pop().unwrap();
 
@@ -32,12 +32,20 @@ pub fn create_ffi_table() -> (HashMap<String, usize>, Vec<FFIFunction>) {
     ));
     ffi_table.push((
         "_print".to_string(),
-        Box::new(|mut vs: Vec<DataType>| {
-            let x = vs.pop().unwrap();
-            println!("{:?}", x);
-            vs.push(DataType::Nil);
+        Box::new(|mut stack: Vec<DataType>, heap: Vec<HeapData>| {
+            let x = stack.pop().unwrap();
+            match x {
+                DataType::HeapAddr(p) => {
+                    println!("{:?}", heap[p]);
+                }
+                DataType::StackAddr(p) => {
+                    println!("{:?}", stack[p]);
+                }
+                _ => println!("{:?}", x),
+            }
+            stack.push(DataType::Nil);
 
-            vs
+            stack
         }),
     ));
 

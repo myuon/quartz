@@ -111,7 +111,14 @@ impl Runtime {
 
     pub fn execute(&mut self) -> Result<()> {
         while !self.is_end() {
-            println!("{:?}\n{:?}\n", &self.program[self.pc..], self.stack);
+            /*
+            println!(
+                "{:?}\n{:?}\n{:?}\n",
+                &self.program[self.pc..],
+                self.stack,
+                self.heap
+            );
+            */
 
             match self.program[self.pc].clone() {
                 OpCode::Push(v) => {
@@ -143,7 +150,8 @@ impl Runtime {
                     match addr {
                         DataType::FFIAddr(addr) => {
                             self.pop(1);
-                            self.stack = self.ffi_functions[addr](self.stack.clone());
+                            self.stack =
+                                self.ffi_functions[addr](self.stack.clone(), self.heap.clone());
                             self.pc += 1;
                             continue;
                         }
@@ -201,7 +209,7 @@ pub fn execute(program: Vec<OpCode>, ffi_functions: Vec<FFIFunction>) -> Result<
     Ok(runtime.pop(1))
 }
 
-pub type FFIFunction = Box<fn(Vec<DataType>) -> Vec<DataType>>;
+pub type FFIFunction = Box<fn(Vec<DataType>, Vec<HeapData>) -> Vec<DataType>>;
 
 #[cfg(test)]
 mod tests {
@@ -261,6 +269,15 @@ mod tests {
                     return x;
                 "#,
                 DataType::Int(30),
+            ),
+            (
+                r#"
+                    let f = fn (a,b) {
+                        return _add(a,b);
+                    };
+                    return f(1,2);
+                "#,
+                DataType::Int(3),
             ),
         ];
 
@@ -329,7 +346,7 @@ mod tests {
             (
                 // take the address of string
                 r#"let x = "hello, world"; let y = &x; panic;"#,
-                vec![DataType::Nil, DataType::HeapAddr(0), DataType::StackAddr(0)],
+                vec![DataType::Nil, DataType::HeapAddr(0), DataType::StackAddr(1)],
                 vec![HeapData::String("hello, world".to_string())],
             ),
             (

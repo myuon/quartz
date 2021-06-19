@@ -67,7 +67,7 @@ impl CodeGenerator {
 
                 let arity = args.len();
                 for a in args {
-                    generator.variables.insert(a, self.stack_count);
+                    generator.variables.insert(a, generator.stack_count);
                     generator.stack_count += 1;
                 }
 
@@ -169,7 +169,7 @@ impl CodeGenerator {
                         .ok_or(anyhow::anyhow!("Ident {} not found", v))?
                         .clone();
 
-                    self.push(DataType::StackAddr(self.stack_count - p));
+                    self.push(DataType::StackAddr(p));
 
                     Ok(())
                 }
@@ -244,7 +244,7 @@ mod tests {
                 r#"let x = 10; return &x;"#,
                 vec![
                     Push(DataType::Int(10)),
-                    Push(DataType::StackAddr(0)),
+                    Push(DataType::StackAddr(1)),
                     Return(2),
                 ],
             ),
