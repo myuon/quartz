@@ -46,7 +46,6 @@ impl CodeGenerator {
     fn push(&mut self, val: DataType) {
         self.codes.push(OpCode::Push(val));
         self.stack_count += 1;
-        self.pop_count += 1;
     }
 
     fn alloc(&mut self, val: UnsizedDataType) -> Result<()> {
@@ -77,7 +76,6 @@ impl CodeGenerator {
             }
         }
         self.stack_count += 1;
-        self.pop_count += 1;
         Ok(())
     }
 
@@ -89,14 +87,11 @@ impl CodeGenerator {
 
         self.codes.push(OpCode::Copy(self.stack_count - *v));
         self.stack_count += 1;
-        self.pop_count += 1;
         Ok(())
     }
 
     fn ret(&mut self, arity: usize) {
-        // return expr;のとき、exprの分だけstackを1つ消費しているのでその分1を引いておく
-        self.codes.push(OpCode::Return(self.pop_count + arity - 1));
-        self.pop_count = 0;
+        self.codes.push(OpCode::Return(self.pop_count + arity));
     }
 
     fn expr(&mut self, expr: Expr) -> Result<()> {
@@ -135,19 +130,24 @@ impl CodeGenerator {
                     return Ok(());
                 }
 
-                let faddr = self.load(&f)?;
+                self.load(&f)?;
                 self.codes.push(OpCode::Call(arity));
 
-                Ok(faddr)
+                Ok(())
             }
             Expr::Ref(expr) => match expr.as_ref() {
                 Expr::Var(v) => {
                     let p = self
                         .variables
                         .get(v)
-                        .ok_or(anyhow::anyhow!("Ident {} not found", v))?;
+                        .ok_or(anyhow::anyhow!("Ident {} not found", v))?
+                        .clone();
 
-                    self.push(DataType::StackAddr(self.stack_count - *p));
+                    self.push(DataType::StackAddr(self.stack_count - p));
+
+                    // &xはlet文のような変数宣言ではないがアドレスをstackに余分に載せpopするやつがいないので、pop_countを増やす必要がある
+                    self.pop_count += 1;
+
                     Ok(())
                 }
                 _ => bail!("Cannot take the address of {:?}", expr),
@@ -167,6 +167,7 @@ impl CodeGenerator {
                 Statement::Let(x, e) => {
                     self.expr(e.clone())?;
                     self.variables.insert(x.clone(), self.stack_count);
+                    self.pop_count += 1;
                 }
                 Statement::Return(e) => {
                     self.expr(e.clone())?;
@@ -175,6 +176,7 @@ impl CodeGenerator {
                 }
                 Statement::Expr(e) => {
                     self.expr(e.clone())?;
+                    self.pop_count += 1;
                 }
                 Statement::Panic => return Ok(()),
             }
@@ -222,7 +224,7 @@ mod tests {
                 vec![
                     Push(DataType::Int(10)),
                     Push(DataType::StackAddr(0)),
-                    Return(1),
+                    Return(2),
                 ],
             ),
             (
@@ -249,7 +251,7 @@ mod tests {
                     Copy(5),
                     Call(5),
                     Push(DataType::Nil),
-                    Return(8),
+                    Return(3),
                 ],
             ),
         ];
