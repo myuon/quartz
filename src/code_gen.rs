@@ -31,6 +31,7 @@ struct CodeGenerator {
     variables: HashMap<String, usize>,
     codes: Vec<OpCode>,
     stack_count: usize,
+    pop_count: usize,
 }
 
 impl CodeGenerator {
@@ -39,12 +40,14 @@ impl CodeGenerator {
             variables: HashMap::new(),
             codes: vec![],
             stack_count: 0,
+            pop_count: 0,
         }
     }
 
     fn push(&mut self, val: DataType) {
         self.codes.push(OpCode::Push(val));
         self.stack_count += 1;
+        self.pop_count += 1;
     }
 
     fn alloc(&mut self, val: UnsizedDataType) {
@@ -55,6 +58,7 @@ impl CodeGenerator {
             UnsizedDataType::Closure(args, body) => todo!(),
         }
         self.stack_count += 1;
+        self.pop_count += 1;
     }
 
     fn load(&mut self, ident: &String) -> Result<()> {
@@ -65,7 +69,14 @@ impl CodeGenerator {
 
         self.codes.push(OpCode::Copy(self.stack_count - *v));
         self.stack_count += 1;
+        self.pop_count += 1;
         Ok(())
+    }
+
+    fn ret(&mut self, arity: usize) {
+        // return expr;のとき、exprの分だけstackを1つ消費しているのでその分1を引いておく
+        self.codes.push(OpCode::Return(self.pop_count + arity - 1));
+        self.pop_count = 0;
     }
 
     fn expr(&mut self, expr: Expr) -> Result<()> {
@@ -130,17 +141,16 @@ impl CodeGenerator {
     }
 
     fn statements(&mut self, arity: usize, stmts: Vec<Statement>) -> Result<()> {
-        let mut pop_count = 0;
+        self.pop_count = 0;
         for stmt in stmts {
             match stmt {
                 Statement::Let(x, e) => {
                     self.expr(e.clone())?;
                     self.variables.insert(x.clone(), self.stack_count);
-                    pop_count += 1;
                 }
                 Statement::Return(e) => {
                     self.expr(e.clone())?;
-                    self.codes.push(OpCode::Return(pop_count + arity));
+                    self.ret(arity);
                     return Ok(());
                 }
                 Statement::Expr(e) => {
@@ -151,8 +161,8 @@ impl CodeGenerator {
         }
 
         // returnがない場合はreturn nil;と同等
-        self.codes.push(OpCode::Pop(pop_count + arity));
         self.push(DataType::Nil);
+        self.ret(arity);
         Ok(())
     }
 
@@ -193,6 +203,17 @@ mod tests {
                     Push(DataType::Int(10)),
                     Push(DataType::StackAddr(0)),
                     Return(1),
+                ],
+            ),
+            (
+                r#"1; 2; 3; 4;"#,
+                vec![
+                    Push(DataType::Int(1)),
+                    Push(DataType::Int(2)),
+                    Push(DataType::Int(3)),
+                    Push(DataType::Int(4)),
+                    Push(DataType::Nil),
+                    Return(4),
                 ],
             ),
             (
