@@ -273,8 +273,10 @@ mod tests {
         }
     }
 
-    //#[test]
+    #[test]
     fn test_interpreter_stack() {
+        use OpCode::*;
+
         let cases = vec![
             (
                 r#"
@@ -286,7 +288,15 @@ mod tests {
                     return f();
                 "#,
                 vec![DataType::Int(3)],
-                vec![HeapData::Closure(vec![])],
+                vec![HeapData::Closure(vec![
+                    Push(DataType::Int(1)),
+                    Push(DataType::Int(2)),
+                    Copy(1),
+                    Copy(1),
+                    Push(DataType::FFIAddr(0)),
+                    Call,
+                    Return(3),
+                ])],
             ),
             (
                 // no return functionでもローカル変数は全てpopされること
@@ -297,7 +307,7 @@ mod tests {
             (
                 // just panic
                 r#"let x = 1; panic;"#,
-                vec![DataType::Int(1)],
+                vec![DataType::Nil, DataType::Int(1)],
                 vec![],
             ),
             (
@@ -308,19 +318,22 @@ mod tests {
                 "#,
                 vec![DataType::HeapAddr(1)],
                 vec![
-                    HeapData::Closure(vec![]),
+                    HeapData::Closure(vec![
+                        Alloc(HeapData::String("hello".to_string())),
+                        Return(6),
+                    ]),
                     HeapData::String("hello".to_string()),
                 ],
             ),
             (
                 // take the address of string
                 r#"let x = "hello, world"; let y = &x; panic;"#,
-                vec![DataType::HeapAddr(0), DataType::StackAddr(0)],
+                vec![DataType::Nil, DataType::HeapAddr(0), DataType::StackAddr(0)],
                 vec![HeapData::String("hello, world".to_string())],
             ),
             (
                 r#"let x = "hello, world"; _free(x); panic;"#,
-                vec![DataType::HeapAddr(0)],
+                vec![DataType::Nil, DataType::HeapAddr(0)],
                 vec![HeapData::Nil],
             ),
         ];
