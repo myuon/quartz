@@ -133,6 +133,9 @@ impl CodeGenerator {
                 self.load(&f)?;
                 self.codes.push(OpCode::Call(arity));
 
+                // 関数ポインタの分はpopされるので1を引いておく
+                self.stack_count -= 1;
+
                 Ok(())
             }
             Expr::Ref(expr) => match expr.as_ref() {

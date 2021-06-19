@@ -35,11 +35,15 @@ impl DataType {
     }
 }
 
+#[derive(Debug)]
 struct Runtime {
     pc: usize,
     program: Vec<OpCode>,
     stack: Vec<DataType>,
     heap: Vec<HeapData>,
+    call_stack: Vec<usize>,
+    // 関数が引数より外側のスタック領域に勝手にアクセスしないようにするためのやつ
+    stack_guard: usize,
 }
 
 impl Runtime {
@@ -49,6 +53,8 @@ impl Runtime {
             program,
             stack: vec![],
             heap: vec![],
+            call_stack: vec![],
+            stack_guard: 0,
         }
     }
 
@@ -104,10 +110,9 @@ impl Runtime {
 
     pub fn execute(&mut self) -> Result<()> {
         while !self.is_end() {
+            println!("{:?}\n{:?}\n", &self.program[self.pc..], self.stack);
+
             match self.program[self.pc].clone() {
-                OpCode::Pop(p) => {
-                    self.pop(p);
-                }
                 OpCode::Push(v) => {
                     self.push(v);
                 }
@@ -115,9 +120,26 @@ impl Runtime {
                     let ret = self.pop(1);
                     self.pop(r);
                     self.push(ret);
+
+                    match self.call_stack.pop() {
+                        Some(p) => {
+                            self.pc = p + 1;
+                            continue;
+                        }
+                        _ => return Ok(()),
+                    }
                 }
                 OpCode::Copy(p) => {
-                    self.push(self.stack[p].clone());
+                    let target = self.stack.len() - 1 - p;
+
+                    ensure!(
+                        self.stack_guard <= target,
+                        "Detected invalid stack access: {} is out of stack guard address {} in {:?}",
+                        p,
+                        self.stack_guard,
+                        self.stack,
+                    );
+                    self.push(self.stack[target].clone());
                 }
                 OpCode::Alloc(h) => {
                     let p = self.alloc(h);
@@ -128,20 +150,12 @@ impl Runtime {
                     let closure = self.deref(addr)?;
                     match closure {
                         HeapData::Closure(body) => {
-                            /*
-                            let prev = self.variables.clone();
-                            for (v, val) in vs.into_iter().zip(vargs) {
-                                let p = self.push(val);
-                                self.variables.insert(v, p);
-                            }
+                            self.call_stack.push(self.pc);
 
-                            self.statements(arity, body)?;
-
-                            self.variables = prev;
-
-                            Ok(self.pop(1))
-                             */
-                            todo!()
+                            self.pc = self.program.len();
+                            self.program.extend(body);
+                            self.stack_guard = self.stack.len() - 1 - t;
+                            continue;
                         }
                         r => bail!("Expected a closure but found {:?}", r),
                     }
