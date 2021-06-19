@@ -15,8 +15,8 @@ mod parser;
 mod runtime;
 
 pub fn create_ffi_table() -> (HashMap<String, usize>, Vec<FFIFunction>) {
-    let mut ffi_table = HashMap::<String, FFIFunction>::new();
-    ffi_table.insert(
+    let mut ffi_table: Vec<(String, FFIFunction)> = vec![];
+    ffi_table.push((
         "_add".to_string(),
         Box::new(|mut vs: Vec<DataType>| {
             let x = vs.pop().unwrap();
@@ -29,7 +29,17 @@ pub fn create_ffi_table() -> (HashMap<String, usize>, Vec<FFIFunction>) {
 
             vs
         }),
-    );
+    ));
+    ffi_table.push((
+        "_print".to_string(),
+        Box::new(|mut vs: Vec<DataType>| {
+            let x = vs.pop().unwrap();
+            println!("{:?}", x);
+            vs.push(DataType::Nil);
+
+            vs
+        }),
+    ));
 
     let enumerated = ffi_table.into_iter().enumerate().collect::<Vec<_>>();
 

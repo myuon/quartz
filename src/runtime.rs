@@ -6,6 +6,7 @@ use crate::{
 };
 
 #[derive(PartialEq, Debug, Clone)]
+#[allow(dead_code)]
 pub enum UnsizedDataType {
     Nil,
     String(String),
@@ -335,6 +336,28 @@ mod tests {
                 r#"let x = "hello, world"; _free(x); panic;"#,
                 vec![DataType::Nil, DataType::HeapAddr(0)],
                 vec![HeapData::Nil],
+            ),
+            (
+                r#"
+                    let x = "";
+                    let f = fn (p) {
+                        _passign(p, "hello, world");
+                    };
+                    f(&x);
+                    return x;
+                "#,
+                vec![DataType::HeapAddr(2)],
+                vec![
+                    HeapData::String("".to_string()),
+                    HeapData::Closure(vec![
+                        Copy(1),
+                        Alloc(HeapData::String("hello, world".to_string())),
+                        PAssign,
+                        Push(DataType::Nil),
+                        Return(2),
+                    ]),
+                    HeapData::String("hello, world".to_string()),
+                ],
             ),
         ];
 
