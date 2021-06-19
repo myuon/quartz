@@ -61,9 +61,6 @@ impl CodeGenerator {
                 let mut generator = CodeGenerator::new();
                 generator.variables = self.variables.clone();
 
-                // stackの最後には実行する関数へのアドレスが乗っており、これはCALL時にポップされるのでaddressは1ずつずれる
-                generator.stack_count = self.stack_count - 1;
-
                 let arity = args.len();
                 for a in args {
                     generator.variables.insert(a, self.stack_count);
@@ -95,7 +92,7 @@ impl CodeGenerator {
 
     fn ret(&mut self, arity: usize) {
         // return expr;のときexprがstackに乗っている分があるので1を引いておく
-        let pop = self.pop_count + arity - 1;
+        let pop = self.pop_count + arity;
 
         self.codes.push(OpCode::Return(pop));
         self.stack_count -= pop;
@@ -223,14 +220,14 @@ mod tests {
         let cases = vec![
             (
                 r#"let x = 10; let y = x; return y;"#,
-                vec![Push(DataType::Int(10)), Copy(0), Copy(0), Return(2)],
+                vec![Push(DataType::Int(10)), Copy(0), Copy(0), Return(3)],
             ),
             (
                 r#"let x = 10; return &x;"#,
                 vec![
                     Push(DataType::Int(10)),
                     Push(DataType::StackAddr(0)),
-                    Return(1),
+                    Return(2),
                 ],
             ),
             (
@@ -241,14 +238,25 @@ mod tests {
                     Push(DataType::Int(3)),
                     Push(DataType::Int(4)),
                     Push(DataType::Nil),
-                    Return(4),
+                    Return(5),
+                ],
+            ),
+            (
+                r#"let f = fn(a) { return a; }; f(1);"#,
+                vec![
+                    Alloc(HeapData::Closure(vec![Copy(1), Return(2)])),
+                    Push(DataType::Int(1)),
+                    Copy(1),
+                    Call,
+                    Push(DataType::Nil),
+                    Return(3),
                 ],
             ),
             (
                 r#"let x = 10; let f = fn (a,b,c,d,e) { return a; }; f(x,x,x,x,x);"#,
                 vec![
                     Push(DataType::Int(10)),
-                    Alloc(HeapData::Closure(vec![Copy(4), Return(5)])),
+                    Alloc(HeapData::Closure(vec![Copy(4), Return(6)])),
                     Copy(1),
                     Copy(2),
                     Copy(3),
@@ -257,7 +265,7 @@ mod tests {
                     Copy(5),
                     Call,
                     Push(DataType::Nil),
-                    Return(3),
+                    Return(4),
                 ],
             ),
         ];
