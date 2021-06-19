@@ -60,7 +60,9 @@ impl CodeGenerator {
             UnsizedDataType::Closure(args, body) => {
                 let mut generator = CodeGenerator::new();
                 generator.variables = self.variables.clone();
-                generator.stack_count = self.stack_count;
+
+                // stackの最後には実行する関数へのアドレスが乗っており、これはCALL時にポップされるのでaddressは1ずつずれる
+                generator.stack_count = self.stack_count - 1;
 
                 let arity = args.len();
                 for a in args {
@@ -238,7 +240,7 @@ mod tests {
                 r#"let x = 10; let f = fn (a,b,c,d,e) { return a; }; f(x,x,x,x,x);"#,
                 vec![
                     Push(DataType::Int(10)),
-                    Alloc(HeapData::Closure(vec![Copy(5), Return(5)])),
+                    Alloc(HeapData::Closure(vec![Copy(4), Return(5)])),
                     Copy(1),
                     Copy(2),
                     Copy(3),
