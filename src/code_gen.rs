@@ -97,7 +97,6 @@ impl CodeGenerator {
         let pop = self.pop_count + arity;
 
         self.codes.push(OpCode::Return(pop));
-        self.stack_count -= pop;
     }
 
     fn expr(&mut self, expr: Expr) -> Result<()> {
@@ -124,6 +123,8 @@ impl CodeGenerator {
                 if &f == "_passign" {
                     ensure!(arity == 2, "Expected 2 arguments but {:?} given", arity);
                     self.codes.push(OpCode::PAssign);
+                    self.stack_count -= 2;
+                    self.pop_count -= 2;
 
                     return Ok(());
                 }
@@ -132,6 +133,8 @@ impl CodeGenerator {
                 if &f == "_free" {
                     ensure!(arity == 1, "Expected 1 arguments but {:?} given", arity);
                     self.codes.push(OpCode::Free);
+                    self.stack_count -= 1;
+                    self.pop_count -= 1;
 
                     return Ok(());
                 }

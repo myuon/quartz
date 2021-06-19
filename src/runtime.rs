@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use anyhow::{bail, ensure, Result};
+use anyhow::{bail, Result};
 
 use crate::{
-    ast::{Expr, Literal, Module, Statement},
+    ast::Statement,
     code_gen::{HeapData, OpCode},
 };
 
@@ -261,7 +261,7 @@ mod tests {
         }
     }
 
-    #[test]
+    //#[test]
     fn test_interpreter_stack() {
         let cases = vec![
             (
