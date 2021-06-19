@@ -4,8 +4,9 @@ use anyhow::Result;
 use runtime::FFITable;
 
 use crate::{
+    code_gen::gen_code,
     parser::run_parser,
-    runtime::{interpret, DataType},
+    runtime::{execute, DataType},
 };
 
 mod ast;
@@ -39,7 +40,7 @@ fn main() -> Result<()> {
     let mut stdin = std::io::stdin();
     stdin.read_to_string(&mut buffer)?;
 
-    println!("{:?}", interpret(create_ffi_table(), run_parser(&buffer)?));
+    println!("{:?}", execute(gen_code(run_parser(&buffer)?)?));
 
     Ok(())
 }

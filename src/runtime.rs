@@ -170,216 +170,6 @@ pub fn execute(program: Vec<OpCode>) -> Result<DataType> {
 
 pub type FFITable = HashMap<String, Box<fn(Vec<DataType>) -> DataType>>;
 
-struct Interpreter {
-    stack: Vec<DataType>,
-    heap: Vec<UnsizedDataType>,
-    variables: HashMap<String, usize>,
-    ffi_table: FFITable,
-}
-
-impl Interpreter {
-    pub fn new(ffi_table: FFITable) -> Interpreter {
-        Interpreter {
-            stack: vec![],
-            heap: vec![],
-            variables: HashMap::new(),
-            ffi_table,
-        }
-    }
-
-    fn push(&mut self, val: DataType) -> usize {
-        let u = self.stack.len();
-        self.stack.push(val);
-        u
-    }
-
-    fn pop(&mut self, n: usize) -> DataType {
-        let mut result = DataType::Nil;
-        for _ in 0..n {
-            result = self.stack.pop().unwrap();
-        }
-
-        result
-    }
-
-    // TODO: 空いてるところを探すようにする
-    fn alloc(&mut self, val: UnsizedDataType) -> DataType {
-        let p = self.heap.len();
-        self.heap.push(val);
-        DataType::HeapAddr(p)
-    }
-
-    fn free(&mut self, pointer: DataType) -> Result<()> {
-        match pointer {
-            DataType::HeapAddr(p) => {
-                if p < self.heap.len() && !matches!(self.heap[p], UnsizedDataType::Nil) {
-                    self.heap[p] = UnsizedDataType::Nil;
-
-                    Ok(())
-                } else {
-                    bail!("Failed to free this object");
-                }
-            }
-            _ => {
-                bail!("Expected HeapAddr but found {:?}", pointer);
-            }
-        }
-    }
-
-    fn deref(&mut self, pointer: DataType) -> Result<UnsizedDataType> {
-        match pointer {
-            DataType::HeapAddr(p) => Ok(self.heap[p].clone()),
-            _ => bail!("Expected pointer but found {:?}", pointer),
-        }
-    }
-
-    fn load(&mut self, ident: &String) -> Result<DataType> {
-        let v = self
-            .variables
-            .get(ident)
-            .ok_or(anyhow::anyhow!("Ident {} not found", ident))?;
-
-        Ok(self.stack[*v].clone())
-    }
-
-    fn statements(&mut self, arity: usize, stmts: Vec<Statement>) -> Result<()> {
-        let mut pop_count = 0;
-        for stmt in stmts {
-            match stmt {
-                Statement::Let(x, e) => {
-                    let val = self.expr(e.clone())?;
-                    let p = self.push(val);
-                    self.variables.insert(x.clone(), p);
-                    pop_count += 1;
-                }
-                Statement::Return(e) => {
-                    let val = self.expr(e.clone())?;
-                    self.pop(pop_count + arity);
-                    self.push(val);
-                    return Ok(());
-                }
-                Statement::Expr(e) => {
-                    self.expr(e.clone())?;
-                }
-                Statement::Panic => return Ok(()),
-            }
-        }
-
-        // returnがない場合はreturn nil;と同等
-        self.pop(pop_count + arity);
-        self.push(DataType::Nil);
-        Ok(())
-    }
-
-    // &Exprで十分？
-    fn expr(&mut self, expr: Expr) -> Result<DataType> {
-        match expr {
-            Expr::Var(v) => self.load(&v),
-            Expr::Lit(lit) => Ok(match lit {
-                Literal::Int(n) => DataType::Int(n),
-                Literal::String(s) => self.alloc(UnsizedDataType::String(s)),
-            }),
-            Expr::Fun(args, body) => Ok(self.alloc(UnsizedDataType::Closure(args, body))),
-            Expr::Call(f, args) => {
-                let arity = args.len();
-                let mut vargs = vec![];
-                for a in args {
-                    vargs.push(self.expr(a)?);
-                }
-
-                // 特別な組み込み関数(stack, heapに干渉する必要があるものはここで)
-
-                // ポインタ経由の代入: _passign(p,v) == (*p = v)
-                if &f == "_passign" {
-                    ensure!(arity == 2, "Expected 2 arguments but {:?} given", arity);
-
-                    match vargs[0] {
-                        DataType::StackAddr(p) => {
-                            ensure!(
-                                self.stack[p].type_of() == vargs[1].type_of(),
-                                "Cannot assign to different types, left {:?} right {:?}",
-                                self.stack[p],
-                                vargs[1]
-                            );
-
-                            self.stack[p] = vargs[1].clone();
-                        }
-                        _ => {
-                            bail!("Expected stack address but found {:?}", vargs[0]);
-                        }
-                    }
-
-                    return Ok(DataType::Nil);
-                }
-
-                // ヒープ領域の開放
-                if &f == "_free" {
-                    ensure!(arity == 1, "Expected 1 arguments but {:?} given", arity);
-
-                    self.free(vargs[0].clone())?;
-                    return Ok(DataType::Nil);
-                }
-
-                if let Some(f) = self.ffi_table.get(&f) {
-                    return Ok(f(vargs));
-                }
-
-                let faddr = self.load(&f)?;
-                let closure = self.deref(faddr)?;
-                match closure {
-                    UnsizedDataType::Closure(vs, body) => {
-                        ensure!(
-                            vs.len() == arity,
-                            "Expected {} arguments but {} given",
-                            vs.len(),
-                            arity,
-                        );
-
-                        let prev = self.variables.clone();
-                        for (v, val) in vs.into_iter().zip(vargs) {
-                            let p = self.push(val);
-                            self.variables.insert(v, p);
-                        }
-
-                        self.statements(arity, body)?;
-
-                        self.variables = prev;
-
-                        Ok(self.pop(1))
-                    }
-                    r => bail!("Expected closure but found {:?}", r),
-                }
-            }
-            Expr::Ref(expr) => match expr.as_ref() {
-                Expr::Var(v) => {
-                    let p = self
-                        .variables
-                        .get(v)
-                        .ok_or(anyhow::anyhow!("Ident {} not found", v))?;
-
-                    Ok(DataType::StackAddr(*p))
-                }
-                _ => bail!("Cannot take the address of {:?}", expr),
-            },
-            Expr::Deref(expr) => match self.expr(expr.as_ref().clone())? {
-                DataType::StackAddr(p) => Ok(self.stack[p].clone()),
-                r => bail!("Cannot deref non-pointer value: {:?}", r),
-            },
-        }
-    }
-
-    pub fn module(&mut self, module: Module) -> Result<()> {
-        // moduleは引数のない関数とみなす
-        self.statements(0, module.0)
-    }
-}
-
-pub fn interpret(ffi_table: FFITable, module: Module) -> Result<DataType> {
-    let mut interpreter = Interpreter::new(ffi_table);
-    interpreter.module(module)?;
-    Ok(interpreter.pop(1))
-}
-
 #[cfg(test)]
 mod tests {
     use crate::{code_gen::gen_code, create_ffi_table, parser::run_parser};
@@ -464,17 +254,7 @@ mod tests {
                     return f();
                 "#,
                 vec![DataType::Int(3)],
-                vec![UnsizedDataType::Closure(
-                    vec![],
-                    vec![
-                        Statement::Let("y".to_string(), Expr::Lit(Literal::Int(1))),
-                        Statement::Let("z".to_string(), Expr::Lit(Literal::Int(2))),
-                        Statement::Return(Expr::Call(
-                            "_add".to_string(),
-                            vec![Expr::Var("y".to_string()), Expr::Var("z".to_string())],
-                        )),
-                    ],
-                )],
+                vec![HeapData::Closure(vec![])],
             ),
             (
                 // no return functionでもローカル変数は全てpopされること
@@ -496,38 +276,28 @@ mod tests {
                 "#,
                 vec![DataType::HeapAddr(1)],
                 vec![
-                    UnsizedDataType::Closure(
-                        vec![
-                            "a".to_string(),
-                            "b".to_string(),
-                            "c".to_string(),
-                            "d".to_string(),
-                            "e".to_string(),
-                        ],
-                        vec![Statement::Return(Expr::Lit(Literal::String(
-                            "hello".to_string(),
-                        )))],
-                    ),
-                    UnsizedDataType::String("hello".to_string()),
+                    HeapData::Closure(vec![]),
+                    HeapData::String("hello".to_string()),
                 ],
             ),
             (
                 // take the address of string
                 r#"let x = "hello, world"; let y = &x; panic;"#,
                 vec![DataType::HeapAddr(0), DataType::StackAddr(0)],
-                vec![UnsizedDataType::String("hello, world".to_string())],
+                vec![HeapData::String("hello, world".to_string())],
             ),
             (
                 r#"let x = "hello, world"; _free(x); panic;"#,
                 vec![DataType::HeapAddr(0)],
-                vec![UnsizedDataType::Nil],
+                vec![HeapData::Nil],
             ),
         ];
 
         for case in cases {
-            let mut interpreter = Interpreter::new(create_ffi_table());
             let m = run_parser(case.0).unwrap();
-            interpreter.module(m).unwrap();
+            let program = gen_code(m).unwrap();
+            let mut interpreter = Runtime::new(program);
+            interpreter.execute().unwrap();
             assert_eq!(interpreter.stack, case.1);
             assert_eq!(interpreter.heap, case.2);
         }
