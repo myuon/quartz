@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use anyhow::{bail, Result};
 
 use crate::{
@@ -20,6 +18,7 @@ pub enum DataType {
     Int(i32),
     HeapAddr(usize),
     StackAddr(usize),
+    FFIAddr(usize),
 }
 
 impl DataType {
@@ -31,6 +30,7 @@ impl DataType {
             Int(_) => "int",
             HeapAddr(_) => "heap_addr",
             StackAddr(_) => "stack_addr",
+            FFIAddr(_) => "ffi_addr",
         }
     }
 }
@@ -42,10 +42,11 @@ struct Runtime {
     stack: Vec<DataType>,
     heap: Vec<HeapData>,
     call_stack: Vec<usize>,
+    ffi_functions: Vec<FFIFunction>,
 }
 
 impl Runtime {
-    pub fn new(program: Vec<OpCode>) -> Runtime {
+    pub fn new(program: Vec<OpCode>, ffi_functions: Vec<FFIFunction>) -> Runtime {
         Runtime {
             pc: 0,
             program,
@@ -53,6 +54,7 @@ impl Runtime {
             stack: vec![DataType::Nil],
             heap: vec![],
             call_stack: vec![],
+            ffi_functions,
         }
     }
 
@@ -137,6 +139,16 @@ impl Runtime {
                 }
                 OpCode::Call => {
                     let addr = self.stack[self.stack.len() - 1].clone();
+                    match addr {
+                        DataType::FFIAddr(addr) => {
+                            self.pop(1);
+                            self.stack = self.ffi_functions[addr](self.stack.clone());
+                            self.pc += 1;
+                            continue;
+                        }
+                        _ => {}
+                    }
+
                     let closure = self.deref(addr)?;
                     match closure {
                         HeapData::Closure(body) => {
@@ -181,14 +193,14 @@ impl Runtime {
     }
 }
 
-pub fn execute(program: Vec<OpCode>) -> Result<DataType> {
-    let mut runtime = Runtime::new(program);
+pub fn execute(program: Vec<OpCode>, ffi_functions: Vec<FFIFunction>) -> Result<DataType> {
+    let mut runtime = Runtime::new(program, ffi_functions);
     runtime.execute()?;
 
     Ok(runtime.pop(1))
 }
 
-pub type FFITable = HashMap<String, Box<fn(Vec<DataType>) -> DataType>>;
+pub type FFIFunction = Box<fn(Vec<DataType>) -> Vec<DataType>>;
 
 #[cfg(test)]
 mod tests {
@@ -222,13 +234,11 @@ mod tests {
                 r#"return 1; return 2; return 3;"#,
                 DataType::Int(1),
             ),
-            /*
             (
                 // using ffi table
                 r#"return _add(1,2);"#,
                 DataType::Int(3),
             ),
-             */
             (
                 // no return function
                 r#"1; 2; 3;"#,
@@ -253,10 +263,12 @@ mod tests {
             ),
         ];
 
+        let (ffi_table, ffi_functions) = create_ffi_table();
+
         for c in cases {
             let m = run_parser(c.0).unwrap();
-            let code = gen_code(m).unwrap();
-            let result = execute(code).unwrap();
+            let code = gen_code(m, ffi_table.clone()).unwrap();
+            let result = execute(code, ffi_functions.clone()).unwrap();
             assert_eq!(result, c.1, "{:?}", c.0);
         }
     }
@@ -313,10 +325,12 @@ mod tests {
             ),
         ];
 
+        let (ffi_table, ffi_functions) = create_ffi_table();
+
         for case in cases {
             let m = run_parser(case.0).unwrap();
-            let program = gen_code(m).unwrap();
-            let mut interpreter = Runtime::new(program);
+            let program = gen_code(m, ffi_table.clone()).unwrap();
+            let mut interpreter = Runtime::new(program, ffi_functions.clone());
             interpreter.execute().unwrap();
             assert_eq!(interpreter.stack, case.1);
             assert_eq!(interpreter.heap, case.2);

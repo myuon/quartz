@@ -32,15 +32,17 @@ struct CodeGenerator {
     codes: Vec<OpCode>,
     stack_count: usize,
     pop_count: usize,
+    ffi_table: HashMap<String, usize>,
 }
 
 impl CodeGenerator {
-    pub fn new() -> CodeGenerator {
+    pub fn new(ffi_table: HashMap<String, usize>) -> CodeGenerator {
         CodeGenerator {
             variables: HashMap::new(),
             codes: vec![],
             stack_count: 0,
             pop_count: 0,
+            ffi_table,
         }
     }
 
@@ -59,7 +61,7 @@ impl CodeGenerator {
                 self.codes.push(OpCode::Alloc(HeapData::String(s)));
             }
             UnsizedDataType::Closure(args, body) => {
-                let mut generator = CodeGenerator::new();
+                let mut generator = CodeGenerator::new(self.ffi_table.clone());
                 generator.variables = self.variables.clone();
                 generator.stack_count = self.stack_count;
 
@@ -123,8 +125,8 @@ impl CodeGenerator {
                 if &f == "_passign" {
                     ensure!(arity == 2, "Expected 2 arguments but {:?} given", arity);
                     self.codes.push(OpCode::PAssign);
-                    self.stack_count -= 2;
-                    self.pop_count -= 2;
+                    self.stack_count -= arity;
+                    self.pop_count -= arity;
 
                     return Ok(());
                 }
@@ -133,8 +135,19 @@ impl CodeGenerator {
                 if &f == "_free" {
                     ensure!(arity == 1, "Expected 1 arguments but {:?} given", arity);
                     self.codes.push(OpCode::Free);
-                    self.stack_count -= 1;
-                    self.pop_count -= 1;
+                    self.stack_count -= arity;
+                    self.pop_count -= arity;
+
+                    return Ok(());
+                }
+
+                if let Some(addr) = self.ffi_table.get(&f).cloned() {
+                    self.push(DataType::FFIAddr(addr));
+                    self.codes.push(OpCode::Call);
+
+                    // TODO(safety): arity check
+                    self.stack_count -= arity;
+                    self.pop_count -= arity;
 
                     return Ok(());
                 }
@@ -205,8 +218,8 @@ impl CodeGenerator {
     }
 }
 
-pub fn gen_code(module: Module) -> Result<Vec<OpCode>> {
-    let mut generator = CodeGenerator::new();
+pub fn gen_code(module: Module, ffi_table: HashMap<String, usize>) -> Result<Vec<OpCode>> {
+    let mut generator = CodeGenerator::new(ffi_table);
     generator.gen_code(module)?;
 
     Ok(generator.codes)
@@ -214,7 +227,7 @@ pub fn gen_code(module: Module) -> Result<Vec<OpCode>> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parser::run_parser;
+    use crate::{create_ffi_table, parser::run_parser};
 
     use super::*;
 
@@ -285,8 +298,9 @@ mod tests {
         ];
 
         for c in cases {
+            let (ffi_table, _) = create_ffi_table();
             let m = run_parser(c.0).unwrap();
-            let result = gen_code(m).unwrap();
+            let result = gen_code(m, ffi_table).unwrap();
             assert_eq!(result, c.1, "{:?}", c.0);
         }
     }
