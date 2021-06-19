@@ -63,7 +63,7 @@ impl CodeGenerator {
             .get(ident)
             .ok_or(anyhow::anyhow!("Ident {} not found", ident))?;
 
-        self.codes.push(OpCode::Copy(*v));
+        self.codes.push(OpCode::Copy(self.stackCount - *v));
         self.stackCount += 1;
         Ok(())
     }
@@ -182,19 +182,25 @@ mod tests {
     fn test_gen_code() {
         use OpCode::*;
 
-        let cases = vec![(
-            r#"let x = 10; let f = fn (a,b) { return a; }; f(x,x);"#,
-            vec![
-                Push(DataType::Int(10)),
-                Alloc(HeapData::Closure(vec![])),
-                Copy(0),
-                Copy(0),
-                Copy(1),
-                Call(2),
-                Pop(2),
-                Push(DataType::Nil),
-            ],
-        )];
+        let cases = vec![
+            (
+                r#"let x = 10; let y = x; return y;"#,
+                vec![Push(DataType::Int(10)), Copy(0), Copy(0), Return(2)],
+            ),
+            (
+                r#"let x = 10; let f = fn (a,b) { return a; }; f(x,x);"#,
+                vec![
+                    Push(DataType::Int(10)),
+                    Alloc(HeapData::Closure(vec![])),
+                    Copy(0),
+                    Copy(0),
+                    Copy(1),
+                    Call(2),
+                    Pop(2),
+                    Push(DataType::Nil),
+                ],
+            ),
+        ];
 
         for c in cases {
             let m = run_parser(c.0).unwrap();
