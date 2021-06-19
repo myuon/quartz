@@ -149,9 +149,29 @@ impl Runtime {
                         r => bail!("Expected a closure but found {:?}", r),
                     }
                 }
-                OpCode::PAssign => todo!(),
-                OpCode::Free => todo!(),
-                OpCode::Deref => todo!(),
+                OpCode::PAssign => {
+                    let val = self.pop(1);
+                    let pointer = self.pop(1);
+                    match pointer {
+                        DataType::StackAddr(p) => {
+                            self.stack[p] = val;
+                        }
+                        r => bail!("Expected stack address but found {:?}", r),
+                    }
+                }
+                OpCode::Free => {
+                    let val = self.pop(1);
+                    self.free(val)?;
+                }
+                OpCode::Deref => {
+                    let addr = self.pop(1);
+                    match addr {
+                        DataType::StackAddr(p) => {
+                            self.push(self.stack[p].clone());
+                        }
+                        r => bail!("Expected stack address but found {:?}", r),
+                    }
+                }
             }
 
             self.pc += 1;

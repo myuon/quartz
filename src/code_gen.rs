@@ -26,6 +26,7 @@ pub enum OpCode {
     Deref,
 }
 
+#[derive(Debug)]
 struct CodeGenerator {
     variables: HashMap<String, usize>,
     codes: Vec<OpCode>,
@@ -60,6 +61,7 @@ impl CodeGenerator {
             UnsizedDataType::Closure(args, body) => {
                 let mut generator = CodeGenerator::new();
                 generator.variables = self.variables.clone();
+                generator.stack_count = self.stack_count;
 
                 let arity = args.len();
                 for a in args {
@@ -256,7 +258,7 @@ mod tests {
                 r#"let x = 10; let f = fn (a,b,c,d,e) { return a; }; f(x,x,x,x,x);"#,
                 vec![
                     Push(DataType::Int(10)),
-                    Alloc(HeapData::Closure(vec![Copy(4), Return(6)])),
+                    Alloc(HeapData::Closure(vec![Copy(5), Return(6)])),
                     Copy(1),
                     Copy(2),
                     Copy(3),
@@ -266,6 +268,15 @@ mod tests {
                     Call,
                     Push(DataType::Nil),
                     Return(4),
+                ],
+            ),
+            (
+                r#"let x = 0; let f = fn (a) { return *a; };"#,
+                vec![
+                    Push(DataType::Int(0)),
+                    Alloc(HeapData::Closure(vec![Copy(1), Deref, Return(2)])),
+                    Push(DataType::Nil),
+                    Return(3),
                 ],
             ),
         ];
