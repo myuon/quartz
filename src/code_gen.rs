@@ -1,119 +1,165 @@
-/*
 use std::collections::HashMap;
 
-use anyhow::Result;
+use anyhow::{bail, ensure, Result};
 
-use crate::ast::{Expr, Literal, Module, Statement};
+use crate::{
+    ast::{Expr, Literal, Module, Statement},
+    runtime::{DataType, UnsizedDataType},
+};
 
 #[derive(PartialEq, Debug)]
 pub enum OpCode {
-    PushInt(i32),
-    PushString(String),
-    PushClosure(Vec<String>, Vec<OpCode>),
+    Pop(usize),
+    Push(DataType),
+    Return(usize),
     Copy(usize),
+    Alloc(UnsizedDataType),
     Call(usize),
-    Pop(),
+    PAssign(),
+    Free(),
+    Deref(),
 }
 
 struct CodeGenerator {
-    letCount: usize,
-    addressTable: HashMap<String, usize>,
+    variables: HashMap<String, usize>,
+    codes: Vec<OpCode>,
+    stackCount: usize,
 }
 
 impl CodeGenerator {
-    pub fn new(table: HashMap<String, usize>) -> CodeGenerator {
+    pub fn new() -> CodeGenerator {
         CodeGenerator {
-            letCount: 0,
-            addressTable: table,
+            variables: HashMap::new(),
+            codes: vec![],
+            stackCount: 0,
         }
     }
 
-    fn expr(&mut self, expr: Expr) -> Result<Vec<OpCode>> {
-        let mut codes = vec![];
+    fn push(&mut self, val: DataType) -> usize {
+        let p = self.stackCount;
+        self.codes.push(OpCode::Push(val));
+        self.stackCount += 1;
 
+        p
+    }
+
+    fn alloc(&mut self, val: UnsizedDataType) -> usize {
+        let p = self.stackCount;
+        self.stackCount += 1;
+        self.codes.push(OpCode::Alloc(val));
+
+        p
+    }
+
+    fn load(&mut self, ident: &String) -> Result<usize> {
+        let v = self
+            .variables
+            .get(ident)
+            .ok_or(anyhow::anyhow!("Ident {} not found", ident))?;
+
+        let p = self.stackCount;
+        self.codes.push(OpCode::Copy(*v));
+        self.stackCount += 1;
+        Ok(p)
+    }
+
+    fn expr(&mut self, expr: Expr) -> Result<usize> {
         match expr {
-            Expr::Var(v) => {
-                let addr = self
-                    .addressTable
-                    .get(&v)
-                    .ok_or(anyhow::anyhow!("Ident {} not found", v))?;
-                codes.push(OpCode::Copy(*addr));
+            Expr::Var(v) => self.load(&v),
+            Expr::Lit(lit) => Ok(match lit {
+                Literal::Int(n) => self.push(DataType::Int(n)),
+                Literal::String(s) => self.alloc(UnsizedDataType::String(s)),
+            }),
+            Expr::Fun(args, body) => Ok(self.alloc(UnsizedDataType::Closure(args, body))),
+            Expr::Call(f, args) => {
+                let arity = args.len();
+                for a in args {
+                    self.expr(a)?;
+                }
+
+                // 特別な組み込み関数(stack, heapに干渉する必要があるものはここで)
+
+                // ポインタ経由の代入: _passign(p,v) == (*p = v)
+                if &f == "_passign" {
+                    ensure!(arity == 2, "Expected 2 arguments but {:?} given", arity);
+                    self.codes.push(OpCode::PAssign());
+
+                    return Ok(self.stackCount);
+                }
+
+                // ヒープ領域の開放
+                if &f == "_free" {
+                    ensure!(arity == 1, "Expected 1 arguments but {:?} given", arity);
+                    self.codes.push(OpCode::Free());
+
+                    return Ok(self.stackCount);
+                }
+
+                let faddr = self.load(&f)?;
+                self.codes.push(OpCode::Call(arity));
+
+                Ok(faddr)
             }
-            Expr::Lit(lit) => match lit {
-                Literal::Int(n) => {
-                    codes.push(OpCode::PushInt(n));
+            Expr::Ref(expr) => match expr.as_ref() {
+                Expr::Var(v) => {
+                    let p = self
+                        .variables
+                        .get(v)
+                        .ok_or(anyhow::anyhow!("Ident {} not found", v))?;
+
+                    Ok(self.push(DataType::StackAddr(*p)))
                 }
-                Literal::String(s) => {
-                    codes.push(OpCode::PushString(s));
-                }
+                _ => bail!("Cannot take the address of {:?}", expr),
             },
-            Expr::Fun(args, exprs) => {
-                // 仮引数の処理
-                for (i, arg) in args.iter().enumerate() {
-                    self.addressTable.insert(arg.clone(), i + 1);
-                }
-
-                let mut body = vec![];
-                for expr in exprs {
-                    // !!recursion
-                    body.extend(self.expr(expr)?);
-                }
-
-                codes.push(OpCode::PushClosure(args, body));
+            Expr::Deref(expr) => {
+                self.expr(expr.as_ref().clone())?;
+                self.codes.push(OpCode::Deref());
+                Ok(self.stackCount)
             }
-            Expr::Call(f, body) => {
-                let arity = body.len();
-                for expr in body {
-                    // !!recursion
-                    codes.extend(self.expr(expr)?);
+        }
+    }
+
+    fn statements(&mut self, arity: usize, stmts: Vec<Statement>) -> Result<()> {
+        let mut pop_count = 0;
+        for stmt in stmts {
+            match stmt {
+                Statement::Let(x, e) => {
+                    let p = self.expr(e.clone())?;
+                    self.variables.insert(x.clone(), p);
+                    pop_count += 1;
                 }
-
-                let addr = self
-                    .addressTable
-                    .get(&f)
-                    .ok_or(anyhow::anyhow!("Ident {} not found", f))?;
-                codes.push(OpCode::Copy(*addr));
-                codes.push(OpCode::Call(arity));
-            }
-            Expr::Statement(st) => match st.as_ref() {
-                Statement::Let(v, e) => {
-                    // !!recursion
-                    codes.extend(self.expr(e.clone())?);
-
-                    self.addressTable.insert(v.clone(), self.letCount);
-                    self.letCount += 1;
+                Statement::Return(e) => {
+                    self.expr(e.clone())?;
+                    self.codes.push(OpCode::Return(pop_count + arity));
+                    return Ok(());
                 }
                 Statement::Expr(e) => {
-                    // !!recursion
-                    codes.extend(self.expr(e.clone())?);
-                    codes.push(OpCode::Pop());
+                    self.expr(e.clone())?;
                 }
-                Statement::Return(_) => todo!(),
-            },
+                Statement::Panic => return Ok(()),
+            }
         }
 
-        Ok(codes)
+        // returnがない場合はreturn nil;と同等
+        self.codes.push(OpCode::Pop(pop_count + arity));
+        self.push(DataType::Nil);
+        Ok(())
     }
 
-    fn module(&mut self, module: Module) -> Result<Vec<OpCode>> {
-        let mut codes = vec![];
-
-        for expr in module.0 {
-            codes.extend(self.expr(expr)?);
-        }
-
-        Ok(codes)
+    fn module(&mut self, module: Module) -> Result<()> {
+        self.statements(0, module.0)
     }
 
-    pub fn gen_code(&mut self, module: Module) -> Result<Vec<OpCode>> {
+    pub fn gen_code(&mut self, module: Module) -> Result<()> {
         self.module(module)
     }
 }
 
-pub fn gen_code(module: Module, ffi_table: HashMap<String, usize>) -> Result<Vec<OpCode>> {
-    let mut generator = CodeGenerator::new(ffi_table);
+pub fn gen_code(module: Module) -> Result<Vec<OpCode>> {
+    let mut generator = CodeGenerator::new();
+    generator.gen_code(module)?;
 
-    generator.gen_code(module)
+    Ok(generator.codes)
 }
 
 #[cfg(test)]
@@ -122,30 +168,31 @@ mod tests {
 
     use super::*;
 
-    //#[test]
+    #[test]
     fn test_gen_code() {
         use OpCode::*;
 
         let cases = vec![(
             r#"let x = 10; let f = fn (a,b) { return a; }; f(x,x);"#,
             vec![
-                PushInt(10),
-                PushClosure(vec!["a".to_string(), "b".to_string()], vec![Copy(1)]),
+                Push(DataType::Int(10)),
+                Alloc(UnsizedDataType::Closure(
+                    vec!["a".to_string(), "b".to_string()],
+                    vec![Statement::Return(Expr::Var("a".to_string()))],
+                )),
                 Copy(0),
                 Copy(0),
                 Copy(1),
                 Call(2),
+                Pop(2),
+                Push(DataType::Nil),
             ],
         )];
 
-        let mut table = HashMap::new();
-        table.insert("_add".to_string(), 55);
-
         for c in cases {
             let m = run_parser(c.0).unwrap();
-            let result = gen_code(m, table.clone()).unwrap();
+            let result = gen_code(m).unwrap();
             assert_eq!(result, c.1, "{:?}", c.0);
         }
     }
 }
- */
