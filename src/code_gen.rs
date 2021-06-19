@@ -20,7 +20,7 @@ pub enum OpCode {
     Return(usize),
     Copy(usize),
     Alloc(HeapData),
-    Call(usize),
+    Call,
     PAssign,
     Free,
     Deref,
@@ -138,10 +138,11 @@ impl CodeGenerator {
                 }
 
                 self.load(&f)?;
-                self.codes.push(OpCode::Call(arity));
+                self.codes.push(OpCode::Call);
 
                 // call実行後はarityはすべてpopされるのでその分popする数が減る
                 self.pop_count -= arity;
+                self.stack_count -= arity;
 
                 Ok(())
             }
@@ -254,7 +255,7 @@ mod tests {
                     Copy(4),
                     Copy(5),
                     Copy(5),
-                    Call(5),
+                    Call,
                     Push(DataType::Nil),
                     Return(3),
                 ],

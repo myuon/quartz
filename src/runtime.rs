@@ -42,8 +42,6 @@ struct Runtime {
     stack: Vec<DataType>,
     heap: Vec<HeapData>,
     call_stack: Vec<usize>,
-    // 関数が引数より外側のスタック領域に勝手にアクセスしないようにするためのやつ
-    stack_guard: usize,
 }
 
 impl Runtime {
@@ -54,7 +52,6 @@ impl Runtime {
             stack: vec![],
             heap: vec![],
             call_stack: vec![],
-            stack_guard: 0,
         }
     }
 
@@ -131,21 +128,13 @@ impl Runtime {
                 }
                 OpCode::Copy(p) => {
                     let target = self.stack.len() - 1 - p;
-
-                    ensure!(
-                        self.stack_guard <= target,
-                        "Detected invalid stack access: {} is out of stack guard address {} in {:?}",
-                        p,
-                        self.stack_guard,
-                        self.stack,
-                    );
                     self.push(self.stack[target].clone());
                 }
                 OpCode::Alloc(h) => {
                     let p = self.alloc(h);
                     self.push(p);
                 }
-                OpCode::Call(t) => {
+                OpCode::Call => {
                     let addr = self.stack[self.stack.len() - 1].clone();
                     let closure = self.deref(addr)?;
                     match closure {
@@ -154,7 +143,6 @@ impl Runtime {
 
                             self.pc = self.program.len();
                             self.program.extend(body);
-                            self.stack_guard = self.stack.len() - 1 - t;
                             continue;
                         }
                         r => bail!("Expected a closure but found {:?}", r),
