@@ -30,7 +30,7 @@ pub enum OpCode {
 struct CodeGenerator {
     variables: HashMap<String, usize>,
     codes: Vec<OpCode>,
-    stackCount: usize,
+    stack_count: usize,
 }
 
 impl CodeGenerator {
@@ -38,13 +38,13 @@ impl CodeGenerator {
         CodeGenerator {
             variables: HashMap::new(),
             codes: vec![],
-            stackCount: 0,
+            stack_count: 0,
         }
     }
 
     fn push(&mut self, val: DataType) {
         self.codes.push(OpCode::Push(val));
-        self.stackCount += 1;
+        self.stack_count += 1;
     }
 
     fn alloc(&mut self, val: UnsizedDataType) {
@@ -54,7 +54,7 @@ impl CodeGenerator {
             // StackAddress, Copyのindexを逆順にしたらここのコンパイル処理を追加する
             UnsizedDataType::Closure(args, body) => todo!(),
         }
-        self.stackCount += 1;
+        self.stack_count += 1;
     }
 
     fn load(&mut self, ident: &String) -> Result<()> {
@@ -63,8 +63,8 @@ impl CodeGenerator {
             .get(ident)
             .ok_or(anyhow::anyhow!("Ident {} not found", ident))?;
 
-        self.codes.push(OpCode::Copy(self.stackCount - *v));
-        self.stackCount += 1;
+        self.codes.push(OpCode::Copy(self.stack_count - *v));
+        self.stack_count += 1;
         Ok(())
     }
 
@@ -116,7 +116,7 @@ impl CodeGenerator {
                         .get(v)
                         .ok_or(anyhow::anyhow!("Ident {} not found", v))?;
 
-                    self.push(DataType::StackAddr(*p));
+                    self.push(DataType::StackAddr(self.stack_count - *p));
                     Ok(())
                 }
                 _ => bail!("Cannot take the address of {:?}", expr),
@@ -135,7 +135,7 @@ impl CodeGenerator {
             match stmt {
                 Statement::Let(x, e) => {
                     self.expr(e.clone())?;
-                    self.variables.insert(x.clone(), self.stackCount);
+                    self.variables.insert(x.clone(), self.stack_count);
                     pop_count += 1;
                 }
                 Statement::Return(e) => {
@@ -186,6 +186,14 @@ mod tests {
             (
                 r#"let x = 10; let y = x; return y;"#,
                 vec![Push(DataType::Int(10)), Copy(0), Copy(0), Return(2)],
+            ),
+            (
+                r#"let x = 10; return &x;"#,
+                vec![
+                    Push(DataType::Int(10)),
+                    Push(DataType::StackAddr(0)),
+                    Return(1),
+                ],
             ),
             (
                 r#"let x = 10; let f = fn (a,b) { return a; }; f(x,x);"#,
