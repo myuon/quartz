@@ -411,6 +411,9 @@ impl Runtime {
                         HeapData::Vec(vs) => {
                             self.push(DataType::Int(vs.len() as i32));
                         }
+                        HeapData::String(vs) => {
+                            self.push(DataType::Int(vs.len() as i32));
+                        }
                         t => bail!("Expected vector but found {:?}", t),
                     }
                 }
@@ -421,6 +424,24 @@ impl Runtime {
                 OpCode::Jump(u) => {
                     self.pc = self.labels.get(&u).unwrap().clone();
                     continue;
+                }
+                OpCode::Slice => {
+                    let end = self.pop(1);
+                    let end = self.expect_int(end)? as usize;
+
+                    let start = self.pop(1);
+                    let start = self.expect_int(start)? as usize;
+
+                    let input_addr = self.pop(1);
+                    let input_addr = self.expect_heap_addr(input_addr)?;
+
+                    match self.heap[input_addr].clone() {
+                        HeapData::String(input) => {
+                            let d = self.alloc(HeapData::String((input[start..end]).to_string()));
+                            self.push(d);
+                        }
+                        s => bail!("Expected string but {:?} found", s),
+                    }
                 }
             }
 
@@ -607,6 +628,10 @@ mod tests {
                     return fib(5);
                 "#,
                 DataType::Int(13),
+            ),
+            (
+                r#"return _eq(_slice("hello, world", 5, 10), ", wor");"#,
+                DataType::Int(0),
             ),
         ];
 

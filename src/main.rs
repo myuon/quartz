@@ -50,7 +50,7 @@ pub fn create_ffi_table() -> (HashMap<String, usize>, Vec<FFIFunction>) {
     ));
     ffi_table.push((
         "_eq".to_string(),
-        Box::new(|mut vs: Vec<DataType>, _| {
+        Box::new(|mut vs: Vec<DataType>, heap: Vec<HeapData>| {
             let x = vs.pop().unwrap();
             let y = vs.pop().unwrap();
 
@@ -58,6 +58,12 @@ pub fn create_ffi_table() -> (HashMap<String, usize>, Vec<FFIFunction>) {
                 (DataType::Int(x), DataType::Int(y)) => {
                     vs.push(DataType::Int(if x == y { 0 } else { 1 }))
                 }
+                (DataType::HeapAddr(s), DataType::HeapAddr(t)) => match (&heap[s], &heap[t]) {
+                    (HeapData::String(a), HeapData::String(b)) => {
+                        vs.push(DataType::Int(if a == b { 0 } else { 1 }))
+                    }
+                    (s, t) => panic!("{:?} {:?}", s, t),
+                },
                 (x, y) => panic!("{:?} {:?}", x, y),
             }
 

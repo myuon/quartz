@@ -39,6 +39,7 @@ pub enum OpCode {
     Label(String),
     Jump(String),
     ReturnIf(usize),
+    Slice,
 }
 
 #[derive(Debug)]
@@ -253,6 +254,15 @@ impl CodeGenerator {
                 if &f == "_len" {
                     ensure!(arity == 1, "Expected {} arguments but {} given", 1, arity);
                     self.codes.push(OpCode::Len);
+                    self.after_call(arity);
+
+                    return Ok(());
+                }
+
+                // slice of string
+                if &f == "_slice" {
+                    ensure!(arity == 3, "Expected {} arguments but {} given", 3, arity);
+                    self.codes.push(OpCode::Slice);
                     self.after_call(arity);
 
                     return Ok(());
