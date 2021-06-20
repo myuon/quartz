@@ -87,7 +87,12 @@ impl Parser {
                 self.expect_lexeme(Lexeme::Return)?;
                 let e = self.expr()?;
 
-                Ok(Statement::Return(e))
+                if self.expect_lexeme(Lexeme::If).is_ok() {
+                    let cond = self.expr()?;
+                    Ok(Statement::ReturnIf(e, cond))
+                } else {
+                    Ok(Statement::Return(e))
+                }
             })
             .or_else(|_| self.expr().map(|e| Statement::Expr(e)))
     }
@@ -305,6 +310,16 @@ mod tests {
                     Statement::Let("x".to_string(), Expr::Lit(Literal::Int(10))),
                     Statement::Return(Expr::Ref(Box::new(Expr::Var("x".to_string())))),
                 ]),
+            ),
+            (
+                r#"return 10 if _eq(x, y);"#,
+                Module(vec![Statement::ReturnIf(
+                    Expr::Lit(Literal::Int(10)),
+                    Expr::Call(
+                        "_eq".to_string(),
+                        vec![Expr::Var("x".to_string()), Expr::Var("y".to_string())],
+                    ),
+                )]),
             ),
         ];
 
