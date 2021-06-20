@@ -112,6 +112,13 @@ impl Runtime {
         self.pc == self.program.len()
     }
 
+    fn expect_int(&self, datatype: DataType) -> Result<i32> {
+        match datatype {
+            DataType::Int(s) => return Ok(s),
+            v => bail!("Expected a int but found {:?}", v),
+        }
+    }
+
     fn expect_string(&self, datatype: DataType) -> Result<String> {
         match datatype {
             DataType::HeapAddr(h) => match &self.heap[h] {
@@ -301,6 +308,18 @@ impl Runtime {
                         }
                     }
                 }
+                OpCode::Switch(u) => {
+                    let mut args = vec![];
+                    for _ in 0..u {
+                        args.push(self.pop(1));
+                    }
+                    args.reverse();
+
+                    let cond = self.pop(1);
+                    let cond_case = self.expect_int(cond)?;
+
+                    self.push(args[cond_case as usize].clone());
+                }
             }
 
             self.pc += 1;
@@ -418,6 +437,23 @@ mod tests {
             (
                 r#"let ch = _regex("^[a-zA-Z_][a-zA-Z0-9_]*", "abcABC9192_"); return ch;"#,
                 DataType::Tuple(2, vec![DataType::Int(0), DataType::Int(11)]),
+            ),
+            (
+                r#"
+                    let x = 10;
+                    let f = _switch(
+                        0,
+                        fn () { return 0; },
+                        fn () { return 1; },
+                    );
+                    return f();
+                "#,
+                DataType::Int(0),
+            ),
+            (
+                // 0 = true, 1 = false
+                r#"return _eq(1, 2);"#,
+                DataType::Int(1),
             ),
         ];
 

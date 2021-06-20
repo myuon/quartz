@@ -48,6 +48,22 @@ pub fn create_ffi_table() -> (HashMap<String, usize>, Vec<FFIFunction>) {
             stack
         }),
     ));
+    ffi_table.push((
+        "_eq".to_string(),
+        Box::new(|mut vs: Vec<DataType>, _| {
+            let x = vs.pop().unwrap();
+            let y = vs.pop().unwrap();
+
+            match (x, y) {
+                (DataType::Int(x), DataType::Int(y)) => {
+                    vs.push(DataType::Int(if x == y { 0 } else { 1 }))
+                }
+                _ => todo!(),
+            }
+
+            vs
+        }),
+    ));
 
     let enumerated = ffi_table.into_iter().enumerate().collect::<Vec<_>>();
 
