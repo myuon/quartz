@@ -18,6 +18,7 @@ pub enum HeapData {
 #[derive(PartialEq, Debug, Clone)]
 pub enum OpCode {
     Push(DataType),
+    Pop(usize),
     Return(usize),
     Copy(usize),
     Alloc(HeapData),
@@ -34,6 +35,10 @@ pub enum OpCode {
     Switch(usize),
     VPush,
     Len,
+    Loop,
+    Label(String),
+    Jump(String),
+    ReturnIf(usize),
 }
 
 #[derive(Debug)]
@@ -73,7 +78,7 @@ impl CodeGenerator {
             UnsizedDataType::Closure(args, body) => {
                 let mut generator = CodeGenerator::new(self.ffi_table.clone());
                 generator.variables = self.variables.clone();
-                generator.stack_count = self.stack_count;
+                generator.stack_count = self.stack_count + 1;
 
                 let arity = args.len();
                 for a in args {
@@ -81,7 +86,7 @@ impl CodeGenerator {
                     generator.stack_count += 1;
                 }
 
-                generator.statements(arity, body)?;
+                generator.statements(arity, body, true)?;
 
                 self.codes
                     .push(OpCode::Alloc(HeapData::Closure(generator.codes)));
@@ -108,6 +113,12 @@ impl CodeGenerator {
         let pop = self.pop_count + arity;
 
         self.codes.push(OpCode::Return(pop));
+    }
+
+    fn ret_if(&mut self, arity: usize) {
+        let pop = self.pop_count + arity;
+
+        self.codes.push(OpCode::ReturnIf(pop));
     }
 
     fn after_call(&mut self, arity: usize) {
@@ -273,7 +284,7 @@ impl CodeGenerator {
                         .ok_or(anyhow::anyhow!("Ident {} not found", v))?
                         .clone();
 
-                    self.push(DataType::StackAddr(p));
+                    self.push(DataType::StackAddr(self.stack_count - 1 - p));
 
                     Ok(())
                 }
@@ -284,10 +295,21 @@ impl CodeGenerator {
                 self.codes.push(OpCode::Deref);
                 Ok(())
             }
+            Expr::Loop(s) => {
+                let label = format!("label-{}", self.codes.len());
+
+                let p = self.stack_count;
+                self.codes.push(OpCode::Label(label.clone()));
+                self.statements(0, s, false)?;
+                let q = self.stack_count;
+                self.codes.push(OpCode::Pop(q - p));
+                self.codes.push(OpCode::Jump(label));
+                Ok(())
+            }
         }
     }
 
-    fn statements(&mut self, arity: usize, stmts: Vec<Statement>) -> Result<()> {
+    fn statements(&mut self, arity: usize, stmts: Vec<Statement>, do_return: bool) -> Result<()> {
         self.pop_count = 0;
         for stmt in stmts {
             match stmt {
@@ -304,17 +326,25 @@ impl CodeGenerator {
                     self.expr(e.clone())?;
                 }
                 Statement::Panic => return Ok(()),
+                Statement::ReturnIf(expr, cond) => {
+                    self.expr(expr)?;
+                    self.expr(cond)?;
+                    self.ret_if(arity);
+                    self.stack_count -= 2;
+                }
             }
         }
 
-        // returnがない場合はreturn nil;と同等
-        self.push(DataType::Nil);
-        self.ret(arity);
+        if do_return {
+            // returnがない場合はreturn nil;と同等
+            self.push(DataType::Nil);
+            self.ret(arity);
+        }
         Ok(())
     }
 
     fn module(&mut self, module: Module) -> Result<()> {
-        self.statements(0, module.0)
+        self.statements(0, module.0, true)
     }
 
     pub fn gen_code(&mut self, module: Module) -> Result<()> {
@@ -435,6 +465,39 @@ mod tests {
                     Copy(0),
                     Alloc(HeapData::String("x".to_string())),
                     Get,
+                    Return(2),
+                ],
+            ),
+            (
+                r#"
+                    loop {
+                        return 10 if 1;
+                    };
+                "#,
+                vec![
+                    Label("label-0".to_string()),
+                    Push(DataType::Int(10)),
+                    Push(DataType::Int(1)),
+                    ReturnIf(2),
+                    Pop(0),
+                    Jump("label-0".to_string()),
+                    Push(DataType::Nil),
+                    Return(3),
+                ],
+            ),
+            (
+                r#"
+                    loop {
+                        _print("loop");
+                    };
+                "#,
+                vec![
+                    Label("label-0".to_string()),
+                    Alloc(HeapData::String("loop".to_string())),
+                    FFICall(1),
+                    Pop(1),
+                    Jump("label-0".to_string()),
+                    Push(DataType::Nil),
                     Return(2),
                 ],
             ),

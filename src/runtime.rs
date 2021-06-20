@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use anyhow::{bail, Result};
 use regex::Regex;
 
@@ -18,8 +20,8 @@ pub enum UnsizedDataType {
 pub enum DataType {
     Nil,
     Int(i32),
-    HeapAddr(usize),
-    StackAddr(usize),
+    HeapAddr(usize),  // in normal order
+    StackAddr(usize), // in reverse order, 0-origin, excluding itself
     Tuple(usize, Vec<DataType>),
     Object(Vec<(String, DataType)>),
 }
@@ -47,6 +49,7 @@ struct Runtime {
     heap: Vec<HeapData>,
     call_stack: Vec<usize>,
     ffi_functions: Vec<FFIFunction>,
+    labels: HashMap<String, usize>,
 }
 
 impl Runtime {
@@ -59,6 +62,7 @@ impl Runtime {
             heap: vec![],
             call_stack: vec![],
             ffi_functions,
+            labels: HashMap::new(),
         }
     }
 
@@ -112,6 +116,15 @@ impl Runtime {
         self.pc == self.program.len()
     }
 
+    fn get_stack_addr_index(&self, u: usize) -> usize {
+        self.stack.len() - 1 - u
+    }
+
+    fn get_stack_addr(&self, u: usize) -> &DataType {
+        let index = self.get_stack_addr_index(u);
+        &self.stack[index]
+    }
+
     fn expect_int(&self, datatype: DataType) -> Result<i32> {
         match datatype {
             DataType::Int(s) => return Ok(s),
@@ -130,6 +143,13 @@ impl Runtime {
         match datatype {
             DataType::HeapAddr(h) => Ok(h),
             v => bail!("Expected heap address but found {:?}", v),
+        }
+    }
+
+    fn expect_stack_addr(&self, datatype: DataType) -> Result<usize> {
+        match datatype {
+            DataType::StackAddr(h) => Ok(h),
+            v => bail!("Expected stack address but found {:?}", v),
         }
     }
 
@@ -156,6 +176,9 @@ impl Runtime {
                 OpCode::Push(v) => {
                     self.push(v);
                 }
+                OpCode::Pop(v) => {
+                    self.pop(v);
+                }
                 OpCode::Return(r) => {
                     if r > 0 {
                         let ret = self.pop(1);
@@ -171,9 +194,37 @@ impl Runtime {
                         _ => return Ok(()),
                     }
                 }
+                OpCode::ReturnIf(r) => {
+                    let cond = self.pop(1);
+                    let n = self.expect_int(cond)?;
+                    let ret = self.pop(1);
+
+                    // if true
+                    if n == 0 {
+                        if r > 0 {
+                            self.pop(r - 1);
+                            self.push(ret);
+                        }
+
+                        match self.call_stack.pop() {
+                            Some(p) => {
+                                self.pc = p + 1;
+                                continue;
+                            }
+                            _ => return Ok(()),
+                        }
+                    }
+                }
                 OpCode::Copy(p) => {
                     let target = self.stack.len() - 1 - p;
-                    self.push(self.stack[target].clone());
+                    match self.stack[target].clone() {
+                        DataType::StackAddr(addr) => {
+                            self.push(DataType::StackAddr(addr + p + 1));
+                        }
+                        s => {
+                            self.push(s);
+                        }
+                    }
                 }
                 OpCode::Alloc(h) => {
                     let p = self.alloc(h);
@@ -202,6 +253,7 @@ impl Runtime {
                     let pointer = self.pop(1);
                     match pointer {
                         DataType::StackAddr(p) => {
+                            let p = self.get_stack_addr_index(p);
                             self.stack[p] = val;
                         }
                         r => bail!("Expected stack address but found {:?}", r),
@@ -215,7 +267,7 @@ impl Runtime {
                     let addr = self.pop(1);
                     match addr {
                         DataType::StackAddr(p) => {
-                            self.push(self.stack[p].clone());
+                            self.push(self.get_stack_addr(p).clone());
                         }
                         r => bail!("Expected stack address but found {:?}", r),
                     }
@@ -286,7 +338,7 @@ impl Runtime {
                     let obj = self.pop(1);
 
                     match obj {
-                        DataType::StackAddr(addr) => match self.stack[addr].clone() {
+                        DataType::StackAddr(addr) => match self.get_stack_addr(addr).clone() {
                             DataType::Object(mut vs) => {
                                 let key = self.expect_string(key)?;
                                 let updated = (move || {
@@ -344,14 +396,13 @@ impl Runtime {
                     let value = self.pop(1);
                     let vec = self.pop(1);
 
-                    match vec {
-                        DataType::StackAddr(addr) => match &mut self.heap[addr] {
-                            HeapData::Vec(vs) => {
-                                vs.push(value);
-                            }
-                            t => bail!("Expected vector but found {:?}", t),
-                        },
-                        t => bail!("Expected stack address but found {:?}", t),
+                    let addr = self.expect_stack_addr(vec)?;
+                    let addr = self.expect_heap_addr(self.get_stack_addr(addr).clone())?;
+                    match &mut self.heap[addr] {
+                        HeapData::Vec(vs) => {
+                            vs.push(value);
+                        }
+                        t => bail!("Expected vector but found {:?}", t),
                     }
                 }
                 OpCode::Len => {
@@ -362,6 +413,14 @@ impl Runtime {
                         }
                         t => bail!("Expected vector but found {:?}", t),
                     }
+                }
+                OpCode::Loop => todo!(),
+                OpCode::Label(s) => {
+                    self.labels.insert(s, self.pc);
+                }
+                OpCode::Jump(u) => {
+                    self.pc = self.labels.get(&u).unwrap().clone();
+                    continue;
                 }
             }
 
@@ -499,6 +558,24 @@ mod tests {
                 DataType::Int(1),
             ),
             (
+                // _passign for local variables
+                r#"let x = 0; _passign(&x, _add(x, 10)); return x;"#,
+                DataType::Int(10),
+            ),
+            (
+                // _passign for local variables in a function
+                r#"
+                    let f = fn () {
+                        let x = 0;
+                        _passign(&x, _add(x, 1));
+
+                        return x;
+                    };
+                    return f();
+                "#,
+                DataType::Int(1),
+            ),
+            (
                 // vector
                 r#"
                     let v = _vec();
@@ -509,6 +586,27 @@ mod tests {
                     return _tuple(_len(v), _get(v, 1));
                 "#,
                 DataType::Tuple(2, vec![DataType::Int(20), DataType::Int(3)]),
+            ),
+            (
+                r#"
+                    let fib = fn (n) {
+                        let a = 1;
+                        let b = 1;
+                        let count = 0;
+
+                        loop {
+                            return b if _eq(count, n);
+
+                            let next = _add(a, b);
+                            _passign(&a, b);
+                            _passign(&b, next);
+                            _passign(&count, _add(count, 1));
+                        };
+                    };
+
+                    return fib(5);
+                "#,
+                DataType::Int(13),
             ),
         ];
 

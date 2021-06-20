@@ -58,7 +58,7 @@ pub fn create_ffi_table() -> (HashMap<String, usize>, Vec<FFIFunction>) {
                 (DataType::Int(x), DataType::Int(y)) => {
                     vs.push(DataType::Int(if x == y { 0 } else { 1 }))
                 }
-                _ => todo!(),
+                (x, y) => panic!("{:?} {:?}", x, y),
             }
 
             vs

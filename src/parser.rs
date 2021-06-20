@@ -177,6 +177,15 @@ impl Parser {
                 }
             })
             .or_else(|_| -> Result<Expr> {
+                self.expect_lexeme(Lexeme::Loop)?;
+
+                self.expect_lexeme(Lexeme::LBrace)?;
+                let statements = self.many_statements()?;
+                self.expect_lexeme(Lexeme::RBrace)?;
+
+                Ok(Expr::Loop(statements))
+            })
+            .or_else(|_| -> Result<Expr> {
                 self.expect_lexeme(Lexeme::Fn)?;
 
                 self.expect_lexeme(Lexeme::LParen)?;
@@ -188,15 +197,6 @@ impl Parser {
                 self.expect_lexeme(Lexeme::RBrace)?;
 
                 Ok(Expr::Fun(args, statements))
-            })
-            .or_else(|_| -> Result<Expr> {
-                self.expect_lexeme(Lexeme::Loop)?;
-
-                self.expect_lexeme(Lexeme::LBrace)?;
-                let statements = self.many_statements()?;
-                self.expect_lexeme(Lexeme::RBrace)?;
-
-                Ok(Expr::Loop(statements))
             })
     }
 

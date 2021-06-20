@@ -5,6 +5,7 @@ let lexeme_lparen = _object("lexeme", "lparen");
 let lexeme_rparen = _object("lexeme", "rparen");
 
 let lexer = fn (input) {
+  let tokens = _vec();
 }
 
 let main = fn (input) {
