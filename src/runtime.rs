@@ -19,17 +19,19 @@ pub enum DataType {
     Int(i32),
     HeapAddr(usize),
     StackAddr(usize),
+    Tuple(usize, Vec<DataType>),
 }
 
 impl DataType {
-    pub fn type_of(&self) -> &str {
+    pub fn type_of(&self) -> String {
         use DataType::*;
 
         match self {
-            Nil => "nil",
-            Int(_) => "int",
-            HeapAddr(_) => "heap_addr",
-            StackAddr(_) => "stack_addr",
+            Nil => "nil".to_string(),
+            Int(_) => "int".to_string(),
+            HeapAddr(_) => "heap_addr".to_string(),
+            StackAddr(_) => "stack_addr".to_string(),
+            Tuple(u, _) => format!("tuple({})", u),
         }
     }
 }
@@ -184,6 +186,24 @@ impl Runtime {
                         r => bail!("Expected stack address but found {:?}", r),
                     }
                 }
+                OpCode::Tuple(u) => {
+                    let mut tuple = vec![];
+                    for _ in 0..u {
+                        tuple.push(self.pop(1));
+                    }
+
+                    self.push(DataType::Tuple(u, tuple));
+                }
+                OpCode::Get => {
+                    let index = self.pop(1);
+                    let tuple = self.pop(1);
+                    match (index, tuple) {
+                        (DataType::Int(n), DataType::Tuple(_, vs)) => {
+                            self.push(vs[n as usize].clone());
+                        }
+                        (i, t) => bail!("Unexpected type: _get({:?}, {:?})", t, i),
+                    }
+                }
             }
 
             self.pc += 1;
@@ -267,6 +287,13 @@ mod tests {
                         return _add(a,b);
                     };
                     return f(1,2);
+                "#,
+                DataType::Int(3),
+            ),
+            (
+                r#"
+                    let t = _tuple(1, 2, 3, 4, 5);
+                    return _get(t, 2);
                 "#,
                 DataType::Int(3),
             ),

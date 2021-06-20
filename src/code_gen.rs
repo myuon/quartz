@@ -25,6 +25,8 @@ pub enum OpCode {
     PAssign,
     Free,
     Deref,
+    Tuple(usize),
+    Get,
 }
 
 #[derive(Debug)]
@@ -141,6 +143,22 @@ impl CodeGenerator {
                     ensure!(arity == 1, "Expected 1 arguments but {:?} given", arity);
                     self.codes.push(OpCode::Free);
                     self.codes.push(OpCode::Push(DataType::Nil));
+                    self.after_call(arity);
+
+                    return Ok(());
+                }
+
+                // n-タプルの生成
+                if &f == "_tuple" {
+                    self.codes.push(OpCode::Tuple(arity));
+                    self.after_call(arity);
+
+                    return Ok(());
+                }
+
+                // 値の取り出し
+                if &f == "_get" {
+                    self.codes.push(OpCode::Get);
                     self.after_call(arity);
 
                     return Ok(());
@@ -306,6 +324,21 @@ mod tests {
                     Alloc(HeapData::Closure(vec![Copy(0), Deref, Return(2)])),
                     Push(DataType::Nil),
                     Return(3),
+                ],
+            ),
+            (
+                r#"let x = _tuple(1, 2, 3, 4, 5); return _get(x, 3);"#,
+                vec![
+                    Push(DataType::Int(1)),
+                    Push(DataType::Int(2)),
+                    Push(DataType::Int(3)),
+                    Push(DataType::Int(4)),
+                    Push(DataType::Int(5)),
+                    Tuple(5),
+                    Copy(0),
+                    Push(DataType::Int(3)),
+                    Get,
+                    Return(2),
                 ],
             ),
         ];
