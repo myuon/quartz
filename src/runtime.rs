@@ -113,12 +113,14 @@ impl Runtime {
 
     pub fn execute(&mut self) -> Result<()> {
         while !self.is_end() {
-            println!(
-                "{:?}\n{:?}\n{:?}\n",
-                &self.program[self.pc..],
-                self.stack,
-                self.heap
-            );
+            if option_env!("DEBUG") == Some("true") {
+                println!(
+                    "{:?}\n{:?}\n{:?}\n",
+                    &self.program[self.pc..],
+                    self.stack,
+                    self.heap
+                );
+            }
 
             match self.program[self.pc].clone() {
                 OpCode::Push(v) => {
@@ -337,6 +339,16 @@ mod tests {
                 r#"
                     let t = _object("x", 1, "y", "hell");
                     return _get(t, "x");
+                "#,
+                DataType::Int(1),
+            ),
+            (
+                r#"
+                    let new = fn () {
+                        return _object("x", 1);
+                    };
+                    let x = new();
+                    return _get(x, "x");
                 "#,
                 DataType::Int(1),
             ),
