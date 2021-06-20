@@ -9,6 +9,7 @@ pub enum Statement {
     Let(String, Expr),
     Expr(Expr),
     Return(Expr),
+    ReturnIf(Expr, Expr),
     Panic,
 }
 
@@ -20,6 +21,7 @@ pub enum Expr {
     Call(String, Vec<Expr>),
     Ref(Box<Expr>),
     Deref(Box<Expr>),
+    Loop(Vec<Statement>),
 }
 
 #[derive(PartialEq, Debug, Clone)]

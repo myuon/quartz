@@ -189,6 +189,15 @@ impl Parser {
 
                 Ok(Expr::Fun(args, statements))
             })
+            .or_else(|_| -> Result<Expr> {
+                self.expect_lexeme(Lexeme::Loop)?;
+
+                self.expect_lexeme(Lexeme::LBrace)?;
+                let statements = self.many_statements()?;
+                self.expect_lexeme(Lexeme::RBrace)?;
+
+                Ok(Expr::Loop(statements))
+            })
     }
 
     fn parse_module(&mut self) -> Result<Module> {
@@ -320,6 +329,22 @@ mod tests {
                         vec![Expr::Var("x".to_string()), Expr::Var("y".to_string())],
                     ),
                 )]),
+            ),
+            (
+                r#"
+                    let x = loop {
+                        return 10;
+                    };
+
+                    return x;
+                "#,
+                Module(vec![
+                    Statement::Let(
+                        "x".to_string(),
+                        Expr::Loop(vec![Statement::Return(Expr::Lit(Literal::Int(10)))]),
+                    ),
+                    Statement::Return(Expr::Var("x".to_string())),
+                ]),
             ),
         ];
 
