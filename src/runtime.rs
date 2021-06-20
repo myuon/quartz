@@ -19,7 +19,6 @@ pub enum DataType {
     Int(i32),
     HeapAddr(usize),
     StackAddr(usize),
-    FFIAddr(usize),
 }
 
 impl DataType {
@@ -31,7 +30,6 @@ impl DataType {
             Int(_) => "int",
             HeapAddr(_) => "heap_addr",
             StackAddr(_) => "stack_addr",
-            FFIAddr(_) => "ffi_addr",
         }
     }
 }
