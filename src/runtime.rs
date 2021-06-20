@@ -111,6 +111,16 @@ impl Runtime {
         self.pc == self.program.len()
     }
 
+    fn expect_string(&self, datatype: DataType) -> Result<String> {
+        match datatype {
+            DataType::HeapAddr(h) => match &self.heap[h] {
+                HeapData::String(s) => return Ok(s.to_string()),
+                v => bail!("Expected a string but found {:?}", v),
+            },
+            v => bail!("Expected a string but found {:?}", v),
+        }
+    }
+
     pub fn execute(&mut self) -> Result<()> {
         while !self.is_end() {
             if option_env!("DEBUG") == Some("true") {
@@ -234,12 +244,39 @@ impl Runtime {
                                     Some(v) => {
                                         self.push(v.clone());
                                     }
-                                    None => bail!("Cannot found key {} in {:?}", key, vs),
+                                    None => bail!("Cannot find key {} in {:?}", key, vs),
                                 }
                             }
                             x => bail!("Key must be string but found {:?}", x),
                         },
                         (i, t) => bail!("Unexpected type: _get({:?}, {:?})", t, i),
+                    }
+                }
+                OpCode::Set => {
+                    let value = self.pop(1);
+                    let key = self.pop(1);
+                    let obj = self.pop(1);
+
+                    match obj {
+                        DataType::StackAddr(addr) => match self.stack[addr].clone() {
+                            DataType::Object(mut vs) => {
+                                let key = self.expect_string(key)?;
+                                let updated = (move || {
+                                    for (i, (k, _)) in vs.clone().into_iter().enumerate() {
+                                        if k == key {
+                                            vs[i] = (k, value);
+                                            return Ok(vs);
+                                        }
+                                    }
+
+                                    bail!("Cannot find key {} in {:?}", key, vs);
+                                })()?;
+
+                                self.stack[addr] = DataType::Object(updated);
+                            }
+                            t => bail!("Expected object but found {:?}", t),
+                        },
+                        t => bail!("Expected stack address but found {:?}", t),
                     }
                 }
             }
@@ -351,6 +388,10 @@ mod tests {
                     return _get(x, "x");
                 "#,
                 DataType::Int(1),
+            ),
+            (
+                r#"let x = _object("x", 10, "y", "yes"); _set(&x, "y", 20); return _get(x, "y");"#,
+                DataType::Int(20),
             ),
         ];
 

@@ -28,6 +28,7 @@ pub enum OpCode {
     Tuple(usize),
     Object(usize),
     Get,
+    Set,
 }
 
 #[derive(Debug)]
@@ -172,7 +173,18 @@ impl CodeGenerator {
 
                 // 値の取り出し
                 if &f == "_get" {
+                    ensure!(arity == 2, "Expected {} arguments but {} given", 2, arity);
                     self.codes.push(OpCode::Get);
+                    self.after_call(arity);
+
+                    return Ok(());
+                }
+
+                // 値の上書き
+                if &f == "_set" {
+                    ensure!(arity == 3, "Expected {} arguments but {} given", 3, arity);
+                    self.codes.push(OpCode::Set);
+                    self.codes.push(OpCode::Push(DataType::Nil));
                     self.after_call(arity);
 
                     return Ok(());
