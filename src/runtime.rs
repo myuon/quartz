@@ -1,4 +1,5 @@
 use anyhow::{bail, Result};
+use regex::Regex;
 
 use crate::{
     ast::Statement,
@@ -279,6 +280,27 @@ impl Runtime {
                         t => bail!("Expected stack address but found {:?}", t),
                     }
                 }
+                OpCode::Regex => {
+                    let arg0 = self.pop(1);
+                    let arg1 = self.pop(1);
+                    let input = self.expect_string(arg0)?;
+                    let pattern = self.expect_string(arg1)?;
+                    let m = Regex::new(&pattern)?.find(&input);
+                    match m {
+                        Some(m) => {
+                            self.push(DataType::Tuple(
+                                2,
+                                vec![
+                                    DataType::Int(m.start() as i32),
+                                    DataType::Int(m.end() as i32),
+                                ],
+                            ));
+                        }
+                        None => {
+                            self.push(DataType::Nil);
+                        }
+                    }
+                }
             }
 
             self.pc += 1;
@@ -392,6 +414,10 @@ mod tests {
             (
                 r#"let x = _object("x", 10, "y", "yes"); _set(&x, "y", 20); return _get(x, "y");"#,
                 DataType::Int(20),
+            ),
+            (
+                r#"let ch = _regex("^[a-zA-Z_][a-zA-Z0-9_]*", "abcABC9192_"); return ch;"#,
+                DataType::Tuple(2, vec![DataType::Int(0), DataType::Int(11)]),
             ),
         ];
 

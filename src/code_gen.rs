@@ -29,6 +29,7 @@ pub enum OpCode {
     Object(usize),
     Get,
     Set,
+    Regex,
 }
 
 #[derive(Debug)]
@@ -185,6 +186,15 @@ impl CodeGenerator {
                     ensure!(arity == 3, "Expected {} arguments but {} given", 3, arity);
                     self.codes.push(OpCode::Set);
                     self.codes.push(OpCode::Push(DataType::Nil));
+                    self.after_call(arity);
+
+                    return Ok(());
+                }
+
+                // regular expressions
+                if &f == "_regex" {
+                    ensure!(arity == 2, "Expected {} arguments but {} given", 2, arity);
+                    self.codes.push(OpCode::Regex);
                     self.after_call(arity);
 
                     return Ok(());
