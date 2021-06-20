@@ -20,6 +20,7 @@ pub enum DataType {
     HeapAddr(usize),
     StackAddr(usize),
     Tuple(usize, Vec<DataType>),
+    Object(Vec<(String, DataType)>),
 }
 
 impl DataType {
@@ -32,6 +33,7 @@ impl DataType {
             HeapAddr(_) => "heap_addr".to_string(),
             StackAddr(_) => "stack_addr".to_string(),
             Tuple(u, _) => format!("tuple({})", u),
+            Object(_) => "object".to_string(),
         }
     }
 }
@@ -194,13 +196,47 @@ impl Runtime {
 
                     self.push(DataType::Tuple(u, tuple));
                 }
+                OpCode::Object(u) => {
+                    let mut object = vec![];
+                    for _ in 0..u {
+                        let value = self.pop(1);
+                        let key = self.pop(1);
+                        match self.deref(key)? {
+                            HeapData::String(s) => {
+                                object.push((s, value));
+                            }
+                            k => bail!("Unexpected key type: {:?}", k),
+                        }
+                    }
+
+                    self.push(DataType::Object(object));
+                }
                 OpCode::Get => {
                     let index = self.pop(1);
                     let tuple = self.pop(1);
-                    match (index, tuple) {
-                        (DataType::Int(n), DataType::Tuple(_, vs)) => {
+                    match (tuple, index) {
+                        (DataType::Tuple(_, vs), DataType::Int(n)) => {
                             self.push(vs[n as usize].clone());
                         }
+                        (DataType::Object(vs), index) => match self.deref(index)? {
+                            HeapData::String(key) => {
+                                let mut value = None;
+                                for (k, v) in vs.clone() {
+                                    if k == key {
+                                        value = Some(v);
+                                        break;
+                                    }
+                                }
+
+                                match value {
+                                    Some(v) => {
+                                        self.push(v.clone());
+                                    }
+                                    None => bail!("Cannot found key {} in {:?}", key, vs),
+                                }
+                            }
+                            x => bail!("Key must be string but found {:?}", x),
+                        },
                         (i, t) => bail!("Unexpected type: _get({:?}, {:?})", t, i),
                     }
                 }
@@ -296,6 +332,13 @@ mod tests {
                     return _get(t, 2);
                 "#,
                 DataType::Int(3),
+            ),
+            (
+                r#"
+                    let t = _object("x", 1, "y", "hell");
+                    return _get(t, "x");
+                "#,
+                DataType::Int(1),
             ),
         ];
 

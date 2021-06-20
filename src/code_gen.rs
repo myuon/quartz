@@ -26,6 +26,7 @@ pub enum OpCode {
     Free,
     Deref,
     Tuple(usize),
+    Object(usize),
     Get,
 }
 
@@ -151,6 +152,19 @@ impl CodeGenerator {
                 // n-タプルの生成
                 if &f == "_tuple" {
                     self.codes.push(OpCode::Tuple(arity));
+                    self.after_call(arity);
+
+                    return Ok(());
+                }
+
+                // objectの生成
+                if &f == "_object" {
+                    ensure!(
+                        arity % 2 == 0,
+                        "Expected even arguments but {:?} given",
+                        arity
+                    );
+                    self.codes.push(OpCode::Object(arity / 2));
                     self.after_call(arity);
 
                     return Ok(());
@@ -337,6 +351,20 @@ mod tests {
                     Tuple(5),
                     Copy(0),
                     Push(DataType::Int(3)),
+                    Get,
+                    Return(2),
+                ],
+            ),
+            (
+                r#"let x = _object("x", 10, "y", "yes"); return _get(x, "x");"#,
+                vec![
+                    Alloc(HeapData::String("x".to_string())),
+                    Push(DataType::Int(10)),
+                    Alloc(HeapData::String("y".to_string())),
+                    Alloc(HeapData::String("yes".to_string())),
+                    Object(2),
+                    Copy(0),
+                    Alloc(HeapData::String("x".to_string())),
                     Get,
                     Return(2),
                 ],
