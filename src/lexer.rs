@@ -25,6 +25,7 @@ static SPACE_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"^\s+").unwrap());
 static IDENT_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[a-zA-Z_][a-zA-Z0-9_]*").unwrap());
 static INT_LITERAL: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[0-9]+").unwrap());
 static STRING_LITERAL: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^"([^"]*)""#).unwrap());
+static COMMENT_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^//[^\n]*\n"#).unwrap());
 
 #[derive(PartialEq, Debug)]
 pub struct Token {
@@ -72,6 +73,15 @@ impl TokenReader {
     pub fn run_lexer(&mut self, input: &str) {
         while input.len() > self.position {
             match SPACE_PATTERN.find(&input[self.position..]) {
+                Some(m) => {
+                    self.position += m.end();
+
+                    continue;
+                }
+                None => (),
+            }
+
+            match COMMENT_PATTERN.find(&input[self.position..]) {
                 Some(m) => {
                     self.position += m.end();
 
@@ -161,11 +171,13 @@ mod tests {
         use Lexeme::*;
         let cases = vec![
             (
-                r#"let main = fn () {
-                f(10, 20, 40);
-                100;
-                "foo";
-                let u = fn () { 20 };
+                r#"
+                    // this is a comment
+                    let main = fn () {
+                    f(10, 20, 40);
+                    100;
+                    "foo"; // and comment
+                    let u = fn () { 20 };
             };
             main();"#,
                 vec![
