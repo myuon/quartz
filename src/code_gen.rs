@@ -88,15 +88,14 @@ impl CodeGenerator {
             .get(ident)
             .ok_or(anyhow::anyhow!("Ident {} not found", ident))?;
 
-        self.codes.push(OpCode::Copy(self.stack_count - *v));
+        self.codes.push(OpCode::Copy(self.stack_count - 1 - *v));
         self.stack_count += 1;
         self.pop_count += 1;
         Ok(())
     }
 
     fn ret(&mut self, arity: usize) {
-        // return expr;のときexprがstackに乗っている分があるので1を引いておく
-        let pop = self.pop_count + arity;
+        let pop = self.pop_count + arity - 1;
 
         self.codes.push(OpCode::Return(pop));
     }
@@ -189,7 +188,7 @@ impl CodeGenerator {
             match stmt {
                 Statement::Let(x, e) => {
                     self.expr(e.clone())?;
-                    self.variables.insert(x.clone(), self.stack_count);
+                    self.variables.insert(x.clone(), self.stack_count - 1);
                 }
                 Statement::Return(e) => {
                     self.expr(e.clone())?;
@@ -238,14 +237,14 @@ mod tests {
         let cases = vec![
             (
                 r#"let x = 10; let y = x; return y;"#,
-                vec![Push(DataType::Int(10)), Copy(0), Copy(0), Return(3)],
+                vec![Push(DataType::Int(10)), Copy(0), Copy(0), Return(2)],
             ),
             (
                 r#"let x = 10; return &x;"#,
                 vec![
                     Push(DataType::Int(10)),
-                    Push(DataType::StackAddr(1)),
-                    Return(2),
+                    Push(DataType::StackAddr(0)),
+                    Return(1),
                 ],
             ),
             (
@@ -256,25 +255,25 @@ mod tests {
                     Push(DataType::Int(3)),
                     Push(DataType::Int(4)),
                     Push(DataType::Nil),
-                    Return(5),
+                    Return(4),
                 ],
             ),
             (
                 r#"let f = fn(a) { return a; }; f(1);"#,
                 vec![
-                    Alloc(HeapData::Closure(vec![Copy(1), Return(2)])),
+                    Alloc(HeapData::Closure(vec![Copy(0), Return(1)])),
                     Push(DataType::Int(1)),
                     Copy(1),
                     Call,
                     Push(DataType::Nil),
-                    Return(3),
+                    Return(2),
                 ],
             ),
             (
                 r#"let x = 10; let f = fn (a,b,c,d,e) { return a; }; f(x,x,x,x,x);"#,
                 vec![
                     Push(DataType::Int(10)),
-                    Alloc(HeapData::Closure(vec![Copy(5), Return(6)])),
+                    Alloc(HeapData::Closure(vec![Copy(4), Return(5)])),
                     Copy(1),
                     Copy(2),
                     Copy(3),
@@ -283,16 +282,16 @@ mod tests {
                     Copy(5),
                     Call,
                     Push(DataType::Nil),
-                    Return(4),
+                    Return(3),
                 ],
             ),
             (
                 r#"let x = 0; let f = fn (a) { return *a; };"#,
                 vec![
                     Push(DataType::Int(0)),
-                    Alloc(HeapData::Closure(vec![Copy(1), Deref, Return(2)])),
+                    Alloc(HeapData::Closure(vec![Copy(0), Deref, Return(1)])),
                     Push(DataType::Nil),
-                    Return(3),
+                    Return(2),
                 ],
             ),
         ];

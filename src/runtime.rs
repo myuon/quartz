@@ -52,7 +52,7 @@ impl Runtime {
             pc: 0,
             program,
             // 関数内部の実行時には先頭に関数へのアドレスが入っているという規約のため、main関数内ではmainへの関数ポインタを1つ置いておく(使うことはないのでnilにしておく)
-            stack: vec![DataType::Nil],
+            stack: vec![],
             heap: vec![],
             call_stack: vec![],
             ffi_functions,
@@ -111,14 +111,12 @@ impl Runtime {
 
     pub fn execute(&mut self) -> Result<()> {
         while !self.is_end() {
-            /*
             println!(
                 "{:?}\n{:?}\n{:?}\n",
                 &self.program[self.pc..],
                 self.stack,
                 self.heap
             );
-            */
 
             match self.program[self.pc].clone() {
                 OpCode::Push(v) => {
@@ -146,10 +144,9 @@ impl Runtime {
                     self.push(p);
                 }
                 OpCode::Call => {
-                    let addr = self.stack[self.stack.len() - 1].clone();
+                    let addr = self.pop(1);
                     match addr {
                         DataType::FFIAddr(addr) => {
-                            self.pop(1);
                             self.stack =
                                 self.ffi_functions[addr](self.stack.clone(), self.heap.clone());
                             self.pc += 1;
@@ -313,7 +310,7 @@ mod tests {
                     Copy(1),
                     Push(DataType::FFIAddr(0)),
                     Call,
-                    Return(3),
+                    Return(2),
                 ])],
             ),
             (
@@ -325,7 +322,7 @@ mod tests {
             (
                 // just panic
                 r#"let x = 1; panic;"#,
-                vec![DataType::Nil, DataType::Int(1)],
+                vec![DataType::Int(1)],
                 vec![],
             ),
             (
@@ -338,7 +335,7 @@ mod tests {
                 vec![
                     HeapData::Closure(vec![
                         Alloc(HeapData::String("hello".to_string())),
-                        Return(6),
+                        Return(5),
                     ]),
                     HeapData::String("hello".to_string()),
                 ],
@@ -346,12 +343,12 @@ mod tests {
             (
                 // take the address of string
                 r#"let x = "hello, world"; let y = &x; panic;"#,
-                vec![DataType::Nil, DataType::HeapAddr(0), DataType::StackAddr(1)],
+                vec![DataType::HeapAddr(0), DataType::StackAddr(0)],
                 vec![HeapData::String("hello, world".to_string())],
             ),
             (
                 r#"let x = "hello, world"; _free(x); panic;"#,
-                vec![DataType::Nil, DataType::HeapAddr(0)],
+                vec![DataType::HeapAddr(0)],
                 vec![HeapData::Nil],
             ),
             (
@@ -367,11 +364,11 @@ mod tests {
                 vec![
                     HeapData::String("".to_string()),
                     HeapData::Closure(vec![
-                        Copy(1),
+                        Copy(0),
                         Alloc(HeapData::String("hello, world".to_string())),
                         PAssign,
                         Push(DataType::Nil),
-                        Return(2),
+                        Return(1),
                     ]),
                     HeapData::String("hello, world".to_string()),
                 ],
