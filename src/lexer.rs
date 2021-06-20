@@ -24,7 +24,8 @@ pub enum Lexeme {
 static SPACE_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"^\s+").unwrap());
 static IDENT_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[a-zA-Z_][a-zA-Z0-9_]*").unwrap());
 static INT_LITERAL: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[0-9]+").unwrap());
-static STRING_LITERAL: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^"([^"]*)""#).unwrap());
+static STRING_LITERAL: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r#"^"((([^"]|\\")*[^\\])?)""#).unwrap());
 static COMMENT_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^//[^\n]*\n"#).unwrap());
 
 #[derive(PartialEq, Debug)]
@@ -244,6 +245,21 @@ mod tests {
             (
                 r#"&10; *v"#,
                 vec![And, Int(10), SemiColon, Star, Ident("v".to_string())],
+            ),
+            (
+                // empty string
+                r#"return "";"#,
+                vec![Return, String("".to_string()), SemiColon],
+            ),
+            (
+                // escaped double quote
+                r#"return "ab\"c";"#,
+                vec![Return, String(r#"ab\"c"#.to_string()), SemiColon],
+            ),
+            (
+                // escaped escape
+                r#"return "ab\\c";"#,
+                vec![Return, String(r#"ab\\c"#.to_string()), SemiColon],
             ),
         ];
 

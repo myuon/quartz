@@ -432,7 +432,7 @@ mod tests {
     }
 
     #[test]
-    fn test_interpreter_stack() {
+    fn test_runtime_with_env() {
         use OpCode::*;
 
         let cases = vec![
