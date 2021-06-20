@@ -120,12 +120,24 @@ impl Runtime {
     }
 
     fn expect_string(&self, datatype: DataType) -> Result<String> {
-        match datatype {
-            DataType::HeapAddr(h) => match &self.heap[h] {
-                HeapData::String(s) => return Ok(s.to_string()),
-                v => bail!("Expected a string but found {:?}", v),
-            },
+        match &self.heap[self.expect_heap_addr(datatype)?] {
+            HeapData::String(s) => return Ok(s.to_string()),
             v => bail!("Expected a string but found {:?}", v),
+        }
+    }
+
+    fn expect_heap_addr(&self, datatype: DataType) -> Result<usize> {
+        match datatype {
+            DataType::HeapAddr(h) => Ok(h),
+            v => bail!("Expected heap address but found {:?}", v),
+        }
+    }
+
+    fn expect_vector(&self, datatype: DataType) -> Result<Vec<DataType>> {
+        let h = self.expect_heap_addr(datatype)?;
+        match &self.heap[h] {
+            HeapData::Vec(v) => Ok(v.clone()),
+            v => bail!("Expected vector but found {:?}", v),
         }
     }
 
@@ -234,6 +246,14 @@ impl Runtime {
                 OpCode::Get => {
                     let index = self.pop(1);
                     let tuple = self.pop(1);
+
+                    if let Ok(vec) = self.expect_vector(tuple.clone()) {
+                        let index = self.expect_int(index)?;
+                        self.push(vec[index as usize].clone());
+                        self.pc += 1;
+                        continue;
+                    }
+
                     match (tuple, index) {
                         (DataType::Tuple(_, vs), DataType::Int(n)) => {
                             self.push(vs[n as usize].clone());
@@ -257,7 +277,7 @@ impl Runtime {
                             }
                             x => bail!("Key must be string but found {:?}", x),
                         },
-                        (i, t) => bail!("Unexpected type: _get({:?}, {:?})", t, i),
+                        (t, i) => bail!("Unexpected type: _get({:?}, {:?})", t, i),
                     }
                 }
                 OpCode::Set => {
@@ -319,6 +339,29 @@ impl Runtime {
                     let cond_case = self.expect_int(cond)?;
 
                     self.push(args[cond_case as usize].clone());
+                }
+                OpCode::VPush => {
+                    let value = self.pop(1);
+                    let vec = self.pop(1);
+
+                    match vec {
+                        DataType::StackAddr(addr) => match &mut self.heap[addr] {
+                            HeapData::Vec(vs) => {
+                                vs.push(value);
+                            }
+                            t => bail!("Expected vector but found {:?}", t),
+                        },
+                        t => bail!("Expected stack address but found {:?}", t),
+                    }
+                }
+                OpCode::Len => {
+                    let v = self.pop(1);
+                    match self.deref(v)? {
+                        HeapData::Vec(vs) => {
+                            self.push(DataType::Int(vs.len() as i32));
+                        }
+                        t => bail!("Expected vector but found {:?}", t),
+                    }
                 }
             }
 
@@ -455,6 +498,18 @@ mod tests {
                 r#"return _eq(1, 2);"#,
                 DataType::Int(1),
             ),
+            (
+                // vector
+                r#"
+                    let v = _vec();
+                    _vpush(&v, 10);
+                    _vpush(&v, 20);
+                    _vpush(&v, 30);
+
+                    return _tuple(_len(v), _get(v, 1));
+                "#,
+                DataType::Tuple(2, vec![DataType::Int(20), DataType::Int(3)]),
+            ),
         ];
 
         let (ffi_table, ffi_functions) = create_ffi_table();
@@ -462,7 +517,11 @@ mod tests {
         for c in cases {
             let m = run_parser(c.0).unwrap();
             let code = gen_code(m, ffi_table.clone()).unwrap();
-            let result = execute(code, ffi_functions.clone()).unwrap();
+            let result = {
+                let r = execute(code, ffi_functions.clone());
+                assert!(r.is_ok(), "Result: {:?}, input: {:?}", r, c.0);
+                r.unwrap()
+            };
             assert_eq!(result, c.1, "{:?}", c.0);
         }
     }

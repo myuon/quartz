@@ -1,0 +1,14 @@
+let lexeme_fn = _object("lexeme", "fn");
+let lexeme_let = _object("lexeme", "let");
+let lexeme_return = _object("lexeme", "return");
+let lexeme_lparen = _object("lexeme", "lparen");
+let lexeme_rparen = _object("lexeme", "rparen");
+
+let lexer = fn (input) {
+}
+
+let main = fn (input) {
+  return lexer(input);
+}
+
+main("let x = 0; let y = fn (x) { return _add(x, y) }; f();");

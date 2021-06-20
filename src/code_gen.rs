@@ -12,6 +12,7 @@ pub enum HeapData {
     Nil,
     String(String),
     Closure(Vec<OpCode>),
+    Vec(Vec<DataType>),
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -31,6 +32,8 @@ pub enum OpCode {
     Set,
     Regex,
     Switch(usize),
+    VPush,
+    Len,
 }
 
 #[derive(Debug)]
@@ -211,6 +214,34 @@ impl CodeGenerator {
                 if &f == "_regex" {
                     ensure!(arity == 2, "Expected {} arguments but {} given", 2, arity);
                     self.codes.push(OpCode::Regex);
+                    self.after_call(arity);
+
+                    return Ok(());
+                }
+
+                // regular expressions
+                if &f == "_vec" {
+                    ensure!(arity == 0, "Expected {} arguments but {} given", 0, arity);
+                    self.codes.push(OpCode::Alloc(HeapData::Vec(vec![])));
+                    self.after_call(arity);
+
+                    return Ok(());
+                }
+
+                // push to vector
+                if &f == "_vpush" {
+                    ensure!(arity == 2, "Expected {} arguments but {} given", 2, arity);
+                    self.codes.push(OpCode::VPush);
+                    self.codes.push(OpCode::Push(DataType::Nil));
+                    self.after_call(arity);
+
+                    return Ok(());
+                }
+
+                // length of a vector
+                if &f == "_len" {
+                    ensure!(arity == 1, "Expected {} arguments but {} given", 1, arity);
+                    self.codes.push(OpCode::Len);
                     self.after_call(arity);
 
                     return Ok(());
