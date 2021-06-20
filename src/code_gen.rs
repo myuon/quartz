@@ -20,7 +20,8 @@ pub enum OpCode {
     Return(usize),
     Copy(usize),
     Alloc(HeapData),
-    Call,
+    Call(usize),
+    FFICall(usize),
     PAssign,
     Free,
     Deref,
@@ -95,9 +96,14 @@ impl CodeGenerator {
     }
 
     fn ret(&mut self, arity: usize) {
-        let pop = self.pop_count + arity - 1;
+        let pop = self.pop_count + arity;
 
         self.codes.push(OpCode::Return(pop));
+    }
+
+    fn after_call(&mut self, arity: usize) {
+        self.stack_count = self.stack_count + 1 - arity;
+        self.pop_count = self.pop_count + 1 - arity;
     }
 
     fn expr(&mut self, expr: Expr) -> Result<()> {
@@ -124,8 +130,8 @@ impl CodeGenerator {
                 if &f == "_passign" {
                     ensure!(arity == 2, "Expected 2 arguments but {:?} given", arity);
                     self.codes.push(OpCode::PAssign);
-                    self.stack_count -= arity;
-                    self.pop_count -= arity;
+                    self.codes.push(OpCode::Push(DataType::Nil));
+                    self.after_call(arity);
 
                     return Ok(());
                 }
@@ -134,29 +140,27 @@ impl CodeGenerator {
                 if &f == "_free" {
                     ensure!(arity == 1, "Expected 1 arguments but {:?} given", arity);
                     self.codes.push(OpCode::Free);
-                    self.stack_count -= arity;
-                    self.pop_count -= arity;
+                    self.codes.push(OpCode::Push(DataType::Nil));
+                    self.after_call(arity);
 
                     return Ok(());
                 }
 
                 if let Some(addr) = self.ffi_table.get(&f).cloned() {
-                    self.push(DataType::FFIAddr(addr));
-                    self.codes.push(OpCode::Call);
+                    self.codes.push(OpCode::FFICall(addr));
 
                     // TODO(safety): arity check
-                    self.stack_count -= arity;
-                    self.pop_count -= arity;
+                    self.after_call(arity);
 
                     return Ok(());
                 }
 
-                self.load(&f)?;
-                self.codes.push(OpCode::Call);
-
-                // call実行後はarityはすべてpopされるのでその分popする数が減る
-                self.pop_count -= arity;
-                self.stack_count -= arity;
+                let addr = self
+                    .variables
+                    .get(&f)
+                    .ok_or(anyhow::anyhow!("Ident {} not found", f))?;
+                self.codes.push(OpCode::Call(*addr));
+                self.after_call(arity);
 
                 Ok(())
             }
@@ -237,14 +241,14 @@ mod tests {
         let cases = vec![
             (
                 r#"let x = 10; let y = x; return y;"#,
-                vec![Push(DataType::Int(10)), Copy(0), Copy(0), Return(2)],
+                vec![Push(DataType::Int(10)), Copy(0), Copy(0), Return(3)],
             ),
             (
                 r#"let x = 10; return &x;"#,
                 vec![
                     Push(DataType::Int(10)),
                     Push(DataType::StackAddr(0)),
-                    Return(1),
+                    Return(2),
                 ],
             ),
             (
@@ -255,43 +259,53 @@ mod tests {
                     Push(DataType::Int(3)),
                     Push(DataType::Int(4)),
                     Push(DataType::Nil),
-                    Return(4),
+                    Return(5),
                 ],
             ),
             (
                 r#"let f = fn(a) { return a; }; f(1);"#,
                 vec![
-                    Alloc(HeapData::Closure(vec![Copy(0), Return(1)])),
+                    Alloc(HeapData::Closure(vec![Copy(0), Return(2)])),
                     Push(DataType::Int(1)),
-                    Copy(1),
-                    Call,
+                    Call(0),
                     Push(DataType::Nil),
-                    Return(2),
+                    Return(3),
+                ],
+            ),
+            (
+                r#"let x = 0; _passign(&x, 10); return x;"#,
+                vec![
+                    Push(DataType::Int(0)),
+                    Push(DataType::StackAddr(0)),
+                    Push(DataType::Int(10)),
+                    PAssign,
+                    Push(DataType::Nil),
+                    Copy(1),
+                    Return(3),
                 ],
             ),
             (
                 r#"let x = 10; let f = fn (a,b,c,d,e) { return a; }; f(x,x,x,x,x);"#,
                 vec![
                     Push(DataType::Int(10)),
-                    Alloc(HeapData::Closure(vec![Copy(4), Return(5)])),
+                    Alloc(HeapData::Closure(vec![Copy(4), Return(6)])),
                     Copy(1),
                     Copy(2),
                     Copy(3),
                     Copy(4),
                     Copy(5),
-                    Copy(5),
-                    Call,
+                    Call(1),
                     Push(DataType::Nil),
-                    Return(3),
+                    Return(4),
                 ],
             ),
             (
                 r#"let x = 0; let f = fn (a) { return *a; };"#,
                 vec![
                     Push(DataType::Int(0)),
-                    Alloc(HeapData::Closure(vec![Copy(0), Deref, Return(1)])),
+                    Alloc(HeapData::Closure(vec![Copy(0), Deref, Return(2)])),
                     Push(DataType::Nil),
-                    Return(2),
+                    Return(3),
                 ],
             ),
         ];

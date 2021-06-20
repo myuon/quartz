@@ -123,9 +123,11 @@ impl Runtime {
                     self.push(v);
                 }
                 OpCode::Return(r) => {
-                    let ret = self.pop(1);
-                    self.pop(r);
-                    self.push(ret);
+                    if r > 0 {
+                        let ret = self.pop(1);
+                        self.pop(r - 1);
+                        self.push(ret);
+                    }
 
                     match self.call_stack.pop() {
                         Some(p) => {
@@ -143,19 +145,13 @@ impl Runtime {
                     let p = self.alloc(h);
                     self.push(p);
                 }
-                OpCode::Call => {
-                    let addr = self.pop(1);
-                    match addr {
-                        DataType::FFIAddr(addr) => {
-                            self.stack =
-                                self.ffi_functions[addr](self.stack.clone(), self.heap.clone());
-                            self.pc += 1;
-                            continue;
-                        }
-                        _ => {}
-                    }
-
-                    let closure = self.deref(addr)?;
+                OpCode::FFICall(addr) => {
+                    self.stack = self.ffi_functions[addr](self.stack.clone(), self.heap.clone());
+                    self.pc += 1;
+                    continue;
+                }
+                OpCode::Call(addr) => {
+                    let closure = self.deref(self.stack[addr].clone())?;
                     match closure {
                         HeapData::Closure(body) => {
                             self.call_stack.push(self.pc);
@@ -308,9 +304,8 @@ mod tests {
                     Push(DataType::Int(2)),
                     Copy(1),
                     Copy(1),
-                    Push(DataType::FFIAddr(0)),
-                    Call,
-                    Return(2),
+                    FFICall(0),
+                    Return(3),
                 ])],
             ),
             (
@@ -335,7 +330,7 @@ mod tests {
                 vec![
                     HeapData::Closure(vec![
                         Alloc(HeapData::String("hello".to_string())),
-                        Return(5),
+                        Return(6),
                     ]),
                     HeapData::String("hello".to_string()),
                 ],
@@ -348,7 +343,7 @@ mod tests {
             ),
             (
                 r#"let x = "hello, world"; _free(x); panic;"#,
-                vec![DataType::HeapAddr(0)],
+                vec![DataType::HeapAddr(0), DataType::Nil],
                 vec![HeapData::Nil],
             ),
             (
@@ -368,7 +363,8 @@ mod tests {
                         Alloc(HeapData::String("hello, world".to_string())),
                         PAssign,
                         Push(DataType::Nil),
-                        Return(1),
+                        Push(DataType::Nil),
+                        Return(3),
                     ]),
                     HeapData::String("hello, world".to_string()),
                 ],
