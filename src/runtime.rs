@@ -129,7 +129,7 @@ impl Runtime {
                 Ok(&mut self.stack[r])
             }
             DataType::StackNormalAddr(r) => Ok(&mut self.stack[r]),
-            v => bail!("Expected a int but found {:?}", v),
+            v => bail!("Expected a stack address but found {:?}", v),
         }
     }
 
@@ -240,9 +240,15 @@ impl Runtime {
                         }
                     }
                 }
-                OpCode::CopyAbsolute(p) => {
-                    self.push(self.stack[p].clone());
-                }
+                OpCode::CopyAbsolute(p) => match self.stack[p].clone() {
+                    DataType::StackRevAddr(r) => {
+                        // ローカルでない変数がStackRevAddrだった場合はポインタ値を再計算する必要がある
+                        self.push(DataType::StackNormalAddr(p - r - 1));
+                    }
+                    t => {
+                        self.push(t);
+                    }
+                },
                 OpCode::Alloc(h) => {
                     let p = self.alloc(h);
                     self.push(p);
@@ -276,12 +282,8 @@ impl Runtime {
                 }
                 OpCode::Deref => {
                     let addr = self.pop(1);
-                    match addr {
-                        DataType::StackRevAddr(p) => {
-                            self.push(self.get_stack_addr(p).clone());
-                        }
-                        r => bail!("Expected stack address but found {:?}", r),
-                    }
+                    let val = self.stack_addr_as_mut(addr)?.clone();
+                    self.push(val);
                 }
                 OpCode::Tuple(u) => {
                     let mut tuple = vec![];
@@ -668,6 +670,19 @@ mod tests {
                     return f();
                 "#,
                 DataType::Int(2),
+            ),
+            (
+                r#"
+                    let x = 10;
+                    let y = &x;
+                    let f = fn () {
+                        return _add(*y, 1);
+                    };
+                    let z = 0;
+
+                    return f();
+                "#,
+                DataType::Int(11),
             ),
         ];
 
