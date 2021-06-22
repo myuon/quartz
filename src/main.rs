@@ -38,7 +38,7 @@ pub fn create_ffi_table() -> (HashMap<String, usize>, Vec<FFIFunction>) {
                 DataType::HeapAddr(p) => {
                     println!("{:?}", heap[p]);
                 }
-                DataType::StackAddr(p) => {
+                DataType::StackRevAddr(p) => {
                     println!("{:?}", stack[p]);
                 }
                 _ => println!("{:?}", x),

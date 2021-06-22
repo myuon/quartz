@@ -20,8 +20,8 @@ pub enum UnsizedDataType {
 pub enum DataType {
     Nil,
     Int(i32),
-    HeapAddr(usize),  // in normal order
-    StackAddr(usize), // in reverse order, 0-origin, excluding itself
+    HeapAddr(usize),     // in normal order
+    StackRevAddr(usize), // in reverse order, 0-origin, excluding itself
     Tuple(usize, Vec<DataType>),
     Object(Vec<(String, DataType)>),
 }
@@ -34,7 +34,7 @@ impl DataType {
             Nil => "nil".to_string(),
             Int(_) => "int".to_string(),
             HeapAddr(_) => "heap_addr".to_string(),
-            StackAddr(_) => "stack_addr".to_string(),
+            StackRevAddr(_) => "stack_addr".to_string(),
             Tuple(u, _) => format!("tuple({})", u),
             Object(_) => "object".to_string(),
         }
@@ -148,7 +148,7 @@ impl Runtime {
 
     fn expect_stack_addr(&self, datatype: DataType) -> Result<usize> {
         match datatype {
-            DataType::StackAddr(h) => Ok(h),
+            DataType::StackRevAddr(h) => Ok(h),
             v => bail!("Expected stack address but found {:?}", v),
         }
     }
@@ -218,8 +218,8 @@ impl Runtime {
                 OpCode::Copy(p) => {
                     let target = self.stack.len() - 1 - p;
                     match self.stack[target].clone() {
-                        DataType::StackAddr(addr) => {
-                            self.push(DataType::StackAddr(addr + p + 1));
+                        DataType::StackRevAddr(addr) => {
+                            self.push(DataType::StackRevAddr(addr + p + 1));
                         }
                         s => {
                             self.push(s);
@@ -255,7 +255,7 @@ impl Runtime {
                     let val = self.pop(1);
                     let pointer = self.pop(1);
                     match pointer {
-                        DataType::StackAddr(p) => {
+                        DataType::StackRevAddr(p) => {
                             let p = self.get_stack_addr_index(p);
                             self.stack[p] = val;
                         }
@@ -269,7 +269,7 @@ impl Runtime {
                 OpCode::Deref => {
                     let addr = self.pop(1);
                     match addr {
-                        DataType::StackAddr(p) => {
+                        DataType::StackRevAddr(p) => {
                             self.push(self.get_stack_addr(p).clone());
                         }
                         r => bail!("Expected stack address but found {:?}", r),
@@ -341,7 +341,7 @@ impl Runtime {
                     let obj = self.pop(1);
 
                     match obj {
-                        DataType::StackAddr(addr) => match self.get_stack_addr(addr).clone() {
+                        DataType::StackRevAddr(addr) => match self.get_stack_addr(addr).clone() {
                             DataType::Object(mut vs) => {
                                 let key = self.expect_string(key)?;
                                 let updated = (move || {
@@ -731,7 +731,7 @@ mod tests {
             (
                 // take the address of string
                 r#"let x = "hello, world"; let y = &x; panic;"#,
-                vec![DataType::HeapAddr(0), DataType::StackAddr(0)],
+                vec![DataType::HeapAddr(0), DataType::StackRevAddr(0)],
                 vec![HeapData::String("hello, world".to_string())],
             ),
             (

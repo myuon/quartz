@@ -305,7 +305,7 @@ impl CodeGenerator {
                         .ok_or(anyhow::anyhow!("Ident {} not found", v))?
                         .clone();
 
-                    self.push(DataType::StackAddr(self.stack_count - 1 - p));
+                    self.push(DataType::StackRevAddr(self.stack_count - 1 - p));
 
                     Ok(())
                 }
@@ -400,7 +400,7 @@ mod tests {
                 r#"let x = 10; return &x;"#,
                 vec![
                     Push(DataType::Int(10)),
-                    Push(DataType::StackAddr(0)),
+                    Push(DataType::StackRevAddr(0)),
                     Return(2),
                 ],
             ),
@@ -429,7 +429,7 @@ mod tests {
                 r#"let x = 0; _passign(&x, 10); return x;"#,
                 vec![
                     Push(DataType::Int(0)),
-                    Push(DataType::StackAddr(0)),
+                    Push(DataType::StackRevAddr(0)),
                     Push(DataType::Int(10)),
                     PAssign,
                     Push(DataType::Nil),
