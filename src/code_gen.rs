@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use anyhow::{bail, ensure, Result};
 
@@ -21,6 +21,7 @@ pub enum OpCode {
     Pop(usize),
     Return(usize),
     Copy(usize),
+    CopyAbsolute(usize), // copy from absolute index
     Alloc(HeapData),
     Call(usize),
     FFICall(usize),
@@ -45,6 +46,7 @@ pub enum OpCode {
 #[derive(Debug)]
 struct CodeGenerator {
     variables: HashMap<String, usize>,
+    local: HashSet<String>,
     codes: Vec<OpCode>,
     stack_count: usize,
     pop_count: usize,
@@ -55,6 +57,7 @@ impl CodeGenerator {
     pub fn new(ffi_table: HashMap<String, usize>) -> CodeGenerator {
         CodeGenerator {
             variables: HashMap::new(),
+            local: HashSet::new(),
             codes: vec![],
             stack_count: 0,
             pop_count: 0,
@@ -83,6 +86,7 @@ impl CodeGenerator {
 
                 let arity = args.len();
                 for a in args {
+                    generator.local.insert(a.clone());
                     generator.variables.insert(a, generator.stack_count);
                     generator.stack_count += 1;
                 }
@@ -104,9 +108,16 @@ impl CodeGenerator {
             .get(ident)
             .ok_or(anyhow::anyhow!("Ident {} not found", ident))?;
 
-        self.codes.push(OpCode::Copy(self.stack_count - 1 - *v));
+        let is_local = self.local.contains(ident);
+
+        self.codes.push(if is_local {
+            OpCode::Copy(self.stack_count - 1 - *v)
+        } else {
+            OpCode::CopyAbsolute(*v)
+        });
         self.stack_count += 1;
         self.pop_count += 1;
+
         Ok(())
     }
 
@@ -326,6 +337,7 @@ impl CodeGenerator {
                 Statement::Let(x, e) => {
                     self.expr(e.clone())?;
                     self.variables.insert(x.clone(), self.stack_count - 1);
+                    self.local.insert(x.clone());
                 }
                 Statement::Return(e) => {
                     self.expr(e.clone())?;

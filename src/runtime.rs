@@ -226,6 +226,9 @@ impl Runtime {
                         }
                     }
                 }
+                OpCode::CopyAbsolute(p) => {
+                    self.push(self.stack[p].clone());
+                }
                 OpCode::Alloc(h) => {
                     let p = self.alloc(h);
                     self.push(p);
@@ -632,6 +635,31 @@ mod tests {
             (
                 r#"return _eq(_slice("hello, world", 5, 10), ", wor");"#,
                 DataType::Int(0),
+            ),
+            (
+                r#"
+                    let x = 0;
+                    let f = fn () {
+                        return _add(x, 1);
+                    };
+                    let y = 0;
+
+                    return f();
+                "#,
+                DataType::Int(1),
+            ),
+            (
+                r#"
+                    let x = 0;
+                    let f = fn () {
+                        _passign(&x, _add(x, 1));
+                        return _add(x, 1);
+                    };
+                    let y = 0;
+
+                    return f();
+                "#,
+                DataType::Int(2),
             ),
         ];
 
