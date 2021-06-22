@@ -684,6 +684,25 @@ mod tests {
                 "#,
                 DataType::Int(11),
             ),
+            /*
+            // dangling variableの例
+            // closureが実装できていないのでこのようにローカル変数のライフタイムを関数の外に広げようとすると壊れるので注意
+            (
+                r#"
+                    let f = fn () {
+                        let x = 20;
+                        let say_name = fn () {
+                            return x;
+                        };
+                        return say_name;
+                    };
+                    let g = f();
+
+                    return g();
+                "#,
+                DataType::Int(11),
+            ),
+            */
         ];
 
         let (ffi_table, ffi_functions) = create_ffi_table();
