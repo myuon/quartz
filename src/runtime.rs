@@ -20,8 +20,9 @@ pub enum UnsizedDataType {
 pub enum DataType {
     Nil,
     Int(i32),
-    HeapAddr(usize),     // in normal order
-    StackRevAddr(usize), // in reverse order, 0-origin, excluding itself
+    HeapAddr(usize),        // in normal order
+    StackRevAddr(usize), // in reverse order, 0-origin, excluding itself, for addresses of local variables
+    StackNormalAddr(usize), // in normal order, for addresses of out-of-scope variables
     Tuple(usize, Vec<DataType>),
     Object(Vec<(String, DataType)>),
 }
@@ -34,7 +35,8 @@ impl DataType {
             Nil => "nil".to_string(),
             Int(_) => "int".to_string(),
             HeapAddr(_) => "heap_addr".to_string(),
-            StackRevAddr(_) => "stack_addr".to_string(),
+            StackRevAddr(_) => "stack_addr(local)".to_string(),
+            StackNormalAddr(_) => "stack_addr".to_string(),
             Tuple(u, _) => format!("tuple({})", u),
             Object(_) => "object".to_string(),
         }
@@ -120,6 +122,17 @@ impl Runtime {
         self.stack.len() - 1 - u
     }
 
+    fn stack_addr_as_mut(&mut self, datatype: DataType) -> Result<&mut DataType> {
+        match datatype {
+            DataType::StackRevAddr(r) => {
+                let r = self.stack.len() - 1 - r;
+                Ok(&mut self.stack[r])
+            }
+            DataType::StackNormalAddr(r) => Ok(&mut self.stack[r]),
+            v => bail!("Expected a int but found {:?}", v),
+        }
+    }
+
     fn get_stack_addr(&self, u: usize) -> &DataType {
         let index = self.get_stack_addr_index(u);
         &self.stack[index]
@@ -146,9 +159,10 @@ impl Runtime {
         }
     }
 
-    fn expect_stack_addr(&self, datatype: DataType) -> Result<usize> {
+    fn expect_stack_index(&self, datatype: DataType) -> Result<usize> {
         match datatype {
-            DataType::StackRevAddr(h) => Ok(h),
+            DataType::StackRevAddr(h) => Ok(self.get_stack_addr_index(h)),
+            DataType::StackNormalAddr(h) => Ok(h),
             v => bail!("Expected stack address but found {:?}", v),
         }
     }
@@ -254,13 +268,7 @@ impl Runtime {
                 OpCode::PAssign => {
                     let val = self.pop(1);
                     let pointer = self.pop(1);
-                    match pointer {
-                        DataType::StackRevAddr(p) => {
-                            let p = self.get_stack_addr_index(p);
-                            self.stack[p] = val;
-                        }
-                        r => bail!("Expected stack address but found {:?}", r),
-                    }
+                    *self.stack_addr_as_mut(pointer)? = val;
                 }
                 OpCode::Free => {
                     let val = self.pop(1);
@@ -399,8 +407,8 @@ impl Runtime {
                     let value = self.pop(1);
                     let vec = self.pop(1);
 
-                    let addr = self.expect_stack_addr(vec)?;
-                    let addr = self.expect_heap_addr(self.get_stack_addr(addr).clone())?;
+                    let addr = self.expect_stack_index(vec)?;
+                    let addr = self.expect_heap_addr(self.stack[addr].clone())?;
                     match &mut self.heap[addr] {
                         HeapData::Vec(vs) => {
                             vs.push(value);

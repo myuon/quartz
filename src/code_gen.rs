@@ -304,8 +304,13 @@ impl CodeGenerator {
                         .get(v)
                         .ok_or(anyhow::anyhow!("Ident {} not found", v))?
                         .clone();
+                    let is_local = self.local.contains(v);
 
-                    self.push(DataType::StackRevAddr(self.stack_count - 1 - p));
+                    self.push(if is_local {
+                        DataType::StackRevAddr(self.stack_count - 1 - p)
+                    } else {
+                        DataType::StackNormalAddr(p)
+                    });
 
                     Ok(())
                 }
