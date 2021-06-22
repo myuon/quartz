@@ -259,6 +259,19 @@ impl Runtime {
                     continue;
                 }
                 OpCode::Call(addr) => {
+                    let closure = self.deref(self.stack[self.stack.len() - 1 - addr].clone())?;
+                    match closure {
+                        HeapData::Closure(body) => {
+                            self.call_stack.push(self.pc);
+
+                            self.pc = self.program.len();
+                            self.program.extend(body);
+                            continue;
+                        }
+                        r => bail!("Expected a closure but found {:?}", r),
+                    }
+                }
+                OpCode::CallAbsolute(addr) => {
                     let closure = self.deref(self.stack[addr].clone())?;
                     match closure {
                         HeapData::Closure(body) => {
@@ -703,6 +716,23 @@ mod tests {
                 DataType::Int(11),
             ),
             */
+            (
+                r#"
+                    let f = fn (input) {
+                        let t = fn () {
+                            return 10;
+                        };
+                        t();
+                    };
+                    
+                    let g = fn (input) {
+                        return f(input);
+                    };
+                    
+                    g(0);
+                "#,
+                DataType::Nil,
+            ),
         ];
 
         let (ffi_table, ffi_functions) = create_ffi_table();

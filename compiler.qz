@@ -6,10 +6,19 @@ let lexeme_rparen = _object("lexeme", "rparen");
 
 let lexer = fn (input) {
   let tokens = _vec();
-}
+
+  let position = 0;
+  let is_end = fn () {
+    return _eq(position, _len(input));
+  };
+
+  //_print(is_end());
+
+  return tokens;
+};
 
 let main = fn (input) {
   return lexer(input);
-}
+};
 
-main("let x = 0; let y = fn (x) { return _add(x, y) }; f();");
+_print(main("let x = 0; let y = fn (x) { return _add(x, y) }; f();"));

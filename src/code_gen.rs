@@ -24,6 +24,7 @@ pub enum OpCode {
     CopyAbsolute(usize), // copy from absolute index
     Alloc(HeapData),
     Call(usize),
+    CallAbsolute(usize), // call from absolute index
     FFICall(usize),
     PAssign,
     Free,
@@ -292,7 +293,12 @@ impl CodeGenerator {
                     .variables
                     .get(&f)
                     .ok_or(anyhow::anyhow!("Ident {} not found", f))?;
-                self.codes.push(OpCode::Call(*addr));
+                let is_local = self.local.contains(&f);
+                self.codes.push(if is_local {
+                    OpCode::Call(self.stack_count - 1 - *addr)
+                } else {
+                    OpCode::CallAbsolute(*addr)
+                });
                 self.after_call(arity);
 
                 Ok(())
@@ -425,7 +431,7 @@ mod tests {
                 vec![
                     Alloc(HeapData::Closure(vec![Copy(0), Return(2)])),
                     Push(DataType::Int(1)),
-                    Call(0),
+                    Call(1),
                     Push(DataType::Nil),
                     Return(3),
                 ],
@@ -452,7 +458,7 @@ mod tests {
                     Copy(3),
                     Copy(4),
                     Copy(5),
-                    Call(1),
+                    Call(5),
                     Push(DataType::Nil),
                     Return(4),
                 ],
