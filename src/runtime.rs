@@ -733,6 +733,19 @@ mod tests {
                 "#,
                 DataType::Nil,
             ),
+            (
+                r#"
+                    let f = fn (x) {
+                        let t = fn () {
+                            return _len(x);
+                        };
+                        return t();
+                    };
+                    let z = 20;
+                    return f("aaa");
+                "#,
+                DataType::Nil,
+            ),
         ];
 
         let (ffi_table, ffi_functions) = create_ffi_table();

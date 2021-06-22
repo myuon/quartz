@@ -12,7 +12,7 @@ let lexer = fn (input) {
     return _eq(position, _len(input));
   };
 
-  //_print(is_end());
+  _print(is_end());
 
   return tokens;
 };
