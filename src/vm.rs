@@ -6,7 +6,11 @@ pub enum DataType {
     Nil,
     Int(i32),
     String(String),
-    Closure(Vec<String>, Vec<Statement>),
+    Closure(
+        usize, // UID for closure
+        Vec<String>,
+        Vec<Statement>,
+    ),
 }
 
 #[derive(PartialEq, Debug, Clone)]

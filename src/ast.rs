@@ -17,7 +17,11 @@ pub enum Statement {
 pub enum Expr {
     Var(String),
     Lit(Literal),
-    Fun(Vec<String>, Vec<Statement>),
+    Fun(
+        usize, // position of fn
+        Vec<String>,
+        Vec<Statement>,
+    ),
     Call(String, Vec<Expr>),
     Ref(Box<Expr>),
     Deref(Box<Expr>),

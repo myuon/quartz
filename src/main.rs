@@ -31,7 +31,7 @@ pub fn create_ffi_table() -> (HashMap<String, usize>, Vec<FFIFunction>) {
                             heap.push(HeapData::Int(x + y));
                             stack.push(StackData::HeapAddr(heap.len() - 1));
                         }
-                        _ => todo!(),
+                        (x, y) => panic!("{:?} {:?}", x, y),
                     }
                 }
                 _ => todo!(),

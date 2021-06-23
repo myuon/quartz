@@ -21,20 +21,21 @@ impl Parser {
         &self.input[self.position]
     }
 
-    fn expect_lexeme(&mut self, lexeme: Lexeme) -> Result<()> {
+    fn expect_lexeme(&mut self, lexeme: Lexeme) -> Result<Token> {
         if self.is_end() {
             bail!("Expected {:?} but EOS", lexeme);
-        } else {
-            ensure!(
-                self.input[self.position].lexeme == lexeme,
-                "Expected {:?} but found {:?}",
-                lexeme,
-                &self.input[self.position..]
-            );
         }
+
+        let current = self.input[self.position].clone();
+        ensure!(
+            current.lexeme == lexeme,
+            "Expected {:?} but found {:?}",
+            lexeme,
+            &self.input[self.position..]
+        );
         self.position += 1;
 
-        Ok(())
+        Ok(current)
     }
 
     fn ident(&mut self) -> Result<String> {
@@ -108,7 +109,7 @@ impl Parser {
             match self.expect_lexeme(Lexeme::Comma) {
                 Err(_) => return Ok(idents),
                 r => r,
-            }?
+            }?;
         }
 
         Ok(idents)
@@ -125,7 +126,7 @@ impl Parser {
             match self.expect_lexeme(Lexeme::Comma) {
                 Err(_) => return Ok(exprs),
                 r => r,
-            }?
+            }?;
         }
 
         Ok(exprs)
@@ -186,7 +187,7 @@ impl Parser {
                 Ok(Expr::Loop(statements))
             })
             .or_else(|_| -> Result<Expr> {
-                self.expect_lexeme(Lexeme::Fn)?;
+                let token = self.expect_lexeme(Lexeme::Fn)?;
 
                 self.expect_lexeme(Lexeme::LParen)?;
                 let args = self.many_idents()?;
@@ -196,7 +197,7 @@ impl Parser {
                 let statements = self.many_statements()?;
                 self.expect_lexeme(Lexeme::RBrace)?;
 
-                Ok(Expr::Fun(args, statements))
+                Ok(Expr::Fun(token.position, args, statements))
             })
     }
 
@@ -249,6 +250,7 @@ mod tests {
                 Module(vec![Statement::Let(
                     "main".to_string(),
                     Expr::Fun(
+                        11,
                         vec![],
                         vec![
                             Statement::Let("y".to_string(), Expr::Lit(Literal::Int(10))),
@@ -273,6 +275,7 @@ mod tests {
                     (Statement::Let(
                         "main".to_string(),
                         Expr::Fun(
+                            11,
                             vec![],
                             vec![
                                 (Statement::Expr(Expr::Call(
@@ -288,6 +291,7 @@ mod tests {
                                 (Statement::Let(
                                     "u".to_string(),
                                     Expr::Fun(
+                                        134,
                                         vec![],
                                         vec![(Statement::Return(Expr::Lit(Literal::Int(20))))],
                                     ),

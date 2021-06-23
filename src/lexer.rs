@@ -1,7 +1,7 @@
 use once_cell::sync::Lazy;
 use regex::Regex;
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum Lexeme {
     Fn,
     Let,
@@ -30,7 +30,7 @@ static STRING_LITERAL: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"^"((([^"]|\\")*[^\\])?)""#).unwrap());
 static COMMENT_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^//[^\n]*\n"#).unwrap());
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct Token {
     pub lexeme: Lexeme,
     pub position: usize,

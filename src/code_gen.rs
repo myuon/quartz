@@ -12,9 +12,9 @@ struct CodeGenerator {
     variables: HashMap<String, usize>,
     local: HashSet<String>,
     codes: Vec<OpCode>,
+    ffi_table: HashMap<String, usize>,
     stack_count: usize,
     pop_count: usize,
-    ffi_table: HashMap<String, usize>,
 }
 
 impl CodeGenerator {
@@ -46,7 +46,7 @@ impl CodeGenerator {
             DataType::String(s) => {
                 self.codes.push(OpCode::Alloc(HeapData::String(s)));
             }
-            DataType::Closure(args, body) => {
+            DataType::Closure(id, args, body) => {
                 let mut generator = CodeGenerator::new(self.ffi_table.clone());
                 generator.variables = self.variables.clone();
                 generator.stack_count = self.stack_count + 1;
@@ -76,12 +76,7 @@ impl CodeGenerator {
             .ok_or(anyhow::anyhow!("Ident {} not found", ident))?;
 
         let is_local = self.local.contains(ident);
-
-        self.codes.push(if is_local {
-            OpCode::Copy(self.stack_count - 1 - *v)
-        } else {
-            OpCode::CopyAbsolute(*v)
-        });
+        self.codes.push(OpCode::Copy(self.stack_count - 1 - *v));
         self.stack_count += 1;
         self.pop_count += 1;
 
@@ -116,7 +111,11 @@ impl CodeGenerator {
 
                 Ok(())
             }
-            Expr::Fun(args, body) => self.alloc(DataType::Closure(args, body)),
+            Expr::Fun(pos, args, body) => {
+                self.alloc(DataType::Closure(pos, args, body))?;
+
+                Ok(())
+            }
             Expr::Call(f, args) => {
                 let arity = args.len();
                 for a in args {
