@@ -3,13 +3,13 @@ use std::collections::HashMap;
 use anyhow::{bail, Result};
 use regex::Regex;
 
-use crate::vm::{DataType, HeapData, OpCode};
+use crate::vm::{HeapData, OpCode, StackData};
 
 #[derive(Debug)]
 struct Runtime {
     pc: usize,
     program: Vec<OpCode>,
-    stack: Vec<DataType>,
+    stack: Vec<StackData>,
     heap: Vec<HeapData>,
     call_stack: Vec<usize>,
     ffi_functions: Vec<FFIFunction>,
@@ -30,14 +30,14 @@ impl Runtime {
         }
     }
 
-    fn push(&mut self, val: DataType) -> usize {
+    fn push(&mut self, val: StackData) -> usize {
         let u = self.stack.len();
         self.stack.push(val);
         u
     }
 
-    fn pop(&mut self, n: usize) -> DataType {
-        let mut result = DataType::Nil;
+    fn pop(&mut self, n: usize) -> StackData {
+        let mut result = StackData::Nil;
         for _ in 0..n {
             result = self.stack.pop().unwrap();
         }
@@ -46,15 +46,15 @@ impl Runtime {
     }
 
     // TODO: 空いてるところを探すようにする
-    fn alloc(&mut self, val: HeapData) -> DataType {
+    fn alloc(&mut self, val: HeapData) -> StackData {
         let p = self.heap.len();
         self.heap.push(val);
-        DataType::HeapAddr(p)
+        StackData::HeapAddr(p)
     }
 
-    fn free(&mut self, pointer: DataType) -> Result<()> {
+    fn free(&mut self, pointer: StackData) -> Result<()> {
         match pointer {
-            DataType::HeapAddr(p) => {
+            StackData::HeapAddr(p) => {
                 if p < self.heap.len() && !matches!(self.heap[p], HeapData::Nil) {
                     self.heap[p] = HeapData::Nil;
 
@@ -69,9 +69,9 @@ impl Runtime {
         }
     }
 
-    fn deref(&mut self, pointer: DataType) -> Result<HeapData> {
+    fn deref(&mut self, pointer: StackData) -> Result<HeapData> {
         match pointer {
-            DataType::HeapAddr(p) => Ok(self.heap[p].clone()),
+            StackData::HeapAddr(p) => Ok(self.heap[p].clone()),
             _ => bail!("Expected pointer but found {:?}", pointer),
         }
     }
@@ -84,52 +84,52 @@ impl Runtime {
         self.stack.len() - 1 - u
     }
 
-    fn stack_addr_as_mut(&mut self, datatype: DataType) -> Result<&mut DataType> {
+    fn stack_addr_as_mut(&mut self, datatype: StackData) -> Result<&mut StackData> {
         match datatype {
-            DataType::StackRevAddr(r) => {
+            StackData::StackRevAddr(r) => {
                 let r = self.stack.len() - 1 - r;
                 Ok(&mut self.stack[r])
             }
-            DataType::StackNormalAddr(r) => Ok(&mut self.stack[r]),
+            StackData::StackNormalAddr(r) => Ok(&mut self.stack[r]),
             v => bail!("Expected a stack address but found {:?}", v),
         }
     }
 
-    fn get_stack_addr(&self, u: usize) -> &DataType {
+    fn get_stack_addr(&self, u: usize) -> &StackData {
         let index = self.get_stack_addr_index(u);
         &self.stack[index]
     }
 
-    fn expect_int(&self, datatype: DataType) -> Result<i32> {
+    fn expect_int(&self, datatype: StackData) -> Result<i32> {
         match datatype {
-            DataType::Int(s) => return Ok(s),
+            StackData::Int(s) => return Ok(s),
             v => bail!("Expected a int but found {:?}", v),
         }
     }
 
-    fn expect_string(&self, datatype: DataType) -> Result<String> {
+    fn expect_string(&self, datatype: StackData) -> Result<String> {
         match &self.heap[self.expect_heap_addr(datatype)?] {
             HeapData::String(s) => return Ok(s.to_string()),
             v => bail!("Expected a string but found {:?}", v),
         }
     }
 
-    fn expect_heap_addr(&self, datatype: DataType) -> Result<usize> {
+    fn expect_heap_addr(&self, datatype: StackData) -> Result<usize> {
         match datatype {
-            DataType::HeapAddr(h) => Ok(h),
+            StackData::HeapAddr(h) => Ok(h),
             v => bail!("Expected heap address but found {:?}", v),
         }
     }
 
-    fn expect_stack_index(&self, datatype: DataType) -> Result<usize> {
+    fn expect_stack_index(&self, datatype: StackData) -> Result<usize> {
         match datatype {
-            DataType::StackRevAddr(h) => Ok(self.get_stack_addr_index(h)),
-            DataType::StackNormalAddr(h) => Ok(h),
+            StackData::StackRevAddr(h) => Ok(self.get_stack_addr_index(h)),
+            StackData::StackNormalAddr(h) => Ok(h),
             v => bail!("Expected stack address but found {:?}", v),
         }
     }
 
-    fn expect_vector(&self, datatype: DataType) -> Result<Vec<DataType>> {
+    fn expect_vector(&self, datatype: StackData) -> Result<Vec<StackData>> {
         let h = self.expect_heap_addr(datatype)?;
         match &self.heap[h] {
             HeapData::Vec(v) => Ok(v.clone()),
@@ -194,8 +194,8 @@ impl Runtime {
                 OpCode::Copy(p) => {
                     let target = self.stack.len() - 1 - p;
                     match self.stack[target].clone() {
-                        DataType::StackRevAddr(addr) => {
-                            self.push(DataType::StackRevAddr(addr + p + 1));
+                        StackData::StackRevAddr(addr) => {
+                            self.push(StackData::StackRevAddr(addr + p + 1));
                         }
                         s => {
                             self.push(s);
@@ -203,9 +203,9 @@ impl Runtime {
                     }
                 }
                 OpCode::CopyAbsolute(p) => match self.stack[p].clone() {
-                    DataType::StackRevAddr(r) => {
+                    StackData::StackRevAddr(r) => {
                         // ローカルでない変数がStackRevAddrだった場合はポインタ値を再計算する必要がある
-                        self.push(DataType::StackNormalAddr(p - r - 1));
+                        self.push(StackData::StackNormalAddr(p - r - 1));
                     }
                     t => {
                         self.push(t);
@@ -266,7 +266,7 @@ impl Runtime {
                         tuple.push(self.pop(1));
                     }
 
-                    self.push(DataType::Tuple(u, tuple));
+                    self.push(StackData::Tuple(u, tuple));
                 }
                 OpCode::Object(u) => {
                     let mut object = vec![];
@@ -281,7 +281,7 @@ impl Runtime {
                         }
                     }
 
-                    self.push(DataType::Object(object));
+                    self.push(StackData::Object(object));
                 }
                 OpCode::Get => {
                     let index = self.pop(1);
@@ -295,10 +295,10 @@ impl Runtime {
                     }
 
                     match (tuple, index) {
-                        (DataType::Tuple(_, vs), DataType::Int(n)) => {
+                        (StackData::Tuple(_, vs), StackData::Int(n)) => {
                             self.push(vs[n as usize].clone());
                         }
-                        (DataType::Object(vs), index) => match self.deref(index)? {
+                        (StackData::Object(vs), index) => match self.deref(index)? {
                             HeapData::String(key) => {
                                 let mut value = None;
                                 for (k, v) in vs.clone() {
@@ -326,8 +326,8 @@ impl Runtime {
                     let obj = self.pop(1);
 
                     match obj {
-                        DataType::StackRevAddr(addr) => match self.get_stack_addr(addr).clone() {
-                            DataType::Object(mut vs) => {
+                        StackData::StackRevAddr(addr) => match self.get_stack_addr(addr).clone() {
+                            StackData::Object(mut vs) => {
                                 let key = self.expect_string(key)?;
                                 let updated = (move || {
                                     for (i, (k, _)) in vs.clone().into_iter().enumerate() {
@@ -340,7 +340,7 @@ impl Runtime {
                                     bail!("Cannot find key {} in {:?}", key, vs);
                                 })()?;
 
-                                self.stack[addr] = DataType::Object(updated);
+                                self.stack[addr] = StackData::Object(updated);
                             }
                             t => bail!("Expected object but found {:?}", t),
                         },
@@ -355,16 +355,16 @@ impl Runtime {
                     let m = Regex::new(&pattern)?.find(&input);
                     match m {
                         Some(m) => {
-                            self.push(DataType::Tuple(
+                            self.push(StackData::Tuple(
                                 2,
                                 vec![
-                                    DataType::Int(m.start() as i32),
-                                    DataType::Int(m.end() as i32),
+                                    StackData::Int(m.start() as i32),
+                                    StackData::Int(m.end() as i32),
                                 ],
                             ));
                         }
                         None => {
-                            self.push(DataType::Nil);
+                            self.push(StackData::Nil);
                         }
                     }
                 }
@@ -397,10 +397,10 @@ impl Runtime {
                     let v = self.pop(1);
                     match self.deref(v)? {
                         HeapData::Vec(vs) => {
-                            self.push(DataType::Int(vs.len() as i32));
+                            self.push(StackData::Int(vs.len() as i32));
                         }
                         HeapData::String(vs) => {
-                            self.push(DataType::Int(vs.len() as i32));
+                            self.push(StackData::Int(vs.len() as i32));
                         }
                         t => bail!("Expected vector but found {:?}", t),
                     }
@@ -440,14 +440,14 @@ impl Runtime {
     }
 }
 
-pub fn execute(program: Vec<OpCode>, ffi_functions: Vec<FFIFunction>) -> Result<DataType> {
+pub fn execute(program: Vec<OpCode>, ffi_functions: Vec<FFIFunction>) -> Result<StackData> {
     let mut runtime = Runtime::new(program, ffi_functions);
     runtime.execute()?;
 
     Ok(runtime.pop(1))
 }
 
-pub type FFIFunction = Box<fn(Vec<DataType>, Vec<HeapData>) -> Vec<DataType>>;
+pub type FFIFunction = Box<fn(Vec<StackData>, Vec<HeapData>) -> Vec<StackData>>;
 
 #[cfg(test)]
 mod tests {
@@ -460,42 +460,42 @@ mod tests {
         let cases = vec![
             (
                 r#"let x = 10; let y = x; let z = y; return z;"#,
-                DataType::Int(10),
+                StackData::Int(10),
             ),
             (
                 r#"let x = 10; let f = fn (a,b) { return a; }; return f(x,x);"#,
-                DataType::Int(10),
+                StackData::Int(10),
             ),
             (
                 // shadowingが起こる例
                 r#"let x = 10; let f = fn (x) { let x = 5; return x; }; f(x); return x;"#,
-                DataType::Int(10),
+                StackData::Int(10),
             ),
             (
                 // 日本語
                 r#"let u = "こんにちは、世界"; return u;"#,
-                DataType::HeapAddr(0),
+                StackData::HeapAddr(0),
             ),
             (
                 // early return
                 r#"return 1; return 2; return 3;"#,
-                DataType::Int(1),
+                StackData::Int(1),
             ),
             (
                 // using ffi table
                 r#"return _add(1,2);"#,
-                DataType::Int(3),
+                StackData::Int(3),
             ),
             (
                 // no return function
                 r#"1; 2; 3;"#,
-                DataType::Nil,
+                StackData::Nil,
             ),
             (
                 // ローカル変数や関数の引数のrefをとることはdangling pointerを生成するのでやってはいけない
                 // refで渡ってきたものをderefするのは安全
                 r#"let x = 10; let f = fn (a) { return *a; }; return f(&x);"#,
-                DataType::Int(10),
+                StackData::Int(10),
             ),
             (
                 r#"
@@ -506,7 +506,7 @@ mod tests {
                     f(&x);
                     return x;
                 "#,
-                DataType::Int(30),
+                StackData::Int(30),
             ),
             (
                 r#"
@@ -515,21 +515,21 @@ mod tests {
                     };
                     return f(1,2);
                 "#,
-                DataType::Int(3),
+                StackData::Int(3),
             ),
             (
                 r#"
                     let t = _tuple(1, 2, 3, 4, 5);
                     return _get(t, 2);
                 "#,
-                DataType::Int(3),
+                StackData::Int(3),
             ),
             (
                 r#"
                     let t = _object("x", 1, "y", "hell");
                     return _get(t, "x");
                 "#,
-                DataType::Int(1),
+                StackData::Int(1),
             ),
             (
                 r#"
@@ -539,15 +539,15 @@ mod tests {
                     let x = new();
                     return _get(x, "x");
                 "#,
-                DataType::Int(1),
+                StackData::Int(1),
             ),
             (
                 r#"let x = _object("x", 10, "y", "yes"); _set(&x, "y", 20); return _get(x, "y");"#,
-                DataType::Int(20),
+                StackData::Int(20),
             ),
             (
                 r#"let ch = _regex("^[a-zA-Z_][a-zA-Z0-9_]*", "abcABC9192_"); return ch;"#,
-                DataType::Tuple(2, vec![DataType::Int(0), DataType::Int(11)]),
+                StackData::Tuple(2, vec![StackData::Int(0), StackData::Int(11)]),
             ),
             (
                 r#"
@@ -559,17 +559,17 @@ mod tests {
                     );
                     return f();
                 "#,
-                DataType::Int(0),
+                StackData::Int(0),
             ),
             (
                 // 0 = true, 1 = false
                 r#"return _eq(1, 2);"#,
-                DataType::Int(1),
+                StackData::Int(1),
             ),
             (
                 // _passign for local variables
                 r#"let x = 0; _passign(&x, _add(x, 10)); return x;"#,
-                DataType::Int(10),
+                StackData::Int(10),
             ),
             (
                 // _passign for local variables in a function
@@ -582,7 +582,7 @@ mod tests {
                     };
                     return f();
                 "#,
-                DataType::Int(1),
+                StackData::Int(1),
             ),
             (
                 // vector
@@ -594,7 +594,7 @@ mod tests {
 
                     return _tuple(_len(v), _get(v, 1));
                 "#,
-                DataType::Tuple(2, vec![DataType::Int(20), DataType::Int(3)]),
+                StackData::Tuple(2, vec![StackData::Int(20), StackData::Int(3)]),
             ),
             (
                 r#"
@@ -615,11 +615,11 @@ mod tests {
 
                     return fib(5);
                 "#,
-                DataType::Int(13),
+                StackData::Int(13),
             ),
             (
                 r#"return _eq(_slice("hello, world", 5, 10), ", wor");"#,
-                DataType::Int(0),
+                StackData::Int(0),
             ),
             (
                 r#"
@@ -631,7 +631,7 @@ mod tests {
 
                     return f();
                 "#,
-                DataType::Int(1),
+                StackData::Int(1),
             ),
             (
                 r#"
@@ -644,7 +644,7 @@ mod tests {
 
                     return f();
                 "#,
-                DataType::Int(2),
+                StackData::Int(2),
             ),
             (
                 r#"
@@ -657,7 +657,7 @@ mod tests {
 
                     return f();
                 "#,
-                DataType::Int(11),
+                StackData::Int(11),
             ),
             /*
             // dangling variableの例
@@ -693,7 +693,7 @@ mod tests {
                     
                     g(0);
                 "#,
-                DataType::Nil,
+                StackData::Nil,
             ),
             (
                 r#"
@@ -706,7 +706,7 @@ mod tests {
                     let z = 20;
                     return f("aaa");
                 "#,
-                DataType::Nil,
+                StackData::Nil,
             ),
         ];
 
@@ -738,10 +738,10 @@ mod tests {
                     };
                     return f();
                 "#,
-                vec![DataType::Int(3)],
+                vec![StackData::Int(3)],
                 vec![HeapData::Closure(vec![
-                    Push(DataType::Int(1)),
-                    Push(DataType::Int(2)),
+                    Push(StackData::Int(1)),
+                    Push(StackData::Int(2)),
                     Copy(1),
                     Copy(1),
                     FFICall(0),
@@ -751,13 +751,13 @@ mod tests {
             (
                 // no return functionでもローカル変数は全てpopされること
                 r#"let x = 1; x;"#,
-                vec![DataType::Nil],
+                vec![StackData::Nil],
                 vec![],
             ),
             (
                 // just panic
                 r#"let x = 1; panic;"#,
-                vec![DataType::Int(1)],
+                vec![StackData::Int(1)],
                 vec![],
             ),
             (
@@ -766,7 +766,7 @@ mod tests {
                     let f = fn (a,b,c,d,e) { return "hello"; };
                     return f(1,2,3,4,5);
                 "#,
-                vec![DataType::HeapAddr(1)],
+                vec![StackData::HeapAddr(1)],
                 vec![
                     HeapData::Closure(vec![
                         Alloc(HeapData::String("hello".to_string())),
@@ -778,12 +778,12 @@ mod tests {
             (
                 // take the address of string
                 r#"let x = "hello, world"; let y = &x; panic;"#,
-                vec![DataType::HeapAddr(0), DataType::StackRevAddr(0)],
+                vec![StackData::HeapAddr(0), StackData::StackRevAddr(0)],
                 vec![HeapData::String("hello, world".to_string())],
             ),
             (
                 r#"let x = "hello, world"; _free(x); panic;"#,
-                vec![DataType::HeapAddr(0), DataType::Nil],
+                vec![StackData::HeapAddr(0), StackData::Nil],
                 vec![HeapData::Nil],
             ),
             (
@@ -795,15 +795,15 @@ mod tests {
                     f(&x);
                     return x;
                 "#,
-                vec![DataType::HeapAddr(2)],
+                vec![StackData::HeapAddr(2)],
                 vec![
                     HeapData::String("".to_string()),
                     HeapData::Closure(vec![
                         Copy(0),
                         Alloc(HeapData::String("hello, world".to_string())),
                         PAssign,
-                        Push(DataType::Nil),
-                        Push(DataType::Nil),
+                        Push(StackData::Nil),
+                        Push(StackData::Nil),
                         Return(3),
                     ]),
                     HeapData::String("hello, world".to_string()),

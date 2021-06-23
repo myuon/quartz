@@ -6,7 +6,7 @@ use crate::{
     code_gen::gen_code,
     parser::run_parser,
     runtime::{execute, FFIFunction},
-    vm::{DataType, HeapData},
+    vm::{HeapData, StackData},
 };
 
 mod ast;
@@ -20,12 +20,12 @@ pub fn create_ffi_table() -> (HashMap<String, usize>, Vec<FFIFunction>) {
     let mut ffi_table: Vec<(String, FFIFunction)> = vec![];
     ffi_table.push((
         "_add".to_string(),
-        Box::new(|mut vs: Vec<DataType>, _| {
+        Box::new(|mut vs: Vec<StackData>, _| {
             let x = vs.pop().unwrap();
             let y = vs.pop().unwrap();
 
             match (x, y) {
-                (DataType::Int(x), DataType::Int(y)) => vs.push(DataType::Int(x + y)),
+                (StackData::Int(x), StackData::Int(y)) => vs.push(StackData::Int(x + y)),
                 _ => todo!(),
             }
 
@@ -34,35 +34,35 @@ pub fn create_ffi_table() -> (HashMap<String, usize>, Vec<FFIFunction>) {
     ));
     ffi_table.push((
         "_print".to_string(),
-        Box::new(|mut stack: Vec<DataType>, heap: Vec<HeapData>| {
+        Box::new(|mut stack: Vec<StackData>, heap: Vec<HeapData>| {
             let x = stack.pop().unwrap();
             match x {
-                DataType::HeapAddr(p) => {
+                StackData::HeapAddr(p) => {
                     println!("{:?}", heap[p]);
                 }
-                DataType::StackRevAddr(p) => {
+                StackData::StackRevAddr(p) => {
                     println!("{:?}", stack[p]);
                 }
                 _ => println!("{:?}", x),
             }
-            stack.push(DataType::Nil);
+            stack.push(StackData::Nil);
 
             stack
         }),
     ));
     ffi_table.push((
         "_eq".to_string(),
-        Box::new(|mut vs: Vec<DataType>, heap: Vec<HeapData>| {
+        Box::new(|mut vs: Vec<StackData>, heap: Vec<HeapData>| {
             let x = vs.pop().unwrap();
             let y = vs.pop().unwrap();
 
             match (x, y) {
-                (DataType::Int(x), DataType::Int(y)) => {
-                    vs.push(DataType::Int(if x == y { 0 } else { 1 }))
+                (StackData::Int(x), StackData::Int(y)) => {
+                    vs.push(StackData::Int(if x == y { 0 } else { 1 }))
                 }
-                (DataType::HeapAddr(s), DataType::HeapAddr(t)) => match (&heap[s], &heap[t]) {
+                (StackData::HeapAddr(s), StackData::HeapAddr(t)) => match (&heap[s], &heap[t]) {
                     (HeapData::String(a), HeapData::String(b)) => {
-                        vs.push(DataType::Int(if a == b { 0 } else { 1 }))
+                        vs.push(StackData::Int(if a == b { 0 } else { 1 }))
                     }
                     (s, t) => panic!("{:?} {:?}", s, t),
                 },

@@ -2,7 +2,7 @@ use crate::ast::Statement;
 
 #[derive(PartialEq, Debug, Clone)]
 #[allow(dead_code)]
-pub enum UnsizedDataType {
+pub enum DataType {
     Nil,
     String(String),
     Closure(Vec<String>, Vec<Statement>),
@@ -10,7 +10,7 @@ pub enum UnsizedDataType {
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum OpCode {
-    Push(DataType),
+    Push(StackData),
     Pop(usize),
     Return(usize),
     Copy(usize),
@@ -43,23 +43,23 @@ pub enum HeapData {
     Int(i32),
     String(String),
     Closure(Vec<OpCode>),
-    Vec(Vec<DataType>),
+    Vec(Vec<StackData>),
 }
 
 #[derive(PartialEq, Debug, Clone)]
-pub enum DataType {
+pub enum StackData {
     Nil,
     Int(i32),
     HeapAddr(usize),        // in normal order
     StackRevAddr(usize), // in reverse order, 0-origin, excluding itself, for addresses of local variables
     StackNormalAddr(usize), // in normal order, for addresses of out-of-scope variables
-    Tuple(usize, Vec<DataType>),
-    Object(Vec<(String, DataType)>),
+    Tuple(usize, Vec<StackData>),
+    Object(Vec<(String, StackData)>),
 }
 
-impl DataType {
+impl StackData {
     pub fn type_of(&self) -> String {
-        use DataType::*;
+        use StackData::*;
 
         match self {
             Nil => "nil".to_string(),

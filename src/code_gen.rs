@@ -4,7 +4,7 @@ use anyhow::{bail, ensure, Result};
 
 use crate::{
     ast::{Expr, Literal, Module, Statement},
-    vm::{DataType, HeapData, OpCode, UnsizedDataType},
+    vm::{DataType, HeapData, OpCode, StackData},
 };
 
 #[derive(Debug)]
@@ -29,21 +29,21 @@ impl CodeGenerator {
         }
     }
 
-    fn push(&mut self, val: DataType) {
+    fn push(&mut self, val: StackData) {
         self.codes.push(OpCode::Push(val));
         self.stack_count += 1;
         self.pop_count += 1;
     }
 
-    fn alloc(&mut self, val: UnsizedDataType) -> Result<()> {
+    fn alloc(&mut self, val: DataType) -> Result<()> {
         match val {
-            UnsizedDataType::Nil => {
+            DataType::Nil => {
                 self.codes.push(OpCode::Alloc(HeapData::Nil));
             }
-            UnsizedDataType::String(s) => {
+            DataType::String(s) => {
                 self.codes.push(OpCode::Alloc(HeapData::String(s)));
             }
-            UnsizedDataType::Closure(args, body) => {
+            DataType::Closure(args, body) => {
                 let mut generator = CodeGenerator::new(self.ffi_table.clone());
                 generator.variables = self.variables.clone();
                 generator.stack_count = self.stack_count + 1;
@@ -107,13 +107,13 @@ impl CodeGenerator {
             Expr::Var(v) => self.load(&v),
             Expr::Lit(lit) => {
                 match lit {
-                    Literal::Int(n) => self.push(DataType::Int(n)),
-                    Literal::String(s) => self.alloc(UnsizedDataType::String(s))?,
+                    Literal::Int(n) => self.push(StackData::Int(n)),
+                    Literal::String(s) => self.alloc(DataType::String(s))?,
                 };
 
                 Ok(())
             }
-            Expr::Fun(args, body) => self.alloc(UnsizedDataType::Closure(args, body)),
+            Expr::Fun(args, body) => self.alloc(DataType::Closure(args, body)),
             Expr::Call(f, args) => {
                 let arity = args.len();
                 for a in args {
@@ -126,7 +126,7 @@ impl CodeGenerator {
                 if &f == "_passign" {
                     ensure!(arity == 2, "Expected 2 arguments but {:?} given", arity);
                     self.codes.push(OpCode::PAssign);
-                    self.codes.push(OpCode::Push(DataType::Nil));
+                    self.codes.push(OpCode::Push(StackData::Nil));
                     self.after_call(arity);
 
                     return Ok(());
@@ -136,7 +136,7 @@ impl CodeGenerator {
                 if &f == "_free" {
                     ensure!(arity == 1, "Expected 1 arguments but {:?} given", arity);
                     self.codes.push(OpCode::Free);
-                    self.codes.push(OpCode::Push(DataType::Nil));
+                    self.codes.push(OpCode::Push(StackData::Nil));
                     self.after_call(arity);
 
                     return Ok(());
@@ -176,7 +176,7 @@ impl CodeGenerator {
                 if &f == "_set" {
                     ensure!(arity == 3, "Expected {} arguments but {} given", 3, arity);
                     self.codes.push(OpCode::Set);
-                    self.codes.push(OpCode::Push(DataType::Nil));
+                    self.codes.push(OpCode::Push(StackData::Nil));
                     self.after_call(arity);
 
                     return Ok(());
@@ -219,7 +219,7 @@ impl CodeGenerator {
                 if &f == "_vpush" {
                     ensure!(arity == 2, "Expected {} arguments but {} given", 2, arity);
                     self.codes.push(OpCode::VPush);
-                    self.codes.push(OpCode::Push(DataType::Nil));
+                    self.codes.push(OpCode::Push(StackData::Nil));
                     self.after_call(arity);
 
                     return Ok(());
@@ -276,9 +276,9 @@ impl CodeGenerator {
                     let is_local = self.local.contains(v);
 
                     self.push(if is_local {
-                        DataType::StackRevAddr(self.stack_count - 1 - p)
+                        StackData::StackRevAddr(self.stack_count - 1 - p)
                     } else {
-                        DataType::StackNormalAddr(p)
+                        StackData::StackNormalAddr(p)
                     });
 
                     Ok(())
@@ -333,7 +333,7 @@ impl CodeGenerator {
 
         if do_return {
             // returnがない場合はreturn nil;と同等
-            self.push(DataType::Nil);
+            self.push(StackData::Nil);
             self.ret(arity);
         }
         Ok(())
@@ -368,24 +368,24 @@ mod tests {
         let cases = vec![
             (
                 r#"let x = 10; let y = x; return y;"#,
-                vec![Push(DataType::Int(10)), Copy(0), Copy(0), Return(3)],
+                vec![Push(StackData::Int(10)), Copy(0), Copy(0), Return(3)],
             ),
             (
                 r#"let x = 10; return &x;"#,
                 vec![
-                    Push(DataType::Int(10)),
-                    Push(DataType::StackRevAddr(0)),
+                    Push(StackData::Int(10)),
+                    Push(StackData::StackRevAddr(0)),
                     Return(2),
                 ],
             ),
             (
                 r#"1; 2; 3; 4;"#,
                 vec![
-                    Push(DataType::Int(1)),
-                    Push(DataType::Int(2)),
-                    Push(DataType::Int(3)),
-                    Push(DataType::Int(4)),
-                    Push(DataType::Nil),
+                    Push(StackData::Int(1)),
+                    Push(StackData::Int(2)),
+                    Push(StackData::Int(3)),
+                    Push(StackData::Int(4)),
+                    Push(StackData::Nil),
                     Return(5),
                 ],
             ),
@@ -393,20 +393,20 @@ mod tests {
                 r#"let f = fn(a) { return a; }; f(1);"#,
                 vec![
                     Alloc(HeapData::Closure(vec![Copy(0), Return(2)])),
-                    Push(DataType::Int(1)),
+                    Push(StackData::Int(1)),
                     Call(1),
-                    Push(DataType::Nil),
+                    Push(StackData::Nil),
                     Return(3),
                 ],
             ),
             (
                 r#"let x = 0; _passign(&x, 10); return x;"#,
                 vec![
-                    Push(DataType::Int(0)),
-                    Push(DataType::StackRevAddr(0)),
-                    Push(DataType::Int(10)),
+                    Push(StackData::Int(0)),
+                    Push(StackData::StackRevAddr(0)),
+                    Push(StackData::Int(10)),
                     PAssign,
-                    Push(DataType::Nil),
+                    Push(StackData::Nil),
                     Copy(1),
                     Return(3),
                 ],
@@ -414,7 +414,7 @@ mod tests {
             (
                 r#"let x = 10; let f = fn (a,b,c,d,e) { return a; }; f(x,x,x,x,x);"#,
                 vec![
-                    Push(DataType::Int(10)),
+                    Push(StackData::Int(10)),
                     Alloc(HeapData::Closure(vec![Copy(4), Return(6)])),
                     Copy(1),
                     Copy(2),
@@ -422,30 +422,30 @@ mod tests {
                     Copy(4),
                     Copy(5),
                     Call(5),
-                    Push(DataType::Nil),
+                    Push(StackData::Nil),
                     Return(4),
                 ],
             ),
             (
                 r#"let x = 0; let f = fn (a) { return *a; };"#,
                 vec![
-                    Push(DataType::Int(0)),
+                    Push(StackData::Int(0)),
                     Alloc(HeapData::Closure(vec![Copy(0), Deref, Return(2)])),
-                    Push(DataType::Nil),
+                    Push(StackData::Nil),
                     Return(3),
                 ],
             ),
             (
                 r#"let x = _tuple(1, 2, 3, 4, 5); return _get(x, 3);"#,
                 vec![
-                    Push(DataType::Int(1)),
-                    Push(DataType::Int(2)),
-                    Push(DataType::Int(3)),
-                    Push(DataType::Int(4)),
-                    Push(DataType::Int(5)),
+                    Push(StackData::Int(1)),
+                    Push(StackData::Int(2)),
+                    Push(StackData::Int(3)),
+                    Push(StackData::Int(4)),
+                    Push(StackData::Int(5)),
                     Tuple(5),
                     Copy(0),
-                    Push(DataType::Int(3)),
+                    Push(StackData::Int(3)),
                     Get,
                     Return(2),
                 ],
@@ -454,7 +454,7 @@ mod tests {
                 r#"let x = _object("x", 10, "y", "yes"); return _get(x, "x");"#,
                 vec![
                     Alloc(HeapData::String("x".to_string())),
-                    Push(DataType::Int(10)),
+                    Push(StackData::Int(10)),
                     Alloc(HeapData::String("y".to_string())),
                     Alloc(HeapData::String("yes".to_string())),
                     Object(2),
@@ -472,12 +472,12 @@ mod tests {
                 "#,
                 vec![
                     Label("label-0".to_string()),
-                    Push(DataType::Int(10)),
-                    Push(DataType::Int(1)),
+                    Push(StackData::Int(10)),
+                    Push(StackData::Int(1)),
                     ReturnIf(2),
                     Pop(0),
                     Jump("label-0".to_string()),
-                    Push(DataType::Nil),
+                    Push(StackData::Nil),
                     Return(3),
                 ],
             ),
@@ -493,7 +493,7 @@ mod tests {
                     FFICall(1),
                     Pop(1),
                     Jump("label-0".to_string()),
-                    Push(DataType::Nil),
+                    Push(StackData::Nil),
                     Return(2),
                 ],
             ),
