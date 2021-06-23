@@ -3,9 +3,10 @@ use std::{collections::HashMap, io::Read};
 use anyhow::Result;
 
 use crate::{
-    code_gen::{gen_code, HeapData},
+    code_gen::gen_code,
     parser::run_parser,
-    runtime::{execute, DataType, FFIFunction},
+    runtime::{execute, FFIFunction},
+    vm::{DataType, HeapData},
 };
 
 mod ast;
@@ -13,6 +14,7 @@ mod code_gen;
 mod lexer;
 mod parser;
 mod runtime;
+mod vm;
 
 pub fn create_ffi_table() -> (HashMap<String, usize>, Vec<FFIFunction>) {
     let mut ffi_table: Vec<(String, FFIFunction)> = vec![];

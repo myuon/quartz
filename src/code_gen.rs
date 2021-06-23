@@ -4,45 +4,8 @@ use anyhow::{bail, ensure, Result};
 
 use crate::{
     ast::{Expr, Literal, Module, Statement},
-    runtime::{DataType, UnsizedDataType},
+    vm::{DataType, HeapData, OpCode, UnsizedDataType},
 };
-
-#[derive(PartialEq, Debug, Clone)]
-pub enum HeapData {
-    Nil,
-    String(String),
-    Closure(Vec<OpCode>),
-    Vec(Vec<DataType>),
-}
-
-#[derive(PartialEq, Debug, Clone)]
-pub enum OpCode {
-    Push(DataType),
-    Pop(usize),
-    Return(usize),
-    Copy(usize),
-    CopyAbsolute(usize), // copy from absolute index
-    Alloc(HeapData),
-    Call(usize),
-    CallAbsolute(usize), // call from absolute index
-    FFICall(usize),
-    PAssign,
-    Free,
-    Deref,
-    Tuple(usize),
-    Object(usize),
-    Get,
-    Set,
-    Regex,
-    Switch(usize),
-    VPush,
-    Len,
-    Loop,
-    Label(String),
-    Jump(String),
-    ReturnIf(usize),
-    Slice,
-}
 
 #[derive(Debug)]
 struct CodeGenerator {

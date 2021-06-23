@@ -3,45 +3,7 @@ use std::collections::HashMap;
 use anyhow::{bail, Result};
 use regex::Regex;
 
-use crate::{
-    ast::Statement,
-    code_gen::{HeapData, OpCode},
-};
-
-#[derive(PartialEq, Debug, Clone)]
-#[allow(dead_code)]
-pub enum UnsizedDataType {
-    Nil,
-    String(String),
-    Closure(Vec<String>, Vec<Statement>),
-}
-
-#[derive(PartialEq, Debug, Clone)]
-pub enum DataType {
-    Nil,
-    Int(i32),
-    HeapAddr(usize),        // in normal order
-    StackRevAddr(usize), // in reverse order, 0-origin, excluding itself, for addresses of local variables
-    StackNormalAddr(usize), // in normal order, for addresses of out-of-scope variables
-    Tuple(usize, Vec<DataType>),
-    Object(Vec<(String, DataType)>),
-}
-
-impl DataType {
-    pub fn type_of(&self) -> String {
-        use DataType::*;
-
-        match self {
-            Nil => "nil".to_string(),
-            Int(_) => "int".to_string(),
-            HeapAddr(_) => "heap_addr".to_string(),
-            StackRevAddr(_) => "stack_addr(local)".to_string(),
-            StackNormalAddr(_) => "stack_addr".to_string(),
-            Tuple(u, _) => format!("tuple({})", u),
-            Object(_) => "object".to_string(),
-        }
-    }
-}
+use crate::vm::{DataType, HeapData, OpCode};
 
 #[derive(Debug)]
 struct Runtime {
