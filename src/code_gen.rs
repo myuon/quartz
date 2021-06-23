@@ -88,25 +88,6 @@ impl CodeGenerator {
         Ok(())
     }
 
-    fn load(&mut self, ident: &String) -> Result<()> {
-        let v = self
-            .variables
-            .get(ident)
-            .ok_or(anyhow::anyhow!("Ident {} not found", ident))?;
-
-        let is_local = self.local.contains(ident);
-        if !is_local {
-            self.non_local_variables.push(ident.clone());
-        }
-
-        self.codes
-            .push(OpCode::Copy(self.stack_count - 1 - v.address));
-        self.stack_count += 1;
-        self.pop_count += 1;
-
-        Ok(())
-    }
-
     fn ret(&mut self, arity: usize) {
         let pop = self.pop_count + arity;
 
@@ -124,9 +105,30 @@ impl CodeGenerator {
         self.pop_count = self.pop_count + 1 - arity;
     }
 
-    fn expr(&mut self, expr: Expr) -> Result<()> {
+    fn expr(&mut self, arity: usize, expr: Expr) -> Result<()> {
         match expr {
-            Expr::Var(v) => self.load(&v),
+            Expr::Var(ident) => {
+                let v = self
+                    .variables
+                    .get(&ident)
+                    .ok_or(anyhow::anyhow!("Ident {} not found", ident))?;
+
+                let is_local = self.local.contains(&ident);
+
+                if !is_local {
+                    self.non_local_variables.push(ident.clone());
+                }
+
+                // localではない場合はclosureからouter variableにアクセスする場合
+                // このときはarityの分だけアドレスをずらす
+                self.codes.push(OpCode::Copy(
+                    self.stack_count - 1 - v.address + if !is_local { arity } else { 0 },
+                ));
+                self.stack_count += 1;
+                self.pop_count += 1;
+
+                Ok(())
+            }
             Expr::Lit(lit) => {
                 match lit {
                     Literal::Int(n) => self.alloc(DataType::Int(n))?,
@@ -145,7 +147,11 @@ impl CodeGenerator {
                     let addr = self.variables[&f].clone();
 
                     // push outer_variables
-                    let outer_variables = self.closures[&addr.closure.unwrap()].clone();
+                    // FIXME: _switchなど一部変数を宣言せずにclosureを使う場面があるのでそのような場面は一旦outer variableは利用しないものと仮定してスルーする
+                    let outer_variables = addr
+                        .closure
+                        .map(|addr| self.closures[&addr].clone())
+                        .unwrap_or(vec![]);
 
                     for v in outer_variables {
                         self.codes.push(OpCode::Copy(
@@ -158,7 +164,7 @@ impl CodeGenerator {
                     // push arguments
                     let arity = args.len();
                     for a in args {
-                        self.expr(a)?;
+                        self.expr(arity, a)?;
                     }
 
                     self.codes
@@ -170,7 +176,7 @@ impl CodeGenerator {
 
                 let arity = args.len();
                 for a in args {
-                    self.expr(a)?;
+                    self.expr(arity, a)?;
                 }
 
                 // 特別な組み込み関数(stack, heapに干渉する必要があるものはここで)
@@ -314,15 +320,6 @@ impl CodeGenerator {
                         .get(v)
                         .ok_or(anyhow::anyhow!("Ident {} not found", v))?
                         .clone();
-                    let is_local = self.local.contains(v);
-
-                    if !is_local {
-                        bail!(
-                            "Cannot get the address of a outer scope variable: {} in {:?}",
-                            v,
-                            expr
-                        )
-                    }
                     self.push(StackData::StackRevAddr(self.stack_count - 1 - p.address));
 
                     Ok(())
@@ -330,7 +327,7 @@ impl CodeGenerator {
                 _ => bail!("Cannot take the address of {:?}", expr),
             },
             Expr::Deref(expr) => {
-                self.expr(expr.as_ref().clone())?;
+                self.expr(arity, expr.as_ref().clone())?;
                 self.codes.push(OpCode::Deref);
                 Ok(())
             }
@@ -353,7 +350,7 @@ impl CodeGenerator {
         for stmt in stmts {
             match stmt {
                 Statement::Let(x, e) => {
-                    self.expr(e.clone())?;
+                    self.expr(arity, e.clone())?;
                     self.variables.insert(
                         x.clone(),
                         VarInfo {
@@ -367,17 +364,17 @@ impl CodeGenerator {
                     self.local.insert(x.clone());
                 }
                 Statement::Return(e) => {
-                    self.expr(e.clone())?;
+                    self.expr(arity, e.clone())?;
                     self.ret(arity);
                     return Ok(());
                 }
                 Statement::Expr(e) => {
-                    self.expr(e.clone())?;
+                    self.expr(arity, e.clone())?;
                 }
                 Statement::Panic => return Ok(()),
                 Statement::ReturnIf(expr, cond) => {
-                    self.expr(expr)?;
-                    self.expr(cond)?;
+                    self.expr(arity, expr)?;
+                    self.expr(arity, cond)?;
                     self.ret_if(arity);
                     self.stack_count -= 2;
                 }
@@ -548,6 +545,26 @@ mod tests {
                     Jump("label-0".to_string()),
                     Push(StackData::Nil),
                     Return(2),
+                ],
+            ),
+            (
+                // outer scope variable
+                r#"
+                    let x = 0;
+                    let f = fn () {
+                        let y = 0;
+                        return x;
+                    };
+                "#,
+                vec![
+                    Alloc(HeapData::Int(0)),
+                    Alloc(HeapData::Closure(vec![
+                        Alloc(HeapData::Int(0)),
+                        Copy(2),
+                        Return(2),
+                    ])),
+                    Push(StackData::Nil),
+                    Return(3),
                 ],
             ),
         ];

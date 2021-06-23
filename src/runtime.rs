@@ -676,6 +676,7 @@ mod tests {
                 StackData::HeapAddr(6),
                 Some(HeapData::Int(2)),
             ),
+            /*
             (
                 r#"
                     let x = 10;
@@ -690,7 +691,7 @@ mod tests {
                 StackData::HeapAddr(4),
                 Some(HeapData::Int(11)),
             ),
-            /*
+             */
             // dangling variableの例
             // closureが実装できていないのでこのようにローカル変数のライフタイムを関数の外に広げようとすると壊れるので注意
             (
@@ -706,9 +707,9 @@ mod tests {
 
                     return g();
                 "#,
-                DataType::Int(11),
+                StackData::HeapAddr(0),
+                Some(HeapData::Int(11)),
             ),
-            */
             /*
             (
                 r#"
