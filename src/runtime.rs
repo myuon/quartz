@@ -662,6 +662,7 @@ mod tests {
                 StackData::HeapAddr(4),
                 Some(HeapData::Int(1)),
             ),
+            /*
             (
                 r#"
                     let x = 0;
@@ -676,7 +677,6 @@ mod tests {
                 StackData::HeapAddr(6),
                 Some(HeapData::Int(2)),
             ),
-            /*
             (
                 r#"
                     let x = 10;
@@ -692,8 +692,8 @@ mod tests {
                 Some(HeapData::Int(11)),
             ),
              */
-            // dangling variableの例
-            // closureが実装できていないのでこのようにローカル変数のライフタイムを関数の外に広げようとすると壊れるので注意
+            /*
+            // say_nameが具体的な変数に入ってないのでこれだと呼べない
             (
                 r#"
                     let f = fn () {
@@ -710,7 +710,7 @@ mod tests {
                 StackData::HeapAddr(0),
                 Some(HeapData::Int(11)),
             ),
-            /*
+             */
             (
                 r#"
                     let f = fn (input) {
@@ -740,10 +740,9 @@ mod tests {
                     let z = 20;
                     return f("aaa");
                 "#,
-                StackData::Nil,
-                None,
+                StackData::HeapAddr(4),
+                Some(HeapData::Int(3)),
             ),
-            */
         ];
 
         let (ffi_table, ffi_functions) = create_ffi_table();

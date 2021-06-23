@@ -61,6 +61,7 @@ impl CodeGenerator {
             DataType::Closure(id, args, body) => {
                 let mut generator = CodeGenerator::new(self.ffi_table.clone());
                 generator.variables = self.variables.clone();
+                generator.closures = self.closures.clone();
                 generator.stack_count = self.stack_count + 1;
 
                 let arity = args.len();
