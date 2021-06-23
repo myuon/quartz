@@ -100,9 +100,9 @@ impl Runtime {
         &self.stack[index]
     }
 
-    fn expect_int(&self, datatype: StackData) -> Result<i32> {
-        match datatype {
-            StackData::Int(s) => return Ok(s),
+    fn expect_int(&mut self, datatype: StackData) -> Result<i32> {
+        match self.deref(datatype)? {
+            HeapData::Int(s) => return Ok(s),
             v => bail!("Expected a int but found {:?}", v),
         }
     }
@@ -216,7 +216,9 @@ impl Runtime {
                     self.push(p);
                 }
                 OpCode::FFICall(addr) => {
-                    self.stack = self.ffi_functions[addr](self.stack.clone(), self.heap.clone());
+                    let (x, y) = self.ffi_functions[addr](self.stack.clone(), self.heap.clone());
+                    self.stack = x;
+                    self.heap = y;
                     self.pc += 1;
                     continue;
                 }
@@ -266,7 +268,8 @@ impl Runtime {
                         tuple.push(self.pop(1));
                     }
 
-                    self.push(StackData::Tuple(u, tuple));
+                    let r = self.alloc(HeapData::Tuple(u, tuple));
+                    self.push(r);
                 }
                 OpCode::Object(u) => {
                     let mut object = vec![];
@@ -281,7 +284,8 @@ impl Runtime {
                         }
                     }
 
-                    self.push(StackData::Object(object));
+                    let p = self.alloc(HeapData::Object(object));
+                    self.push(p);
                 }
                 OpCode::Get => {
                     let index = self.pop(1);
@@ -294,29 +298,26 @@ impl Runtime {
                         continue;
                     }
 
-                    match (tuple, index) {
-                        (StackData::Tuple(_, vs), StackData::Int(n)) => {
+                    match (self.deref(tuple)?, self.deref(index)?) {
+                        (HeapData::Tuple(_, vs), HeapData::Int(n)) => {
                             self.push(vs[n as usize].clone());
                         }
-                        (StackData::Object(vs), index) => match self.deref(index)? {
-                            HeapData::String(key) => {
-                                let mut value = None;
-                                for (k, v) in vs.clone() {
-                                    if k == key {
-                                        value = Some(v);
-                                        break;
-                                    }
-                                }
-
-                                match value {
-                                    Some(v) => {
-                                        self.push(v.clone());
-                                    }
-                                    None => bail!("Cannot find key {} in {:?}", key, vs),
+                        (HeapData::Object(vs), HeapData::String(key)) => {
+                            let mut value = None;
+                            for (k, v) in vs.clone() {
+                                if k == key {
+                                    value = Some(v);
+                                    break;
                                 }
                             }
-                            x => bail!("Key must be string but found {:?}", x),
-                        },
+
+                            match value {
+                                Some(v) => {
+                                    self.push(v.clone());
+                                }
+                                None => bail!("Cannot find key {} in {:?}", key, vs),
+                            }
+                        }
                         (t, i) => bail!("Unexpected type: _get({:?}, {:?})", t, i),
                     }
                 }
@@ -327,22 +328,25 @@ impl Runtime {
 
                     match obj {
                         StackData::StackRevAddr(addr) => match self.get_stack_addr(addr).clone() {
-                            StackData::Object(mut vs) => {
-                                let key = self.expect_string(key)?;
-                                let updated = (move || {
-                                    for (i, (k, _)) in vs.clone().into_iter().enumerate() {
-                                        if k == key {
-                                            vs[i] = (k, value);
-                                            return Ok(vs);
+                            StackData::HeapAddr(pointer) => match self.heap[pointer].clone() {
+                                HeapData::Object(mut vs) => {
+                                    let key = self.expect_string(key)?;
+                                    let updated = (move || {
+                                        for (i, (k, _)) in vs.clone().into_iter().enumerate() {
+                                            if k == key {
+                                                vs[i] = (k, value);
+                                                return Ok(vs);
+                                            }
                                         }
-                                    }
 
-                                    bail!("Cannot find key {} in {:?}", key, vs);
-                                })()?;
+                                        bail!("Cannot find key {} in {:?}", key, vs);
+                                    })()?;
 
-                                self.stack[addr] = StackData::Object(updated);
-                            }
-                            t => bail!("Expected object but found {:?}", t),
+                                    self.heap[pointer] = HeapData::Object(updated);
+                                }
+                                t => bail!("Expected object but found {:?}", t),
+                            },
+                            t => bail!("Expected heap address but found {:?}", t),
                         },
                         t => bail!("Expected stack address but found {:?}", t),
                     }
@@ -355,13 +359,10 @@ impl Runtime {
                     let m = Regex::new(&pattern)?.find(&input);
                     match m {
                         Some(m) => {
-                            self.push(StackData::Tuple(
-                                2,
-                                vec![
-                                    StackData::Int(m.start() as i32),
-                                    StackData::Int(m.end() as i32),
-                                ],
-                            ));
+                            let start = self.alloc(HeapData::Int(m.start() as i32));
+                            let end = self.alloc(HeapData::Int(m.end() as i32));
+                            let p = self.alloc(HeapData::Tuple(2, vec![start, end]));
+                            self.push(p);
                         }
                         None => {
                             self.push(StackData::Nil);
@@ -397,10 +398,12 @@ impl Runtime {
                     let v = self.pop(1);
                     match self.deref(v)? {
                         HeapData::Vec(vs) => {
-                            self.push(StackData::Int(vs.len() as i32));
+                            let addr = self.alloc(HeapData::Int(vs.len() as i32));
+                            self.push(addr);
                         }
                         HeapData::String(vs) => {
-                            self.push(StackData::Int(vs.len() as i32));
+                            let addr = self.alloc(HeapData::Int(vs.len() as i32));
+                            self.push(addr);
                         }
                         t => bail!("Expected vector but found {:?}", t),
                     }
@@ -447,7 +450,7 @@ pub fn execute(program: Vec<OpCode>, ffi_functions: Vec<FFIFunction>) -> Result<
     Ok(runtime.pop(1))
 }
 
-pub type FFIFunction = Box<fn(Vec<StackData>, Vec<HeapData>) -> Vec<StackData>>;
+pub type FFIFunction = Box<fn(Vec<StackData>, Vec<HeapData>) -> (Vec<StackData>, Vec<HeapData>)>;
 
 #[cfg(test)]
 mod tests {
@@ -460,42 +463,50 @@ mod tests {
         let cases = vec![
             (
                 r#"let x = 10; let y = x; let z = y; return z;"#,
-                StackData::Int(10),
+                StackData::HeapAddr(0),
+                Some(HeapData::Int(10)),
             ),
             (
                 r#"let x = 10; let f = fn (a,b) { return a; }; return f(x,x);"#,
-                StackData::Int(10),
+                StackData::HeapAddr(0),
+                Some(HeapData::Int(10)),
             ),
             (
                 // shadowingが起こる例
                 r#"let x = 10; let f = fn (x) { let x = 5; return x; }; f(x); return x;"#,
-                StackData::Int(10),
+                StackData::HeapAddr(0),
+                Some(HeapData::Int(10)),
             ),
             (
                 // 日本語
                 r#"let u = "こんにちは、世界"; return u;"#,
                 StackData::HeapAddr(0),
+                Some(HeapData::String("こんにちは、世界".to_string())),
             ),
             (
                 // early return
                 r#"return 1; return 2; return 3;"#,
-                StackData::Int(1),
+                StackData::HeapAddr(0),
+                Some(HeapData::Int(1)),
             ),
             (
                 // using ffi table
                 r#"return _add(1,2);"#,
-                StackData::Int(3),
+                StackData::HeapAddr(2),
+                Some(HeapData::Int(3)),
             ),
             (
                 // no return function
                 r#"1; 2; 3;"#,
                 StackData::Nil,
+                None,
             ),
             (
                 // ローカル変数や関数の引数のrefをとることはdangling pointerを生成するのでやってはいけない
                 // refで渡ってきたものをderefするのは安全
                 r#"let x = 10; let f = fn (a) { return *a; }; return f(&x);"#,
-                StackData::Int(10),
+                StackData::HeapAddr(0),
+                Some(HeapData::Int(10)),
             ),
             (
                 r#"
@@ -506,7 +517,8 @@ mod tests {
                     f(&x);
                     return x;
                 "#,
-                StackData::Int(30),
+                StackData::HeapAddr(2),
+                Some(HeapData::Int(30)),
             ),
             (
                 r#"
@@ -515,21 +527,24 @@ mod tests {
                     };
                     return f(1,2);
                 "#,
-                StackData::Int(3),
+                StackData::HeapAddr(3),
+                Some(HeapData::Int(3)),
             ),
             (
                 r#"
                     let t = _tuple(1, 2, 3, 4, 5);
                     return _get(t, 2);
                 "#,
-                StackData::Int(3),
+                StackData::HeapAddr(2),
+                Some(HeapData::Int(3)),
             ),
             (
                 r#"
                     let t = _object("x", 1, "y", "hell");
                     return _get(t, "x");
                 "#,
-                StackData::Int(1),
+                StackData::HeapAddr(1),
+                Some(HeapData::Int(1)),
             ),
             (
                 r#"
@@ -539,15 +554,18 @@ mod tests {
                     let x = new();
                     return _get(x, "x");
                 "#,
-                StackData::Int(1),
+                StackData::HeapAddr(2),
+                Some(HeapData::Int(1)),
             ),
             (
                 r#"let x = _object("x", 10, "y", "yes"); _set(&x, "y", 20); return _get(x, "y");"#,
-                StackData::Int(20),
+                StackData::HeapAddr(6),
+                Some(HeapData::Int(20)),
             ),
             (
-                r#"let ch = _regex("^[a-zA-Z_][a-zA-Z0-9_]*", "abcABC9192_"); return ch;"#,
-                StackData::Tuple(2, vec![StackData::Int(0), StackData::Int(11)]),
+                r#"let ch = _regex("^[a-zA-Z_][a-zA-Z0-9_]*", "abcABC9192_"); return _get(ch, 1);"#,
+                StackData::HeapAddr(3),
+                Some(HeapData::Int(11)),
             ),
             (
                 r#"
@@ -559,17 +577,20 @@ mod tests {
                     );
                     return f();
                 "#,
-                StackData::Int(0),
+                StackData::HeapAddr(4),
+                Some(HeapData::Int(0)),
             ),
             (
                 // 0 = true, 1 = false
                 r#"return _eq(1, 2);"#,
-                StackData::Int(1),
+                StackData::HeapAddr(2),
+                Some(HeapData::Int(1)),
             ),
             (
                 // _passign for local variables
                 r#"let x = 0; _passign(&x, _add(x, 10)); return x;"#,
-                StackData::Int(10),
+                StackData::HeapAddr(2),
+                Some(HeapData::Int(10)),
             ),
             (
                 // _passign for local variables in a function
@@ -582,7 +603,8 @@ mod tests {
                     };
                     return f();
                 "#,
-                StackData::Int(1),
+                StackData::HeapAddr(3),
+                Some(HeapData::Int(1)),
             ),
             (
                 // vector
@@ -594,7 +616,11 @@ mod tests {
 
                     return _tuple(_len(v), _get(v, 1));
                 "#,
-                StackData::Tuple(2, vec![StackData::Int(20), StackData::Int(3)]),
+                StackData::HeapAddr(6),
+                Some(HeapData::Tuple(
+                    2,
+                    vec![StackData::HeapAddr(2), StackData::HeapAddr(4)],
+                )),
             ),
             (
                 r#"
@@ -615,11 +641,13 @@ mod tests {
 
                     return fib(5);
                 "#,
-                StackData::Int(13),
+                StackData::HeapAddr(22),
+                Some(HeapData::Int(13)),
             ),
             (
                 r#"return _eq(_slice("hello, world", 5, 10), ", wor");"#,
-                StackData::Int(0),
+                StackData::HeapAddr(5),
+                Some(HeapData::Int(0)),
             ),
             (
                 r#"
@@ -631,7 +659,8 @@ mod tests {
 
                     return f();
                 "#,
-                StackData::Int(1),
+                StackData::HeapAddr(4),
+                Some(HeapData::Int(1)),
             ),
             (
                 r#"
@@ -644,7 +673,8 @@ mod tests {
 
                     return f();
                 "#,
-                StackData::Int(2),
+                StackData::HeapAddr(6),
+                Some(HeapData::Int(2)),
             ),
             (
                 r#"
@@ -657,7 +687,8 @@ mod tests {
 
                     return f();
                 "#,
-                StackData::Int(11),
+                StackData::HeapAddr(4),
+                Some(HeapData::Int(11)),
             ),
             /*
             // dangling variableの例
@@ -678,6 +709,7 @@ mod tests {
                 DataType::Int(11),
             ),
             */
+            /*
             (
                 r#"
                     let f = fn (input) {
@@ -686,14 +718,15 @@ mod tests {
                         };
                         t();
                     };
-                    
+
                     let g = fn (input) {
                         return f(input);
                     };
-                    
+
                     g(0);
                 "#,
                 StackData::Nil,
+                None,
             ),
             (
                 r#"
@@ -707,20 +740,27 @@ mod tests {
                     return f("aaa");
                 "#,
                 StackData::Nil,
+                None,
             ),
+            */
         ];
 
         let (ffi_table, ffi_functions) = create_ffi_table();
 
         for c in cases {
             let m = run_parser(c.0).unwrap();
-            let code = gen_code(m, ffi_table.clone()).unwrap();
-            let result = {
-                let r = execute(code, ffi_functions.clone());
-                assert!(r.is_ok(), "Result: {:?}, input: {:?}", r, c.0);
-                r.unwrap()
-            };
+            let program = gen_code(m, ffi_table.clone()).unwrap();
+
+            let mut runtime = Runtime::new(program, ffi_functions.clone());
+            runtime.execute().unwrap();
+
+            let result = runtime.pop(1);
             assert_eq!(result, c.1, "{:?}", c.0);
+
+            match result {
+                StackData::HeapAddr(h) => assert_eq!(c.2, Some(runtime.heap[h].clone())),
+                _ => (),
+            }
         }
     }
 
@@ -738,27 +778,32 @@ mod tests {
                     };
                     return f();
                 "#,
-                vec![StackData::Int(3)],
-                vec![HeapData::Closure(vec![
-                    Push(StackData::Int(1)),
-                    Push(StackData::Int(2)),
-                    Copy(1),
-                    Copy(1),
-                    FFICall(0),
-                    Return(3),
-                ])],
+                vec![StackData::HeapAddr(3)],
+                vec![
+                    HeapData::Closure(vec![
+                        Alloc(HeapData::Int(1)),
+                        Alloc(HeapData::Int(2)),
+                        Copy(1),
+                        Copy(1),
+                        FFICall(0),
+                        Return(3),
+                    ]),
+                    HeapData::Int(1),
+                    HeapData::Int(2),
+                    HeapData::Int(3),
+                ],
             ),
             (
                 // no return functionでもローカル変数は全てpopされること
                 r#"let x = 1; x;"#,
                 vec![StackData::Nil],
-                vec![],
+                vec![HeapData::Int(1)],
             ),
             (
                 // just panic
                 r#"let x = 1; panic;"#,
-                vec![StackData::Int(1)],
-                vec![],
+                vec![StackData::HeapAddr(0)],
+                vec![HeapData::Int(1)],
             ),
             (
                 // 関数呼び出しの際には引数がstackに積まれ、その後returnするときにそれらがpopされて値が返却される
@@ -766,12 +811,17 @@ mod tests {
                     let f = fn (a,b,c,d,e) { return "hello"; };
                     return f(1,2,3,4,5);
                 "#,
-                vec![StackData::HeapAddr(1)],
+                vec![StackData::HeapAddr(6)],
                 vec![
                     HeapData::Closure(vec![
                         Alloc(HeapData::String("hello".to_string())),
                         Return(6),
                     ]),
+                    HeapData::Int(1),
+                    HeapData::Int(2),
+                    HeapData::Int(3),
+                    HeapData::Int(4),
+                    HeapData::Int(5),
                     HeapData::String("hello".to_string()),
                 ],
             ),

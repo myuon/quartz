@@ -4,6 +4,7 @@ use crate::ast::Statement;
 #[allow(dead_code)]
 pub enum DataType {
     Nil,
+    Int(i32),
     String(String),
     Closure(Vec<String>, Vec<Statement>),
 }
@@ -44,31 +45,15 @@ pub enum HeapData {
     String(String),
     Closure(Vec<OpCode>),
     Vec(Vec<StackData>),
+    Tuple(usize, Vec<StackData>),
+    Object(Vec<(String, StackData)>),
+    Pointer(usize),
 }
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum StackData {
     Nil,
-    Int(i32),
     HeapAddr(usize),        // in normal order
     StackRevAddr(usize), // in reverse order, 0-origin, excluding itself, for addresses of local variables
     StackNormalAddr(usize), // in normal order, for addresses of out-of-scope variables
-    Tuple(usize, Vec<StackData>),
-    Object(Vec<(String, StackData)>),
-}
-
-impl StackData {
-    pub fn type_of(&self) -> String {
-        use StackData::*;
-
-        match self {
-            Nil => "nil".to_string(),
-            Int(_) => "int".to_string(),
-            HeapAddr(_) => "heap_addr".to_string(),
-            StackRevAddr(_) => "stack_addr(local)".to_string(),
-            StackNormalAddr(_) => "stack_addr".to_string(),
-            Tuple(u, _) => format!("tuple({})", u),
-            Object(_) => "object".to_string(),
-        }
-    }
 }

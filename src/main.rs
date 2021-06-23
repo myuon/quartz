@@ -20,16 +20,24 @@ pub fn create_ffi_table() -> (HashMap<String, usize>, Vec<FFIFunction>) {
     let mut ffi_table: Vec<(String, FFIFunction)> = vec![];
     ffi_table.push((
         "_add".to_string(),
-        Box::new(|mut vs: Vec<StackData>, _| {
-            let x = vs.pop().unwrap();
-            let y = vs.pop().unwrap();
+        Box::new(|mut stack: Vec<StackData>, mut heap: Vec<HeapData>| {
+            let x = stack.pop().unwrap();
+            let y = stack.pop().unwrap();
 
             match (x, y) {
-                (StackData::Int(x), StackData::Int(y)) => vs.push(StackData::Int(x + y)),
+                (StackData::HeapAddr(px), StackData::HeapAddr(py)) => {
+                    match (heap[px].clone(), heap[py].clone()) {
+                        (HeapData::Int(x), HeapData::Int(y)) => {
+                            heap.push(HeapData::Int(x + y));
+                            stack.push(StackData::HeapAddr(heap.len() - 1));
+                        }
+                        _ => todo!(),
+                    }
+                }
                 _ => todo!(),
             }
 
-            vs
+            (stack, heap)
         }),
     ));
     ffi_table.push((
@@ -47,29 +55,33 @@ pub fn create_ffi_table() -> (HashMap<String, usize>, Vec<FFIFunction>) {
             }
             stack.push(StackData::Nil);
 
-            stack
+            (stack, heap)
         }),
     ));
     ffi_table.push((
         "_eq".to_string(),
-        Box::new(|mut vs: Vec<StackData>, heap: Vec<HeapData>| {
-            let x = vs.pop().unwrap();
-            let y = vs.pop().unwrap();
+        Box::new(|mut stack: Vec<StackData>, mut heap: Vec<HeapData>| {
+            let x = stack.pop().unwrap();
+            let y = stack.pop().unwrap();
 
             match (x, y) {
-                (StackData::Int(x), StackData::Int(y)) => {
-                    vs.push(StackData::Int(if x == y { 0 } else { 1 }))
-                }
-                (StackData::HeapAddr(s), StackData::HeapAddr(t)) => match (&heap[s], &heap[t]) {
-                    (HeapData::String(a), HeapData::String(b)) => {
-                        vs.push(StackData::Int(if a == b { 0 } else { 1 }))
+                (StackData::HeapAddr(x), StackData::HeapAddr(y)) => {
+                    match (heap[x].clone(), heap[y].clone()) {
+                        (HeapData::Int(x), HeapData::Int(y)) => {
+                            heap.push(HeapData::Int(if x == y { 0 } else { 1 }));
+                            stack.push(StackData::HeapAddr(heap.len() - 1));
+                        }
+                        (HeapData::String(a), HeapData::String(b)) => {
+                            heap.push(HeapData::Int(if a == b { 0 } else { 1 }));
+                            stack.push(StackData::HeapAddr(heap.len() - 1));
+                        }
+                        (x, y) => panic!("{:?} {:?}", x, y),
                     }
-                    (s, t) => panic!("{:?} {:?}", s, t),
-                },
+                }
                 (x, y) => panic!("{:?} {:?}", x, y),
             }
 
-            vs
+            (stack, heap)
         }),
     ));
 
