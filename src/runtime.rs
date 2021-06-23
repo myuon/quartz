@@ -749,7 +749,10 @@ mod tests {
 
         for c in cases {
             let m = run_parser(c.0).unwrap();
-            let program = gen_code(m, ffi_table.clone()).unwrap();
+            let program = gen_code(m, ffi_table.clone());
+            assert!(program.is_ok(), "{:?} {:?}", program, c.0);
+
+            let program = program.unwrap();
 
             let mut runtime = Runtime::new(program, ffi_functions.clone());
             runtime.execute().unwrap();

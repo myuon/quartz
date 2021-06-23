@@ -7,25 +7,37 @@ use crate::{
     vm::{DataType, HeapData, OpCode, StackData},
 };
 
+#[derive(Debug, Clone)]
+struct VarInfo {
+    address: usize,
+    // 現状は関数をletによって束縛しないとcallできないのでとりあえず変数の情報として覚えておく
+    // 実際は型情報にIDを含めそこから引くべき
+    closure: Option<usize>,
+}
+
 #[derive(Debug)]
 struct CodeGenerator {
-    variables: HashMap<String, usize>,
+    variables: HashMap<String, VarInfo>,
+    closures: HashMap<usize, Vec<String>>,
     local: HashSet<String>,
     codes: Vec<OpCode>,
     ffi_table: HashMap<String, usize>,
     stack_count: usize,
     pop_count: usize,
+    non_local_variables: Vec<String>, // for closure
 }
 
 impl CodeGenerator {
     pub fn new(ffi_table: HashMap<String, usize>) -> CodeGenerator {
         CodeGenerator {
             variables: HashMap::new(),
+            closures: HashMap::new(),
             local: HashSet::new(),
             codes: vec![],
             stack_count: 0,
             pop_count: 0,
             ffi_table,
+            non_local_variables: vec![],
         }
     }
 
@@ -54,7 +66,13 @@ impl CodeGenerator {
                 let arity = args.len();
                 for a in args {
                     generator.local.insert(a.clone());
-                    generator.variables.insert(a, generator.stack_count);
+                    generator.variables.insert(
+                        a,
+                        VarInfo {
+                            address: generator.stack_count,
+                            closure: None,
+                        },
+                    );
                     generator.stack_count += 1;
                 }
 
@@ -62,6 +80,7 @@ impl CodeGenerator {
 
                 self.codes
                     .push(OpCode::Alloc(HeapData::Closure(generator.codes)));
+                self.closures.insert(id, generator.non_local_variables);
             }
         }
         self.stack_count += 1;
@@ -76,7 +95,12 @@ impl CodeGenerator {
             .ok_or(anyhow::anyhow!("Ident {} not found", ident))?;
 
         let is_local = self.local.contains(ident);
-        self.codes.push(OpCode::Copy(self.stack_count - 1 - *v));
+        if !is_local {
+            self.non_local_variables.push(ident.clone());
+        }
+
+        self.codes
+            .push(OpCode::Copy(self.stack_count - 1 - v.address));
         self.stack_count += 1;
         self.pop_count += 1;
 
@@ -117,6 +141,33 @@ impl CodeGenerator {
                 Ok(())
             }
             Expr::Call(f, args) => {
+                if self.variables.contains_key(&f) {
+                    let addr = self.variables[&f].clone();
+
+                    // push outer_variables
+                    let outer_variables = self.closures[&addr.closure.unwrap()].clone();
+
+                    for v in outer_variables {
+                        self.codes.push(OpCode::Copy(
+                            self.stack_count - 1 - self.variables[&v].address,
+                        ));
+                        self.stack_count += 1;
+                        self.pop_count += 1;
+                    }
+
+                    // push arguments
+                    let arity = args.len();
+                    for a in args {
+                        self.expr(a)?;
+                    }
+
+                    self.codes
+                        .push(OpCode::Call(self.stack_count - 1 - addr.address));
+                    self.after_call(arity);
+
+                    return Ok(());
+                }
+
                 let arity = args.len();
                 for a in args {
                     self.expr(a)?;
@@ -254,19 +305,7 @@ impl CodeGenerator {
                     return Ok(());
                 }
 
-                let addr = self
-                    .variables
-                    .get(&f)
-                    .ok_or(anyhow::anyhow!("Ident {} not found", f))?;
-                let is_local = self.local.contains(&f);
-                self.codes.push(if is_local {
-                    OpCode::Call(self.stack_count - 1 - *addr)
-                } else {
-                    OpCode::CallAbsolute(*addr)
-                });
-                self.after_call(arity);
-
-                Ok(())
+                bail!("Ident {} not found", f);
             }
             Expr::Ref(expr) => match expr.as_ref() {
                 Expr::Var(v) => {
@@ -277,11 +316,14 @@ impl CodeGenerator {
                         .clone();
                     let is_local = self.local.contains(v);
 
-                    self.push(if is_local {
-                        StackData::StackRevAddr(self.stack_count - 1 - p)
-                    } else {
-                        StackData::StackNormalAddr(p)
-                    });
+                    if !is_local {
+                        bail!(
+                            "Cannot get the address of a outer scope variable: {} in {:?}",
+                            v,
+                            expr
+                        )
+                    }
+                    self.push(StackData::StackRevAddr(self.stack_count - 1 - p.address));
 
                     Ok(())
                 }
@@ -312,7 +354,16 @@ impl CodeGenerator {
             match stmt {
                 Statement::Let(x, e) => {
                     self.expr(e.clone())?;
-                    self.variables.insert(x.clone(), self.stack_count - 1);
+                    self.variables.insert(
+                        x.clone(),
+                        VarInfo {
+                            address: self.stack_count - 1,
+                            closure: match e {
+                                Expr::Fun(t, _, _) => Some(t),
+                                _ => None,
+                            },
+                        },
+                    );
                     self.local.insert(x.clone());
                 }
                 Statement::Return(e) => {
@@ -504,8 +555,10 @@ mod tests {
         for c in cases {
             let (ffi_table, _) = create_ffi_table();
             let m = run_parser(c.0).unwrap();
-            let result = gen_code(m, ffi_table).unwrap();
-            assert_eq!(result, c.1, "{:?}", c.0);
+
+            let result = gen_code(m, ffi_table);
+            assert!(result.is_ok(), "{:?} {:?}", result, c.0);
+            assert_eq!(result.unwrap(), c.1, "{:?}", c.0);
         }
     }
 }
