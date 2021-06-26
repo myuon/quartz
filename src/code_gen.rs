@@ -29,10 +29,13 @@ struct CodeGenerator {
 }
 
 impl CodeGenerator {
-    pub fn new(ffi_table: HashMap<String, usize>) -> CodeGenerator {
+    pub fn new(
+        ffi_table: HashMap<String, usize>,
+        closures: HashMap<usize, Vec<String>>,
+    ) -> CodeGenerator {
         CodeGenerator {
             variables: HashMap::new(),
-            closures: HashMap::new(),
+            closures,
             local: HashSet::new(),
             codes: vec![],
             stack_count: 0,
@@ -61,7 +64,8 @@ impl CodeGenerator {
                 self.codes.push(OpCode::Alloc(HeapData::String(s)));
             }
             DataType::Closure(id, args, body) => {
-                let mut generator = CodeGenerator::new(self.ffi_table.clone());
+                let mut generator =
+                    CodeGenerator::new(self.ffi_table.clone(), self.closures.clone());
                 generator.variables = self.variables.clone();
                 generator.closures = self.closures.clone();
                 generator.stack_count = self.stack_count;
@@ -413,8 +417,12 @@ impl CodeGenerator {
     }
 }
 
-pub fn gen_code(module: Module, ffi_table: HashMap<String, usize>) -> Result<Vec<OpCode>> {
-    let mut generator = CodeGenerator::new(ffi_table);
+pub fn gen_code(
+    module: Module,
+    ffi_table: HashMap<String, usize>,
+    closures: HashMap<usize, Vec<String>>,
+) -> Result<Vec<OpCode>> {
+    let mut generator = CodeGenerator::new(ffi_table, closures);
     generator.gen_code(module)?;
 
     Ok(generator.codes)
@@ -422,7 +430,7 @@ pub fn gen_code(module: Module, ffi_table: HashMap<String, usize>) -> Result<Vec
 
 #[cfg(test)]
 mod tests {
-    use crate::{create_ffi_table, parser::run_parser};
+    use crate::{create_ffi_table, parser::run_parser, typechecker::typechecker};
 
     use super::*;
 
@@ -604,8 +612,9 @@ mod tests {
         for c in cases {
             let (ffi_table, _) = create_ffi_table();
             let m = run_parser(c.0).unwrap();
+            let closures = typechecker(&m).unwrap();
 
-            let result = gen_code(m, ffi_table);
+            let result = gen_code(m, ffi_table, closures);
             assert!(result.is_ok(), "{:?} {:?}", result, c.0);
             assert_eq!(result.unwrap(), c.1, "{:?}", c.0);
         }

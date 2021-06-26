@@ -454,7 +454,9 @@ pub type FFIFunction = Box<fn(Vec<StackData>, Vec<HeapData>) -> (Vec<StackData>,
 
 #[cfg(test)]
 mod tests {
-    use crate::{code_gen::gen_code, create_ffi_table, parser::run_parser};
+    use crate::{
+        code_gen::gen_code, create_ffi_table, parser::run_parser, typechecker::typechecker,
+    };
 
     use super::*;
 
@@ -749,7 +751,8 @@ mod tests {
 
         for c in cases {
             let m = run_parser(c.0).unwrap();
-            let program = gen_code(m, ffi_table.clone());
+            let closures = typechecker(&m).unwrap();
+            let program = gen_code(m, ffi_table.clone(), closures);
             assert!(program.is_ok(), "{:?} {:?}", program, c.0);
 
             let program = program.unwrap();
@@ -868,7 +871,8 @@ mod tests {
 
         for case in cases {
             let m = run_parser(case.0).unwrap();
-            let program = gen_code(m, ffi_table.clone()).unwrap();
+            let closures = typechecker(&m).unwrap();
+            let program = gen_code(m, ffi_table.clone(), closures).unwrap();
             let mut interpreter = Runtime::new(program, ffi_functions.clone());
             interpreter.execute().unwrap();
             assert_eq!(interpreter.stack, case.1);
