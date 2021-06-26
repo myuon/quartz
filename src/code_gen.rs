@@ -70,6 +70,7 @@ impl CodeGenerator {
                 generator.closures = self.closures.clone();
                 generator.stack_count = self.stack_count;
                 generator.base_address = self.stack_count;
+                generator.non_local_variables = self.closures[&id].clone();
 
                 let arity = args.len();
                 for a in args {
@@ -122,12 +123,6 @@ impl CodeGenerator {
                     .ok_or(anyhow::anyhow!("Ident {} not found", ident))?;
 
                 let is_local = self.local.contains(&ident);
-
-                if !is_local {
-                    if !self.non_local_variables.contains(&ident) {
-                        self.non_local_variables.push(ident.clone());
-                    }
-                }
 
                 self.codes.push(OpCode::Copy(if is_local {
                     self.stack_count - 1 - v.address
@@ -590,7 +585,7 @@ mod tests {
                     Alloc(HeapData::Closure(vec![
                         Alloc(HeapData::Int(0)),
                         Alloc(HeapData::Int(0)),
-                        Copy(5),
+                        Copy(6),
                         Copy(6),
                         Copy(8),
                         Tuple(3),

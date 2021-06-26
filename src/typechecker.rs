@@ -5,6 +5,7 @@ use anyhow::Result;
 use crate::ast::{Expr, Module, Statement};
 
 pub struct TypeChecker {
+    local: Vec<String>,
     outer_variables: Vec<String>,
     // closureで使われる外部変数を集めたもの
     closures: HashMap<usize, Vec<String>>,
@@ -13,6 +14,7 @@ pub struct TypeChecker {
 impl TypeChecker {
     pub fn new() -> TypeChecker {
         TypeChecker {
+            local: vec![],
             outer_variables: vec![],
             closures: HashMap::new(),
         }
@@ -20,12 +22,19 @@ impl TypeChecker {
 
     fn expr(&mut self, expr: &Expr) -> Result<()> {
         match expr {
-            Expr::Var(_) => {}
+            Expr::Var(v) => {
+                if !self.local.contains(v) && !self.outer_variables.contains(v) {
+                    self.outer_variables.push(v.clone());
+                }
+            }
             Expr::Lit(_) => {}
-            Expr::Fun(id, _, body) => {
+            Expr::Fun(id, args, body) => {
+                let local = self.local.clone();
+                self.local = args.clone();
                 self.outer_variables = vec![];
                 self.statements(body)?;
                 self.closures.insert(*id, self.outer_variables.clone());
+                self.local = local;
             }
             Expr::Call(_, es) => {
                 for e in es {
@@ -48,8 +57,9 @@ impl TypeChecker {
 
     fn statement(&mut self, statement: &Statement) -> Result<()> {
         match statement {
-            Statement::Let(_, e) => {
+            Statement::Let(x, e) => {
                 self.expr(e)?;
+                self.local.push(x.clone());
             }
             Statement::Expr(e) => {
                 self.expr(e)?;
