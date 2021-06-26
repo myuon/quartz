@@ -25,6 +25,7 @@ struct CodeGenerator {
     stack_count: usize,
     pop_count: usize,
     non_local_variables: Vec<String>, // for closure
+    base_address: usize,              // base address for closure
 }
 
 impl CodeGenerator {
@@ -38,6 +39,7 @@ impl CodeGenerator {
             pop_count: 0,
             ffi_table,
             non_local_variables: vec![],
+            base_address: 0,
         }
     }
 
@@ -62,7 +64,8 @@ impl CodeGenerator {
                 let mut generator = CodeGenerator::new(self.ffi_table.clone());
                 generator.variables = self.variables.clone();
                 generator.closures = self.closures.clone();
-                generator.stack_count = self.stack_count + 1;
+                generator.stack_count = self.stack_count;
+                generator.base_address = self.stack_count;
 
                 let arity = args.len();
                 for a in args {
@@ -117,14 +120,25 @@ impl CodeGenerator {
                 let is_local = self.local.contains(&ident);
 
                 if !is_local {
-                    self.non_local_variables.push(ident.clone());
+                    if !self.non_local_variables.contains(&ident) {
+                        self.non_local_variables.push(ident.clone());
+                    }
                 }
 
-                // localではない場合はclosureからouter variableにアクセスする場合
-                // このときはarityの分だけアドレスをずらす
-                self.codes.push(OpCode::Copy(
-                    self.stack_count - 1 - v.address + if !is_local { arity } else { 0 },
-                ));
+                self.codes.push(OpCode::Copy(if is_local {
+                    self.stack_count - 1 - v.address
+                } else {
+                    // localではない場合はclosureからouter variableにアクセスする場合
+                    // stack_countとbase_addressの差分で関数開始時のアドレスまで戻れるので、そこからouter variableのindexまでさらに戻る
+                    (self.stack_count - self.base_address)
+                        + (self.non_local_variables.len()
+                            - 1
+                            - self
+                                .non_local_variables
+                                .iter()
+                                .position(|p| p == &ident)
+                                .unwrap())
+                }));
                 self.stack_count += 1;
                 self.pop_count += 1;
 
@@ -551,21 +565,38 @@ mod tests {
             (
                 // outer scope variable
                 r#"
-                    let x = 0;
-                    let f = fn () {
-                        let y = 0;
-                        return x;
+                    let outer1 = 0;
+                    let outer2 = 0;
+                    let f = fn (a,b,c) {
+                        let inner1 = 0;
+                        let inner2 = 0;
+                        return _tuple(outer2, outer1, outer2);
                     };
+                    let outer3 = 0;
+
+                    f(0,0,0);
                 "#,
                 vec![
                     Alloc(HeapData::Int(0)),
+                    Alloc(HeapData::Int(0)),
                     Alloc(HeapData::Closure(vec![
                         Alloc(HeapData::Int(0)),
-                        Copy(2),
-                        Return(2),
+                        Alloc(HeapData::Int(0)),
+                        Copy(5),
+                        Copy(6),
+                        Copy(8),
+                        Tuple(3),
+                        Return(6),
                     ])),
+                    Alloc(HeapData::Int(0)),
+                    Copy(2),
+                    Copy(4),
+                    Alloc(HeapData::Int(0)),
+                    Alloc(HeapData::Int(0)),
+                    Alloc(HeapData::Int(0)),
+                    Call(6),
                     Push(StackData::Nil),
-                    Return(3),
+                    Return(8),
                 ],
             ),
         ];
