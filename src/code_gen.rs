@@ -619,6 +619,33 @@ mod tests {
                     Return(8),
                 ],
             ),
+            (
+                // method call chain
+                r#"
+                    let f = fn() {};
+                    let g = fn() { f(); };
+                    let h = fn() { g(); };
+                    let x = 10;
+                    h();
+                "#,
+                vec![
+                    Alloc(HeapData::Closure(vec![Push(StackData::Nil), Return(1)])),
+                    Alloc(HeapData::Closure(vec![
+                        Call(0),
+                        Push(StackData::Nil),
+                        Return(2),
+                    ])),
+                    Alloc(HeapData::Closure(vec![
+                        Call(0),
+                        Push(StackData::Nil),
+                        Return(2),
+                    ])),
+                    Alloc(HeapData::Int(10)),
+                    Call(1),
+                    Push(StackData::Nil),
+                    Return(6),
+                ],
+            ),
         ];
 
         for c in cases {
