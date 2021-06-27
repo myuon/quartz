@@ -26,6 +26,7 @@ struct CodeGenerator {
     pop_count: usize,
     non_local_variables: Vec<String>, // for closure
     base_address: usize,              // base address for closure
+    is_toplevel: bool,
 }
 
 impl CodeGenerator {
@@ -43,6 +44,7 @@ impl CodeGenerator {
             ffi_table,
             non_local_variables: vec![],
             base_address: 0,
+            is_toplevel: true,
         }
     }
 
@@ -64,6 +66,14 @@ impl CodeGenerator {
                 self.codes.push(OpCode::Alloc(HeapData::String(s)));
             }
             DataType::Closure(id, args, body) => {
+                if !self.is_toplevel && !self.closures[&id].is_empty() {
+                    bail!(
+                        "Closures with outer variables are not supported!: {:?} in closure at {}",
+                        self.closures[&id],
+                        id
+                    );
+                }
+
                 let mut generator =
                     CodeGenerator::new(self.ffi_table.clone(), self.closures.clone());
                 generator.variables = self.variables.clone();
@@ -71,6 +81,7 @@ impl CodeGenerator {
                 generator.stack_count = self.stack_count;
                 generator.base_address = self.stack_count;
                 generator.non_local_variables = self.closures[&id].clone();
+                generator.is_toplevel = false;
 
                 let arity = args.len();
                 for a in args {
@@ -169,7 +180,13 @@ impl CodeGenerator {
 
                     for v in outer_variables {
                         self.codes.push(OpCode::Copy(
-                            self.stack_count - 1 - self.variables[&v].address,
+                            self.stack_count
+                                - 1
+                                - self
+                                    .variables
+                                    .get(&v)
+                                    .ok_or(anyhow::anyhow!("Variable {} not found", v))?
+                                    .address,
                         ));
                         self.stack_count += 1;
                         self.pop_count += 1;

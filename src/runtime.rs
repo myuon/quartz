@@ -664,7 +664,6 @@ mod tests {
                 StackData::HeapAddr(4),
                 Some(HeapData::Int(1)),
             ),
-            /*
             (
                 r#"
                     let x = 0;
@@ -693,10 +692,9 @@ mod tests {
                 StackData::HeapAddr(4),
                 Some(HeapData::Int(11)),
             ),
-             */
             /*
-            // say_nameが具体的な変数に入ってないのでこれだと呼べない
             (
+                // A dangling variable example for a closure
                 r#"
                     let f = fn () {
                         let x = 20;
@@ -731,6 +729,7 @@ mod tests {
                 StackData::Nil,
                 None,
             ),
+            /*
             (
                 r#"
                     let f = fn (x) {
@@ -745,20 +744,22 @@ mod tests {
                 StackData::HeapAddr(4),
                 Some(HeapData::Int(3)),
             ),
+             */
         ];
 
         let (ffi_table, ffi_functions) = create_ffi_table();
 
         for c in cases {
             let m = run_parser(c.0).unwrap();
-            let closures = typechecker(&m).unwrap();
-            let program = gen_code(m, ffi_table.clone(), closures);
+            let closures = typechecker(&m);
+            let program = gen_code(m, ffi_table.clone(), closures.unwrap());
             assert!(program.is_ok(), "{:?} {:?}", program, c.0);
 
             let program = program.unwrap();
 
             let mut runtime = Runtime::new(program, ffi_functions.clone());
-            runtime.execute().unwrap();
+            let result = runtime.execute();
+            assert!(result.is_ok(), "{:?} {:?}", result, c.0);
 
             let result = runtime.pop(1);
             assert_eq!(result, c.1, "{:?}", c.0);
