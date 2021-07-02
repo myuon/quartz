@@ -86,11 +86,10 @@ impl Runtime {
 
     fn stack_addr_as_mut(&mut self, datatype: StackData) -> Result<&mut StackData> {
         match datatype {
-            StackData::StackRevAddr(r) => {
+            StackData::StackAddr(r) => {
                 let r = self.stack.len() - 1 - r;
                 Ok(&mut self.stack[r])
             }
-            StackData::StackNormalAddr(r) => Ok(&mut self.stack[r]),
             v => bail!("Expected a stack address but found {:?}", v),
         }
     }
@@ -123,8 +122,7 @@ impl Runtime {
 
     fn expect_stack_index(&self, datatype: StackData) -> Result<usize> {
         match datatype {
-            StackData::StackRevAddr(h) => Ok(self.get_stack_addr_index(h)),
-            StackData::StackNormalAddr(h) => Ok(h),
+            StackData::StackAddr(h) => Ok(self.get_stack_addr_index(h)),
             v => bail!("Expected stack address but found {:?}", v),
         }
     }
@@ -194,23 +192,14 @@ impl Runtime {
                 OpCode::Copy(p) => {
                     let target = self.stack.len() - 1 - p;
                     match self.stack[target].clone() {
-                        StackData::StackRevAddr(addr) => {
-                            self.push(StackData::StackRevAddr(addr + p + 1));
+                        StackData::StackAddr(addr) => {
+                            self.push(StackData::StackAddr(addr + p + 1));
                         }
                         s => {
                             self.push(s);
                         }
                     }
                 }
-                OpCode::CopyAbsolute(p) => match self.stack[p].clone() {
-                    StackData::StackRevAddr(r) => {
-                        // ローカルでない変数がStackRevAddrだった場合はポインタ値を再計算する必要がある
-                        self.push(StackData::StackNormalAddr(p - r - 1));
-                    }
-                    t => {
-                        self.push(t);
-                    }
-                },
                 OpCode::Alloc(h) => {
                     let p = self.alloc(h);
                     self.push(p);
@@ -224,19 +213,6 @@ impl Runtime {
                 }
                 OpCode::Call(addr) => {
                     let closure = self.deref(self.stack[self.stack.len() - 1 - addr].clone())?;
-                    match closure {
-                        HeapData::Closure(body) => {
-                            self.call_stack.push(self.pc);
-
-                            self.pc = self.program.len();
-                            self.program.extend(body);
-                            continue;
-                        }
-                        r => bail!("Expected a closure but found {:?}", r),
-                    }
-                }
-                OpCode::CallAbsolute(addr) => {
-                    let closure = self.deref(self.stack[addr].clone())?;
                     match closure {
                         HeapData::Closure(body) => {
                             self.call_stack.push(self.pc);
@@ -327,7 +303,7 @@ impl Runtime {
                     let obj = self.pop(1);
 
                     match obj {
-                        StackData::StackRevAddr(addr) => match self.get_stack_addr(addr).clone() {
+                        StackData::StackAddr(addr) => match self.get_stack_addr(addr).clone() {
                             StackData::HeapAddr(pointer) => match self.heap[pointer].clone() {
                                 HeapData::Object(mut vs) => {
                                     let key = self.expect_string(key)?;
@@ -836,7 +812,7 @@ mod tests {
             (
                 // take the address of string
                 r#"let x = "hello, world"; let y = &x; panic;"#,
-                vec![StackData::HeapAddr(0), StackData::StackRevAddr(0)],
+                vec![StackData::HeapAddr(0), StackData::StackAddr(0)],
                 vec![HeapData::String("hello, world".to_string())],
             ),
             (

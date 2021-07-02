@@ -19,10 +19,8 @@ pub enum OpCode {
     Pop(usize),
     Return(usize),
     Copy(usize),
-    CopyAbsolute(usize), // copy from absolute index
     Alloc(HeapData),
     Call(usize),
-    CallAbsolute(usize), // call from absolute index
     FFICall(usize),
     PAssign,
     Free,
@@ -57,7 +55,6 @@ pub enum HeapData {
 #[derive(PartialEq, Debug, Clone)]
 pub enum StackData {
     Nil,
-    HeapAddr(usize),        // in normal order
-    StackRevAddr(usize), // in reverse order, 0-origin, excluding itself, for addresses of local variables
-    StackNormalAddr(usize), // in normal order, for addresses of out-of-scope variables
+    HeapAddr(usize),  // in normal order
+    StackAddr(usize), // in reverse order, 0-origin, excluding itself, for addresses of local variables
 }

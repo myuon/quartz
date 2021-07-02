@@ -50,7 +50,7 @@ pub fn create_ffi_table() -> (HashMap<String, usize>, Vec<FFIFunction>) {
                 StackData::HeapAddr(p) => {
                     println!("{:?}", heap[p]);
                 }
-                StackData::StackRevAddr(p) => {
+                StackData::StackAddr(p) => {
                     println!("{:?}", stack[p]);
                 }
                 _ => println!("{:?}", x),
