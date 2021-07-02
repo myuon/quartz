@@ -40,7 +40,7 @@ impl TypeChecker {
                 self.closures.insert(*id, self.outer_variables.clone());
                 self.local = local;
             }
-            Expr::Call(_, e, es) => {
+            Expr::Call(e, es) => {
                 self.expr(e)?;
                 for e in es {
                     self.expr(e)?;
