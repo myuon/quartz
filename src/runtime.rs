@@ -717,17 +717,18 @@ mod tests {
                         let t = fn () {
                             return 10;
                         };
-                        t();
+
+                        return t();
                     };
 
                     let g = fn (input) {
                         return f(input);
                     };
 
-                    g(0);
+                    return g(0);
                 "#,
-                StackData::Nil,
-                None,
+                StackData::HeapAddr(4),
+                Some(HeapData::Int(10)),
             ),
             /*
             (

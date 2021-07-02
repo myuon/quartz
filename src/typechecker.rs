@@ -23,7 +23,11 @@ impl TypeChecker {
     fn expr(&mut self, expr: &Expr) -> Result<()> {
         match expr {
             Expr::Var(v) => {
-                if !self.local.contains(v) && !self.outer_variables.contains(v) {
+                // _から始まるやつはreservedということにして一旦スルーする
+                if !self.local.contains(v)
+                    && !self.outer_variables.contains(v)
+                    && !v.starts_with("_")
+                {
                     self.outer_variables.push(v.clone());
                 }
             }
@@ -36,7 +40,8 @@ impl TypeChecker {
                 self.closures.insert(*id, self.outer_variables.clone());
                 self.local = local;
             }
-            Expr::Call(_, es) => {
+            Expr::Call(e, es) => {
+                self.expr(e)?;
                 for e in es {
                     self.expr(e)?;
                 }

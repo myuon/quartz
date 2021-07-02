@@ -22,7 +22,10 @@ pub enum Expr {
         Vec<String>,
         Vec<Statement>,
     ),
-    Call(String, Vec<Expr>),
+    Call(
+        Box<Expr>, // ここのExprには現状はVarしか入らない
+        Vec<Expr>,
+    ),
     Ref(Box<Expr>),
     Deref(Box<Expr>),
     Loop(Vec<Statement>),

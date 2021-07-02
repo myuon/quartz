@@ -167,183 +167,186 @@ impl CodeGenerator {
 
                 Ok(())
             }
-            Expr::Call(f, args) => {
-                if self.variables.contains_key(&f) {
-                    let addr = self.variables[&f].clone();
+            Expr::Call(caller, args) => match caller.as_ref().clone() {
+                Expr::Var(f) => {
+                    if self.variables.contains_key(&f) {
+                        let addr = self.variables[&f].clone();
 
-                    // push outer_variables
-                    // FIXME: _switchなど一部変数を宣言せずにclosureを使う場面があるのでそのような場面は一旦outer variableは利用しないものと仮定してスルーする
-                    let outer_variables = addr
-                        .closure
-                        .map(|addr| self.closures[&addr].clone())
-                        .unwrap_or(vec![]);
+                        // push outer_variables
+                        // FIXME: _switchなど一部変数を宣言せずにclosureを使う場面があるのでそのような場面は一旦outer variableは利用しないものと仮定してスルーする
+                        let outer_variables = addr
+                            .closure
+                            .map(|addr| self.closures[&addr].clone())
+                            .unwrap_or(vec![]);
 
-                    for v in outer_variables {
-                        self.codes.push(OpCode::Copy(
-                            self.stack_count
-                                - 1
-                                - self
-                                    .variables
-                                    .get(&v)
-                                    .ok_or(anyhow::anyhow!("Variable {} not found", v))?
-                                    .address,
-                        ));
-                        self.stack_count += 1;
-                        self.pop_count += 1;
+                        for v in outer_variables {
+                            self.codes.push(OpCode::Copy(
+                                self.stack_count
+                                    - 1
+                                    - self
+                                        .variables
+                                        .get(&v)
+                                        .ok_or(anyhow::anyhow!("Variable {} not found", v))?
+                                        .address,
+                            ));
+                            self.stack_count += 1;
+                            self.pop_count += 1;
+                        }
+
+                        // push arguments
+                        let arity = args.len();
+                        for a in args {
+                            self.expr(arity, a)?;
+                        }
+
+                        self.codes
+                            .push(OpCode::Call(self.stack_count - 1 - addr.address));
+                        self.after_call(arity);
+
+                        return Ok(());
                     }
 
-                    // push arguments
                     let arity = args.len();
                     for a in args {
                         self.expr(arity, a)?;
                     }
 
-                    self.codes
-                        .push(OpCode::Call(self.stack_count - 1 - addr.address));
-                    self.after_call(arity);
+                    // 特別な組み込み関数(stack, heapに干渉する必要があるものはここで)
 
-                    return Ok(());
+                    // ポインタ経由の代入: _passign(p,v) == (*p = v)
+                    if &f == "_passign" {
+                        ensure!(arity == 2, "Expected 2 arguments but {:?} given", arity);
+                        self.codes.push(OpCode::PAssign);
+                        self.codes.push(OpCode::Push(StackData::Nil));
+                        self.after_call(arity);
+
+                        return Ok(());
+                    }
+
+                    // ヒープ領域の開放
+                    if &f == "_free" {
+                        ensure!(arity == 1, "Expected 1 arguments but {:?} given", arity);
+                        self.codes.push(OpCode::Free);
+                        self.codes.push(OpCode::Push(StackData::Nil));
+                        self.after_call(arity);
+
+                        return Ok(());
+                    }
+
+                    // n-タプルの生成
+                    if &f == "_tuple" {
+                        self.codes.push(OpCode::Tuple(arity));
+                        self.after_call(arity);
+
+                        return Ok(());
+                    }
+
+                    // objectの生成
+                    if &f == "_object" {
+                        ensure!(
+                            arity % 2 == 0,
+                            "Expected even arguments but {:?} given",
+                            arity
+                        );
+                        self.codes.push(OpCode::Object(arity / 2));
+                        self.after_call(arity);
+
+                        return Ok(());
+                    }
+
+                    // 値の取り出し
+                    if &f == "_get" {
+                        ensure!(arity == 2, "Expected {} arguments but {} given", 2, arity);
+                        self.codes.push(OpCode::Get);
+                        self.after_call(arity);
+
+                        return Ok(());
+                    }
+
+                    // 値の上書き
+                    if &f == "_set" {
+                        ensure!(arity == 3, "Expected {} arguments but {} given", 3, arity);
+                        self.codes.push(OpCode::Set);
+                        self.codes.push(OpCode::Push(StackData::Nil));
+                        self.after_call(arity);
+
+                        return Ok(());
+                    }
+
+                    // if (compare and run)
+                    if &f == "_switch" {
+                        ensure!(
+                            arity >= 2,
+                            "Expected {} or more than {} arguments but {} given",
+                            2,
+                            2,
+                            arity
+                        );
+                        self.codes.push(OpCode::Switch(arity - 1));
+                        self.after_call(arity);
+
+                        return Ok(());
+                    }
+
+                    // regular expressions
+                    if &f == "_regex" {
+                        ensure!(arity == 2, "Expected {} arguments but {} given", 2, arity);
+                        self.codes.push(OpCode::Regex);
+                        self.after_call(arity);
+
+                        return Ok(());
+                    }
+
+                    // regular expressions
+                    if &f == "_vec" {
+                        ensure!(arity == 0, "Expected {} arguments but {} given", 0, arity);
+                        self.codes.push(OpCode::Alloc(HeapData::Vec(vec![])));
+                        self.after_call(arity);
+
+                        return Ok(());
+                    }
+
+                    // push to vector
+                    if &f == "_vpush" {
+                        ensure!(arity == 2, "Expected {} arguments but {} given", 2, arity);
+                        self.codes.push(OpCode::VPush);
+                        self.codes.push(OpCode::Push(StackData::Nil));
+                        self.after_call(arity);
+
+                        return Ok(());
+                    }
+
+                    // length of a vector
+                    if &f == "_len" {
+                        ensure!(arity == 1, "Expected {} arguments but {} given", 1, arity);
+                        self.codes.push(OpCode::Len);
+                        self.after_call(arity);
+
+                        return Ok(());
+                    }
+
+                    // slice of string
+                    if &f == "_slice" {
+                        ensure!(arity == 3, "Expected {} arguments but {} given", 3, arity);
+                        self.codes.push(OpCode::Slice);
+                        self.after_call(arity);
+
+                        return Ok(());
+                    }
+
+                    if let Some(addr) = self.ffi_table.get(&f).cloned() {
+                        self.codes.push(OpCode::FFICall(addr));
+
+                        // TODO(safety): arity check
+                        self.after_call(arity);
+
+                        return Ok(());
+                    }
+
+                    bail!("Ident {} not found", f);
                 }
-
-                let arity = args.len();
-                for a in args {
-                    self.expr(arity, a)?;
-                }
-
-                // 特別な組み込み関数(stack, heapに干渉する必要があるものはここで)
-
-                // ポインタ経由の代入: _passign(p,v) == (*p = v)
-                if &f == "_passign" {
-                    ensure!(arity == 2, "Expected 2 arguments but {:?} given", arity);
-                    self.codes.push(OpCode::PAssign);
-                    self.codes.push(OpCode::Push(StackData::Nil));
-                    self.after_call(arity);
-
-                    return Ok(());
-                }
-
-                // ヒープ領域の開放
-                if &f == "_free" {
-                    ensure!(arity == 1, "Expected 1 arguments but {:?} given", arity);
-                    self.codes.push(OpCode::Free);
-                    self.codes.push(OpCode::Push(StackData::Nil));
-                    self.after_call(arity);
-
-                    return Ok(());
-                }
-
-                // n-タプルの生成
-                if &f == "_tuple" {
-                    self.codes.push(OpCode::Tuple(arity));
-                    self.after_call(arity);
-
-                    return Ok(());
-                }
-
-                // objectの生成
-                if &f == "_object" {
-                    ensure!(
-                        arity % 2 == 0,
-                        "Expected even arguments but {:?} given",
-                        arity
-                    );
-                    self.codes.push(OpCode::Object(arity / 2));
-                    self.after_call(arity);
-
-                    return Ok(());
-                }
-
-                // 値の取り出し
-                if &f == "_get" {
-                    ensure!(arity == 2, "Expected {} arguments but {} given", 2, arity);
-                    self.codes.push(OpCode::Get);
-                    self.after_call(arity);
-
-                    return Ok(());
-                }
-
-                // 値の上書き
-                if &f == "_set" {
-                    ensure!(arity == 3, "Expected {} arguments but {} given", 3, arity);
-                    self.codes.push(OpCode::Set);
-                    self.codes.push(OpCode::Push(StackData::Nil));
-                    self.after_call(arity);
-
-                    return Ok(());
-                }
-
-                // if (compare and run)
-                if &f == "_switch" {
-                    ensure!(
-                        arity >= 2,
-                        "Expected {} or more than {} arguments but {} given",
-                        2,
-                        2,
-                        arity
-                    );
-                    self.codes.push(OpCode::Switch(arity - 1));
-                    self.after_call(arity);
-
-                    return Ok(());
-                }
-
-                // regular expressions
-                if &f == "_regex" {
-                    ensure!(arity == 2, "Expected {} arguments but {} given", 2, arity);
-                    self.codes.push(OpCode::Regex);
-                    self.after_call(arity);
-
-                    return Ok(());
-                }
-
-                // regular expressions
-                if &f == "_vec" {
-                    ensure!(arity == 0, "Expected {} arguments but {} given", 0, arity);
-                    self.codes.push(OpCode::Alloc(HeapData::Vec(vec![])));
-                    self.after_call(arity);
-
-                    return Ok(());
-                }
-
-                // push to vector
-                if &f == "_vpush" {
-                    ensure!(arity == 2, "Expected {} arguments but {} given", 2, arity);
-                    self.codes.push(OpCode::VPush);
-                    self.codes.push(OpCode::Push(StackData::Nil));
-                    self.after_call(arity);
-
-                    return Ok(());
-                }
-
-                // length of a vector
-                if &f == "_len" {
-                    ensure!(arity == 1, "Expected {} arguments but {} given", 1, arity);
-                    self.codes.push(OpCode::Len);
-                    self.after_call(arity);
-
-                    return Ok(());
-                }
-
-                // slice of string
-                if &f == "_slice" {
-                    ensure!(arity == 3, "Expected {} arguments but {} given", 3, arity);
-                    self.codes.push(OpCode::Slice);
-                    self.after_call(arity);
-
-                    return Ok(());
-                }
-
-                if let Some(addr) = self.ffi_table.get(&f).cloned() {
-                    self.codes.push(OpCode::FFICall(addr));
-
-                    // TODO(safety): arity check
-                    self.after_call(arity);
-
-                    return Ok(());
-                }
-
-                bail!("Ident {} not found", f);
-            }
+                caller => bail!("Non-variable caller found: {:?}", caller),
+            },
             Expr::Ref(expr) => match expr.as_ref() {
                 Expr::Var(v) => {
                     let p = self
@@ -636,14 +639,16 @@ mod tests {
                         Return(2),
                     ])),
                     Alloc(HeapData::Closure(vec![
-                        Call(0),
+                        Copy(1),
+                        Call(1),
                         Push(StackData::Nil),
-                        Return(2),
+                        Return(3),
                     ])),
                     Alloc(HeapData::Int(10)),
-                    Call(1),
+                    Copy(2),
+                    Call(2),
                     Push(StackData::Nil),
-                    Return(6),
+                    Return(7),
                 ],
             ),
         ];
