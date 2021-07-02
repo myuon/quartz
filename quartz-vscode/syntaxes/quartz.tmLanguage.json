@@ -1,32 +1,39 @@
 {
-	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
-	"name": "quartz",
-	"patterns": [
-		{
-			"include": "#keywords"
-		},
-		{
-			"include": "#strings"
-		}
-	],
-	"repository": {
-		"keywords": {
-			"patterns": [{
-				"name": "keyword.control.quartz",
-				"match": "\\b(if|while|for|return)\\b"
-			}]
-		},
-		"strings": {
-			"name": "string.quoted.double.quartz",
-			"begin": "\"",
-			"end": "\"",
-			"patterns": [
-				{
-					"name": "constant.character.escape.quartz",
-					"match": "\\\\."
-				}
-			]
-		}
-	},
-	"scopeName": ""
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "quartz",
+  "patterns": [
+    { "include": "#comment" },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#strings"
+    }
+  ],
+  "repository": {
+    "comment": {
+      "name": "comment.line.double-slash",
+      "match": "//.*"
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.quartz",
+          "match": "\\b(fn|let|return)\\b"
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.quartz",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.quartz",
+          "match": "\\\\."
+        }
+      ]
+    }
+  },
+  "scopeName": "source.quartz"
 }
