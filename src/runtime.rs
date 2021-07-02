@@ -380,7 +380,11 @@ impl Runtime {
                             },
                             t => bail!("Expected heap address but found {:?}", t),
                         },
-                        t => bail!("Expected stack address but found {:?}", t),
+                        t => bail!(
+                            "Expected stack address but found {:?}\n{}",
+                            t,
+                            self.show_error()
+                        ),
                     }
                 }
                 OpCode::Regex => {
