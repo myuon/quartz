@@ -272,7 +272,7 @@ mod tests {
                         vec![
                             Statement::Let("y".to_string(), Expr::Lit(Literal::Int(10))),
                             Statement::Expr(Expr::Call(
-                                0,
+                                71,
                                 Box::new(Expr::Var("_assign".to_string())),
                                 vec![Expr::Var("y".to_string()), Expr::Lit(Literal::Int(20))],
                             )),
@@ -297,7 +297,7 @@ mod tests {
                             vec![],
                             vec![
                                 (Statement::Expr(Expr::Call(
-                                    0,
+                                    39,
                                     Box::new(Expr::Var("f".to_string())),
                                     vec![
                                         Expr::Lit(Literal::Int(10)),
@@ -319,7 +319,7 @@ mod tests {
                         ),
                     )),
                     (Statement::Expr(Expr::Call(
-                        0,
+                        191,
                         Box::new(Expr::Var("main".to_string())),
                         vec![],
                     ))),
@@ -352,7 +352,7 @@ mod tests {
                 Module(vec![Statement::ReturnIf(
                     Expr::Lit(Literal::Int(10)),
                     Expr::Call(
-                        0,
+                        13,
                         Box::new(Expr::Var("_eq".to_string())),
                         vec![Expr::Var("x".to_string()), Expr::Var("y".to_string())],
                     ),

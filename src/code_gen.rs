@@ -16,17 +16,18 @@ struct VarInfo {
 }
 
 #[derive(Debug)]
-struct CodeGenerator {
+pub struct CodeGenerator {
     variables: HashMap<String, VarInfo>,
     closures: HashMap<usize, Vec<String>>,
     local: HashSet<String>,
-    codes: Vec<OpCode>,
     ffi_table: HashMap<String, usize>,
     stack_count: usize,
     pop_count: usize,
     non_local_variables: Vec<String>, // for closure
     base_address: usize,              // base address for closure
     is_toplevel: bool,
+    pub codes: Vec<OpCode>,
+    pub source_map: HashMap<usize, usize>,
 }
 
 impl CodeGenerator {
@@ -45,6 +46,7 @@ impl CodeGenerator {
             non_local_variables: vec![],
             base_address: 0,
             is_toplevel: true,
+            source_map: HashMap::new(),
         }
     }
 
@@ -101,6 +103,7 @@ impl CodeGenerator {
                 self.codes
                     .push(OpCode::Alloc(HeapData::Closure(generator.codes)));
                 self.closures.insert(id, generator.non_local_variables);
+                self.source_map.extend(generator.source_map);
             }
         }
         self.stack_count += 1;
@@ -167,7 +170,7 @@ impl CodeGenerator {
 
                 Ok(())
             }
-            Expr::Call(_, caller, args) => match caller.as_ref().clone() {
+            Expr::Call(position, caller, args) => match caller.as_ref().clone() {
                 Expr::Var(f) => {
                     if self.variables.contains_key(&f) {
                         let addr = self.variables[&f].clone();
@@ -199,6 +202,7 @@ impl CodeGenerator {
                             self.expr(arity, a)?;
                         }
 
+                        self.source_map.insert(self.codes.len(), position);
                         self.codes
                             .push(OpCode::Call(self.stack_count - 1 - addr.address));
                         self.after_call(arity);
