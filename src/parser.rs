@@ -52,6 +52,23 @@ impl Parser {
         }
     }
 
+    fn ident_with_position(&mut self) -> Result<(String, usize)> {
+        match &self.input[self.position] {
+            Token {
+                lexeme: Lexeme::Ident(t),
+                position,
+            } => {
+                self.position += 1;
+
+                Ok((t.to_string(), *position))
+            }
+            _ => bail!(
+                "Expected an ident but found {:?}",
+                &self.input[self.position..]
+            ),
+        }
+    }
+
     fn literal(&mut self) -> Result<Literal> {
         match &self.input[self.position].lexeme {
             Lexeme::Int(n) => {
@@ -161,7 +178,7 @@ impl Parser {
             })
             .or_else(|_| -> Result<Expr> {
                 // var or fun call
-                let v = self.ident()?;
+                let (v, position) = self.ident_with_position()?;
 
                 match self.expect_lexeme(Lexeme::LParen) {
                     Ok(_) => {
@@ -169,7 +186,7 @@ impl Parser {
                         let args = self.many_exprs()?;
                         self.expect_lexeme(Lexeme::RParen)?;
 
-                        Ok(Expr::Call(Box::new(Expr::Var(v)), args))
+                        Ok(Expr::Call(position, Box::new(Expr::Var(v)), args))
                     }
                     Err(_) => {
                         // var
@@ -255,6 +272,7 @@ mod tests {
                         vec![
                             Statement::Let("y".to_string(), Expr::Lit(Literal::Int(10))),
                             Statement::Expr(Expr::Call(
+                                0,
                                 Box::new(Expr::Var("_assign".to_string())),
                                 vec![Expr::Var("y".to_string()), Expr::Lit(Literal::Int(20))],
                             )),
@@ -279,6 +297,7 @@ mod tests {
                             vec![],
                             vec![
                                 (Statement::Expr(Expr::Call(
+                                    0,
                                     Box::new(Expr::Var("f".to_string())),
                                     vec![
                                         Expr::Lit(Literal::Int(10)),
@@ -299,7 +318,11 @@ mod tests {
                             ],
                         ),
                     )),
-                    (Statement::Expr(Expr::Call(Box::new(Expr::Var("main".to_string())), vec![]))),
+                    (Statement::Expr(Expr::Call(
+                        0,
+                        Box::new(Expr::Var("main".to_string())),
+                        vec![],
+                    ))),
                 ]),
             ),
             (
@@ -329,6 +352,7 @@ mod tests {
                 Module(vec![Statement::ReturnIf(
                     Expr::Lit(Literal::Int(10)),
                     Expr::Call(
+                        0,
                         Box::new(Expr::Var("_eq".to_string())),
                         vec![Expr::Var("x".to_string()), Expr::Var("y".to_string())],
                     ),

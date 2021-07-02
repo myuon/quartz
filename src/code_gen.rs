@@ -167,7 +167,7 @@ impl CodeGenerator {
 
                 Ok(())
             }
-            Expr::Call(caller, args) => match caller.as_ref().clone() {
+            Expr::Call(_, caller, args) => match caller.as_ref().clone() {
                 Expr::Var(f) => {
                     if self.variables.contains_key(&f) {
                         let addr = self.variables[&f].clone();

@@ -23,6 +23,7 @@ pub enum Expr {
         Vec<Statement>,
     ),
     Call(
+        usize,     // position of fn
         Box<Expr>, // ここのExprには現状はVarしか入らない
         Vec<Expr>,
     ),
