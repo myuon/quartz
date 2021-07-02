@@ -348,6 +348,10 @@ impl CodeGenerator {
             match stmt {
                 // 関数宣言はstaticなものにコンパイルする必要があるのでここで特別扱いする
                 Statement::Let(x, Expr::Fun(id, args, body)) => {
+                    if !self.is_toplevel {
+                        bail!("A function in a function is not supported");
+                    }
+
                     let mut generator =
                         CodeGenerator::new(self.ffi_table.clone(), self.closures.clone());
                     generator.variables = self.variables.clone();
