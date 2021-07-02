@@ -10,9 +10,13 @@ use crate::{
 #[derive(Debug, Clone)]
 struct VarInfo {
     address: usize,
-    // 現状は関数をletによって束縛しないとcallできないのでとりあえず変数の情報として覚えておく
-    // 実際は型情報にIDを含めそこから引くべき
-    closure: Option<usize>,
+}
+
+#[derive(Debug, Clone)]
+struct FunctionInfo {
+    static_addr: usize,
+    // 型推論時にどうにかできるので本来は不要
+    closure_id: usize,
 }
 
 #[derive(Debug)]
@@ -28,6 +32,7 @@ struct CodeGenerator {
     base_address: usize,              // base address for closure
     is_toplevel: bool,
     static_area: Vec<HeapData>,
+    functions: HashMap<String, FunctionInfo>,
 }
 
 impl CodeGenerator {
@@ -47,6 +52,7 @@ impl CodeGenerator {
             base_address: 0,
             is_toplevel: true,
             static_area: vec![],
+            functions: HashMap::new(),
         }
     }
 
@@ -67,44 +73,8 @@ impl CodeGenerator {
             DataType::String(s) => {
                 self.codes.push(OpCode::Alloc(HeapData::String(s)));
             }
-            DataType::Closure(id, args, body) => {
-                if !self.is_toplevel && !self.closures[&id].is_empty() {
-                    bail!(
-                        "Closures with outer variables are not supported!: {:?} in closure at {}",
-                        self.closures[&id],
-                        id
-                    );
-                }
-
-                let mut generator =
-                    CodeGenerator::new(self.ffi_table.clone(), self.closures.clone());
-                generator.variables = self.variables.clone();
-                generator.closures = self.closures.clone();
-                generator.stack_count = self.stack_count;
-                generator.base_address = self.stack_count;
-                generator.non_local_variables = self.closures[&id].clone();
-                generator.is_toplevel = false;
-
-                let arity = args.len();
-                for a in args {
-                    generator.local.insert(a.clone());
-                    generator.variables.insert(
-                        a,
-                        VarInfo {
-                            address: generator.stack_count,
-                            closure: None,
-                        },
-                    );
-                    generator.stack_count += 1;
-                }
-
-                generator.statements(arity, body, true)?;
-
-                self.closures.insert(id, generator.non_local_variables);
-
-                let addr = self.static_area.len();
-                self.static_area.push(HeapData::Closure(generator.codes));
-                self.codes.push(OpCode::Push(StackData::StaticAddr(addr)));
+            DataType::Closure(_, _, _) => {
+                bail!("Function expr is not supported");
             }
         }
         self.stack_count += 1;
@@ -166,21 +136,14 @@ impl CodeGenerator {
 
                 Ok(())
             }
-            Expr::Fun(pos, args, body) => {
-                self.alloc(DataType::Closure(pos, args, body))?;
-
-                Ok(())
-            }
+            Expr::Fun(_, _, _) => todo!(),
             Expr::Call(f, args) => {
-                if self.variables.contains_key(&f) {
-                    let addr = self.variables[&f].clone();
+                if self.functions.contains_key(&f) {
+                    let addr = self.functions[&f].clone();
 
                     // push outer_variables
                     // FIXME: _switchなど一部変数を宣言せずにclosureを使う場面があるのでそのような場面は一旦outer variableは利用しないものと仮定してスルーする
-                    let outer_variables = addr
-                        .closure
-                        .map(|addr| self.closures[&addr].clone())
-                        .unwrap_or(vec![]);
+                    let outer_variables = self.closures[&addr.closure_id].clone();
 
                     for v in outer_variables {
                         self.codes.push(OpCode::Copy(
@@ -202,8 +165,7 @@ impl CodeGenerator {
                         self.expr(arity, a)?;
                     }
 
-                    self.codes
-                        .push(OpCode::Call(self.stack_count - 1 - addr.address));
+                    self.codes.push(OpCode::Call(addr.static_addr));
                     self.after_call(arity);
 
                     return Ok(());
@@ -346,7 +308,7 @@ impl CodeGenerator {
                     return Ok(());
                 }
 
-                bail!("Ident {} not found", f);
+                bail!("Ident {} not found in call   ", f);
             }
             Expr::Ref(expr) => match expr.as_ref() {
                 Expr::Var(v) => {
@@ -384,16 +346,51 @@ impl CodeGenerator {
         self.pop_count = 0;
         for stmt in stmts {
             match stmt {
+                // 関数宣言はstaticなものにコンパイルする必要があるのでここで特別扱いする
+                Statement::Let(x, Expr::Fun(id, args, body)) => {
+                    let mut generator =
+                        CodeGenerator::new(self.ffi_table.clone(), self.closures.clone());
+                    generator.variables = self.variables.clone();
+                    generator.closures = self.closures.clone();
+                    generator.stack_count = self.stack_count;
+                    generator.base_address = self.stack_count;
+                    generator.non_local_variables = self.closures[&id].clone();
+                    generator.is_toplevel = false;
+                    generator.functions = self.functions.clone();
+
+                    let arity = args.len();
+                    for a in args {
+                        generator.local.insert(a.clone());
+                        generator.variables.insert(
+                            a,
+                            VarInfo {
+                                address: generator.stack_count,
+                            },
+                        );
+                        generator.stack_count += 1;
+                    }
+
+                    generator.statements(arity, body, true)?;
+
+                    self.closures.insert(id, generator.non_local_variables);
+                    self.functions.extend(generator.functions);
+
+                    let addr = self.static_area.len();
+                    self.static_area.push(HeapData::Closure(generator.codes));
+                    self.functions.insert(
+                        x,
+                        FunctionInfo {
+                            static_addr: addr,
+                            closure_id: id,
+                        },
+                    );
+                }
                 Statement::Let(x, e) => {
                     self.expr(arity, e.clone())?;
                     self.variables.insert(
                         x.clone(),
                         VarInfo {
                             address: self.stack_count - 1,
-                            closure: match e {
-                                Expr::Fun(t, _, _) => Some(t),
-                                _ => None,
-                            },
                         },
                     );
                     self.local.insert(x.clone());
@@ -491,11 +488,10 @@ mod tests {
                 r#"let f = fn(a) { return a; }; f(1);"#,
                 (
                     vec![
-                        Push(StackData::StaticAddr(0)),
                         Alloc(HeapData::Int(1)),
-                        Call(1),
+                        Call(0),
                         Push(StackData::Nil),
-                        Return(3),
+                        Return(2),
                     ],
                     vec![HeapData::Closure(vec![Copy(0), Return(2)])],
                 ),
@@ -520,15 +516,14 @@ mod tests {
                 (
                     vec![
                         Alloc(HeapData::Int(10)),
-                        Push(StackData::StaticAddr(0)),
+                        Copy(0),
                         Copy(1),
                         Copy(2),
                         Copy(3),
                         Copy(4),
-                        Copy(5),
-                        Call(5),
+                        Call(0),
                         Push(StackData::Nil),
-                        Return(4),
+                        Return(3),
                     ],
                     vec![HeapData::Closure(vec![Copy(4), Return(6)])],
                 ),
@@ -536,12 +531,7 @@ mod tests {
             (
                 r#"let x = 0; let f = fn (a) { return *a; };"#,
                 (
-                    vec![
-                        Alloc(HeapData::Int(0)),
-                        Push(StackData::StaticAddr(0)),
-                        Push(StackData::Nil),
-                        Return(3),
-                    ],
+                    vec![Alloc(HeapData::Int(0)), Push(StackData::Nil), Return(2)],
                     vec![HeapData::Closure(vec![Copy(0), Deref, Return(2)])],
                 ),
             ),
@@ -637,16 +627,15 @@ mod tests {
                     vec![
                         Alloc(HeapData::Int(0)),
                         Alloc(HeapData::Int(0)),
-                        Push(StackData::StaticAddr(0)),
                         Alloc(HeapData::Int(0)),
-                        Copy(2),
-                        Copy(4),
-                        Alloc(HeapData::Int(0)),
+                        Copy(1),
+                        Copy(3),
                         Alloc(HeapData::Int(0)),
                         Alloc(HeapData::Int(0)),
-                        Call(6),
+                        Alloc(HeapData::Int(0)),
+                        Call(0),
                         Push(StackData::Nil),
-                        Return(8),
+                        Return(7),
                     ],
                     vec![HeapData::Closure(vec![
                         Alloc(HeapData::Int(0)),
@@ -670,18 +659,15 @@ mod tests {
                 "#,
                 (
                     vec![
-                        Push(StackData::StaticAddr(0)),
-                        Push(StackData::StaticAddr(1)),
-                        Push(StackData::StaticAddr(2)),
                         Alloc(HeapData::Int(10)),
-                        Call(1),
+                        Call(2),
                         Push(StackData::Nil),
-                        Return(6),
+                        Return(3),
                     ],
                     vec![
                         HeapData::Closure(vec![Push(StackData::Nil), Return(1)]),
                         HeapData::Closure(vec![Call(0), Push(StackData::Nil), Return(2)]),
-                        HeapData::Closure(vec![Call(0), Push(StackData::Nil), Return(2)]),
+                        HeapData::Closure(vec![Call(1), Push(StackData::Nil), Return(2)]),
                     ],
                 ),
             ),
@@ -693,7 +679,7 @@ mod tests {
             let closures = typechecker(&m).unwrap();
 
             let result = gen_code(m, ffi_table, closures);
-            assert!(result.is_ok(), "{:?} {:?}", result, c.0);
+            assert!(result.is_ok(), "{:?} {}", result, c.0);
             assert_eq!(result.unwrap(), c.1, "{}", c.0);
         }
     }
