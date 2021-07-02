@@ -58,3 +58,12 @@ pub enum StackData {
     HeapAddr(usize),  // in normal order
     StackAddr(usize), // in reverse order, 0-origin, excluding itself, for addresses of local variables
 }
+
+impl StackData {
+    pub fn as_heap_addr(&self) -> Option<usize> {
+        match self {
+            &Self::HeapAddr(u) => Some(u),
+            _ => None,
+        }
+    }
+}

@@ -30,6 +30,55 @@ impl Runtime {
         }
     }
 
+    fn show_error(&self) -> String {
+        format!(
+            "= stack =\n{}\n= program =\n{}\n",
+            self.show_error_in_stack(),
+            self.show_error_in_program()
+        )
+    }
+
+    fn show_error_in_stack(&self) -> String {
+        self.stack
+            .iter()
+            .enumerate()
+            .map(|(i, v)| {
+                format!(
+                    "{} | {:?}{}\n",
+                    self.stack.len() - 1 - i,
+                    v,
+                    v.as_heap_addr()
+                        .map(|p| format!("  => {:?}", self.heap[p]))
+                        .unwrap_or(String::new())
+                )
+            })
+            .rev()
+            .take(10)
+            .collect::<Vec<_>>()
+            .concat()
+    }
+
+    fn show_error_in_program(&self) -> String {
+        let pc = self.pc;
+        let line_no_starts_at = pc.saturating_sub(10);
+        self.program[line_no_starts_at..(pc + 10).min(self.program.len())]
+            .iter()
+            .enumerate()
+            .map(|(i, v)| {
+                format!(
+                    "{}{:?}\n",
+                    if pc == i + line_no_starts_at {
+                        format!("{:?} | ", pc)
+                    } else {
+                        " ".repeat(format!("{:?}", pc).len() + 3)
+                    },
+                    v,
+                )
+            })
+            .collect::<Vec<_>>()
+            .concat()
+    }
+
     fn push(&mut self, val: StackData) -> usize {
         let u = self.stack.len();
         self.stack.push(val);
@@ -221,7 +270,12 @@ impl Runtime {
                             self.program.extend(body);
                             continue;
                         }
-                        r => bail!("Expected a closure but found {:?}", r),
+                        r => bail!(
+                            "Expected a closure but found {:?} at {:?}\n\n{}",
+                            r,
+                            self.pc,
+                            self.show_error()
+                        ),
                     }
                 }
                 OpCode::PAssign => {
