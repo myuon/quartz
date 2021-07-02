@@ -136,7 +136,7 @@ impl CodeGenerator {
 
                 Ok(())
             }
-            Expr::Fun(_, _, _) => todo!(),
+            Expr::Fun(_, _, _) => bail!("Function expression is not supported"),
             Expr::Call(f, args) => {
                 if self.functions.contains_key(&f) {
                     let addr = self.functions[&f].clone();

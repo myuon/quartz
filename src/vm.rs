@@ -67,4 +67,11 @@ impl StackData {
             _ => None,
         }
     }
+
+    pub fn as_static_addr(&self) -> Option<usize> {
+        match self {
+            &StackData::StaticAddr(u) => Some(u),
+            _ => None,
+        }
+    }
 }
