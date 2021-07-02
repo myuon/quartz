@@ -790,7 +790,7 @@ mod tests {
 
             let mut runtime = Runtime::new(program, ffi_functions.clone());
             let result = runtime.execute();
-            assert!(result.is_ok(), "{:?} {:?}", result, c.0);
+            assert!(result.is_ok(), "{:?} {}", result, c.0);
 
             let result = runtime.pop(1);
             assert_eq!(result, c.1, "{:?}", c.0);

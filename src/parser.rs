@@ -169,7 +169,7 @@ impl Parser {
                         let args = self.many_exprs()?;
                         self.expect_lexeme(Lexeme::RParen)?;
 
-                        Ok(Expr::Call(Box::new(Expr::Var(v)), args))
+                        Ok(Expr::Call(v, args))
                     }
                     Err(_) => {
                         // var
@@ -255,7 +255,7 @@ mod tests {
                         vec![
                             Statement::Let("y".to_string(), Expr::Lit(Literal::Int(10))),
                             Statement::Expr(Expr::Call(
-                                Box::new(Expr::Var("_assign".to_string())),
+                                "_assign".to_string(),
                                 vec![Expr::Var("y".to_string()), Expr::Lit(Literal::Int(20))],
                             )),
                             Statement::Return(Expr::Var("y".to_string())),
@@ -279,7 +279,7 @@ mod tests {
                             vec![],
                             vec![
                                 (Statement::Expr(Expr::Call(
-                                    Box::new(Expr::Var("f".to_string())),
+                                    "f".to_string(),
                                     vec![
                                         Expr::Lit(Literal::Int(10)),
                                         Expr::Lit(Literal::Int(20)),
@@ -299,7 +299,7 @@ mod tests {
                             ],
                         ),
                     )),
-                    (Statement::Expr(Expr::Call(Box::new(Expr::Var("main".to_string())), vec![]))),
+                    (Statement::Expr(Expr::Call("main".to_string(), vec![]))),
                 ]),
             ),
             (
@@ -329,7 +329,7 @@ mod tests {
                 Module(vec![Statement::ReturnIf(
                     Expr::Lit(Literal::Int(10)),
                     Expr::Call(
-                        Box::new(Expr::Var("_eq".to_string())),
+                        "_eq".to_string(),
                         vec![Expr::Var("x".to_string()), Expr::Var("y".to_string())],
                     ),
                 )]),
