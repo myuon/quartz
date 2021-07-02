@@ -2,7 +2,8 @@
   "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
   "name": "quartz",
   "patterns": [
-    { "include": "#comment" },
+    { "include": "#comments" },
+    { "include": "#constants" },
     {
       "include": "#keywords"
     },
@@ -11,15 +12,31 @@
     }
   ],
   "repository": {
-    "comment": {
+    "comments": {
       "name": "comment.line.double-slash",
       "match": "//.*"
+    },
+    "constants": {
+      "patterns": [
+        {
+          "name": "constant.numeric.quartz",
+          "match": "[0-9]+"
+        }
+      ]
     },
     "keywords": {
       "patterns": [
         {
           "name": "keyword.control.quartz",
-          "match": "\\b(fn|let|return)\\b"
+          "match": "\\b(return)\\b"
+        },
+        {
+          "name": "keyword.operator.quartz",
+          "match": "\\b(=|;)\\b"
+        },
+        {
+          "name": "keyword.other.quartz",
+          "match": "\\b(fn|let)\\b"
         }
       ]
     },
