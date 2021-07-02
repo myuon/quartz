@@ -1,27 +1,24 @@
-//let lexeme_fn = _object("lexeme", "fn");
-//let lexeme_let = _object("lexeme", "let");
-//let lexeme_return = _object("lexeme", "return");
-//let lexeme_lparen = _object("lexeme", "lparen");
-//let lexeme_rparen = _object("lexeme", "rparen");
+let lexeme_fn = _object("lexeme", "fn");
+let lexeme_let = _object("lexeme", "let");
+let lexeme_return = _object("lexeme", "return");
+let lexeme_lparen = _object("lexeme", "lparen");
+let lexeme_rparen = _object("lexeme", "rparen");
 
-let lexer = fn (input) {
-  let match_space_pattern = fn (input) {
-    return _regex("^\s+", input);
-  };
-
-  let tokens = _vec();
-
-  let position = 0;
-  let is_end = fn () {
-    return _eq(position, _len(input));
-  };
-
-  is_end();
-
-  return tokens;
+let lexer = _object(
+  "input", "",
+  "tokens", _vec(),
+  "position", 0,
+);
+let lexer_is_end = fn (lexer) {
+  return _eq(_get(lexer, "position"), _len(_get(lexer, "input")));
+};
+let lexer_run = fn (lexer, input) {
+  _set(lexer, "input", input);
 };
 
 let main = fn (input) {
+  lexer_run(lexer, input);
+  _print(lexer);
   return lexer(input);
 };
 
