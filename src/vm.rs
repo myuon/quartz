@@ -57,6 +57,7 @@ pub enum StackData {
     Nil,
     HeapAddr(usize),  // in normal order
     StackAddr(usize), // in reverse order, 0-origin, excluding itself, for addresses of local variables
+    StaticAddr(usize),
 }
 
 impl StackData {

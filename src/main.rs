@@ -108,10 +108,8 @@ fn main() -> Result<()> {
     let module = run_parser(&buffer)?;
     let closures = typechecker(&module)?;
 
-    println!(
-        "{:?}",
-        execute(gen_code(module, ffi_table, closures)?, ffi_functions)
-    );
+    let (program, static_area) = gen_code(module, ffi_table, closures)?;
+    println!("{:?}", execute(program, static_area, ffi_functions));
 
     Ok(())
 }

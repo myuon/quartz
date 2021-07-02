@@ -11,19 +11,24 @@ struct Runtime {
     program: Vec<OpCode>,
     stack: Vec<StackData>,
     heap: Vec<HeapData>,
+    static_area: Vec<HeapData>,
     call_stack: Vec<usize>,
     ffi_functions: Vec<FFIFunction>,
     labels: HashMap<String, usize>,
 }
 
 impl Runtime {
-    pub fn new(program: Vec<OpCode>, ffi_functions: Vec<FFIFunction>) -> Runtime {
+    pub fn new(
+        program: Vec<OpCode>,
+        static_area: Vec<HeapData>,
+        ffi_functions: Vec<FFIFunction>,
+    ) -> Runtime {
         Runtime {
             pc: 0,
             program,
-            // 関数内部の実行時には先頭に関数へのアドレスが入っているという規約のため、main関数内ではmainへの関数ポインタを1つ置いておく(使うことはないのでnilにしておく)
             stack: vec![],
             heap: vec![],
+            static_area,
             call_stack: vec![],
             ffi_functions,
             labels: HashMap::new(),
@@ -473,8 +478,12 @@ impl Runtime {
     }
 }
 
-pub fn execute(program: Vec<OpCode>, ffi_functions: Vec<FFIFunction>) -> Result<StackData> {
-    let mut runtime = Runtime::new(program, ffi_functions);
+pub fn execute(
+    program: Vec<OpCode>,
+    static_area: Vec<HeapData>,
+    ffi_functions: Vec<FFIFunction>,
+) -> Result<StackData> {
+    let mut runtime = Runtime::new(program, static_area, ffi_functions);
     runtime.execute()?;
 
     Ok(runtime.pop(1))
@@ -786,9 +795,9 @@ mod tests {
             let program = gen_code(m, ffi_table.clone(), closures.unwrap());
             assert!(program.is_ok(), "{:?} {:?}", program, c.0);
 
-            let program = program.unwrap();
+            let (program, static_area) = program.unwrap();
 
-            let mut runtime = Runtime::new(program, ffi_functions.clone());
+            let mut runtime = Runtime::new(program, static_area, ffi_functions.clone());
             let result = runtime.execute();
             assert!(result.is_ok(), "{:?} {}", result, c.0);
 
@@ -904,8 +913,8 @@ mod tests {
         for case in cases {
             let m = run_parser(case.0).unwrap();
             let closures = typechecker(&m).unwrap();
-            let program = gen_code(m, ffi_table.clone(), closures).unwrap();
-            let mut interpreter = Runtime::new(program, ffi_functions.clone());
+            let (program, static_area) = gen_code(m, ffi_table.clone(), closures).unwrap();
+            let mut interpreter = Runtime::new(program, static_area, ffi_functions.clone());
             interpreter.execute().unwrap();
             assert_eq!(interpreter.stack, case.1);
             assert_eq!(interpreter.heap, case.2);

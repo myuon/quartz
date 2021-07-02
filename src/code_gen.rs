@@ -27,6 +27,7 @@ struct CodeGenerator {
     non_local_variables: Vec<String>, // for closure
     base_address: usize,              // base address for closure
     is_toplevel: bool,
+    static_area: Vec<HeapData>,
 }
 
 impl CodeGenerator {
@@ -45,6 +46,7 @@ impl CodeGenerator {
             non_local_variables: vec![],
             base_address: 0,
             is_toplevel: true,
+            static_area: vec![],
         }
     }
 
@@ -98,9 +100,11 @@ impl CodeGenerator {
 
                 generator.statements(arity, body, true)?;
 
-                self.codes
-                    .push(OpCode::Alloc(HeapData::Closure(generator.codes)));
                 self.closures.insert(id, generator.non_local_variables);
+
+                let addr = self.static_area.len();
+                self.static_area.push(HeapData::Closure(generator.codes));
+                self.codes.push(OpCode::Push(StackData::StaticAddr(addr)));
             }
         }
         self.stack_count += 1;
@@ -433,11 +437,11 @@ pub fn gen_code(
     module: Module,
     ffi_table: HashMap<String, usize>,
     closures: HashMap<usize, Vec<String>>,
-) -> Result<Vec<OpCode>> {
+) -> Result<(Vec<OpCode>, Vec<HeapData>)> {
     let mut generator = CodeGenerator::new(ffi_table, closures);
     generator.gen_code(module)?;
 
-    Ok(generator.codes)
+    Ok((generator.codes, generator.static_area))
 }
 
 #[cfg(test)]
@@ -453,101 +457,128 @@ mod tests {
         let cases = vec![
             (
                 r#"let x = 10; let y = x; return y;"#,
-                vec![Alloc(HeapData::Int(10)), Copy(0), Copy(0), Return(3)],
+                (
+                    vec![Alloc(HeapData::Int(10)), Copy(0), Copy(0), Return(3)],
+                    vec![],
+                ),
             ),
             (
                 r#"let x = 10; return &x;"#,
-                vec![
-                    Alloc(HeapData::Int(10)),
-                    Push(StackData::StackAddr(0)),
-                    Return(2),
-                ],
+                (
+                    vec![
+                        Alloc(HeapData::Int(10)),
+                        Push(StackData::StackAddr(0)),
+                        Return(2),
+                    ],
+                    vec![],
+                ),
             ),
             (
                 r#"1; 2; 3; 4;"#,
-                vec![
-                    Alloc(HeapData::Int(1)),
-                    Alloc(HeapData::Int(2)),
-                    Alloc(HeapData::Int(3)),
-                    Alloc(HeapData::Int(4)),
-                    Push(StackData::Nil),
-                    Return(5),
-                ],
+                (
+                    vec![
+                        Alloc(HeapData::Int(1)),
+                        Alloc(HeapData::Int(2)),
+                        Alloc(HeapData::Int(3)),
+                        Alloc(HeapData::Int(4)),
+                        Push(StackData::Nil),
+                        Return(5),
+                    ],
+                    vec![],
+                ),
             ),
             (
                 r#"let f = fn(a) { return a; }; f(1);"#,
-                vec![
-                    Alloc(HeapData::Closure(vec![Copy(0), Return(2)])),
-                    Alloc(HeapData::Int(1)),
-                    Call(1),
-                    Push(StackData::Nil),
-                    Return(3),
-                ],
+                (
+                    vec![
+                        Push(StackData::StaticAddr(0)),
+                        Alloc(HeapData::Int(1)),
+                        Call(1),
+                        Push(StackData::Nil),
+                        Return(3),
+                    ],
+                    vec![HeapData::Closure(vec![Copy(0), Return(2)])],
+                ),
             ),
             (
                 r#"let x = 0; _passign(&x, 10); return x;"#,
-                vec![
-                    Alloc(HeapData::Int(0)),
-                    Push(StackData::StackAddr(0)),
-                    Alloc(HeapData::Int(10)),
-                    PAssign,
-                    Push(StackData::Nil),
-                    Copy(1),
-                    Return(3),
-                ],
+                (
+                    vec![
+                        Alloc(HeapData::Int(0)),
+                        Push(StackData::StackAddr(0)),
+                        Alloc(HeapData::Int(10)),
+                        PAssign,
+                        Push(StackData::Nil),
+                        Copy(1),
+                        Return(3),
+                    ],
+                    vec![],
+                ),
             ),
             (
                 r#"let x = 10; let f = fn (a,b,c,d,e) { return a; }; f(x,x,x,x,x);"#,
-                vec![
-                    Alloc(HeapData::Int(10)),
-                    Alloc(HeapData::Closure(vec![Copy(4), Return(6)])),
-                    Copy(1),
-                    Copy(2),
-                    Copy(3),
-                    Copy(4),
-                    Copy(5),
-                    Call(5),
-                    Push(StackData::Nil),
-                    Return(4),
-                ],
+                (
+                    vec![
+                        Alloc(HeapData::Int(10)),
+                        Push(StackData::StaticAddr(0)),
+                        Copy(1),
+                        Copy(2),
+                        Copy(3),
+                        Copy(4),
+                        Copy(5),
+                        Call(5),
+                        Push(StackData::Nil),
+                        Return(4),
+                    ],
+                    vec![HeapData::Closure(vec![Copy(4), Return(6)])],
+                ),
             ),
             (
                 r#"let x = 0; let f = fn (a) { return *a; };"#,
-                vec![
-                    Alloc(HeapData::Int(0)),
-                    Alloc(HeapData::Closure(vec![Copy(0), Deref, Return(2)])),
-                    Push(StackData::Nil),
-                    Return(3),
-                ],
+                (
+                    vec![
+                        Alloc(HeapData::Int(0)),
+                        Push(StackData::StaticAddr(0)),
+                        Push(StackData::Nil),
+                        Return(3),
+                    ],
+                    vec![HeapData::Closure(vec![Copy(0), Deref, Return(2)])],
+                ),
             ),
             (
                 r#"let x = _tuple(1, 2, 3, 4, 5); return _get(x, 3);"#,
-                vec![
-                    Alloc(HeapData::Int(1)),
-                    Alloc(HeapData::Int(2)),
-                    Alloc(HeapData::Int(3)),
-                    Alloc(HeapData::Int(4)),
-                    Alloc(HeapData::Int(5)),
-                    Tuple(5),
-                    Copy(0),
-                    Alloc(HeapData::Int(3)),
-                    Get,
-                    Return(2),
-                ],
+                (
+                    vec![
+                        Alloc(HeapData::Int(1)),
+                        Alloc(HeapData::Int(2)),
+                        Alloc(HeapData::Int(3)),
+                        Alloc(HeapData::Int(4)),
+                        Alloc(HeapData::Int(5)),
+                        Tuple(5),
+                        Copy(0),
+                        Alloc(HeapData::Int(3)),
+                        Get,
+                        Return(2),
+                    ],
+                    vec![],
+                ),
             ),
             (
                 r#"let x = _object("x", 10, "y", "yes"); return _get(x, "x");"#,
-                vec![
-                    Alloc(HeapData::String("x".to_string())),
-                    Alloc(HeapData::Int(10)),
-                    Alloc(HeapData::String("y".to_string())),
-                    Alloc(HeapData::String("yes".to_string())),
-                    Object(2),
-                    Copy(0),
-                    Alloc(HeapData::String("x".to_string())),
-                    Get,
-                    Return(2),
-                ],
+                (
+                    vec![
+                        Alloc(HeapData::String("x".to_string())),
+                        Alloc(HeapData::Int(10)),
+                        Alloc(HeapData::String("y".to_string())),
+                        Alloc(HeapData::String("yes".to_string())),
+                        Object(2),
+                        Copy(0),
+                        Alloc(HeapData::String("x".to_string())),
+                        Get,
+                        Return(2),
+                    ],
+                    vec![],
+                ),
             ),
             (
                 r#"
@@ -555,16 +586,19 @@ mod tests {
                         return 10 if 1;
                     };
                 "#,
-                vec![
-                    Label("label-0".to_string()),
-                    Alloc(HeapData::Int(10)),
-                    Alloc(HeapData::Int(1)),
-                    ReturnIf(2),
-                    Pop(0),
-                    Jump("label-0".to_string()),
-                    Push(StackData::Nil),
-                    Return(3),
-                ],
+                (
+                    vec![
+                        Label("label-0".to_string()),
+                        Alloc(HeapData::Int(10)),
+                        Alloc(HeapData::Int(1)),
+                        ReturnIf(2),
+                        Pop(0),
+                        Jump("label-0".to_string()),
+                        Push(StackData::Nil),
+                        Return(3),
+                    ],
+                    vec![],
+                ),
             ),
             (
                 r#"
@@ -572,15 +606,18 @@ mod tests {
                         _print("loop");
                     };
                 "#,
-                vec![
-                    Label("label-0".to_string()),
-                    Alloc(HeapData::String("loop".to_string())),
-                    FFICall(1),
-                    Pop(1),
-                    Jump("label-0".to_string()),
-                    Push(StackData::Nil),
-                    Return(2),
-                ],
+                (
+                    vec![
+                        Label("label-0".to_string()),
+                        Alloc(HeapData::String("loop".to_string())),
+                        FFICall(1),
+                        Pop(1),
+                        Jump("label-0".to_string()),
+                        Push(StackData::Nil),
+                        Return(2),
+                    ],
+                    vec![],
+                ),
             ),
             (
                 // outer scope variable
@@ -596,10 +633,22 @@ mod tests {
 
                     f(0,0,0);
                 "#,
-                vec![
-                    Alloc(HeapData::Int(0)),
-                    Alloc(HeapData::Int(0)),
-                    Alloc(HeapData::Closure(vec![
+                (
+                    vec![
+                        Alloc(HeapData::Int(0)),
+                        Alloc(HeapData::Int(0)),
+                        Push(StackData::StaticAddr(0)),
+                        Alloc(HeapData::Int(0)),
+                        Copy(2),
+                        Copy(4),
+                        Alloc(HeapData::Int(0)),
+                        Alloc(HeapData::Int(0)),
+                        Alloc(HeapData::Int(0)),
+                        Call(6),
+                        Push(StackData::Nil),
+                        Return(8),
+                    ],
+                    vec![HeapData::Closure(vec![
                         Alloc(HeapData::Int(0)),
                         Alloc(HeapData::Int(0)),
                         Copy(6),
@@ -607,17 +656,8 @@ mod tests {
                         Copy(8),
                         Tuple(3),
                         Return(6),
-                    ])),
-                    Alloc(HeapData::Int(0)),
-                    Copy(2),
-                    Copy(4),
-                    Alloc(HeapData::Int(0)),
-                    Alloc(HeapData::Int(0)),
-                    Alloc(HeapData::Int(0)),
-                    Call(6),
-                    Push(StackData::Nil),
-                    Return(8),
-                ],
+                    ])],
+                ),
             ),
             (
                 // method call chain
@@ -628,23 +668,22 @@ mod tests {
                     let x = 10;
                     h();
                 "#,
-                vec![
-                    Alloc(HeapData::Closure(vec![Push(StackData::Nil), Return(1)])),
-                    Alloc(HeapData::Closure(vec![
-                        Call(0),
+                (
+                    vec![
+                        Push(StackData::StaticAddr(0)),
+                        Push(StackData::StaticAddr(1)),
+                        Push(StackData::StaticAddr(2)),
+                        Alloc(HeapData::Int(10)),
+                        Call(1),
                         Push(StackData::Nil),
-                        Return(2),
-                    ])),
-                    Alloc(HeapData::Closure(vec![
-                        Call(0),
-                        Push(StackData::Nil),
-                        Return(2),
-                    ])),
-                    Alloc(HeapData::Int(10)),
-                    Call(1),
-                    Push(StackData::Nil),
-                    Return(6),
-                ],
+                        Return(6),
+                    ],
+                    vec![
+                        HeapData::Closure(vec![Push(StackData::Nil), Return(1)]),
+                        HeapData::Closure(vec![Call(0), Push(StackData::Nil), Return(2)]),
+                        HeapData::Closure(vec![Call(0), Push(StackData::Nil), Return(2)]),
+                    ],
+                ),
             ),
         ];
 
