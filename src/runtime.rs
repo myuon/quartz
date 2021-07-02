@@ -14,15 +14,10 @@ struct Runtime {
     call_stack: Vec<usize>,
     ffi_functions: Vec<FFIFunction>,
     labels: HashMap<String, usize>,
-    source_map: HashMap<usize, usize>,
 }
 
 impl Runtime {
-    pub fn new(
-        program: Vec<OpCode>,
-        ffi_functions: Vec<FFIFunction>,
-        source_map: HashMap<usize, usize>,
-    ) -> Runtime {
+    pub fn new(program: Vec<OpCode>, ffi_functions: Vec<FFIFunction>) -> Runtime {
         Runtime {
             pc: 0,
             program,
@@ -32,7 +27,6 @@ impl Runtime {
             call_stack: vec![],
             ffi_functions,
             labels: HashMap::new(),
-            source_map,
         }
     }
 
@@ -227,11 +221,7 @@ impl Runtime {
                             self.program.extend(body);
                             continue;
                         }
-                        r => bail!(
-                            "Expected a closure but found {:?} at {:?}",
-                            r,
-                            self.source_map.get(&self.pc)
-                        ),
+                        r => bail!("Expected a closure but found {:?}", r),
                     }
                 }
                 OpCode::PAssign => {
@@ -429,12 +419,8 @@ impl Runtime {
     }
 }
 
-pub fn execute(
-    program: Vec<OpCode>,
-    ffi_functions: Vec<FFIFunction>,
-    source_map: HashMap<usize, usize>,
-) -> Result<StackData> {
-    let mut runtime = Runtime::new(program, ffi_functions, source_map);
+pub fn execute(program: Vec<OpCode>, ffi_functions: Vec<FFIFunction>) -> Result<StackData> {
+    let mut runtime = Runtime::new(program, ffi_functions);
     runtime.execute()?;
 
     Ok(runtime.pop(1))
@@ -748,7 +734,7 @@ mod tests {
 
             let program = program.unwrap();
 
-            let mut runtime = Runtime::new(program, ffi_functions.clone(), HashMap::new());
+            let mut runtime = Runtime::new(program, ffi_functions.clone());
             let result = runtime.execute();
             assert!(result.is_ok(), "{:?} {:?}", result, c.0);
 
@@ -865,7 +851,7 @@ mod tests {
             let m = run_parser(case.0).unwrap();
             let closures = typechecker(&m).unwrap();
             let program = gen_code(m, ffi_table.clone(), closures).unwrap();
-            let mut interpreter = Runtime::new(program, ffi_functions.clone(), HashMap::new());
+            let mut interpreter = Runtime::new(program, ffi_functions.clone());
             interpreter.execute().unwrap();
             assert_eq!(interpreter.stack, case.1);
             assert_eq!(interpreter.heap, case.2);

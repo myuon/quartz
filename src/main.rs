@@ -3,7 +3,7 @@ use std::{collections::HashMap, io::Read};
 use anyhow::Result;
 
 use crate::{
-    code_gen::CodeGenerator,
+    code_gen::gen_code,
     parser::run_parser,
     runtime::{execute, FFIFunction},
     typechecker::typechecker,
@@ -108,12 +108,9 @@ fn main() -> Result<()> {
     let module = run_parser(&buffer)?;
     let closures = typechecker(&module)?;
 
-    let mut generator = CodeGenerator::new(ffi_table, closures);
-    generator.gen_code(module)?;
-
     println!(
         "{:?}",
-        execute(generator.codes, ffi_functions, generator.source_map)
+        execute(gen_code(module, ffi_table, closures)?, ffi_functions)
     );
 
     Ok(())
