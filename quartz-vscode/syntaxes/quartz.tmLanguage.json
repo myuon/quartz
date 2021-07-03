@@ -28,7 +28,7 @@
       "patterns": [
         {
           "name": "keyword.control.quartz",
-          "match": "\\b(return)\\b"
+          "match": "\\b(if|else|return)\\b"
         },
         {
           "name": "keyword.operator.quartz",
