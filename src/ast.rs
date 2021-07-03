@@ -11,6 +11,7 @@ pub enum Statement {
     Return(Expr),
     ReturnIf(Expr, Expr),
     Panic,
+    If(Box<Expr>, Vec<Statement>, Vec<Statement>),
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -26,7 +27,6 @@ pub enum Expr {
     Ref(Box<Expr>),
     Deref(Box<Expr>),
     Loop(Vec<Statement>),
-    If(Box<Expr>, Vec<Statement>, Vec<Statement>),
 }
 
 #[derive(PartialEq, Debug, Clone)]

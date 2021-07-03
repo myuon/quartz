@@ -13,7 +13,8 @@ let lexer_is_end = fn (lexer) {
   return _eq(_get(lexer, "position"), _len(_get(lexer, "input")));
 };
 let lexer_run = fn (lexer, input) {
-  _set(&lexer, "input", input);
+  _set(lexer, "position", 0);
+  _set(lexer, "input", input);
 };
 let lexer_matches = fn (lexer, lexeme) {
   return _eq(lexeme, _slice(_get(lexer, "input"), _get(lexer, "position"), _add(_get(lexer, "position"), _len(lexeme))));
@@ -26,4 +27,23 @@ let main = fn (input) {
   _print(_get(lexer, "input"));
 };
 
-_print(main("let x = 0; let y = fn (x) { return _add(x, y) }; f();"));
+let tests = fn () {
+  let lexer = _object(
+    "input", "",
+    "tokens", _vec(),
+    "position", 0,
+  );
+
+  lexer_run(&lexer, "let");
+  if lexer_matches(lexer, "foo") {
+    _print("error!");
+  };
+
+  lexer_run(&lexer, "let");
+  if _not(lexer_matches(lexer, "let")) {
+    _print("error!");
+  };
+};
+
+tests();
+// _print(main("let x = 0; let y = fn (x) { return _add(x, y) }; f();"));

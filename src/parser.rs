@@ -80,6 +80,27 @@ impl Parser {
         Ok(Statement::Let(x, e))
     }
 
+    fn statement_if(&mut self) -> Result<Statement> {
+        self.expect_lexeme(Lexeme::If)?;
+        let cond = self.expr()?;
+        self.expect_lexeme(Lexeme::LBrace)?;
+        let then = self.many_statements()?;
+        self.expect_lexeme(Lexeme::RBrace)?;
+
+        // optional else block
+        let else_statements = if self.expect_lexeme(Lexeme::Else).is_ok() {
+            self.expect_lexeme(Lexeme::LBrace)?;
+            let else_statements = self.many_statements()?;
+            self.expect_lexeme(Lexeme::RBrace)?;
+
+            else_statements
+        } else {
+            vec![]
+        };
+
+        Ok(Statement::If(Box::new(cond), then, else_statements))
+    }
+
     fn statement(&mut self) -> Result<Statement> {
         self.expect_lexeme(Lexeme::Panic)
             .map(|_| Statement::Panic)
@@ -95,6 +116,7 @@ impl Parser {
                     Ok(Statement::Return(e))
                 }
             })
+            .or_else(|_| self.statement_if())
             .or_else(|_| self.expr().map(|e| Statement::Expr(e)))
     }
 
@@ -176,27 +198,6 @@ impl Parser {
                         Ok(Expr::Var(v))
                     }
                 }
-            })
-            .or_else(|_| -> Result<Expr> {
-                // if block
-                self.expect_lexeme(Lexeme::If)?;
-                let cond = self.expr()?;
-                self.expect_lexeme(Lexeme::LBrace)?;
-                let then = self.many_statements()?;
-                self.expect_lexeme(Lexeme::RBrace)?;
-
-                // optional else block
-                let else_statements = if self.expect_lexeme(Lexeme::Else).is_ok() {
-                    self.expect_lexeme(Lexeme::LBrace)?;
-                    let else_statements = self.many_statements()?;
-                    self.expect_lexeme(Lexeme::RBrace)?;
-
-                    else_statements
-                } else {
-                    vec![]
-                };
-
-                Ok(Expr::If(Box::new(cond), then, else_statements))
             })
             .or_else(|_| -> Result<Expr> {
                 self.expect_lexeme(Lexeme::Loop)?;
