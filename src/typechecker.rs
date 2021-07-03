@@ -50,6 +50,11 @@ impl TypeChecker {
             Expr::Loop(body) => {
                 self.statements(body)?;
             }
+            Expr::If(cond, t, f) => {
+                self.expr(cond)?;
+                self.statements(t)?;
+                self.statements(f)?;
+            }
         }
 
         Ok(())

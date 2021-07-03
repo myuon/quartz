@@ -178,6 +178,27 @@ impl Parser {
                 }
             })
             .or_else(|_| -> Result<Expr> {
+                // if block
+                self.expect_lexeme(Lexeme::If)?;
+                let cond = self.expr()?;
+                self.expect_lexeme(Lexeme::LBrace)?;
+                let then = self.many_statements()?;
+                self.expect_lexeme(Lexeme::RBrace)?;
+
+                // optional else block
+                let else_statements = if self.expect_lexeme(Lexeme::Else).is_ok() {
+                    self.expect_lexeme(Lexeme::LBrace)?;
+                    let else_statements = self.many_statements()?;
+                    self.expect_lexeme(Lexeme::RBrace)?;
+
+                    else_statements
+                } else {
+                    vec![]
+                };
+
+                Ok(Expr::If(Box::new(cond), then, else_statements))
+            })
+            .or_else(|_| -> Result<Expr> {
                 self.expect_lexeme(Lexeme::Loop)?;
 
                 self.expect_lexeme(Lexeme::LBrace)?;
@@ -368,7 +389,7 @@ mod tests {
             assert!(matches!(result, Err(_)), "{:?} {:?}", c.0, result);
 
             let err = result.unwrap_err();
-            assert!(err.to_string().contains(c.1), "{:?}", err);
+            assert!(err.to_string().contains(c.1), "{:?} {}", err, c.0);
         }
     }
 }

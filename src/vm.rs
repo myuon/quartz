@@ -38,6 +38,7 @@ pub enum OpCode {
     Jump(String),
     ReturnIf(usize),
     Slice,
+    JumpIfNot(String),
 }
 
 #[derive(PartialEq, Debug, Clone)]

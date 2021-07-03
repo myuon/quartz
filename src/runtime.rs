@@ -470,6 +470,14 @@ impl Runtime {
                         s => bail!("Expected string but {:?} found", s),
                     }
                 }
+                OpCode::JumpIfNot(label) => {
+                    let cond = self.pop(1);
+                    let cond_case = self.expect_int(cond)?;
+                    if cond_case != 0 {
+                        self.pc = self.labels.get(&label).unwrap().clone();
+                        continue;
+                    }
+                }
             }
 
             self.pc += 1;
@@ -790,6 +798,21 @@ mod tests {
                 Some(HeapData::Int(3)),
             ),
              */
+            (
+                // if statement
+                r#"
+                    let f = fn (x) {
+                        if _eq(x, 10) {
+                            return 1;
+                        } else {
+                            return 0;
+                        };
+                    };
+                    return f(10);
+                "#,
+                StackData::HeapAddr(3),
+                Some(HeapData::Int(1)),
+            ),
         ];
 
         let (ffi_table, ffi_functions) = create_ffi_table();

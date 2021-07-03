@@ -339,6 +339,25 @@ impl CodeGenerator {
                 self.codes.push(OpCode::Jump(label));
                 Ok(())
             }
+            Expr::If(cond, s1, s2) => {
+                let else_label = format!("else-{}", self.codes.len());
+                let end_if_label = format!("end-if-{}", self.codes.len());
+                self.expr(0, cond.as_ref().clone())?;
+                self.codes.push(OpCode::JumpIfNot(else_label.clone()));
+
+                // then block
+                self.statements(0, s1, false)?;
+                self.codes.push(OpCode::Jump(end_if_label.clone()));
+
+                // else block
+                self.codes.push(OpCode::Label(else_label));
+                self.statements(0, s2, false)?;
+
+                // endif
+                self.codes.push(OpCode::Label(end_if_label));
+
+                Ok(())
+            }
         }
     }
 

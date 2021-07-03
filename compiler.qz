@@ -13,13 +13,17 @@ let lexer_is_end = fn (lexer) {
   return _eq(_get(lexer, "position"), _len(_get(lexer, "input")));
 };
 let lexer_run = fn (lexer, input) {
-  _set(lexer, "input", input);
+  _set(&lexer, "input", input);
+};
+let lexer_matches = fn (lexer, lexeme) {
+  return _eq(lexeme, _slice(_get(lexer, "input"), _get(lexer, "position"), _add(_get(lexer, "position"), _len(lexeme))));
 };
 
 let main = fn (input) {
   lexer_run(lexer, input);
-  _print(lexer);
-  return lexer(input);
+  _print(lexer_matches(lexer, "let"));
+  _print(lexer_matches(lexer, "print"));
+  _print(_get(lexer, "input"));
 };
 
 _print(main("let x = 0; let y = fn (x) { return _add(x, y) }; f();"));
