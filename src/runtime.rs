@@ -938,7 +938,7 @@ mod tests {
                         continue;
                     };
                 "#,
-                DataType::Int(3),
+                DataType::Nil,
             ),
         ];
 
@@ -1007,7 +1007,7 @@ mod tests {
             ),
             (
                 r#"let x = "hello, world"; _free(x); _panic("");"#,
-                vec![StackData::Nil],
+                vec![],
                 vec![HeapData::Nil, HeapData::String("".to_string())],
             ),
             (

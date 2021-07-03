@@ -9,48 +9,70 @@ let lexer = _object(
   "tokens", _vec(),
   "position", 0,
 );
+
 let lexer_is_end = fn (lexer) {
   return _eq(_get(lexer, "position"), _len(_get(lexer, "input")));
 };
-let lexer_run = fn (lexer, input) {
-  _set(*lexer, "position", 0);
-  _set(*lexer, "input", input);
-};
+
 let lexer_matches = fn (lexer, lexeme) {
   let l = _get(lexeme, "lexeme");
 
   if _eq(l, _slice(_get(lexer, "input"), _get(lexer, "position"), _add(_get(lexer, "position"), _len(l)))) {
     _vpush(_get(lexer, "tokens"), lexeme);
+    _set(lexer, "position", _len(l));
     return true;
   };
 
   return false;
 };
 
-let main = fn (input) {
-  lexer_run(lexer, input);
-  _print(lexer_matches(lexer, "let"));
-  _print(lexer_matches(lexer, "print"));
-  _print(_get(lexer, "input"));
+let lexer_init = fn (lexer, input) {
+  _set(*lexer, "position", 0);
+  _set(*lexer, "input", input);
 };
 
-let tests = fn () {
+let lexer_run = fn (lexer, input) {
+  lexer_init(lexer, input);
+
+  loop {
+    _print("loop");
+    if lexer_is_end(lexer) {
+      return nil;
+    };
+
+    if lexer_matches(lexer, lexeme_let) {
+      continue;
+    };
+
+    _panic("Unexpected token");
+  };
+};
+
+let main = fn (input) {
+  lexer_run(&lexer, input);
+  _print(_get(lexer, "tokens"));
+};
+
+let test_lexer_run = fn () {
   let lexer = _object(
     "input", "",
     "tokens", _vec(),
     "position", 0,
   );
 
-  lexer_run(&lexer, "let");
+  lexer_init(&lexer, "let");
   if lexer_matches(lexer, lexeme_fn) {
     _panic("error!");
   };
 
-  lexer_run(&lexer, "let");
+  lexer_init(&lexer, "let");
   if _not(lexer_matches(lexer, lexeme_let)) {
     _panic("error!");
   };
 };
+let tests = fn () {
+  test_lexer_run();
+};
 
 tests();
-// _print(main("let x = 0; let y = fn (x) { return _add(x, y) }; f();"));
+_print(main("let x = 0; let y = fn (x) { return _add(x, y) }; f();"));

@@ -284,7 +284,7 @@ impl CodeGenerator {
             }
             Expr::Loop(s) => {
                 let label = format!("label-{}", self.codes.len());
-                self.current_loop_label = Some((label.clone(), self.stack_count));
+                self.current_loop_label = Some((label.clone(), self.pop_count));
 
                 let p = self.stack_count;
                 self.codes.push(OpCode::Label(label.clone()));
@@ -294,6 +294,8 @@ impl CodeGenerator {
                 self.codes.push(OpCode::Jump(label));
 
                 self.current_loop_label = None;
+
+                self.push(StackData::Nil);
                 Ok(())
             }
         }
@@ -367,6 +369,9 @@ impl CodeGenerator {
                 }
                 Statement::Expr(e) => {
                     self.expr(arity, e.clone())?;
+                    self.codes.push(OpCode::Pop(1));
+                    self.stack_count -= 1;
+                    self.pop_count -= 1;
                 }
                 Statement::ReturnIf(expr, cond) => {
                     self.expr(arity, expr)?;
@@ -399,7 +404,7 @@ impl CodeGenerator {
                 }
                 Statement::Continue => {
                     let (label, count) = self.current_loop_label.clone().unwrap();
-                    self.codes.push(OpCode::Pop(self.stack_count - count));
+                    self.codes.push(OpCode::Pop(self.pop_count - count));
                     self.codes.push(OpCode::Jump(label));
                 }
             }
@@ -474,11 +479,15 @@ mod tests {
                 (
                     vec![
                         Push(StackData::Int(1)),
+                        Pop(1),
                         Push(StackData::Int(2)),
+                        Pop(1),
                         Push(StackData::Int(3)),
+                        Pop(1),
                         Push(StackData::Int(4)),
+                        Pop(1),
                         Push(StackData::Nil),
-                        Return(5),
+                        Return(1),
                     ],
                     vec![],
                 ),
@@ -489,8 +498,9 @@ mod tests {
                     vec![
                         Push(StackData::Int(1)),
                         Call(0),
+                        Pop(1),
                         Push(StackData::Nil),
-                        Return(2),
+                        Return(1),
                     ],
                     vec![HeapData::Closure(vec![Copy(0), Return(2)])],
                 ),
@@ -505,8 +515,9 @@ mod tests {
                         Push(StackData::Int(10)),
                         PAssign,
                         Push(StackData::Nil),
+                        Pop(1),
                         CopyStatic(0),
-                        Return(2),
+                        Return(1),
                     ],
                     vec![HeapData::Nil],
                 ),
@@ -523,8 +534,9 @@ mod tests {
                         CopyStatic(0),
                         CopyStatic(0),
                         Call(1),
+                        Pop(1),
                         Push(StackData::Nil),
-                        Return(2),
+                        Return(1),
                     ],
                     vec![HeapData::Nil, HeapData::Closure(vec![Copy(4), Return(6)])],
                 ),
@@ -584,19 +596,20 @@ mod tests {
             (
                 r#"
                     loop {
-                        return 10 if 1;
+                        return 10;
                     };
                 "#,
                 (
                     vec![
                         Label("label-0".to_string()),
                         Push(StackData::Int(10)),
-                        Push(StackData::Int(1)),
-                        ReturnIf(2),
-                        Pop(0),
+                        Return(1),
+                        Pop(1),
                         Jump("label-0".to_string()),
                         Push(StackData::Nil),
-                        Return(3),
+                        Pop(1),
+                        Push(StackData::Nil),
+                        Return(2),
                     ],
                     vec![],
                 ),
@@ -613,9 +626,12 @@ mod tests {
                         Alloc(HeapData::String("loop".to_string())),
                         FFICall(1),
                         Pop(1),
+                        Pop(0),
                         Jump("label-0".to_string()),
                         Push(StackData::Nil),
-                        Return(2),
+                        Pop(1),
+                        Push(StackData::Nil),
+                        Return(1),
                     ],
                     vec![],
                 ),
@@ -646,8 +662,9 @@ mod tests {
                         Push(StackData::Int(0)),
                         Push(StackData::Int(0)),
                         Call(2),
+                        Pop(1),
                         Push(StackData::Nil),
-                        Return(2),
+                        Return(1),
                     ],
                     vec![
                         HeapData::Nil,
@@ -679,13 +696,14 @@ mod tests {
                         Push(StackData::Int(10)),
                         SetStatic(3),
                         Call(2),
+                        Pop(1),
                         Push(StackData::Nil),
-                        Return(2),
+                        Return(1),
                     ],
                     vec![
                         HeapData::Closure(vec![Push(StackData::Nil), Return(1)]),
-                        HeapData::Closure(vec![Call(0), Push(StackData::Nil), Return(2)]),
-                        HeapData::Closure(vec![Call(1), Push(StackData::Nil), Return(2)]),
+                        HeapData::Closure(vec![Call(0), Pop(1), Push(StackData::Nil), Return(1)]),
+                        HeapData::Closure(vec![Call(1), Pop(1), Push(StackData::Nil), Return(1)]),
                         HeapData::Nil,
                     ],
                 ),
