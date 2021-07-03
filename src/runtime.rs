@@ -844,6 +844,26 @@ mod tests {
                 StackData::HeapAddr(3),
                 Some(HeapData::Int(0)),
             ),
+            (
+                r#"
+                    let assign_a = fn (obj, x) {
+                        _set(obj, "a", x);
+                    };
+
+                    let object = _object(
+                        "a", 10,
+                    );
+                    assign_a(&object, 20);
+
+                    if 0 {};
+
+                    assign_a(&object, 30);
+
+                    return _get(object, "a");
+                "#,
+                StackData::HeapAddr(6),
+                Some(HeapData::Int(30)),
+            ),
         ];
 
         let (ffi_table, ffi_functions) = create_ffi_table();

@@ -86,6 +86,25 @@ pub fn create_ffi_table() -> (HashMap<String, usize>, Vec<FFIFunction>) {
             (stack, heap)
         }),
     ));
+    ffi_table.push((
+        "_not".to_string(),
+        Box::new(|mut stack: Vec<StackData>, mut heap: Vec<HeapData>| {
+            let x = stack.pop().unwrap();
+
+            match x {
+                StackData::HeapAddr(x) => match heap[x].clone() {
+                    HeapData::Int(x) => {
+                        heap.push(HeapData::Int(if x == 0 { 1 } else { 0 }));
+                        stack.push(StackData::HeapAddr(heap.len() - 1));
+                    }
+                    x => panic!("{:?}", x),
+                },
+                x => panic!("{:?}", x),
+            }
+
+            (stack, heap)
+        }),
+    ));
 
     let enumerated = ffi_table.into_iter().enumerate().collect::<Vec<_>>();
 

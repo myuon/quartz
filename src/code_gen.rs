@@ -340,6 +340,9 @@ impl CodeGenerator {
                 Ok(())
             }
             Expr::If(cond, s1, s2) => {
+                let stack_count = self.stack_count;
+                let pop_count = self.pop_count;
+
                 let else_label = format!("else-{}", self.codes.len());
                 let end_if_label = format!("end-if-{}", self.codes.len());
                 self.expr(0, cond.as_ref().clone())?;
@@ -355,6 +358,9 @@ impl CodeGenerator {
 
                 // endif
                 self.codes.push(OpCode::Label(end_if_label));
+
+                self.stack_count = stack_count;
+                self.pop_count = pop_count;
 
                 Ok(())
             }
