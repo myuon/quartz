@@ -61,13 +61,16 @@ pub fn create_ffi_table() -> (HashMap<String, usize>, Vec<FFIFunction>) {
             let y = stack.pop().unwrap();
 
             match (x, y) {
+                (StackData::Bool(x), StackData::Bool(y)) => {
+                    stack.push(StackData::Bool(x == y));
+                }
                 (StackData::Int(x), StackData::Int(y)) => {
-                    stack.push(StackData::Int(if x == y { 0 } else { 1 }));
+                    stack.push(StackData::Bool(x == y));
                 }
                 (StackData::HeapAddr(x), StackData::HeapAddr(y)) => {
                     match (heap[x].clone(), heap[y].clone()) {
                         (HeapData::String(a), HeapData::String(b)) => {
-                            stack.push(StackData::Int(if a == b { 0 } else { 1 }));
+                            stack.push(StackData::Bool(a == b));
                         }
                         (x, y) => panic!("{:?} {:?}", x, y),
                     }
@@ -84,8 +87,8 @@ pub fn create_ffi_table() -> (HashMap<String, usize>, Vec<FFIFunction>) {
             let x = stack.pop().unwrap();
 
             match x {
-                StackData::Int(x) => {
-                    stack.push(StackData::Int(if x == 0 { 1 } else { 0 }));
+                StackData::Bool(x) => {
+                    stack.push(StackData::Bool(!x));
                 }
                 x => panic!("{:?}", x),
             }

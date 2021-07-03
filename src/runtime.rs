@@ -126,6 +126,7 @@ impl Runtime {
     fn deref(&mut self, pointer: StackData) -> Result<DataType> {
         match pointer {
             StackData::Nil => Ok(DataType::Nil),
+            StackData::Bool(b) => Ok(DataType::Bool(b)),
             StackData::Int(s) => Ok(DataType::Int(s)),
             StackData::StackAddr(s) => self.deref(self.stack[s].clone()),
             StackData::HeapAddr(p) => match self.heap[p].clone() {
@@ -164,6 +165,13 @@ impl Runtime {
     fn get_stack_addr(&self, u: usize) -> &StackData {
         let index = self.get_stack_addr_index(u);
         &self.stack[index]
+    }
+
+    fn expect_bool(&mut self, datatype: StackData) -> Result<bool> {
+        match datatype {
+            StackData::Bool(s) => return Ok(s),
+            v => bail!("Expected a bool but found {:?}", v),
+        }
     }
 
     fn expect_int(&mut self, datatype: StackData) -> Result<i32> {
@@ -249,11 +257,11 @@ impl Runtime {
                 }
                 OpCode::ReturnIf(r) => {
                     let cond = self.pop(1);
-                    let n = self.expect_int(cond)?;
+                    let n = self.expect_bool(cond)?;
                     let ret = self.pop(1);
 
                     // if true
-                    if n == 0 {
+                    if n {
                         if r > 0 {
                             self.pop(r - 1);
                             self.push(ret);
@@ -499,8 +507,8 @@ impl Runtime {
                 }
                 OpCode::JumpIfNot(label) => {
                     let cond = self.pop(1);
-                    let cond_case = self.expect_int(cond)?;
-                    if cond_case != 0 {
+                    let cond_case = self.expect_bool(cond)?;
+                    if !cond_case {
                         self.pc = self.find_label_forward(label).unwrap();
                         continue;
                     }
@@ -650,11 +658,7 @@ mod tests {
                 Some(HeapData::Int(0)),
             ),
              */
-            (
-                // 0 = true, 1 = false
-                r#"return _eq(1, 2);"#,
-                DataType::Int(1),
-            ),
+            (r#"return _eq(1, 2);"#, DataType::Bool(false)),
             (
                 // _passign for local variables
                 r#"let x = 0; _passign(&x, _add(x, 10)); return x;"#,
@@ -708,7 +712,7 @@ mod tests {
             ),
             (
                 r#"return _eq(_slice("hello, world", 5, 10), ", wor");"#,
-                DataType::Int(0),
+                DataType::Bool(true),
             ),
             (
                 r#"
@@ -843,7 +847,7 @@ mod tests {
                     );
                     assign_a(&object, 20);
 
-                    if 0 {};
+                    if false {};
 
                     assign_a(&object, 30);
 

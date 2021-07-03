@@ -4,6 +4,7 @@ use crate::ast::Statement;
 #[allow(dead_code)]
 pub enum DataType {
     Nil,
+    Bool(bool),
     Int(i32),
     String(String),
     Closure(
@@ -59,6 +60,7 @@ pub enum HeapData {
 #[derive(PartialEq, Debug, Clone)]
 pub enum StackData {
     Nil,
+    Bool(bool),
     Int(i32),
     HeapAddr(usize),  // in normal order
     StackAddr(usize), // in reverse order, 0-origin, excluding itself, for addresses of local variables
