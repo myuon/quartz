@@ -907,6 +907,20 @@ mod tests {
                 "#,
                 DataType::Int(20),
             ),
+            (
+                r#"
+                    let f = fn (a,b,c) {
+                        if true {
+                            return c;
+                        };
+
+                        return 0;
+                    };
+
+                    return f(1,2,3);
+                "#,
+                DataType::Int(3),
+            ),
         ];
 
         let (ffi_table, ffi_functions) = create_ffi_table();

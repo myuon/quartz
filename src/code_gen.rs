@@ -378,6 +378,9 @@ impl CodeGenerator {
                     self.expr(0, cond.as_ref().clone())?;
                     self.codes.push(OpCode::JumpIfNot(else_label.clone()));
 
+                    self.stack_count = stack_count;
+                    self.pop_count = pop_count;
+
                     // then block
                     self.statements(0, s1, false)?;
                     self.codes.push(OpCode::Jump(end_if_label.clone()));
@@ -388,9 +391,6 @@ impl CodeGenerator {
 
                     // endif
                     self.codes.push(OpCode::Label(end_if_label));
-
-                    self.stack_count = stack_count;
-                    self.pop_count = pop_count;
                 }
             }
         }
