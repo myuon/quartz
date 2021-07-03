@@ -18,7 +18,7 @@ let lexer_run = fn (lexer, input) {
 };
 let lexer_matches = fn (lexer, lexeme) {
   let l = _get(lexeme, "lexeme");
-  
+
   if _eq(l, _slice(_get(lexer, "input"), _get(lexer, "position"), _add(_get(lexer, "position"), _len(l)))) {
     _vpush(_get(lexer, "tokens"), lexeme);
     return true;

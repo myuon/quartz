@@ -21,6 +21,10 @@
         {
           "name": "constant.numeric.quartz",
           "match": "[0-9]+"
+        },
+        {
+          "name": "constant.language.quartz",
+          "match": "\\b(nil|true|false)\\b"
         }
       ]
     },
