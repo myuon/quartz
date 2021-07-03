@@ -57,7 +57,7 @@ impl TypeChecker {
 
     fn statement(&mut self, statement: &Statement) -> Result<()> {
         match statement {
-            Statement::Let(x, e) => {
+            Statement::Let(_, x, e) => {
                 self.expr(e)?;
                 self.local.push(x.clone());
             }

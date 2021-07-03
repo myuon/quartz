@@ -30,7 +30,6 @@ struct CodeGenerator {
     pop_count: usize,
     non_local_variables: Vec<String>, // for closure
     base_address: usize,              // base address for closure
-    is_toplevel: bool,
     static_area: Vec<HeapData>,
     functions: HashMap<String, FunctionInfo>,
 }
@@ -50,7 +49,6 @@ impl CodeGenerator {
             ffi_table,
             non_local_variables: vec![],
             base_address: 0,
-            is_toplevel: true,
             static_area: vec![],
             functions: HashMap::new(),
         }
@@ -358,8 +356,8 @@ impl CodeGenerator {
         for stmt in stmts {
             match stmt {
                 // 関数宣言はstaticなものにコンパイルする必要があるのでここで特別扱いする
-                Statement::Let(x, Expr::Fun(id, args, body)) => {
-                    if !self.is_toplevel {
+                Statement::Let(is_static, x, Expr::Fun(id, args, body)) => {
+                    if !is_static {
                         bail!("A function in a function is not supported");
                     }
 
@@ -370,7 +368,6 @@ impl CodeGenerator {
                     generator.stack_count = self.stack_count;
                     generator.base_address = self.stack_count;
                     generator.non_local_variables = self.closures[&id].clone();
-                    generator.is_toplevel = false;
                     generator.functions = self.functions.clone();
 
                     let arity = args.len();
@@ -400,7 +397,7 @@ impl CodeGenerator {
                         },
                     );
                 }
-                Statement::Let(x, e) => {
+                Statement::Let(is_static, x, e) => {
                     self.expr(arity, e.clone())?;
                     self.variables.insert(
                         x.clone(),

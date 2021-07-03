@@ -7,6 +7,7 @@ use anyhow::{bail, ensure, Result};
 struct Parser {
     position: usize,
     input: Vec<Token>,
+    is_toplevel: bool,
 }
 
 impl Parser {
@@ -14,6 +15,7 @@ impl Parser {
         Parser {
             position: 0,
             input: vec![],
+            is_toplevel: true,
         }
     }
 
@@ -92,7 +94,7 @@ impl Parser {
         self.expect_lexeme(Lexeme::Equal)?;
         let e = self.expr()?;
 
-        Ok(Statement::Let(x, e))
+        Ok(Statement::Let(self.is_toplevel, x, e))
     }
 
     fn statement_if(&mut self) -> Result<Statement> {
@@ -229,7 +231,10 @@ impl Parser {
                 self.expect_lexeme(Lexeme::RParen)?;
 
                 self.expect_lexeme(Lexeme::LBrace)?;
+                let is_toplevel = self.is_toplevel;
+                self.is_toplevel = false;
                 let statements = self.many_statements()?;
+                self.is_toplevel = is_toplevel;
                 self.expect_lexeme(Lexeme::RBrace)?;
 
                 Ok(Expr::Fun(token.position, args, statements))
@@ -283,12 +288,13 @@ mod tests {
                     return y;
                 };"#,
                 Module(vec![Statement::Let(
+                    true,
                     "main".to_string(),
                     Expr::Fun(
                         11,
                         vec![],
                         vec![
-                            Statement::Let("y".to_string(), Expr::Lit(Literal::Int(10))),
+                            Statement::Let(false, "y".to_string(), Expr::Lit(Literal::Int(10))),
                             Statement::Expr(Expr::Call(
                                 "_assign".to_string(),
                                 vec![Expr::Var("y".to_string()), Expr::Lit(Literal::Int(20))],
@@ -308,6 +314,7 @@ mod tests {
                 main();"#,
                 Module(vec![
                     (Statement::Let(
+                        true,
                         "main".to_string(),
                         Expr::Fun(
                             11,
@@ -324,6 +331,7 @@ mod tests {
                                 (Statement::Expr(Expr::Lit(Literal::Int(100)))),
                                 (Statement::Expr(Expr::Lit(Literal::String("foo".to_string())))),
                                 (Statement::Let(
+                                    false,
                                     "u".to_string(),
                                     Expr::Fun(
                                         134,
@@ -340,7 +348,7 @@ mod tests {
             (
                 r#"let x = 10; return x;"#,
                 Module(vec![
-                    (Statement::Let("x".to_string(), Expr::Lit(Literal::Int(10)))),
+                    (Statement::Let(true, "x".to_string(), Expr::Lit(Literal::Int(10)))),
                     (Statement::Return(Expr::Var("x".to_string()))),
                 ]),
             ),
@@ -355,7 +363,7 @@ mod tests {
             (
                 r#"let x = 10; return &x;"#,
                 Module(vec![
-                    Statement::Let("x".to_string(), Expr::Lit(Literal::Int(10))),
+                    Statement::Let(true, "x".to_string(), Expr::Lit(Literal::Int(10))),
                     Statement::Return(Expr::Ref(Box::new(Expr::Var("x".to_string())))),
                 ]),
             ),
@@ -379,6 +387,7 @@ mod tests {
                 "#,
                 Module(vec![
                     Statement::Let(
+                        true,
                         "x".to_string(),
                         Expr::Loop(vec![Statement::Return(Expr::Lit(Literal::Int(10)))]),
                     ),
@@ -389,8 +398,8 @@ mod tests {
 
         for c in cases {
             let result = run_parser(c.0);
-            assert!(matches!(result, Ok(_)), "{:?} {:?}", c.0, result);
-            assert_eq!(result.unwrap(), c.1, "{:?}", c.0);
+            assert!(matches!(result, Ok(_)), "{} {:?}", c.0, result);
+            assert_eq!(result.unwrap(), c.1, "{}", c.0);
         }
     }
 

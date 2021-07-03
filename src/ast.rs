@@ -8,7 +8,11 @@ pub enum Literal {
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Statement {
-    Let(String, Expr),
+    Let(
+        bool, // static or not
+        String,
+        Expr,
+    ),
     Expr(Expr),
     Return(Expr),
     ReturnIf(Expr, Expr),
