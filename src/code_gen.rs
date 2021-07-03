@@ -21,6 +21,7 @@ struct CodeGenerator {
     pop_count: usize,
     codes: Vec<OpCode>,
     static_area: Vec<HeapData>,
+    current_loop_label: Option<String>,
 }
 
 impl CodeGenerator {
@@ -32,6 +33,7 @@ impl CodeGenerator {
             pop_count: 0,
             ffi_table,
             static_area: vec![],
+            current_loop_label: None,
         }
     }
 
@@ -282,6 +284,7 @@ impl CodeGenerator {
             }
             Expr::Loop(s) => {
                 let label = format!("label-{}", self.codes.len());
+                self.current_loop_label = Some(label.clone());
 
                 let p = self.stack_count;
                 self.codes.push(OpCode::Label(label.clone()));
@@ -289,6 +292,8 @@ impl CodeGenerator {
                 let q = self.stack_count;
                 self.codes.push(OpCode::Pop(q - p));
                 self.codes.push(OpCode::Jump(label));
+
+                self.current_loop_label = None;
                 Ok(())
             }
         }
@@ -391,6 +396,10 @@ impl CodeGenerator {
 
                     // endif
                     self.codes.push(OpCode::Label(end_if_label));
+                }
+                Statement::Continue => {
+                    self.codes
+                        .push(OpCode::Jump(self.current_loop_label.clone().unwrap()));
                 }
             }
         }

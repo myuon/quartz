@@ -133,6 +133,11 @@ impl Parser {
             })
             .or_else(|_| self.statement_if())
             .or_else(|_| self.expr().map(|e| Statement::Expr(e)))
+            .or_else(|_| {
+                self.expect_lexeme(Lexeme::Continue)?;
+
+                Ok(Statement::Continue)
+            })
     }
 
     fn many_idents(&mut self) -> Result<Vec<String>> {

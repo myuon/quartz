@@ -32,7 +32,7 @@
       "patterns": [
         {
           "name": "keyword.control.quartz",
-          "match": "\\b(if|else|return)\\b"
+          "match": "\\b(if|else|return|continue|loop)\\b"
         },
         {
           "name": "keyword.operator.quartz",
