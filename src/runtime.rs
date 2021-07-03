@@ -126,7 +126,11 @@ impl Runtime {
     fn deref(&mut self, pointer: StackData) -> Result<HeapData> {
         match pointer {
             StackData::HeapAddr(p) => Ok(self.heap[p].clone()),
-            _ => bail!("Expected pointer but found {:?}", pointer),
+            _ => bail!(
+                "Expected pointer but found {:?}\n{}",
+                pointer,
+                self.show_error()
+            ),
         }
     }
 
@@ -207,7 +211,7 @@ impl Runtime {
                 println!(
                     "{:?}\n{:?}\n{:?}\n",
                     &self.program[self.pc..],
-                    self.stack,
+                    self.stack.iter().rev().collect::<Vec<_>>(),
                     self.heap
                 );
             }

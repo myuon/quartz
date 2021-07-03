@@ -17,7 +17,13 @@ let lexer_run = fn (lexer, input) {
   _set(lexer, "input", input);
 };
 let lexer_matches = fn (lexer, lexeme) {
-  return _eq(lexeme, _slice(_get(lexer, "input"), _get(lexer, "position"), _add(_get(lexer, "position"), _len(lexeme))));
+  let l = _get(lexeme, "lexeme");
+  
+  if _eq(l, _slice(_get(lexer, "input"), _get(lexer, "position"), _add(_get(lexer, "position"), _len(l)))) {
+    _vpush(_get(lexer, "tokens"), lexeme);
+  };
+
+  return 1;
 };
 
 let main = fn (input) {
@@ -35,13 +41,13 @@ let tests = fn () {
   );
 
   lexer_run(&lexer, "let");
-  if lexer_matches(lexer, "foo") {
-    _print("error!");
+  if lexer_matches(lexer, lexeme_fn) {
+    _panic("error!");
   };
 
   lexer_run(&lexer, "let");
-  if _not(lexer_matches(lexer, "let")) {
-    _print("error!");
+  if _not(lexer_matches(lexer, lexeme_let)) {
+    _panic("error!");
   };
 };
 
