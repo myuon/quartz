@@ -480,18 +480,6 @@ impl Runtime {
                         }
                     }
                 }
-                OpCode::Switch(u) => {
-                    let mut args = vec![];
-                    for _ in 0..u {
-                        args.push(self.pop(1));
-                    }
-                    args.reverse();
-
-                    let cond = self.pop(1);
-                    let cond_case = self.expect_int(cond)?;
-
-                    self.push(args[cond_case as usize].clone());
-                }
                 OpCode::VPush => {
                     let value = self.pop(1);
                     let vec = self.pop(1);
@@ -716,21 +704,6 @@ mod tests {
                 r#"let ch = _regex("^[a-zA-Z_][a-zA-Z0-9_]*", "abcABC9192_"); return _get(ch, 1);"#,
                 DataType::Int(11),
             ),
-            /*
-            (
-                r#"
-                    let x = 10;
-                    let f = _switch(
-                        0,
-                        fn () { return 0; },
-                        fn () { return 1; },
-                    );
-                    return f();
-                "#,
-                StackData::HeapAddr(4),
-                Some(HeapData::Int(0)),
-            ),
-             */
             (r#"return _eq(1, 2);"#, DataType::Bool(false)),
             (
                 // _passign for local variables

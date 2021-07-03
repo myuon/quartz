@@ -212,21 +212,6 @@ impl CodeGenerator {
                     return Ok(());
                 }
 
-                // if (compare and run)
-                if &f == "_switch" {
-                    ensure!(
-                        arity >= 2,
-                        "Expected {} or more than {} arguments but {} given",
-                        2,
-                        2,
-                        arity
-                    );
-                    self.codes.push(OpCode::Switch(arity - 1));
-                    self.after_call(arity);
-
-                    return Ok(());
-                }
-
                 // regular expressions
                 if &f == "_regex" {
                     ensure!(arity == 2, "Expected {} arguments but {} given", 2, arity);

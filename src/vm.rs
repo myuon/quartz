@@ -34,7 +34,6 @@ pub enum OpCode {
     Get,
     Set,
     Regex,
-    Switch(usize),
     VPush,
     Len,
     Label(String),
