@@ -68,13 +68,13 @@ impl CodeGenerator {
                 self.codes.push(OpCode::Alloc(HeapData::Nil));
             }
             DataType::Int(n) => {
-                self.codes.push(OpCode::Alloc(HeapData::Int(n)));
+                self.codes.push(OpCode::Push(StackData::Int(n)));
             }
             DataType::String(s) => {
                 self.codes.push(OpCode::Alloc(HeapData::String(s)));
             }
-            DataType::Closure(_, _, _) => {
-                bail!("Function expr is not supported");
+            _ => {
+                bail!("Invalid expr");
             }
         }
         self.stack_count += 1;
@@ -490,7 +490,7 @@ mod tests {
             (
                 r#"let x = 10; let y = x; return y;"#,
                 (
-                    vec![Alloc(HeapData::Int(10)), Copy(0), Copy(0), Return(3)],
+                    vec![Push(StackData::Int(10)), Copy(0), Copy(0), Return(3)],
                     vec![],
                 ),
             ),
@@ -498,7 +498,7 @@ mod tests {
                 r#"let x = 10; return &x;"#,
                 (
                     vec![
-                        Alloc(HeapData::Int(10)),
+                        Push(StackData::Int(10)),
                         Push(StackData::StackAddr(0)),
                         Return(2),
                     ],
@@ -509,10 +509,10 @@ mod tests {
                 r#"1; 2; 3; 4;"#,
                 (
                     vec![
-                        Alloc(HeapData::Int(1)),
-                        Alloc(HeapData::Int(2)),
-                        Alloc(HeapData::Int(3)),
-                        Alloc(HeapData::Int(4)),
+                        Push(StackData::Int(1)),
+                        Push(StackData::Int(2)),
+                        Push(StackData::Int(3)),
+                        Push(StackData::Int(4)),
                         Push(StackData::Nil),
                         Return(5),
                     ],
@@ -523,7 +523,7 @@ mod tests {
                 r#"let f = fn(a) { return a; }; f(1);"#,
                 (
                     vec![
-                        Alloc(HeapData::Int(1)),
+                        Push(StackData::Int(1)),
                         Call(0),
                         Push(StackData::Nil),
                         Return(2),
@@ -535,9 +535,9 @@ mod tests {
                 r#"let x = 0; _passign(&x, 10); return x;"#,
                 (
                     vec![
-                        Alloc(HeapData::Int(0)),
+                        Push(StackData::Int(0)),
                         Push(StackData::StackAddr(0)),
-                        Alloc(HeapData::Int(10)),
+                        Push(StackData::Int(10)),
                         PAssign,
                         Push(StackData::Nil),
                         Copy(1),
@@ -550,7 +550,7 @@ mod tests {
                 r#"let x = 10; let f = fn (a,b,c,d,e) { return a; }; f(x,x,x,x,x);"#,
                 (
                     vec![
-                        Alloc(HeapData::Int(10)),
+                        Push(StackData::Int(10)),
                         Copy(0),
                         Copy(1),
                         Copy(2),
@@ -566,7 +566,7 @@ mod tests {
             (
                 r#"let x = 0; let f = fn (a) { return *a; };"#,
                 (
-                    vec![Alloc(HeapData::Int(0)), Push(StackData::Nil), Return(2)],
+                    vec![Push(StackData::Int(0)), Push(StackData::Nil), Return(2)],
                     vec![HeapData::Closure(vec![Copy(0), Deref, Return(2)])],
                 ),
             ),
@@ -574,14 +574,14 @@ mod tests {
                 r#"let x = _tuple(1, 2, 3, 4, 5); return _get(x, 3);"#,
                 (
                     vec![
-                        Alloc(HeapData::Int(1)),
-                        Alloc(HeapData::Int(2)),
-                        Alloc(HeapData::Int(3)),
-                        Alloc(HeapData::Int(4)),
-                        Alloc(HeapData::Int(5)),
+                        Push(StackData::Int(1)),
+                        Push(StackData::Int(2)),
+                        Push(StackData::Int(3)),
+                        Push(StackData::Int(4)),
+                        Push(StackData::Int(5)),
                         Tuple(5),
                         Copy(0),
-                        Alloc(HeapData::Int(3)),
+                        Push(StackData::Int(3)),
                         Get,
                         Return(2),
                     ],
@@ -593,7 +593,7 @@ mod tests {
                 (
                     vec![
                         Alloc(HeapData::String("x".to_string())),
-                        Alloc(HeapData::Int(10)),
+                        Push(StackData::Int(10)),
                         Alloc(HeapData::String("y".to_string())),
                         Alloc(HeapData::String("yes".to_string())),
                         Object(2),
@@ -614,8 +614,8 @@ mod tests {
                 (
                     vec![
                         Label("label-0".to_string()),
-                        Alloc(HeapData::Int(10)),
-                        Alloc(HeapData::Int(1)),
+                        Push(StackData::Int(10)),
+                        Push(StackData::Int(1)),
                         ReturnIf(2),
                         Pop(0),
                         Jump("label-0".to_string()),
@@ -660,21 +660,21 @@ mod tests {
                 "#,
                 (
                     vec![
-                        Alloc(HeapData::Int(0)),
-                        Alloc(HeapData::Int(0)),
-                        Alloc(HeapData::Int(0)),
+                        Push(StackData::Int(0)),
+                        Push(StackData::Int(0)),
+                        Push(StackData::Int(0)),
                         Copy(1),
                         Copy(3),
-                        Alloc(HeapData::Int(0)),
-                        Alloc(HeapData::Int(0)),
-                        Alloc(HeapData::Int(0)),
+                        Push(StackData::Int(0)),
+                        Push(StackData::Int(0)),
+                        Push(StackData::Int(0)),
                         Call(0),
                         Push(StackData::Nil),
                         Return(7),
                     ],
                     vec![HeapData::Closure(vec![
-                        Alloc(HeapData::Int(0)),
-                        Alloc(HeapData::Int(0)),
+                        Push(StackData::Int(0)),
+                        Push(StackData::Int(0)),
                         Copy(6),
                         Copy(6),
                         Copy(8),
@@ -694,7 +694,7 @@ mod tests {
                 "#,
                 (
                     vec![
-                        Alloc(HeapData::Int(10)),
+                        Push(StackData::Int(10)),
                         Call(2),
                         Push(StackData::Nil),
                         Return(3),

@@ -22,19 +22,13 @@ pub fn create_ffi_table() -> (HashMap<String, usize>, Vec<FFIFunction>) {
     let mut ffi_table: Vec<(String, FFIFunction)> = vec![];
     ffi_table.push((
         "_add".to_string(),
-        Box::new(|mut stack: Vec<StackData>, mut heap: Vec<HeapData>| {
+        Box::new(|mut stack: Vec<StackData>, heap: Vec<HeapData>| {
             let x = stack.pop().unwrap();
             let y = stack.pop().unwrap();
 
             match (x, y) {
-                (StackData::HeapAddr(px), StackData::HeapAddr(py)) => {
-                    match (heap[px].clone(), heap[py].clone()) {
-                        (HeapData::Int(x), HeapData::Int(y)) => {
-                            heap.push(HeapData::Int(x + y));
-                            stack.push(StackData::HeapAddr(heap.len() - 1));
-                        }
-                        (x, y) => panic!("{:?} {:?}", x, y),
-                    }
+                (StackData::Int(x), StackData::Int(y)) => {
+                    stack.push(StackData::Int(x + y));
                 }
                 _ => todo!(),
             }
@@ -62,20 +56,18 @@ pub fn create_ffi_table() -> (HashMap<String, usize>, Vec<FFIFunction>) {
     ));
     ffi_table.push((
         "_eq".to_string(),
-        Box::new(|mut stack: Vec<StackData>, mut heap: Vec<HeapData>| {
+        Box::new(|mut stack: Vec<StackData>, heap: Vec<HeapData>| {
             let x = stack.pop().unwrap();
             let y = stack.pop().unwrap();
 
             match (x, y) {
+                (StackData::Int(x), StackData::Int(y)) => {
+                    stack.push(StackData::Int(if x == y { 0 } else { 1 }));
+                }
                 (StackData::HeapAddr(x), StackData::HeapAddr(y)) => {
                     match (heap[x].clone(), heap[y].clone()) {
-                        (HeapData::Int(x), HeapData::Int(y)) => {
-                            heap.push(HeapData::Int(if x == y { 0 } else { 1 }));
-                            stack.push(StackData::HeapAddr(heap.len() - 1));
-                        }
                         (HeapData::String(a), HeapData::String(b)) => {
-                            heap.push(HeapData::Int(if a == b { 0 } else { 1 }));
-                            stack.push(StackData::HeapAddr(heap.len() - 1));
+                            stack.push(StackData::Int(if a == b { 0 } else { 1 }));
                         }
                         (x, y) => panic!("{:?} {:?}", x, y),
                     }
@@ -88,17 +80,13 @@ pub fn create_ffi_table() -> (HashMap<String, usize>, Vec<FFIFunction>) {
     ));
     ffi_table.push((
         "_not".to_string(),
-        Box::new(|mut stack: Vec<StackData>, mut heap: Vec<HeapData>| {
+        Box::new(|mut stack: Vec<StackData>, heap: Vec<HeapData>| {
             let x = stack.pop().unwrap();
 
             match x {
-                StackData::HeapAddr(x) => match heap[x].clone() {
-                    HeapData::Int(x) => {
-                        heap.push(HeapData::Int(if x == 0 { 1 } else { 0 }));
-                        stack.push(StackData::HeapAddr(heap.len() - 1));
-                    }
-                    x => panic!("{:?}", x),
-                },
+                StackData::Int(x) => {
+                    stack.push(StackData::Int(if x == 0 { 1 } else { 0 }));
+                }
                 x => panic!("{:?}", x),
             }
 

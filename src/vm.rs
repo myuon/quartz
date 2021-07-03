@@ -11,6 +11,9 @@ pub enum DataType {
         Vec<String>,
         Vec<Statement>,
     ),
+    Tuple(Vec<StackData>),
+    Object(Vec<(String, StackData)>),
+    Vec(Vec<StackData>),
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -45,7 +48,6 @@ pub enum OpCode {
 #[derive(PartialEq, Debug, Clone)]
 pub enum HeapData {
     Nil,
-    Int(i32),
     String(String),
     Closure(Vec<OpCode>),
     Vec(Vec<StackData>),
@@ -57,6 +59,7 @@ pub enum HeapData {
 #[derive(PartialEq, Debug, Clone)]
 pub enum StackData {
     Nil,
+    Int(i32),
     HeapAddr(usize),  // in normal order
     StackAddr(usize), // in reverse order, 0-origin, excluding itself, for addresses of local variables
     StaticAddr(usize),
