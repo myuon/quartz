@@ -189,6 +189,18 @@ impl Runtime {
         }
     }
 
+    fn find_label_forward(&mut self, label: String) -> Result<usize> {
+        let mut pc = self.pc;
+        while pc < self.program.len() {
+            if self.program[pc] == OpCode::Label(label.clone()) {
+                return Ok(pc);
+            }
+            pc += 1;
+        }
+
+        bail!("Label {} not found", label);
+    }
+
     pub fn execute(&mut self) -> Result<()> {
         while !self.is_end() {
             if option_env!("DEBUG") == Some("true") {
@@ -449,8 +461,12 @@ impl Runtime {
                     self.labels.insert(s, self.pc);
                 }
                 OpCode::Jump(u) => {
-                    self.pc = self.labels.get(&u).unwrap().clone();
-                    continue;
+                    if self.labels.contains_key(&u) {
+                        self.pc = self.labels[&u];
+                        continue;
+                    } else {
+                        self.pc = self.find_label_forward(u).unwrap();
+                    }
                 }
                 OpCode::Slice => {
                     let end = self.pop(1);
@@ -474,7 +490,7 @@ impl Runtime {
                     let cond = self.pop(1);
                     let cond_case = self.expect_int(cond)?;
                     if cond_case != 0 {
-                        self.pc = self.labels.get(&label).unwrap().clone();
+                        self.pc = self.find_label_forward(label).unwrap();
                         continue;
                     }
                 }
@@ -812,6 +828,21 @@ mod tests {
                 "#,
                 StackData::HeapAddr(3),
                 Some(HeapData::Int(1)),
+            ),
+            (
+                // if statement
+                r#"
+                    let f = fn (x) {
+                        if _eq(x, 10) {
+                            return 1;
+                        } else {
+                            return 0;
+                        };
+                    };
+                    return f(11);
+                "#,
+                StackData::HeapAddr(3),
+                Some(HeapData::Int(0)),
             ),
         ];
 
