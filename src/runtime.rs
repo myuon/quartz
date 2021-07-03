@@ -123,24 +123,28 @@ impl Runtime {
         }
     }
 
+    fn deref_heap_data(&mut self, pointer: HeapData) -> Result<DataType> {
+        match pointer {
+            HeapData::Nil => Ok(DataType::Nil),
+            HeapData::Bool(b) => Ok(DataType::Bool(b)),
+            HeapData::Int(s) => Ok(DataType::Int(s)),
+            HeapData::String(s) => Ok(DataType::String(s)),
+            HeapData::Object(obj) => Ok(DataType::Object(obj)),
+            HeapData::Tuple(_, obj) => Ok(DataType::Tuple(obj)),
+            HeapData::Vec(obj) => Ok(DataType::Vec(obj)),
+            HeapData::Pointer(p) => self.deref_heap_data(self.heap[p].clone()),
+            v => panic!("Failed to deref: {:?}", v),
+        }
+    }
+
     fn deref(&mut self, pointer: StackData) -> Result<DataType> {
         match pointer {
             StackData::Nil => Ok(DataType::Nil),
             StackData::Bool(b) => Ok(DataType::Bool(b)),
             StackData::Int(s) => Ok(DataType::Int(s)),
             StackData::StackAddr(s) => self.deref(self.stack[s].clone()),
-            StackData::HeapAddr(p) => match self.heap[p].clone() {
-                HeapData::String(s) => Ok(DataType::String(s)),
-                HeapData::Object(obj) => Ok(DataType::Object(obj)),
-                HeapData::Tuple(_, obj) => Ok(DataType::Tuple(obj)),
-                HeapData::Vec(obj) => Ok(DataType::Vec(obj)),
-                _ => panic!("Failed to deref"),
-            },
-            _ => bail!(
-                "Expected pointer but found {:?}\n{}",
-                pointer,
-                self.show_error()
-            ),
+            StackData::HeapAddr(p) => self.deref_heap_data(self.heap[p].clone()),
+            StackData::StaticAddr(s) => self.deref_heap_data(self.static_area[s].clone()),
         }
     }
 
@@ -315,8 +319,17 @@ impl Runtime {
                 },
                 OpCode::PAssign => {
                     let val = self.pop(1);
-                    let pointer = self.pop(1);
-                    *self.stack_addr_as_mut(pointer)? = val;
+                    let addr = self.pop(1);
+
+                    match addr {
+                        StackData::StackAddr(p) => {
+                            self.stack[p] = val;
+                        }
+                        StackData::StaticAddr(p) => {
+                            self.static_area[p] = val.into_heap_data().unwrap();
+                        }
+                        v => bail!("Cannot deref: {:?}", v),
+                    }
                 }
                 OpCode::Free => {
                     let val = self.pop(1);
@@ -324,8 +337,16 @@ impl Runtime {
                 }
                 OpCode::Deref => {
                     let addr = self.pop(1);
-                    let val = self.stack_addr_as_mut(addr)?.clone();
-                    self.push(val);
+
+                    match addr {
+                        StackData::StackAddr(p) => {
+                            self.push(self.stack[p].clone());
+                        }
+                        StackData::StaticAddr(p) => {
+                            self.push(self.static_area[p].clone().as_stack_data().unwrap());
+                        }
+                        v => bail!("Cannot deref: {:?}", v),
+                    }
                 }
                 OpCode::Tuple(u) => {
                     let mut tuple = vec![];
@@ -383,6 +404,9 @@ impl Runtime {
                                 None => bail!("Cannot find key {} in {:?}", key, vs),
                             }
                         }
+                        (DataType::Vec(vs), DataType::Int(n)) => {
+                            self.push(vs[n as usize].clone());
+                        }
                         (t, i) => bail!("Unexpected type: _get({:?}, {:?})", t, i),
                     }
                 }
@@ -392,8 +416,26 @@ impl Runtime {
                     let obj = self.pop(1);
 
                     match obj {
-                        StackData::StackAddr(addr) => match self.get_stack_addr(addr).clone() {
-                            StackData::HeapAddr(pointer) => match self.heap[pointer].clone() {
+                        StackData::HeapAddr(pointer) => match self.heap[pointer].clone() {
+                            HeapData::Object(mut vs) => {
+                                let key = self.expect_string(key)?;
+                                let updated = (move || {
+                                    for (i, (k, _)) in vs.clone().into_iter().enumerate() {
+                                        if k == key {
+                                            vs[i] = (k, value);
+                                            return Ok(vs);
+                                        }
+                                    }
+
+                                    bail!("Cannot find key {} in {:?}", key, vs);
+                                })()?;
+
+                                self.heap[pointer] = HeapData::Object(updated);
+                            }
+                            t => bail!("Expected object but found {:?}", t),
+                        },
+                        StackData::StaticAddr(addr) => match self.static_area[addr].clone() {
+                            HeapData::Pointer(pointer) => match self.heap[pointer].clone() {
                                 HeapData::Object(mut vs) => {
                                     let key = self.expect_string(key)?;
                                     let updated = (move || {
@@ -411,10 +453,10 @@ impl Runtime {
                                 }
                                 t => bail!("Expected object but found {:?}", t),
                             },
-                            t => bail!("Expected heap address but found {:?}", t),
+                            t => bail!("Expected pointer but found {:?}", t),
                         },
                         t => bail!(
-                            "Expected stack address but found {:?}\n{}",
+                            "Expected stack or static address but found {:?}\n{}",
                             t,
                             self.show_error()
                         ),
@@ -454,13 +496,26 @@ impl Runtime {
                     let value = self.pop(1);
                     let vec = self.pop(1);
 
-                    let addr = self.expect_stack_index(vec)?;
-                    let addr = self.expect_heap_addr(self.stack[addr].clone())?;
-                    match &mut self.heap[addr] {
-                        HeapData::Vec(vs) => {
-                            vs.push(value);
-                        }
-                        t => bail!("Expected vector but found {:?}", t),
+                    match vec {
+                        StackData::StaticAddr(addr) => match &mut self.static_area[addr] {
+                            HeapData::Vec(vs) => {
+                                vs.push(value);
+                            }
+                            HeapData::Pointer(pointer) => match &mut self.heap[*pointer] {
+                                HeapData::Vec(vs) => {
+                                    vs.push(value);
+                                }
+                                t => bail!("Expected vector but found {:?}", t),
+                            },
+                            t => bail!("Expected vector but found {:?}", t),
+                        },
+                        StackData::HeapAddr(addr) => match &mut self.heap[addr] {
+                            HeapData::Vec(vs) => {
+                                vs.push(value);
+                            }
+                            t => bail!("Expected vector but found {:?}", t),
+                        },
+                        t => bail!("TypeError {:?}", t),
                     }
                 }
                 OpCode::Len => {
@@ -475,7 +530,6 @@ impl Runtime {
                         t => bail!("Expected vector but found {:?}", t),
                     }
                 }
-                OpCode::Loop => todo!(),
                 OpCode::Label(s) => {
                     self.labels.insert(s, self.pc);
                 }
@@ -518,6 +572,25 @@ impl Runtime {
                     let msg = self.expect_string(msg)?;
                     println!("Panic: {}\n{}", msg, self.show_error());
                     return Ok(());
+                }
+                OpCode::SetStatic(addr) => {
+                    let val = self.pop(1);
+
+                    if let StackData::HeapAddr(h) = val {
+                        self.static_area[addr] = HeapData::Pointer(h);
+                    } else {
+                        self.static_area[addr] = val
+                            .clone()
+                            .into_heap_data()
+                            .ok_or(anyhow::anyhow!("Cannot place the value on heap: {:?}", val))?;
+                    }
+                }
+                OpCode::CopyStatic(addr) => {
+                    if let Some(d) = self.static_area[addr].clone().as_stack_data() {
+                        self.push(d);
+                    } else {
+                        self.push(StackData::StaticAddr(addr));
+                    }
                 }
             }
 
@@ -636,7 +709,7 @@ mod tests {
                 DataType::Int(1),
             ),
             (
-                r#"let x = _object("x", 10, "y", "yes"); _set(&x, "y", 20); return _get(x, "y");"#,
+                r#"let x = _object("x", 10, "y", "yes"); _set(x, "y", 20); return _get(x, "y");"#,
                 DataType::Int(20),
             ),
             (
@@ -681,9 +754,9 @@ mod tests {
                 // vector
                 r#"
                     let v = _vec();
-                    _vpush(&v, 10);
-                    _vpush(&v, 20);
-                    _vpush(&v, 30);
+                    _vpush(v, 10);
+                    _vpush(v, 20);
+                    _vpush(v, 30);
 
                     return _tuple(_len(v), _get(v, 1));
                 "#,
@@ -900,7 +973,7 @@ mod tests {
             (
                 // just panic
                 r#"let x = 1; _panic("panic");"#,
-                vec![StackData::Int(1)],
+                vec![],
                 vec![HeapData::String("panic".to_string())],
             ),
             (

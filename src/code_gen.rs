@@ -9,6 +9,7 @@ use crate::{
 
 #[derive(Debug, Clone)]
 struct VarInfo {
+    is_static: bool,
     address: usize,
 }
 
@@ -105,22 +106,13 @@ impl CodeGenerator {
                     .get(&ident)
                     .ok_or(anyhow::anyhow!("Ident {} not found", ident))?;
 
-                let is_local = self.local.contains(&ident);
-
-                self.codes.push(OpCode::Copy(if is_local {
-                    self.stack_count - 1 - v.address
+                if v.is_static {
+                    self.codes.push(OpCode::CopyStatic(v.address));
                 } else {
-                    // localではない場合はclosureからouter variableにアクセスする場合
-                    // stack_countとbase_addressの差分で関数開始時のアドレスまで戻れるので、そこからouter variableのindexまでさらに戻る
-                    (self.stack_count - self.base_address)
-                        + (self.non_local_variables.len()
-                            - 1
-                            - self
-                                .non_local_variables
-                                .iter()
-                                .position(|p| p == &ident)
-                                .unwrap())
-                }));
+                    self.codes
+                        .push(OpCode::Copy(self.stack_count - 1 - v.address));
+                }
+
                 self.stack_count += 1;
                 self.pop_count += 1;
 
@@ -140,24 +132,6 @@ impl CodeGenerator {
             Expr::Call(f, args) => {
                 if self.functions.contains_key(&f) {
                     let addr = self.functions[&f].clone();
-
-                    // push outer_variables
-                    // FIXME: _switchなど一部変数を宣言せずにclosureを使う場面があるのでそのような場面は一旦outer variableは利用しないものと仮定してスルーする
-                    let outer_variables = self.closures[&addr.closure_id].clone();
-
-                    for v in outer_variables {
-                        self.codes.push(OpCode::Copy(
-                            self.stack_count
-                                - 1
-                                - self
-                                    .variables
-                                    .get(&v)
-                                    .ok_or(anyhow::anyhow!("Variable {} not found", v))?
-                                    .address,
-                        ));
-                        self.stack_count += 1;
-                        self.pop_count += 1;
-                    }
 
                     // push arguments
                     let arity = args.len();
@@ -326,7 +300,11 @@ impl CodeGenerator {
                         .get(v)
                         .ok_or(anyhow::anyhow!("Ident {} not found", v))?
                         .clone();
-                    self.push(StackData::StackAddr(self.stack_count - 1 - p.address));
+                    self.push(if p.is_static {
+                        StackData::StaticAddr(p.address)
+                    } else {
+                        StackData::StackAddr(self.stack_count - 1 - p.address)
+                    });
 
                     Ok(())
                 }
@@ -376,6 +354,7 @@ impl CodeGenerator {
                         generator.variables.insert(
                             a,
                             VarInfo {
+                                is_static: false,
                                 address: generator.stack_count,
                             },
                         );
@@ -402,10 +381,23 @@ impl CodeGenerator {
                     self.variables.insert(
                         x.clone(),
                         VarInfo {
-                            address: self.stack_count - 1,
+                            is_static,
+                            address: if is_static {
+                                self.static_area.len()
+                            } else {
+                                self.stack_count - 1
+                            },
                         },
                     );
-                    self.local.insert(x.clone());
+
+                    if is_static {
+                        let addr = self.static_area.len();
+                        self.static_area.push(HeapData::Nil);
+                        self.codes.push(OpCode::SetStatic(addr));
+
+                        self.stack_count -= 1;
+                        self.pop_count -= 1;
+                    }
                 }
                 Statement::Return(e) => {
                     self.expr(arity, e.clone())?;
@@ -489,8 +481,15 @@ mod tests {
             (
                 r#"let x = 10; let y = x; return y;"#,
                 (
-                    vec![Push(StackData::Int(10)), Copy(0), Copy(0), Return(3)],
-                    vec![],
+                    vec![
+                        Push(StackData::Int(10)),
+                        SetStatic(0),
+                        CopyStatic(0),
+                        SetStatic(1),
+                        CopyStatic(1),
+                        Return(1),
+                    ],
+                    vec![HeapData::Nil, HeapData::Nil],
                 ),
             ),
             (
@@ -498,10 +497,11 @@ mod tests {
                 (
                     vec![
                         Push(StackData::Int(10)),
-                        Push(StackData::StackAddr(0)),
-                        Return(2),
+                        SetStatic(0),
+                        Push(StackData::StaticAddr(0)),
+                        Return(1),
                     ],
-                    vec![],
+                    vec![HeapData::Nil],
                 ),
             ),
             (
@@ -535,14 +535,15 @@ mod tests {
                 (
                     vec![
                         Push(StackData::Int(0)),
-                        Push(StackData::StackAddr(0)),
+                        SetStatic(0),
+                        Push(StackData::StaticAddr(0)),
                         Push(StackData::Int(10)),
                         PAssign,
                         Push(StackData::Nil),
-                        Copy(1),
-                        Return(3),
+                        CopyStatic(0),
+                        Return(2),
                     ],
-                    vec![],
+                    vec![HeapData::Nil],
                 ),
             ),
             (
@@ -550,23 +551,32 @@ mod tests {
                 (
                     vec![
                         Push(StackData::Int(10)),
-                        Copy(0),
-                        Copy(1),
-                        Copy(2),
-                        Copy(3),
-                        Copy(4),
-                        Call(0),
+                        SetStatic(0),
+                        CopyStatic(0),
+                        CopyStatic(0),
+                        CopyStatic(0),
+                        CopyStatic(0),
+                        CopyStatic(0),
+                        Call(1),
                         Push(StackData::Nil),
-                        Return(3),
+                        Return(2),
                     ],
-                    vec![HeapData::Closure(vec![Copy(4), Return(6)])],
+                    vec![HeapData::Nil, HeapData::Closure(vec![Copy(4), Return(6)])],
                 ),
             ),
             (
                 r#"let x = 0; let f = fn (a) { return *a; };"#,
                 (
-                    vec![Push(StackData::Int(0)), Push(StackData::Nil), Return(2)],
-                    vec![HeapData::Closure(vec![Copy(0), Deref, Return(2)])],
+                    vec![
+                        Push(StackData::Int(0)),
+                        SetStatic(0),
+                        Push(StackData::Nil),
+                        Return(1),
+                    ],
+                    vec![
+                        HeapData::Nil,
+                        HeapData::Closure(vec![Copy(0), Deref, Return(2)]),
+                    ],
                 ),
             ),
             (
@@ -579,12 +589,13 @@ mod tests {
                         Push(StackData::Int(4)),
                         Push(StackData::Int(5)),
                         Tuple(5),
-                        Copy(0),
+                        SetStatic(0),
+                        CopyStatic(0),
                         Push(StackData::Int(3)),
                         Get,
-                        Return(2),
+                        Return(1),
                     ],
-                    vec![],
+                    vec![HeapData::Nil],
                 ),
             ),
             (
@@ -596,12 +607,13 @@ mod tests {
                         Alloc(HeapData::String("y".to_string())),
                         Alloc(HeapData::String("yes".to_string())),
                         Object(2),
-                        Copy(0),
+                        SetStatic(0),
+                        CopyStatic(0),
                         Alloc(HeapData::String("x".to_string())),
                         Get,
-                        Return(2),
+                        Return(1),
                     ],
-                    vec![],
+                    vec![HeapData::Nil],
                 ),
             ),
             (
@@ -660,26 +672,32 @@ mod tests {
                 (
                     vec![
                         Push(StackData::Int(0)),
+                        SetStatic(0),
+                        Push(StackData::Int(0)),
+                        SetStatic(1),
+                        Push(StackData::Int(0)),
+                        SetStatic(3),
                         Push(StackData::Int(0)),
                         Push(StackData::Int(0)),
-                        Copy(1),
-                        Copy(3),
                         Push(StackData::Int(0)),
-                        Push(StackData::Int(0)),
-                        Push(StackData::Int(0)),
-                        Call(0),
+                        Call(2),
                         Push(StackData::Nil),
-                        Return(7),
+                        Return(2),
                     ],
-                    vec![HeapData::Closure(vec![
-                        Push(StackData::Int(0)),
-                        Push(StackData::Int(0)),
-                        Copy(6),
-                        Copy(6),
-                        Copy(8),
-                        Tuple(3),
-                        Return(6),
-                    ])],
+                    vec![
+                        HeapData::Nil,
+                        HeapData::Nil,
+                        HeapData::Closure(vec![
+                            Push(StackData::Int(0)),
+                            Push(StackData::Int(0)),
+                            CopyStatic(1),
+                            CopyStatic(0),
+                            CopyStatic(1),
+                            Tuple(3),
+                            Return(6),
+                        ]),
+                        HeapData::Nil,
+                    ],
                 ),
             ),
             (
@@ -694,14 +712,16 @@ mod tests {
                 (
                     vec![
                         Push(StackData::Int(10)),
+                        SetStatic(3),
                         Call(2),
                         Push(StackData::Nil),
-                        Return(3),
+                        Return(2),
                     ],
                     vec![
                         HeapData::Closure(vec![Push(StackData::Nil), Return(1)]),
                         HeapData::Closure(vec![Call(0), Push(StackData::Nil), Return(2)]),
                         HeapData::Closure(vec![Call(1), Push(StackData::Nil), Return(2)]),
+                        HeapData::Nil,
                     ],
                 ),
             ),

@@ -37,24 +37,38 @@ pub enum OpCode {
     Switch(usize),
     VPush,
     Len,
-    Loop,
     Label(String),
     Jump(String),
     ReturnIf(usize),
     Slice,
     JumpIfNot(String),
     Panic,
+    SetStatic(usize),
+    CopyStatic(usize),
 }
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum HeapData {
     Nil,
+    Bool(bool),
+    Int(i32),
     String(String),
     Closure(Vec<OpCode>),
     Vec(Vec<StackData>),
     Tuple(usize, Vec<StackData>),
     Object(Vec<(String, StackData)>),
     Pointer(usize),
+}
+
+impl HeapData {
+    pub fn as_stack_data(self) -> Option<StackData> {
+        match self {
+            HeapData::Nil => Some(StackData::Nil),
+            HeapData::Bool(b) => Some(StackData::Bool(b)),
+            HeapData::Int(i) => Some(StackData::Int(i)),
+            _ => None,
+        }
+    }
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -78,6 +92,15 @@ impl StackData {
     pub fn as_static_addr(&self) -> Option<usize> {
         match self {
             &StackData::StaticAddr(u) => Some(u),
+            _ => None,
+        }
+    }
+
+    pub fn into_heap_data(self) -> Option<HeapData> {
+        match self {
+            StackData::Nil => Some(HeapData::Nil),
+            StackData::Int(i) => Some(HeapData::Int(i)),
+            StackData::Bool(b) => Some(HeapData::Bool(b)),
             _ => None,
         }
     }
