@@ -321,7 +321,8 @@ impl Runtime {
 
                     match addr {
                         StackData::StackAddr(p) => {
-                            self.push(self.stack[p].clone());
+                            let u = self.get_stack_addr_index(p);
+                            self.push(self.stack[u].clone());
                         }
                         StackData::StaticAddr(p) => {
                             self.push(self.static_area[p].clone().as_stack_data().ok_or(
@@ -871,7 +872,7 @@ mod tests {
             (
                 r#"
                     let assign_a = fn (obj, x) {
-                        _set(obj, "a", x);
+                        _set(*obj, "a", x);
                     };
 
                     let object = _object(
@@ -886,6 +887,25 @@ mod tests {
                     return _get(object, "a");
                 "#,
                 DataType::Int(30),
+            ),
+            (
+                r#"
+                    let assign_a = fn (obj, x) {
+                        _set(*obj, "a", x);
+                    };
+
+                    let main = fn () {
+                        let object = _object(
+                            "a", 10,
+                        );
+                        assign_a(&object, 20);
+    
+                        return _get(object, "a");
+                    };
+
+                    return main();
+                "#,
+                DataType::Int(20),
             ),
         ];
 

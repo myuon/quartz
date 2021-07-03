@@ -13,8 +13,8 @@ let lexer_is_end = fn (lexer) {
   return _eq(_get(lexer, "position"), _len(_get(lexer, "input")));
 };
 let lexer_run = fn (lexer, input) {
-  _set(lexer, "position", 0);
-  _set(lexer, "input", input);
+  _set(*lexer, "position", 0);
+  _set(*lexer, "input", input);
 };
 let lexer_matches = fn (lexer, lexeme) {
   let l = _get(lexeme, "lexeme");
