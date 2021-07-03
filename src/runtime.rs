@@ -921,6 +921,25 @@ mod tests {
                 "#,
                 DataType::Int(3),
             ),
+            (
+                r#"
+                    let c = 0;
+
+                    loop {
+                        if _eq(c, 10) {
+                            return nil;
+                        };
+
+                        let a = 10;
+                        let b = "hello";
+
+                        _passign(&c, _add(c, 1));
+
+                        continue;
+                    };
+                "#,
+                DataType::Int(3),
+            ),
         ];
 
         let (ffi_table, ffi_functions) = create_ffi_table();

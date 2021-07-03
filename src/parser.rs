@@ -131,13 +131,13 @@ impl Parser {
                     Ok(Statement::Return(e))
                 }
             })
-            .or_else(|_| self.statement_if())
-            .or_else(|_| self.expr().map(|e| Statement::Expr(e)))
-            .or_else(|_| {
+            .or_else(|_| -> Result<Statement> { self.statement_if() })
+            .or_else(|_| -> Result<Statement> {
                 self.expect_lexeme(Lexeme::Continue)?;
 
                 Ok(Statement::Continue)
             })
+            .or_else(|_| self.expr().map(|e| Statement::Expr(e)))
     }
 
     fn many_idents(&mut self) -> Result<Vec<String>> {
@@ -222,9 +222,12 @@ impl Parser {
             .or_else(|_| -> Result<Expr> {
                 self.expect_lexeme(Lexeme::Loop)?;
 
+                let is_toplevel = self.is_toplevel;
+                self.is_toplevel = false;
                 self.expect_lexeme(Lexeme::LBrace)?;
                 let statements = self.many_statements()?;
                 self.expect_lexeme(Lexeme::RBrace)?;
+                self.is_toplevel = is_toplevel;
 
                 Ok(Expr::Loop(statements))
             })
