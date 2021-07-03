@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use anyhow::{bail, ensure, Result};
 
@@ -13,38 +13,25 @@ struct VarInfo {
     address: usize,
 }
 
-#[derive(Debug, Clone)]
-struct FunctionInfo {
-    static_addr: usize,
-    // 型推論時にどうにかできるので本来は不要
-    closure_id: usize,
-}
-
 #[derive(Debug)]
 struct CodeGenerator {
     variables: HashMap<String, VarInfo>,
-    local: HashSet<String>,
-    codes: Vec<OpCode>,
     ffi_table: HashMap<String, usize>,
     stack_count: usize,
     pop_count: usize,
-    base_address: usize, // base address for closure
+    codes: Vec<OpCode>,
     static_area: Vec<HeapData>,
-    functions: HashMap<String, FunctionInfo>,
 }
 
 impl CodeGenerator {
     pub fn new(ffi_table: HashMap<String, usize>) -> CodeGenerator {
         CodeGenerator {
             variables: HashMap::new(),
-            local: HashSet::new(),
             codes: vec![],
             stack_count: 0,
             pop_count: 0,
             ffi_table,
-            base_address: 0,
             static_area: vec![],
-            functions: HashMap::new(),
         }
     }
 
@@ -123,8 +110,8 @@ impl CodeGenerator {
             }
             Expr::Fun(_, _, _) => bail!("Function expression is not supported"),
             Expr::Call(f, args) => {
-                if self.functions.contains_key(&f) {
-                    let addr = self.functions[&f].clone();
+                if self.variables.contains_key(&f) {
+                    let addr = self.variables[&f].clone();
 
                     // push arguments
                     let arity = args.len();
@@ -132,7 +119,7 @@ impl CodeGenerator {
                         self.expr(arity, a)?;
                     }
 
-                    self.codes.push(OpCode::Call(addr.static_addr));
+                    self.codes.push(OpCode::Call(addr.address));
                     self.after_call(arity);
 
                     return Ok(());
@@ -312,7 +299,7 @@ impl CodeGenerator {
         for stmt in stmts {
             match stmt {
                 // 関数宣言はstaticなものにコンパイルする必要があるのでここで特別扱いする
-                Statement::Let(is_static, x, Expr::Fun(id, args, body)) => {
+                Statement::Let(is_static, x, Expr::Fun(_id, args, body)) => {
                     if !is_static {
                         bail!("A function in a function is not supported");
                     }
@@ -320,12 +307,9 @@ impl CodeGenerator {
                     let mut generator = CodeGenerator::new(self.ffi_table.clone());
                     generator.variables = self.variables.clone();
                     generator.stack_count = self.stack_count;
-                    generator.base_address = self.stack_count;
-                    generator.functions = self.functions.clone();
 
                     let arity = args.len();
                     for a in args {
-                        generator.local.insert(a.clone());
                         generator.variables.insert(
                             a,
                             VarInfo {
@@ -338,15 +322,13 @@ impl CodeGenerator {
 
                     generator.statements(arity, body, true)?;
 
-                    self.functions.extend(generator.functions);
-
                     let addr = self.static_area.len();
                     self.static_area.push(HeapData::Closure(generator.codes));
-                    self.functions.insert(
+                    self.variables.insert(
                         x,
-                        FunctionInfo {
-                            static_addr: addr,
-                            closure_id: id,
+                        VarInfo {
+                            address: addr,
+                            is_static,
                         },
                     );
                 }
