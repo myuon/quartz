@@ -3,6 +3,9 @@ use regex::Regex;
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Lexeme {
+    Nil,
+    True,
+    False,
     Fn,
     Let,
     Return,
@@ -96,6 +99,9 @@ impl TokenReader {
             if self.matches_any(
                 input,
                 vec![
+                    ("nil", Lexeme::Nil),
+                    ("true", Lexeme::True),
+                    ("false", Lexeme::False),
                     ("fn", Lexeme::Fn),
                     ("let", Lexeme::Let),
                     ("return", Lexeme::Return),

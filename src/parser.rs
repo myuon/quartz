@@ -54,6 +54,21 @@ impl Parser {
 
     fn literal(&mut self) -> Result<Literal> {
         match &self.input[self.position].lexeme {
+            Lexeme::Nil => {
+                self.position += 1;
+
+                Ok(Literal::Nil)
+            }
+            Lexeme::True => {
+                self.position += 1;
+
+                Ok(Literal::Bool(true))
+            }
+            Lexeme::False => {
+                self.position += 1;
+
+                Ok(Literal::Bool(false))
+            }
             Lexeme::Int(n) => {
                 self.position += 1;
 

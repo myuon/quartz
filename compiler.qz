@@ -21,9 +21,10 @@ let lexer_matches = fn (lexer, lexeme) {
   
   if _eq(l, _slice(_get(lexer, "input"), _get(lexer, "position"), _add(_get(lexer, "position"), _len(l)))) {
     _vpush(_get(lexer, "tokens"), lexeme);
+    return true;
   };
 
-  return 1;
+  return false;
 };
 
 let main = fn (input) {

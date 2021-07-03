@@ -102,28 +102,6 @@ impl CodeGenerator {
     fn expr(&mut self, arity: usize, expr: Expr) -> Result<()> {
         match expr {
             Expr::Var(ident) => {
-                if ident == "nil" {
-                    self.push(StackData::Nil);
-                    self.stack_count += 1;
-                    self.pop_count += 1;
-
-                    return Ok(());
-                }
-                if ident == "true" {
-                    self.push(StackData::Bool(true));
-                    self.stack_count += 1;
-                    self.pop_count += 1;
-
-                    return Ok(());
-                }
-                if ident == "false" {
-                    self.push(StackData::Bool(false));
-                    self.stack_count += 1;
-                    self.pop_count += 1;
-
-                    return Ok(());
-                }
-
                 let v = self
                     .variables
                     .get(&ident)
@@ -152,8 +130,10 @@ impl CodeGenerator {
             }
             Expr::Lit(lit) => {
                 match lit {
-                    Literal::Int(n) => self.alloc(DataType::Int(n))?,
+                    Literal::Int(n) => self.push(StackData::Int(n)),
                     Literal::String(s) => self.alloc(DataType::String(s))?,
+                    Literal::Nil => self.push(StackData::Nil),
+                    Literal::Bool(b) => self.push(StackData::Bool(b)),
                 };
 
                 Ok(())

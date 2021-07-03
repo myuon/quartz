@@ -1,5 +1,7 @@
 #[derive(PartialEq, Debug, Clone)]
 pub enum Literal {
+    Nil,
+    Bool(bool),
     Int(i32),
     String(String),
 }
