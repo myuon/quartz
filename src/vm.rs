@@ -56,7 +56,8 @@ pub enum HeapData {
     Vec(Vec<StackData>),
     Tuple(usize, Vec<StackData>),
     Object(Vec<(String, StackData)>),
-    Pointer(usize),
+    HeapAddr(usize),
+    StaticAddr(usize),
 }
 
 impl HeapData {
@@ -65,6 +66,8 @@ impl HeapData {
             HeapData::Nil => Some(StackData::Nil),
             HeapData::Bool(b) => Some(StackData::Bool(b)),
             HeapData::Int(i) => Some(StackData::Int(i)),
+            HeapData::HeapAddr(h) => Some(StackData::HeapAddr(h)),
+            HeapData::StaticAddr(h) => Some(StackData::StaticAddr(h)),
             _ => None,
         }
     }
@@ -100,6 +103,8 @@ impl StackData {
             StackData::Nil => Some(HeapData::Nil),
             StackData::Int(i) => Some(HeapData::Int(i)),
             StackData::Bool(b) => Some(HeapData::Bool(b)),
+            StackData::HeapAddr(h) => Some(HeapData::HeapAddr(h)),
+            StackData::StackAddr(h) => Some(HeapData::StaticAddr(h)),
             _ => None,
         }
     }

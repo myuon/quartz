@@ -132,7 +132,7 @@ impl Runtime {
             HeapData::Object(obj) => Ok(DataType::Object(obj)),
             HeapData::Tuple(_, obj) => Ok(DataType::Tuple(obj)),
             HeapData::Vec(obj) => Ok(DataType::Vec(obj)),
-            HeapData::Pointer(p) => self.deref_heap_data(self.heap[p].clone()),
+            HeapData::HeapAddr(p) => self.deref_heap_data(self.heap[p].clone()),
             v => panic!("Failed to deref: {:?}", v),
         }
     }
@@ -323,10 +323,13 @@ impl Runtime {
 
                     match addr {
                         StackData::StackAddr(p) => {
-                            self.stack[p] = val;
+                            let u = self.get_stack_addr_index(p);
+                            self.stack[u] = val;
                         }
                         StackData::StaticAddr(p) => {
-                            self.static_area[p] = val.into_heap_data().unwrap();
+                            self.static_area[p] = val.clone().into_heap_data().ok_or(
+                                anyhow::anyhow!("Cannot place the value on heap: {:?}", val),
+                            )?;
                         }
                         v => bail!("Cannot deref: {:?}", v),
                     }
@@ -343,7 +346,12 @@ impl Runtime {
                             self.push(self.stack[p].clone());
                         }
                         StackData::StaticAddr(p) => {
-                            self.push(self.static_area[p].clone().as_stack_data().unwrap());
+                            self.push(self.static_area[p].clone().as_stack_data().ok_or(
+                                anyhow::anyhow!(
+                                    "Cannot place the value on stack: {:?}",
+                                    self.static_area[p]
+                                ),
+                            )?);
                         }
                         v => bail!("Cannot deref: {:?}", v),
                     }
@@ -435,7 +443,7 @@ impl Runtime {
                             t => bail!("Expected object but found {:?}", t),
                         },
                         StackData::StaticAddr(addr) => match self.static_area[addr].clone() {
-                            HeapData::Pointer(pointer) => match self.heap[pointer].clone() {
+                            HeapData::HeapAddr(pointer) => match self.heap[pointer].clone() {
                                 HeapData::Object(mut vs) => {
                                     let key = self.expect_string(key)?;
                                     let updated = (move || {
@@ -489,7 +497,7 @@ impl Runtime {
                             HeapData::Vec(vs) => {
                                 vs.push(value);
                             }
-                            HeapData::Pointer(pointer) => match &mut self.heap[*pointer] {
+                            HeapData::HeapAddr(pointer) => match &mut self.heap[*pointer] {
                                 HeapData::Vec(vs) => {
                                     vs.push(value);
                                 }
@@ -565,7 +573,9 @@ impl Runtime {
                     let val = self.pop(1);
 
                     if let StackData::HeapAddr(h) = val {
-                        self.static_area[addr] = HeapData::Pointer(h);
+                        self.static_area[addr] = HeapData::HeapAddr(h);
+                    } else if let StackData::StaticAddr(h) = val {
+                        self.static_area[addr] = HeapData::StaticAddr(h);
                     } else {
                         self.static_area[addr] = val
                             .clone()
@@ -961,7 +971,7 @@ mod tests {
             (
                 // take the address of string
                 r#"let x = "hello, world"; let y = &x; _panic("");"#,
-                vec![StackData::HeapAddr(0), StackData::StackAddr(0)],
+                vec![],
                 vec![
                     HeapData::String("hello, world".to_string()),
                     HeapData::String("".to_string()),
@@ -969,7 +979,7 @@ mod tests {
             ),
             (
                 r#"let x = "hello, world"; _free(x); _panic("");"#,
-                vec![StackData::HeapAddr(0), StackData::Nil],
+                vec![StackData::Nil],
                 vec![HeapData::Nil, HeapData::String("".to_string())],
             ),
             (
