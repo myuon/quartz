@@ -401,6 +401,9 @@ impl CodeGenerator {
 
                     // endif
                     self.codes.push(OpCode::Label(end_if_label));
+
+                    self.stack_count = stack_count;
+                    self.pop_count = pop_count;
                 }
                 Statement::Continue => {
                     let (label, count) = self.current_loop_label.clone().unwrap();

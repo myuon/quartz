@@ -940,6 +940,27 @@ mod tests {
                 "#,
                 DataType::Nil,
             ),
+            (
+                r#"
+                    let f = fn (a) {
+                        _passign(a, 10);
+                    };
+
+                    let c = 0;
+                    let a = 0;
+
+                    loop {
+                        if _eq(c, 10) {
+                            return nil;
+                        };
+
+                        f(&a);
+
+                        _passign(&c, _add(c, 1));
+                    };
+                "#,
+                DataType::Nil,
+            ),
         ];
 
         let (ffi_table, ffi_functions) = create_ffi_table();
