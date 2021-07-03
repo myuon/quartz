@@ -23,32 +23,25 @@ struct FunctionInfo {
 #[derive(Debug)]
 struct CodeGenerator {
     variables: HashMap<String, VarInfo>,
-    closures: HashMap<usize, Vec<String>>,
     local: HashSet<String>,
     codes: Vec<OpCode>,
     ffi_table: HashMap<String, usize>,
     stack_count: usize,
     pop_count: usize,
-    non_local_variables: Vec<String>, // for closure
-    base_address: usize,              // base address for closure
+    base_address: usize, // base address for closure
     static_area: Vec<HeapData>,
     functions: HashMap<String, FunctionInfo>,
 }
 
 impl CodeGenerator {
-    pub fn new(
-        ffi_table: HashMap<String, usize>,
-        closures: HashMap<usize, Vec<String>>,
-    ) -> CodeGenerator {
+    pub fn new(ffi_table: HashMap<String, usize>) -> CodeGenerator {
         CodeGenerator {
             variables: HashMap::new(),
-            closures,
             local: HashSet::new(),
             codes: vec![],
             stack_count: 0,
             pop_count: 0,
             ffi_table,
-            non_local_variables: vec![],
             base_address: 0,
             static_area: vec![],
             functions: HashMap::new(),
@@ -324,13 +317,10 @@ impl CodeGenerator {
                         bail!("A function in a function is not supported");
                     }
 
-                    let mut generator =
-                        CodeGenerator::new(self.ffi_table.clone(), self.closures.clone());
+                    let mut generator = CodeGenerator::new(self.ffi_table.clone());
                     generator.variables = self.variables.clone();
-                    generator.closures = self.closures.clone();
                     generator.stack_count = self.stack_count;
                     generator.base_address = self.stack_count;
-                    generator.non_local_variables = self.closures[&id].clone();
                     generator.functions = self.functions.clone();
 
                     let arity = args.len();
@@ -348,7 +338,6 @@ impl CodeGenerator {
 
                     generator.statements(arity, body, true)?;
 
-                    self.closures.insert(id, generator.non_local_variables);
                     self.functions.extend(generator.functions);
 
                     let addr = self.static_area.len();
@@ -444,9 +433,8 @@ impl CodeGenerator {
 pub fn gen_code(
     module: Module,
     ffi_table: HashMap<String, usize>,
-    closures: HashMap<usize, Vec<String>>,
 ) -> Result<(Vec<OpCode>, Vec<HeapData>)> {
-    let mut generator = CodeGenerator::new(ffi_table, closures);
+    let mut generator = CodeGenerator::new(ffi_table);
     generator.gen_code(module)?;
 
     Ok((generator.codes, generator.static_area))
@@ -454,7 +442,7 @@ pub fn gen_code(
 
 #[cfg(test)]
 mod tests {
-    use crate::{create_ffi_table, parser::run_parser, typechecker::typechecker};
+    use crate::{create_ffi_table, parser::run_parser};
 
     use super::*;
 
@@ -715,9 +703,8 @@ mod tests {
         for c in cases {
             let (ffi_table, _) = create_ffi_table();
             let m = run_parser(c.0).unwrap();
-            let closures = typechecker(&m).unwrap();
 
-            let result = gen_code(m, ffi_table, closures);
+            let result = gen_code(m, ffi_table);
             assert!(result.is_ok(), "{:?} {}", result, c.0);
             assert_eq!(result.unwrap(), c.1, "{}", c.0);
         }

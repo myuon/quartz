@@ -156,21 +156,6 @@ impl Runtime {
         self.stack.len() - 1 - u
     }
 
-    fn stack_addr_as_mut(&mut self, datatype: StackData) -> Result<&mut StackData> {
-        match datatype {
-            StackData::StackAddr(r) => {
-                let r = self.stack.len() - 1 - r;
-                Ok(&mut self.stack[r])
-            }
-            v => bail!("Expected a stack address but found {:?}", v),
-        }
-    }
-
-    fn get_stack_addr(&self, u: usize) -> &StackData {
-        let index = self.get_stack_addr_index(u);
-        &self.stack[index]
-    }
-
     fn expect_bool(&mut self, datatype: StackData) -> Result<bool> {
         match datatype {
             StackData::Bool(s) => return Ok(s),
@@ -196,13 +181,6 @@ impl Runtime {
         match datatype {
             StackData::HeapAddr(h) => Ok(h),
             v => bail!("Expected heap address but found {:?}", v),
-        }
-    }
-
-    fn expect_stack_index(&self, datatype: StackData) -> Result<usize> {
-        match datatype {
-            StackData::StackAddr(h) => Ok(self.get_stack_addr_index(h)),
-            v => bail!("Expected stack address but found {:?}", v),
         }
     }
 
@@ -614,9 +592,7 @@ pub type FFIFunction = Box<fn(Vec<StackData>, Vec<HeapData>) -> (Vec<StackData>,
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        code_gen::gen_code, create_ffi_table, parser::run_parser, typechecker::typechecker,
-    };
+    use crate::{code_gen::gen_code, create_ffi_table, parser::run_parser};
 
     use super::*;
 
@@ -917,8 +893,7 @@ mod tests {
 
         for c in cases {
             let m = run_parser(c.0).unwrap();
-            let closures = typechecker(&m);
-            let program = gen_code(m, ffi_table.clone(), closures.unwrap());
+            let program = gen_code(m, ffi_table.clone());
             assert!(program.is_ok(), "{:?} {}", program, c.0);
 
             let (program, static_area) = program.unwrap();
@@ -1003,8 +978,7 @@ mod tests {
 
         for case in cases {
             let m = run_parser(case.0).unwrap();
-            let closures = typechecker(&m).unwrap();
-            let (program, static_area) = gen_code(m, ffi_table.clone(), closures).unwrap();
+            let (program, static_area) = gen_code(m, ffi_table.clone()).unwrap();
             let mut interpreter = Runtime::new(program, static_area, ffi_functions.clone());
             interpreter.execute().unwrap();
             assert_eq!(interpreter.stack, case.1, "{}", case.0);
