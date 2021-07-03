@@ -102,9 +102,7 @@ impl Parser {
     }
 
     fn statement(&mut self) -> Result<Statement> {
-        self.expect_lexeme(Lexeme::Panic)
-            .map(|_| Statement::Panic)
-            .or_else(|_| self.statement_let())
+        self.statement_let()
             .or_else(|_| -> Result<Statement> {
                 self.expect_lexeme(Lexeme::Return)?;
                 let e = self.expr()?;
@@ -332,10 +330,10 @@ mod tests {
                 ]),
             ),
             (
-                r#"1; panic; 10;"#,
+                r#"1; _panic(); 10;"#,
                 Module(vec![
                     Statement::Expr(Expr::Lit(Literal::Int(1))),
-                    Statement::Panic,
+                    Statement::Expr(Expr::Call("_panic".to_string(), vec![])),
                     Statement::Expr(Expr::Lit(Literal::Int(10))),
                 ]),
             ),

@@ -71,7 +71,6 @@ impl TypeChecker {
                 self.expr(e1)?;
                 self.expr(e2)?;
             }
-            Statement::Panic => {}
             Statement::If(cond, t, f) => {
                 self.expr(cond)?;
                 self.statements(t)?;

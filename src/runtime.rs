@@ -494,6 +494,12 @@ impl Runtime {
                         continue;
                     }
                 }
+                OpCode::Panic => {
+                    let msg = self.pop(1);
+                    let msg = self.expect_string(msg)?;
+                    println!("Panic: {}\n{}", msg, self.show_error());
+                    return Ok(());
+                }
             }
 
             self.pc += 1;
@@ -913,9 +919,9 @@ mod tests {
             ),
             (
                 // just panic
-                r#"let x = 1; panic;"#,
+                r#"let x = 1; _panic("panic");"#,
                 vec![StackData::HeapAddr(0)],
-                vec![HeapData::Int(1)],
+                vec![HeapData::Int(1), HeapData::String("panic".to_string())],
             ),
             (
                 // 関数呼び出しの際には引数がstackに積まれ、その後returnするときにそれらがpopされて値が返却される
@@ -935,14 +941,17 @@ mod tests {
             ),
             (
                 // take the address of string
-                r#"let x = "hello, world"; let y = &x; panic;"#,
+                r#"let x = "hello, world"; let y = &x; _panic("");"#,
                 vec![StackData::HeapAddr(0), StackData::StackAddr(0)],
-                vec![HeapData::String("hello, world".to_string())],
+                vec![
+                    HeapData::String("hello, world".to_string()),
+                    HeapData::String("".to_string()),
+                ],
             ),
             (
-                r#"let x = "hello, world"; _free(x); panic;"#,
+                r#"let x = "hello, world"; _free(x); _panic("");"#,
                 vec![StackData::HeapAddr(0), StackData::Nil],
-                vec![HeapData::Nil],
+                vec![HeapData::Nil, HeapData::String("".to_string())],
             ),
             (
                 r#"

@@ -39,6 +39,7 @@ pub enum OpCode {
     ReturnIf(usize),
     Slice,
     JumpIfNot(String),
+    Panic,
 }
 
 #[derive(PartialEq, Debug, Clone)]

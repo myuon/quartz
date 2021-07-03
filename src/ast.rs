@@ -10,7 +10,6 @@ pub enum Statement {
     Expr(Expr),
     Return(Expr),
     ReturnIf(Expr, Expr),
-    Panic,
     If(Box<Expr>, Vec<Statement>, Vec<Statement>),
 }
 

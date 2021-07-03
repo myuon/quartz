@@ -299,6 +299,15 @@ impl CodeGenerator {
                     return Ok(());
                 }
 
+                // panic
+                if &f == "_panic" {
+                    ensure!(arity == 1, "Expected {} arguments but {} given", 1, arity);
+                    self.codes.push(OpCode::Panic);
+                    self.after_call(arity);
+
+                    return Ok(());
+                }
+
                 if let Some(addr) = self.ffi_table.get(&f).cloned() {
                     self.codes.push(OpCode::FFICall(addr));
 
@@ -407,7 +416,6 @@ impl CodeGenerator {
                 Statement::Expr(e) => {
                     self.expr(arity, e.clone())?;
                 }
-                Statement::Panic => return Ok(()),
                 Statement::ReturnIf(expr, cond) => {
                     self.expr(arity, expr)?;
                     self.expr(arity, cond)?;
