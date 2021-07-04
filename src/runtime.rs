@@ -62,14 +62,6 @@ impl<T: Clone + Debug> Stack<T> {
         }
     }
 
-    pub fn set_pointer(&mut self, value: usize) {
-        if self.stack.len() >= value {
-            panic!("Invalid address, {:?}", self);
-        }
-
-        self.pointer = value;
-    }
-
     pub fn as_slice(&self) -> &[T] {
         &self.stack[0..self.pointer]
     }
@@ -253,10 +245,6 @@ impl Runtime {
         self.pc == self.program.len()
     }
 
-    fn get_stack_addr_index(&self, u: usize) -> usize {
-        self.stack.len() - 1 - u
-    }
-
     fn expect_bool(&mut self, datatype: StackData) -> Result<bool> {
         match datatype {
             StackData::Bool(s) => return Ok(s),
@@ -282,14 +270,6 @@ impl Runtime {
         match datatype {
             StackData::HeapAddr(h) => Ok(h),
             v => bail!("Expected heap address but found {:?}", v),
-        }
-    }
-
-    fn expect_vector(&self, datatype: StackData) -> Result<Vec<StackData>> {
-        let h = self.expect_heap_addr(datatype)?;
-        match &self.heap[h] {
-            HeapData::Vec(v) => Ok(v.clone()),
-            v => bail!("Expected vector but found {:?}", v),
         }
     }
 
@@ -348,29 +328,38 @@ impl Runtime {
                 OpCode::Return(r) => {
                     assert_eq!(r, self.locals().len(), "{:?}", self);
 
-                    let prev_stack_frame = self.stack_frames.pop().unwrap();
-                    let return_address = self.stack[prev_stack_frame.ret].clone();
-
-                    let r = self.pop_first(r);
-                    self.push(r);
-
                     // トップレベルでreturnしたら終了
                     if self.sfc == 0 {
-                        break;
-                    }
+                        let r = self.pop_first(r);
+                        self.push(r);
 
-                    self.pc = return_address.as_stack_addr().ok_or(anyhow::anyhow!(
-                        "Not a return address! {:?} at {}",
-                        return_address,
-                        prev_stack_frame.ret,
-                    ))?;
-                    self.sfc -= 1;
+                        break;
+                    } else {
+                        let prev_stack_frame = self.stack_frames.pop().unwrap();
+                        let return_address = self.stack[prev_stack_frame.ret].clone();
+
+                        self.pc = return_address.as_stack_addr().ok_or(anyhow::anyhow!(
+                            "Not a return address! {:?} at {}",
+                            return_address,
+                            prev_stack_frame.ret,
+                        ))?;
+                        self.sfc -= 1;
+
+                        let r = self.pop_first(r);
+                        self.push(r);
+                    }
                 }
                 OpCode::ReturnIf(_) => {
                     todo!();
                 }
                 OpCode::Copy(p) => {
-                    self.push(self.locals()[p].clone());
+                    let data = self.locals()[p].clone();
+                    if let StackData::StackAddr(_) = data {
+                        // StackAddrをrefするときはStackFrameを超えてアクセスが必要になるので簡単には実装できない(ヒープに逃がす処理などが必要？)
+                        bail!("Copy StackAddr value is not supported!");
+                    } else {
+                        self.push(data);
+                    }
                 }
                 OpCode::Alloc(h) => {
                     let p = self.alloc(h);
@@ -456,8 +445,7 @@ impl Runtime {
 
                     match addr {
                         StackData::StackAddr(p) => {
-                            let u = self.get_stack_addr_index(p);
-                            self.push(self.stack.as_slice()[u].clone());
+                            self.push(self.locals()[p].clone());
                         }
                         StackData::StaticAddr(p) => {
                             self.push(self.static_area[p].clone().into_stack_data().ok_or(
@@ -1022,6 +1010,8 @@ mod tests {
                 "#,
                 DataType::Int(30),
             ),
+            /*
+            // StackAddrのrefを取って別のStackFrameに渡す例
             (
                 r#"
                     let assign_a = fn (obj, x) {
@@ -1033,7 +1023,7 @@ mod tests {
                             "a", 10,
                         );
                         assign_a(&object, 20);
-    
+
                         return _get(object, "a");
                     };
 
@@ -1041,6 +1031,7 @@ mod tests {
                 "#,
                 DataType::Int(20),
             ),
+            */
             (
                 r#"
                     let f = fn (a,b,c) {

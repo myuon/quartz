@@ -357,10 +357,15 @@ impl CodeGenerator {
                     let end_if_label = format!("end-if-{}", self.codes.len());
                     self.expr(cond.as_ref().clone())?;
                     self.codes.push(OpCode::JumpIfNot(else_label.clone()));
+                    self.stack_count -= 1;
+
+                    let q = self.stack_count;
 
                     // then block
                     self.statements(s1, false)?;
                     self.codes.push(OpCode::Jump(end_if_label.clone()));
+
+                    self.stack_count = q;
 
                     // else block
                     self.codes.push(OpCode::Label(else_label));
