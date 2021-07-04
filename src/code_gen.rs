@@ -118,13 +118,16 @@ impl CodeGenerator {
                 if self.statics.contains_key(&f) {
                     let addr = self.statics[&f].clone();
 
+                    self.codes.push(OpCode::Push(StackData::StaticAddr(addr)));
+                    self.stack_count += 1;
+
                     // push arguments
                     let arity = args.len();
                     for a in args {
                         self.expr(a)?;
                     }
 
-                    self.codes.push(OpCode::Call(addr));
+                    self.codes.push(OpCode::Call(arity));
                     self.after_call(arity);
 
                     return Ok(());
@@ -315,8 +318,8 @@ impl CodeGenerator {
                         generator.stack_count += 1;
                     }
 
-                    // return addressとframe pointerの分だけずらす
-                    generator.stack_count += 2;
+                    // return addressの分だけずらす
+                    generator.stack_count += 1;
 
                     generator.statements(body, true)?;
 

@@ -5,10 +5,15 @@ use regex::Regex;
 
 use crate::vm::{DataType, HeapData, OpCode, StackData};
 
-#[derive(Debug)]
 struct Stack<T> {
     pointer: usize,
     stack: Vec<T>,
+}
+
+impl<T: Clone + Debug> Debug for Stack<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(self.as_slice(), f)
+    }
 }
 
 impl<T: Clone + Debug> Stack<T> {
@@ -61,16 +66,24 @@ impl<T: Clone + Debug> Stack<T> {
 }
 
 #[derive(Debug)]
+pub struct StackFrame {
+    start: usize,
+    ret: usize,
+    local: usize,
+}
+
+#[derive(Debug)]
 struct Runtime {
     pc: usize, // program counter
-    fp: usize, // frame pointer
     program: Vec<OpCode>,
     stack: Stack<StackData>,
+    stack_frames: Vec<StackFrame>,
     heap: Vec<HeapData>,
     static_area: Vec<HeapData>,
     call_stack: Vec<usize>,
     ffi_functions: Vec<FFIFunction>,
     labels: HashMap<String, usize>,
+    sfc: usize, // stack frame counter
 }
 
 impl Runtime {
@@ -79,21 +92,21 @@ impl Runtime {
         static_area: Vec<HeapData>,
         ffi_functions: Vec<FFIFunction>,
     ) -> Runtime {
-        // return addressとframe pointerの分だけstackに積んでおく(暗黙のmain関数のため)
-        let mut stack = Stack::new();
-        stack.push(StackData::StackAddr(0));
-        stack.push(StackData::StackAddr(0));
-
         Runtime {
             pc: 0,
-            fp: 0,
             program,
-            stack,
+            stack: Stack::new(),
             heap: vec![],
             static_area,
             call_stack: vec![],
             ffi_functions,
             labels: HashMap::new(),
+            stack_frames: vec![StackFrame {
+                start: 0,
+                ret: 0,
+                local: 0,
+            }],
+            sfc: 0,
         }
     }
 
@@ -153,10 +166,13 @@ impl Runtime {
         u
     }
 
-    fn pop(&mut self, n: usize) -> StackData {
+    fn pop_first(&mut self, n: usize) -> StackData {
         let mut result = StackData::Nil;
-        for _ in 0..n {
-            result = self.stack.pop().unwrap();
+        for i in 0..n {
+            let r = self.stack.pop().unwrap();
+            if i == 0 {
+                result = r;
+            }
         }
 
         result
@@ -267,14 +283,31 @@ impl Runtime {
         bail!("Label {} not found", label);
     }
 
+    fn stack_frame(&self) -> &StackFrame {
+        &self.stack_frames[self.sfc]
+    }
+
+    fn locals(&self) -> &[StackData] {
+        &self.stack.as_slice()[self.stack_frame().local..]
+    }
+
+    fn deref_static_address(&mut self, data: StackData) -> Result<HeapData> {
+        match data {
+            StackData::StaticAddr(s) => Ok(self.static_area[s].clone()),
+            t => bail!("Expected static address but found {:?}", t),
+        }
+    }
+
     pub fn execute(&mut self) -> Result<()> {
         while !self.is_end() {
             if option_env!("DEBUG") == Some("true") {
                 println!(
-                    "{:?}\n{:?}\n{:?}\n",
+                    "program: {:?}\nstack: {:?}\nheap: {:?}\nstatic: {:?}\nstack frame: {:?}\n",
                     &self.program[self.pc..],
-                    self.stack.as_slice().iter().rev().collect::<Vec<_>>(),
-                    self.heap
+                    self.stack,
+                    self.heap,
+                    self.static_area,
+                    self.stack_frames
                 );
             }
 
@@ -283,61 +316,30 @@ impl Runtime {
                     self.push(v);
                 }
                 OpCode::Pop(v) => {
-                    self.pop(v);
+                    self.pop_first(v);
                 }
                 OpCode::Return(r) => {
-                    let return_address =
-                        self.stack.as_slice()[self.fp]
-                            .as_stack_addr()
-                            .ok_or(anyhow::anyhow!(
-                                "Expected return address but found: {:?}",
-                                self.stack.as_slice()[self.fp]
-                            ))?;
-                    self.fp = self.stack.as_slice()[self.fp + 1].as_stack_addr().ok_or(
-                        anyhow::anyhow!(
-                            "Expected frame pointer but found: {:?}",
-                            self.stack.as_slice()[self.fp + 1]
-                        ),
-                    )?;
-                    self.pc = return_address;
+                    assert_eq!(r, self.locals().len(), "{:?}", self);
 
-                    if r > 0 {
-                        let ret = self.pop(1);
-                        self.pop(r - 1);
-                        self.push(ret);
+                    let r = self.pop_first(r);
+                    self.push(r);
+
+                    // トップレベルでreturnしたら終了
+                    if self.sfc == 0 {
+                        break;
                     }
+
+                    let prev_stack_frame = self.stack_frames.pop().unwrap();
+                    self.pc = self.stack.as_slice()[prev_stack_frame.ret]
+                        .as_stack_addr()
+                        .unwrap();
+                    self.sfc -= 1;
                 }
-                OpCode::ReturnIf(r) => {
-                    let cond = self.pop(1);
-                    let n = self.expect_bool(cond)?;
-                    let ret = self.pop(1);
-
-                    // if true
-                    if n {
-                        if r > 0 {
-                            self.pop(r - 1);
-                            self.push(ret);
-                        }
-
-                        match self.call_stack.pop() {
-                            Some(p) => {
-                                self.pc = p + 1;
-                                continue;
-                            }
-                            _ => return Ok(()),
-                        }
-                    }
+                OpCode::ReturnIf(_) => {
+                    todo!();
                 }
                 OpCode::Copy(p) => {
-                    let target = self.stack.len() - 1 - p;
-                    match self.stack.as_slice()[target].clone() {
-                        StackData::StackAddr(addr) => {
-                            self.push(StackData::StackAddr(addr + p + 1));
-                        }
-                        s => {
-                            self.push(s);
-                        }
-                    }
+                    self.push(self.locals()[p].clone());
                 }
                 OpCode::Alloc(h) => {
                     let p = self.alloc(h);
@@ -345,37 +347,75 @@ impl Runtime {
                 }
                 OpCode::FFICall(addr) => {
                     let (x, y) =
-                        self.ffi_functions[addr](self.stack.as_slice().to_vec(), self.heap.clone());
+                        self.ffi_functions[addr](self.locals().to_vec(), self.heap.clone());
 
                     // TODO: FFICallの時はpush or popを送ってもらう形の方が良いかも
-                    self.stack.pointer = x.len();
-                    self.stack.stack = x;
-
+                    self.stack.pointer = self.stack_frame().local + x.len();
+                    for (i, u) in x.into_iter().enumerate() {
+                        let address = self.stack_frame().local + i;
+                        self.stack.as_slice_mut()[address] = u;
+                    }
                     self.heap = y;
                     self.pc += 1;
                     continue;
                 }
-                OpCode::Call(addr) => match self.static_area[addr].clone() {
-                    HeapData::Closure(body) => {
-                        self.call_stack.push(self.pc);
+                OpCode::Call(arity) => {
+                    self.push(StackData::StackAddr(self.pc));
 
-                        let p = self.stack.pointer;
-                        // push return address & frame pointer
-                        self.push(StackData::StackAddr(self.pc));
-                        self.push(StackData::StackAddr(self.fp));
-                        self.fp = p;
+                    let func = self.stack.as_slice().len() - (arity + 1);
+                    match self.deref_static_address(self.stack.as_slice()[func].clone())? {
+                        HeapData::Closure(body) => {
+                            self.call_stack.push(self.pc);
 
-                        self.pc = self.program.len();
-                        self.program.extend(body);
-                        continue;
+                            assert!(matches!(
+                                self.stack.as_slice()[func],
+                                StackData::StaticAddr(_)
+                            ));
+                            assert!(matches!(
+                                self.stack.as_slice()[func + 1],
+                                StackData::StaticAddr(_)
+                            ));
+
+                            self.stack_frames.push(StackFrame {
+                                start: func,
+                                ret: func + 1,
+                                local: func + 2,
+                            });
+                            self.sfc += 1;
+                            self.pc = self.program.len();
+                            self.program.extend(body);
+                            continue;
+                        }
+                        r => bail!(
+                            "Expected a closure but found {:?} at {:?}\n\n{}",
+                            r,
+                            self.pc,
+                            self.show_error()
+                        ),
                     }
-                    r => bail!(
-                        "Expected a closure but found {:?} at {:?}\n\n{}",
-                        r,
-                        self.pc,
-                        self.show_error()
-                    ),
-                },
+                }
+                OpCode::SetStatic(addr) => {
+                    let val = self.pop_first(1);
+
+                    if let StackData::HeapAddr(h) = val {
+                        self.static_area[addr] = HeapData::HeapAddr(h);
+                    } else if let StackData::StaticAddr(h) = val {
+                        self.static_area[addr] = HeapData::StaticAddr(h);
+                    } else {
+                        self.static_area[addr] = val
+                            .clone()
+                            .into_heap_data()
+                            .ok_or(anyhow::anyhow!("Cannot place the value on heap: {:?}", val))?;
+                    }
+                }
+                OpCode::CopyStatic(addr) => {
+                    if let Some(d) = self.static_area[addr].clone().as_stack_data() {
+                        self.push(d);
+                    } else {
+                        self.push(StackData::StaticAddr(addr));
+                    }
+                }
+                /*
                 OpCode::PAssign => {
                     let val = self.pop(1);
                     let addr = self.pop(1);
@@ -634,27 +674,8 @@ impl Runtime {
                     println!("Panic: {}\n{}", msg, self.show_error());
                     return Ok(());
                 }
-                OpCode::SetStatic(addr) => {
-                    let val = self.pop(1);
-
-                    if let StackData::HeapAddr(h) = val {
-                        self.static_area[addr] = HeapData::HeapAddr(h);
-                    } else if let StackData::StaticAddr(h) = val {
-                        self.static_area[addr] = HeapData::StaticAddr(h);
-                    } else {
-                        self.static_area[addr] = val
-                            .clone()
-                            .into_heap_data()
-                            .ok_or(anyhow::anyhow!("Cannot place the value on heap: {:?}", val))?;
-                    }
-                }
-                OpCode::CopyStatic(addr) => {
-                    if let Some(d) = self.static_area[addr].clone().as_stack_data() {
-                        self.push(d);
-                    } else {
-                        self.push(StackData::StaticAddr(addr));
-                    }
-                }
+                 */
+                _ => todo!(),
             }
 
             self.pc += 1;
@@ -672,7 +693,7 @@ pub fn execute(
     let mut runtime = Runtime::new(program, static_area, ffi_functions);
     runtime.execute()?;
 
-    Ok(runtime.pop(1))
+    Ok(runtime.pop_first(1))
 }
 
 pub type FFIFunction = Box<fn(Vec<StackData>, Vec<HeapData>) -> (Vec<StackData>, Vec<HeapData>)>;
@@ -1071,6 +1092,7 @@ mod tests {
         let (ffi_table, ffi_functions) = create_ffi_table();
 
         for c in cases {
+            println!("{}", c.0);
             let m = run_parser(c.0).unwrap();
             let program = gen_code(m, ffi_table.clone());
             assert!(program.is_ok(), "{:?} {}", program, c.0);
@@ -1081,7 +1103,7 @@ mod tests {
             let result = runtime.execute();
             assert!(result.is_ok(), "{:?} {}", result, c.0);
 
-            let result = runtime.pop(1);
+            let result = runtime.stack.pop().unwrap();
             assert_eq!(runtime.deref(result).unwrap(), c.1, "{}", c.0);
         }
     }
@@ -1160,7 +1182,7 @@ mod tests {
             let (program, static_area) = gen_code(m, ffi_table.clone()).unwrap();
             let mut interpreter = Runtime::new(program, static_area, ffi_functions.clone());
             interpreter.execute().unwrap();
-            assert_eq!(interpreter.stack.as_slice(), case.1, "{}", case.0);
+            assert_eq!(interpreter.locals(), case.1, "{}", case.0);
             assert_eq!(interpreter.heap, case.2);
         }
     }
