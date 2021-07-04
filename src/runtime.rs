@@ -1101,7 +1101,7 @@ mod tests {
 
                     return f();
                 "#,
-                DataType::Nil,
+                DataType::Int(0),
             ),
         ];
 

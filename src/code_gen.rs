@@ -378,6 +378,7 @@ impl CodeGenerator {
                 }
                 Statement::Continue => {
                     let label = self.current_loop_label.clone().unwrap();
+                    self.codes.push(OpCode::Pop(self.stack_count));
                     self.codes.push(OpCode::Jump(label));
                 }
             }
