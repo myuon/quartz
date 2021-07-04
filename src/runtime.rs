@@ -1,4 +1,8 @@
-use std::{collections::HashMap, fmt::Debug};
+use std::{
+    collections::HashMap,
+    fmt::Debug,
+    ops::{Index, IndexMut},
+};
 
 use anyhow::{bail, Result};
 use regex::Regex;
@@ -13,6 +17,20 @@ struct Stack<T> {
 impl<T: Clone + Debug> Debug for Stack<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         Debug::fmt(self.as_slice(), f)
+    }
+}
+
+impl<T: Clone + Debug> Index<usize> for Stack<T> {
+    type Output = T;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.as_slice()[index]
+    }
+}
+
+impl<T: Clone + Debug> IndexMut<usize> for Stack<T> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.as_slice_mut()[index]
     }
 }
 
@@ -221,7 +239,7 @@ impl Runtime {
             StackData::Nil => Ok(DataType::Nil),
             StackData::Bool(b) => Ok(DataType::Bool(b)),
             StackData::Int(s) => Ok(DataType::Int(s)),
-            StackData::StackAddr(s) => self.deref(self.stack.as_slice()[s].clone()),
+            StackData::StackAddr(s) => self.deref(self.stack[s].clone()),
             StackData::HeapAddr(p) => self.deref_heap_data(self.heap[p].clone()),
             StackData::StaticAddr(s) => self.deref_heap_data(self.static_area[s].clone()),
         }
@@ -322,7 +340,7 @@ impl Runtime {
                     assert_eq!(r, self.locals().len(), "{:?}", self);
 
                     let prev_stack_frame = self.stack_frames.pop().unwrap();
-                    let return_address = self.stack.as_slice()[prev_stack_frame.ret].clone();
+                    let return_address = self.stack[prev_stack_frame.ret].clone();
 
                     let r = self.pop_first(r);
                     self.push(r);
@@ -353,7 +371,7 @@ impl Runtime {
                     self.stack.pointer = self.stack_frame().local + x.len();
                     for (i, u) in x.into_iter().enumerate() {
                         let address = self.stack_frame().local + i;
-                        self.stack.as_slice_mut()[address] = u;
+                        self.stack[address] = u;
                     }
                     self.heap = y;
                     self.pc += 1;
@@ -363,21 +381,21 @@ impl Runtime {
                     self.push(StackData::StackAddr(self.pc));
 
                     let func = self.stack.as_slice().len() - (arity + 2);
-                    match self.deref_static_address(self.stack.as_slice()[func].clone())? {
+                    match self.deref_static_address(self.stack[func].clone())? {
                         HeapData::Closure(body) => {
                             self.call_stack.push(self.pc);
 
                             let ret = func + arity + 1;
 
                             assert!(
-                                matches!(self.stack.as_slice()[func], StackData::StaticAddr(_)),
+                                matches!(self.stack[func], StackData::StaticAddr(_)),
                                 "Found {:?}",
-                                self.stack.as_slice()[func]
+                                self.stack[func]
                             );
                             assert!(
-                                matches!(self.stack.as_slice()[ret], StackData::StackAddr(_)),
+                                matches!(self.stack[ret], StackData::StackAddr(_)),
                                 "Found {:?}",
-                                self.stack.as_slice()[ret]
+                                self.stack[ret]
                             );
 
                             self.stack_frames.push(StackFrame {
