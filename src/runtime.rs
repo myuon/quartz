@@ -196,6 +196,10 @@ impl Runtime {
         result
     }
 
+    fn pop(&mut self) -> StackData {
+        self.pop_first(1)
+    }
+
     // TODO: 空いてるところを探すようにする
     fn alloc(&mut self, val: HeapData) -> StackData {
         let p = self.heap.len();
@@ -309,6 +313,11 @@ impl Runtime {
         &self.stack.as_slice()[self.stack_frame().local..]
     }
 
+    fn locals_mut(&mut self) -> &mut [StackData] {
+        let p = self.stack_frame().local;
+        &mut self.stack.as_slice_mut()[p..]
+    }
+
     fn deref_static_address(&mut self, data: StackData) -> Result<HeapData> {
         match data {
             StackData::StaticAddr(s) => Ok(self.static_area[s].clone()),
@@ -350,7 +359,11 @@ impl Runtime {
                         break;
                     }
 
-                    self.pc = return_address.as_stack_addr().unwrap();
+                    self.pc = return_address.as_stack_addr().ok_or(anyhow::anyhow!(
+                        "Not a return address! {:?} at {}",
+                        return_address,
+                        prev_stack_frame.ret,
+                    ))?;
                     self.sfc -= 1;
                 }
                 OpCode::ReturnIf(_) => {
@@ -406,6 +419,7 @@ impl Runtime {
                             self.sfc += 1;
                             self.pc = self.program.len();
                             self.program.extend(body);
+
                             continue;
                         }
                         r => bail!(
@@ -417,7 +431,7 @@ impl Runtime {
                     }
                 }
                 OpCode::SetStatic(addr) => {
-                    let val = self.pop_first(1);
+                    let val = self.pop();
 
                     if let StackData::HeapAddr(h) = val {
                         self.static_area[addr] = HeapData::HeapAddr(h);
@@ -431,36 +445,14 @@ impl Runtime {
                     }
                 }
                 OpCode::CopyStatic(addr) => {
-                    if let Some(d) = self.static_area[addr].clone().as_stack_data() {
+                    if let Some(d) = self.static_area[addr].clone().into_stack_data() {
                         self.push(d);
                     } else {
                         self.push(StackData::StaticAddr(addr));
                     }
                 }
-                /*
-                OpCode::PAssign => {
-                    let val = self.pop(1);
-                    let addr = self.pop(1);
-
-                    match addr {
-                        StackData::StackAddr(p) => {
-                            let u = self.get_stack_addr_index(p);
-                            self.stack.as_slice_mut()[u] = val;
-                        }
-                        StackData::StaticAddr(p) => {
-                            self.static_area[p] = val.clone().into_heap_data().ok_or(
-                                anyhow::anyhow!("Cannot place the value on heap: {:?}", val),
-                            )?;
-                        }
-                        v => bail!("Cannot deref: {:?}", v),
-                    }
-                }
-                OpCode::Free => {
-                    let val = self.pop(1);
-                    self.free(val)?;
-                }
                 OpCode::Deref => {
-                    let addr = self.pop(1);
+                    let addr = self.pop();
 
                     match addr {
                         StackData::StackAddr(p) => {
@@ -468,7 +460,7 @@ impl Runtime {
                             self.push(self.stack.as_slice()[u].clone());
                         }
                         StackData::StaticAddr(p) => {
-                            self.push(self.static_area[p].clone().as_stack_data().ok_or(
+                            self.push(self.static_area[p].clone().into_stack_data().ok_or(
                                 anyhow::anyhow!(
                                     "Cannot place the value on stack: {:?}",
                                     self.static_area[p]
@@ -478,41 +470,29 @@ impl Runtime {
                         v => bail!("Cannot deref: {:?}", v),
                     }
                 }
-                OpCode::Tuple(u) => {
-                    let mut tuple = vec![];
-                    for _ in 0..u {
-                        tuple.push(self.pop(1));
-                    }
-
-                    let r = self.alloc(HeapData::Tuple(u, tuple));
-                    self.push(r);
+                OpCode::Free => {
+                    let val = self.pop();
+                    self.free(val)?;
                 }
-                OpCode::Object(u) => {
-                    let mut object = vec![];
-                    for _ in 0..u {
-                        let value = self.pop(1);
-                        let key = self.pop(1);
-                        match self.deref(key)? {
-                            DataType::String(s) => {
-                                object.push((s, value));
-                            }
-                            k => bail!("Unexpected key type: {:?}", k),
-                        }
-                    }
+                OpCode::PAssign => {
+                    let val = self.pop();
+                    let addr = self.pop();
 
-                    let p = self.alloc(HeapData::Object(object));
-                    self.push(p);
+                    match addr {
+                        StackData::StackAddr(p) => {
+                            self.locals_mut()[p] = val;
+                        }
+                        StackData::StaticAddr(p) => {
+                            self.static_area[p] = val.clone().into_heap_data().ok_or(
+                                anyhow::anyhow!("Cannot place the value on heap: {:?}", val),
+                            )?;
+                        }
+                        v => bail!("Cannot deref: {:?}", v),
+                    }
                 }
                 OpCode::Get => {
-                    let index = self.pop(1);
-                    let tuple = self.pop(1);
-
-                    if let Ok(vec) = self.expect_vector(tuple.clone()) {
-                        let index = self.expect_int(index)?;
-                        self.push(vec[index as usize].clone());
-                        self.pc += 1;
-                        continue;
-                    }
+                    let index = self.pop();
+                    let tuple = self.pop();
 
                     match (self.deref(tuple)?, self.deref(index)?) {
                         (DataType::Tuple(vs), DataType::Int(n)) => {
@@ -546,9 +526,9 @@ impl Runtime {
                     }
                 }
                 OpCode::Set => {
-                    let value = self.pop(1);
-                    let key = self.pop(1);
-                    let obj = self.pop(1);
+                    let value = self.pop();
+                    let key = self.pop();
+                    let obj = self.pop();
 
                     match obj {
                         StackData::HeapAddr(pointer) => match self.heap[pointer].clone() {
@@ -597,9 +577,34 @@ impl Runtime {
                         ),
                     }
                 }
+                OpCode::Tuple(u) => {
+                    let mut tuple = vec![];
+                    for _ in 0..u {
+                        tuple.push(self.pop());
+                    }
+
+                    let r = self.alloc(HeapData::Tuple(u, tuple));
+                    self.push(r);
+                }
+                OpCode::Object(u) => {
+                    let mut object = vec![];
+                    for _ in 0..u {
+                        let value = self.pop();
+                        let key = self.pop();
+                        match self.deref(key)? {
+                            DataType::String(s) => {
+                                object.push((s, value));
+                            }
+                            k => bail!("Unexpected key type: {:?}", k),
+                        }
+                    }
+
+                    let p = self.alloc(HeapData::Object(object));
+                    self.push(p);
+                }
                 OpCode::Regex => {
-                    let arg0 = self.pop(1);
-                    let arg1 = self.pop(1);
+                    let arg0 = self.pop();
+                    let arg1 = self.pop();
                     let input = self.expect_string(arg0)?;
                     let pattern = self.expect_string(arg1)?;
                     let m = Regex::new(&pattern)?.find(&input);
@@ -616,8 +621,8 @@ impl Runtime {
                     }
                 }
                 OpCode::VPush => {
-                    let value = self.pop(1);
-                    let vec = self.pop(1);
+                    let value = self.pop();
+                    let vec = self.pop();
 
                     match vec {
                         StackData::StaticAddr(addr) => match &mut self.static_area[addr] {
@@ -642,7 +647,7 @@ impl Runtime {
                     }
                 }
                 OpCode::Len => {
-                    let v = self.pop(1);
+                    let v = self.pop();
                     match self.deref(v)? {
                         DataType::Vec(vs) => {
                             self.push(StackData::Int(vs.len() as i32));
@@ -665,13 +670,13 @@ impl Runtime {
                     }
                 }
                 OpCode::Slice => {
-                    let end = self.pop(1);
+                    let end = self.pop();
                     let end = self.expect_int(end)? as usize;
 
-                    let start = self.pop(1);
+                    let start = self.pop();
                     let start = self.expect_int(start)? as usize;
 
-                    let input_addr = self.pop(1);
+                    let input_addr = self.pop();
                     let input_addr = self.expect_heap_addr(input_addr)?;
 
                     match self.heap[input_addr].clone() {
@@ -683,7 +688,7 @@ impl Runtime {
                     }
                 }
                 OpCode::JumpIfNot(label) => {
-                    let cond = self.pop(1);
+                    let cond = self.pop();
                     let cond_case = self.expect_bool(cond)?;
                     if !cond_case {
                         self.pc = self.find_label_forward(label).unwrap();
@@ -691,13 +696,11 @@ impl Runtime {
                     }
                 }
                 OpCode::Panic => {
-                    let msg = self.pop(1);
+                    let msg = self.pop();
                     let msg = self.expect_string(msg)?;
                     println!("Panic: {}\n{}", msg, self.show_error());
                     return Ok(());
                 }
-                 */
-                _ => todo!(),
             }
 
             self.pc += 1;

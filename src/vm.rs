@@ -61,7 +61,7 @@ pub enum HeapData {
 }
 
 impl HeapData {
-    pub fn as_stack_data(self) -> Option<StackData> {
+    pub fn into_stack_data(self) -> Option<StackData> {
         match self {
             HeapData::Nil => Some(StackData::Nil),
             HeapData::Bool(b) => Some(StackData::Bool(b)),
