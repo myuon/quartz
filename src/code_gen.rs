@@ -308,6 +308,7 @@ impl CodeGenerator {
 
                     let mut generator = CodeGenerator::new(self.ffi_table.clone());
                     generator.variables = self.variables.clone();
+                    generator.statics = self.statics.clone();
 
                     for a in args {
                         generator.variables.insert(a, generator.stack_count);
@@ -466,7 +467,7 @@ mod tests {
                         Push(StackData::Nil),
                         Return(1),
                     ],
-                    vec![HeapData::Closure(vec![Copy(0), Return(2)])],
+                    vec![HeapData::Closure(vec![Copy(0), Return(4)])],
                 ),
             ),
             (
@@ -502,7 +503,7 @@ mod tests {
                         Push(StackData::Nil),
                         Return(1),
                     ],
-                    vec![HeapData::Nil, HeapData::Closure(vec![Copy(4), Return(6)])],
+                    vec![HeapData::Nil, HeapData::Closure(vec![Copy(0), Return(8)])],
                 ),
             ),
             (
@@ -516,7 +517,7 @@ mod tests {
                     ],
                     vec![
                         HeapData::Nil,
-                        HeapData::Closure(vec![Copy(0), Deref, Return(2)]),
+                        HeapData::Closure(vec![Copy(0), Deref, Return(4)]),
                     ],
                 ),
             ),
@@ -573,7 +574,7 @@ mod tests {
                         Push(StackData::Nil),
                         Pop(1),
                         Push(StackData::Nil),
-                        Return(1),
+                        Return(2),
                     ],
                     vec![],
                 ),
@@ -640,7 +641,7 @@ mod tests {
                             CopyStatic(0),
                             CopyStatic(1),
                             Tuple(3),
-                            Return(6),
+                            Return(8),
                         ]),
                         HeapData::Nil,
                     ],
@@ -665,9 +666,9 @@ mod tests {
                         Return(1),
                     ],
                     vec![
-                        HeapData::Closure(vec![Push(StackData::Nil), Return(1)]),
-                        HeapData::Closure(vec![Call(0), Pop(1), Push(StackData::Nil), Return(1)]),
-                        HeapData::Closure(vec![Call(1), Pop(1), Push(StackData::Nil), Return(1)]),
+                        HeapData::Closure(vec![Push(StackData::Nil), Return(3)]),
+                        HeapData::Closure(vec![Call(0), Pop(1), Push(StackData::Nil), Return(3)]),
+                        HeapData::Closure(vec![Call(1), Pop(1), Push(StackData::Nil), Return(3)]),
                         HeapData::Nil,
                     ],
                 ),
