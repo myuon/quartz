@@ -968,6 +968,23 @@ mod tests {
                 "#,
                 DataType::Nil,
             ),
+            (
+                r#"
+                    let f = fn () {
+                        let a = 10;
+                        let b = "yes";
+    
+                        if _eq(a, 10) {
+                            return 0;
+                        };
+    
+                        return 1;
+                    };
+
+                    return f();
+                "#,
+                DataType::Nil,
+            ),
         ];
 
         let (ffi_table, ffi_functions) = create_ffi_table();

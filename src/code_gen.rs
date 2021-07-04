@@ -67,6 +67,8 @@ impl CodeGenerator {
         let pop = self.pop_count + arity;
 
         self.codes.push(OpCode::Return(pop));
+        self.stack_count = self.stack_count + 1 - pop;
+        self.pop_count = 0;
     }
 
     fn ret_if(&mut self, arity: usize) {
@@ -380,16 +382,11 @@ impl CodeGenerator {
                     self.stack_count -= 2;
                 }
                 Statement::If(cond, s1, s2) => {
-                    let stack_count = self.stack_count;
-                    let pop_count = self.pop_count;
-
+                    println!("if start: {:?}", self);
                     let else_label = format!("else-{}", self.codes.len());
                     let end_if_label = format!("end-if-{}", self.codes.len());
                     self.expr(0, cond.as_ref().clone())?;
                     self.codes.push(OpCode::JumpIfNot(else_label.clone()));
-
-                    self.stack_count = stack_count;
-                    self.pop_count = pop_count;
 
                     // then block
                     self.statements(0, s1, false)?;
@@ -401,9 +398,7 @@ impl CodeGenerator {
 
                     // endif
                     self.codes.push(OpCode::Label(end_if_label));
-
-                    self.stack_count = stack_count;
-                    self.pop_count = pop_count;
+                    println!("if end: {:?}", self);
                 }
                 Statement::Continue => {
                     let label = self.current_loop_label.clone().unwrap();

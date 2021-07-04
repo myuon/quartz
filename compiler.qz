@@ -34,8 +34,15 @@ let lexer_init = fn (lexer, input) {
 let lexer_run = fn (lexer, input) {
   lexer_init(lexer, input);
 
+  let count = 0;
+
   loop {
-    _print("loop");
+    if _eq(count, 1) {
+      _panic("foo");
+    };
+
+    _passign(&count, _add(count, 1));
+
     if lexer_is_end(lexer) {
       return nil;
     };

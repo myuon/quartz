@@ -28,7 +28,7 @@ pub fn create_ffi_table() -> (HashMap<String, usize>, Vec<FFIFunction>) {
                 (StackData::Int(x), StackData::Int(y)) => {
                     stack.push(StackData::Int(x + y));
                 }
-                _ => todo!(),
+                (x, y) => panic!("{:?} {:?}", x, y),
             }
 
             (stack, heap)
