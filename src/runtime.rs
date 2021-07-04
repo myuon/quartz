@@ -388,7 +388,12 @@ impl Runtime {
                                 Some(v) => {
                                     self.push(v.clone());
                                 }
-                                None => bail!("Cannot find key {} in {:?}", key, vs),
+                                None => bail!(
+                                    "Cannot find key {} in {:?}\n{}",
+                                    key,
+                                    vs,
+                                    self.show_error()
+                                ),
                             }
                         }
                         (DataType::Vec(vs), DataType::Int(n)) => {
@@ -730,7 +735,9 @@ mod tests {
                         let count = 0;
 
                         loop {
-                            return b if _eq(count, n);
+                            if _eq(count, n) {
+                                return b;
+                            };
 
                             let next = _add(a, b);
                             _passign(&a, b);
