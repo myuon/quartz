@@ -606,7 +606,7 @@ mod tests {
                         Push(StackData::Nil),
                         Pop(1),
                         Push(StackData::Nil),
-                        Return(2),
+                        Return(1),
                     ],
                     vec![],
                 ),

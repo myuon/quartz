@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Debug};
 
 use anyhow::{bail, Result};
 use regex::Regex;
@@ -6,10 +6,65 @@ use regex::Regex;
 use crate::vm::{DataType, HeapData, OpCode, StackData};
 
 #[derive(Debug)]
+struct Stack<T> {
+    pointer: usize,
+    stack: Vec<T>,
+}
+
+impl<T: Clone + Debug> Stack<T> {
+    pub fn new() -> Stack<T> {
+        Stack {
+            pointer: 0,
+            stack: vec![],
+        }
+    }
+
+    pub fn push(&mut self, value: T) {
+        if self.stack.len() <= self.pointer {
+            self.stack.push(value);
+        } else {
+            self.stack[self.pointer] = value;
+        }
+
+        self.pointer += 1;
+    }
+
+    pub fn pop(&mut self) -> Option<T> {
+        self.pointer -= 1;
+
+        if self.pointer < self.stack.len() {
+            Some(self.stack[self.pointer].clone())
+        } else {
+            None
+        }
+    }
+
+    pub fn set_pointer(&mut self, value: usize) {
+        if self.stack.len() >= value {
+            panic!("Invalid address, {:?}", self);
+        }
+
+        self.pointer = value;
+    }
+
+    pub fn as_slice(&self) -> &[T] {
+        &self.stack[0..self.pointer]
+    }
+
+    pub fn as_slice_mut(&mut self) -> &mut [T] {
+        &mut self.stack[0..self.pointer]
+    }
+
+    pub fn len(&self) -> usize {
+        self.pointer
+    }
+}
+
+#[derive(Debug)]
 struct Runtime {
     pc: usize,
     program: Vec<OpCode>,
-    stack: Vec<StackData>,
+    stack: Stack<StackData>,
     heap: Vec<HeapData>,
     static_area: Vec<HeapData>,
     call_stack: Vec<usize>,
@@ -26,7 +81,7 @@ impl Runtime {
         Runtime {
             pc: 0,
             program,
-            stack: vec![],
+            stack: Stack::new(),
             heap: vec![],
             static_area,
             call_stack: vec![],
@@ -45,6 +100,7 @@ impl Runtime {
 
     fn show_error_in_stack(&self) -> String {
         self.stack
+            .as_slice()
             .iter()
             .enumerate()
             .map(|(i, v)| {
@@ -142,7 +198,7 @@ impl Runtime {
             StackData::Nil => Ok(DataType::Nil),
             StackData::Bool(b) => Ok(DataType::Bool(b)),
             StackData::Int(s) => Ok(DataType::Int(s)),
-            StackData::StackAddr(s) => self.deref(self.stack[s].clone()),
+            StackData::StackAddr(s) => self.deref(self.stack.as_slice()[s].clone()),
             StackData::HeapAddr(p) => self.deref_heap_data(self.heap[p].clone()),
             StackData::StaticAddr(s) => self.deref_heap_data(self.static_area[s].clone()),
         }
@@ -210,7 +266,7 @@ impl Runtime {
                 println!(
                     "{:?}\n{:?}\n{:?}\n",
                     &self.program[self.pc..],
-                    self.stack.iter().rev().collect::<Vec<_>>(),
+                    self.stack.as_slice().iter().rev().collect::<Vec<_>>(),
                     self.heap
                 );
             }
@@ -260,7 +316,7 @@ impl Runtime {
                 }
                 OpCode::Copy(p) => {
                     let target = self.stack.len() - 1 - p;
-                    match self.stack[target].clone() {
+                    match self.stack.as_slice()[target].clone() {
                         StackData::StackAddr(addr) => {
                             self.push(StackData::StackAddr(addr + p + 1));
                         }
@@ -274,8 +330,13 @@ impl Runtime {
                     self.push(p);
                 }
                 OpCode::FFICall(addr) => {
-                    let (x, y) = self.ffi_functions[addr](self.stack.clone(), self.heap.clone());
-                    self.stack = x;
+                    let (x, y) =
+                        self.ffi_functions[addr](self.stack.as_slice().to_vec(), self.heap.clone());
+
+                    // TODO: FFICallの時はpush or popを送ってもらう形の方が良いかも
+                    self.stack.pointer = x.len();
+                    self.stack.stack = x;
+
                     self.heap = y;
                     self.pc += 1;
                     continue;
@@ -302,7 +363,7 @@ impl Runtime {
                     match addr {
                         StackData::StackAddr(p) => {
                             let u = self.get_stack_addr_index(p);
-                            self.stack[u] = val;
+                            self.stack.as_slice_mut()[u] = val;
                         }
                         StackData::StaticAddr(p) => {
                             self.static_area[p] = val.clone().into_heap_data().ok_or(
@@ -322,7 +383,7 @@ impl Runtime {
                     match addr {
                         StackData::StackAddr(p) => {
                             let u = self.get_stack_addr_index(p);
-                            self.push(self.stack[u].clone());
+                            self.push(self.stack.as_slice()[u].clone());
                         }
                         StackData::StaticAddr(p) => {
                             self.push(self.static_area[p].clone().as_stack_data().ok_or(
@@ -1079,7 +1140,7 @@ mod tests {
             let (program, static_area) = gen_code(m, ffi_table.clone()).unwrap();
             let mut interpreter = Runtime::new(program, static_area, ffi_functions.clone());
             interpreter.execute().unwrap();
-            assert_eq!(interpreter.stack, case.1, "{}", case.0);
+            assert_eq!(interpreter.stack.as_slice(), case.1, "{}", case.0);
             assert_eq!(interpreter.heap, case.2);
         }
     }
