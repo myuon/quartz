@@ -321,6 +321,9 @@ impl Runtime {
                 OpCode::Return(r) => {
                     assert_eq!(r, self.locals().len(), "{:?}", self);
 
+                    let prev_stack_frame = self.stack_frames.pop().unwrap();
+                    let return_address = self.stack.as_slice()[prev_stack_frame.ret].clone();
+
                     let r = self.pop_first(r);
                     self.push(r);
 
@@ -329,10 +332,7 @@ impl Runtime {
                         break;
                     }
 
-                    let prev_stack_frame = self.stack_frames.pop().unwrap();
-                    self.pc = self.stack.as_slice()[prev_stack_frame.ret]
-                        .as_stack_addr()
-                        .unwrap();
+                    self.pc = return_address.as_stack_addr().unwrap();
                     self.sfc -= 1;
                 }
                 OpCode::ReturnIf(_) => {
@@ -362,24 +362,28 @@ impl Runtime {
                 OpCode::Call(arity) => {
                     self.push(StackData::StackAddr(self.pc));
 
-                    let func = self.stack.as_slice().len() - (arity + 1);
+                    let func = self.stack.as_slice().len() - (arity + 2);
                     match self.deref_static_address(self.stack.as_slice()[func].clone())? {
                         HeapData::Closure(body) => {
                             self.call_stack.push(self.pc);
 
-                            assert!(matches!(
-                                self.stack.as_slice()[func],
-                                StackData::StaticAddr(_)
-                            ));
-                            assert!(matches!(
-                                self.stack.as_slice()[func + 1],
-                                StackData::StaticAddr(_)
-                            ));
+                            let ret = func + arity + 1;
+
+                            assert!(
+                                matches!(self.stack.as_slice()[func], StackData::StaticAddr(_)),
+                                "Found {:?}",
+                                self.stack.as_slice()[func]
+                            );
+                            assert!(
+                                matches!(self.stack.as_slice()[ret], StackData::StackAddr(_)),
+                                "Found {:?}",
+                                self.stack.as_slice()[ret]
+                            );
 
                             self.stack_frames.push(StackFrame {
                                 start: func,
-                                ret: func + 1,
-                                local: func + 2,
+                                ret,
+                                local: func + 1,
                             });
                             self.sfc += 1;
                             self.pc = self.program.len();
