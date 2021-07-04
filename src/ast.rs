@@ -1,9 +1,22 @@
+use crate::vm::DataType;
+
 #[derive(PartialEq, Debug, Clone)]
 pub enum Literal {
     Nil,
     Bool(bool),
     Int(i32),
     String(String),
+}
+
+impl Literal {
+    pub fn into_datatype(self) -> DataType {
+        match self {
+            Literal::Nil => DataType::Nil,
+            Literal::Bool(b) => DataType::Bool(b),
+            Literal::Int(i) => DataType::Int(i),
+            Literal::String(s) => DataType::String(s),
+        }
+    }
 }
 
 #[derive(PartialEq, Debug, Clone)]

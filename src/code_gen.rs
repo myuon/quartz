@@ -3,50 +3,41 @@ use std::collections::HashMap;
 use anyhow::{bail, ensure, Result};
 
 use crate::{
-    ast::{Expr, Literal, Module, Statement},
+    ast::{Expr, Module, Statement},
     vm::{DataType, HeapData, OpCode, StackData},
 };
 
-#[derive(Debug, Clone)]
-struct VarInfo {
-    is_static: bool,
-    address: usize,
-}
-
 #[derive(Debug)]
 struct CodeGenerator {
-    variables: HashMap<String, VarInfo>,
+    variables: HashMap<String, usize>,
+    statics: HashMap<String, usize>,
     ffi_table: HashMap<String, usize>,
-    stack_count: usize,
-    pop_count: usize,
     codes: Vec<OpCode>,
     static_area: Vec<HeapData>,
     current_loop_label: Option<String>,
+    stack_count: usize, // 現在のstack frameから見たスタックポインタの相対位置
 }
 
 impl CodeGenerator {
     pub fn new(ffi_table: HashMap<String, usize>) -> CodeGenerator {
         CodeGenerator {
             variables: HashMap::new(),
+            statics: HashMap::new(),
             codes: vec![],
-            stack_count: 0,
-            pop_count: 0,
             ffi_table,
             static_area: vec![],
             current_loop_label: None,
+            stack_count: 0,
         }
     }
 
-    fn push(&mut self, val: StackData) {
-        self.codes.push(OpCode::Push(val));
-        self.stack_count += 1;
-        self.pop_count += 1;
-    }
-
-    fn alloc(&mut self, val: DataType) -> Result<()> {
+    fn push(&mut self, val: DataType) {
         match val {
             DataType::Nil => {
-                self.codes.push(OpCode::Alloc(HeapData::Nil));
+                self.codes.push(OpCode::Push(StackData::Nil));
+            }
+            DataType::Bool(b) => {
+                self.codes.push(OpCode::Push(StackData::Bool(b)));
             }
             DataType::Int(n) => {
                 self.codes.push(OpCode::Push(StackData::Int(n)));
@@ -54,87 +45,98 @@ impl CodeGenerator {
             DataType::String(s) => {
                 self.codes.push(OpCode::Alloc(HeapData::String(s)));
             }
-            _ => {
-                bail!("Invalid expr");
-            }
+            _ => todo!(),
         }
+
         self.stack_count += 1;
-        self.pop_count += 1;
-        Ok(())
     }
 
-    fn ret(&mut self, arity: usize) {
-        let pop = self.pop_count + arity;
-
-        self.codes.push(OpCode::Return(pop));
-        self.stack_count = self.stack_count + 1 - pop;
-        self.pop_count = 0;
+    fn pop(&mut self) {
+        self.codes.push(OpCode::Pop(1));
+        self.stack_count -= 1;
     }
 
-    fn ret_if(&mut self, arity: usize) {
-        let pop = self.pop_count + arity;
+    fn set_static(&mut self, addr: usize) {
+        self.codes.push(OpCode::SetStatic(addr));
+        self.stack_count -= 1;
+    }
 
-        self.codes.push(OpCode::ReturnIf(pop));
+    fn ret(&mut self) {
+        self.codes.push(OpCode::Return(self.stack_count));
     }
 
     fn after_call(&mut self, arity: usize) {
         self.stack_count = self.stack_count + 1 - arity;
-        self.pop_count = self.pop_count + 1 - arity;
     }
 
-    fn expr(&mut self, arity: usize, expr: Expr) -> Result<()> {
+    fn load(&mut self, name: String) -> Result<()> {
+        if let Some(addr) = self.statics.get(&name) {
+            self.codes.push(OpCode::CopyStatic(*addr));
+            self.stack_count += 1;
+
+            return Ok(());
+        }
+        if let Some(addr) = self.variables.get(&name) {
+            self.codes.push(OpCode::Copy(*addr));
+            self.stack_count += 1;
+
+            return Ok(());
+        }
+
+        bail!("Ident {} not found", name);
+    }
+
+    fn load_address(&mut self, name: String) -> Result<()> {
+        if let Some(addr) = self.statics.get(&name) {
+            self.codes.push(OpCode::Push(StackData::StaticAddr(*addr)));
+            self.stack_count += 1;
+
+            return Ok(());
+        }
+        if let Some(addr) = self.variables.get(&name) {
+            self.codes.push(OpCode::Push(StackData::StackAddr(*addr)));
+            self.stack_count += 1;
+
+            return Ok(());
+        }
+
+        bail!("Ident {} not found", name);
+    }
+
+    fn expr(&mut self, expr: Expr) -> Result<()> {
         match expr {
             Expr::Var(ident) => {
-                let v = self
-                    .variables
-                    .get(&ident)
-                    .ok_or(anyhow::anyhow!("Ident {} not found", ident))?;
-
-                if v.is_static {
-                    self.codes.push(OpCode::CopyStatic(v.address));
-                } else {
-                    self.codes
-                        .push(OpCode::Copy(self.stack_count - 1 - v.address));
-                }
-
-                self.stack_count += 1;
-                self.pop_count += 1;
-
-                Ok(())
+                return self.load(ident);
             }
             Expr::Lit(lit) => {
-                match lit {
-                    Literal::Int(n) => self.push(StackData::Int(n)),
-                    Literal::String(s) => self.alloc(DataType::String(s))?,
-                    Literal::Nil => self.push(StackData::Nil),
-                    Literal::Bool(b) => self.push(StackData::Bool(b)),
-                };
+                self.push(lit.into_datatype());
 
-                Ok(())
+                return Ok(());
             }
             Expr::Fun(_, _, _) => bail!("Function expression is not supported"),
             Expr::Call(f, args) => {
-                if self.variables.contains_key(&f) {
-                    let addr = self.variables[&f].clone();
+                if self.statics.contains_key(&f) {
+                    let addr = self.statics[&f].clone();
 
                     // push arguments
                     let arity = args.len();
                     for a in args {
-                        self.expr(arity, a)?;
+                        self.expr(a)?;
                     }
 
-                    self.codes.push(OpCode::Call(addr.address));
+                    self.codes.push(OpCode::Call(addr));
                     self.after_call(arity);
 
                     return Ok(());
                 }
 
+                // push arguments
                 let arity = args.len();
                 for a in args {
-                    self.expr(arity, a)?;
+                    self.expr(a)?;
                 }
 
-                // 特別な組み込み関数(stack, heapに干渉する必要があるものはここで)
+                // 組み込み関数
 
                 // ポインタ経由の代入: _passign(p,v) == (*p = v)
                 if &f == "_passign" {
@@ -263,25 +265,17 @@ impl CodeGenerator {
                 bail!("Ident {} not found in call   ", f);
             }
             Expr::Ref(expr) => match expr.as_ref() {
-                Expr::Var(v) => {
-                    let p = self
-                        .variables
-                        .get(v)
-                        .ok_or(anyhow::anyhow!("Ident {} not found", v))?
-                        .clone();
-                    self.push(if p.is_static {
-                        StackData::StaticAddr(p.address)
-                    } else {
-                        StackData::StackAddr(self.stack_count - 1 - p.address)
-                    });
+                Expr::Var(ident) => {
+                    self.load_address(ident.clone())?;
 
                     Ok(())
                 }
                 _ => bail!("Cannot take the address of {:?}", expr),
             },
             Expr::Deref(expr) => {
-                self.expr(arity, expr.as_ref().clone())?;
+                self.expr(expr.as_ref().clone())?;
                 self.codes.push(OpCode::Deref);
+
                 Ok(())
             }
             Expr::Loop(s) => {
@@ -290,21 +284,20 @@ impl CodeGenerator {
 
                 let p = self.stack_count;
                 self.codes.push(OpCode::Label(label.clone()));
-                self.statements(0, s, false)?;
+                self.statements(s, false)?;
                 let q = self.stack_count;
                 self.codes.push(OpCode::Pop(q - p));
                 self.codes.push(OpCode::Jump(label));
 
                 self.current_loop_label = None;
 
-                self.push(StackData::Nil);
+                self.push(DataType::Nil);
                 Ok(())
             }
         }
     }
 
-    fn statements(&mut self, arity: usize, stmts: Vec<Statement>, do_return: bool) -> Result<()> {
-        self.pop_count = 0;
+    fn statements(&mut self, stmts: Vec<Statement>, do_return: bool) -> Result<()> {
         for stmt in stmts {
             match stmt {
                 // 関数宣言はstaticなものにコンパイルする必要があるのでここで特別扱いする
@@ -315,90 +308,64 @@ impl CodeGenerator {
 
                     let mut generator = CodeGenerator::new(self.ffi_table.clone());
                     generator.variables = self.variables.clone();
-                    generator.stack_count = self.stack_count;
 
-                    let arity = args.len();
                     for a in args {
-                        generator.variables.insert(
-                            a,
-                            VarInfo {
-                                is_static: false,
-                                address: generator.stack_count,
-                            },
-                        );
+                        generator.variables.insert(a, generator.stack_count);
                         generator.stack_count += 1;
                     }
 
-                    generator.statements(arity, body, true)?;
+                    // return addressとframe pointerの分だけずらす
+                    generator.stack_count += 2;
+
+                    generator.statements(body, true)?;
 
                     let addr = self.static_area.len();
                     self.static_area.push(HeapData::Closure(generator.codes));
-                    self.variables.insert(
-                        x,
-                        VarInfo {
-                            address: addr,
-                            is_static,
-                        },
-                    );
+                    self.statics.insert(x, addr);
                 }
                 Statement::Let(is_static, x, e) => {
-                    self.expr(arity, e.clone())?;
-                    self.variables.insert(
-                        x.clone(),
-                        VarInfo {
-                            is_static,
-                            address: if is_static {
-                                self.static_area.len()
-                            } else {
-                                self.stack_count - 1
-                            },
-                        },
-                    );
+                    self.expr(e.clone())?;
 
                     if is_static {
                         let addr = self.static_area.len();
                         self.static_area.push(HeapData::Nil);
-                        self.codes.push(OpCode::SetStatic(addr));
+                        self.set_static(addr);
 
-                        self.stack_count -= 1;
-                        self.pop_count -= 1;
+                        self.statics.insert(x.clone(), self.static_area.len() - 1);
+                    } else {
+                        self.variables.insert(x.clone(), self.stack_count - 1);
                     }
                 }
                 Statement::Return(e) => {
-                    self.expr(arity, e.clone())?;
-                    self.ret(arity);
+                    self.expr(e.clone())?;
+                    self.ret();
                     return Ok(());
                 }
                 Statement::Expr(e) => {
-                    self.expr(arity, e.clone())?;
-                    self.codes.push(OpCode::Pop(1));
-                    self.stack_count -= 1;
-                    self.pop_count -= 1;
+                    self.expr(e.clone())?;
+                    self.pop();
                 }
-                Statement::ReturnIf(expr, cond) => {
-                    self.expr(arity, expr)?;
-                    self.expr(arity, cond)?;
-                    self.ret_if(arity);
-                    self.stack_count -= 2;
-                }
+                Statement::ReturnIf(_, _) => todo!(),
                 Statement::If(cond, s1, s2) => {
-                    println!("if start: {:?}", self);
+                    let p = self.stack_count;
+
                     let else_label = format!("else-{}", self.codes.len());
                     let end_if_label = format!("end-if-{}", self.codes.len());
-                    self.expr(0, cond.as_ref().clone())?;
+                    self.expr(cond.as_ref().clone())?;
                     self.codes.push(OpCode::JumpIfNot(else_label.clone()));
 
                     // then block
-                    self.statements(0, s1, false)?;
+                    self.statements(s1, false)?;
                     self.codes.push(OpCode::Jump(end_if_label.clone()));
 
                     // else block
                     self.codes.push(OpCode::Label(else_label));
-                    self.statements(0, s2, false)?;
+                    self.statements(s2, false)?;
 
                     // endif
                     self.codes.push(OpCode::Label(end_if_label));
-                    println!("if end: {:?}", self);
+
+                    self.stack_count = p;
                 }
                 Statement::Continue => {
                     let label = self.current_loop_label.clone().unwrap();
@@ -409,14 +376,14 @@ impl CodeGenerator {
 
         if do_return {
             // returnがない場合はreturn nil;と同等
-            self.push(StackData::Nil);
-            self.ret(arity);
+            self.push(DataType::Nil);
+            self.ret();
         }
         Ok(())
     }
 
     fn module(&mut self, module: Module) -> Result<()> {
-        self.statements(0, module.0, true)
+        self.statements(module.0, true)
     }
 
     pub fn gen_code(&mut self, module: Module) -> Result<()> {

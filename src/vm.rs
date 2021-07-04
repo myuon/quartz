@@ -84,6 +84,13 @@ pub enum StackData {
 }
 
 impl StackData {
+    pub fn as_stack_addr(&self) -> Option<usize> {
+        match self {
+            &StackData::StackAddr(u) => Some(u),
+            _ => None,
+        }
+    }
+
     pub fn as_heap_addr(&self) -> Option<usize> {
         match self {
             &Self::HeapAddr(u) => Some(u),

@@ -62,7 +62,8 @@ impl<T: Clone + Debug> Stack<T> {
 
 #[derive(Debug)]
 struct Runtime {
-    pc: usize,
+    pc: usize, // program counter
+    fp: usize, // frame pointer
     program: Vec<OpCode>,
     stack: Stack<StackData>,
     heap: Vec<HeapData>,
@@ -78,10 +79,16 @@ impl Runtime {
         static_area: Vec<HeapData>,
         ffi_functions: Vec<FFIFunction>,
     ) -> Runtime {
+        // return addressとframe pointerの分だけstackに積んでおく(暗黙のmain関数のため)
+        let mut stack = Stack::new();
+        stack.push(StackData::StackAddr(0));
+        stack.push(StackData::StackAddr(0));
+
         Runtime {
             pc: 0,
+            fp: 0,
             program,
-            stack: Stack::new(),
+            stack,
             heap: vec![],
             static_area,
             call_stack: vec![],
@@ -279,18 +286,25 @@ impl Runtime {
                     self.pop(v);
                 }
                 OpCode::Return(r) => {
+                    let return_address =
+                        self.stack.as_slice()[self.fp]
+                            .as_stack_addr()
+                            .ok_or(anyhow::anyhow!(
+                                "Expected return address but found: {:?}",
+                                self.stack.as_slice()[self.fp]
+                            ))?;
+                    self.fp = self.stack.as_slice()[self.fp + 1].as_stack_addr().ok_or(
+                        anyhow::anyhow!(
+                            "Expected frame pointer but found: {:?}",
+                            self.stack.as_slice()[self.fp + 1]
+                        ),
+                    )?;
+                    self.pc = return_address;
+
                     if r > 0 {
                         let ret = self.pop(1);
                         self.pop(r - 1);
                         self.push(ret);
-                    }
-
-                    match self.call_stack.pop() {
-                        Some(p) => {
-                            self.pc = p + 1;
-                            continue;
-                        }
-                        _ => return Ok(()),
                     }
                 }
                 OpCode::ReturnIf(r) => {
@@ -344,6 +358,12 @@ impl Runtime {
                 OpCode::Call(addr) => match self.static_area[addr].clone() {
                     HeapData::Closure(body) => {
                         self.call_stack.push(self.pc);
+
+                        let p = self.stack.pointer;
+                        // push return address & frame pointer
+                        self.push(StackData::StackAddr(self.pc));
+                        self.push(StackData::StackAddr(self.fp));
+                        self.fp = p;
 
                         self.pc = self.program.len();
                         self.program.extend(body);
