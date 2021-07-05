@@ -1103,6 +1103,16 @@ mod tests {
                 "#,
                 DataType::Int(0),
             ),
+            (
+                r#"
+                    let g = fn () {
+                        return false;
+                    };
+
+                    if g() {};
+                "#,
+                DataType::Int(0),
+            ),
         ];
 
         let (ffi_table, ffi_functions) = create_ffi_table();
