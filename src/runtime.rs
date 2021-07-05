@@ -90,7 +90,6 @@ struct Runtime {
     stack_frames: Vec<StackFrame>,
     heap: Vec<HeapData>,
     static_area: Vec<HeapData>,
-    call_stack: Vec<usize>,
     ffi_functions: Vec<FFIFunction>,
     labels: HashMap<String, usize>,
     sfc: usize, // stack frame counter
@@ -108,7 +107,6 @@ impl Runtime {
             stack: Stack::new(),
             heap: vec![],
             static_area,
-            call_stack: vec![],
             ffi_functions,
             labels: HashMap::new(),
             stack_frames: vec![StackFrame {
@@ -385,8 +383,6 @@ impl Runtime {
                     let func = self.stack.as_slice().len() - (arity + 2);
                     match self.deref_static_address(self.stack[func].clone())? {
                         HeapData::Closure(body) => {
-                            self.call_stack.push(self.pc);
-
                             let ret = func + arity + 1;
 
                             assert!(
