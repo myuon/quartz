@@ -138,6 +138,7 @@ impl CodeGenerator {
                 }
 
                 if let Some(addr) = self.ffi_table.get(&f).cloned() {
+                    let p = self.stack_count;
                     self.codes.push(OpCode::Push(StackData::StaticAddr(addr)));
                     self.stack_count += 1;
 
@@ -150,6 +151,9 @@ impl CodeGenerator {
                     self.codes.push(OpCode::FFICall(arity));
                     self.after_call(arity);
 
+                    // 関数呼び出しによって戻り値がstackに積まれるので1つ分だけ増えている必要がある
+                    assert_eq!(p + 1, self.stack_count, "{:?}", self);
+
                     return Ok(());
                 }
 
@@ -160,6 +164,9 @@ impl CodeGenerator {
                 }
 
                 // 組み込み関数
+
+                // 関数は呼び出し後は戻り値をstackに積まないといけないという呼び出し規約であるのでここでstack_countを増やしておく
+                self.stack_count += 1;
 
                 // ポインタ経由の代入: _passign(p,v) == (*p = v)
                 if &f == "_passign" {
