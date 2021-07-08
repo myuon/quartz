@@ -1122,7 +1122,7 @@ mod tests {
 
                     if g() {};
                 "#,
-                DataType::Int(0),
+                DataType::Nil,
             ),
         ];
 
