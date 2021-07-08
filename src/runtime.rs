@@ -367,9 +367,14 @@ impl Runtime {
                     let p = self.alloc(h);
                     self.push(p);
                 }
-                OpCode::FFICall(addr) => {
-                    let (x, y) =
-                        self.ffi_functions[addr](self.locals().to_vec(), self.heap.clone());
+                OpCode::FFICall(arity) => {
+                    let func = self.stack.as_slice().len() - (arity + 1);
+                    let (x, y) = self.ffi_functions[self.stack[func]
+                        .as_static_addr()
+                        .ok_or(anyhow::anyhow!("Expected static addr"))?](
+                        self.locals().to_vec(),
+                        self.heap.clone(),
+                    );
 
                     // TODO: FFICallの時はpush or popを送ってもらう形の方が良いかも
                     self.stack.pointer = self.stack_frame().local + x.len();
@@ -377,6 +382,12 @@ impl Runtime {
                         let address = self.stack_frame().local + i;
                         self.stack[address] = u;
                     }
+
+                    // 関数そのものへのポインタをpopする分を入れておく(ffiの定義の簡単さと互換性のため)
+                    let d = self.pop();
+                    self.pop();
+                    self.push(d);
+
                     self.heap = y;
                     self.pc += 1;
                     continue;

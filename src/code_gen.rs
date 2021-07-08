@@ -137,6 +137,22 @@ impl CodeGenerator {
                     return Ok(());
                 }
 
+                if let Some(addr) = self.ffi_table.get(&f).cloned() {
+                    self.codes.push(OpCode::Push(StackData::StaticAddr(addr)));
+                    self.stack_count += 1;
+
+                    // push arguments
+                    let arity = args.len();
+                    for a in args {
+                        self.expr(a)?;
+                    }
+
+                    self.codes.push(OpCode::FFICall(arity));
+                    self.after_call(arity);
+
+                    return Ok(());
+                }
+
                 // push arguments
                 let arity = args.len();
                 for a in args {
@@ -260,16 +276,7 @@ impl CodeGenerator {
                     return Ok(());
                 }
 
-                if let Some(addr) = self.ffi_table.get(&f).cloned() {
-                    self.codes.push(OpCode::FFICall(addr));
-
-                    // TODO(safety): arity check
-                    self.after_call(arity);
-
-                    return Ok(());
-                }
-
-                bail!("Ident {} not found in call   ", f);
+                bail!("Ident {} not found in call", f);
             }
             Expr::Ref(expr) => match expr.as_ref() {
                 Expr::Var(ident) => {
