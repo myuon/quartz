@@ -66,7 +66,7 @@ impl CodeGenerator {
     }
 
     fn after_call(&mut self, arity: usize) {
-        self.stack_count = self.stack_count + 1 - arity;
+        self.stack_count = self.stack_count - arity;
     }
 
     fn load(&mut self, name: String) -> Result<()> {
@@ -116,6 +116,7 @@ impl CodeGenerator {
             Expr::Fun(_, _, _) => bail!("Function expression is not supported"),
             Expr::Call(f, args) => {
                 if self.statics.contains_key(&f) {
+                    let p = self.stack_count;
                     let addr = self.statics[&f].clone();
 
                     self.codes.push(OpCode::Push(StackData::StaticAddr(addr)));
@@ -129,6 +130,9 @@ impl CodeGenerator {
 
                     self.codes.push(OpCode::Call(arity));
                     self.after_call(arity);
+
+                    // 関数呼び出しによって戻り値がstackに積まれるので1つ分だけ増えている必要がある
+                    assert_eq!(p + 1, self.stack_count, "{:?}", self);
 
                     return Ok(());
                 }

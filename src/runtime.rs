@@ -324,15 +324,18 @@ impl Runtime {
                     self.pop_first(v);
                 }
                 OpCode::Return(r) => {
-                    assert_eq!(r, self.locals().len(), "{:?}", self);
-
                     // トップレベルでreturnしたら終了
                     if self.sfc == 0 {
+                        // トップレベルでのreturnの場合、return addressが格納されているはずの分がないのでその分1ずれる
+                        assert_eq!(r, self.locals().len(), "{:?}", self);
+
                         let r = self.pop_first(r);
                         self.push(r);
 
                         break;
                     } else {
+                        assert_eq!(r, self.locals().len(), "{:?}", self);
+
                         let prev_stack_frame = self.stack_frames.pop().unwrap();
                         let return_address = self.stack[prev_stack_frame.ret].clone();
 
@@ -343,7 +346,8 @@ impl Runtime {
                         ))?;
                         self.sfc -= 1;
 
-                        let r = self.pop_first(r);
+                        // 関数へのポインタの分があるので1つ余分にpopする
+                        let r = self.pop_first(r + 1);
                         self.push(r);
                     }
                 }
