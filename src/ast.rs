@@ -55,8 +55,26 @@ pub struct Module(pub Vec<Statement>);
 #[derive(PartialEq, Debug, Clone)]
 pub enum Type {
     Any,
+    Unit,
     Bool,
     Int,
     String,
     Ref(Box<Type>),
+    Fn(Vec<Type>, Box<Type>),
+}
+
+impl Type {
+    pub fn as_fn_type(&self) -> Option<(&Vec<Type>, &Box<Type>)> {
+        match self {
+            Type::Fn(args, ret) => Some((args, ret)),
+            _ => None,
+        }
+    }
+
+    pub fn as_ref_type(&self) -> Option<&Box<Type>> {
+        match self {
+            Type::Ref(t) => Some(t),
+            _ => None,
+        }
+    }
 }
