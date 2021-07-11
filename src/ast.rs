@@ -53,7 +53,7 @@ pub struct Module(pub Vec<Statement>);
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Type {
-    Infer, // for typecheck only
+    Infer(usize), // for typecheck
     Any,
     Unit,
     Bool,
@@ -75,6 +75,46 @@ impl Type {
         match self {
             Type::Ref(t) => Some(t),
             _ => None,
+        }
+    }
+
+    pub fn has_infer(&self, index: usize) -> bool {
+        match self {
+            Type::Infer(t) => *t == index,
+            Type::Any => false,
+            Type::Unit => false,
+            Type::Bool => false,
+            Type::Int => false,
+            Type::String => false,
+            Type::Ref(t) => t.has_infer(index),
+            Type::Fn(args, ret) => {
+                args.iter().find(move |t| t.has_infer(index)).is_some() || ret.has_infer(index)
+            }
+        }
+    }
+
+    pub fn subst(&mut self, index: usize, typ: &Type) {
+        match self {
+            Type::Infer(t) => {
+                if *t == index {
+                    *self = typ.clone();
+                }
+            }
+            Type::Any => {}
+            Type::Unit => {}
+            Type::Bool => {}
+            Type::Int => {}
+            Type::String => {}
+            Type::Ref(t) => {
+                t.subst(index, typ);
+            }
+            Type::Fn(args, ret) => {
+                for arg in args {
+                    arg.subst(index, typ);
+                }
+
+                ret.subst(index, typ);
+            }
         }
     }
 }
