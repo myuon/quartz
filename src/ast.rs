@@ -80,7 +80,6 @@ impl Type {
     pub fn has_infer(&self, index: usize) -> bool {
         match self {
             Type::Infer(t) => *t == index,
-            Type::Any => false,
             Type::Unit => false,
             Type::Bool => false,
             Type::Int => false,
@@ -99,7 +98,6 @@ impl Type {
                     *self = typ.clone();
                 }
             }
-            Type::Any => {}
             Type::Unit => {}
             Type::Bool => {}
             Type::Int => {}
