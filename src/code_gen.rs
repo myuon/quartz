@@ -322,7 +322,7 @@ impl CodeGenerator {
         for stmt in stmts {
             match stmt {
                 // 関数宣言はstaticなものにコンパイルする必要があるのでここで特別扱いする
-                Statement::Let(is_static, x, _, Expr::Fun(_id, args, body)) => {
+                Statement::Let(is_static, x, Expr::Fun(_id, args, body)) => {
                     if !is_static {
                         bail!("A function in a function is not supported");
                     }
@@ -345,7 +345,7 @@ impl CodeGenerator {
                     self.static_area.push(HeapData::Closure(generator.codes));
                     self.statics.insert(x, addr);
                 }
-                Statement::Let(is_static, x, _, e) => {
+                Statement::Let(is_static, x, e) => {
                     self.expr(e.clone())?;
 
                     if is_static {

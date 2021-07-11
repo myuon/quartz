@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 
 use crate::ast::{Expr, Literal, Module, Statement, Type};
 
@@ -16,7 +16,16 @@ impl TypeChecker {
     }
 
     fn unify(&mut self, t1: &Type, t2: &Type) -> Result<()> {
-        Ok(())
+        match (t1, t2) {
+            (Type::Infer, t) => Ok(()),
+            (t, Type::Infer) => Ok(()),
+            (Type::Any, _) => Ok(()),
+            (_, Type::Any) => Ok(()),
+            (Type::Unit, Type::Unit) => Ok(()),
+            (Type::Int, Type::Int) => Ok(()),
+            (Type::Bool, Type::Bool) => Ok(()),
+            (t1, t2) => bail!("Type error, want {:?} but found {:?}", t1, t2),
+        }
     }
 
     fn load(&mut self, v: &String) -> Result<Type> {
@@ -38,12 +47,15 @@ impl TypeChecker {
                 Literal::String(_) => Ok(Type::String),
             },
             Expr::Fun(_, args, body) => {
+                let variables = self.variables.clone();
                 let mut arg_types = vec![];
-                for _ in args {
-                    arg_types.push(Type::Any);
+                for arg in args {
+                    arg_types.push(Type::Infer);
+                    self.variables.insert(arg.clone(), Type::Any);
                 }
 
                 let ret_type = self.statements(body)?;
+                self.variables = variables;
 
                 Ok(Type::Fn(arg_types, Box::new(ret_type)))
             }
@@ -88,9 +100,8 @@ impl TypeChecker {
 
         for statement in statements {
             match statement {
-                Statement::Let(_, x, t, body) => {
+                Statement::Let(_, x, body) => {
                     let body_type = self.expr(body)?;
-                    self.unify(t, &body_type)?;
                     self.variables.insert(x.clone(), body_type);
                 }
                 Statement::Expr(e) => {
@@ -118,10 +129,7 @@ impl TypeChecker {
     }
 
     pub fn module(&mut self, module: &mut Module) -> Result<Type> {
-        let t = self.statements(&mut module.0)?;
-        self.unify(&t, &Type::Unit)?;
-
-        Ok(Type::Unit)
+        self.statements(&mut module.0)
     }
 }
 
@@ -135,6 +143,7 @@ mod tests {
     fn test_typecheck() {
         let cases = vec![
             (
+                // primitive types
                 r#"
                     let x = 5;
                     let y = "foo";
@@ -144,6 +153,7 @@ mod tests {
                 Type::String,
             ),
             (
+                // function type
                 r#"
                     let f = fn (a, b, c) {
                         return c;
@@ -153,7 +163,7 @@ mod tests {
                 vec![(
                     "f",
                     Type::Fn(
-                        vec![Type::Int, Type::Any, Type::String],
+                        vec![Type::Int, Type::Ref(Box::new(Type::Any)), Type::String],
                         Box::new(Type::String),
                     ),
                 )],

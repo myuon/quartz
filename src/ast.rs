@@ -24,7 +24,6 @@ pub enum Statement {
     Let(
         bool, // static or not
         String,
-        Type,
         Expr,
     ),
     Expr(Expr),
@@ -54,6 +53,7 @@ pub struct Module(pub Vec<Statement>);
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Type {
+    Infer, // for typecheck only
     Any,
     Unit,
     Bool,
