@@ -26,8 +26,6 @@ impl Constraints {
         match (t1, t2) {
             (Type::Infer(u), t) => Ok(Constraints::singleton(*u, t.clone())),
             (t, Type::Infer(u)) => Ok(Constraints::singleton(*u, t.clone())),
-            (Type::Any, _) => Ok(Constraints::new()),
-            (_, Type::Any) => Ok(Constraints::new()),
             (Type::Unit, Type::Unit) => Ok(Constraints::new()),
             (Type::Int, Type::Int) => Ok(Constraints::new()),
             (Type::Bool, Type::Bool) => Ok(Constraints::new()),
@@ -86,7 +84,6 @@ impl Constraints {
                     *typ = t;
                 }
             }
-            Type::Any => {}
             Type::Unit => {}
             Type::Bool => {}
             Type::Int => {}
@@ -304,6 +301,26 @@ mod tests {
                     .collect::<HashMap<_, _>>()
             );
             assert_eq!(result, c.2, "{}", c.0);
+        }
+    }
+
+    #[test]
+    fn test_typecheck_fail() {
+        let cases = vec![(
+            r#"
+            let x = 10;
+            x();
+        "#,
+            "Expected function type but found",
+        )];
+
+        for c in cases {
+            let mut module = run_parser(c.0).unwrap();
+            let mut typechecker = TypeChecker::new();
+            let result = typechecker.module(&mut module);
+
+            let err = result.unwrap_err();
+            assert!(err.to_string().contains(c.1), "err: {:?}\n{}", err, c.0);
         }
     }
 }

@@ -54,7 +54,6 @@ pub struct Module(pub Vec<Statement>);
 #[derive(PartialEq, Debug, Clone)]
 pub enum Type {
     Infer(usize), // for typecheck
-    Any,
     Unit,
     Bool,
     Int,
