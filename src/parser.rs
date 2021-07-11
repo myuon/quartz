@@ -1,5 +1,5 @@
 use crate::{
-    ast::{Expr, Literal, Module, Statement},
+    ast::{Expr, Literal, Module, Statement, Type},
     lexer::{run_lexer, Lexeme, Token},
 };
 use anyhow::{bail, ensure, Result};
@@ -94,7 +94,7 @@ impl Parser {
         self.expect_lexeme(Lexeme::Equal)?;
         let e = self.expr()?;
 
-        Ok(Statement::Let(self.is_toplevel, x, e))
+        Ok(Statement::Let(self.is_toplevel, x, Type::Any, e))
     }
 
     fn statement_if(&mut self) -> Result<Statement> {
@@ -298,11 +298,17 @@ mod tests {
                 Module(vec![Statement::Let(
                     true,
                     "main".to_string(),
+                    Type::Any,
                     Expr::Fun(
                         11,
                         vec![],
                         vec![
-                            Statement::Let(false, "y".to_string(), Expr::Lit(Literal::Int(10))),
+                            Statement::Let(
+                                false,
+                                "y".to_string(),
+                                Type::Any,
+                                Expr::Lit(Literal::Int(10)),
+                            ),
                             Statement::Expr(Expr::Call(
                                 "_assign".to_string(),
                                 vec![Expr::Var("y".to_string()), Expr::Lit(Literal::Int(20))],
@@ -324,6 +330,7 @@ mod tests {
                     (Statement::Let(
                         true,
                         "main".to_string(),
+                        Type::Any,
                         Expr::Fun(
                             11,
                             vec![],
@@ -341,6 +348,7 @@ mod tests {
                                 (Statement::Let(
                                     false,
                                     "u".to_string(),
+                                    Type::Any,
                                     Expr::Fun(
                                         134,
                                         vec![],
@@ -356,7 +364,12 @@ mod tests {
             (
                 r#"let x = 10; return x;"#,
                 Module(vec![
-                    (Statement::Let(true, "x".to_string(), Expr::Lit(Literal::Int(10)))),
+                    (Statement::Let(
+                        true,
+                        "x".to_string(),
+                        Type::Any,
+                        Expr::Lit(Literal::Int(10)),
+                    )),
                     (Statement::Return(Expr::Var("x".to_string()))),
                 ]),
             ),
@@ -371,7 +384,12 @@ mod tests {
             (
                 r#"let x = 10; return &x;"#,
                 Module(vec![
-                    Statement::Let(true, "x".to_string(), Expr::Lit(Literal::Int(10))),
+                    Statement::Let(
+                        true,
+                        "x".to_string(),
+                        Type::Any,
+                        Expr::Lit(Literal::Int(10)),
+                    ),
                     Statement::Return(Expr::Ref(Box::new(Expr::Var("x".to_string())))),
                 ]),
             ),
@@ -397,6 +415,7 @@ mod tests {
                     Statement::Let(
                         true,
                         "x".to_string(),
+                        Type::Any,
                         Expr::Loop(vec![Statement::Return(Expr::Lit(Literal::Int(10)))]),
                     ),
                     Statement::Return(Expr::Var("x".to_string())),

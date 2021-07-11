@@ -24,6 +24,7 @@ pub enum Statement {
     Let(
         bool, // static or not
         String,
+        Type,
         Expr,
     ),
     Expr(Expr),
@@ -50,3 +51,12 @@ pub enum Expr {
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Module(pub Vec<Statement>);
+
+#[derive(PartialEq, Debug, Clone)]
+pub enum Type {
+    Any,
+    Bool,
+    Int,
+    String,
+    Ref(Box<Type>),
+}

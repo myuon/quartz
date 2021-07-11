@@ -82,4 +82,4 @@ let tests = fn () {
 };
 
 tests();
-_print(main("let x = 0; let y = fn (x) { return _add(x, y) }; f();"));
+//_print(main("let x = 0; let y = fn (x) { return _add(x, y) }; f();"));

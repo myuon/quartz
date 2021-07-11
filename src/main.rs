@@ -14,6 +14,7 @@ mod code_gen;
 mod lexer;
 mod parser;
 mod runtime;
+mod typechecker;
 mod vm;
 
 pub fn create_ffi_table() -> (HashMap<String, usize>, Vec<FFIFunction>) {
