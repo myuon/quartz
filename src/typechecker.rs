@@ -247,8 +247,20 @@ impl TypeChecker {
     }
 
     pub fn module(&mut self, module: &mut Module) -> Result<Type> {
-        self.statements(&mut module.0)
+        let r = self.statements(&mut module.0)?;
+        let cs = Constraints::unify(&r, &Type::Unit)?;
+
+        self.apply_constraints(&cs);
+
+        Ok(Type::Unit)
     }
+}
+
+pub fn typecheck(module: &mut Module) -> Result<()> {
+    let mut checker = TypeChecker::new();
+    checker.module(module)?;
+
+    Ok(())
 }
 
 #[cfg(test)]

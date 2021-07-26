@@ -6,6 +6,7 @@ use crate::{
     code_gen::gen_code,
     parser::run_parser,
     runtime::{execute, FFIFunction},
+    typechecker::typecheck,
     vm::{HeapData, StackData},
 };
 
@@ -114,7 +115,8 @@ fn main() -> Result<()> {
 
     let (ffi_table, ffi_functions) = create_ffi_table();
 
-    let module = run_parser(&buffer)?;
+    let mut module = run_parser(&buffer)?;
+    typecheck(&mut module)?;
 
     let (program, static_area) = gen_code(module, ffi_table)?;
     println!("{:?}", execute(program, static_area, ffi_functions));
