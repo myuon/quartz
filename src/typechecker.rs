@@ -24,6 +24,8 @@ impl Constraints {
 
     fn unify(t1: &Type, t2: &Type) -> Result<Constraints> {
         match (t1, t2) {
+            (Type::Any, _) => Ok(Constraints::new()),
+            (_, Type::Any) => Ok(Constraints::new()),
             (Type::Infer(u), t) => Ok(Constraints::singleton(*u, t.clone())),
             (t, Type::Infer(u)) => Ok(Constraints::singleton(*u, t.clone())),
             (Type::Unit, Type::Unit) => Ok(Constraints::new()),
@@ -84,6 +86,7 @@ impl Constraints {
                     *typ = t;
                 }
             }
+            Type::Any => {}
             Type::Unit => {}
             Type::Bool => {}
             Type::Int => {}
@@ -247,12 +250,7 @@ impl TypeChecker {
     }
 
     pub fn module(&mut self, module: &mut Module) -> Result<Type> {
-        let r = self.statements(&mut module.0)?;
-        let cs = Constraints::unify(&r, &Type::Unit)?;
-
-        self.apply_constraints(&cs);
-
-        Ok(Type::Unit)
+        self.statements(&mut module.0)
     }
 }
 
@@ -304,7 +302,7 @@ mod tests {
         for c in cases {
             let mut module = run_parser(c.0).unwrap();
             let mut typechecker = TypeChecker::new();
-            let result = typechecker.module(&mut module).unwrap();
+            let result = typechecker.module(&mut module).expect(&format!("{}", c.0));
 
             assert_eq!(
                 typechecker.variables,

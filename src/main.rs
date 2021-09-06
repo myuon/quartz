@@ -15,6 +15,7 @@ mod code_gen;
 mod lexer;
 mod parser;
 mod runtime;
+mod stdlib;
 mod typechecker;
 mod vm;
 
