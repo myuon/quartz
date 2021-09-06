@@ -31,6 +31,7 @@ impl Constraints {
             (Type::Unit, Type::Unit) => Ok(Constraints::new()),
             (Type::Int, Type::Int) => Ok(Constraints::new()),
             (Type::Bool, Type::Bool) => Ok(Constraints::new()),
+            (Type::String, Type::String) => Ok(Constraints::new()),
             (Type::Fn(args1, ret1), Type::Fn(args2, ret2)) => {
                 if args1.len() != args2.len() {
                     bail!("Type error: want {:?} but found {:?}", args1, args2);
@@ -47,6 +48,7 @@ impl Constraints {
 
                 Ok(result)
             }
+            (Type::Ref(t1), Type::Ref(t2)) => Constraints::unify(t1, t2),
             (t1, t2) => bail!("Type error, want {:?} but found {:?}", t1, t2),
         }
     }
@@ -215,25 +217,23 @@ impl TypeChecker {
 
                 Ok(t_inner)
             }
-            Expr::Loop(body) => {
-                self.statements(body)?;
-
-                Ok(Type::Unit)
-            }
+            Expr::Loop(body) => self.statements(body),
         }
     }
 
     pub fn statements(&mut self, statements: &mut Vec<Statement>) -> Result<Type> {
-        let mut ret_type = Type::Unit;
+        let mut ret_type = Type::Any;
 
         for statement in statements {
             match statement {
                 Statement::Let(_, x, body) => {
                     let body_type = self.expr(body)?;
                     self.variables.insert(x.clone(), body_type);
+                    ret_type = Type::Unit;
                 }
                 Statement::Expr(e) => {
                     self.expr(e)?;
+                    ret_type = Type::Unit;
                 }
                 Statement::Return(t) => {
                     ret_type = self.expr(t)?;
@@ -315,6 +315,26 @@ mod tests {
                     ),
                 )],
                 Type::Unit,
+            ),
+            (
+                r#"
+                    return loop {
+                        return 10;
+                    };
+                "#,
+                vec![],
+                Type::Int,
+            ),
+            (
+                r#"
+                    return loop {
+                        if true {
+                            return 10;
+                        };
+                    };
+                "#,
+                vec![],
+                Type::Int,
             ),
         ];
 
