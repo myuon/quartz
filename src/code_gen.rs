@@ -431,7 +431,7 @@ pub fn gen_code(
 
 #[cfg(test)]
 mod tests {
-    use crate::{create_ffi_table, parser::run_parser};
+    use crate::{create_ffi_table, parser::run_parser, stdlib::typecheck_with_stdlib};
 
     use super::*;
 
@@ -721,7 +721,8 @@ mod tests {
 
         for c in cases {
             let (ffi_table, _) = create_ffi_table();
-            let m = run_parser(c.0).unwrap();
+            let mut m = run_parser(c.0).unwrap();
+            typecheck_with_stdlib(&mut m).expect(&format!("{}", c.0));
 
             let result = gen_code(m, ffi_table);
             assert!(result.is_ok(), "{:?} {}", result, c.0);

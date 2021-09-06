@@ -117,6 +117,10 @@ impl TypeChecker {
         }
     }
 
+    pub fn set_default_types(&mut self, m: HashMap<String, Type>) {
+        self.variables = m;
+    }
+
     fn apply_constraints(&mut self, constraints: &Constraints) {
         for key in self.variables.clone().keys() {
             self.variables.entry(key.clone()).and_modify(|typ| {
@@ -167,6 +171,10 @@ impl TypeChecker {
             }
             Expr::Call(f, args) => {
                 let fn_type = self.load(f)?;
+                if matches!(fn_type, Type::Any) {
+                    return Ok(Type::Any);
+                }
+
                 fn_type.as_fn_type().ok_or(anyhow::anyhow!(
                     "Expected function type but found: {:?}",
                     fn_type
@@ -197,12 +205,15 @@ impl TypeChecker {
             }
             Expr::Deref(e) => {
                 let t = self.expr(e.as_mut())?;
+                let mut t_inner = self.next_infer();
 
-                let t_inner = t
-                    .as_ref_type()
-                    .ok_or(anyhow::anyhow!("Expected ref type but found: {:?}", t))?;
+                let cs = Constraints::unify(&t, &Type::Ref(Box::new(t_inner.clone())))?;
 
-                Ok(t_inner.as_ref().clone())
+                self.apply_constraints(&cs);
+
+                cs.apply(&mut t_inner);
+
+                Ok(t_inner)
             }
             Expr::Loop(body) => {
                 self.statements(body)?;
@@ -256,6 +267,14 @@ impl TypeChecker {
 
 pub fn typecheck(module: &mut Module) -> Result<()> {
     let mut checker = TypeChecker::new();
+    checker.module(module)?;
+
+    Ok(())
+}
+
+pub fn typecheck_with(module: &mut Module, variables: HashMap<String, Type>) -> Result<()> {
+    let mut checker = TypeChecker::new();
+    checker.set_default_types(variables);
     checker.module(module)?;
 
     Ok(())
