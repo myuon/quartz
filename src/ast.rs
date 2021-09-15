@@ -49,6 +49,19 @@ pub enum Expr {
 }
 
 #[derive(PartialEq, Debug, Clone)]
+pub struct Struct {
+    pub name: String,
+    pub fields: Vec<(String, Type)>,
+}
+
+#[derive(PartialEq, Debug, Clone)]
+pub struct Function {
+    pub name: String,
+    pub args: Vec<String>,
+    pub body: Vec<Statement>,
+}
+
+#[derive(PartialEq, Debug, Clone)]
 pub struct Module(pub Vec<Statement>);
 
 #[derive(PartialEq, Debug, Clone)]
