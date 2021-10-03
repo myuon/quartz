@@ -12,6 +12,7 @@ use crate::{
 
 mod ast;
 mod code_gen;
+mod compiler;
 mod lexer;
 mod parser;
 mod runtime;

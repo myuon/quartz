@@ -83,7 +83,7 @@ pub struct StackFrame {
 }
 
 #[derive(Debug)]
-struct Runtime {
+pub struct Runtime {
     pc: usize, // program counter
     program: Vec<OpCode>,
     stack: Stack<StackData>,
