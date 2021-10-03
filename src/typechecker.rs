@@ -299,6 +299,17 @@ pub fn typecheck_statements(module: &mut Vec<Statement>) -> Result<()> {
     Ok(())
 }
 
+pub fn typecheck_statements_with(
+    module: &mut Vec<Statement>,
+    variables: HashMap<String, Type>,
+) -> Result<()> {
+    let mut checker = TypeChecker::new();
+    checker.set_default_types(variables);
+    checker.statements(module)?;
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use crate::parser::{run_parser, run_parser_statements};
@@ -385,9 +396,9 @@ mod tests {
         )];
 
         for c in cases {
-            let mut module = run_parser(c.0).unwrap();
+            let mut module = run_parser_statements(c.0).unwrap();
             let mut typechecker = TypeChecker::new();
-            let result = typechecker.module(&mut module);
+            let result = typechecker.statements(&mut module);
 
             let err = result.unwrap_err();
             assert!(err.to_string().contains(c.1), "err: {:?}\n{}", err, c.0);

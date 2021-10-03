@@ -445,6 +445,10 @@ impl CodeGenerator {
     pub fn gen_code(&mut self, module: Module) -> Result<()> {
         self.module(module)
     }
+
+    pub fn gen_code_statements(&mut self, stmts: Vec<Statement>) -> Result<()> {
+        self.statements(stmts, true)
+    }
 }
 
 pub fn gen_code(
@@ -457,9 +461,23 @@ pub fn gen_code(
     Ok((generator.codes, generator.static_area))
 }
 
+pub fn gen_code_statements(
+    stmts: Vec<Statement>,
+    ffi_table: HashMap<String, usize>,
+) -> Result<(Vec<OpCode>, Vec<HeapData>)> {
+    let mut generator = CodeGenerator::new(ffi_table);
+    generator.gen_code_statements(stmts)?;
+
+    Ok((generator.codes, generator.static_area))
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::{create_ffi_table, parser::run_parser, stdlib::typecheck_with_stdlib};
+    use crate::{
+        create_ffi_table,
+        parser::{run_parser, run_parser_statements},
+        stdlib::{typecheck_statements_with_stdlib, typecheck_with_stdlib},
+    };
 
     use super::*;
 
@@ -749,10 +767,10 @@ mod tests {
 
         for c in cases {
             let (ffi_table, _) = create_ffi_table();
-            let mut m = run_parser(c.0).unwrap();
-            typecheck_with_stdlib(&mut m).expect(&format!("{}", c.0));
+            let mut m = run_parser_statements(c.0).unwrap();
+            typecheck_statements_with_stdlib(&mut m).expect(&format!("{}", c.0));
 
-            let result = gen_code(m, ffi_table);
+            let result = gen_code_statements(m, ffi_table);
             assert!(result.is_ok(), "{:?} {}", result, c.0);
             assert_eq!(result.unwrap(), c.1, "{}", c.0);
         }

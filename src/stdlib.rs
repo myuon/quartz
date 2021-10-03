@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use anyhow::Result;
 
 use crate::{
-    ast::{Module, Type},
-    typechecker::typecheck_with,
+    ast::{Module, Statement, Type},
+    typechecker::{typecheck_statements_with, typecheck_with},
 };
 
 pub fn stdlib() -> HashMap<String, Type> {
@@ -46,4 +46,8 @@ pub fn stdlib() -> HashMap<String, Type> {
 
 pub fn typecheck_with_stdlib(m: &mut Module) -> Result<()> {
     return typecheck_with(m, stdlib());
+}
+
+pub fn typecheck_statements_with_stdlib(m: &mut Vec<Statement>) -> Result<()> {
+    return typecheck_statements_with(m, stdlib());
 }
