@@ -1232,4 +1232,45 @@ mod tests {
             assert_eq!(interpreter.heap, case.2);
         }
     }
+
+    #[test]
+    fn test_runtime_module() {
+        let cases = vec![(
+            r#"
+                fn f() {
+                    return 10;
+                }
+
+                fn main() {
+                    return f();
+                }
+                "#,
+            DataType::Int(10),
+        )];
+
+        let (ffi_table, ffi_functions) = create_ffi_table();
+
+        for c in cases {
+            println!("{}", c.0);
+            let mut m = run_parser(c.0).unwrap();
+            typecheck_with_stdlib(&mut m).expect(&format!("{}", c.0));
+
+            let program = gen_code(m, ffi_table.clone());
+            assert!(program.is_ok(), "{:?} {}", program, c.0);
+
+            let (mut program, static_area) = program.unwrap();
+
+            // main(というか最後に宣言された関数)を呼ぶ
+            // APIを用意してくれ
+            program.push(OpCode::CopyStatic(static_area.len() - 1));
+            program.push(OpCode::Call(0));
+
+            let mut runtime = Runtime::new(program, static_area, ffi_functions.clone());
+            let result = runtime.execute();
+            assert!(result.is_ok(), "{:?} {}", result, c.0);
+
+            let result = runtime.stack.pop().unwrap();
+            assert_eq!(runtime.deref(result).unwrap(), c.1, "{}", c.0);
+        }
+    }
 }

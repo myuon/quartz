@@ -264,7 +264,9 @@ impl TypeChecker {
         for decl in decls {
             match decl {
                 Declaration::Function(func) => {
-                    self.statements(&mut func.body)?;
+                    let t = self.statements(&mut func.body)?;
+                    self.variables
+                        .insert(func.name.clone(), Type::Fn(vec![], Box::new(t)));
                 }
             }
         }
