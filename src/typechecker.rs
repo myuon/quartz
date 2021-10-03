@@ -182,6 +182,16 @@ impl TypeChecker {
                     fn_type
                 ))?;
 
+                let expected_arg_len = fn_type.as_fn_type().unwrap().0.len();
+                let actual_arg_len = args.len();
+                if expected_arg_len != actual_arg_len {
+                    anyhow::bail!(
+                        "Expected {} arguments but given {}",
+                        expected_arg_len,
+                        actual_arg_len
+                    );
+                }
+
                 let mut arg_types_inferred = vec![];
                 for arg in args {
                     arg_types_inferred.push(self.expr(arg)?);
@@ -264,9 +274,19 @@ impl TypeChecker {
         for decl in decls {
             match decl {
                 Declaration::Function(func) => {
+                    let variables = self.variables.clone();
+                    let mut arg_types = vec![];
+                    for arg in &func.args {
+                        let tvar = self.next_infer();
+
+                        arg_types.push(tvar.clone());
+                        self.variables.insert(arg.clone(), tvar);
+                    }
+
                     let t = self.statements(&mut func.body)?;
+                    self.variables = variables;
                     self.variables
-                        .insert(func.name.clone(), Type::Fn(vec![], Box::new(t)));
+                        .insert(func.name.clone(), Type::Fn(arg_types, Box::new(t)));
                 }
             }
         }
@@ -389,18 +409,34 @@ mod tests {
 
     #[test]
     fn test_typecheck_fail() {
-        let cases = vec![(
-            r#"
-            let x = 10;
-            x();
-        "#,
-            "Expected function type but found",
-        )];
+        let cases = vec![
+            (
+                r#"
+                    fn main() {
+                        let x = 10;
+                        x();
+                    }
+                "#,
+                "Expected function type but found",
+            ),
+            (
+                r#"
+                    fn f(a,b) {
+                        return a;
+                    }
+
+                    fn main() {
+                        f(1);
+                    }
+                "#,
+                "Expected 2 arguments but given 1",
+            ),
+        ];
 
         for c in cases {
-            let mut module = run_parser_statements(c.0).unwrap();
+            let mut module = run_parser(c.0).unwrap();
             let mut typechecker = TypeChecker::new();
-            let result = typechecker.statements(&mut module);
+            let result = typechecker.module(&mut module);
 
             let err = result.unwrap_err();
             assert!(err.to_string().contains(c.1), "err: {:?}\n{}", err, c.0);
