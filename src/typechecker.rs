@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use anyhow::{bail, Result};
 
-use crate::ast::{Expr, Literal, Module, Statement, Type};
+use crate::ast::{Declaration, Expr, Literal, Module, Statement, Type};
 
 struct Constraints(Vec<(usize, Type)>);
 
@@ -260,8 +260,20 @@ impl TypeChecker {
         Ok(ret_type)
     }
 
-    pub fn module(&mut self, module: &mut Module) -> Result<Type> {
-        self.statements(&mut module.0)
+    pub fn declarations(&mut self, decls: &mut Vec<Declaration>) -> Result<()> {
+        for decl in decls {
+            match decl {
+                Declaration::Function(func) => {
+                    self.statements(&mut func.body)?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn module(&mut self, module: &mut Module) -> Result<()> {
+        self.declarations(&mut module.0)
     }
 }
 
@@ -280,14 +292,21 @@ pub fn typecheck_with(module: &mut Module, variables: HashMap<String, Type>) -> 
     Ok(())
 }
 
+pub fn typecheck_statements(module: &mut Vec<Statement>) -> Result<()> {
+    let mut checker = TypeChecker::new();
+    checker.statements(module)?;
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::parser::run_parser;
+    use crate::parser::{run_parser, run_parser_statements};
 
     use super::*;
 
     #[test]
-    fn test_typecheck() {
+    fn test_typecheck_statements() {
         let cases = vec![
             (
                 // primitive types
@@ -339,9 +358,11 @@ mod tests {
         ];
 
         for c in cases {
-            let mut module = run_parser(c.0).unwrap();
+            let mut module = run_parser_statements(c.0).unwrap();
             let mut typechecker = TypeChecker::new();
-            let result = typechecker.module(&mut module).expect(&format!("{}", c.0));
+            let result = typechecker
+                .statements(&mut module)
+                .expect(&format!("{}", c.0));
 
             assert_eq!(
                 typechecker.variables,

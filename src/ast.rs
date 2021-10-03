@@ -62,7 +62,12 @@ pub struct Function {
 }
 
 #[derive(PartialEq, Debug, Clone)]
-pub struct Module(pub Vec<Statement>);
+pub enum Declaration {
+    Function(Function),
+}
+
+#[derive(PartialEq, Debug, Clone)]
+pub struct Module(pub Vec<Declaration>);
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Type {

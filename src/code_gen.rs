@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use anyhow::{bail, ensure, Result};
 
 use crate::{
-    ast::{Expr, Module, Statement},
+    ast::{Declaration, Expr, Function, Module, Statement},
     vm::{DataType, HeapData, OpCode, StackData},
 };
 
@@ -410,8 +410,36 @@ impl CodeGenerator {
         Ok(())
     }
 
+    fn declarations(&mut self, decls: Vec<Declaration>) -> Result<()> {
+        for decl in decls {
+            match decl {
+                Declaration::Function(func) => {
+                    let mut generator = CodeGenerator::new(self.ffi_table.clone());
+                    generator.variables = self.variables.clone();
+                    generator.statics = self.statics.clone();
+
+                    for a in func.args {
+                        generator.variables.insert(a, generator.stack_count);
+                        generator.stack_count += 1;
+                    }
+
+                    // return addressの分だけずらす
+                    generator.stack_count += 1;
+
+                    generator.statements(func.body, true)?;
+
+                    let addr = self.static_area.len();
+                    self.static_area.push(HeapData::Closure(generator.codes));
+                    self.statics.insert(func.name, addr);
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     fn module(&mut self, module: Module) -> Result<()> {
-        self.statements(module.0, true)
+        self.declarations(module.0)
     }
 
     pub fn gen_code(&mut self, module: Module) -> Result<()> {

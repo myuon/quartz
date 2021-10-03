@@ -1,5 +1,5 @@
 use crate::{
-    ast::{Expr, Literal, Module, Statement},
+    ast::{Declaration, Expr, Function, Literal, Module, Statement},
     lexer::{run_lexer, Lexeme, Token},
 };
 use anyhow::{bail, ensure, Result};
@@ -249,10 +249,42 @@ impl Parser {
             })
     }
 
-    fn parse_module(&mut self) -> Result<Module> {
-        let statements = self.many_statements()?;
+    fn declaration_function(&mut self) -> Result<Declaration> {
+        self.expect_lexeme(Lexeme::Fn)?;
 
-        Ok(Module(statements))
+        let name = self.ident()?;
+        self.expect_lexeme(Lexeme::LParen)?;
+        let args = self.many_idents()?;
+        self.expect_lexeme(Lexeme::RParen)?;
+
+        self.expect_lexeme(Lexeme::LBrace)?;
+        let is_toplevel = self.is_toplevel;
+        self.is_toplevel = false;
+        let statements = self.many_statements()?;
+        self.is_toplevel = is_toplevel;
+        self.expect_lexeme(Lexeme::RBrace)?;
+
+        Ok(Declaration::Function(Function {
+            name,
+            args,
+            body: statements,
+        }))
+    }
+
+    fn many_declarations(&mut self) -> Result<Vec<Declaration>> {
+        let mut decls = vec![];
+
+        while !self.is_end() {
+            let d = self.declaration_function()?;
+
+            decls.push(d);
+        }
+
+        Ok(decls)
+    }
+
+    fn parse_module(&mut self) -> Result<Module> {
+        Ok(Module(self.many_declarations()?))
     }
 
     pub fn run_parser(&mut self, tokens: Vec<Token>) -> Result<Module> {
@@ -260,6 +292,13 @@ impl Parser {
         self.input = tokens;
 
         self.parse_module()
+    }
+
+    pub fn run_parser_statements(&mut self, tokens: Vec<Token>) -> Result<Vec<Statement>> {
+        self.position = 0;
+        self.input = tokens;
+
+        self.many_statements()
     }
 
     pub fn is_end(&self) -> bool {
@@ -282,12 +321,27 @@ pub fn run_parser(input: &str) -> Result<Module> {
     run_parser_from_tokens(run_lexer(input))
 }
 
+fn run_parser_statements_from_tokens(tokens: Vec<Token>) -> Result<Vec<Statement>> {
+    let mut parser = Parser::new();
+    let result = parser.run_parser_statements(tokens)?;
+
+    if !parser.is_end() {
+        bail!("Unexpected token: {:?}", &parser.input[parser.position..]);
+    }
+
+    Ok(result)
+}
+
+pub fn run_parser_statements(input: &str) -> Result<Vec<Statement>> {
+    run_parser_statements_from_tokens(run_lexer(input))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_run_parser() {
+    fn test_run_parser_statements() {
         let cases = vec![
             (
                 r#"let main = fn () {
@@ -295,7 +349,7 @@ mod tests {
                     _assign(y, 20);
                     return y;
                 };"#,
-                Module(vec![Statement::Let(
+                vec![Statement::Let(
                     true,
                     "main".to_string(),
                     Expr::Fun(
@@ -310,7 +364,7 @@ mod tests {
                             Statement::Return(Expr::Var("y".to_string())),
                         ],
                     ),
-                )]),
+                )],
             ),
             (
                 r#"let main = fn () {
@@ -320,7 +374,7 @@ mod tests {
                     let u = fn () { return 20; };
                 };
                 main();"#,
-                Module(vec![
+                vec![
                     (Statement::Let(
                         true,
                         "main".to_string(),
@@ -351,39 +405,39 @@ mod tests {
                         ),
                     )),
                     (Statement::Expr(Expr::Call("main".to_string(), vec![]))),
-                ]),
+                ],
             ),
             (
                 r#"let x = 10; return x;"#,
-                Module(vec![
+                vec![
                     (Statement::Let(true, "x".to_string(), Expr::Lit(Literal::Int(10)))),
                     (Statement::Return(Expr::Var("x".to_string()))),
-                ]),
+                ],
             ),
             (
                 r#"1; _panic(); 10;"#,
-                Module(vec![
+                vec![
                     Statement::Expr(Expr::Lit(Literal::Int(1))),
                     Statement::Expr(Expr::Call("_panic".to_string(), vec![])),
                     Statement::Expr(Expr::Lit(Literal::Int(10))),
-                ]),
+                ],
             ),
             (
                 r#"let x = 10; return &x;"#,
-                Module(vec![
+                vec![
                     Statement::Let(true, "x".to_string(), Expr::Lit(Literal::Int(10))),
                     Statement::Return(Expr::Ref(Box::new(Expr::Var("x".to_string())))),
-                ]),
+                ],
             ),
             (
                 r#"return 10 if _eq(x, y);"#,
-                Module(vec![Statement::ReturnIf(
+                vec![Statement::ReturnIf(
                     Expr::Lit(Literal::Int(10)),
                     Expr::Call(
                         "_eq".to_string(),
                         vec![Expr::Var("x".to_string()), Expr::Var("y".to_string())],
                     ),
-                )]),
+                )],
             ),
             (
                 r#"
@@ -393,19 +447,19 @@ mod tests {
 
                     return x;
                 "#,
-                Module(vec![
+                vec![
                     Statement::Let(
                         true,
                         "x".to_string(),
                         Expr::Loop(vec![Statement::Return(Expr::Lit(Literal::Int(10)))]),
                     ),
                     Statement::Return(Expr::Var("x".to_string())),
-                ]),
+                ],
             ),
         ];
 
         for c in cases {
-            let result = run_parser(c.0);
+            let result = run_parser_statements(c.0);
             assert!(matches!(result, Ok(_)), "{} {:?}", c.0, result);
             assert_eq!(result.unwrap(), c.1, "{}", c.0);
         }
@@ -413,7 +467,7 @@ mod tests {
 
     #[test]
     fn test_run_parser_fail() {
-        let cases = vec![(r#"fn () { let u = 10 }"#, "Expected SemiColon")];
+        let cases = vec![(r#"fn () { let u = 10 }"#, "Expected an ident")];
 
         for c in cases {
             let result = run_parser(c.0);
