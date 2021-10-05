@@ -474,8 +474,8 @@ pub fn gen_code_statements(
 #[cfg(test)]
 mod tests {
     use crate::{
-        parser::{run_parser, run_parser_statements},
-        stdlib::{create_ffi_table, typecheck_statements_with_stdlib, typecheck_with_stdlib},
+        parser::run_parser_statements,
+        stdlib::{create_ffi_table, typecheck_statements_with_stdlib},
     };
 
     use super::*;

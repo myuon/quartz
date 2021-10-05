@@ -4,10 +4,9 @@ use anyhow::Result;
 
 use crate::{
     code_gen::gen_code,
-    create_ffi_table,
     parser::run_parser,
     runtime::{FFIFunction, Runtime},
-    stdlib::typecheck_with_stdlib,
+    stdlib::{create_ffi_table, typecheck_with_stdlib},
     vm::{HeapData, OpCode},
 };
 
