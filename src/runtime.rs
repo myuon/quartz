@@ -726,9 +726,8 @@ pub type FFIFunction = Box<fn(Vec<StackData>, Vec<HeapData>) -> (Vec<StackData>,
 mod tests {
     use crate::{
         code_gen::{gen_code, gen_code_statements},
-        create_ffi_table,
         parser::{run_parser, run_parser_statements},
-        stdlib::{typecheck_statements_with_stdlib, typecheck_with_stdlib},
+        stdlib::{create_ffi_table, typecheck_statements_with_stdlib, typecheck_with_stdlib},
     };
 
     use super::*;
