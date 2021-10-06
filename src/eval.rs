@@ -84,10 +84,8 @@ impl Evaluator {
     pub fn eval_decl(&mut self, decl: Declaration) -> Result<DataType> {
         match decl {
             Declaration::Function(func) => {
-                self.variables.insert(
-                    func.name.clone(),
-                    DataType::Closure(0, func.args, func.body),
-                );
+                self.variables
+                    .insert(func.name.clone(), DataType::Closure(func.args, func.body));
             }
         }
 
