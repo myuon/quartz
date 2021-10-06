@@ -148,6 +148,13 @@ pub enum DataValue {
 }
 
 impl DataValue {
+    pub fn as_int(self) -> Result<i32> {
+        match self {
+            DataValue::Int(i) => Ok(i),
+            d => bail!("expected int, but found {:?}", d),
+        }
+    }
+
     pub fn as_closure(self) -> Result<(Vec<String>, Vec<Statement>)> {
         match self {
             DataValue::Closure(params, body) => Ok((params, body)),

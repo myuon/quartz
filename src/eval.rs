@@ -4,14 +4,32 @@ use anyhow::Result;
 
 use crate::ast::{DataValue, Declaration, Expr, Module, Statement};
 
+type NativeFunction = Box<dyn Fn(Vec<DataValue>) -> Result<DataValue>>;
+
+fn new_native_functions() -> HashMap<String, NativeFunction> {
+    let mut natives = HashMap::<String, NativeFunction>::new();
+    natives.insert(
+        "_add".to_string(),
+        Box::new(|args| {
+            Ok(DataValue::Int(
+                args[0].clone().as_int()? + args[1].clone().as_int()?,
+            ))
+        }),
+    );
+
+    natives
+}
+
 pub struct Evaluator {
     variables: HashMap<String, DataValue>,
+    natives: HashMap<String, NativeFunction>,
 }
 
 impl Evaluator {
     pub fn new() -> Self {
         Evaluator {
             variables: HashMap::new(),
+            natives: new_native_functions(),
         }
     }
 
@@ -48,29 +66,34 @@ impl Evaluator {
             Expr::Lit(lit) => Ok(lit.into_datatype()),
             Expr::Fun(_, _, _) => todo!(),
             Expr::Call(f, args) => {
-                let (eargs, statements) = self.load(&f)?.as_closure()?;
                 let args = args
                     .into_iter()
                     .map(|arg| self.eval_expr(arg))
                     .collect::<Result<Vec<_>>>()?;
 
-                let variables_snapshot = self.variables.clone();
+                if let Some(func) = self.natives.get(&f) {
+                    func(args)
+                } else {
+                    let (eargs, statements) = self.load(&f)?.as_closure()?;
 
-                self.variables.extend(
-                    eargs
-                        .into_iter()
-                        .zip(args)
-                        .map(|(name, value)| (name.clone(), value)),
-                );
+                    let variables_snapshot = self.variables.clone();
 
-                let mut result = DataValue::Nil;
-                for stmt in statements {
-                    result = self.eval_statement(stmt)?;
+                    self.variables.extend(
+                        eargs
+                            .into_iter()
+                            .zip(args)
+                            .map(|(name, value)| (name.clone(), value)),
+                    );
+
+                    let mut result = DataValue::Nil;
+                    for stmt in statements {
+                        result = self.eval_statement(stmt)?;
+                    }
+
+                    self.variables = variables_snapshot;
+
+                    Ok(result)
                 }
-
-                self.variables = variables_snapshot;
-
-                Ok(result)
             }
             Expr::Ref(_) => todo!(),
             Expr::Deref(_) => todo!(),
@@ -108,6 +131,7 @@ mod tests {
     fn test_eval() -> Result<()> {
         let cases = vec![
             (
+                // main
                 r#"
                     fn main() {
                         return 10;
@@ -116,6 +140,7 @@ mod tests {
                 DataValue::Int(10),
             ),
             (
+                // function call
                 r#"
                     fn f() {
                         return 10;
@@ -126,6 +151,15 @@ mod tests {
                     }
                 "#,
                 DataValue::Int(10),
+            ),
+            (
+                // add
+                r#"
+                    fn main() {
+                        return _add(1, 2);
+                    }
+                "#,
+                DataValue::Int(3),
             ),
         ];
 
