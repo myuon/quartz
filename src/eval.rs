@@ -7,7 +7,7 @@ use crate::{
     vm::DataType,
 };
 
-struct Evaluator {
+pub struct Evaluator {
     variables: HashMap<String, DataType>,
 }
 
@@ -105,11 +105,7 @@ impl Evaluator {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        code_gen::{gen_code, gen_code_statements},
-        parser::{run_parser, run_parser_statements},
-        stdlib::{create_ffi_table, typecheck_statements_with_stdlib, typecheck_with_stdlib},
-    };
+    use crate::{parser::run_parser, stdlib::typecheck_with_stdlib};
 
     use super::*;
 
