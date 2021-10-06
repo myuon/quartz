@@ -1,3 +1,5 @@
+use anyhow::{bail, Result};
+
 use crate::ast::Statement;
 
 #[derive(PartialEq, Debug, Clone)]
@@ -15,6 +17,15 @@ pub enum DataType {
     Tuple(Vec<StackData>),
     Object(Vec<(String, StackData)>),
     Vec(Vec<StackData>),
+}
+
+impl DataType {
+    pub fn as_closure(self) -> Result<(Vec<String>, Vec<Statement>)> {
+        match self {
+            DataType::Closure(uid, params, body) => Ok((params, body)),
+            d => bail!("Expected a closure, but found {:?}", d),
+        }
+    }
 }
 
 #[derive(PartialEq, Debug, Clone)]

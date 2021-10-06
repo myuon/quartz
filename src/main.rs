@@ -7,6 +7,7 @@ use crate::compiler::Compiler;
 mod ast;
 mod code_gen;
 mod compiler;
+mod eval;
 mod lexer;
 mod parser;
 mod runtime;
