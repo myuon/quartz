@@ -9,12 +9,12 @@ pub enum Literal {
 }
 
 impl Literal {
-    pub fn into_datatype(self) -> DataType {
+    pub fn into_datatype(self) -> DataValue {
         match self {
-            Literal::Nil => DataType::Nil,
-            Literal::Bool(b) => DataType::Bool(b),
-            Literal::Int(i) => DataType::Int(i),
-            Literal::String(s) => DataType::String(s),
+            Literal::Nil => DataValue::Nil,
+            Literal::Bool(b) => DataValue::Bool(b),
+            Literal::Int(i) => DataValue::Int(i),
+            Literal::String(s) => DataValue::String(s),
         }
     }
 }
@@ -139,7 +139,7 @@ impl Type {
 
 #[derive(PartialEq, Debug, Clone)]
 #[allow(dead_code)]
-pub enum DataType {
+pub enum DataValue {
     Nil,
     Bool(bool),
     Int(i32),
@@ -147,10 +147,10 @@ pub enum DataType {
     Closure(Vec<String>, Vec<Statement>),
 }
 
-impl DataType {
+impl DataValue {
     pub fn as_closure(self) -> Result<(Vec<String>, Vec<Statement>)> {
         match self {
-            DataType::Closure(params, body) => Ok((params, body)),
+            DataValue::Closure(params, body) => Ok((params, body)),
             d => bail!("Expected a closure, but found {:?}", d),
         }
     }

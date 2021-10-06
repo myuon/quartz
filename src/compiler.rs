@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use crate::{ast::DataType, eval::Evaluator, parser::run_parser, stdlib::typecheck_with_stdlib};
+use crate::{ast::DataValue, eval::Evaluator, parser::run_parser, stdlib::typecheck_with_stdlib};
 
 pub struct Compiler {}
 
@@ -9,7 +9,7 @@ impl Compiler {
         Compiler {}
     }
 
-    pub fn exec(&self, input: &str) -> Result<DataType> {
+    pub fn exec(&self, input: &str) -> Result<DataValue> {
         let mut module = run_parser(input)?;
         typecheck_with_stdlib(&mut module)?;
 

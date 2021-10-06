@@ -2,10 +2,10 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 
-use crate::ast::{DataType, Declaration, Expr, Module, Statement};
+use crate::ast::{DataValue, Declaration, Expr, Module, Statement};
 
 pub struct Evaluator {
-    variables: HashMap<String, DataType>,
+    variables: HashMap<String, DataValue>,
 }
 
 impl Evaluator {
@@ -15,14 +15,14 @@ impl Evaluator {
         }
     }
 
-    fn load(&self, name: &String) -> Result<DataType> {
+    fn load(&self, name: &String) -> Result<DataValue> {
         self.variables
             .get(name)
             .cloned()
             .ok_or_else(|| anyhow::anyhow!("Variable {} not found", name))
     }
 
-    pub fn eval_statement(&mut self, stmt: Statement) -> Result<DataType> {
+    pub fn eval_statement(&mut self, stmt: Statement) -> Result<DataValue> {
         match stmt {
             Statement::Let(_, x, e) => {
                 let value = self.eval_expr(e)?;
@@ -39,10 +39,10 @@ impl Evaluator {
             Statement::Continue => todo!(),
         }
 
-        Ok(DataType::Nil)
+        Ok(DataValue::Nil)
     }
 
-    pub fn eval_expr(&mut self, expr: Expr) -> Result<DataType> {
+    pub fn eval_expr(&mut self, expr: Expr) -> Result<DataValue> {
         match expr {
             Expr::Var(v) => self.load(&v),
             Expr::Lit(lit) => Ok(lit.into_datatype()),
@@ -63,7 +63,7 @@ impl Evaluator {
                         .map(|(name, value)| (name.clone(), value)),
                 );
 
-                let mut result = DataType::Nil;
+                let mut result = DataValue::Nil;
                 for stmt in statements {
                     result = self.eval_statement(stmt)?;
                 }
@@ -78,18 +78,18 @@ impl Evaluator {
         }
     }
 
-    pub fn eval_decl(&mut self, decl: Declaration) -> Result<DataType> {
+    pub fn eval_decl(&mut self, decl: Declaration) -> Result<DataValue> {
         match decl {
             Declaration::Function(func) => {
                 self.variables
-                    .insert(func.name.clone(), DataType::Closure(func.args, func.body));
+                    .insert(func.name.clone(), DataValue::Closure(func.args, func.body));
             }
         }
 
-        Ok(DataType::Nil)
+        Ok(DataValue::Nil)
     }
 
-    pub fn eval_module(&mut self, m: Module) -> Result<DataType> {
+    pub fn eval_module(&mut self, m: Module) -> Result<DataValue> {
         for decl in m.0 {
             self.eval_decl(decl)?;
         }
@@ -113,7 +113,7 @@ mod tests {
                         return 10;
                     }
                 "#,
-                DataType::Int(10),
+                DataValue::Int(10),
             ),
             (
                 r#"
@@ -125,7 +125,7 @@ mod tests {
                         return f();
                     }
                 "#,
-                DataType::Int(10),
+                DataValue::Int(10),
             ),
         ];
 
