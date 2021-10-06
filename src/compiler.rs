@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use crate::{eval::Evaluator, parser::run_parser, stdlib::typecheck_with_stdlib, vm::DataType};
+use crate::{ast::DataType, eval::Evaluator, parser::run_parser, stdlib::typecheck_with_stdlib};
 
 pub struct Compiler {}
 

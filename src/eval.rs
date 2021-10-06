@@ -2,10 +2,7 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 
-use crate::{
-    ast::{Declaration, Expr, Module, Statement},
-    vm::DataType,
-};
+use crate::ast::{DataType, Declaration, Expr, Module, Statement};
 
 pub struct Evaluator {
     variables: HashMap<String, DataType>,

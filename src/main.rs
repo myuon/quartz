@@ -10,7 +10,6 @@ mod lexer;
 mod parser;
 mod stdlib;
 mod typechecker;
-mod vm;
 
 fn main() -> Result<()> {
     let mut buffer = String::new();
