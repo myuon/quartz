@@ -26,6 +26,22 @@ impl Evaluator {
     }
 
     pub fn eval_statement(&mut self, stmt: Statement) -> Result<DataType> {
+        match stmt {
+            Statement::Let(_, x, e) => {
+                let value = self.eval_expr(e)?;
+                self.variables.insert(x.to_string(), value);
+            }
+            Statement::Expr(e) => {
+                self.eval_expr(e)?;
+            }
+            Statement::Return(e) => {
+                return Ok(self.eval_expr(e)?);
+            }
+            Statement::ReturnIf(_, _) => todo!(),
+            Statement::If(_, _, _) => todo!(),
+            Statement::Continue => todo!(),
+        }
+
         Ok(DataType::Nil)
     }
 
