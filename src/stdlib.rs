@@ -5,7 +5,6 @@ use anyhow::Result;
 use crate::{
     ast::{Module, Statement, Type},
     typechecker::{typecheck_statements_with, typecheck_with},
-    vm::{HeapData, StackData},
 };
 
 pub fn stdlib() -> HashMap<String, Type> {
