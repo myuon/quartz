@@ -52,11 +52,28 @@ impl Evaluator {
             Statement::Return(e) => {
                 return Ok(self.eval_expr(e)?);
             }
-            Statement::If(_, _, _) => todo!(),
+            Statement::If(cond, body1, body2) => {
+                let result = if self.eval_expr(cond.as_ref().clone())?.as_bool()? {
+                    self.eval_statements(body1)?
+                } else {
+                    self.eval_statements(body2)?
+                };
+
+                return Ok(result);
+            }
             Statement::Continue => todo!(),
         }
 
         Ok(DataValue::Nil)
+    }
+
+    pub fn eval_statements(&mut self, statements: Vec<Statement>) -> Result<DataValue> {
+        let mut result = DataValue::Nil;
+        for stmt in statements {
+            result = self.eval_statement(stmt)?;
+        }
+
+        Ok(result)
     }
 
     pub fn eval_expr(&mut self, expr: Expr) -> Result<DataValue> {
@@ -84,11 +101,7 @@ impl Evaluator {
                             .map(|(name, value)| (name.clone(), value)),
                     );
 
-                    let mut result = DataValue::Nil;
-                    for stmt in statements {
-                        result = self.eval_statement(stmt)?;
-                    }
-
+                    let result = self.eval_statements(statements)?;
                     self.variables = variables_snapshot;
 
                     Ok(result)
@@ -159,6 +172,23 @@ mod tests {
                     }
                 "#,
                 DataValue::Int(3),
+            ),
+            (
+                // if
+                r#"
+                    fn check_bool(b) {
+                        if b {
+                            return 10;
+                        } else {
+                            return 20;
+                        };
+                    }
+
+                    fn main() {
+                        return check_bool(false);
+                    }
+                "#,
+                DataValue::Int(20),
             ),
         ];
 

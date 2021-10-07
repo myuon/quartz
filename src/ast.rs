@@ -147,10 +147,17 @@ pub enum DataValue {
 }
 
 impl DataValue {
+    pub fn as_bool(self) -> Result<bool> {
+        match self {
+            DataValue::Bool(i) => Ok(i),
+            d => bail!("expected a bool, but found {:?}", d),
+        }
+    }
+
     pub fn as_int(self) -> Result<i32> {
         match self {
             DataValue::Int(i) => Ok(i),
-            d => bail!("expected int, but found {:?}", d),
+            d => bail!("expected a int, but found {:?}", d),
         }
     }
 
