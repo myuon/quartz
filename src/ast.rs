@@ -30,6 +30,7 @@ pub enum Statement {
     Return(Expr),
     If(Box<Expr>, Vec<Statement>, Vec<Statement>),
     Continue,
+    Assignment(String, Expr),
 }
 
 #[derive(PartialEq, Debug, Clone)]

@@ -94,6 +94,10 @@ impl Evaluator {
                 return Ok(result);
             }
             Statement::Continue => todo!(),
+            Statement::Assignment(x, e) => {
+                let value = self.eval_expr(e)?;
+                self.variables.insert(x.to_string(), value);
+            }
         }
 
         Ok(DataValue::Nil)
@@ -267,6 +271,26 @@ mod tests {
 
                     fn main() {
                         return x;
+                    }
+                "#,
+                DataValue::Int(10),
+            ),
+            (
+                // reassignment
+                r#"
+                    fn f(b) {
+                        let x = 0;
+
+                        if b {
+                            x = 10;
+                        } else {
+                        };
+
+                        return x;
+                    }
+
+                    fn main() {
+                        return f(true);
                     }
                 "#,
                 DataValue::Int(10),

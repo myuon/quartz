@@ -131,7 +131,22 @@ impl Parser {
 
                 Ok(Statement::Continue)
             })
-            .or_else(|_| self.expr().map(|e| Statement::Expr(e)))
+            .or_else(|_| -> Result<Statement> {
+                let e = self.expr()?;
+                match e.clone() {
+                    Expr::Var(v) => {
+                        if self.expect_lexeme(Lexeme::Equal).is_ok() {
+                            // =が続くのであればassingmentで確定
+                            let e = self.expr()?;
+                            Ok(Statement::Assignment(v, e))
+                        } else {
+                            // それ以外のケースは普通にexpr statement
+                            Ok(Statement::Expr(e))
+                        }
+                    }
+                    _ => Ok(Statement::Expr(e)),
+                }
+            })
     }
 
     fn many_idents(&mut self) -> Result<Vec<String>> {
