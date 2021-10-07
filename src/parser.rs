@@ -269,7 +269,15 @@ impl Parser {
         let mut decls = vec![];
 
         while !self.is_end() {
-            let d = self.declaration_function()?;
+            let d = (self.declaration_function()).or_else(|_| -> Result<Declaration> {
+                self.expect_lexeme(Lexeme::Let)?;
+                let x = self.ident()?;
+                self.expect_lexeme(Lexeme::Equal)?;
+                let e = self.expr()?;
+                self.expect_lexeme(Lexeme::SemiColon)?;
+
+                Ok(Declaration::Variable(x, e))
+            })?;
 
             decls.push(d);
         }
@@ -451,7 +459,7 @@ mod tests {
 
     #[test]
     fn test_run_parser_fail() {
-        let cases = vec![(r#"fn () { let u = 10 }"#, "Expected an ident")];
+        let cases = vec![(r#"fn () { let u = 10 }"#, "Expected Let but found")];
 
         for c in cases {
             let result = run_parser(c.0);

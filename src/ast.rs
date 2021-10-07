@@ -63,6 +63,7 @@ pub struct Function {
 #[derive(PartialEq, Debug, Clone)]
 pub enum Declaration {
     Function(Function),
+    Variable(String, Expr),
 }
 
 #[derive(PartialEq, Debug, Clone)]

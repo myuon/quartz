@@ -295,6 +295,10 @@ impl TypeChecker {
                     self.variables
                         .insert(func.name.clone(), Type::Fn(arg_types, Box::new(t)));
                 }
+                Declaration::Variable(x, e) => {
+                    let t = self.expr(e)?;
+                    self.variables.insert(x.clone(), t);
+                }
             }
         }
 

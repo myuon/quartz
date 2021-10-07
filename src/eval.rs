@@ -151,6 +151,10 @@ impl Evaluator {
                 self.variables
                     .insert(func.name.clone(), DataValue::Closure(func.args, func.body));
             }
+            Declaration::Variable(x, expr) => {
+                let val = self.eval_expr(expr)?;
+                self.variables.insert(x, val);
+            }
         }
 
         Ok(DataValue::Nil)
@@ -255,6 +259,17 @@ mod tests {
                     }
                 "#,
                 DataValue::Int(120),
+            ),
+            (
+                // global variables
+                r#"
+                    let x = 10;
+
+                    fn main() {
+                        return x;
+                    }
+                "#,
+                DataValue::Int(10),
             ),
         ];
 
