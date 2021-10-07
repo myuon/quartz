@@ -17,6 +17,14 @@ fn new_native_functions() -> HashMap<String, NativeFunction> {
         }),
     );
     natives.insert(
+        "_sub".to_string(),
+        Box::new(|args| {
+            Ok(DataValue::Int(
+                args[0].clone().as_int()? - args[1].clone().as_int()?,
+            ))
+        }),
+    );
+    natives.insert(
         "_mult".to_string(),
         Box::new(|args| {
             Ok(DataValue::Int(
@@ -230,6 +238,23 @@ mod tests {
                     }
                 "#,
                 DataValue::Bool(true),
+            ),
+            (
+                // factorial
+                r#"
+                    fn factorial(n) {
+                        if _eq(n, 0) {
+                            return 1;
+                        } else {
+                            return _mult(n, factorial(_sub(n, 1)));
+                        };
+                    }
+
+                    fn main() {
+                        return factorial(5);
+                    }
+                "#,
+                DataValue::Int(120),
             ),
         ];
 

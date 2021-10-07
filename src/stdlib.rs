@@ -30,6 +30,14 @@ pub fn stdlib() -> HashMap<String, Type> {
             Type::Fn(vec![Type::Int, Type::Int], Box::new(Type::Int)),
         ),
         (
+            "_sub",
+            Type::Fn(vec![Type::Int, Type::Int], Box::new(Type::Int)),
+        ),
+        (
+            "_mult",
+            Type::Fn(vec![Type::Int, Type::Int], Box::new(Type::Int)),
+        ),
+        (
             "_eq",
             Type::Fn(vec![Type::Any, Type::Any], Box::new(Type::Bool)),
         ),
