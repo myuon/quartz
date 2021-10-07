@@ -236,7 +236,7 @@ impl TypeChecker {
 
         for statement in statements {
             match statement {
-                Statement::Let(_, x, body) => {
+                Statement::Let(x, body) => {
                     let body_type = self.expr(body)?;
                     self.variables.insert(x.clone(), body_type);
                     ret_type = Type::Unit;

@@ -21,11 +21,7 @@ impl Literal {
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Statement {
-    Let(
-        bool, // static or not
-        String,
-        Expr,
-    ),
+    Let(String, Expr),
     Expr(Expr),
     Return(Expr),
     If(Box<Expr>, Vec<Statement>, Vec<Statement>),

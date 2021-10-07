@@ -94,7 +94,7 @@ impl Parser {
         self.expect_lexeme(Lexeme::Equal)?;
         let e = self.expr()?;
 
-        Ok(Statement::Let(self.is_toplevel, x, e))
+        Ok(Statement::Let(x, e))
     }
 
     fn statement_if(&mut self) -> Result<Statement> {
@@ -367,13 +367,12 @@ mod tests {
                     return y;
                 };"#,
                 vec![Statement::Let(
-                    true,
                     "main".to_string(),
                     Expr::Fun(
                         11,
                         vec![],
                         vec![
-                            Statement::Let(false, "y".to_string(), Expr::Lit(Literal::Int(10))),
+                            Statement::Let("y".to_string(), Expr::Lit(Literal::Int(10))),
                             Statement::Expr(Expr::Call(
                                 "_assign".to_string(),
                                 vec![Expr::Var("y".to_string()), Expr::Lit(Literal::Int(20))],
@@ -393,7 +392,6 @@ mod tests {
                 main();"#,
                 vec![
                     (Statement::Let(
-                        true,
                         "main".to_string(),
                         Expr::Fun(
                             11,
@@ -410,7 +408,6 @@ mod tests {
                                 (Statement::Expr(Expr::Lit(Literal::Int(100)))),
                                 (Statement::Expr(Expr::Lit(Literal::String("foo".to_string())))),
                                 (Statement::Let(
-                                    false,
                                     "u".to_string(),
                                     Expr::Fun(
                                         134,
@@ -427,7 +424,7 @@ mod tests {
             (
                 r#"let x = 10; return x;"#,
                 vec![
-                    (Statement::Let(true, "x".to_string(), Expr::Lit(Literal::Int(10)))),
+                    (Statement::Let("x".to_string(), Expr::Lit(Literal::Int(10)))),
                     (Statement::Return(Expr::Var("x".to_string()))),
                 ],
             ),
@@ -442,7 +439,7 @@ mod tests {
             (
                 r#"let x = 10; return &x;"#,
                 vec![
-                    Statement::Let(true, "x".to_string(), Expr::Lit(Literal::Int(10))),
+                    Statement::Let("x".to_string(), Expr::Lit(Literal::Int(10))),
                     Statement::Return(Expr::Ref(Box::new(Expr::Var("x".to_string())))),
                 ],
             ),
@@ -456,7 +453,6 @@ mod tests {
                 "#,
                 vec![
                     Statement::Let(
-                        true,
                         "x".to_string(),
                         Expr::Loop(vec![Statement::Return(Expr::Lit(Literal::Int(10)))]),
                     ),

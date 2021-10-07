@@ -76,7 +76,7 @@ impl Evaluator {
 
     pub fn eval_statement(&mut self, stmt: Statement) -> Result<DataValue> {
         match stmt {
-            Statement::Let(_, x, e) => {
+            Statement::Let(x, e) => {
                 let value = self.eval_expr(e)?;
                 self.variables.insert(x.to_string(), value);
             }
