@@ -16,6 +16,30 @@ fn new_native_functions() -> HashMap<String, NativeFunction> {
             ))
         }),
     );
+    natives.insert(
+        "_mult".to_string(),
+        Box::new(|args| {
+            Ok(DataValue::Int(
+                args[0].clone().as_int()? * args[1].clone().as_int()?,
+            ))
+        }),
+    );
+    natives.insert(
+        "_leq".to_string(),
+        Box::new(|args| {
+            Ok(DataValue::Bool(
+                args[0].clone().as_int()? <= args[1].clone().as_int()?,
+            ))
+        }),
+    );
+    natives.insert(
+        "_eq".to_string(),
+        Box::new(|args| {
+            Ok(DataValue::Bool(
+                args[0].clone().as_int()? == args[1].clone().as_int()?,
+            ))
+        }),
+    );
 
     natives
 }
@@ -189,6 +213,23 @@ mod tests {
                     }
                 "#,
                 DataValue::Int(20),
+            ),
+            (
+                // recursion
+                r#"
+                    fn count_up(n) {
+                        if _eq(n, 5) {
+                            return true;
+                        } else {
+                            return count_up(_add(n, 1));
+                        };
+                    }
+
+                    fn main() {
+                        return count_up(1);
+                    }
+                "#,
+                DataValue::Bool(true),
             ),
         ];
 

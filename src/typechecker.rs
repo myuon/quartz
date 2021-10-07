@@ -282,6 +282,14 @@ impl TypeChecker {
                         self.variables.insert(arg.clone(), tvar);
                     }
 
+                    let result_type = self.next_infer();
+
+                    // 再帰関数の定義ができるように先にvariableに登録する
+                    self.variables.insert(
+                        func.name.clone(),
+                        Type::Fn(arg_types.clone(), Box::new(result_type)),
+                    );
+
                     let t = self.statements(&mut func.body)?;
                     self.variables = variables;
                     self.variables
