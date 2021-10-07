@@ -7,7 +7,6 @@ use anyhow::{bail, ensure, Result};
 struct Parser {
     position: usize,
     input: Vec<Token>,
-    is_toplevel: bool,
 }
 
 impl Parser {
@@ -15,7 +14,6 @@ impl Parser {
         Parser {
             position: 0,
             input: vec![],
-            is_toplevel: true,
         }
     }
 
@@ -231,12 +229,9 @@ impl Parser {
             .or_else(|_| -> Result<Expr> {
                 self.expect_lexeme(Lexeme::Loop)?;
 
-                let is_toplevel = self.is_toplevel;
-                self.is_toplevel = false;
                 self.expect_lexeme(Lexeme::LBrace)?;
                 let statements = self.many_statements()?;
                 self.expect_lexeme(Lexeme::RBrace)?;
-                self.is_toplevel = is_toplevel;
 
                 Ok(Expr::Loop(statements))
             })
@@ -248,10 +243,7 @@ impl Parser {
                 self.expect_lexeme(Lexeme::RParen)?;
 
                 self.expect_lexeme(Lexeme::LBrace)?;
-                let is_toplevel = self.is_toplevel;
-                self.is_toplevel = false;
                 let statements = self.many_statements()?;
-                self.is_toplevel = is_toplevel;
                 self.expect_lexeme(Lexeme::RBrace)?;
 
                 Ok(Expr::Fun(token.position, args, statements))
@@ -267,10 +259,7 @@ impl Parser {
         self.expect_lexeme(Lexeme::RParen)?;
 
         self.expect_lexeme(Lexeme::LBrace)?;
-        let is_toplevel = self.is_toplevel;
-        self.is_toplevel = false;
         let statements = self.many_statements()?;
-        self.is_toplevel = is_toplevel;
         self.expect_lexeme(Lexeme::RBrace)?;
 
         Ok(Declaration::Function(Function {
