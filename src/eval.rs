@@ -55,6 +55,7 @@ fn new_native_functions() -> HashMap<String, NativeFunction> {
 pub struct Evaluator {
     variables: HashMap<String, DataValue>,
     natives: HashMap<String, NativeFunction>,
+    escape_return: Option<DataValue>,
 }
 
 impl Evaluator {
@@ -62,6 +63,7 @@ impl Evaluator {
         Evaluator {
             variables: HashMap::new(),
             natives: new_native_functions(),
+            escape_return: None,
         }
     }
 
@@ -82,7 +84,7 @@ impl Evaluator {
                 self.eval_expr(e)?;
             }
             Statement::Return(e) => {
-                return Ok(self.eval_expr(e)?);
+                self.escape_return = Some(self.eval_expr(e)?);
             }
             Statement::If(cond, body1, body2) => {
                 let result = if self.eval_expr(cond.as_ref().clone())?.as_bool()? {
@@ -105,8 +107,11 @@ impl Evaluator {
 
     pub fn eval_statements(&mut self, statements: Vec<Statement>) -> Result<DataValue> {
         let mut result = DataValue::Nil;
-        for stmt in statements {
+        for stmt in statements.clone() {
             result = self.eval_statement(stmt)?;
+            if self.escape_return.is_some() {
+                return Ok(DataValue::Nil);
+            }
         }
 
         Ok(result)
@@ -140,12 +145,24 @@ impl Evaluator {
                     let result = self.eval_statements(statements)?;
                     self.variables = variables_snapshot;
 
+                    if let Some(ret) = self.escape_return.clone() {
+                        assert_eq!(result, DataValue::Nil);
+                        self.escape_return = None;
+
+                        return Ok(ret);
+                    }
+
                     Ok(result)
                 }
             }
             Expr::Ref(_) => todo!(),
             Expr::Deref(_) => todo!(),
-            Expr::Loop(_) => todo!(),
+            Expr::Loop(body) => loop {
+                self.eval_statements(body.clone())?;
+                if self.escape_return.is_some() {
+                    return Ok(DataValue::Nil);
+                }
+            },
         }
     }
 
@@ -294,6 +311,33 @@ mod tests {
                     }
                 "#,
                 DataValue::Int(10),
+            ),
+            (
+                // loop
+                r#"
+                    fn fib(n) {
+                        let a = 1;
+                        let b = 1;
+                        let counter = 0;
+
+                        loop {
+                            if _eq(counter, n) {
+                                return b;
+                            };
+
+                            let c = _add(a, b);
+                            a = b;
+                            b = c;
+
+                            counter = _add(counter, 1);
+                        };
+                    }
+
+                    fn main() {
+                        return fib(10);
+                    }
+                "#,
+                DataValue::Int(144),
             ),
         ];
 
