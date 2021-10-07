@@ -197,18 +197,6 @@ impl Parser {
     fn expr(&mut self) -> Result<Expr> {
         (self.literal().map(|lit| Expr::Lit(lit)))
             .or_else(|_| -> Result<Expr> {
-                self.expect_lexeme(Lexeme::And)?;
-                let e = self.expr()?;
-
-                Ok(Expr::Ref(Box::new(e)))
-            })
-            .or_else(|_| -> Result<Expr> {
-                self.expect_lexeme(Lexeme::Star)?;
-                let e = self.expr()?;
-
-                Ok(Expr::Deref(Box::new(e)))
-            })
-            .or_else(|_| -> Result<Expr> {
                 // var or fun call
                 let v = self.ident()?;
 
@@ -234,19 +222,6 @@ impl Parser {
                 self.expect_lexeme(Lexeme::RBrace)?;
 
                 Ok(Expr::Loop(statements))
-            })
-            .or_else(|_| -> Result<Expr> {
-                let token = self.expect_lexeme(Lexeme::Fn)?;
-
-                self.expect_lexeme(Lexeme::LParen)?;
-                let args = self.many_idents()?;
-                self.expect_lexeme(Lexeme::RParen)?;
-
-                self.expect_lexeme(Lexeme::LBrace)?;
-                let statements = self.many_statements()?;
-                self.expect_lexeme(Lexeme::RBrace)?;
-
-                Ok(Expr::Fun(token.position, args, statements))
             })
     }
 
@@ -350,64 +325,37 @@ mod tests {
     fn test_run_parser_statements() {
         let cases = vec![
             (
-                r#"let main = fn () {
+                r#"
                     let y = 10;
                     _assign(y, 20);
                     return y;
-                };"#,
-                vec![Statement::Let(
-                    "main".to_string(),
-                    Expr::Fun(
-                        11,
-                        vec![],
-                        vec![
-                            Statement::Let("y".to_string(), Expr::Lit(Literal::Int(10))),
-                            Statement::Expr(Expr::Call(
-                                "_assign".to_string(),
-                                vec![Expr::Var("y".to_string()), Expr::Lit(Literal::Int(20))],
-                            )),
-                            Statement::Return(Expr::Var("y".to_string())),
-                        ],
-                    ),
-                )],
+                "#,
+                vec![
+                    Statement::Let("y".to_string(), Expr::Lit(Literal::Int(10))),
+                    Statement::Expr(Expr::Call(
+                        "_assign".to_string(),
+                        vec![Expr::Var("y".to_string()), Expr::Lit(Literal::Int(20))],
+                    )),
+                    Statement::Return(Expr::Var("y".to_string())),
+                ],
             ),
             (
-                r#"let main = fn () {
+                r#"
                     f(10, 20, 40);
                     100;
                     "foo";
-                    let u = fn () { return 20; };
-                };
-                main();"#,
+                "#,
                 vec![
-                    (Statement::Let(
-                        "main".to_string(),
-                        Expr::Fun(
-                            11,
-                            vec![],
-                            vec![
-                                (Statement::Expr(Expr::Call(
-                                    "f".to_string(),
-                                    vec![
-                                        Expr::Lit(Literal::Int(10)),
-                                        Expr::Lit(Literal::Int(20)),
-                                        Expr::Lit(Literal::Int(40)),
-                                    ],
-                                ))),
-                                (Statement::Expr(Expr::Lit(Literal::Int(100)))),
-                                (Statement::Expr(Expr::Lit(Literal::String("foo".to_string())))),
-                                (Statement::Let(
-                                    "u".to_string(),
-                                    Expr::Fun(
-                                        134,
-                                        vec![],
-                                        vec![(Statement::Return(Expr::Lit(Literal::Int(20))))],
-                                    ),
-                                )),
-                            ],
-                        ),
-                    )),
-                    (Statement::Expr(Expr::Call("main".to_string(), vec![]))),
+                    (Statement::Expr(Expr::Call(
+                        "f".to_string(),
+                        vec![
+                            Expr::Lit(Literal::Int(10)),
+                            Expr::Lit(Literal::Int(20)),
+                            Expr::Lit(Literal::Int(40)),
+                        ],
+                    ))),
+                    (Statement::Expr(Expr::Lit(Literal::Int(100)))),
+                    (Statement::Expr(Expr::Lit(Literal::String("foo".to_string())))),
                 ],
             ),
             (
@@ -423,13 +371,6 @@ mod tests {
                     Statement::Expr(Expr::Lit(Literal::Int(1))),
                     Statement::Expr(Expr::Call("_panic".to_string(), vec![])),
                     Statement::Expr(Expr::Lit(Literal::Int(10))),
-                ],
-            ),
-            (
-                r#"let x = 10; return &x;"#,
-                vec![
-                    Statement::Let("x".to_string(), Expr::Lit(Literal::Int(10))),
-                    Statement::Return(Expr::Ref(Box::new(Expr::Var("x".to_string())))),
                 ],
             ),
             (

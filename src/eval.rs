@@ -121,7 +121,6 @@ impl Evaluator {
         match expr {
             Expr::Var(v) => self.load(&v),
             Expr::Lit(lit) => Ok(lit.into_datatype()),
-            Expr::Fun(_, _, _) => todo!(),
             Expr::Call(f, args) => {
                 let args = args
                     .into_iter()
@@ -155,8 +154,6 @@ impl Evaluator {
                     Ok(result)
                 }
             }
-            Expr::Ref(_) => todo!(),
-            Expr::Deref(_) => todo!(),
             Expr::Loop(body) => loop {
                 self.eval_statements(body.clone())?;
                 if self.escape_return.is_some() {

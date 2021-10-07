@@ -33,14 +33,7 @@ pub enum Statement {
 pub enum Expr {
     Var(String),
     Lit(Literal),
-    Fun(
-        usize, // position of fn
-        Vec<String>,
-        Vec<Statement>,
-    ),
     Call(String, Vec<Expr>),
-    Ref(Box<Expr>),
-    Deref(Box<Expr>),
     Loop(Vec<Statement>),
 }
 

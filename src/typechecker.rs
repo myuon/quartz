@@ -156,21 +156,6 @@ impl TypeChecker {
                 Literal::Int(_) => Ok(Type::Int),
                 Literal::String(_) => Ok(Type::String),
             },
-            Expr::Fun(_, args, body) => {
-                let variables = self.variables.clone();
-                let mut arg_types = vec![];
-                for arg in args {
-                    let tvar = self.next_infer();
-
-                    arg_types.push(tvar.clone());
-                    self.variables.insert(arg.clone(), tvar);
-                }
-
-                let ret_type = self.statements(body)?;
-                self.variables = variables;
-
-                Ok(Type::Fn(arg_types, Box::new(ret_type)))
-            }
             Expr::Call(f, args) => {
                 let fn_type = self.load(f)?;
                 if matches!(fn_type, Type::Any) {
@@ -209,23 +194,6 @@ impl TypeChecker {
                 cs.apply(&mut ret_type_inferred);
 
                 Ok(ret_type_inferred)
-            }
-            Expr::Ref(e) => {
-                let t = self.expr(e.as_mut())?;
-
-                Ok(Type::Ref(Box::new(t)))
-            }
-            Expr::Deref(e) => {
-                let t = self.expr(e.as_mut())?;
-                let mut t_inner = self.next_infer();
-
-                let cs = Constraints::unify(&t, &Type::Ref(Box::new(t_inner.clone())))?;
-
-                self.apply_constraints(&cs);
-
-                cs.apply(&mut t_inner);
-
-                Ok(t_inner)
             }
             Expr::Loop(body) => self.statements(body),
         }
@@ -368,23 +336,6 @@ mod tests {
                 "#,
                 vec![("x", Type::Int), ("y", Type::String)],
                 Type::String,
-            ),
-            (
-                // unification for function type
-                r#"
-                    let f = fn (a, b, c) {
-                        return c;
-                    };
-                    f(1, nil, "foo");
-                "#,
-                vec![(
-                    "f",
-                    Type::Fn(
-                        vec![Type::Int, Type::Ref(Box::new(Type::Infer(3))), Type::String],
-                        Box::new(Type::String),
-                    ),
-                )],
-                Type::Unit,
             ),
             (
                 r#"
