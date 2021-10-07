@@ -248,7 +248,6 @@ impl TypeChecker {
                 Statement::Return(t) => {
                     ret_type = self.expr(t)?;
                 }
-                Statement::ReturnIf(_, _) => todo!(),
                 Statement::If(cond, then_statements, else_statements) => {
                     let cond_type = self.expr(cond.as_mut())?;
                     let cs = Constraints::unify(&cond_type, &Type::Bool)?;

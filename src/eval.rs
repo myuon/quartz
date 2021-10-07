@@ -52,7 +52,6 @@ impl Evaluator {
             Statement::Return(e) => {
                 return Ok(self.eval_expr(e)?);
             }
-            Statement::ReturnIf(_, _) => todo!(),
             Statement::If(_, _, _) => todo!(),
             Statement::Continue => todo!(),
         }

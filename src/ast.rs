@@ -28,7 +28,6 @@ pub enum Statement {
     ),
     Expr(Expr),
     Return(Expr),
-    ReturnIf(Expr, Expr),
     If(Box<Expr>, Vec<Statement>, Vec<Statement>),
     Continue,
 }
