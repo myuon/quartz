@@ -196,6 +196,8 @@ impl TypeChecker {
                 Ok(ret_type_inferred)
             }
             Expr::Loop(body) => self.statements(body),
+            Expr::Struct(_, _) => todo!(),
+            Expr::Project(_, _) => todo!(),
         }
     }
 
@@ -274,6 +276,7 @@ impl TypeChecker {
                     let t = self.expr(e)?;
                     self.variables.insert(x.clone(), t);
                 }
+                Declaration::Struct(_) => {}
             }
         }
 

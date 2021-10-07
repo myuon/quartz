@@ -160,6 +160,8 @@ impl Evaluator {
                     return Ok(DataValue::Nil);
                 }
             },
+            Expr::Struct(_, _) => todo!(),
+            Expr::Project(_, _) => todo!(),
         }
     }
 
@@ -173,6 +175,7 @@ impl Evaluator {
                 let val = self.eval_expr(expr)?;
                 self.variables.insert(x, val);
             }
+            Declaration::Struct(str) => {}
         }
 
         Ok(DataValue::Nil)
@@ -335,6 +338,19 @@ mod tests {
                     }
                 "#,
                 DataValue::Int(144),
+            ),
+            (
+                // struct
+                r#"
+                    struct Foo {
+                        x: int,
+                        y: int,
+                    }
+
+                    fn main() {
+                    }
+                "#,
+                DataValue::Nil,
             ),
         ];
 

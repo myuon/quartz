@@ -1,5 +1,5 @@
 use crate::{
-    ast::{Declaration, Expr, Function, Literal, Module, Statement},
+    ast::{Declaration, Expr, Function, Literal, Module, Statement, Struct, Type},
     lexer::{run_lexer, Lexeme, Token},
 };
 use anyhow::{bail, ensure, Result};
@@ -36,6 +36,16 @@ impl Parser {
         self.position += 1;
 
         Ok(current)
+    }
+
+    fn atype(&mut self) -> Result<Type> {
+        let ident = self.ident()?;
+        match ident.as_str() {
+            "int" => Ok(Type::Int),
+            "bool" => Ok(Type::Bool),
+            "string" => Ok(Type::String),
+            _ => todo!(),
+        }
     }
 
     fn ident(&mut self) -> Result<String> {
@@ -244,19 +254,48 @@ impl Parser {
         }))
     }
 
+    fn many_fields_with_types(&mut self) -> Result<Vec<(String, Type)>> {
+        let mut fields = vec![];
+
+        while self.peek().lexeme != Lexeme::RBrace {
+            let name = self.ident()?;
+            self.expect_lexeme(Lexeme::Colon)?;
+            let ty = self.atype()?;
+            fields.push((name, ty));
+
+            // allow trailing comma
+            match self.expect_lexeme(Lexeme::Comma) {
+                Err(_) => return Ok(fields),
+                r => r,
+            }?;
+        }
+
+        Ok(fields)
+    }
+
     fn many_declarations(&mut self) -> Result<Vec<Declaration>> {
         let mut decls = vec![];
 
         while !self.is_end() {
-            let d = (self.declaration_function()).or_else(|_| -> Result<Declaration> {
-                self.expect_lexeme(Lexeme::Let)?;
-                let x = self.ident()?;
-                self.expect_lexeme(Lexeme::Equal)?;
-                let e = self.expr()?;
-                self.expect_lexeme(Lexeme::SemiColon)?;
+            let d = (self.declaration_function())
+                .or_else(|_| -> Result<Declaration> {
+                    self.expect_lexeme(Lexeme::Let)?;
+                    let x = self.ident()?;
+                    self.expect_lexeme(Lexeme::Equal)?;
+                    let e = self.expr()?;
+                    self.expect_lexeme(Lexeme::SemiColon)?;
 
-                Ok(Declaration::Variable(x, e))
-            })?;
+                    Ok(Declaration::Variable(x, e))
+                })
+                .or_else(|_| -> Result<Declaration> {
+                    self.expect_lexeme(Lexeme::Struct)?;
+                    let name = self.ident()?;
+                    self.expect_lexeme(Lexeme::LBrace)?;
+                    let fields = self.many_fields_with_types()?;
+                    self.expect_lexeme(Lexeme::RBrace)?;
+
+                    Ok(Declaration::Struct(Struct { name, fields }))
+                })?;
 
             decls.push(d);
         }
@@ -400,7 +439,7 @@ mod tests {
 
     #[test]
     fn test_run_parser_fail() {
-        let cases = vec![(r#"fn () { let u = 10 }"#, "Expected Let but found")];
+        let cases = vec![(r#"fn () { let u = 10 }"#, "Expected")];
 
         for c in cases {
             let result = run_parser(c.0);

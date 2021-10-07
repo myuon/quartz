@@ -35,6 +35,8 @@ pub enum Expr {
     Lit(Literal),
     Call(String, Vec<Expr>),
     Loop(Vec<Statement>),
+    Struct(String, Vec<(String, Expr)>),
+    Project(Box<Expr>, String),
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -54,6 +56,7 @@ pub struct Function {
 pub enum Declaration {
     Function(Function),
     Variable(String, Expr),
+    Struct(Struct),
 }
 
 #[derive(PartialEq, Debug, Clone)]
