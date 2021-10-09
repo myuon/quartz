@@ -373,7 +373,7 @@ mod tests {
                         };
                     }
                 "#,
-                DataValue::Tuple(vec![DataValue::Int(10), DataValue::Int(20)]),
+                DataValue::Tuple(vec![DataValue::Int(20), DataValue::Int(30)]),
             ),
         ];
 

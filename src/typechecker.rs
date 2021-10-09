@@ -203,10 +203,10 @@ impl TypeChecker {
                 assert!(self.structs.contains_key(s));
 
                 let def = self.structs[s].clone();
-                for ((k1, v1), (k2, v2)) in def.iter().zip(fields.iter()) {
+                for ((k1, v1), (k2, v2)) in def.iter().zip(fields.into_iter()) {
                     assert_eq!(k1, k2);
 
-                    let cs = Constraints::unify(&v1, &self.expr(&mut v2.clone())?)?;
+                    let cs = Constraints::unify(&v1, &self.expr(v2)?)?;
                     self.apply_constraints(&cs);
                 }
 
