@@ -102,6 +102,7 @@ impl Constraints {
                 }
                 self.apply(ret);
             }
+            Type::Struct(_) => todo!(),
         }
     }
 }
@@ -109,6 +110,7 @@ impl Constraints {
 pub struct TypeChecker {
     infer_count: usize,
     variables: HashMap<String, Type>,
+    structs: HashMap<String, Vec<(String, Type)>>,
 }
 
 impl TypeChecker {
@@ -116,6 +118,7 @@ impl TypeChecker {
         TypeChecker {
             infer_count: 0,
             variables: HashMap::new(),
+            structs: HashMap::new(),
         }
     }
 
@@ -196,7 +199,19 @@ impl TypeChecker {
                 Ok(ret_type_inferred)
             }
             Expr::Loop(body) => self.statements(body),
-            Expr::Struct(_, _) => todo!(),
+            Expr::Struct(s, fields) => {
+                assert!(self.structs.contains_key(s));
+
+                let def = self.structs[s].clone();
+                for ((k1, v1), (k2, v2)) in def.iter().zip(fields.iter()) {
+                    assert_eq!(k1, k2);
+
+                    let cs = Constraints::unify(&v1, &self.expr(&mut v2.clone())?)?;
+                    self.apply_constraints(&cs);
+                }
+
+                Ok(Type::Struct(s.clone()))
+            }
             Expr::Project(_, _) => todo!(),
         }
     }
@@ -276,7 +291,10 @@ impl TypeChecker {
                     let t = self.expr(e)?;
                     self.variables.insert(x.clone(), t);
                 }
-                Declaration::Struct(_) => {}
+                Declaration::Struct(st) => {
+                    assert!(!self.structs.contains_key(&st.name));
+                    self.structs.insert(st.name.clone(), st.fields.clone());
+                }
             }
         }
 

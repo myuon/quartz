@@ -107,7 +107,7 @@ impl Parser {
 
     fn statement_if(&mut self) -> Result<Statement> {
         self.expect_lexeme(Lexeme::If)?;
-        let cond = self.expr()?;
+        let cond = self.short_expr()?;
         self.expect_lexeme(Lexeme::LBrace)?;
         let then = self.many_statements()?;
         self.expect_lexeme(Lexeme::RBrace)?;
@@ -204,7 +204,7 @@ impl Parser {
         Ok(statements)
     }
 
-    fn expr(&mut self) -> Result<Expr> {
+    fn short_expr(&mut self) -> Result<Expr> {
         (self.literal().map(|lit| Expr::Lit(lit)))
             .or_else(|_| -> Result<Expr> {
                 // var or fun call
@@ -235,6 +235,21 @@ impl Parser {
             })
     }
 
+    fn expr(&mut self) -> Result<Expr> {
+        let short_expr = self.short_expr()?;
+
+        match short_expr {
+            Expr::Var(v) if self.expect_lexeme(Lexeme::LBrace).is_ok() => {
+                // struct initialization
+                let fields = self.many_fields_with_exprs()?;
+                self.expect_lexeme(Lexeme::RBrace)?;
+
+                Ok(Expr::Struct(v, fields))
+            }
+            _ => Ok(short_expr),
+        }
+    }
+
     fn declaration_function(&mut self) -> Result<Declaration> {
         self.expect_lexeme(Lexeme::Fn)?;
 
@@ -262,6 +277,25 @@ impl Parser {
             self.expect_lexeme(Lexeme::Colon)?;
             let ty = self.atype()?;
             fields.push((name, ty));
+
+            // allow trailing comma
+            match self.expect_lexeme(Lexeme::Comma) {
+                Err(_) => return Ok(fields),
+                r => r,
+            }?;
+        }
+
+        Ok(fields)
+    }
+
+    fn many_fields_with_exprs(&mut self) -> Result<Vec<(String, Expr)>> {
+        let mut fields = vec![];
+
+        while self.peek().lexeme != Lexeme::RBrace {
+            let name = self.ident()?;
+            self.expect_lexeme(Lexeme::Colon)?;
+            let e = self.expr()?;
+            fields.push((name, e));
 
             // allow trailing comma
             match self.expect_lexeme(Lexeme::Comma) {

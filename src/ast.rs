@@ -72,6 +72,7 @@ pub enum Type {
     String,
     Ref(Box<Type>),
     Fn(Vec<Type>, Box<Type>),
+    Struct(String),
 }
 
 impl Type {
@@ -101,6 +102,7 @@ impl Type {
             Type::Fn(args, ret) => {
                 args.iter().find(move |t| t.has_infer(index)).is_some() || ret.has_infer(index)
             }
+            Type::Struct(_) => false,
         }
     }
 
@@ -126,6 +128,7 @@ impl Type {
 
                 ret.subst(index, typ);
             }
+            Type::Struct(_) => {}
         }
     }
 }
@@ -138,6 +141,7 @@ pub enum DataValue {
     Int(i32),
     String(String),
     Closure(Vec<String>, Vec<Statement>),
+    Tuple(Vec<DataValue>),
 }
 
 impl DataValue {

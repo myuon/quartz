@@ -160,7 +160,14 @@ impl Evaluator {
                     return Ok(DataValue::Nil);
                 }
             },
-            Expr::Struct(_, _) => todo!(),
+            Expr::Struct(_, fields) => {
+                let mut values = Vec::new();
+                for (_, e) in fields {
+                    values.push(self.eval_expr(e)?);
+                }
+
+                Ok(DataValue::Tuple(values))
+            }
             Expr::Project(_, _) => todo!(),
         }
     }
@@ -348,9 +355,12 @@ mod tests {
                     }
 
                     fn main() {
+                        let foo = Foo { x: 10, y: 20 };
+
+                        return foo;
                     }
                 "#,
-                DataValue::Nil,
+                DataValue::Tuple(vec![DataValue::Int(10), DataValue::Int(20)]),
             ),
         ];
 
