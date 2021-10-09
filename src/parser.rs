@@ -246,6 +246,12 @@ impl Parser {
 
                 Ok(Expr::Struct(v, fields))
             }
+            expr if self.expect_lexeme(Lexeme::Dot).is_ok() => {
+                // projection
+                let i = self.ident()?;
+
+                Ok(Expr::Project("<infer>".to_string(), Box::new(expr), i))
+            }
             _ => Ok(short_expr),
         }
     }

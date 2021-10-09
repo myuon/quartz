@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 
-use crate::ast::{DataValue, Declaration, Expr, Module, Statement};
+use crate::ast::{DataValue, Declaration, Expr, Module, Statement, Type};
 
 type NativeFunction = Box<dyn Fn(Vec<DataValue>) -> Result<DataValue>>;
 
@@ -56,14 +56,16 @@ pub struct Evaluator {
     variables: HashMap<String, DataValue>,
     natives: HashMap<String, NativeFunction>,
     escape_return: Option<DataValue>,
+    struct_types: HashMap<String, Vec<(String, Type)>>,
 }
 
 impl Evaluator {
-    pub fn new() -> Self {
+    pub fn new(struct_types: HashMap<String, Vec<(String, Type)>>) -> Self {
         Evaluator {
             variables: HashMap::new(),
             natives: new_native_functions(),
             escape_return: None,
+            struct_types,
         }
     }
 
@@ -168,7 +170,15 @@ impl Evaluator {
 
                 Ok(DataValue::Tuple(values))
             }
-            Expr::Project(_, _) => todo!(),
+            Expr::Project(name, e, field) => {
+                let index = self.struct_types[&name]
+                    .iter()
+                    .position(|(n, _)| *n == field)
+                    .unwrap();
+                let value = self.eval_expr(e.as_ref().clone())?;
+
+                Ok(value.as_tuple()?.remove(index))
+            }
         }
     }
 
@@ -199,7 +209,7 @@ impl Evaluator {
 
 #[cfg(test)]
 mod tests {
-    use crate::{parser::run_parser, stdlib::typecheck_with_stdlib};
+    use crate::{compiler::Compiler, parser::run_parser, stdlib::typecheck_with_stdlib};
 
     use super::*;
 
@@ -357,7 +367,10 @@ mod tests {
                     fn main() {
                         let foo = Foo { x: 10, y: 20 };
 
-                        return foo;
+                        return Foo {
+                            x: foo.y,
+                            y: _add(foo.x, foo.y),
+                        };
                     }
                 "#,
                 DataValue::Tuple(vec![DataValue::Int(10), DataValue::Int(20)]),
@@ -365,11 +378,9 @@ mod tests {
         ];
 
         for (input, want) in cases {
-            let mut m = run_parser(input)?;
-            typecheck_with_stdlib(&mut m)?;
-
-            let mut eval = Evaluator::new();
-            assert_eq!(want, eval.eval_module(m)?, "{}", input);
+            let compiler = Compiler::new();
+            let result = compiler.exec(input)?;
+            assert_eq!(want, result, "{}", input);
         }
 
         Ok(())

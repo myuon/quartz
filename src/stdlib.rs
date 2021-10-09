@@ -4,7 +4,7 @@ use anyhow::Result;
 
 use crate::{
     ast::{Module, Statement, Type},
-    typechecker::{typecheck_statements_with, typecheck_with},
+    typechecker::{typecheck_statements_with, typecheck_with, TypeChecker},
 };
 
 pub fn stdlib() -> HashMap<String, Type> {
@@ -52,7 +52,7 @@ pub fn stdlib() -> HashMap<String, Type> {
     .collect()
 }
 
-pub fn typecheck_with_stdlib(m: &mut Module) -> Result<()> {
+pub fn typecheck_with_stdlib(m: &mut Module) -> Result<TypeChecker> {
     return typecheck_with(m, stdlib());
 }
 

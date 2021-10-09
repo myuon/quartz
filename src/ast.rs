@@ -36,7 +36,11 @@ pub enum Expr {
     Call(String, Vec<Expr>),
     Loop(Vec<Statement>),
     Struct(String, Vec<(String, Expr)>),
-    Project(Box<Expr>, String),
+    Project(
+        String, // name of the struct (will be filled in typecheck phase)
+        Box<Expr>,
+        String,
+    ),
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -86,6 +90,13 @@ impl Type {
     pub fn as_ref_type(&self) -> Option<&Box<Type>> {
         match self {
             Type::Ref(t) => Some(t),
+            _ => None,
+        }
+    }
+
+    pub fn as_struct_type(&self) -> Option<&String> {
+        match self {
+            Type::Struct(s) => Some(s),
             _ => None,
         }
     }
@@ -163,6 +174,13 @@ impl DataValue {
         match self {
             DataValue::Closure(params, body) => Ok((params, body)),
             d => bail!("Expected a closure, but found {:?}", d),
+        }
+    }
+
+    pub fn as_tuple(self) -> Result<Vec<DataValue>> {
+        match self {
+            DataValue::Tuple(t) => Ok(t),
+            d => bail!("Expected a tuple, but found {:?}", d),
         }
     }
 }

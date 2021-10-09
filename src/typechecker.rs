@@ -102,7 +102,7 @@ impl Constraints {
                 }
                 self.apply(ret);
             }
-            Type::Struct(_) => todo!(),
+            Type::Struct(_) => {}
         }
     }
 }
@@ -110,7 +110,7 @@ impl Constraints {
 pub struct TypeChecker {
     infer_count: usize,
     variables: HashMap<String, Type>,
-    structs: HashMap<String, Vec<(String, Type)>>,
+    pub structs: HashMap<String, Vec<(String, Type)>>,
 }
 
 impl TypeChecker {
@@ -212,7 +212,26 @@ impl TypeChecker {
 
                 Ok(Type::Struct(s.clone()))
             }
-            Expr::Project(_, _) => todo!(),
+            Expr::Project(name, expr, field) => {
+                let typ = self.expr(expr)?;
+                if matches!(typ, Type::Any) {
+                    return Ok(Type::Any);
+                }
+
+                let typ = typ
+                    .as_struct_type()
+                    .ok_or(anyhow::anyhow!("Expected struct type but found: {:?}", typ))?;
+
+                let def = self.structs[typ].clone();
+                let (_, field_type) = def
+                    .iter()
+                    .find(|(k, _)| k == field)
+                    .ok_or(anyhow::anyhow!("Field {} not found", field))?;
+
+                *name = typ.clone();
+
+                Ok(field_type.clone())
+            }
         }
     }
 
@@ -313,12 +332,15 @@ pub fn typecheck(module: &mut Module) -> Result<()> {
     Ok(())
 }
 
-pub fn typecheck_with(module: &mut Module, variables: HashMap<String, Type>) -> Result<()> {
+pub fn typecheck_with(
+    module: &mut Module,
+    variables: HashMap<String, Type>,
+) -> Result<TypeChecker> {
     let mut checker = TypeChecker::new();
     checker.set_default_types(variables);
     checker.module(module)?;
 
-    Ok(())
+    Ok(checker)
 }
 
 pub fn typecheck_statements(module: &mut Vec<Statement>) -> Result<()> {

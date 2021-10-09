@@ -11,9 +11,9 @@ impl Compiler {
 
     pub fn exec(&self, input: &str) -> Result<DataValue> {
         let mut module = run_parser(input)?;
-        typecheck_with_stdlib(&mut module)?;
+        let checker = typecheck_with_stdlib(&mut module)?;
 
-        let mut eval = Evaluator::new();
+        let mut eval = Evaluator::new(checker.structs);
         eval.eval_module(module)
     }
 }
