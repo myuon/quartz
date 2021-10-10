@@ -111,6 +111,15 @@ pub struct TypeChecker {
     infer_count: usize,
     variables: HashMap<String, Type>,
     pub structs: HashMap<String, Vec<(String, Type)>>,
+    pub functions: HashMap<
+        String,
+        (
+            Option<(String, String)>, // receiver name & type (for a method)
+            Vec<(String, Type)>,      // argument types
+            Box<Type>,                // return type
+            Vec<Statement>,           // body
+        ),
+    >,
 }
 
 impl TypeChecker {
@@ -119,6 +128,7 @@ impl TypeChecker {
             infer_count: 0,
             variables: HashMap::new(),
             structs: HashMap::new(),
+            functions: HashMap::new(),
         }
     }
 
@@ -142,12 +152,17 @@ impl TypeChecker {
     }
 
     fn load(&mut self, v: &String) -> Result<Type> {
-        let t = self
-            .variables
-            .get(v)
-            .ok_or(anyhow::anyhow!("Variable {} not found", v))?;
+        if self.functions.contains_key(v) {
+            let f = self.functions[v].clone();
+            Ok(Type::Fn(f.1.into_iter().map(|(_, v)| v).collect(), f.2))
+        } else {
+            let t = self
+                .variables
+                .get(v)
+                .ok_or(anyhow::anyhow!("Variable {} not found", v))?;
 
-        Ok(t.clone())
+            Ok(t.clone())
+        }
     }
 
     pub fn expr(&mut self, expr: &mut Expr) -> Result<Type> {
@@ -303,8 +318,20 @@ impl TypeChecker {
 
                     let t = self.statements(&mut func.body)?;
                     self.variables = variables;
-                    self.variables
-                        .insert(func.name.clone(), Type::Fn(arg_types, Box::new(t)));
+
+                    self.functions.insert(
+                        func.name.clone(),
+                        (
+                            func.method_of.clone(),
+                            func.args
+                                .clone()
+                                .into_iter()
+                                .zip(arg_types.into_iter())
+                                .collect(),
+                            Box::new(t.clone()),
+                            func.body.clone(),
+                        ),
+                    );
                 }
                 Declaration::Variable(x, e) => {
                     let t = self.expr(e)?;

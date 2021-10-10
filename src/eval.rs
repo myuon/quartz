@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 
 use crate::ast::{DataValue, Declaration, Expr, Module, Statement, Type};
 
@@ -57,23 +57,50 @@ pub struct Evaluator {
     natives: HashMap<String, NativeFunction>,
     escape_return: Option<DataValue>,
     struct_types: HashMap<String, Vec<(String, Type)>>,
+    function_types: HashMap<
+        String,
+        (
+            Option<(String, String)>, // receiver name & type (for a method)
+            Vec<(String, Type)>,      // argument types
+            Box<Type>,                // return type
+            Vec<Statement>,           // body
+        ),
+    >,
 }
 
 impl Evaluator {
-    pub fn new(struct_types: HashMap<String, Vec<(String, Type)>>) -> Self {
+    pub fn new(
+        struct_types: HashMap<String, Vec<(String, Type)>>,
+        function_types: HashMap<
+            String,
+            (
+                Option<(String, String)>,
+                Vec<(String, Type)>,
+                Box<Type>,
+                Vec<Statement>,
+            ),
+        >,
+    ) -> Self {
         Evaluator {
             variables: HashMap::new(),
             natives: new_native_functions(),
             escape_return: None,
             struct_types,
+            function_types,
         }
     }
 
     fn load(&self, name: &String) -> Result<DataValue> {
-        self.variables
-            .get(name)
-            .cloned()
-            .ok_or_else(|| anyhow::anyhow!("Variable {} not found", name))
+        if self.natives.contains_key(name) {
+            Ok(DataValue::NativeFunction(name.to_string()))
+        } else if self.function_types.contains_key(name) {
+            Ok(DataValue::Function(name.clone()))
+        } else {
+            self.variables
+                .get(name)
+                .cloned()
+                .ok_or_else(|| anyhow::anyhow!("Variable {} not found", name))
+        }
     }
 
     pub fn eval_statement(&mut self, stmt: Statement) -> Result<DataValue> {
@@ -121,13 +148,7 @@ impl Evaluator {
 
     pub fn eval_expr(&mut self, expr: Expr) -> Result<DataValue> {
         match expr {
-            Expr::Var(v) => {
-                if self.natives.contains_key(&v) {
-                    Ok(DataValue::NativeFunction(v.to_string()))
-                } else {
-                    self.load(&v)
-                }
-            }
+            Expr::Var(v) => self.load(&v),
             Expr::Lit(lit) => Ok(lit.into_datatype()),
             Expr::Call(caller, args) => {
                 let args = args
@@ -138,19 +159,20 @@ impl Evaluator {
                 let f = self.eval_expr(caller.as_ref().clone())?;
                 if let DataValue::NativeFunction(n) = f {
                     self.natives[&n](args)
-                } else {
-                    let (eargs, statements) = f.as_closure()?;
+                } else if let DataValue::Function(name) = f {
+                    let func = self.function_types[&name].clone();
 
                     let variables_snapshot = self.variables.clone();
 
                     self.variables.extend(
-                        eargs
+                        func.1
                             .into_iter()
+                            .map(|(k, _)| k)
                             .zip(args)
                             .map(|(name, value)| (name.clone(), value)),
                     );
 
-                    let result = self.eval_statements(statements)?;
+                    let result = self.eval_statements(func.3)?;
                     self.variables = variables_snapshot;
 
                     if let Some(ret) = self.escape_return.clone() {
@@ -161,6 +183,8 @@ impl Evaluator {
                     }
 
                     Ok(result)
+                } else {
+                    bail!("{:?} is not a function", f);
                 }
             }
             Expr::Loop(body) => loop {
@@ -191,15 +215,12 @@ impl Evaluator {
 
     pub fn eval_decl(&mut self, decl: Declaration) -> Result<DataValue> {
         match decl {
-            Declaration::Function(func) => {
-                self.variables
-                    .insert(func.name.clone(), DataValue::Closure(func.args, func.body));
-            }
+            Declaration::Function(_) => {}
             Declaration::Variable(x, expr) => {
                 let val = self.eval_expr(expr)?;
                 self.variables.insert(x, val);
             }
-            Declaration::Struct(str) => {}
+            Declaration::Struct(_) => {}
         }
 
         Ok(DataValue::Nil)

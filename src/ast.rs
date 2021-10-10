@@ -152,9 +152,9 @@ pub enum DataValue {
     Bool(bool),
     Int(i32),
     String(String),
-    Closure(Vec<String>, Vec<Statement>),
     Tuple(Vec<DataValue>),
     NativeFunction(String),
+    Function(String),
 }
 
 impl DataValue {
@@ -169,13 +169,6 @@ impl DataValue {
         match self {
             DataValue::Int(i) => Ok(i),
             d => bail!("expected a int, but found {:?}", d),
-        }
-    }
-
-    pub fn as_closure(self) -> Result<(Vec<String>, Vec<Statement>)> {
-        match self {
-            DataValue::Closure(params, body) => Ok((params, body)),
-            d => bail!("Expected a closure, but found {:?}", d),
         }
     }
 

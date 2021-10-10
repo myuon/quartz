@@ -13,7 +13,7 @@ impl Compiler {
         let mut module = run_parser(input)?;
         let checker = typecheck_with_stdlib(&mut module)?;
 
-        let mut eval = Evaluator::new(checker.structs);
+        let mut eval = Evaluator::new(checker.structs, checker.functions);
         eval.eval_module(module)
     }
 }
