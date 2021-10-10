@@ -160,7 +160,7 @@ impl TypeChecker {
                 Literal::String(_) => Ok(Type::String),
             },
             Expr::Call(f, args) => {
-                let fn_type = self.load(f)?;
+                let fn_type = self.expr(f)?;
                 if matches!(fn_type, Type::Any) {
                     return Ok(Type::Any);
                 }

@@ -33,7 +33,7 @@ pub enum Statement {
 pub enum Expr {
     Var(String),
     Lit(Literal),
-    Call(String, Vec<Expr>),
+    Call(Box<Expr>, Vec<Expr>),
     Loop(Vec<Statement>),
     Struct(String, Vec<(String, Expr)>),
     Project(
@@ -54,6 +54,7 @@ pub struct Function {
     pub name: String,
     pub args: Vec<String>,
     pub body: Vec<Statement>,
+    pub method_of: Option<(String, String)>,
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -153,6 +154,7 @@ pub enum DataValue {
     String(String),
     Closure(Vec<String>, Vec<Statement>),
     Tuple(Vec<DataValue>),
+    NativeFunction(String),
 }
 
 impl DataValue {

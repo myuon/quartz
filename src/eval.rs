@@ -121,18 +121,25 @@ impl Evaluator {
 
     pub fn eval_expr(&mut self, expr: Expr) -> Result<DataValue> {
         match expr {
-            Expr::Var(v) => self.load(&v),
+            Expr::Var(v) => {
+                if self.natives.contains_key(&v) {
+                    Ok(DataValue::NativeFunction(v.to_string()))
+                } else {
+                    self.load(&v)
+                }
+            }
             Expr::Lit(lit) => Ok(lit.into_datatype()),
-            Expr::Call(f, args) => {
+            Expr::Call(caller, args) => {
                 let args = args
                     .into_iter()
                     .map(|arg| self.eval_expr(arg))
                     .collect::<Result<Vec<_>>>()?;
 
-                if let Some(func) = self.natives.get(&f) {
-                    func(args)
+                let f = self.eval_expr(caller.as_ref().clone())?;
+                if let DataValue::NativeFunction(n) = f {
+                    self.natives[&n](args)
                 } else {
-                    let (eargs, statements) = self.load(&f)?.as_closure()?;
+                    let (eargs, statements) = f.as_closure()?;
 
                     let variables_snapshot = self.variables.clone();
 
@@ -203,7 +210,10 @@ impl Evaluator {
             self.eval_decl(decl)?;
         }
 
-        self.eval_expr(Expr::Call(String::from("main"), vec![]))
+        self.eval_expr(Expr::Call(
+            Box::new(Expr::Var(String::from("main"))),
+            vec![],
+        ))
     }
 }
 
@@ -371,6 +381,26 @@ mod tests {
                             x: foo.y,
                             y: _add(foo.x, foo.y),
                         };
+                    }
+                "#,
+                DataValue::Tuple(vec![DataValue::Int(20), DataValue::Int(30)]),
+            ),
+            (
+                // method calling
+                r#"
+                    struct Foo {
+                        x: int,
+                        y: int,
+                    }
+
+                    fn (foo: Foo) sum() {
+                        return _add(foo.x, foo.y);
+                    }
+
+                    fn main() {
+                        let foo = Foo { x: 10, y: 20 };
+
+                        return foo.sum();
                     }
                 "#,
                 DataValue::Tuple(vec![DataValue::Int(20), DataValue::Int(30)]),

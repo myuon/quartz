@@ -207,22 +207,29 @@ impl Parser {
     fn short_expr(&mut self) -> Result<Expr> {
         (self.literal().map(|lit| Expr::Lit(lit)))
             .or_else(|_| -> Result<Expr> {
-                // var or fun call
+                // var or fun call or projection
                 let v = self.ident()?;
 
-                match self.expect_lexeme(Lexeme::LParen) {
-                    Ok(_) => {
-                        // function call
+                let mut result = Expr::Var(v);
+
+                // parses continuous projections or function callings
+                loop {
+                    if self.expect_lexeme(Lexeme::Dot).is_ok() {
+                        // projection
+                        let i = self.ident()?;
+
+                        result = Expr::Project("<infer>".to_string(), Box::new(result), i);
+                    } else if self.expect_lexeme(Lexeme::LParen).is_ok() {
                         let args = self.many_exprs()?;
                         self.expect_lexeme(Lexeme::RParen)?;
 
-                        Ok(Expr::Call(v, args))
-                    }
-                    Err(_) => {
-                        // var
-                        Ok(Expr::Var(v))
+                        result = Expr::Call(Box::new(result), args);
+                    } else {
+                        break;
                     }
                 }
+
+                Ok(result)
             })
             .or_else(|_| -> Result<Expr> {
                 self.expect_lexeme(Lexeme::Loop)?;
@@ -259,6 +266,17 @@ impl Parser {
     fn declaration_function(&mut self) -> Result<Declaration> {
         self.expect_lexeme(Lexeme::Fn)?;
 
+        let method_of = if self.expect_lexeme(Lexeme::LParen).is_ok() {
+            let ident = self.ident()?;
+            self.expect_lexeme(Lexeme::Colon)?;
+            let type_name = self.ident()?;
+            self.expect_lexeme(Lexeme::RParen)?;
+
+            Some((ident, type_name))
+        } else {
+            None
+        };
+
         let name = self.ident()?;
         self.expect_lexeme(Lexeme::LParen)?;
         let args = self.many_idents()?;
@@ -272,6 +290,7 @@ impl Parser {
             name,
             args,
             body: statements,
+            method_of,
         }))
     }
 
@@ -412,7 +431,7 @@ mod tests {
                 vec![
                     Statement::Let("y".to_string(), Expr::Lit(Literal::Int(10))),
                     Statement::Expr(Expr::Call(
-                        "_assign".to_string(),
+                        Box::new(Expr::Var("_assign".to_string())),
                         vec![Expr::Var("y".to_string()), Expr::Lit(Literal::Int(20))],
                     )),
                     Statement::Return(Expr::Var("y".to_string())),
@@ -426,7 +445,7 @@ mod tests {
                 "#,
                 vec![
                     (Statement::Expr(Expr::Call(
-                        "f".to_string(),
+                        Box::new(Expr::Var("f".to_string())),
                         vec![
                             Expr::Lit(Literal::Int(10)),
                             Expr::Lit(Literal::Int(20)),
@@ -448,7 +467,10 @@ mod tests {
                 r#"1; _panic(); 10;"#,
                 vec![
                     Statement::Expr(Expr::Lit(Literal::Int(1))),
-                    Statement::Expr(Expr::Call("_panic".to_string(), vec![])),
+                    Statement::Expr(Expr::Call(
+                        Box::new(Expr::Var("_panic".to_string())),
+                        vec![],
+                    )),
                     Statement::Expr(Expr::Lit(Literal::Int(10))),
                 ],
             ),
