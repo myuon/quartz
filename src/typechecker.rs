@@ -102,6 +102,7 @@ impl Constraints {
                 }
                 self.apply(ret);
             }
+            Type::Struct(_) => {}
         }
     }
 }
@@ -109,6 +110,24 @@ impl Constraints {
 pub struct TypeChecker {
     infer_count: usize,
     variables: HashMap<String, Type>,
+    pub structs: HashMap<String, Vec<(String, Type)>>,
+    pub functions: HashMap<
+        String,
+        (
+            Vec<(String, Type)>, // argument types
+            Box<Type>,           // return type
+            Vec<Statement>,      // body
+        ),
+    >,
+    pub methods: HashMap<
+        (String, String), // receiver type, method name
+        (
+            String,              // receiver name
+            Vec<(String, Type)>, // argument types
+            Box<Type>,           // return type
+            Vec<Statement>,      // body
+        ),
+    >,
 }
 
 impl TypeChecker {
@@ -116,6 +135,9 @@ impl TypeChecker {
         TypeChecker {
             infer_count: 0,
             variables: HashMap::new(),
+            structs: HashMap::new(),
+            functions: HashMap::new(),
+            methods: HashMap::new(),
         }
     }
 
@@ -139,12 +161,17 @@ impl TypeChecker {
     }
 
     fn load(&mut self, v: &String) -> Result<Type> {
-        let t = self
-            .variables
-            .get(v)
-            .ok_or(anyhow::anyhow!("Variable {} not found", v))?;
+        if self.functions.contains_key(v) {
+            let f = self.functions[v].clone();
+            Ok(Type::Fn(f.0.into_iter().map(|(_, v)| v).collect(), f.1))
+        } else {
+            let t = self
+                .variables
+                .get(v)
+                .ok_or(anyhow::anyhow!("Variable {} not found", v))?;
 
-        Ok(t.clone())
+            Ok(t.clone())
+        }
     }
 
     pub fn expr(&mut self, expr: &mut Expr) -> Result<Type> {
@@ -156,23 +183,8 @@ impl TypeChecker {
                 Literal::Int(_) => Ok(Type::Int),
                 Literal::String(_) => Ok(Type::String),
             },
-            Expr::Fun(_, args, body) => {
-                let variables = self.variables.clone();
-                let mut arg_types = vec![];
-                for arg in args {
-                    let tvar = self.next_infer();
-
-                    arg_types.push(tvar.clone());
-                    self.variables.insert(arg.clone(), tvar);
-                }
-
-                let ret_type = self.statements(body)?;
-                self.variables = variables;
-
-                Ok(Type::Fn(arg_types, Box::new(ret_type)))
-            }
             Expr::Call(f, args) => {
-                let fn_type = self.load(f)?;
+                let fn_type = self.expr(f)?;
                 if matches!(fn_type, Type::Any) {
                     return Ok(Type::Any);
                 }
@@ -210,24 +222,50 @@ impl TypeChecker {
 
                 Ok(ret_type_inferred)
             }
-            Expr::Ref(e) => {
-                let t = self.expr(e.as_mut())?;
-
-                Ok(Type::Ref(Box::new(t)))
-            }
-            Expr::Deref(e) => {
-                let t = self.expr(e.as_mut())?;
-                let mut t_inner = self.next_infer();
-
-                let cs = Constraints::unify(&t, &Type::Ref(Box::new(t_inner.clone())))?;
-
-                self.apply_constraints(&cs);
-
-                cs.apply(&mut t_inner);
-
-                Ok(t_inner)
-            }
             Expr::Loop(body) => self.statements(body),
+            Expr::Struct(s, fields) => {
+                assert!(self.structs.contains_key(s));
+
+                let def = self.structs[s].clone();
+                for ((k1, v1), (k2, v2)) in def.iter().zip(fields.into_iter()) {
+                    assert_eq!(k1, k2);
+
+                    let cs = Constraints::unify(&v1, &self.expr(v2)?)?;
+                    self.apply_constraints(&cs);
+                }
+
+                Ok(Type::Struct(s.clone()))
+            }
+            Expr::Project(is_method, name, expr, field) => {
+                let typ = self.expr(expr)?;
+                if matches!(typ, Type::Any) {
+                    return Ok(Type::Any);
+                }
+
+                let typ = typ
+                    .as_struct_type()
+                    .ok_or(anyhow::anyhow!("Expected struct type but found: {:?}", typ))?;
+                *name = typ.clone();
+
+                if let Some(method) = self.methods.get(&(typ.clone(), field.clone())) {
+                    *is_method = true;
+
+                    Ok(Type::Fn(
+                        method.1.clone().into_iter().map(|(_, v)| v).collect(),
+                        Box::new(Type::Struct(typ.clone())),
+                    ))
+                } else {
+                    let def = self.structs[typ].clone();
+                    let (_, field_type) = def
+                        .iter()
+                        .find(|(k, _)| k == field)
+                        .ok_or(anyhow::anyhow!("Field {} not found", field))?;
+
+                    *is_method = false;
+
+                    Ok(field_type.clone())
+                }
+            }
         }
     }
 
@@ -236,7 +274,7 @@ impl TypeChecker {
 
         for statement in statements {
             match statement {
-                Statement::Let(_, x, body) => {
+                Statement::Let(x, body) => {
                     let body_type = self.expr(body)?;
                     self.variables.insert(x.clone(), body_type);
                     ret_type = Type::Unit;
@@ -248,7 +286,6 @@ impl TypeChecker {
                 Statement::Return(t) => {
                     ret_type = self.expr(t)?;
                 }
-                Statement::ReturnIf(_, _) => todo!(),
                 Statement::If(cond, then_statements, else_statements) => {
                     let cond_type = self.expr(cond.as_mut())?;
                     let cs = Constraints::unify(&cond_type, &Type::Bool)?;
@@ -264,6 +301,13 @@ impl TypeChecker {
                     ret_type = then_type;
                 }
                 Statement::Continue => {}
+                Statement::Assignment(x, e) => {
+                    let typ = self.load(&x)?;
+                    let cs = Constraints::unify(&typ, &self.expr(e)?)?;
+                    self.apply_constraints(&cs);
+
+                    ret_type = Type::Unit;
+                }
             }
         }
 
@@ -283,10 +327,58 @@ impl TypeChecker {
                         self.variables.insert(arg.clone(), tvar);
                     }
 
+                    let result_type = self.next_infer();
+
+                    // 再帰関数の定義ができるように先にvariableに登録する
+                    self.variables.insert(
+                        func.name.clone(),
+                        Type::Fn(arg_types.clone(), Box::new(result_type)),
+                    );
+
+                    // メソッドのレシーバーも登録する
+                    if let Some((name, typ)) = func.method_of.clone() {
+                        self.variables.insert(name.clone(), Type::Struct(typ));
+                    }
+
                     let t = self.statements(&mut func.body)?;
                     self.variables = variables;
-                    self.variables
-                        .insert(func.name.clone(), Type::Fn(arg_types, Box::new(t)));
+
+                    if let Some((name, typ)) = func.method_of.clone() {
+                        self.methods.insert(
+                            (typ, func.name.clone()),
+                            (
+                                name,
+                                func.args
+                                    .clone()
+                                    .into_iter()
+                                    .zip(arg_types.into_iter())
+                                    .collect(),
+                                Box::new(t.clone()),
+                                func.body.clone(),
+                            ),
+                        );
+                    } else {
+                        self.functions.insert(
+                            func.name.clone(),
+                            (
+                                func.args
+                                    .clone()
+                                    .into_iter()
+                                    .zip(arg_types.into_iter())
+                                    .collect(),
+                                Box::new(t.clone()),
+                                func.body.clone(),
+                            ),
+                        );
+                    }
+                }
+                Declaration::Variable(x, e) => {
+                    let t = self.expr(e)?;
+                    self.variables.insert(x.clone(), t);
+                }
+                Declaration::Struct(st) => {
+                    assert!(!self.structs.contains_key(&st.name));
+                    self.structs.insert(st.name.clone(), st.fields.clone());
                 }
             }
         }
@@ -306,12 +398,15 @@ pub fn typecheck(module: &mut Module) -> Result<()> {
     Ok(())
 }
 
-pub fn typecheck_with(module: &mut Module, variables: HashMap<String, Type>) -> Result<()> {
+pub fn typecheck_with(
+    module: &mut Module,
+    variables: HashMap<String, Type>,
+) -> Result<TypeChecker> {
     let mut checker = TypeChecker::new();
     checker.set_default_types(variables);
     checker.module(module)?;
 
-    Ok(())
+    Ok(checker)
 }
 
 pub fn typecheck_statements(module: &mut Vec<Statement>) -> Result<()> {
@@ -350,23 +445,6 @@ mod tests {
                 "#,
                 vec![("x", Type::Int), ("y", Type::String)],
                 Type::String,
-            ),
-            (
-                // unification for function type
-                r#"
-                    let f = fn (a, b, c) {
-                        return c;
-                    };
-                    f(1, nil, "foo");
-                "#,
-                vec![(
-                    "f",
-                    Type::Fn(
-                        vec![Type::Int, Type::Ref(Box::new(Type::Infer(3))), Type::String],
-                        Box::new(Type::String),
-                    ),
-                )],
-                Type::Unit,
             ),
             (
                 r#"

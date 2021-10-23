@@ -1,5 +1,5 @@
 use crate::{
-    ast::{Declaration, Expr, Function, Literal, Module, Statement},
+    ast::{Declaration, Expr, Function, Literal, Module, Statement, Struct, Type},
     lexer::{run_lexer, Lexeme, Token},
 };
 use anyhow::{bail, ensure, Result};
@@ -7,7 +7,6 @@ use anyhow::{bail, ensure, Result};
 struct Parser {
     position: usize,
     input: Vec<Token>,
-    is_toplevel: bool,
 }
 
 impl Parser {
@@ -15,7 +14,6 @@ impl Parser {
         Parser {
             position: 0,
             input: vec![],
-            is_toplevel: true,
         }
     }
 
@@ -38,6 +36,16 @@ impl Parser {
         self.position += 1;
 
         Ok(current)
+    }
+
+    fn atype(&mut self) -> Result<Type> {
+        let ident = self.ident()?;
+        match ident.as_str() {
+            "int" => Ok(Type::Int),
+            "bool" => Ok(Type::Bool),
+            "string" => Ok(Type::String),
+            _ => todo!(),
+        }
     }
 
     fn ident(&mut self) -> Result<String> {
@@ -94,12 +102,12 @@ impl Parser {
         self.expect_lexeme(Lexeme::Equal)?;
         let e = self.expr()?;
 
-        Ok(Statement::Let(self.is_toplevel, x, e))
+        Ok(Statement::Let(x, e))
     }
 
     fn statement_if(&mut self) -> Result<Statement> {
         self.expect_lexeme(Lexeme::If)?;
-        let cond = self.expr()?;
+        let cond = self.short_expr()?;
         self.expect_lexeme(Lexeme::LBrace)?;
         let then = self.many_statements()?;
         self.expect_lexeme(Lexeme::RBrace)?;
@@ -123,13 +131,7 @@ impl Parser {
             .or_else(|_| -> Result<Statement> {
                 self.expect_lexeme(Lexeme::Return)?;
                 let e = self.expr()?;
-
-                if self.expect_lexeme(Lexeme::If).is_ok() {
-                    let cond = self.expr()?;
-                    Ok(Statement::ReturnIf(e, cond))
-                } else {
-                    Ok(Statement::Return(e))
-                }
+                Ok(Statement::Return(e))
             })
             .or_else(|_| -> Result<Statement> { self.statement_if() })
             .or_else(|_| -> Result<Statement> {
@@ -137,7 +139,22 @@ impl Parser {
 
                 Ok(Statement::Continue)
             })
-            .or_else(|_| self.expr().map(|e| Statement::Expr(e)))
+            .or_else(|_| -> Result<Statement> {
+                let e = self.expr()?;
+                match e.clone() {
+                    Expr::Var(v) => {
+                        if self.expect_lexeme(Lexeme::Equal).is_ok() {
+                            // =が続くのであればassingmentで確定
+                            let e = self.expr()?;
+                            Ok(Statement::Assignment(v, e))
+                        } else {
+                            // それ以外のケースは普通にexpr statement
+                            Ok(Statement::Expr(e))
+                        }
+                    }
+                    _ => Ok(Statement::Expr(e)),
+                }
+            })
     }
 
     fn many_idents(&mut self) -> Result<Vec<String>> {
@@ -187,70 +204,83 @@ impl Parser {
         Ok(statements)
     }
 
-    fn expr(&mut self) -> Result<Expr> {
+    fn short_expr(&mut self) -> Result<Expr> {
         (self.literal().map(|lit| Expr::Lit(lit)))
             .or_else(|_| -> Result<Expr> {
-                self.expect_lexeme(Lexeme::And)?;
-                let e = self.expr()?;
-
-                Ok(Expr::Ref(Box::new(e)))
-            })
-            .or_else(|_| -> Result<Expr> {
-                self.expect_lexeme(Lexeme::Star)?;
-                let e = self.expr()?;
-
-                Ok(Expr::Deref(Box::new(e)))
-            })
-            .or_else(|_| -> Result<Expr> {
-                // var or fun call
+                // var or fun call or projection
                 let v = self.ident()?;
 
-                match self.expect_lexeme(Lexeme::LParen) {
-                    Ok(_) => {
-                        // function call
+                let mut result = Expr::Var(v);
+
+                // parses continuous projections or function callings
+                loop {
+                    if self.expect_lexeme(Lexeme::Dot).is_ok() {
+                        // projection
+                        let i = self.ident()?;
+
+                        result = Expr::Project(false, "<infer>".to_string(), Box::new(result), i);
+                    } else if self.expect_lexeme(Lexeme::LParen).is_ok() {
                         let args = self.many_exprs()?;
                         self.expect_lexeme(Lexeme::RParen)?;
 
-                        Ok(Expr::Call(v, args))
-                    }
-                    Err(_) => {
-                        // var
-                        Ok(Expr::Var(v))
+                        result = Expr::Call(Box::new(result), args);
+                    } else {
+                        break;
                     }
                 }
+
+                Ok(result)
             })
             .or_else(|_| -> Result<Expr> {
                 self.expect_lexeme(Lexeme::Loop)?;
 
-                let is_toplevel = self.is_toplevel;
-                self.is_toplevel = false;
                 self.expect_lexeme(Lexeme::LBrace)?;
                 let statements = self.many_statements()?;
                 self.expect_lexeme(Lexeme::RBrace)?;
-                self.is_toplevel = is_toplevel;
 
                 Ok(Expr::Loop(statements))
             })
-            .or_else(|_| -> Result<Expr> {
-                let token = self.expect_lexeme(Lexeme::Fn)?;
+    }
 
-                self.expect_lexeme(Lexeme::LParen)?;
-                let args = self.many_idents()?;
-                self.expect_lexeme(Lexeme::RParen)?;
+    fn expr(&mut self) -> Result<Expr> {
+        let short_expr = self.short_expr()?;
 
-                self.expect_lexeme(Lexeme::LBrace)?;
-                let is_toplevel = self.is_toplevel;
-                self.is_toplevel = false;
-                let statements = self.many_statements()?;
-                self.is_toplevel = is_toplevel;
+        match short_expr {
+            Expr::Var(v) if self.expect_lexeme(Lexeme::LBrace).is_ok() => {
+                // struct initialization
+                let fields = self.many_fields_with_exprs()?;
                 self.expect_lexeme(Lexeme::RBrace)?;
 
-                Ok(Expr::Fun(token.position, args, statements))
-            })
+                Ok(Expr::Struct(v, fields))
+            }
+            expr if self.expect_lexeme(Lexeme::Dot).is_ok() => {
+                // projection
+                let i = self.ident()?;
+
+                Ok(Expr::Project(
+                    false,
+                    "<infer>".to_string(),
+                    Box::new(expr),
+                    i,
+                ))
+            }
+            _ => Ok(short_expr),
+        }
     }
 
     fn declaration_function(&mut self) -> Result<Declaration> {
         self.expect_lexeme(Lexeme::Fn)?;
+
+        let method_of = if self.expect_lexeme(Lexeme::LParen).is_ok() {
+            let ident = self.ident()?;
+            self.expect_lexeme(Lexeme::Colon)?;
+            let type_name = self.ident()?;
+            self.expect_lexeme(Lexeme::RParen)?;
+
+            Some((ident, type_name))
+        } else {
+            None
+        };
 
         let name = self.ident()?;
         self.expect_lexeme(Lexeme::LParen)?;
@@ -258,24 +288,78 @@ impl Parser {
         self.expect_lexeme(Lexeme::RParen)?;
 
         self.expect_lexeme(Lexeme::LBrace)?;
-        let is_toplevel = self.is_toplevel;
-        self.is_toplevel = false;
         let statements = self.many_statements()?;
-        self.is_toplevel = is_toplevel;
         self.expect_lexeme(Lexeme::RBrace)?;
 
         Ok(Declaration::Function(Function {
             name,
             args,
             body: statements,
+            method_of,
         }))
+    }
+
+    fn many_fields_with_types(&mut self) -> Result<Vec<(String, Type)>> {
+        let mut fields = vec![];
+
+        while self.peek().lexeme != Lexeme::RBrace {
+            let name = self.ident()?;
+            self.expect_lexeme(Lexeme::Colon)?;
+            let ty = self.atype()?;
+            fields.push((name, ty));
+
+            // allow trailing comma
+            match self.expect_lexeme(Lexeme::Comma) {
+                Err(_) => return Ok(fields),
+                r => r,
+            }?;
+        }
+
+        Ok(fields)
+    }
+
+    fn many_fields_with_exprs(&mut self) -> Result<Vec<(String, Expr)>> {
+        let mut fields = vec![];
+
+        while self.peek().lexeme != Lexeme::RBrace {
+            let name = self.ident()?;
+            self.expect_lexeme(Lexeme::Colon)?;
+            let e = self.expr()?;
+            fields.push((name, e));
+
+            // allow trailing comma
+            match self.expect_lexeme(Lexeme::Comma) {
+                Err(_) => return Ok(fields),
+                r => r,
+            }?;
+        }
+
+        Ok(fields)
     }
 
     fn many_declarations(&mut self) -> Result<Vec<Declaration>> {
         let mut decls = vec![];
 
         while !self.is_end() {
-            let d = self.declaration_function()?;
+            let d = (self.declaration_function())
+                .or_else(|_| -> Result<Declaration> {
+                    self.expect_lexeme(Lexeme::Let)?;
+                    let x = self.ident()?;
+                    self.expect_lexeme(Lexeme::Equal)?;
+                    let e = self.expr()?;
+                    self.expect_lexeme(Lexeme::SemiColon)?;
+
+                    Ok(Declaration::Variable(x, e))
+                })
+                .or_else(|_| -> Result<Declaration> {
+                    self.expect_lexeme(Lexeme::Struct)?;
+                    let name = self.ident()?;
+                    self.expect_lexeme(Lexeme::LBrace)?;
+                    let fields = self.many_fields_with_types()?;
+                    self.expect_lexeme(Lexeme::RBrace)?;
+
+                    Ok(Declaration::Struct(Struct { name, fields }))
+                })?;
 
             decls.push(d);
         }
@@ -344,73 +428,43 @@ mod tests {
     fn test_run_parser_statements() {
         let cases = vec![
             (
-                r#"let main = fn () {
+                r#"
                     let y = 10;
                     _assign(y, 20);
                     return y;
-                };"#,
-                vec![Statement::Let(
-                    true,
-                    "main".to_string(),
-                    Expr::Fun(
-                        11,
-                        vec![],
-                        vec![
-                            Statement::Let(false, "y".to_string(), Expr::Lit(Literal::Int(10))),
-                            Statement::Expr(Expr::Call(
-                                "_assign".to_string(),
-                                vec![Expr::Var("y".to_string()), Expr::Lit(Literal::Int(20))],
-                            )),
-                            Statement::Return(Expr::Var("y".to_string())),
-                        ],
-                    ),
-                )],
+                "#,
+                vec![
+                    Statement::Let("y".to_string(), Expr::Lit(Literal::Int(10))),
+                    Statement::Expr(Expr::Call(
+                        Box::new(Expr::Var("_assign".to_string())),
+                        vec![Expr::Var("y".to_string()), Expr::Lit(Literal::Int(20))],
+                    )),
+                    Statement::Return(Expr::Var("y".to_string())),
+                ],
             ),
             (
-                r#"let main = fn () {
+                r#"
                     f(10, 20, 40);
                     100;
                     "foo";
-                    let u = fn () { return 20; };
-                };
-                main();"#,
+                "#,
                 vec![
-                    (Statement::Let(
-                        true,
-                        "main".to_string(),
-                        Expr::Fun(
-                            11,
-                            vec![],
-                            vec![
-                                (Statement::Expr(Expr::Call(
-                                    "f".to_string(),
-                                    vec![
-                                        Expr::Lit(Literal::Int(10)),
-                                        Expr::Lit(Literal::Int(20)),
-                                        Expr::Lit(Literal::Int(40)),
-                                    ],
-                                ))),
-                                (Statement::Expr(Expr::Lit(Literal::Int(100)))),
-                                (Statement::Expr(Expr::Lit(Literal::String("foo".to_string())))),
-                                (Statement::Let(
-                                    false,
-                                    "u".to_string(),
-                                    Expr::Fun(
-                                        134,
-                                        vec![],
-                                        vec![(Statement::Return(Expr::Lit(Literal::Int(20))))],
-                                    ),
-                                )),
-                            ],
-                        ),
-                    )),
-                    (Statement::Expr(Expr::Call("main".to_string(), vec![]))),
+                    (Statement::Expr(Expr::Call(
+                        Box::new(Expr::Var("f".to_string())),
+                        vec![
+                            Expr::Lit(Literal::Int(10)),
+                            Expr::Lit(Literal::Int(20)),
+                            Expr::Lit(Literal::Int(40)),
+                        ],
+                    ))),
+                    (Statement::Expr(Expr::Lit(Literal::Int(100)))),
+                    (Statement::Expr(Expr::Lit(Literal::String("foo".to_string())))),
                 ],
             ),
             (
                 r#"let x = 10; return x;"#,
                 vec![
-                    (Statement::Let(true, "x".to_string(), Expr::Lit(Literal::Int(10)))),
+                    (Statement::Let("x".to_string(), Expr::Lit(Literal::Int(10)))),
                     (Statement::Return(Expr::Var("x".to_string()))),
                 ],
             ),
@@ -418,26 +472,12 @@ mod tests {
                 r#"1; _panic(); 10;"#,
                 vec![
                     Statement::Expr(Expr::Lit(Literal::Int(1))),
-                    Statement::Expr(Expr::Call("_panic".to_string(), vec![])),
+                    Statement::Expr(Expr::Call(
+                        Box::new(Expr::Var("_panic".to_string())),
+                        vec![],
+                    )),
                     Statement::Expr(Expr::Lit(Literal::Int(10))),
                 ],
-            ),
-            (
-                r#"let x = 10; return &x;"#,
-                vec![
-                    Statement::Let(true, "x".to_string(), Expr::Lit(Literal::Int(10))),
-                    Statement::Return(Expr::Ref(Box::new(Expr::Var("x".to_string())))),
-                ],
-            ),
-            (
-                r#"return 10 if _eq(x, y);"#,
-                vec![Statement::ReturnIf(
-                    Expr::Lit(Literal::Int(10)),
-                    Expr::Call(
-                        "_eq".to_string(),
-                        vec![Expr::Var("x".to_string()), Expr::Var("y".to_string())],
-                    ),
-                )],
             ),
             (
                 r#"
@@ -449,12 +489,25 @@ mod tests {
                 "#,
                 vec![
                     Statement::Let(
-                        true,
                         "x".to_string(),
                         Expr::Loop(vec![Statement::Return(Expr::Lit(Literal::Int(10)))]),
                     ),
                     Statement::Return(Expr::Var("x".to_string())),
                 ],
+            ),
+            (
+                r#"
+                    obj.call(a1);
+                "#,
+                vec![Statement::Expr(Expr::Call(
+                    Box::new(Expr::Project(
+                        false,
+                        "<infer>".to_string(),
+                        Box::new(Expr::Var("obj".to_string())),
+                        "call".to_string(),
+                    )),
+                    vec![Expr::Var("a1".to_string())],
+                ))],
             ),
         ];
 
@@ -467,7 +520,7 @@ mod tests {
 
     #[test]
     fn test_run_parser_fail() {
-        let cases = vec![(r#"fn () { let u = 10 }"#, "Expected an ident")];
+        let cases = vec![(r#"fn () { let u = 10 }"#, "Expected")];
 
         for c in cases {
             let result = run_parser(c.0);
