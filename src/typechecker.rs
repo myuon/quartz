@@ -114,10 +114,18 @@ pub struct TypeChecker {
     pub functions: HashMap<
         String,
         (
-            Option<(String, String)>, // receiver name & type (for a method)
-            Vec<(String, Type)>,      // argument types
-            Box<Type>,                // return type
-            Vec<Statement>,           // body
+            Vec<(String, Type)>, // argument types
+            Box<Type>,           // return type
+            Vec<Statement>,      // body
+        ),
+    >,
+    pub methods: HashMap<
+        (String, String), // receiver type, method name
+        (
+            String,              // receiver name
+            Vec<(String, Type)>, // argument types
+            Box<Type>,           // return type
+            Vec<Statement>,      // body
         ),
     >,
 }
@@ -129,6 +137,7 @@ impl TypeChecker {
             variables: HashMap::new(),
             structs: HashMap::new(),
             functions: HashMap::new(),
+            methods: HashMap::new(),
         }
     }
 
@@ -154,7 +163,7 @@ impl TypeChecker {
     fn load(&mut self, v: &String) -> Result<Type> {
         if self.functions.contains_key(v) {
             let f = self.functions[v].clone();
-            Ok(Type::Fn(f.1.into_iter().map(|(_, v)| v).collect(), f.2))
+            Ok(Type::Fn(f.0.into_iter().map(|(_, v)| v).collect(), f.1))
         } else {
             let t = self
                 .variables
@@ -227,7 +236,7 @@ impl TypeChecker {
 
                 Ok(Type::Struct(s.clone()))
             }
-            Expr::Project(name, expr, field) => {
+            Expr::Project(is_method, name, expr, field) => {
                 let typ = self.expr(expr)?;
                 if matches!(typ, Type::Any) {
                     return Ok(Type::Any);
@@ -236,16 +245,26 @@ impl TypeChecker {
                 let typ = typ
                     .as_struct_type()
                     .ok_or(anyhow::anyhow!("Expected struct type but found: {:?}", typ))?;
-
-                let def = self.structs[typ].clone();
-                let (_, field_type) = def
-                    .iter()
-                    .find(|(k, _)| k == field)
-                    .ok_or(anyhow::anyhow!("Field {} not found", field))?;
-
                 *name = typ.clone();
 
-                Ok(field_type.clone())
+                if let Some(method) = self.methods.get(&(typ.clone(), field.clone())) {
+                    *is_method = true;
+
+                    Ok(Type::Fn(
+                        method.1.clone().into_iter().map(|(_, v)| v).collect(),
+                        Box::new(Type::Struct(typ.clone())),
+                    ))
+                } else {
+                    let def = self.structs[typ].clone();
+                    let (_, field_type) = def
+                        .iter()
+                        .find(|(k, _)| k == field)
+                        .ok_or(anyhow::anyhow!("Field {} not found", field))?;
+
+                    *is_method = false;
+
+                    Ok(field_type.clone())
+                }
             }
         }
     }
@@ -324,19 +343,34 @@ impl TypeChecker {
                     let t = self.statements(&mut func.body)?;
                     self.variables = variables;
 
-                    self.functions.insert(
-                        func.name.clone(),
-                        (
-                            func.method_of.clone(),
-                            func.args
-                                .clone()
-                                .into_iter()
-                                .zip(arg_types.into_iter())
-                                .collect(),
-                            Box::new(t.clone()),
-                            func.body.clone(),
-                        ),
-                    );
+                    if let Some((name, typ)) = func.method_of.clone() {
+                        self.methods.insert(
+                            (typ, func.name.clone()),
+                            (
+                                name,
+                                func.args
+                                    .clone()
+                                    .into_iter()
+                                    .zip(arg_types.into_iter())
+                                    .collect(),
+                                Box::new(t.clone()),
+                                func.body.clone(),
+                            ),
+                        );
+                    } else {
+                        self.functions.insert(
+                            func.name.clone(),
+                            (
+                                func.args
+                                    .clone()
+                                    .into_iter()
+                                    .zip(arg_types.into_iter())
+                                    .collect(),
+                                Box::new(t.clone()),
+                                func.body.clone(),
+                            ),
+                        );
+                    }
                 }
                 Declaration::Variable(x, e) => {
                     let t = self.expr(e)?;

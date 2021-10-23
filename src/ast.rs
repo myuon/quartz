@@ -37,6 +37,7 @@ pub enum Expr {
     Loop(Vec<Statement>),
     Struct(String, Vec<(String, Expr)>),
     Project(
+        bool,   // is_method
         String, // name of the struct (will be filled in typecheck phase)
         Box<Expr>,
         String,
@@ -155,6 +156,7 @@ pub enum DataValue {
     Tuple(Vec<DataValue>),
     NativeFunction(String),
     Function(String),
+    Method(String, String, Box<DataValue>),
 }
 
 impl DataValue {

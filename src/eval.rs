@@ -60,10 +60,18 @@ pub struct Evaluator {
     function_types: HashMap<
         String,
         (
-            Option<(String, String)>, // receiver name & type (for a method)
-            Vec<(String, Type)>,      // argument types
-            Box<Type>,                // return type
-            Vec<Statement>,           // body
+            Vec<(String, Type)>, // argument types
+            Box<Type>,           // return type
+            Vec<Statement>,      // body
+        ),
+    >,
+    method_types: HashMap<
+        (String, String), // receiver type, method name
+        (
+            String,              // receiver name
+            Vec<(String, Type)>, // argument types
+            Box<Type>,           // return type
+            Vec<Statement>,      // body
         ),
     >,
 }
@@ -71,13 +79,21 @@ pub struct Evaluator {
 impl Evaluator {
     pub fn new(
         struct_types: HashMap<String, Vec<(String, Type)>>,
-        function_types: HashMap<
+        functions: HashMap<
             String,
             (
-                Option<(String, String)>,
-                Vec<(String, Type)>,
-                Box<Type>,
-                Vec<Statement>,
+                Vec<(String, Type)>, // argument types
+                Box<Type>,           // return type
+                Vec<Statement>,      // body
+            ),
+        >,
+        methods: HashMap<
+            (String, String), // receiver type, method name
+            (
+                String,              // receiver name
+                Vec<(String, Type)>, // argument types
+                Box<Type>,           // return type
+                Vec<Statement>,      // body
             ),
         >,
     ) -> Self {
@@ -86,7 +102,8 @@ impl Evaluator {
             natives: new_native_functions(),
             escape_return: None,
             struct_types,
-            function_types,
+            function_types: functions,
+            method_types: methods,
         }
     }
 
@@ -157,34 +174,64 @@ impl Evaluator {
                     .collect::<Result<Vec<_>>>()?;
 
                 let f = self.eval_expr(caller.as_ref().clone())?;
-                if let DataValue::NativeFunction(n) = f {
-                    self.natives[&n](args)
-                } else if let DataValue::Function(name) = f {
-                    let func = self.function_types[&name].clone();
+                match f {
+                    DataValue::NativeFunction(n) => self.natives[&n](args),
+                    DataValue::Function(name) => {
+                        let func = self.function_types[&name].clone();
 
-                    let variables_snapshot = self.variables.clone();
+                        let variables_snapshot = self.variables.clone();
 
-                    self.variables.extend(
-                        func.1
-                            .into_iter()
-                            .map(|(k, _)| k)
-                            .zip(args)
-                            .map(|(name, value)| (name.clone(), value)),
-                    );
+                        self.variables.extend(
+                            func.0
+                                .into_iter()
+                                .map(|(k, _)| k)
+                                .zip(args)
+                                .map(|(name, value)| (name.clone(), value)),
+                        );
 
-                    let result = self.eval_statements(func.3)?;
-                    self.variables = variables_snapshot;
+                        let result = self.eval_statements(func.2)?;
+                        self.variables = variables_snapshot;
 
-                    if let Some(ret) = self.escape_return.clone() {
-                        assert_eq!(result, DataValue::Nil);
-                        self.escape_return = None;
+                        if let Some(ret) = self.escape_return.clone() {
+                            assert_eq!(result, DataValue::Nil);
+                            self.escape_return = None;
 
-                        return Ok(ret);
+                            return Ok(ret);
+                        }
+
+                        Ok(result)
                     }
+                    DataValue::Method(typ, name, receiver) => {
+                        let method = self.method_types[&(typ.clone(), name.clone())].clone();
 
-                    Ok(result)
-                } else {
-                    bail!("{:?} is not a function", f);
+                        let variables_snapshot = self.variables.clone();
+
+                        self.variables.extend(
+                            method
+                                .1
+                                .into_iter()
+                                .map(|(k, _)| k)
+                                .zip(args)
+                                .map(|(name, value)| (name.clone(), value)),
+                        );
+                        self.variables
+                            .insert(method.0.clone(), receiver.as_ref().clone());
+
+                        let result = self.eval_statements(method.3)?;
+                        self.variables = variables_snapshot;
+
+                        if let Some(ret) = self.escape_return.clone() {
+                            assert_eq!(result, DataValue::Nil);
+                            self.escape_return = None;
+
+                            return Ok(ret);
+                        }
+
+                        Ok(result)
+                    }
+                    _ => {
+                        bail!("{:?} is not a function", f);
+                    }
                 }
             }
             Expr::Loop(body) => loop {
@@ -201,7 +248,12 @@ impl Evaluator {
 
                 Ok(DataValue::Tuple(values))
             }
-            Expr::Project(name, e, field) => {
+            Expr::Project(is_method, name, e, field) if is_method => {
+                let value = self.eval_expr(e.as_ref().clone())?;
+
+                Ok(DataValue::Method(name, field, Box::new(value)))
+            }
+            Expr::Project(_, name, e, field) => {
                 let index = self.struct_types[&name]
                     .iter()
                     .position(|(n, _)| *n == field)
@@ -419,12 +471,12 @@ mod tests {
                     }
 
                     fn main() {
-                        let foo = Foo { x: 10, y: 20 };
+                        let foobar = Foo { x: 10, y: 20 };
 
-                        return foo.sum();
+                        return foobar.sum();
                     }
                 "#,
-                DataValue::Tuple(vec![DataValue::Int(20), DataValue::Int(30)]),
+                DataValue::Int(30),
             ),
         ];
 

@@ -218,7 +218,7 @@ impl Parser {
                         // projection
                         let i = self.ident()?;
 
-                        result = Expr::Project("<infer>".to_string(), Box::new(result), i);
+                        result = Expr::Project(false, "<infer>".to_string(), Box::new(result), i);
                     } else if self.expect_lexeme(Lexeme::LParen).is_ok() {
                         let args = self.many_exprs()?;
                         self.expect_lexeme(Lexeme::RParen)?;
@@ -257,7 +257,12 @@ impl Parser {
                 // projection
                 let i = self.ident()?;
 
-                Ok(Expr::Project("<infer>".to_string(), Box::new(expr), i))
+                Ok(Expr::Project(
+                    false,
+                    "<infer>".to_string(),
+                    Box::new(expr),
+                    i,
+                ))
             }
             _ => Ok(short_expr),
         }
@@ -496,6 +501,7 @@ mod tests {
                 "#,
                 vec![Statement::Expr(Expr::Call(
                     Box::new(Expr::Project(
+                        false,
                         "<infer>".to_string(),
                         Box::new(Expr::Var("obj".to_string())),
                         "call".to_string(),
