@@ -56,6 +56,28 @@ fn new_native_functions() -> HashMap<String, NativeFunction> {
             ))
         }),
     );
+    natives.insert(
+        "_len_string".to_string(),
+        Box::new(|args| Ok(DataValue::Int(args[0].clone().as_string()?.len() as i32))),
+    );
+    natives.insert(
+        "_slice_string".to_string(),
+        Box::new(|args| {
+            Ok(DataValue::String(
+                args[0].clone().as_string()?
+                    [args[1].clone().as_int()? as usize..args[2].clone().as_int()? as usize]
+                    .to_string(),
+            ))
+        }),
+    );
+    natives.insert(
+        "_concat_string".to_string(),
+        Box::new(|args| {
+            Ok(DataValue::String(
+                args[0].clone().as_string()? + &args[1].clone().as_string()?,
+            ))
+        }),
+    );
 
     natives
 }
@@ -513,12 +535,12 @@ mod tests {
                                 return r;
                             };
 
-                            r = r.concat(s.slice(s.len().sub(i), s.len().sub(i).add(1)));
+                            r = r.concat(s.slice(s.len().sub(i).sub(1), s.len().sub(i)));
                             i = i.add(1);
                         };
                     }
                 "#,
-                DataValue::Tuple(vec![DataValue::Int(300)]),
+                DataValue::String("olleh".to_string()),
             ),
         ];
 

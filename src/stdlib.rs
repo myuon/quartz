@@ -88,7 +88,7 @@ pub fn stdlib_methods() -> HashMap<
                 vec![("y".to_string(), Type::Int)],
                 Box::new(Type::Bool),
                 vec![Statement::Return(Expr::Call(
-                    Box::new(Expr::Var("_sub".to_string())),
+                    Box::new(Expr::Var("_eq".to_string())),
                     vec![Expr::Var("x".to_string()), Expr::Var("y".to_string())],
                 ))],
             ),

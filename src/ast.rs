@@ -174,6 +174,13 @@ impl DataValue {
         }
     }
 
+    pub fn as_string(self) -> Result<String> {
+        match self {
+            DataValue::String(i) => Ok(i),
+            d => bail!("expected a string, but found {:?}", d),
+        }
+    }
+
     pub fn as_tuple(self) -> Result<Vec<DataValue>> {
         match self {
             DataValue::Tuple(t) => Ok(t),
