@@ -242,9 +242,11 @@ impl TypeChecker {
                     return Ok(Type::Any);
                 }
 
-                let typ = typ
-                    .as_struct_type()
-                    .ok_or(anyhow::anyhow!("Expected struct type but found: {:?}", typ))?;
+                let typ = match typ {
+                    Type::Struct(s) => s.clone(),
+                    Type::Int => "int".to_string(),
+                    _ => bail!("Cannot project of: {:?}", typ),
+                };
                 *name = typ.clone();
 
                 if let Some(method) = self.methods.get(&(typ.clone(), field.clone())) {
@@ -255,7 +257,7 @@ impl TypeChecker {
                         Box::new(Type::Struct(typ.clone())),
                     ))
                 } else {
-                    let def = self.structs[typ].clone();
+                    let def = self.structs[&typ].clone();
                     let (_, field_type) = def
                         .iter()
                         .find(|(k, _)| k == field)

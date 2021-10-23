@@ -256,7 +256,10 @@ impl Evaluator {
                 Ok(DataValue::Method(name, field, Box::new(value)))
             }
             Expr::Project(_, name, e, field) => {
-                let index = self.struct_types[&name]
+                let index = self
+                    .struct_types
+                    .get(&name)
+                    .ok_or_else(|| anyhow::anyhow!("Variable {} not found", name))?
                     .iter()
                     .position(|(n, _)| *n == field)
                     .unwrap();
@@ -476,6 +479,17 @@ mod tests {
                         let foobar = Foo { x: 10, y: 20 };
 
                         return foobar.sum();
+                    }
+                "#,
+                DataValue::Int(30),
+            ),
+            (
+                // call a method
+                r#"
+                    fn main() {
+                        return _tuple(
+                            100.add(200),
+                        );
                     }
                 "#,
                 DataValue::Int(30),

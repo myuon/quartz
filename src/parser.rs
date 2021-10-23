@@ -204,42 +204,43 @@ impl Parser {
         Ok(statements)
     }
 
+    fn short_callee_expr(&mut self) -> Result<Expr> {
+        self.ident()
+            .map(|v| Expr::Var(v))
+            .or_else(|_| -> Result<Expr> { self.literal().map(|lit| Expr::Lit(lit)) })
+    }
+
     fn short_expr(&mut self) -> Result<Expr> {
-        (self.literal().map(|lit| Expr::Lit(lit)))
-            .or_else(|_| -> Result<Expr> {
-                // var or fun call or projection
-                let v = self.ident()?;
+        (|| -> Result<Expr> {
+            let mut result = self.short_callee_expr()?;
 
-                let mut result = Expr::Var(v);
+            loop {
+                if self.expect_lexeme(Lexeme::Dot).is_ok() {
+                    // projection
+                    let i = self.ident()?;
 
-                // parses continuous projections or function callings
-                loop {
-                    if self.expect_lexeme(Lexeme::Dot).is_ok() {
-                        // projection
-                        let i = self.ident()?;
+                    result = Expr::Project(false, "<infer>".to_string(), Box::new(result), i);
+                } else if self.expect_lexeme(Lexeme::LParen).is_ok() {
+                    let args = self.many_exprs()?;
+                    self.expect_lexeme(Lexeme::RParen)?;
 
-                        result = Expr::Project(false, "<infer>".to_string(), Box::new(result), i);
-                    } else if self.expect_lexeme(Lexeme::LParen).is_ok() {
-                        let args = self.many_exprs()?;
-                        self.expect_lexeme(Lexeme::RParen)?;
-
-                        result = Expr::Call(Box::new(result), args);
-                    } else {
-                        break;
-                    }
+                    result = Expr::Call(Box::new(result), args);
+                } else {
+                    break;
                 }
+            }
 
-                Ok(result)
-            })
-            .or_else(|_| -> Result<Expr> {
-                self.expect_lexeme(Lexeme::Loop)?;
+            Ok(result)
+        })()
+        .or_else(|_| -> Result<Expr> {
+            self.expect_lexeme(Lexeme::Loop)?;
 
-                self.expect_lexeme(Lexeme::LBrace)?;
-                let statements = self.many_statements()?;
-                self.expect_lexeme(Lexeme::RBrace)?;
+            self.expect_lexeme(Lexeme::LBrace)?;
+            let statements = self.many_statements()?;
+            self.expect_lexeme(Lexeme::RBrace)?;
 
-                Ok(Expr::Loop(statements))
-            })
+            Ok(Expr::Loop(statements))
+        })
     }
 
     fn expr(&mut self) -> Result<Expr> {

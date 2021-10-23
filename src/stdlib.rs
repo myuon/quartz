@@ -16,7 +16,7 @@ pub fn stdlib() -> HashMap<String, Type> {
             Type::Fn(vec![Type::Any, Type::Any], Box::new(Type::Unit)),
         ),
         ("_passign", Type::Any),
-        ("_tuple", Type::Any),
+        ("_tuple", Type::Fn(vec![Type::Any], Box::new(Type::Any))),
         ("_get", Type::Any),
         ("_set", Type::Any),
         (
