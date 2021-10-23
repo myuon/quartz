@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 
 use crate::ast::{Declaration, Expr, Literal, Module, Statement, Type};
 
@@ -212,6 +212,7 @@ impl TypeChecker {
                 }
 
                 let mut arg_types_inferred = vec![];
+                let args_cloned = args.clone();
                 for arg in args {
                     arg_types_inferred.push(self.expr(arg)?);
                 }
@@ -220,8 +221,17 @@ impl TypeChecker {
 
                 let cs = Constraints::unify(
                     &fn_type,
-                    &Type::Fn(arg_types_inferred, Box::new(ret_type_inferred.clone())),
-                )?;
+                    &Type::Fn(
+                        arg_types_inferred.clone(),
+                        Box::new(ret_type_inferred.clone()),
+                    ),
+                )
+                .context(format!(
+                    "Unify {:?} & {:?} from {:?}",
+                    fn_type,
+                    Type::Fn(arg_types_inferred, Box::new(ret_type_inferred.clone())),
+                    Expr::Call(f.clone(), args_cloned)
+                ))?;
 
                 self.apply_constraints(&cs);
 
@@ -249,22 +259,26 @@ impl TypeChecker {
                     return Ok(Type::Any);
                 }
 
-                let typ = match typ {
+                let typ_name = match typ.clone() {
                     Type::Struct(s) => s.clone(),
                     Type::Int => "int".to_string(),
+                    Type::String => "string".to_string(),
                     _ => bail!("Cannot project of: {:?}", typ),
                 };
-                *name = typ.clone();
+                *name = typ_name.clone();
 
-                if let Some(method) = self.methods.get(&(typ.clone(), field.clone())) {
+                if let Some(method) = self.methods.get(&(typ_name.clone(), field.clone())) {
                     *is_method = true;
 
                     Ok(Type::Fn(
                         method.1.clone().into_iter().map(|(_, v)| v).collect(),
-                        Box::new(Type::Struct(typ.clone())),
+                        method.2.clone(),
                     ))
                 } else {
-                    let def = self.structs[&typ].clone();
+                    let def = self
+                        .structs
+                        .get(&typ_name)
+                        .ok_or_else(|| anyhow::anyhow!("{} not found", typ_name))?;
                     let (_, field_type) = def
                         .iter()
                         .find(|(k, _)| k == field)

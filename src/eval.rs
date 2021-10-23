@@ -500,6 +500,26 @@ mod tests {
                 "#,
                 DataValue::Tuple(vec![DataValue::Int(300)]),
             ),
+            (
+                // reverse a string
+                r#"
+                    fn main() {
+                        let s = "hello";
+                        let r = "";
+                        let i = 0;
+
+                        loop {
+                            if i.eq(s.len()) {
+                                return r;
+                            };
+
+                            r = r.concat(s.slice(s.len().sub(i), s.len().sub(i).add(1)));
+                            i = i.add(1);
+                        };
+                    }
+                "#,
+                DataValue::Tuple(vec![DataValue::Int(300)]),
+            ),
         ];
 
         for (input, want) in cases {
