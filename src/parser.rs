@@ -490,6 +490,19 @@ mod tests {
                     Statement::Return(Expr::Var("x".to_string())),
                 ],
             ),
+            (
+                r#"
+                    obj.call(a1);
+                "#,
+                vec![Statement::Expr(Expr::Call(
+                    Box::new(Expr::Project(
+                        "<infer>".to_string(),
+                        Box::new(Expr::Var("obj".to_string())),
+                        "call".to_string(),
+                    )),
+                    vec![Expr::Var("a1".to_string())],
+                ))],
+            ),
         ];
 
         for c in cases {

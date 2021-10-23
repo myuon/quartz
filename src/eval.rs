@@ -240,7 +240,7 @@ impl Evaluator {
 
 #[cfg(test)]
 mod tests {
-    use crate::{compiler::Compiler, parser::run_parser, stdlib::typecheck_with_stdlib};
+    use crate::compiler::Compiler;
 
     use super::*;
 
@@ -430,7 +430,9 @@ mod tests {
 
         for (input, want) in cases {
             let compiler = Compiler::new();
-            let result = compiler.exec(input)?;
+            let result = compiler
+                .exec(input)
+                .map_err(|err| err.context(format!("{}", input)))?;
             assert_eq!(want, result, "{}", input);
         }
 

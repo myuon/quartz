@@ -316,6 +316,11 @@ impl TypeChecker {
                         Type::Fn(arg_types.clone(), Box::new(result_type)),
                     );
 
+                    // メソッドのレシーバーも登録する
+                    if let Some((name, typ)) = func.method_of.clone() {
+                        self.variables.insert(name.clone(), Type::Struct(typ));
+                    }
+
                     let t = self.statements(&mut func.body)?;
                     self.variables = variables;
 
