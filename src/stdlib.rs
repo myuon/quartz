@@ -1,11 +1,6 @@
 use std::collections::HashMap;
 
-use anyhow::Result;
-
-use crate::{
-    ast::{Module, Statement, Type},
-    typechecker::{typecheck_statements_with, typecheck_with, TypeChecker},
-};
+use crate::ast::{Expr, Statement, Type};
 
 pub fn stdlib() -> HashMap<String, Type> {
     vec![
@@ -52,10 +47,28 @@ pub fn stdlib() -> HashMap<String, Type> {
     .collect()
 }
 
-pub fn typecheck_with_stdlib(m: &mut Module) -> Result<TypeChecker> {
-    return typecheck_with(m, stdlib());
-}
-
-pub fn typecheck_statements_with_stdlib(m: &mut Vec<Statement>) -> Result<()> {
-    return typecheck_statements_with(m, stdlib());
+pub fn stdlib_methods() -> HashMap<
+    (String, String), // receiver type, method name
+    (
+        String,              // receiver name
+        Vec<(String, Type)>, // argument types
+        Box<Type>,           // return type
+        Vec<Statement>,      // body
+    ),
+> {
+    vec![(
+        ("int".to_string(), "add".to_string()),
+        (
+            "x".to_string(),
+            vec![("y".to_string(), Type::Int)],
+            Box::new(Type::Int),
+            vec![Statement::Return(Expr::Call(
+                Box::new(Expr::Var("_add".to_string())),
+                vec![Expr::Var("x".to_string()), Expr::Var("y".to_string())],
+            ))],
+        ),
+    )]
+    .into_iter()
+    .map(|(k, v)| (k, v))
+    .collect()
 }

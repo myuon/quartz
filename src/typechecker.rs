@@ -131,18 +131,25 @@ pub struct TypeChecker {
 }
 
 impl TypeChecker {
-    pub fn new() -> TypeChecker {
+    pub fn new(
+        variables: HashMap<String, Type>,
+        methods: HashMap<
+            (String, String), // receiver type, method name
+            (
+                String,              // receiver name
+                Vec<(String, Type)>, // argument types
+                Box<Type>,           // return type
+                Vec<Statement>,      // body
+            ),
+        >,
+    ) -> TypeChecker {
         TypeChecker {
             infer_count: 0,
-            variables: HashMap::new(),
+            variables,
             structs: HashMap::new(),
             functions: HashMap::new(),
-            methods: HashMap::new(),
+            methods,
         }
-    }
-
-    pub fn set_default_types(&mut self, m: HashMap<String, Type>) {
-        self.variables = m;
     }
 
     fn apply_constraints(&mut self, constraints: &Constraints) {
@@ -393,45 +400,12 @@ impl TypeChecker {
     }
 }
 
-pub fn typecheck(module: &mut Module) -> Result<()> {
-    let mut checker = TypeChecker::new();
-    checker.module(module)?;
-
-    Ok(())
-}
-
-pub fn typecheck_with(
-    module: &mut Module,
-    variables: HashMap<String, Type>,
-) -> Result<TypeChecker> {
-    let mut checker = TypeChecker::new();
-    checker.set_default_types(variables);
-    checker.module(module)?;
-
-    Ok(checker)
-}
-
-pub fn typecheck_statements(module: &mut Vec<Statement>) -> Result<()> {
-    let mut checker = TypeChecker::new();
-    checker.statements(module)?;
-
-    Ok(())
-}
-
-pub fn typecheck_statements_with(
-    module: &mut Vec<Statement>,
-    variables: HashMap<String, Type>,
-) -> Result<()> {
-    let mut checker = TypeChecker::new();
-    checker.set_default_types(variables);
-    checker.statements(module)?;
-
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::parser::{run_parser, run_parser_statements};
+    use crate::{
+        parser::{run_parser, run_parser_statements},
+        stdlib::stdlib,
+    };
 
     use super::*;
 
@@ -472,7 +446,7 @@ mod tests {
 
         for c in cases {
             let mut module = run_parser_statements(c.0).unwrap();
-            let mut typechecker = TypeChecker::new();
+            let mut typechecker = TypeChecker::new(HashMap::new(), HashMap::new());
             let result = typechecker
                 .statements(&mut module)
                 .expect(&format!("{}", c.0));
@@ -515,7 +489,7 @@ mod tests {
 
         for c in cases {
             let mut module = run_parser(c.0).unwrap();
-            let mut typechecker = TypeChecker::new();
+            let mut typechecker = TypeChecker::new(stdlib(), HashMap::new());
             let result = typechecker.module(&mut module);
 
             let err = result.unwrap_err();

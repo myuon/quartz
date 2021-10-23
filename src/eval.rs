@@ -48,6 +48,14 @@ fn new_native_functions() -> HashMap<String, NativeFunction> {
             ))
         }),
     );
+    natives.insert(
+        "_tuple".to_string(),
+        Box::new(|args| {
+            Ok(DataValue::Tuple(
+                args.into_iter().map(|arg| arg.clone()).collect(),
+            ))
+        }),
+    );
 
     natives
 }
@@ -168,12 +176,12 @@ impl Evaluator {
             Expr::Var(v) => self.load(&v),
             Expr::Lit(lit) => Ok(lit.into_datatype()),
             Expr::Call(caller, args) => {
+                let f = self.eval_expr(caller.as_ref().clone())?;
                 let args = args
                     .into_iter()
                     .map(|arg| self.eval_expr(arg))
                     .collect::<Result<Vec<_>>>()?;
 
-                let f = self.eval_expr(caller.as_ref().clone())?;
                 match f {
                     DataValue::NativeFunction(n) => self.natives[&n](args),
                     DataValue::Function(name) => {
@@ -484,15 +492,13 @@ mod tests {
                 DataValue::Int(30),
             ),
             (
-                // call a method
+                // method for basic types
                 r#"
                     fn main() {
-                        return _tuple(
-                            100.add(200),
-                        );
+                        return _tuple(100.add(200));
                     }
                 "#,
-                DataValue::Int(30),
+                DataValue::Tuple(vec![DataValue::Int(300)]),
             ),
         ];
 
@@ -550,7 +556,7 @@ mod tests {
             let compiler = Compiler::new();
             let result = compiler.exec(input).unwrap_err();
             assert!(
-                result.to_string().contains(want),
+                result.root_cause().to_string().contains(want),
                 "\nWant: {}\nGot: {}\n{}",
                 want,
                 result,
