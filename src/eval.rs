@@ -181,6 +181,8 @@ impl Evaluator {
 
                         let variables_snapshot = self.variables.clone();
 
+                        // ここは本来extendしてはならない(元の環境を引き継いでしまうから)
+                        // ただしそれで問題になるようなケースはtypechecker時に弾かれるので今のところは問題になっていない？(要調査)
                         self.variables.extend(
                             func.0
                                 .into_iter()
@@ -486,6 +488,60 @@ mod tests {
                 .exec(input)
                 .map_err(|err| err.context(format!("{}", input)))?;
             assert_eq!(want, result, "{}", input);
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_eval_fail() -> Result<()> {
+        let cases = vec![
+            (
+                // variable pollution for a function
+                r#"
+                    fn foo() {
+                        return a;
+                    }
+
+                    fn main() {
+                        let a = 10;
+
+                        return foo();
+                    }
+                "#,
+                "Variable a not found",
+            ),
+            (
+                // variable pollution for a method
+                r#"
+                    struct Foo {
+                        a: int,
+                    }
+
+                    fn (foo: Foo) get_a() {
+                        return bar.a;
+                    }
+
+                    fn main() {
+                        let bar = Foo { a: 100 };
+
+                        return bar.get_a();
+                    }
+                "#,
+                "Variable bar not found",
+            ),
+        ];
+
+        for (input, want) in cases {
+            let compiler = Compiler::new();
+            let result = compiler.exec(input).unwrap_err();
+            assert!(
+                result.to_string().contains(want),
+                "\nWant: {}\nGot: {}\n{}",
+                want,
+                result,
+                input
+            );
         }
 
         Ok(())
