@@ -18,7 +18,7 @@ pub fn stdlib() -> HashMap<String, Type> {
             "_regex",
             Type::Fn(vec![Type::String, Type::String], Box::new(Type::Bool)),
         ),
-        ("_print", Type::Any),
+        ("_print", Type::Fn(vec![Type::Any], Box::new(Type::Unit))),
         ("_panic", Type::Any),
         (
             "_add",

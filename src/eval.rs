@@ -201,7 +201,9 @@ impl Evaluator {
                             let index = self
                                 .struct_types
                                 .get(name)
-                                .ok_or_else(|| anyhow::anyhow!("Variable {} not found", name))?
+                                .ok_or_else(|| {
+                                    anyhow::anyhow!("assignment: Variable {} not found", name)
+                                })?
                                 .iter()
                                 .position(|(n, _)| n == field)
                                 .unwrap();
@@ -329,7 +331,7 @@ impl Evaluator {
                 let index = self
                     .struct_types
                     .get(&name)
-                    .ok_or_else(|| anyhow::anyhow!("Variable {} not found", name))?
+                    .ok_or_else(|| anyhow::anyhow!("Projection {}.{} not found", name, field))?
                     .iter()
                     .position(|(n, _)| *n == field)
                     .unwrap();
