@@ -167,7 +167,7 @@ impl TypeChecker {
         t
     }
 
-    fn load(&mut self, v: &String) -> Result<Type> {
+    fn load(&self, v: &String) -> Result<Type> {
         if self.functions.contains_key(v) {
             let f = self.functions[v].clone();
             Ok(Type::Fn(f.0.into_iter().map(|(_, v)| v).collect(), f.1))
@@ -344,10 +344,14 @@ impl TypeChecker {
                     let variables = self.variables.clone();
                     let mut arg_types = vec![];
                     for arg in &func.args {
-                        let tvar = self.next_infer();
+                        let t = if matches!(arg.1, Type::Infer(_)) {
+                            self.next_infer()
+                        } else {
+                            arg.1.clone()
+                        };
 
-                        arg_types.push(tvar.clone());
-                        self.variables.insert(arg.clone(), tvar);
+                        arg_types.push(t.clone());
+                        self.variables.insert(arg.0.clone(), t);
                     }
 
                     let result_type = self.next_infer();
@@ -372,7 +376,9 @@ impl TypeChecker {
                             (
                                 name,
                                 func.args
-                                    .clone()
+                                    .iter()
+                                    .map(|(name, _)| name)
+                                    .cloned()
                                     .into_iter()
                                     .zip(arg_types.into_iter())
                                     .collect(),
@@ -385,7 +391,9 @@ impl TypeChecker {
                             func.name.clone(),
                             (
                                 func.args
-                                    .clone()
+                                    .iter()
+                                    .map(|(name, _)| name)
+                                    .cloned()
                                     .into_iter()
                                     .zip(arg_types.into_iter())
                                     .collect(),
@@ -417,6 +425,7 @@ impl TypeChecker {
 #[cfg(test)]
 mod tests {
     use crate::{
+        compiler::Compiler,
         parser::{run_parser, run_parser_statements},
         stdlib::stdlib,
     };
@@ -508,6 +517,42 @@ mod tests {
 
             let err = result.unwrap_err();
             assert!(err.to_string().contains(c.1), "err: {:?}\n{}", err, c.0);
+        }
+    }
+
+    #[test]
+    fn test_typecheck() {
+        let cases = vec![(
+            // declare types for function arguments
+            r#"
+                    fn f(a: int, b: string) {
+                        return b.len().eq(a);
+                    }
+
+                    fn main() {
+                        return f(1,"hello");
+                    }
+                "#,
+            vec![(
+                "f",
+                Type::Fn(vec![Type::Int, Type::String], Box::new(Type::Bool)),
+            )],
+        )];
+
+        for c in cases {
+            let compiler = Compiler::new();
+            let mut module = compiler.parse(c.0).unwrap();
+            let checker = compiler.typecheck(&mut module).expect(&format!("{}", c.0));
+
+            for (name, typ) in c.1 {
+                assert_eq!(
+                    checker.load(&name.to_string()).unwrap(),
+                    typ,
+                    "{}\n{:?}",
+                    c.0,
+                    checker.variables
+                );
+            }
         }
     }
 }

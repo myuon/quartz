@@ -585,7 +585,7 @@ mod tests {
                         return foobar.x;
                     }
                 "#,
-                DataValue::Int(20),
+                DataValue::Int(10),
             ),
         ];
 

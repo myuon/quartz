@@ -162,21 +162,27 @@ impl Parser {
             })
     }
 
-    fn many_idents(&mut self) -> Result<Vec<String>> {
-        let mut idents = vec![];
+    fn many_arguments(&mut self) -> Result<Vec<(String, Type)>> {
+        let mut arguments = vec![];
 
         while self.peek().lexeme != Lexeme::RParen {
-            let e = self.ident()?;
-            idents.push(e);
+            let name = self.ident()?;
+            let mut typ = Type::Infer(0);
+
+            if self.expect_lexeme(Lexeme::Colon).is_ok() {
+                typ = self.atype()?;
+            }
+
+            arguments.push((name, typ));
 
             // allow trailing comma
             match self.expect_lexeme(Lexeme::Comma) {
-                Err(_) => return Ok(idents),
+                Err(_) => return Ok(arguments),
                 r => r,
             }?;
         }
 
-        Ok(idents)
+        Ok(arguments)
     }
 
     fn many_exprs(&mut self) -> Result<Vec<Expr>> {
@@ -290,7 +296,7 @@ impl Parser {
 
         let name = self.ident()?;
         self.expect_lexeme(Lexeme::LParen)?;
-        let args = self.many_idents()?;
+        let args = self.many_arguments()?;
         self.expect_lexeme(Lexeme::RParen)?;
 
         self.expect_lexeme(Lexeme::LBrace)?;

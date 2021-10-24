@@ -4,7 +4,7 @@ use anyhow::{Context, Error, Result};
 use thiserror::Error as ThisError;
 
 use crate::{
-    ast::DataValue,
+    ast::{DataValue, Module},
     eval::Evaluator,
     parser::run_parser,
     stdlib::{stdlib, stdlib_methods},
@@ -24,8 +24,8 @@ impl Compiler {
         Compiler {}
     }
 
-    pub fn exec(&self, input: &str) -> Result<DataValue> {
-        let mut module = run_parser(input).context("Phase: parse").map_err(|err| {
+    pub fn parse(&self, input: &str) -> Result<Module> {
+        run_parser(input).context("Phase: parse").map_err(|err| {
             if let Some(cerr) = err.downcast_ref::<CompileError>() {
                 match cerr {
                     CompileError::ParseError { position, .. } => {
@@ -67,9 +67,19 @@ impl Compiler {
             } else {
                 err
             }
-        })?;
+        })
+    }
+
+    pub fn typecheck(&self, module: &mut Module) -> Result<TypeChecker> {
         let mut checker = TypeChecker::new(stdlib(), stdlib_methods());
-        checker.module(&mut module).context("Phase: typecheck")?;
+        checker.module(module).context("Phase: typecheck")?;
+
+        Ok(checker)
+    }
+
+    pub fn exec(&self, input: &str) -> Result<DataValue> {
+        let mut module = self.parse(input)?;
+        let checker = self.typecheck(&mut module)?;
 
         let mut eval = Evaluator::new(checker.structs, checker.functions, checker.methods);
         eval.eval_module(module).context("Phase: eval")
