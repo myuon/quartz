@@ -40,7 +40,7 @@
         },
         {
           "name": "keyword.other.quartz",
-          "match": "\\b(fn|let)\\b"
+          "match": "\\b(fn|let|struct)\\b"
         }
       ]
     },

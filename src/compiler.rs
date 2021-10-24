@@ -16,7 +16,7 @@ impl Compiler {
     }
 
     pub fn exec(&self, input: &str) -> Result<DataValue> {
-        let mut module = run_parser(input)?;
+        let mut module = run_parser(input).context("Phase: parse")?;
         let mut checker = TypeChecker::new(stdlib(), stdlib_methods());
         checker.module(&mut module).context("Phase: typecheck")?;
 

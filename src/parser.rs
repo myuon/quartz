@@ -44,6 +44,7 @@ impl Parser {
             "int" => Ok(Type::Int),
             "bool" => Ok(Type::Bool),
             "string" => Ok(Type::String),
+            "any" => Ok(Type::Any),
             _ => todo!(),
         }
     }
