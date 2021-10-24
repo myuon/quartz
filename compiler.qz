@@ -7,19 +7,18 @@ struct Lexer {
   tokens: any, // Vec<Token>
 }
 
-fn (self: Lexer) run(input) {
+fn (self: Lexer) run(input: string) {
   self.position = 0;
   self.tokens = _vec();
 
   loop {
-    let token = self.next_token(input);
-    if token.lexeme == "" {
-      break;
-    }
+    if self.position.eq(input.len()) {
+      return self.tokens;
+    };
+
+    let token = input.slice(self.position, self.position.add(1));
     self.tokens.push(token);
   };
-
-  return self.tokens;
 }
 
 fn main() {

@@ -278,7 +278,7 @@ impl TypeChecker {
                     let def = self
                         .structs
                         .get(&typ_name)
-                        .ok_or_else(|| anyhow::anyhow!("{} not found", typ_name))?;
+                        .ok_or_else(|| anyhow::anyhow!("{}.{} not found", typ_name, field))?;
                     let (_, field_type) = def
                         .iter()
                         .find(|(k, _)| k == field)

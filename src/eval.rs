@@ -78,6 +78,22 @@ fn new_native_functions() -> HashMap<String, NativeFunction> {
             ))
         }),
     );
+    natives.insert(
+        "_vec".to_string(),
+        Box::new(|args| {
+            Ok(DataValue::Tuple(
+                args.into_iter().map(|arg| arg.clone()).collect(),
+            ))
+        }),
+    );
+    natives.insert(
+        "_print".to_string(),
+        Box::new(|args| {
+            println!("{:?}", args);
+
+            Ok(DataValue::Nil)
+        }),
+    );
 
     natives
 }
