@@ -172,9 +172,33 @@ impl Evaluator {
                 return Ok(result);
             }
             Statement::Continue => todo!(),
-            Statement::Assignment(x, e) => {
-                let value = self.eval_expr(e)?;
-                self.variables.insert(x.to_string(), value);
+            Statement::Assignment(lhs, rhs) => {
+                let value = self.eval_expr(rhs)?;
+
+                // TODO: ちゃんと左辺値計算をしましょう
+                match lhs.as_ref() {
+                    Expr::Var(v) => {
+                        self.variables.insert(v.to_string(), value);
+                    }
+                    Expr::Project(false, name, e, field) => match e.as_ref() {
+                        Expr::Var(v) => {
+                            let index = self
+                                .struct_types
+                                .get(name)
+                                .ok_or_else(|| anyhow::anyhow!("Variable {} not found", name))?
+                                .iter()
+                                .position(|(n, _)| n == field)
+                                .unwrap();
+                            let st = self.variables[v].clone();
+                            let mut tuple = st.as_tuple()?;
+                            tuple[index] = value;
+
+                            self.variables.insert(v.clone(), DataValue::Tuple(tuple));
+                        }
+                        _ => bail!("Unsupported LHS: {:?}", lhs),
+                    },
+                    _ => bail!("Unsupported LHS: {:?}", lhs),
+                }
             }
         }
 
@@ -541,6 +565,27 @@ mod tests {
                     }
                 "#,
                 DataValue::String("olleh".to_string()),
+            ),
+            (
+                // modify via method
+                r#"
+                    struct Foo {
+                        x: int,
+                        y: int,
+                    }
+
+                    fn (foo: Foo) add(n) {
+                        foo.x = foo.x.add(n);
+                    }
+
+                    fn main() {
+                        let foobar = Foo { x: 10, y: 20 };
+                        foobar.add(10);
+
+                        return foobar.x;
+                    }
+                "#,
+                DataValue::Int(20),
             ),
         ];
 

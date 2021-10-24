@@ -7,7 +7,7 @@ struct Lexer {
   tokens: any, // Vec<Token>
 }
 
-fn (self: Lexer) run(input: string) {
+fn (self: Lexer) run(input) {
   self.position = 0;
   self.tokens = _vec();
 

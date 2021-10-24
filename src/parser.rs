@@ -151,18 +151,13 @@ impl Parser {
             })
             .or_else(|_| -> Result<Statement> {
                 let e = self.expr()?;
-                match e.clone() {
-                    Expr::Var(v) => {
-                        if self.expect_lexeme(Lexeme::Equal).is_ok() {
-                            // =が続くのであればassingmentで確定
-                            let e = self.expr()?;
-                            Ok(Statement::Assignment(v, e))
-                        } else {
-                            // それ以外のケースは普通にexpr statement
-                            Ok(Statement::Expr(e))
-                        }
-                    }
-                    _ => Ok(Statement::Expr(e)),
+                if self.expect_lexeme(Lexeme::Equal).is_ok() {
+                    // =が続くのであればassingmentで確定
+                    let rhs = self.expr()?;
+                    Ok(Statement::Assignment(Box::new(e), rhs))
+                } else {
+                    // それ以外のケースは普通にexpr statement
+                    Ok(Statement::Expr(e))
                 }
             })
     }

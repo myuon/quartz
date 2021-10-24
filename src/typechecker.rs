@@ -324,9 +324,9 @@ impl TypeChecker {
                     ret_type = then_type;
                 }
                 Statement::Continue => {}
-                Statement::Assignment(x, e) => {
-                    let typ = self.load(&x)?;
-                    let cs = Constraints::unify(&typ, &self.expr(e)?)?;
+                Statement::Assignment(lhs, rhs) => {
+                    let typ = self.expr(lhs)?;
+                    let cs = Constraints::unify(&typ, &self.expr(rhs)?)?;
                     self.apply_constraints(&cs);
 
                     ret_type = Type::Unit;
