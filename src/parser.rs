@@ -1,5 +1,6 @@
 use crate::{
     ast::{Declaration, Expr, Function, Literal, Module, Statement, Struct, Type},
+    compiler::CompileError,
     lexer::{run_lexer, Lexeme, Token},
 };
 use anyhow::{bail, ensure, Result};
@@ -23,15 +24,23 @@ impl Parser {
 
     fn expect_lexeme(&mut self, lexeme: Lexeme) -> Result<Token> {
         if self.is_end() {
-            bail!("Expected {:?} but EOS", lexeme);
+            bail!(CompileError::ParseError {
+                position: self.position,
+                source: anyhow::anyhow!("Expected {:?} but EOS", lexeme),
+            });
         }
 
         let current = self.input[self.position].clone();
         ensure!(
             current.lexeme == lexeme,
-            "Expected {:?} but found {:?}",
-            lexeme,
-            &self.input[self.position..]
+            CompileError::ParseError {
+                position: self.input[self.position].position,
+                source: anyhow::anyhow!(
+                    "Expected {:?} but {:?}",
+                    lexeme,
+                    self.input[self.position]
+                ),
+            }
         );
         self.position += 1;
 
