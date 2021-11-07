@@ -48,7 +48,6 @@ impl Constraints {
 
                 Ok(result)
             }
-            (Type::Ref(t1), Type::Ref(t2)) => Constraints::unify(t1, t2),
             (t1, t2) => bail!("Type error, want {:?} but found {:?}", t1, t2),
         }
     }
@@ -93,9 +92,6 @@ impl Constraints {
             Type::Bool => {}
             Type::Int => {}
             Type::String => {}
-            Type::Ref(typ_inner) => {
-                self.apply(typ_inner);
-            }
             Type::Fn(args, ret) => {
                 for arg in args {
                     self.apply(arg);
@@ -185,10 +181,10 @@ impl TypeChecker {
         match expr {
             Expr::Var(v) => self.load(v),
             Expr::Lit(lit) => match lit {
-                Literal::Nil => Ok(Type::Ref(Box::new(self.next_infer()))),
                 Literal::Bool(_) => Ok(Type::Bool),
                 Literal::Int(_) => Ok(Type::Int),
                 Literal::String(_) => Ok(Type::String),
+                Literal::Nil => Ok(Type::Any),
             },
             Expr::Call(f, args) => {
                 let fn_type = self.expr(f)?;

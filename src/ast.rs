@@ -86,7 +86,6 @@ pub enum Type {
     Bool,
     Int,
     String,
-    Ref(Box<Type>),
     Fn(Vec<Type>, Box<Type>),
     Struct(String),
 }
@@ -95,13 +94,6 @@ impl Type {
     pub fn as_fn_type(&self) -> Option<(&Vec<Type>, &Box<Type>)> {
         match self {
             Type::Fn(args, ret) => Some((args, ret)),
-            _ => None,
-        }
-    }
-
-    pub fn as_ref_type(&self) -> Option<&Box<Type>> {
-        match self {
-            Type::Ref(t) => Some(t),
             _ => None,
         }
     }
@@ -121,7 +113,6 @@ impl Type {
             Type::Bool => false,
             Type::Int => false,
             Type::String => false,
-            Type::Ref(t) => t.has_infer(index),
             Type::Fn(args, ret) => {
                 args.iter().find(move |t| t.has_infer(index)).is_some() || ret.has_infer(index)
             }
@@ -141,9 +132,6 @@ impl Type {
             Type::Bool => {}
             Type::Int => {}
             Type::String => {}
-            Type::Ref(t) => {
-                t.subst(index, typ);
-            }
             Type::Fn(args, ret) => {
                 for arg in args {
                     arg.subst(index, typ);
