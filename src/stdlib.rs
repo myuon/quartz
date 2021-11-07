@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use crate::ast::{Expr, Statement, Type};
+use crate::{
+    ast::{Expr, Statement, Type},
+    compiler::Compiler,
+};
 
 pub fn stdlib() -> HashMap<String, Type> {
     vec![
@@ -56,85 +59,53 @@ pub fn stdlib_methods() -> HashMap<
         Vec<Statement>,      // body
     ),
 > {
-    vec![
-        (
-            ("int".to_string(), "add".to_string()),
+    let r = Compiler::new()
+        .parse(
+            r#"
+                fn (x: int) add(y: int): int {
+                    return _add(x,y);
+                }
+
+                fn (x: int) sub(y: int): int {
+                    return _sub(x,y);
+                }
+
+                fn (x: int) eq(y: int): bool {
+                    return _eq(x,y);
+                }
+
+                fn (s: string) len(): int {
+                    return _len_string(s);
+                }
+
+                fn (x: string) concat(y: string): string {
+                    return _concat_string(x,y);
+                }
+
+                fn (x: string) slice(i: int, j: int): string {
+                    return _slice_string(x,i,j);
+                }
+                "#,
+        )
+        .unwrap();
+
+    let mut result = HashMap::new();
+    for decl in r.0 {
+        let func = decl.into_function().unwrap();
+        let method_of = func.method_of.unwrap();
+        result.insert(
+            (method_of.1, func.name.to_string()),
             (
-                "x".to_string(),
-                vec![("y".to_string(), Type::Int)],
-                Box::new(Type::Int),
-                vec![Statement::Return(Expr::Call(
-                    Box::new(Expr::Var("_add".to_string())),
-                    vec![Expr::Var("x".to_string()), Expr::Var("y".to_string())],
-                ))],
+                method_of.0,
+                func.args
+                    .into_iter()
+                    .map(|(n, t)| (n.to_string(), t))
+                    .collect(),
+                Box::new(func.return_type),
+                func.body,
             ),
-        ),
-        (
-            ("int".to_string(), "sub".to_string()),
-            (
-                "x".to_string(),
-                vec![("y".to_string(), Type::Int)],
-                Box::new(Type::Int),
-                vec![Statement::Return(Expr::Call(
-                    Box::new(Expr::Var("_sub".to_string())),
-                    vec![Expr::Var("x".to_string()), Expr::Var("y".to_string())],
-                ))],
-            ),
-        ),
-        (
-            ("int".to_string(), "eq".to_string()),
-            (
-                "x".to_string(),
-                vec![("y".to_string(), Type::Int)],
-                Box::new(Type::Bool),
-                vec![Statement::Return(Expr::Call(
-                    Box::new(Expr::Var("_eq".to_string())),
-                    vec![Expr::Var("x".to_string()), Expr::Var("y".to_string())],
-                ))],
-            ),
-        ),
-        (
-            ("string".to_string(), "len".to_string()),
-            (
-                "x".to_string(),
-                vec![],
-                Box::new(Type::Int),
-                vec![Statement::Return(Expr::Call(
-                    Box::new(Expr::Var("_len_string".to_string())),
-                    vec![Expr::Var("x".to_string())],
-                ))],
-            ),
-        ),
-        (
-            ("string".to_string(), "concat".to_string()),
-            (
-                "x".to_string(),
-                vec![("y".to_string(), Type::String)],
-                Box::new(Type::String),
-                vec![Statement::Return(Expr::Call(
-                    Box::new(Expr::Var("_concat_string".to_string())),
-                    vec![Expr::Var("x".to_string()), Expr::Var("y".to_string())],
-                ))],
-            ),
-        ),
-        (
-            ("string".to_string(), "slice".to_string()),
-            (
-                "x".to_string(),
-                vec![("i".to_string(), Type::Int), ("j".to_string(), Type::Int)],
-                Box::new(Type::String),
-                vec![Statement::Return(Expr::Call(
-                    Box::new(Expr::Var("_slice_string".to_string())),
-                    vec![
-                        Expr::Var("x".to_string()),
-                        Expr::Var("i".to_string()),
-                        Expr::Var("j".to_string()),
-                    ],
-                ))],
-            ),
-        ),
-    ]
-    .into_iter()
-    .map(|(k, v)| (k, v))
-    .collect()
+        );
+    }
+
+    result.into_iter().map(|(k, v)| (k, v)).collect()
 }

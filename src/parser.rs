@@ -299,6 +299,12 @@ impl Parser {
         let args = self.many_arguments()?;
         self.expect_lexeme(Lexeme::RParen)?;
 
+        let return_type = if self.expect_lexeme(Lexeme::Colon).is_ok() {
+            self.atype()?
+        } else {
+            Type::Infer(0)
+        };
+
         self.expect_lexeme(Lexeme::LBrace)?;
         let statements = self.many_statements()?;
         self.expect_lexeme(Lexeme::RBrace)?;
@@ -306,6 +312,7 @@ impl Parser {
         Ok(Declaration::Function(Function {
             name,
             args,
+            return_type,
             body: statements,
             method_of,
         }))

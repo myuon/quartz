@@ -54,6 +54,7 @@ pub struct Struct {
 pub struct Function {
     pub name: String,
     pub args: Vec<(String, Type)>,
+    pub return_type: Type,
     pub body: Vec<Statement>,
     pub method_of: Option<(String, String)>,
 }
@@ -63,6 +64,15 @@ pub enum Declaration {
     Function(Function),
     Variable(String, Expr),
     Struct(Struct),
+}
+
+impl Declaration {
+    pub fn into_function(self) -> Result<Function> {
+        match self {
+            Declaration::Function(f) => Ok(f),
+            _ => bail!("Expected function declaration, but found {:?}", self),
+        }
+    }
 }
 
 #[derive(PartialEq, Debug, Clone)]
