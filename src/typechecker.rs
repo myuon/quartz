@@ -251,14 +251,12 @@ impl TypeChecker {
             }
             Expr::Project(is_method, name, expr, field) => {
                 let typ = self.expr(expr)?;
-                if matches!(typ, Type::Any) {
-                    return Ok(Type::Any);
-                }
 
                 let typ_name = match typ.clone() {
                     Type::Struct(s) => s.clone(),
                     Type::Int => "int".to_string(),
                     Type::String => "string".to_string(),
+                    Type::Any => "any".to_string(),
                     _ => bail!("Cannot project of: {:?}", typ),
                 };
                 *name = typ_name.clone();

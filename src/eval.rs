@@ -87,6 +87,15 @@ fn new_native_functions() -> HashMap<String, NativeFunction> {
         }),
     );
     natives.insert(
+        "_vpush".to_string(),
+        Box::new(|args| {
+            let mut v = args[0].clone().as_tuple()?;
+            v.push(args[1].clone());
+
+            Ok(DataValue::Tuple(v))
+        }),
+    );
+    natives.insert(
         "_print".to_string(),
         Box::new(|args| {
             println!("{:?}", args);
@@ -601,6 +610,25 @@ mod tests {
                         foobar.add(10);
 
                         return foobar.x;
+                    }
+                "#,
+                DataValue::Int(10),
+            ),
+            (
+                // pushing values
+                r#"
+                    fn main() {
+                        let result = _vec();
+                        let count = 0;
+
+                        loop {
+                            if count.eq(10) {
+                                return result;
+                            };
+
+                            result.push(count);
+                            count = count.add(1);
+                        };
                     }
                 "#,
                 DataValue::Int(10),

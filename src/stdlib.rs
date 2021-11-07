@@ -85,6 +85,11 @@ pub fn stdlib_methods() -> HashMap<
                 fn (x: string) slice(i: int, j: int): string {
                     return _slice_string(x,i,j);
                 }
+
+                // FIXME: support vec type
+                fn (a: any) push(b: any) {
+                    a = _vpush(a,b);
+                }
                 "#,
         )
         .unwrap();
