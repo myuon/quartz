@@ -223,7 +223,12 @@ impl Parser {
     }
 
     fn short_expr(&mut self) -> Result<Expr> {
-        (|| -> Result<Expr> {
+        if self.expect_lexeme(Lexeme::LParen).is_ok() {
+            let expr = self.expr()?;
+            self.expect_lexeme(Lexeme::RParen)?;
+
+            Ok(expr)
+        } else {
             let mut result = self.short_callee_expr()?;
 
             loop {
@@ -243,14 +248,7 @@ impl Parser {
             }
 
             Ok(result)
-        })()
-        .or_else(|_| -> Result<Expr> {
-            self.expect_lexeme(Lexeme::LParen)?;
-            let expr = self.expr()?;
-            self.expect_lexeme(Lexeme::RParen)?;
-
-            Ok(expr)
-        })
+        }
     }
 
     fn expr(&mut self) -> Result<Expr> {
@@ -280,8 +278,6 @@ impl Parser {
     }
 
     fn declaration_function(&mut self) -> Result<Declaration> {
-        self.expect_lexeme(Lexeme::Fn)?;
-
         let method_of = if self.expect_lexeme(Lexeme::LParen).is_ok() {
             let ident = self.ident()?;
             self.expect_lexeme(Lexeme::Colon)?;
@@ -355,31 +351,33 @@ impl Parser {
         Ok(fields)
     }
 
+    fn declaration(&mut self) -> Result<Declaration> {
+        if self.expect_lexeme(Lexeme::Fn).is_ok() {
+            self.declaration_function()
+        } else if self.expect_lexeme(Lexeme::Let).is_ok() {
+            let x = self.ident()?;
+            self.expect_lexeme(Lexeme::Equal)?;
+            let e = self.expr()?;
+            self.expect_lexeme(Lexeme::SemiColon)?;
+
+            Ok(Declaration::Variable(x, e))
+        } else if self.expect_lexeme(Lexeme::Struct).is_ok() {
+            let name = self.ident()?;
+            self.expect_lexeme(Lexeme::LBrace)?;
+            let fields = self.many_fields_with_types()?;
+            self.expect_lexeme(Lexeme::RBrace)?;
+
+            Ok(Declaration::Struct(Struct { name, fields }))
+        } else {
+            bail!("Expected a declaration, but found {:?}", self.peek())
+        }
+    }
+
     fn many_declarations(&mut self) -> Result<Vec<Declaration>> {
         let mut decls = vec![];
 
         while !self.is_end() {
-            let d = (self.declaration_function())
-                .or_else(|_| -> Result<Declaration> {
-                    self.expect_lexeme(Lexeme::Let)?;
-                    let x = self.ident()?;
-                    self.expect_lexeme(Lexeme::Equal)?;
-                    let e = self.expr()?;
-                    self.expect_lexeme(Lexeme::SemiColon)?;
-
-                    Ok(Declaration::Variable(x, e))
-                })
-                .or_else(|_| -> Result<Declaration> {
-                    self.expect_lexeme(Lexeme::Struct)?;
-                    let name = self.ident()?;
-                    self.expect_lexeme(Lexeme::LBrace)?;
-                    let fields = self.many_fields_with_types()?;
-                    self.expect_lexeme(Lexeme::RBrace)?;
-
-                    Ok(Declaration::Struct(Struct { name, fields }))
-                })?;
-
-            decls.push(d);
+            decls.push(self.declaration()?);
         }
 
         Ok(decls)
