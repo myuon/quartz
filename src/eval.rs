@@ -49,6 +49,14 @@ fn new_native_functions() -> HashMap<String, NativeFunction> {
         }),
     );
     natives.insert(
+        "_lt".to_string(),
+        Box::new(|args| {
+            Ok(DataValue::Bool(
+                args[0].clone().as_int()? < args[1].clone().as_int()?,
+            ))
+        }),
+    );
+    natives.insert(
         "_tuple".to_string(),
         Box::new(|args| {
             Ok(DataValue::Tuple(

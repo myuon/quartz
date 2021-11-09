@@ -39,6 +39,10 @@ pub fn stdlib() -> HashMap<String, Type> {
             "_eq",
             Type::Fn(vec![Type::Any, Type::Any], Box::new(Type::Bool)),
         ),
+        (
+            "_lt",
+            Type::Fn(vec![Type::Int, Type::Int], Box::new(Type::Bool)),
+        ),
         ("_free", Type::Fn(vec![Type::Any], Box::new(Type::Unit))),
         (
             "_slice",
@@ -72,6 +76,10 @@ pub fn stdlib_methods() -> HashMap<
 
                 fn (x: int) eq(y: int): bool {
                     return _eq(x,y);
+                }
+
+                fn (x: int) lt(y: int): bool {
+                    return _lt(x,y);
                 }
 
                 fn (s: string) len(): int {

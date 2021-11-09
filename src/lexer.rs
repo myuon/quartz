@@ -113,6 +113,7 @@ impl TokenReader {
                     ("if", Lexeme::If),
                     ("else", Lexeme::Else),
                     ("loop", Lexeme::Loop),
+                    ("while", Lexeme::While),
                     ("continue", Lexeme::Continue),
                     ("struct", Lexeme::Struct),
                     ("(", Lexeme::LParen),
