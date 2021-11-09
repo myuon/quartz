@@ -227,6 +227,11 @@ impl Evaluator {
                     _ => bail!("Unsupported LHS: {:?}", lhs),
                 }
             }
+            Statement::While(cond, body) => {
+                while self.eval_expr(cond.as_ref().clone())?.as_bool()? {
+                    self.eval_statements(body.clone())?;
+                }
+            }
         }
 
         Ok(DataValue::Nil)
@@ -517,6 +522,31 @@ mod tests {
 
                             counter = _add(counter, 1);
                         };
+                    }
+
+                    fn main() {
+                        return fib(10);
+                    }
+                "#,
+                DataValue::Int(144),
+            ),
+            (
+                // loop
+                r#"
+                    fn fib(n) {
+                        let a = 1;
+                        let b = 1;
+                        let counter = 0;
+
+                        while counter.lt(n) {
+                            let c = _add(a, b);
+                            a = b;
+                            b = c;
+
+                            counter = _add(counter, 1);
+                        };
+
+                        return b;
                     }
 
                     fn main() {

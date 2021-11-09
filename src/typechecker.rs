@@ -325,6 +325,19 @@ impl TypeChecker {
 
                     ret_type = Type::Unit;
                 }
+                Statement::While(cond, body) => {
+                    let cond_type = self.expr(cond)?;
+                    let cs = Constraints::unify(&cond_type, &Type::Bool)?;
+                    self.apply_constraints(&cs);
+
+                    let mut body_type = self.statements(body)?;
+                    let cs = Constraints::unify(&body_type, &Type::Unit)?;
+                    self.apply_constraints(&cs);
+
+                    cs.apply(&mut body_type);
+
+                    ret_type = body_type;
+                }
             }
         }
 

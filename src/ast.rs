@@ -27,6 +27,7 @@ pub enum Statement {
     If(Box<Expr>, Vec<Statement>, Vec<Statement>),
     Continue,
     Assignment(Box<Expr>, Expr),
+    While(Box<Expr>, Vec<Statement>),
 }
 
 #[derive(PartialEq, Debug, Clone)]

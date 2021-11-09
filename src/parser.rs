@@ -160,6 +160,16 @@ impl Parser {
                     Ok(Statement::Expr(e))
                 }
             })
+            .or_else(|_| -> Result<Statement> {
+                self.expect_lexeme(Lexeme::While)?;
+                let cond = self.short_expr()?;
+
+                self.expect_lexeme(Lexeme::LBrace)?;
+                let then = self.many_statements()?;
+                self.expect_lexeme(Lexeme::RBrace)?;
+
+                Ok(Statement::While(Box::new(cond), then))
+            })
     }
 
     fn many_arguments(&mut self) -> Result<Vec<(String, Type)>> {
@@ -251,6 +261,13 @@ impl Parser {
             self.expect_lexeme(Lexeme::RBrace)?;
 
             Ok(Expr::Loop(statements))
+        })
+        .or_else(|_| -> Result<Expr> {
+            self.expect_lexeme(Lexeme::LParen)?;
+            let expr = self.expr()?;
+            self.expect_lexeme(Lexeme::RParen)?;
+
+            Ok(expr)
         })
     }
 

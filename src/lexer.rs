@@ -12,6 +12,7 @@ pub enum Lexeme {
     If,
     Else,
     Loop,
+    While,
     Continue,
     Struct,
     LParen,
