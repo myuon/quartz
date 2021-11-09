@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    ast::{Expr, Statement, Type},
+    ast::{Statement, Type},
     compiler::Compiler,
 };
 

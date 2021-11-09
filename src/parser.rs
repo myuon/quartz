@@ -106,79 +106,61 @@ impl Parser {
         }
     }
 
-    fn statement_let(&mut self) -> Result<Statement> {
-        self.expect_lexeme(Lexeme::Let)?;
-        let x = self.ident()?;
-        self.expect_lexeme(Lexeme::Equal)?;
-        let e = self.expr()?;
+    fn statement(&mut self) -> Result<Statement> {
+        if self.expect_lexeme(Lexeme::Let).is_ok() {
+            let x = self.ident()?;
+            self.expect_lexeme(Lexeme::Equal)?;
+            let e = self.expr()?;
 
-        Ok(Statement::Let(x, e))
-    }
-
-    fn statement_if(&mut self) -> Result<Statement> {
-        self.expect_lexeme(Lexeme::If)?;
-        let cond = self.short_expr()?;
-        self.expect_lexeme(Lexeme::LBrace)?;
-        let then = self.many_statements()?;
-        self.expect_lexeme(Lexeme::RBrace)?;
-
-        // optional else block
-        let else_statements = if self.expect_lexeme(Lexeme::Else).is_ok() {
+            Ok(Statement::Let(x, e))
+        } else if self.expect_lexeme(Lexeme::Return).is_ok() {
+            let e = self.expr()?;
+            Ok(Statement::Return(e))
+        } else if self.expect_lexeme(Lexeme::If).is_ok() {
+            let cond = self.short_expr()?;
             self.expect_lexeme(Lexeme::LBrace)?;
-            let else_statements = self.many_statements()?;
+            let then = self.many_statements()?;
             self.expect_lexeme(Lexeme::RBrace)?;
 
-            else_statements
+            // optional else block
+            let else_statements = if self.expect_lexeme(Lexeme::Else).is_ok() {
+                self.expect_lexeme(Lexeme::LBrace)?;
+                let else_statements = self.many_statements()?;
+                self.expect_lexeme(Lexeme::RBrace)?;
+
+                else_statements
+            } else {
+                vec![]
+            };
+
+            Ok(Statement::If(Box::new(cond), then, else_statements))
+        } else if self.expect_lexeme(Lexeme::Continue).is_ok() {
+            Ok(Statement::Continue)
+        } else if self.expect_lexeme(Lexeme::Loop).is_ok() {
+            self.expect_lexeme(Lexeme::LBrace)?;
+            let statements = self.many_statements()?;
+            self.expect_lexeme(Lexeme::RBrace)?;
+
+            Ok(Statement::Loop(statements))
+        } else if self.expect_lexeme(Lexeme::While).is_ok() {
+            let cond = self.short_expr()?;
+
+            self.expect_lexeme(Lexeme::LBrace)?;
+            let then = self.many_statements()?;
+            self.expect_lexeme(Lexeme::RBrace)?;
+
+            Ok(Statement::While(Box::new(cond), then))
         } else {
-            vec![]
-        };
-
-        Ok(Statement::If(Box::new(cond), then, else_statements))
-    }
-
-    fn statement(&mut self) -> Result<Statement> {
-        self.statement_let()
-            .or_else(|_| -> Result<Statement> {
-                self.expect_lexeme(Lexeme::Return)?;
-                let e = self.expr()?;
-                Ok(Statement::Return(e))
-            })
-            .or_else(|_| -> Result<Statement> { self.statement_if() })
-            .or_else(|_| -> Result<Statement> {
-                self.expect_lexeme(Lexeme::Continue)?;
-
-                Ok(Statement::Continue)
-            })
-            .or_else(|_| -> Result<Statement> {
-                let e = self.expr()?;
-                if self.expect_lexeme(Lexeme::Equal).is_ok() {
-                    // =が続くのであればassingmentで確定
-                    let rhs = self.expr()?;
-                    Ok(Statement::Assignment(Box::new(e), rhs))
-                } else {
-                    // それ以外のケースは普通にexpr statement
-                    Ok(Statement::Expr(e))
-                }
-            })
-            .or_else(|_| -> Result<Statement> {
-                self.expect_lexeme(Lexeme::Loop)?;
-
-                self.expect_lexeme(Lexeme::LBrace)?;
-                let statements = self.many_statements()?;
-                self.expect_lexeme(Lexeme::RBrace)?;
-
-                Ok(Statement::Loop(statements))
-            })
-            .or_else(|_| -> Result<Statement> {
-                self.expect_lexeme(Lexeme::While)?;
-                let cond = self.short_expr()?;
-
-                self.expect_lexeme(Lexeme::LBrace)?;
-                let then = self.many_statements()?;
-                self.expect_lexeme(Lexeme::RBrace)?;
-
-                Ok(Statement::While(Box::new(cond), then))
-            })
+            let e = self.expr()?;
+            if self.expect_lexeme(Lexeme::Equal).is_ok() {
+                // =が続くのであればassingmentで確定
+                let rhs = self.expr()?;
+                Ok(Statement::Assignment(Box::new(e), rhs))
+            } else {
+                // それ以外のケースは普通にexpr statement
+                Ok(Statement::Expr(e))
+            }
+        }
     }
 
     fn many_arguments(&mut self) -> Result<Vec<(String, Type)>> {

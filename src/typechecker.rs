@@ -465,7 +465,7 @@ mod tests {
             ),
             (
                 r#"
-                    return loop {
+                    loop {
                         if true {
                             return 10;
                         };
