@@ -227,6 +227,12 @@ impl Evaluator {
                     _ => bail!("Unsupported LHS: {:?}", lhs),
                 }
             }
+            Statement::Loop(body) => loop {
+                self.eval_statements(body.clone())?;
+                if self.escape_return.is_some() {
+                    return Ok(DataValue::Nil);
+                }
+            },
             Statement::While(cond, body) => {
                 while self.eval_expr(cond.as_ref().clone())?.as_bool()? {
                     self.eval_statements(body.clone())?;
@@ -322,12 +328,6 @@ impl Evaluator {
                     }
                 }
             }
-            Expr::Loop(body) => loop {
-                self.eval_statements(body.clone())?;
-                if self.escape_return.is_some() {
-                    return Ok(DataValue::Nil);
-                }
-            },
             Expr::Struct(_, fields) => {
                 let mut values = Vec::new();
                 for (_, e) in fields {

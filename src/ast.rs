@@ -27,6 +27,7 @@ pub enum Statement {
     If(Box<Expr>, Vec<Statement>, Vec<Statement>),
     Continue,
     Assignment(Box<Expr>, Expr),
+    Loop(Vec<Statement>),
     While(Box<Expr>, Vec<Statement>),
 }
 
@@ -35,7 +36,6 @@ pub enum Expr {
     Var(String),
     Lit(Literal),
     Call(Box<Expr>, Vec<Expr>),
-    Loop(Vec<Statement>),
     Struct(String, Vec<(String, Expr)>),
     Project(
         bool,   // is_method

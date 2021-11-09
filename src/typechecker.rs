@@ -235,7 +235,6 @@ impl TypeChecker {
 
                 Ok(ret_type_inferred)
             }
-            Expr::Loop(body) => self.statements(body),
             Expr::Struct(s, fields) => {
                 assert!(self.structs.contains_key(s));
 
@@ -324,6 +323,9 @@ impl TypeChecker {
                     self.apply_constraints(&cs);
 
                     ret_type = Type::Unit;
+                }
+                Statement::Loop(body) => {
+                    ret_type = self.statements(body)?;
                 }
                 Statement::While(cond, body) => {
                     let cond_type = self.expr(cond)?;
@@ -454,7 +456,7 @@ mod tests {
             ),
             (
                 r#"
-                    return loop {
+                    loop {
                         return 10;
                     };
                 "#,

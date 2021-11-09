@@ -161,6 +161,15 @@ impl Parser {
                 }
             })
             .or_else(|_| -> Result<Statement> {
+                self.expect_lexeme(Lexeme::Loop)?;
+
+                self.expect_lexeme(Lexeme::LBrace)?;
+                let statements = self.many_statements()?;
+                self.expect_lexeme(Lexeme::RBrace)?;
+
+                Ok(Statement::Loop(statements))
+            })
+            .or_else(|_| -> Result<Statement> {
                 self.expect_lexeme(Lexeme::While)?;
                 let cond = self.short_expr()?;
 
@@ -253,15 +262,6 @@ impl Parser {
 
             Ok(result)
         })()
-        .or_else(|_| -> Result<Expr> {
-            self.expect_lexeme(Lexeme::Loop)?;
-
-            self.expect_lexeme(Lexeme::LBrace)?;
-            let statements = self.many_statements()?;
-            self.expect_lexeme(Lexeme::RBrace)?;
-
-            Ok(Expr::Loop(statements))
-        })
         .or_else(|_| -> Result<Expr> {
             self.expect_lexeme(Lexeme::LParen)?;
             let expr = self.expr()?;
@@ -517,19 +517,13 @@ mod tests {
             ),
             (
                 r#"
-                    let x = loop {
+                    loop {
                         return 10;
                     };
-
-                    return x;
                 "#,
-                vec![
-                    Statement::Let(
-                        "x".to_string(),
-                        Expr::Loop(vec![Statement::Return(Expr::Lit(Literal::Int(10)))]),
-                    ),
-                    Statement::Return(Expr::Var("x".to_string())),
-                ],
+                vec![Statement::Loop(vec![Statement::Return(Expr::Lit(
+                    Literal::Int(10),
+                ))])],
             ),
             (
                 r#"
