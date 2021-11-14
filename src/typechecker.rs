@@ -249,7 +249,15 @@ impl TypeChecker {
                 Ok(Type::Struct(s.clone()))
             }
             Expr::Project(is_method, name, expr, field) => {
-                let typ = self.expr(expr)?;
+                let mut typ = self.expr(expr)?;
+
+                let mut pointer = false;
+
+                // FIXME: support nested refs
+                if let Some(b) = typ.as_ref_type() {
+                    typ = b.as_ref().clone();
+                    pointer = true;
+                }
 
                 let typ_name = match typ.clone() {
                     Type::Struct(s) => s.clone(),
@@ -262,6 +270,8 @@ impl TypeChecker {
                 *name = typ_name.clone();
 
                 if let Some(method) = self.methods.get(&(typ_name.clone(), field.clone())) {
+                    // FIXME: if pointer, something could be go wrong
+
                     *is_method = true;
 
                     Ok(Type::Fn(
@@ -280,7 +290,11 @@ impl TypeChecker {
 
                     *is_method = false;
 
-                    Ok(field_type.clone())
+                    Ok(if pointer {
+                        Type::Ref(Box::new(field_type.clone()))
+                    } else {
+                        field_type.clone()
+                    })
                 }
             }
             Expr::Deref(d) => {
@@ -388,14 +402,21 @@ impl TypeChecker {
                     );
 
                     // メソッドのレシーバーも登録する
-                    if let Some((name, typ)) = func.method_of.clone() {
-                        self.variables.insert(name.clone(), Type::Struct(typ));
+                    if let Some((name, typ, pointer)) = func.method_of.clone() {
+                        self.variables.insert(
+                            name.clone(),
+                            if pointer {
+                                Type::Ref(Box::new(Type::Struct(typ)))
+                            } else {
+                                Type::Struct(typ)
+                            },
+                        );
                     }
 
                     let t = self.statements(&mut func.body)?;
                     self.variables = variables;
 
-                    if let Some((name, typ)) = func.method_of.clone() {
+                    if let Some((name, typ, _pointer)) = func.method_of.clone() {
                         self.methods.insert(
                             (typ, func.name.clone()),
                             (

@@ -668,8 +668,8 @@ mod tests {
                         y: int,
                     }
 
-                    fn (foo: Foo) add(n) {
-                        foo.x = foo.x.add(n);
+                    fn (foo: &Foo) add(n) {
+                        *foo.x = foo.x.add(n);
                     }
 
                     fn main() {

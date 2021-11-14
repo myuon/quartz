@@ -291,10 +291,11 @@ impl Parser {
         let method_of = if self.expect_lexeme(Lexeme::LParen).is_ok() {
             let ident = self.ident()?;
             self.expect_lexeme(Lexeme::Colon)?;
+            let pointer = self.expect_lexeme(Lexeme::And).is_ok();
             let type_name = self.ident()?;
             self.expect_lexeme(Lexeme::RParen)?;
 
-            Some((ident, type_name))
+            Some((ident, type_name, pointer))
         } else {
             None
         };
