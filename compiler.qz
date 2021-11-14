@@ -34,8 +34,9 @@ fn (self: Lexer) run(input: string) {
 
   while self.position.lt(input.len()) {
     let current_input = input.slice_after(self.position);
-    if self.expect(current_input, "lex") {
+    if self.expect(current_input, "let") {
       // ok
+      _print(self);
     } else {
       _print("error in input!\n".concat(current_input));
       self.position = input.len();

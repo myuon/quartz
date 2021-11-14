@@ -43,6 +43,8 @@ pub enum Expr {
         Box<Expr>,
         String,
     ),
+    Deref(Box<Expr>),
+    Ref(Box<Expr>),
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -89,12 +91,20 @@ pub enum Type {
     String,
     Fn(Vec<Type>, Box<Type>),
     Struct(String),
+    Ref(Box<Type>),
 }
 
 impl Type {
     pub fn as_fn_type(&self) -> Option<(&Vec<Type>, &Box<Type>)> {
         match self {
             Type::Fn(args, ret) => Some((args, ret)),
+            _ => None,
+        }
+    }
+
+    pub fn as_ref_type(&self) -> Option<&Box<Type>> {
+        match self {
+            Type::Ref(t) => Some(t),
             _ => None,
         }
     }
@@ -118,6 +128,7 @@ impl Type {
                 args.iter().find(move |t| t.has_infer(index)).is_some() || ret.has_infer(index)
             }
             Type::Struct(_) => false,
+            Type::Ref(_) => todo!(),
         }
     }
 
@@ -141,6 +152,7 @@ impl Type {
                 ret.subst(index, typ);
             }
             Type::Struct(_) => {}
+            Type::Ref(_) => todo!(),
         }
     }
 }
@@ -156,6 +168,7 @@ pub enum DataValue {
     NativeFunction(String),
     Function(String),
     Method(String, String, Box<DataValue>),
+    Ref(String),
 }
 
 impl DataValue {
@@ -184,6 +197,13 @@ impl DataValue {
         match self {
             DataValue::Tuple(t) => Ok(t),
             d => bail!("Expected a tuple, but found {:?}", d),
+        }
+    }
+
+    pub fn as_ref(self) -> Result<String> {
+        match self {
+            DataValue::Ref(s) => Ok(s),
+            d => bail!("Expected a ref, but found {:?}", d),
         }
     }
 }

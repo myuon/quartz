@@ -252,6 +252,10 @@ impl Evaluator {
                         }
                         _ => bail!("Unsupported LHS: {:?}", lhs),
                     },
+                    Expr::Deref(e) => {
+                        let name = self.eval_expr(e.as_ref().clone())?.as_ref()?;
+                        self.variables.insert(name, value);
+                    }
                     _ => bail!("Unsupported LHS: {:?}", lhs),
                 }
             }
@@ -381,6 +385,11 @@ impl Evaluator {
 
                 Ok(value.as_tuple()?.remove(index))
             }
+            Expr::Deref(_) => todo!(),
+            Expr::Ref(r) => match r.as_ref() {
+                Expr::Var(v) => Ok(DataValue::Ref(v.clone())),
+                _ => todo!(),
+            },
         }
     }
 
@@ -668,6 +677,22 @@ mod tests {
                         foobar.add(10);
 
                         return foobar.x;
+                    }
+                "#,
+                DataValue::Int(10),
+            ),
+            (
+                // pass by pointers
+                r#"
+                    fn f(a: &int) {
+                        *a = 100;
+                    }
+
+                    fn main() {
+                        let p = 10;
+                        f(&p);
+
+                        return p;
                     }
                 "#,
                 DataValue::Int(10),

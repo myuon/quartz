@@ -24,14 +24,11 @@ impl Constraints {
 
     fn unify(t1: &Type, t2: &Type) -> Result<Constraints> {
         match (t1, t2) {
+            (t1, t2) if t1 == t2 => Ok(Constraints::new()),
             (Type::Any, _) => Ok(Constraints::new()),
             (_, Type::Any) => Ok(Constraints::new()),
             (Type::Infer(u), t) => Ok(Constraints::singleton(*u, t.clone())),
             (t, Type::Infer(u)) => Ok(Constraints::singleton(*u, t.clone())),
-            (Type::Unit, Type::Unit) => Ok(Constraints::new()),
-            (Type::Int, Type::Int) => Ok(Constraints::new()),
-            (Type::Bool, Type::Bool) => Ok(Constraints::new()),
-            (Type::String, Type::String) => Ok(Constraints::new()),
             (Type::Fn(args1, ret1), Type::Fn(args2, ret2)) => {
                 if args1.len() != args2.len() {
                     bail!("Type error: want {:?} but found {:?}", args1, args2);
@@ -99,6 +96,9 @@ impl Constraints {
                 self.apply(ret);
             }
             Type::Struct(_) => {}
+            Type::Ref(r) => {
+                self.apply(r);
+            }
         }
     }
 }
@@ -282,6 +282,21 @@ impl TypeChecker {
 
                     Ok(field_type.clone())
                 }
+            }
+            Expr::Deref(d) => {
+                let typ = self.expr(d)?;
+                Ok(typ
+                    .as_ref_type()
+                    .ok_or(anyhow::anyhow!(
+                        "Expected reference type but found: {:?}",
+                        typ
+                    ))?
+                    .as_ref()
+                    .clone())
+            }
+            Expr::Ref(e) => {
+                let typ = self.expr(e)?;
+                Ok(Type::Ref(Box::new(typ)))
             }
         }
     }

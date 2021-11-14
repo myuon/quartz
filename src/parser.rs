@@ -48,13 +48,17 @@ impl Parser {
     }
 
     fn atype(&mut self) -> Result<Type> {
-        let ident = self.ident()?;
-        match ident.as_str() {
-            "int" => Ok(Type::Int),
-            "bool" => Ok(Type::Bool),
-            "string" => Ok(Type::String),
-            "any" => Ok(Type::Any),
-            _ => todo!(),
+        if self.expect_lexeme(Lexeme::And).is_ok() {
+            Ok(Type::Ref(Box::new(self.atype()?)))
+        } else {
+            let ident = self.ident()?;
+            match ident.as_str() {
+                "int" => Ok(Type::Int),
+                "bool" => Ok(Type::Bool),
+                "string" => Ok(Type::String),
+                "any" => Ok(Type::Any),
+                _ => todo!(),
+            }
         }
     }
 
@@ -252,28 +256,34 @@ impl Parser {
     }
 
     fn expr(&mut self) -> Result<Expr> {
-        let short_expr = self.short_expr()?;
+        if self.expect_lexeme(Lexeme::Star).is_ok() {
+            Ok(Expr::Deref(Box::new(self.expr()?)))
+        } else if self.expect_lexeme(Lexeme::And).is_ok() {
+            Ok(Expr::Ref(Box::new(self.expr()?)))
+        } else {
+            let short_expr = self.short_expr()?;
 
-        match short_expr {
-            Expr::Var(v) if self.expect_lexeme(Lexeme::LBrace).is_ok() => {
-                // struct initialization
-                let fields = self.many_fields_with_exprs()?;
-                self.expect_lexeme(Lexeme::RBrace)?;
+            match short_expr {
+                Expr::Var(v) if self.expect_lexeme(Lexeme::LBrace).is_ok() => {
+                    // struct initialization
+                    let fields = self.many_fields_with_exprs()?;
+                    self.expect_lexeme(Lexeme::RBrace)?;
 
-                Ok(Expr::Struct(v, fields))
+                    Ok(Expr::Struct(v, fields))
+                }
+                expr if self.expect_lexeme(Lexeme::Dot).is_ok() => {
+                    // projection
+                    let i = self.ident()?;
+
+                    Ok(Expr::Project(
+                        false,
+                        "<infer>".to_string(),
+                        Box::new(expr),
+                        i,
+                    ))
+                }
+                _ => Ok(short_expr),
             }
-            expr if self.expect_lexeme(Lexeme::Dot).is_ok() => {
-                // projection
-                let i = self.ident()?;
-
-                Ok(Expr::Project(
-                    false,
-                    "<infer>".to_string(),
-                    Box::new(expr),
-                    i,
-                ))
-            }
-            _ => Ok(short_expr),
         }
     }
 
