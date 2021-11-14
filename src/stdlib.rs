@@ -78,6 +78,14 @@ pub fn stdlib_methods() -> HashMap<
                     return _eq(x,y);
                 }
 
+                fn (x: string) eq(y: string): bool {
+                    return _eq_string(x,y);
+                }
+
+                fn (x: bool) not(): bool {
+                    return _not(x);
+                }
+
                 fn (x: int) lt(y: int): bool {
                     return _lt(x,y);
                 }
@@ -97,6 +105,18 @@ pub fn stdlib_methods() -> HashMap<
                 // FIXME: support vec type
                 fn (a: any) push(b: any) {
                     a = _vpush(a,b);
+                }
+
+                fn (x: any) eq(y: any): bool {
+                    return _eq_any(x,y);
+                }
+
+                fn (x: int) show(): string {
+                    return _show(x);
+                }
+
+                fn (x: any) show(): string {
+                    return _show(x);
                 }
                 "#,
         )

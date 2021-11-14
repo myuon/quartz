@@ -1,3 +1,13 @@
+fn (s: string) starts_with(prefix: string): bool {
+  return s.slice(0, prefix.len()).eq(prefix);
+}
+
+fn (s: string) slice_after(start: int): string {
+  return s.slice(start, s.len());
+}
+
+// -----------------------------------------------------------------------
+
 struct Token {
   lexeme: string,
 }
@@ -7,22 +17,54 @@ struct Lexer {
   tokens: any, // Vec<Token>
 }
 
+fn (self: Lexer) expect(current_input: string, lex: string): bool {
+  if current_input.starts_with(lex) {
+    self.position = self.position.add(lex.len());
+    self.tokens.push(Token { lexeme: lex });
+
+    return true;
+  } else {
+    return false;
+  };
+}
+
 fn (self: Lexer) run(input: string) {
   self.position = 0;
   self.tokens = _vec();
 
-  loop {
-    if self.position.eq(input.len()) {
+  while self.position.lt(input.len()) {
+    let current_input = input.slice_after(self.position);
+    if self.expect(current_input, "lex") {
+      // ok
+    } else {
+      _print("error in input!\n".concat(current_input));
+      self.position = input.len();
       return self.tokens;
     };
-
-    let token = input.slice(self.position, self.position.add(1));
-    self.tokens.push(token);
   };
+
+  return self.tokens;
+}
+
+// -----------------------------------------------------------------------------
+
+fn assert_eq(a: any, b: any) {
+  if a.eq(b).not() {
+    _print("assertion failed: ".concat(a.show()).concat(", ").concat(b.show()));
+  };
+}
+
+fn test() {
+  assert_eq("foo bar".starts_with("foo"), true);
+  assert_eq("foo bar".starts_with("foo baz"), false);
+
+  assert_eq("foo bar".slice_after(1), "oo bar");
+  assert_eq("foo bar".slice_after(6), "r");
 }
 
 fn main() {
   let lexer = Lexer { position: 0, tokens: _vec() };
 
   _print(lexer.run("let a = 10;"));
+  test();
 }

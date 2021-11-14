@@ -111,6 +111,26 @@ fn new_native_functions() -> HashMap<String, NativeFunction> {
             Ok(DataValue::Nil)
         }),
     );
+    natives.insert(
+        "_eq_string".to_string(),
+        Box::new(|args| {
+            Ok(DataValue::Bool(
+                args[0].clone().as_string()? == args[1].clone().as_string()?,
+            ))
+        }),
+    );
+    natives.insert(
+        "_eq_any".to_string(),
+        Box::new(|args| Ok(DataValue::Bool(args[0].clone() == args[1].clone()))),
+    );
+    natives.insert(
+        "_not".to_string(),
+        Box::new(|args| Ok(DataValue::Bool(!args[0].clone().as_bool()?))),
+    );
+    natives.insert(
+        "_show".to_string(),
+        Box::new(|args| Ok(DataValue::String(format!("{:?}", args[0].clone())))),
+    );
 
     natives
 }

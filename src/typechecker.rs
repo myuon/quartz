@@ -256,6 +256,7 @@ impl TypeChecker {
                     Type::Int => "int".to_string(),
                     Type::String => "string".to_string(),
                     Type::Any => "any".to_string(),
+                    Type::Bool => "bool".to_string(),
                     _ => bail!("Cannot project of: {:?}", typ),
                 };
                 *name = typ_name.clone();
