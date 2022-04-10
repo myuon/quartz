@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use anyhow::Result;
 
 use crate::{
@@ -5,16 +7,30 @@ use crate::{
     vm::QVMInstruction,
 };
 
+#[derive(Debug)]
 pub struct CodeGeneration {
-    globals: usize,
     pub code: Vec<QVMInstruction>,
+    globals: HashMap<String, usize>,
+    arg_pointer: usize,
+    args: HashMap<String, usize>,
+    local_pointer: usize,
+    locals: HashMap<String, usize>,
 }
 
 impl CodeGeneration {
     pub fn new() -> CodeGeneration {
         CodeGeneration {
-            globals: 0,
-            code: Vec::new(),
+            // calling main
+            code: vec![
+                QVMInstruction::I32Const(999),
+                QVMInstruction::I32Const(999),
+                QVMInstruction::I32Const(999),
+            ],
+            globals: HashMap::new(),
+            arg_pointer: 0,
+            args: HashMap::new(),
+            local_pointer: 0,
+            locals: HashMap::new(),
         }
     }
 
@@ -22,13 +38,31 @@ impl CodeGeneration {
         self.code.len()
     }
 
-    fn get_global_count(&self) -> usize {
-        self.globals
+    fn push_local(&mut self, name: String) {
+        self.locals.insert(name, self.local_pointer);
+        self.local_pointer += 1;
+    }
+
+    fn push_arg(&mut self, name: String) {
+        self.args.insert(name, self.arg_pointer);
+        self.arg_pointer += 1;
+    }
+
+    fn push_global(&mut self, name: String, code_len: usize) {
+        self.globals.insert(name, code_len);
     }
 
     fn expr(&mut self, expr: &Expr) -> Result<()> {
         match expr {
-            Expr::Var(v) => todo!("{:?}", v),
+            Expr::Var(v) => {
+                if let Some(u) = self.locals.get(v) {
+                    self.code.push(QVMInstruction::Load(*u));
+                } else if let Some(u) = self.args.get(v) {
+                    self.code.push(QVMInstruction::LoadArg(*u));
+                } else {
+                    anyhow::bail!("{} not found", v);
+                }
+            }
             Expr::Lit(lit) => {
                 use crate::ast::Literal::*;
 
@@ -47,10 +81,16 @@ impl CodeGeneration {
                 }
 
                 if let Expr::Var(v) = f.as_ref() {
-                    if v == "_add" {
-                        self.code.push(QVMInstruction::Add);
+                    if let Some(addr) = self.globals.get(v) {
+                        self.code.push(QVMInstruction::Call(*addr));
                     } else {
-                        todo!();
+                        // builtin functions
+                        if v == "_add" {
+                            self.code.push(QVMInstruction::Add);
+                        } else {
+                            println!("{:?}", self);
+                            todo!("{:?}", v);
+                        }
                     }
                 } else {
                     todo!();
@@ -67,7 +107,10 @@ impl CodeGeneration {
 
     fn statement(&mut self, statement: &Statement) -> Result<()> {
         match statement {
-            Statement::Let(_, _) => todo!(),
+            Statement::Let(v, expr) => {
+                self.expr(expr)?;
+                self.push_local(v.clone());
+            }
             Statement::Expr(_) => todo!(),
             Statement::Return(e) => {
                 self.expr(e)?;
@@ -84,12 +127,22 @@ impl CodeGeneration {
     }
 
     fn function(&mut self, function: &Function) -> Result<()> {
+        self.local_pointer = 0;
+        self.locals.clear();
+
         let pc = self.get_pc();
+
+        for (name, _) in &function.args {
+            self.push_arg(name.clone());
+        }
 
         for b in &function.body {
             self.statement(b)?;
         }
 
+        self.push_global(function.name.clone(), pc);
+
+        println!("{} {:?}", function.name, self.locals);
         Ok(())
     }
 
@@ -109,6 +162,13 @@ impl CodeGeneration {
         for decl in &module.0 {
             self.decl(decl)?;
         }
+
+        // entrypoint for calling main
+        let main = self.globals["main"];
+
+        self.code[0] = QVMInstruction::I32Const(999); // for return value
+        self.code[1] = QVMInstruction::Call(main);
+        self.code[2] = QVMInstruction::Return; // return
 
         Ok(())
     }

@@ -1,13 +1,13 @@
 #[derive(Clone, Debug)]
 pub enum QVMInstruction {
     // locals
-    Load(usize),  // relative position from stack pointer
-    Store(usize), // relative position from stack pointer
+    Load(usize),
+    Store(usize),
     Pop(usize),
     // function arguments
     LoadArg(usize),
     // global variables
-    GlobalGet(usize), // normal order
+    GlobalGet(usize),
     GlobalSet(usize),
     // control
     Jump(usize),
