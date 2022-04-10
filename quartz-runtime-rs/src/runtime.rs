@@ -91,7 +91,7 @@ impl Runtime {
                 QVMInstruction::Add => {
                     let a = self.pop();
                     let b = self.pop();
-                    self.push(Value(a.0 + b.0, ""));
+                    self.push(Value(a.0 + b.0, "i32"));
                 }
                 QVMInstruction::Sub => todo!(),
                 QVMInstruction::Mul => todo!(),
@@ -183,6 +183,21 @@ fn runtime_run() -> Result<()> {
     let cases = vec![
         (r#"func main() { return 10; }"#, 10),
         (r#"func main() { return _add(1, 20); }"#, 21),
+        (
+            r#"
+func calc(b: int): int {
+    let a = 1;
+    let z = 10;
+    let c = _add(a, b);
+    return c;
+}
+
+func main(): int {
+    return calc(2);
+}
+"#,
+            3,
+        ),
     ];
 
     for (input, result) in cases {
@@ -190,6 +205,7 @@ fn runtime_run() -> Result<()> {
         let code = compiler.compile(input)?;
 
         let mut runtime = Runtime::new(code);
+        println!("{} -> {:?}", input, runtime.code);
         runtime.run()?;
         assert_eq!(runtime.pop().0, result);
     }
