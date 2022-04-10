@@ -108,7 +108,7 @@ impl Runtime {
                     self.push(Value(c, "i32"));
                 }
                 QVMInstruction::Load(i) => {
-                    let v = self.load(i);
+                    let v = self.stack[self.frame_pointer + i];
                     assert_eq!(v.1, "i32");
                     self.push(v);
                 }
@@ -141,8 +141,8 @@ fn runtime_run_hand_coded() -> Result<()> {
     let cases = vec![(
         /*
             func main(b): int {
-                let z = 10;
                 let a = 1;
+                let z = 10;
                 let c = a + b;
                 return c;
             }
@@ -157,9 +157,10 @@ fn runtime_run_hand_coded() -> Result<()> {
             Pop(1),  // pop arguments of main
             Return,
             // main:
-            I32Const(10), // z
             I32Const(1),  // a
-            LoadArg(0),   // b
+            I32Const(10), // z
+            Load(0),      // load a
+            LoadArg(0),   // load b
             Add,          // a + b
             Return,       // return
         ],
@@ -169,7 +170,6 @@ fn runtime_run_hand_coded() -> Result<()> {
     for (code, result) in cases {
         let mut runtime = Runtime::new(code);
         runtime.run()?;
-        println!("{:?}", runtime);
         assert_eq!(result, runtime.pop().0);
     }
 
