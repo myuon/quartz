@@ -1,6 +1,7 @@
 use std::io::Read;
 
 use quartz_core::compiler::Compiler;
+use runtime::Runtime;
 
 mod runtime;
 
@@ -10,5 +11,6 @@ fn main() {
     stdin.read_to_string(&mut buffer).unwrap();
 
     let compiler = Compiler::new();
-    compiler.exec(&buffer).unwrap();
+    let code = compiler.compile(&buffer).unwrap();
+    println!("{:?}", Runtime::new(code).run().unwrap());
 }
