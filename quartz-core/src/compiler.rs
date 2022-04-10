@@ -5,10 +5,12 @@ use thiserror::Error as ThisError;
 
 use crate::{
     ast::{DataValue, Module},
+    code_generation::CodeGeneration,
     eval::Evaluator,
     parser::run_parser,
     stdlib::{stdlib, stdlib_methods},
     typechecker::TypeChecker,
+    vm::QVMInstruction,
 };
 
 #[derive(ThisError, Debug)]
@@ -83,5 +85,15 @@ impl Compiler {
 
         let mut eval = Evaluator::new(checker.structs, checker.functions, checker.methods);
         eval.eval_module(module).context("Phase: eval")
+    }
+
+    pub fn compile(&self, input: &str) -> Result<Vec<QVMInstruction>> {
+        let mut module = self.parse(input)?;
+        let checker = self.typecheck(&mut module)?;
+
+        let mut generation = CodeGeneration::new();
+        generation.module(&module)?;
+
+        Ok(generation.code)
     }
 }

@@ -1,11 +1,19 @@
+#[derive(Clone, Debug)]
 pub enum QVMInstruction {
-    // local, global variables
-    Get(usize), // reverse order
-    Set(usize),
+    // locals
+    Load(usize),  // relative position from stack pointer
+    Store(usize), // relative position from stack pointer
+    Pop(usize),
+    // function arguments
+    LoadArg(usize),
+    // global variables
     GlobalGet(usize), // normal order
     GlobalSet(usize),
     // control
     Jump(usize),
+    // functions
+    Call(usize),
+    Return,
     // arithmetic and logic
     Add,
     Sub,
@@ -19,4 +27,6 @@ pub enum QVMInstruction {
     And,
     Or,
     Not,
+    // constants
+    I32Const(i32),
 }

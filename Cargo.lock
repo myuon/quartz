@@ -52,6 +52,7 @@ dependencies = [
 name = "quartz-runtime-rs"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "quartz-core",
 ]
 

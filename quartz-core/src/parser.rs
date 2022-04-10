@@ -363,7 +363,7 @@ impl Parser {
     }
 
     fn declaration(&mut self) -> Result<Declaration> {
-        if self.expect_lexeme(Lexeme::Fn).is_ok() {
+        if self.expect_lexeme(Lexeme::Func).is_ok() {
             self.declaration_function()
         } else if self.expect_lexeme(Lexeme::Let).is_ok() {
             let x = self.ident()?;

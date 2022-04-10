@@ -66,56 +66,56 @@ pub fn stdlib_methods() -> HashMap<
     let r = Compiler::new()
         .parse(
             r#"
-                fn (x: int) add(y: int): int {
+                func (x: int) add(y: int): int {
                     return _add(x,y);
                 }
 
-                fn (x: int) sub(y: int): int {
+                func (x: int) sub(y: int): int {
                     return _sub(x,y);
                 }
 
-                fn (x: int) eq(y: int): bool {
+                func (x: int) eq(y: int): bool {
                     return _eq(x,y);
                 }
 
-                fn (x: string) eq(y: string): bool {
+                func (x: string) eq(y: string): bool {
                     return _eq_string(x,y);
                 }
 
-                fn (x: bool) not(): bool {
+                func (x: bool) not(): bool {
                     return _not(x);
                 }
 
-                fn (x: int) lt(y: int): bool {
+                func (x: int) lt(y: int): bool {
                     return _lt(x,y);
                 }
 
-                fn (s: string) len(): int {
+                func (s: string) len(): int {
                     return _len_string(s);
                 }
 
-                fn (x: string) concat(y: string): string {
+                func (x: string) concat(y: string): string {
                     return _concat_string(x,y);
                 }
 
-                fn (x: string) slice(i: int, j: int): string {
+                func (x: string) slice(i: int, j: int): string {
                     return _slice_string(x,i,j);
                 }
 
                 // FIXME: support vec type
-                fn (a: any) push(b: any) {
+                func (a: any) push(b: any) {
                     a = _vpush(a,b);
                 }
 
-                fn (x: any) eq(y: any): bool {
+                func (x: any) eq(y: any): bool {
                     return _eq_any(x,y);
                 }
 
-                fn (x: int) show(): string {
+                func (x: int) show(): string {
                     return _show(x);
                 }
 
-                fn (x: any) show(): string {
+                func (x: any) show(): string {
                     return _show(x);
                 }
                 "#,

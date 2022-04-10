@@ -7,7 +7,7 @@ use crate::{
 
 pub struct CodeGeneration {
     globals: usize,
-    code: Vec<QVMInstruction>,
+    pub code: Vec<QVMInstruction>,
 }
 
 impl CodeGeneration {
@@ -28,27 +28,59 @@ impl CodeGeneration {
 
     fn expr(&mut self, expr: &Expr) -> Result<()> {
         match expr {
-            Expr::Var(_) => todo!(),
-            Expr::Lit(_) => todo!(),
-            Expr::Call(_, _) => todo!(),
+            Expr::Var(v) => todo!("{:?}", v),
+            Expr::Lit(lit) => {
+                use crate::ast::Literal::*;
+
+                match lit {
+                    Nil => todo!(),
+                    Bool(_) => todo!(),
+                    Int(n) => {
+                        self.code.push(QVMInstruction::I32Const(*n));
+                    }
+                    String(_) => todo!(),
+                }
+            }
+            Expr::Call(f, es) => {
+                for e in es {
+                    self.expr(e)?;
+                }
+
+                if let Expr::Var(v) = f.as_ref() {
+                    if v == "_add" {
+                        self.code.push(QVMInstruction::Add);
+                    } else {
+                        todo!();
+                    }
+                } else {
+                    todo!();
+                }
+            }
             Expr::Struct(_, _) => todo!(),
             Expr::Project(_, _, _, _) => todo!(),
             Expr::Deref(_) => todo!(),
             Expr::Ref(_) => todo!(),
         }
+
+        Ok(())
     }
 
     fn statement(&mut self, statement: &Statement) -> Result<()> {
         match statement {
             Statement::Let(_, _) => todo!(),
             Statement::Expr(_) => todo!(),
-            Statement::Return(_) => todo!(),
+            Statement::Return(e) => {
+                self.expr(e)?;
+                self.code.push(QVMInstruction::Return);
+            }
             Statement::If(_, _, _) => todo!(),
             Statement::Continue => todo!(),
             Statement::Assignment(_, _) => todo!(),
             Statement::Loop(_) => todo!(),
             Statement::While(_, _) => todo!(),
         }
+
+        Ok(())
     }
 
     fn function(&mut self, function: &Function) -> Result<()> {
@@ -73,7 +105,7 @@ impl CodeGeneration {
         }
     }
 
-    fn module(&mut self, module: &Module) -> Result<()> {
+    pub fn module(&mut self, module: &Module) -> Result<()> {
         for decl in &module.0 {
             self.decl(decl)?;
         }

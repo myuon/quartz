@@ -2,6 +2,8 @@ use std::io::Read;
 
 use quartz_core::compiler::Compiler;
 
+mod runtime;
+
 fn main() {
     let mut buffer = String::new();
     let mut stdin = std::io::stdin();
