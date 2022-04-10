@@ -4,6 +4,11 @@ use quartz_core::vm::QVMInstruction;
 #[derive(Clone, Copy, Debug)]
 pub struct Value(i32, &'static str);
 
+/* StackFrame
+    [return_value, argument*, return_address, fp, local*]
+                                                ^ new fp
+*/
+
 #[derive(Debug)]
 pub struct Runtime {
     stack: Vec<Value>,
@@ -115,7 +120,11 @@ impl Runtime {
                         self.pop();
                     }
                 }
-                QVMInstruction::LoadArg(_) => todo!(),
+                QVMInstruction::LoadArg(r) => {
+                    let arg = self.stack[self.frame_pointer - 3 - r];
+                    assert_eq!(arg.1, "i32");
+                    self.push(arg);
+                }
             }
 
             self.pc += 1;
@@ -150,7 +159,7 @@ fn runtime_run_hand_coded() -> Result<()> {
             // main:
             I32Const(10), // z
             I32Const(1),  // a
-            Load(5),      // b
+            LoadArg(0),   // b
             Add,          // a + b
             Return,       // return
         ],
