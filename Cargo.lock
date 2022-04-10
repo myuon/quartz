@@ -49,6 +49,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "quartz-runtime-rs"
+version = "0.1.0"
+dependencies = [
+ "quartz-core",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
