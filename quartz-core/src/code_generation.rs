@@ -9,8 +9,7 @@ use crate::{
 
 #[derive(Debug)]
 pub struct CodeGeneration {
-    pub code: Vec<QVMInstruction>,
-    labels: HashMap<String, usize>,
+    code: Vec<QVMInstruction>,
     global_pointer: usize,
     globals: HashMap<String, usize>,
     arg_pointer: usize,
@@ -22,13 +21,7 @@ pub struct CodeGeneration {
 impl CodeGeneration {
     pub fn new() -> CodeGeneration {
         CodeGeneration {
-            // calling main
-            code: vec![
-                QVMInstruction::I32Const(999),
-                QVMInstruction::I32Const(999),
-                QVMInstruction::I32Const(999),
-            ],
-            labels: HashMap::new(),
+            code: vec![],
             global_pointer: 0,
             globals: HashMap::new(),
             arg_pointer: 0,
@@ -36,10 +29,6 @@ impl CodeGeneration {
             local_pointer: 0,
             locals: HashMap::new(),
         }
-    }
-
-    fn get_pc(&self) -> usize {
-        self.code.len()
     }
 
     fn push_local(&mut self, name: String) {
@@ -55,10 +44,6 @@ impl CodeGeneration {
     fn push_global(&mut self, name: String) {
         self.globals.insert(name, self.global_pointer);
         self.global_pointer += 1;
-    }
-
-    fn push_label(&mut self, label: String, pc: usize) {
-        self.labels.insert(label, pc);
     }
 
     fn expr(&mut self, expr: &Expr) -> Result<()> {
@@ -94,16 +79,11 @@ impl CodeGeneration {
                 }
 
                 if let Expr::Var(v) = f.as_ref() {
-                    if let Some(addr) = self.labels.get(v) {
-                        self.code.push(QVMInstruction::Call(*addr));
+                    // builtin functions
+                    if v == "_add" {
+                        self.code.push(QVMInstruction::Add);
                     } else {
-                        // builtin functions
-                        if v == "_add" {
-                            self.code.push(QVMInstruction::Add);
-                        } else {
-                            println!("{:?}", self);
-                            todo!("{:?}", v);
-                        }
+                        self.code.push(QVMInstruction::PlaceholderLabel(v.clone()));
                     }
                 } else {
                     todo!();
@@ -160,8 +140,6 @@ impl CodeGeneration {
         self.local_pointer = 0;
         self.locals.clear();
 
-        let pc = self.get_pc();
-
         for (name, _) in &function.args {
             self.push_arg(name.clone());
         }
@@ -170,38 +148,14 @@ impl CodeGeneration {
             self.statement(b)?;
         }
 
-        self.push_label(function.name.clone(), pc);
-
-        println!("{} {:?}", function.name, self.locals);
         Ok(())
     }
 
     fn variable(&mut self, name: &String, expr: &Expr) -> Result<()> {
         self.expr(expr)?;
         self.push_global(name.clone());
-
-        Ok(())
-    }
-
-    fn decl(&mut self, decl: &Declaration) -> Result<()> {
-        match decl {
-            Declaration::Function(f) => self.function(f),
-            Declaration::Variable(name, expr) => self.variable(name, expr),
-            Declaration::Struct(s) => Ok(()),
-        }
-    }
-
-    pub fn module(&mut self, module: &Module) -> Result<()> {
-        for decl in &module.0 {
-            self.decl(decl)?;
-        }
-
-        // entrypoint for calling main
-        let main = self.labels["main"];
-
-        self.code[0] = QVMInstruction::I32Const(999); // for return value
-        self.code[1] = QVMInstruction::Call(main);
-        self.code[2] = QVMInstruction::Return; // return
+        self.code
+            .push(QVMInstruction::GlobalSet(self.globals[name]));
 
         Ok(())
     }
@@ -209,11 +163,62 @@ impl CodeGeneration {
     pub fn globals(&self) -> usize {
         self.globals.len()
     }
+
+    pub fn generate(&mut self, module: &Module) -> Result<Vec<QVMInstruction>> {
+        let mut init_code = vec![];
+        let mut function_code = HashMap::new();
+
+        // first path
+        for decl in &module.0 {
+            self.code = vec![];
+
+            match decl {
+                Declaration::Function(f) => {
+                    self.function(f)?;
+                    function_code.insert(f.name.clone(), self.code.clone());
+                }
+                Declaration::Variable(name, expr) => {
+                    self.variable(name, expr)?;
+                    init_code.extend(self.code.clone());
+                }
+                Declaration::Struct(_) => {}
+            };
+        }
+
+        // call main
+        init_code.extend(vec![
+            QVMInstruction::I32Const(999), // for return value
+            QVMInstruction::PlaceholderLabel("main".to_string()),
+            QVMInstruction::Return,
+        ]);
+
+        // second path
+        let mut labels = HashMap::new();
+        let mut code = vec![];
+        code.extend(init_code);
+        for (k, v) in function_code {
+            labels.insert(k, code.len());
+            code.extend(v);
+        }
+
+        // resolve labels
+        for i in 0..code.len() {
+            if let QVMInstruction::PlaceholderLabel(ref label) = code[i] {
+                if let Some(pc) = labels.get(label) {
+                    code[i] = QVMInstruction::Call(*pc);
+                } else {
+                    anyhow::bail!("label {} not found", label);
+                }
+            }
+        }
+
+        Ok(code)
+    }
 }
 
 pub fn generate(module: &Module) -> Result<Vec<QVMInstruction>> {
     let mut g = CodeGeneration::new();
-    g.module(module)?;
+    let code = g.generate(module)?;
 
-    Ok(g.code)
+    Ok(code)
 }

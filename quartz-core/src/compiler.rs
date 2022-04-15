@@ -91,12 +91,12 @@ impl Compiler {
         eval.eval_module(module).context("Phase: eval")
     }
 
-    pub fn compile(&mut self, input: &str) -> Result<&Vec<QVMInstruction>> {
+    pub fn compile(&mut self, input: &str) -> Result<Vec<QVMInstruction>> {
         let mut module = self.parse(input)?;
         let checker = self.typecheck(&mut module)?;
 
-        self.code_generation.module(&module)?;
+        let code = self.code_generation.generate(&module)?;
 
-        Ok(&self.code_generation.code)
+        Ok(code)
     }
 }

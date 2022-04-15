@@ -29,4 +29,6 @@ pub enum QVMInstruction {
     Not,
     // constants
     I32Const(i32),
+    // Only used during generation phase
+    PlaceholderLabel(String),
 }

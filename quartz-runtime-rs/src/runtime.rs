@@ -58,7 +58,10 @@ impl Runtime {
                 &self.code[self.pc]
             );
             match self.code[self.pc].clone() {
-                QVMInstruction::GlobalGet(_) => todo!(),
+                QVMInstruction::GlobalGet(u) => {
+                    let value = self.globals[u];
+                    self.push(Value(value, "global"));
+                }
                 QVMInstruction::GlobalSet(u) => {
                     let value = self.pop();
                     self.globals[u] = value.0;
@@ -129,6 +132,7 @@ impl Runtime {
                     assert_eq!(arg.1, "i32");
                     self.push(arg);
                 }
+                QVMInstruction::PlaceholderLabel(_) => unreachable!(),
             }
 
             self.pc += 1;
@@ -204,10 +208,10 @@ func main(): int {
         ),
         (
             r#"
-let a = 1;
+let a = 5;
 
 func f() {
-    a = 10;
+    a = _add(a, 10);
     return nil;
 }
 
@@ -216,7 +220,7 @@ func main(): int {
     return a;
 }
         "#,
-            3,
+            15,
         ),
     ];
 
@@ -226,8 +230,8 @@ func main(): int {
 
         let mut runtime = Runtime::new(code.clone(), compiler.code_generation.globals());
         println!("{} -> {:?}", input, runtime.code);
-        //runtime.run()?;
-        //assert_eq!(runtime.pop().0, result);
+        runtime.run()?;
+        assert_eq!(runtime.pop().0, result);
     }
 
     Ok(())
