@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::{bail, Context, Result};
+use pretty_assertions::assert_eq;
 
 use crate::ast::{Declaration, Expr, Literal, Module, Statement, Type};
 
@@ -236,7 +237,7 @@ impl TypeChecker {
                 Ok(ret_type_inferred)
             }
             Expr::Struct(s, fields) => {
-                assert!(self.structs.contains_key(s));
+                assert_eq!(self.structs.contains_key(s), true);
 
                 let def = self.structs[s].clone();
                 for ((k1, v1), (k2, v2)) in def.iter().zip(fields.into_iter()) {
@@ -477,6 +478,7 @@ mod tests {
     };
 
     use super::*;
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn test_typecheck_statements() {
@@ -568,22 +570,36 @@ mod tests {
 
     #[test]
     fn test_typecheck() {
-        let cases = vec![(
-            // declare types for function arguments
-            r#"
-                    fn f(a: int, b: string) {
+        let cases = vec![
+            (
+                // declare types for function arguments
+                r#"
+                    func f(a: int, b: string) {
                         return b.len().eq(a);
                     }
 
-                    fn main() {
+                    func main() {
                         return f(1,"hello");
                     }
                 "#,
-            vec![(
-                "f",
-                Type::Fn(vec![Type::Int, Type::String], Box::new(Type::Bool)),
-            )],
-        )];
+                vec![(
+                    "f",
+                    Type::Fn(vec![Type::Int, Type::String], Box::new(Type::Bool)),
+                )],
+            ),
+            (
+                r#"
+let a = 10;
+
+func main() {
+    a = 20;
+
+    return a;
+}
+            "#,
+                vec![],
+            ),
+        ];
 
         for c in cases {
             let compiler = Compiler::new();

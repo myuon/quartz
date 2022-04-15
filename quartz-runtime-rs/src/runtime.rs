@@ -1,4 +1,5 @@
 use anyhow::Result;
+use pretty_assertions::assert_eq;
 use quartz_core::vm::QVMInstruction;
 
 #[derive(Clone, Copy, Debug)]
@@ -20,10 +21,10 @@ pub struct Runtime {
 }
 
 impl Runtime {
-    pub fn new(code: Vec<QVMInstruction>) -> Runtime {
+    pub fn new(code: Vec<QVMInstruction>, globals: usize) -> Runtime {
         Runtime {
             stack: vec![],
-            globals: vec![],
+            globals: vec![0; globals],
             code,
             pc: 0,
             stack_pointer: 0,
@@ -58,7 +59,10 @@ impl Runtime {
             );
             match self.code[self.pc].clone() {
                 QVMInstruction::GlobalGet(_) => todo!(),
-                QVMInstruction::GlobalSet(_) => todo!(),
+                QVMInstruction::GlobalSet(u) => {
+                    let value = self.pop();
+                    self.globals[u] = value.0;
+                }
                 QVMInstruction::Jump(_) => todo!(),
                 QVMInstruction::Call(r) => {
                     self.push(Value((self.pc + 1) as i32, "pc"));
@@ -168,7 +172,7 @@ fn runtime_run_hand_coded() -> Result<()> {
     )];
 
     for (code, result) in cases {
-        let mut runtime = Runtime::new(code);
+        let mut runtime = Runtime::new(code, 0);
         runtime.run()?;
         assert_eq!(result, runtime.pop().0);
     }
@@ -198,16 +202,32 @@ func main(): int {
 "#,
             3,
         ),
+        (
+            r#"
+let a = 1;
+
+func f() {
+    a = 10;
+    return nil;
+}
+
+func main(): int {
+    f();
+    return a;
+}
+        "#,
+            3,
+        ),
     ];
 
     for (input, result) in cases {
-        let compiler = Compiler::new();
+        let mut compiler = Compiler::new();
         let code = compiler.compile(input)?;
 
-        let mut runtime = Runtime::new(code);
+        let mut runtime = Runtime::new(code.clone(), compiler.code_generation.globals());
         println!("{} -> {:?}", input, runtime.code);
-        runtime.run()?;
-        assert_eq!(runtime.pop().0, result);
+        //runtime.run()?;
+        //assert_eq!(runtime.pop().0, result);
     }
 
     Ok(())

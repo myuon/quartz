@@ -10,6 +10,8 @@ use crate::{
 #[derive(Debug)]
 pub struct CodeGeneration {
     pub code: Vec<QVMInstruction>,
+    labels: HashMap<String, usize>,
+    global_pointer: usize,
     globals: HashMap<String, usize>,
     arg_pointer: usize,
     args: HashMap<String, usize>,
@@ -26,6 +28,8 @@ impl CodeGeneration {
                 QVMInstruction::I32Const(999),
                 QVMInstruction::I32Const(999),
             ],
+            labels: HashMap::new(),
+            global_pointer: 0,
             globals: HashMap::new(),
             arg_pointer: 0,
             args: HashMap::new(),
@@ -48,8 +52,13 @@ impl CodeGeneration {
         self.arg_pointer += 1;
     }
 
-    fn push_global(&mut self, name: String, code_len: usize) {
-        self.globals.insert(name, code_len);
+    fn push_global(&mut self, name: String) {
+        self.globals.insert(name, self.global_pointer);
+        self.global_pointer += 1;
+    }
+
+    fn push_label(&mut self, label: String, pc: usize) {
+        self.labels.insert(label, pc);
     }
 
     fn expr(&mut self, expr: &Expr) -> Result<()> {
@@ -59,6 +68,8 @@ impl CodeGeneration {
                     self.code.push(QVMInstruction::Load(*u));
                 } else if let Some(u) = self.args.get(v) {
                     self.code.push(QVMInstruction::LoadArg(*u));
+                } else if let Some(u) = self.globals.get(v) {
+                    self.code.push(QVMInstruction::GlobalGet(*u));
                 } else {
                     anyhow::bail!("{} not found", v);
                 }
@@ -67,7 +78,9 @@ impl CodeGeneration {
                 use crate::ast::Literal::*;
 
                 match lit {
-                    Nil => todo!(),
+                    Nil => {
+                        self.code.push(QVMInstruction::I32Const(9999));
+                    }
                     Bool(_) => todo!(),
                     Int(n) => {
                         self.code.push(QVMInstruction::I32Const(*n));
@@ -81,7 +94,7 @@ impl CodeGeneration {
                 }
 
                 if let Expr::Var(v) = f.as_ref() {
-                    if let Some(addr) = self.globals.get(v) {
+                    if let Some(addr) = self.labels.get(v) {
                         self.code.push(QVMInstruction::Call(*addr));
                     } else {
                         // builtin functions
@@ -111,14 +124,31 @@ impl CodeGeneration {
                 self.expr(expr)?;
                 self.push_local(v.clone());
             }
-            Statement::Expr(_) => todo!(),
+            Statement::Expr(expr) => {
+                self.expr(expr)?;
+            }
             Statement::Return(e) => {
                 self.expr(e)?;
                 self.code.push(QVMInstruction::Return);
             }
             Statement::If(_, _, _) => todo!(),
             Statement::Continue => todo!(),
-            Statement::Assignment(_, _) => todo!(),
+            Statement::Assignment(v, e) => {
+                self.expr(e)?;
+
+                match v.as_ref() {
+                    Expr::Var(v) => {
+                        if let Some(u) = self.locals.get(v).cloned() {
+                            self.code.push(QVMInstruction::Store(u));
+                        } else if let Some(u) = self.globals.get(v).cloned() {
+                            self.code.push(QVMInstruction::GlobalSet(u));
+                        } else {
+                            anyhow::bail!("{} not found", v);
+                        }
+                    }
+                    _ => todo!(),
+                }
+            }
             Statement::Loop(_) => todo!(),
             Statement::While(_, _) => todo!(),
         }
@@ -140,13 +170,16 @@ impl CodeGeneration {
             self.statement(b)?;
         }
 
-        self.push_global(function.name.clone(), pc);
+        self.push_label(function.name.clone(), pc);
 
         println!("{} {:?}", function.name, self.locals);
         Ok(())
     }
 
     fn variable(&mut self, name: &String, expr: &Expr) -> Result<()> {
+        self.expr(expr)?;
+        self.push_global(name.clone());
+
         Ok(())
     }
 
@@ -164,13 +197,17 @@ impl CodeGeneration {
         }
 
         // entrypoint for calling main
-        let main = self.globals["main"];
+        let main = self.labels["main"];
 
         self.code[0] = QVMInstruction::I32Const(999); // for return value
         self.code[1] = QVMInstruction::Call(main);
         self.code[2] = QVMInstruction::Return; // return
 
         Ok(())
+    }
+
+    pub fn globals(&self) -> usize {
+        self.globals.len()
     }
 }
 

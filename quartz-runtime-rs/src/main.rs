@@ -10,7 +10,12 @@ fn main() {
     let mut stdin = std::io::stdin();
     stdin.read_to_string(&mut buffer).unwrap();
 
-    let compiler = Compiler::new();
+    let mut compiler = Compiler::new();
     let code = compiler.compile(&buffer).unwrap();
-    println!("{:?}", Runtime::new(code).run().unwrap());
+    println!(
+        "{:?}",
+        Runtime::new(code.clone(), compiler.code_generation.globals())
+            .run()
+            .unwrap()
+    );
 }

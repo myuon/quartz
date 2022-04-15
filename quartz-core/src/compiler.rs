@@ -19,11 +19,15 @@ pub enum CompileError {
     ParseError { source: Error, position: usize },
 }
 
-pub struct Compiler {}
+pub struct Compiler {
+    pub code_generation: CodeGeneration,
+}
 
 impl Compiler {
     pub fn new() -> Compiler {
-        Compiler {}
+        Compiler {
+            code_generation: CodeGeneration::new(),
+        }
     }
 
     pub fn parse(&self, input: &str) -> Result<Module> {
@@ -87,13 +91,12 @@ impl Compiler {
         eval.eval_module(module).context("Phase: eval")
     }
 
-    pub fn compile(&self, input: &str) -> Result<Vec<QVMInstruction>> {
+    pub fn compile(&mut self, input: &str) -> Result<&Vec<QVMInstruction>> {
         let mut module = self.parse(input)?;
         let checker = self.typecheck(&mut module)?;
 
-        let mut generation = CodeGeneration::new();
-        generation.module(&module)?;
+        self.code_generation.module(&module)?;
 
-        Ok(generation.code)
+        Ok(&self.code_generation.code)
     }
 }
