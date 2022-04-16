@@ -6,7 +6,6 @@ use thiserror::Error as ThisError;
 use crate::{
     ast::{DataValue, Module},
     code_generation::CodeGeneration,
-    eval::Evaluator,
     parser::run_parser,
     stdlib::{stdlib, stdlib_methods},
     typechecker::TypeChecker,
@@ -83,17 +82,9 @@ impl Compiler {
         Ok(checker)
     }
 
-    pub fn exec(&self, input: &str) -> Result<DataValue> {
-        let mut module = self.parse(input)?;
-        let checker = self.typecheck(&mut module)?;
-
-        let mut eval = Evaluator::new(checker.structs, checker.functions, checker.methods);
-        eval.eval_module(module).context("Phase: eval")
-    }
-
     pub fn compile(&mut self, input: &str) -> Result<Vec<QVMInstruction>> {
         let mut module = self.parse(input)?;
-        let checker = self.typecheck(&mut module)?;
+        self.typecheck(&mut module)?;
 
         let code = self.code_generation.generate(&module)?;
 

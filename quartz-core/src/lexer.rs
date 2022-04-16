@@ -186,6 +186,7 @@ pub fn run_lexer(input: &str) -> Vec<Token> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn test_run_lexer() {
@@ -194,11 +195,11 @@ mod tests {
             (
                 r#"
                     // this is a comment
-                    let main = fn () {
+                    let main = func () {
                     f(10, 20, 40);
                     100;
                     "foo"; // and comment
-                    let u = fn () { 20 };
+                    let u = func () { 20 };
             };
             main();"#,
                 vec![
@@ -250,7 +251,7 @@ mod tests {
                 ],
             ),
             (
-                r#"fn () { return 10; }"#,
+                r#"func () { return 10; }"#,
                 vec![
                     Func,
                     LParen,
@@ -290,7 +291,7 @@ mod tests {
                     .map(|t| t.lexeme)
                     .collect::<Vec<_>>(),
                 c.1,
-                "{:?}",
+                "{}",
                 c.0
             );
         }

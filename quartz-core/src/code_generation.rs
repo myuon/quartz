@@ -128,8 +128,6 @@ pub struct CodeGeneration {
     code: Vec<QVMInstruction>,
     global_pointer: usize,
     globals: HashMap<String, usize>,
-    local_pointer: usize,
-    locals: HashMap<String, usize>,
 }
 
 impl CodeGeneration {
@@ -138,8 +136,6 @@ impl CodeGeneration {
             code: vec![],
             global_pointer: 0,
             globals: HashMap::new(),
-            local_pointer: 0,
-            locals: HashMap::new(),
         }
     }
 
@@ -149,9 +145,6 @@ impl CodeGeneration {
     }
 
     fn function(&mut self, function: &Function) -> Result<Vec<QVMInstruction>> {
-        self.local_pointer = 0;
-        self.locals.clear();
-
         let mut args = HashMap::new();
         for (index, (name, _)) in function.args.iter().enumerate() {
             args.insert(name.clone(), index);

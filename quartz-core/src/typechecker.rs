@@ -537,7 +537,7 @@ mod tests {
         let cases = vec![
             (
                 r#"
-                    fn main() {
+                    func main() {
                         let x = 10;
                         x();
                     }
@@ -546,11 +546,11 @@ mod tests {
             ),
             (
                 r#"
-                    fn f(a,b) {
+                    func f(a,b) {
                         return a;
                     }
 
-                    fn main() {
+                    func main() {
                         f(1);
                     }
                 "#,
