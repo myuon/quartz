@@ -69,14 +69,6 @@ impl Runtime {
                 &self.code[self.pc],
             );
             match self.code[self.pc].clone() {
-                QVMInstruction::GlobalGet(u) => {
-                    let value = self.globals[u];
-                    self.push(Value(value, "i32"));
-                }
-                QVMInstruction::GlobalSet(u) => {
-                    let value = self.pop();
-                    self.globals[u] = value.0;
-                }
                 QVMInstruction::Jump(_) => todo!(),
                 QVMInstruction::Call(r) => {
                     self.push(Value((self.pc + 1) as i32, "pc"));
@@ -163,6 +155,10 @@ impl Runtime {
                         assert_eq!(v.1, "i32");
                         self.push(v);
                     }
+                    "global" => {
+                        let value = self.globals[i];
+                        self.push(Value(value, "i32"));
+                    }
                     _ => {
                         unreachable!();
                     }
@@ -170,6 +166,10 @@ impl Runtime {
                 QVMInstruction::Store(r, kind) => match kind {
                     "local" => {
                         self.stack[self.stack_pointer - r] = self.pop();
+                    }
+                    "global" => {
+                        let value = self.pop();
+                        self.globals[r] = value.0;
                     }
                     _ => {
                         unreachable!();

@@ -6,9 +6,6 @@ pub enum QVMInstruction {
     Pop(usize),
     // function arguments
     LoadArg(usize),
-    // global variables
-    GlobalGet(usize),
-    GlobalSet(usize),
     // control
     Jump(usize),
     JumpIfFalse(usize),

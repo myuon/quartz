@@ -53,7 +53,7 @@ impl<'a> Generator<'a> {
                 } else if let Some(u) = self.args.get(v) {
                     self.code.push(QVMInstruction::LoadArg(*u));
                 } else if let Some(u) = self.globals.get(v) {
-                    self.code.push(QVMInstruction::GlobalGet(*u));
+                    self.code.push(QVMInstruction::Load(*u, "global"));
                 } else {
                     anyhow::bail!("{} not found", v);
                 }
@@ -138,7 +138,7 @@ impl<'a> Generator<'a> {
                         if let Some(u) = self.locals.get(v).cloned() {
                             self.code.push(QVMInstruction::Store(u, "local"));
                         } else if let Some(u) = self.globals.get(v).cloned() {
-                            self.code.push(QVMInstruction::GlobalSet(u));
+                            self.code.push(QVMInstruction::Store(u, "global"));
                         } else {
                             anyhow::bail!("{} not found", v);
                         }
@@ -197,7 +197,7 @@ impl CodeGeneration {
         let mut code = generator.code;
 
         self.push_global(name.clone());
-        code.push(QVMInstruction::GlobalSet(self.globals[name]));
+        code.push(QVMInstruction::Store(self.globals[name], "global"));
 
         Ok(code)
     }
