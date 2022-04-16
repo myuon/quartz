@@ -109,7 +109,7 @@ impl<'a> Generator<'a> {
             }
             Statement::Return(e) => {
                 self.expr(e)?;
-                self.code.push(QVMInstruction::Return);
+                self.code.push(QVMInstruction::Return(self.args.len()));
             }
             Statement::If(b, e1, e2) => {
                 let label = format!("if-{}", self.globals.len());
@@ -222,6 +222,20 @@ impl CodeGeneration {
         Ok(code)
     }
 
+    fn call_main(
+        &mut self,
+        labels: &mut HashMap<String, usize>,
+        offset: usize,
+    ) -> Result<Vec<QVMInstruction>> {
+        let mut generator = Generator::new(HashMap::new(), &self.globals, labels, offset);
+        generator.statement(&Statement::Return(Expr::Call(
+            Box::new(Expr::Var("main".to_string())),
+            vec![],
+        )))?;
+
+        Ok(generator.code)
+    }
+
     pub fn generate(&mut self, module: &Module) -> Result<Vec<QVMInstruction>> {
         let mut code = vec![];
 
@@ -248,11 +262,7 @@ impl CodeGeneration {
 
         // call main
         labels.insert("main".to_string(), code.len());
-        code.extend(vec![
-            QVMInstruction::I32Const(999), // for return value
-            QVMInstruction::LabelCall("main".to_string()),
-            QVMInstruction::Return,
-        ]);
+        code.extend(self.call_main(&mut labels, code.len())?);
 
         for function in function_decls {
             labels.insert(function.name.to_string(), code.len());

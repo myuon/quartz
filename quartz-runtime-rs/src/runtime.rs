@@ -6,8 +6,8 @@ use quartz_core::vm::QVMInstruction;
 pub struct Value(i32, &'static str);
 
 /* StackFrame
-    [return_value, argument*, return_address, fp, local*]
-                                                ^ new fp
+    [argument*, return_address, fp, local*]
+                                    ^ new fp
 */
 
 #[derive(Debug)]
@@ -33,6 +33,12 @@ impl Runtime {
     }
 
     fn pop(&mut self) -> Value {
+        assert!(
+            self.stack_pointer > 0,
+            "{} at {:?}",
+            self.stack_pointer,
+            self.stack
+        );
         self.stack_pointer -= 1;
         self.stack[self.stack_pointer]
     }
@@ -53,14 +59,14 @@ impl Runtime {
     pub fn run(&mut self) -> Result<()> {
         while self.pc < self.code.len() {
             println!(
-                "{:?}, {:?}",
-                &self.stack[0..self.stack_pointer],
-                &self.code[self.pc]
+                "{:?} {:?}",
+                &self.stack[0..self.stack_pointer].iter().collect::<Vec<_>>(),
+                &self.code[self.pc],
             );
             match self.code[self.pc].clone() {
                 QVMInstruction::GlobalGet(u) => {
                     let value = self.globals[u];
-                    self.push(Value(value, "global"));
+                    self.push(Value(value, "i32"));
                 }
                 QVMInstruction::GlobalSet(u) => {
                     let value = self.pop();
@@ -74,13 +80,26 @@ impl Runtime {
                     self.frame_pointer = self.stack_pointer;
                     continue;
                 }
-                QVMInstruction::Return => {
+                QVMInstruction::Return(args) => {
                     // exit this program
                     if self.frame_pointer == 0 {
                         return Ok(());
                     }
 
+                    /* Before:
+                     * [..., argument*, pc, fp, local*, return_value]
+                     *                          ^ fp    ^ sp
+                     *
+                     * After:
+                     * [..., return_value]
+                     *       ^ sp
+                     *
+                     */
+
+                    let current_fp = self.frame_pointer;
+
                     let result = self.pop();
+                    assert_eq!(result.1, "i32");
                     self.stack_pointer = self.frame_pointer;
 
                     let fp = self.load(1);
@@ -91,8 +110,8 @@ impl Runtime {
                     assert_eq!(pc.1, "pc");
                     self.pc = pc.0 as usize;
 
-                    self.stack[self.frame_pointer] = result;
-                    self.stack_pointer -= 2;
+                    self.stack[current_fp - (args + 2)] = result;
+                    self.stack_pointer -= args + 1; // -2 words (fp, pc), +1 word (return value)
                     continue;
                 }
                 QVMInstruction::Add => {
@@ -127,6 +146,13 @@ impl Runtime {
                     self.push(Value(c, "i32"));
                 }
                 QVMInstruction::Load(i) => {
+                    assert_eq!(
+                        self.stack[self.frame_pointer - 1].1,
+                        "fp",
+                        "{} at {:?}",
+                        self.frame_pointer,
+                        self.stack
+                    );
                     let v = self.stack[self.frame_pointer + i];
                     assert_eq!(v.1, "i32");
                     self.push(v);
@@ -181,18 +207,16 @@ fn runtime_run_hand_coded() -> Result<()> {
         */
         vec![
             // entrypoint:
-            I32Const(999), // for return value
             I32Const(2),
-            Call(5), // call main
-            Pop(1),  // pop arguments of main
-            Return,
+            Call(3), // call main
+            Return(0),
             // main:
             I32Const(1),  // a
             I32Const(10), // z
             Load(0),      // load a
             LoadArg(0),   // load b
             Add,          // a + b
-            Return,       // return
+            Return(1),    // return
         ],
         3,
     )];
@@ -258,7 +282,7 @@ func main() {
     return factorial(5);
 }
 "#,
-            10,
+            120,
         ),
     ];
 

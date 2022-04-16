@@ -14,7 +14,7 @@ pub enum QVMInstruction {
     JumpIfFalse(usize),
     // functions
     Call(usize),
-    Return,
+    Return(usize), // number of caller arguments
     // arithmetic and logic
     Add,
     Sub,
