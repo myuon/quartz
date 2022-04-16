@@ -8,42 +8,28 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct CodeGeneration {
+struct Generator<'a> {
     code: Vec<QVMInstruction>,
-    global_pointer: usize,
-    globals: HashMap<String, usize>,
-    arg_pointer: usize,
-    args: HashMap<String, usize>,
     local_pointer: usize,
     locals: HashMap<String, usize>,
+    args: HashMap<String, usize>,
+    globals: &'a HashMap<String, usize>,
 }
 
-impl CodeGeneration {
-    pub fn new() -> CodeGeneration {
-        CodeGeneration {
+impl<'a> Generator<'a> {
+    fn new(args: HashMap<String, usize>, globals: &'a HashMap<String, usize>) -> Generator<'a> {
+        Generator {
             code: vec![],
-            global_pointer: 0,
-            globals: HashMap::new(),
-            arg_pointer: 0,
-            args: HashMap::new(),
             local_pointer: 0,
             locals: HashMap::new(),
+            args,
+            globals,
         }
     }
 
     fn push_local(&mut self, name: String) {
         self.locals.insert(name, self.local_pointer);
         self.local_pointer += 1;
-    }
-
-    fn push_arg(&mut self, name: String) {
-        self.args.insert(name, self.arg_pointer);
-        self.arg_pointer += 1;
-    }
-
-    fn push_global(&mut self, name: String) {
-        self.globals.insert(name, self.global_pointer);
-        self.global_pointer += 1;
     }
 
     fn expr(&mut self, expr: &Expr) -> Result<()> {
@@ -135,29 +121,60 @@ impl CodeGeneration {
 
         Ok(())
     }
+}
 
-    fn function(&mut self, function: &Function) -> Result<()> {
+#[derive(Debug)]
+pub struct CodeGeneration {
+    code: Vec<QVMInstruction>,
+    global_pointer: usize,
+    globals: HashMap<String, usize>,
+    local_pointer: usize,
+    locals: HashMap<String, usize>,
+}
+
+impl CodeGeneration {
+    pub fn new() -> CodeGeneration {
+        CodeGeneration {
+            code: vec![],
+            global_pointer: 0,
+            globals: HashMap::new(),
+            local_pointer: 0,
+            locals: HashMap::new(),
+        }
+    }
+
+    fn push_global(&mut self, name: String) {
+        self.globals.insert(name, self.global_pointer);
+        self.global_pointer += 1;
+    }
+
+    fn function(&mut self, function: &Function) -> Result<Vec<QVMInstruction>> {
         self.local_pointer = 0;
         self.locals.clear();
 
-        for (name, _) in &function.args {
-            self.push_arg(name.clone());
+        let mut args = HashMap::new();
+        for (index, (name, _)) in function.args.iter().enumerate() {
+            args.insert(name.clone(), index);
         }
 
+        let mut generator = Generator::new(args, &self.globals);
         for b in &function.body {
-            self.statement(b)?;
+            generator.statement(b)?;
         }
+        let code = generator.code;
 
-        Ok(())
+        Ok(code)
     }
 
-    fn variable(&mut self, name: &String, expr: &Expr) -> Result<()> {
-        self.expr(expr)?;
-        self.push_global(name.clone());
-        self.code
-            .push(QVMInstruction::GlobalSet(self.globals[name]));
+    fn variable(&mut self, name: &String, expr: &Expr) -> Result<Vec<QVMInstruction>> {
+        let mut generator = Generator::new(HashMap::new(), &self.globals);
+        generator.expr(expr)?;
+        let mut code = generator.code;
 
-        Ok(())
+        self.push_global(name.clone());
+        code.push(QVMInstruction::GlobalSet(self.globals[name]));
+
+        Ok(code)
     }
 
     pub fn globals(&self) -> usize {
@@ -174,12 +191,12 @@ impl CodeGeneration {
 
             match decl {
                 Declaration::Function(f) => {
-                    self.function(f)?;
-                    function_code.insert(f.name.clone(), self.code.clone());
+                    let code = self.function(f)?;
+                    function_code.insert(f.name.clone(), code);
                 }
                 Declaration::Variable(name, expr) => {
-                    self.variable(name, expr)?;
-                    init_code.extend(self.code.clone());
+                    let code = self.variable(name, expr)?;
+                    init_code.extend(code);
                 }
                 Declaration::Struct(_) => {}
             };
