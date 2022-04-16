@@ -170,7 +170,6 @@ impl Runtime {
                     assert_eq!(arg.1, "i32");
                     self.push(arg);
                 }
-                QVMInstruction::LabelCall(_) => unreachable!(),
                 QVMInstruction::JumpIfFalse(k) => {
                     let v = self.pop();
                     assert_eq!(v.1, "bool");
@@ -179,8 +178,9 @@ impl Runtime {
                         continue;
                     }
                 }
-                QVMInstruction::Label(_) => todo!(),
-                QVMInstruction::LabelJumpIfFalse(_) => todo!(),
+                //
+                QVMInstruction::LabelCall(_) => unreachable!(),
+                QVMInstruction::LabelJumpIfFalse(_) => unreachable!(),
             }
 
             self.pc += 1;

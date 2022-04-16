@@ -31,8 +31,6 @@ pub enum QVMInstruction {
     // constants
     I32Const(i32),
     //
-    Label(String),
-    //
     // Only used during generation phase
     LabelCall(String),
     LabelJumpIfFalse(String),
