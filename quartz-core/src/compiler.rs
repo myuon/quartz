@@ -4,7 +4,7 @@ use anyhow::{Context, Error, Result};
 use thiserror::Error as ThisError;
 
 use crate::{
-    ast::{DataValue, Module},
+    ast::Module,
     code_generation::CodeGeneration,
     parser::run_parser,
     stdlib::{stdlib, stdlib_methods},

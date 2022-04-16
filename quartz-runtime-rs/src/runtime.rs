@@ -98,13 +98,25 @@ impl Runtime {
                 QVMInstruction::Add => {
                     let a = self.pop();
                     let b = self.pop();
-                    self.push(Value(a.0 + b.0, "i32"));
+                    self.push(Value(b.0 + a.0, "i32"));
                 }
-                QVMInstruction::Sub => todo!(),
-                QVMInstruction::Mul => todo!(),
+                QVMInstruction::Sub => {
+                    let a = self.pop();
+                    let b = self.pop();
+                    self.push(Value(b.0 - a.0, "i32"));
+                }
+                QVMInstruction::Mult => {
+                    let a = self.pop();
+                    let b = self.pop();
+                    self.push(Value(b.0 * a.0, "i32"));
+                }
                 QVMInstruction::Div => todo!(),
                 QVMInstruction::Mod => todo!(),
-                QVMInstruction::Eq => todo!(),
+                QVMInstruction::Eq => {
+                    let a = self.pop();
+                    let b = self.pop();
+                    self.push(Value(if b.0 == a.0 { 1 } else { 0 }, "bool"));
+                }
                 QVMInstruction::Neq => todo!(),
                 QVMInstruction::Lt => todo!(),
                 QVMInstruction::Le => todo!(),
@@ -132,7 +144,17 @@ impl Runtime {
                     assert_eq!(arg.1, "i32");
                     self.push(arg);
                 }
-                QVMInstruction::PlaceholderLabel(_) => unreachable!(),
+                QVMInstruction::LabelCall(_) => unreachable!(),
+                QVMInstruction::JumpIfFalse(k) => {
+                    let v = self.pop();
+                    assert_eq!(v.1, "bool");
+                    if v.0 == 0 {
+                        self.pc = k;
+                        continue;
+                    }
+                }
+                QVMInstruction::Label(_) => todo!(),
+                QVMInstruction::LabelJumpIfFalse(_) => todo!(),
             }
 
             self.pc += 1;
@@ -222,6 +244,22 @@ func main(): int {
         "#,
             15,
         ),
+        (
+            r#"
+func factorial(n: int) {
+    if _eq(n,0) {
+        return 1;
+    } else {
+        return _mult(n, factorial(_sub(n,1)));
+    };
+}
+
+func main() {
+    return factorial(5);
+}
+"#,
+            10,
+        ),
     ];
 
     for (input, result) in cases {
@@ -229,7 +267,10 @@ func main(): int {
         let code = compiler.compile(input)?;
 
         let mut runtime = Runtime::new(code.clone(), compiler.code_generation.globals());
-        println!("{} -> {:?}", input, runtime.code);
+        println!("{}", input);
+        for (n, inst) in runtime.code.iter().enumerate() {
+            println!("{:04} {:?}", n, inst);
+        }
         runtime.run()?;
         assert_eq!(runtime.pop().0, result);
     }

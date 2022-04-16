@@ -11,13 +11,14 @@ pub enum QVMInstruction {
     GlobalSet(usize),
     // control
     Jump(usize),
+    JumpIfFalse(usize),
     // functions
     Call(usize),
     Return,
     // arithmetic and logic
     Add,
     Sub,
-    Mul,
+    Mult,
     Div,
     Mod,
     Eq,
@@ -29,6 +30,10 @@ pub enum QVMInstruction {
     Not,
     // constants
     I32Const(i32),
+    //
+    Label(String),
+    //
     // Only used during generation phase
-    PlaceholderLabel(String),
+    LabelCall(String),
+    LabelJumpIfFalse(String),
 }

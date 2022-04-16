@@ -14,22 +14,35 @@ struct Generator<'a> {
     locals: HashMap<String, usize>,
     args: HashMap<String, usize>,
     globals: &'a HashMap<String, usize>,
+    labels: &'a mut HashMap<String, usize>,
+    offset: usize,
 }
 
 impl<'a> Generator<'a> {
-    fn new(args: HashMap<String, usize>, globals: &'a HashMap<String, usize>) -> Generator<'a> {
+    fn new(
+        args: HashMap<String, usize>,
+        globals: &'a HashMap<String, usize>,
+        labels: &'a mut HashMap<String, usize>,
+        offset: usize,
+    ) -> Generator<'a> {
         Generator {
             code: vec![],
             local_pointer: 0,
             locals: HashMap::new(),
             args,
             globals,
+            labels,
+            offset,
         }
     }
 
     fn push_local(&mut self, name: String) {
         self.locals.insert(name, self.local_pointer);
         self.local_pointer += 1;
+    }
+
+    fn register_label(&mut self, name: String) {
+        self.labels.insert(name, self.offset + self.code.len());
     }
 
     fn expr(&mut self, expr: &Expr) -> Result<()> {
@@ -65,12 +78,13 @@ impl<'a> Generator<'a> {
                 }
 
                 if let Expr::Var(v) = f.as_ref() {
-                    // builtin functions
-                    if v == "_add" {
-                        self.code.push(QVMInstruction::Add);
-                    } else {
-                        self.code.push(QVMInstruction::PlaceholderLabel(v.clone()));
-                    }
+                    self.code.push(match v.as_str() {
+                        "_add" => QVMInstruction::Add,
+                        "_sub" => QVMInstruction::Sub,
+                        "_mult" => QVMInstruction::Mult,
+                        "_eq" => QVMInstruction::Eq,
+                        _ => QVMInstruction::LabelCall(v.clone()),
+                    });
                 } else {
                     todo!();
                 }
@@ -97,7 +111,24 @@ impl<'a> Generator<'a> {
                 self.expr(e)?;
                 self.code.push(QVMInstruction::Return);
             }
-            Statement::If(_, _, _) => todo!(),
+            Statement::If(b, e1, e2) => {
+                let label = format!("if-{}", self.globals.len());
+                let label_then = format!("then-{}", self.globals.len());
+                let label_else = format!("else-{}", self.globals.len());
+                let label_end = format!("end-{}", self.globals.len());
+
+                self.register_label(label.clone());
+                self.expr(b)?;
+                self.code
+                    .push(QVMInstruction::LabelJumpIfFalse(label_else.clone()));
+                self.register_label(label_then.clone());
+                self.statements(e1)?;
+                self.code
+                    .push(QVMInstruction::LabelJumpIfFalse(label_end.clone()));
+                self.register_label(label_else.clone());
+                self.statements(e2)?;
+                self.register_label(label_end.clone());
+            }
             Statement::Continue => todo!(),
             Statement::Assignment(v, e) => {
                 self.expr(e)?;
@@ -121,11 +152,18 @@ impl<'a> Generator<'a> {
 
         Ok(())
     }
+
+    fn statements(&mut self, statements: &Vec<Statement>) -> Result<()> {
+        for statement in statements {
+            self.statement(statement)?;
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(Debug)]
 pub struct CodeGeneration {
-    code: Vec<QVMInstruction>,
     global_pointer: usize,
     globals: HashMap<String, usize>,
 }
@@ -133,7 +171,6 @@ pub struct CodeGeneration {
 impl CodeGeneration {
     pub fn new() -> CodeGeneration {
         CodeGeneration {
-            code: vec![],
             global_pointer: 0,
             globals: HashMap::new(),
         }
@@ -144,23 +181,18 @@ impl CodeGeneration {
         self.global_pointer += 1;
     }
 
-    fn function(&mut self, function: &Function) -> Result<Vec<QVMInstruction>> {
-        let mut args = HashMap::new();
-        for (index, (name, _)) in function.args.iter().enumerate() {
-            args.insert(name.clone(), index);
-        }
-
-        let mut generator = Generator::new(args, &self.globals);
-        for b in &function.body {
-            generator.statement(b)?;
-        }
-        let code = generator.code;
-
-        Ok(code)
+    pub fn globals(&self) -> usize {
+        self.globals.len()
     }
 
-    fn variable(&mut self, name: &String, expr: &Expr) -> Result<Vec<QVMInstruction>> {
-        let mut generator = Generator::new(HashMap::new(), &self.globals);
+    fn variable(
+        &mut self,
+        name: &String,
+        expr: &Expr,
+        labels: &mut HashMap<String, usize>,
+        offset: usize,
+    ) -> Result<Vec<QVMInstruction>> {
+        let mut generator = Generator::new(HashMap::new(), &self.globals, labels, offset);
         generator.expr(expr)?;
         let mut code = generator.code;
 
@@ -170,52 +202,74 @@ impl CodeGeneration {
         Ok(code)
     }
 
-    pub fn globals(&self) -> usize {
-        self.globals.len()
+    fn function(
+        &mut self,
+        function: &Function,
+        labels: &mut HashMap<String, usize>,
+        offset: usize,
+    ) -> Result<Vec<QVMInstruction>> {
+        let mut args = HashMap::new();
+        for (index, (name, _)) in function.args.iter().enumerate() {
+            args.insert(name.clone(), index);
+        }
+
+        let mut generator = Generator::new(args, &self.globals, labels, offset);
+        for b in &function.body {
+            generator.statement(b)?;
+        }
+        let code = generator.code;
+
+        Ok(code)
     }
 
     pub fn generate(&mut self, module: &Module) -> Result<Vec<QVMInstruction>> {
-        let mut init_code = vec![];
-        let mut function_code = HashMap::new();
+        let mut code = vec![];
 
-        // first path
-        for decl in &module.0 {
-            self.code = vec![];
-
-            match decl {
+        let mut var_decls = vec![];
+        let mut function_decls = vec![];
+        for m in &module.0 {
+            match m {
                 Declaration::Function(f) => {
-                    let code = self.function(f)?;
-                    function_code.insert(f.name.clone(), code);
+                    function_decls.push(f);
                 }
-                Declaration::Variable(name, expr) => {
-                    let code = self.variable(name, expr)?;
-                    init_code.extend(code);
+                Declaration::Variable(n, e) => {
+                    var_decls.push((n, e));
                 }
                 Declaration::Struct(_) => {}
-            };
+            }
+        }
+
+        let mut labels = HashMap::new();
+
+        // first path
+        for (name, expr) in var_decls {
+            code.extend(self.variable(name, expr, &mut labels, code.len())?);
         }
 
         // call main
-        init_code.extend(vec![
+        labels.insert("main".to_string(), code.len());
+        code.extend(vec![
             QVMInstruction::I32Const(999), // for return value
-            QVMInstruction::PlaceholderLabel("main".to_string()),
+            QVMInstruction::LabelCall("main".to_string()),
             QVMInstruction::Return,
         ]);
 
-        // second path
-        let mut labels = HashMap::new();
-        let mut code = vec![];
-        code.extend(init_code);
-        for (k, v) in function_code {
-            labels.insert(k, code.len());
-            code.extend(v);
+        for function in function_decls {
+            labels.insert(function.name.to_string(), code.len());
+            code.extend(self.function(function, &mut labels, code.len())?);
         }
 
         // resolve labels
         for i in 0..code.len() {
-            if let QVMInstruction::PlaceholderLabel(ref label) = code[i] {
+            if let QVMInstruction::LabelCall(label) = &code[i] {
                 if let Some(pc) = labels.get(label) {
                     code[i] = QVMInstruction::Call(*pc);
+                } else {
+                    anyhow::bail!("label {} not found", label);
+                }
+            } else if let QVMInstruction::LabelJumpIfFalse(label) = &code[i] {
+                if let Some(pc) = labels.get(label) {
+                    code[i] = QVMInstruction::JumpIfFalse(*pc);
                 } else {
                     anyhow::bail!("label {} not found", label);
                 }
