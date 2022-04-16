@@ -49,7 +49,7 @@ impl<'a> Generator<'a> {
         match expr {
             Expr::Var(v) => {
                 if let Some(u) = self.locals.get(v) {
-                    self.code.push(QVMInstruction::Load(*u));
+                    self.code.push(QVMInstruction::Load(*u, "local"));
                 } else if let Some(u) = self.args.get(v) {
                     self.code.push(QVMInstruction::LoadArg(*u));
                 } else if let Some(u) = self.globals.get(v) {
@@ -90,7 +90,7 @@ impl<'a> Generator<'a> {
                 }
             }
             Expr::Struct(_, _) => todo!(),
-            Expr::Project(_, st, e, pr) => todo!(),
+            Expr::Project(_, _, _, _) => todo!(),
             Expr::Deref(_) => todo!(),
             Expr::Ref(_) => todo!(),
         }
@@ -136,7 +136,7 @@ impl<'a> Generator<'a> {
                 match v.as_ref() {
                     Expr::Var(v) => {
                         if let Some(u) = self.locals.get(v).cloned() {
-                            self.code.push(QVMInstruction::Store(u));
+                            self.code.push(QVMInstruction::Store(u, "local"));
                         } else if let Some(u) = self.globals.get(v).cloned() {
                             self.code.push(QVMInstruction::GlobalSet(u));
                         } else {

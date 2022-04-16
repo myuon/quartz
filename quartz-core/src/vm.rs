@@ -1,8 +1,8 @@
 #[derive(Clone, Debug)]
 pub enum QVMInstruction {
-    // locals
-    Load(usize),
-    Store(usize),
+    // stack
+    Load(usize, &'static str),
+    Store(usize, &'static str),
     Pop(usize),
     // function arguments
     LoadArg(usize),

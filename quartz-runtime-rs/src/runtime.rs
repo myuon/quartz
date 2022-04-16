@@ -5,6 +5,9 @@ use quartz_core::vm::QVMInstruction;
 #[derive(Clone, Copy, Debug)]
 pub struct Value(i32, &'static str);
 
+#[derive(Clone, Debug)]
+pub struct Data(Vec<i32>, &'static str);
+
 /* StackFrame
     [argument*, return_address, fp, local*]
                                     ^ new fp
@@ -13,6 +16,7 @@ pub struct Value(i32, &'static str);
 #[derive(Debug)]
 pub struct Runtime {
     stack: Vec<Value>,
+    heap: Vec<Data>,
     globals: Vec<i32>,
     code: Vec<QVMInstruction>,
     pc: usize,
@@ -24,6 +28,7 @@ impl Runtime {
     pub fn new(code: Vec<QVMInstruction>, globals: usize) -> Runtime {
         Runtime {
             stack: vec![],
+            heap: vec![],
             globals: vec![0; globals],
             code,
             pc: 0,
@@ -145,21 +150,31 @@ impl Runtime {
                 QVMInstruction::I32Const(c) => {
                     self.push(Value(c, "i32"));
                 }
-                QVMInstruction::Load(i) => {
-                    assert_eq!(
-                        self.stack[self.frame_pointer - 1].1,
-                        "fp",
-                        "{} at {:?}",
-                        self.frame_pointer,
-                        self.stack
-                    );
-                    let v = self.stack[self.frame_pointer + i];
-                    assert_eq!(v.1, "i32");
-                    self.push(v);
-                }
-                QVMInstruction::Store(r) => {
-                    self.stack[self.stack_pointer - r] = self.pop();
-                }
+                QVMInstruction::Load(i, kind) => match kind {
+                    "local" => {
+                        assert_eq!(
+                            self.stack[self.frame_pointer - 1].1,
+                            "fp",
+                            "{} at {:?}",
+                            self.frame_pointer,
+                            self.stack
+                        );
+                        let v = self.stack[self.frame_pointer + i];
+                        assert_eq!(v.1, "i32");
+                        self.push(v);
+                    }
+                    _ => {
+                        unreachable!();
+                    }
+                },
+                QVMInstruction::Store(r, kind) => match kind {
+                    "local" => {
+                        self.stack[self.stack_pointer - r] = self.pop();
+                    }
+                    _ => {
+                        unreachable!();
+                    }
+                },
                 QVMInstruction::Pop(r) => {
                     for _ in 0..r {
                         self.pop();
@@ -211,12 +226,12 @@ fn runtime_run_hand_coded() -> Result<()> {
             Call(3), // call main
             Return(0),
             // main:
-            I32Const(1),  // a
-            I32Const(10), // z
-            Load(0),      // load a
-            LoadArg(0),   // load b
-            Add,          // a + b
-            Return(1),    // return
+            I32Const(1),      // a
+            I32Const(10),     // z
+            Load(0, "local"), // load a
+            LoadArg(0),       // load b
+            Add,              // a + b
+            Return(1),        // return
         ],
         3,
     )];
@@ -284,28 +299,28 @@ func main() {
 "#,
             120,
         ),
-        (
-            r#"
-struct Point {
-    x: int,
-    y: int,
-}
+        /*    (
+                    r#"
+        struct Point {
+            x: int,
+            y: int,
+        }
 
-func (self: Point) sum(): int {
-    return _add(self.x, self.y);
-}
+        func (self: Point) sum(): int {
+            return _add(self.x, self.y);
+        }
 
-func main() {
-    let p = Point {
-        x: 1,
-        y: 2,
-    };
+        func main() {
+            let p = Point {
+                x: 1,
+                y: 2,
+            };
 
-    return p.sum();
-}
-"#,
-            10,
-        ),
+            return p.sum();
+        }
+        "#,
+                    10,
+                ),*/
     ];
 
     for (input, result) in cases {
