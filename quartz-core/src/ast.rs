@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use anyhow::{bail, Result};
 
 #[derive(PartialEq, Debug, Clone)]
@@ -205,5 +207,36 @@ impl DataValue {
             DataValue::Ref(s) => Ok(s),
             d => bail!("Expected a ref, but found {:?}", d),
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct Structs(pub HashMap<String, Vec<(String, Type)>>);
+
+impl Structs {
+    pub fn get_projection_type(&self, val: &str, label: &str) -> Result<Type> {
+        let struct_fields = self
+            .0
+            .get(val)
+            .ok_or(anyhow::anyhow!("{} not found", val))?;
+
+        let (_, t) = struct_fields
+            .iter()
+            .find(|(name, _)| name == label)
+            .ok_or(anyhow::anyhow!("{} not found", label))?;
+
+        Ok(t.clone())
+    }
+
+    pub fn get_projection_offset(&self, val: &str, label: &str) -> Result<usize> {
+        let struct_fields = self
+            .0
+            .get(val)
+            .ok_or(anyhow::anyhow!("{} not found", val))?;
+        let field_index = struct_fields
+            .iter()
+            .position(|(l, _)| l == label)
+            .ok_or(anyhow::anyhow!("{} not found in {}", label, val))?;
+        Ok(field_index)
     }
 }

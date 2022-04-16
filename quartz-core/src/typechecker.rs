@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use anyhow::{bail, Context, Result};
 use pretty_assertions::assert_eq;
 
-use crate::ast::{Declaration, Expr, Literal, Module, Statement, Type};
+use crate::ast::{Declaration, Expr, Literal, Module, Statement, Structs, Type};
 
 struct Constraints(Vec<(usize, Type)>);
 
@@ -107,7 +107,7 @@ impl Constraints {
 pub struct TypeChecker {
     infer_count: usize,
     variables: HashMap<String, Type>,
-    pub structs: HashMap<String, Vec<(String, Type)>>,
+    pub structs: Structs,
     pub functions: HashMap<
         String,
         (
@@ -143,7 +143,7 @@ impl TypeChecker {
         TypeChecker {
             infer_count: 0,
             variables,
-            structs: HashMap::new(),
+            structs: Structs(HashMap::new()),
             functions: HashMap::new(),
             methods,
         }
@@ -237,9 +237,9 @@ impl TypeChecker {
                 Ok(ret_type_inferred)
             }
             Expr::Struct(s, fields) => {
-                assert_eq!(self.structs.contains_key(s), true);
+                assert_eq!(self.structs.0.contains_key(s), true);
 
-                let def = self.structs[s].clone();
+                let def = self.structs.0[s].clone();
                 for ((k1, v1), (k2, v2)) in def.iter().zip(fields.into_iter()) {
                     assert_eq!(k1, k2);
 
@@ -280,14 +280,7 @@ impl TypeChecker {
                         method.2.clone(),
                     ))
                 } else {
-                    let def = self
-                        .structs
-                        .get(&typ_name)
-                        .ok_or_else(|| anyhow::anyhow!("{}.{} not found", typ_name, field))?;
-                    let (_, field_type) = def
-                        .iter()
-                        .find(|(k, _)| k == field)
-                        .ok_or(anyhow::anyhow!("Field {} not found", field))?;
+                    let field_type = self.structs.get_projection_type(&typ_name, &field)?;
 
                     *is_method = false;
 
@@ -455,8 +448,8 @@ impl TypeChecker {
                     self.variables.insert(x.clone(), t);
                 }
                 Declaration::Struct(st) => {
-                    assert!(!self.structs.contains_key(&st.name));
-                    self.structs.insert(st.name.clone(), st.fields.clone());
+                    assert!(!self.structs.0.contains_key(&st.name));
+                    self.structs.0.insert(st.name.clone(), st.fields.clone());
                 }
             }
         }

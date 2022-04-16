@@ -90,7 +90,7 @@ impl<'a> Generator<'a> {
                 }
             }
             Expr::Struct(_, _) => todo!(),
-            Expr::Project(_, _, _, _) => todo!(),
+            Expr::Project(_, st, e, pr) => todo!(),
             Expr::Deref(_) => todo!(),
             Expr::Ref(_) => todo!(),
         }
