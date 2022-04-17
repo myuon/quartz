@@ -12,11 +12,15 @@ impl LinkObjectHeader {
     pub fn get_end_pointer(&self) -> usize {
         self.pointer + 3 + self.len
     }
+
+    pub fn get_data_pointer(&self) -> usize {
+        self.pointer + 3
+    }
 }
 
 #[derive(Debug)]
 pub struct Freelist {
-    data: Vec<usize>,
+    pub data: Vec<usize>,
 }
 
 impl Freelist {
@@ -119,7 +123,7 @@ impl Freelist {
                     prev: prev.pointer,
                     next: current.pointer,
                 };
-                let pointer = new_object.pointer;
+                let pointer = new_object.get_data_pointer();
 
                 self.insert(new_object)?;
 

@@ -103,7 +103,7 @@ impl<'a> Generator<'a> {
                 self.expr(e)?;
                 self.expr(i)?;
                 self.code.push(QVMInstruction::Add);
-                self.code.push(QVMInstruction::Load("local"));
+                self.code.push(QVMInstruction::Load("heap"));
             }
         }
 
@@ -161,7 +161,7 @@ impl<'a> Generator<'a> {
                         self.expr(arr)?;
                         self.expr(i)?;
                         self.code.push(QVMInstruction::Add);
-                        self.code.push(QVMInstruction::Store("local"));
+                        self.code.push(QVMInstruction::Store("heap"));
                     }
                     _ => todo!(),
                 }

@@ -4,8 +4,14 @@ use quartz_core::vm::QVMInstruction;
 
 use crate::freelist::Freelist;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub struct Value(i32, &'static str);
+
+impl std::fmt::Debug for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}", self.1, self.0)
+    }
+}
 
 /* StackFrame
     [argument*, return_address, fp, local*]
@@ -63,7 +69,8 @@ impl Runtime {
     pub fn run(&mut self) -> Result<()> {
         while self.pc < self.code.len() {
             println!(
-                "{:?} {:?}",
+                "{:?} {:?} {:?}",
+                &self.heap.data[0..10],
                 &self.stack[0..self.stack_pointer].iter().collect::<Vec<_>>(),
                 &self.code[self.pc],
             );
@@ -113,7 +120,10 @@ impl Runtime {
                 QVMInstruction::Add => {
                     let a = self.pop();
                     let b = self.pop();
-                    self.push(Value(b.0 + a.0, "i32"));
+                    self.push(Value(
+                        b.0 + a.0,
+                        if b.1 == "&bytes" { "addr" } else { "i32" },
+                    ));
                 }
                 QVMInstruction::Sub => {
                     let a = self.pop();
@@ -159,8 +169,11 @@ impl Runtime {
                                 self.stack
                             );
                             let v = self.stack[self.frame_pointer + i];
-                            assert_eq!(v.1, "i32");
+                            assert!(v.1 == "i32" || v.1 == "&bytes");
                             self.push(v);
+                        }
+                        "heap" => {
+                            self.push(Value(self.heap.data[i] as i32, "i32"));
                         }
                         "global" => {
                             let value = self.globals[i];
@@ -179,6 +192,12 @@ impl Runtime {
                     match kind {
                         "local" => {
                             self.stack[self.stack_pointer - r] = self.pop();
+                        }
+                        "heap" => {
+                            let value = self.pop();
+                            assert_eq!(value.1, "i32");
+
+                            self.heap.data[r] = value.0 as usize;
                         }
                         "global" => {
                             let value = self.pop();
@@ -324,16 +343,16 @@ func main() {
         ),
         (
             r#"
-        func main () {
-            let x = _new(5);
-            x[0] = 1;
-            x[1] = 2;
-            x[2] = _add(x[0], x[1]);
+func main() {
+    let x = _new(5);
+    x[0] = 1;
+    x[1] = 2;
+    x[2] = _add(x[0], x[1]);
 
-            return x[2];
-        }
-        "#,
-            10,
+    return x[2];
+}
+"#,
+            3,
         ),
         /*    (
                     r#"
