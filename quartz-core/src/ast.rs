@@ -62,7 +62,11 @@ pub struct Function {
     pub args: Vec<(String, Type)>,
     pub return_type: Type,
     pub body: Vec<Statement>,
-    pub method_of: Option<(String, String, bool)>,
+    pub method_of: Option<(
+        String, // receiver name
+        String, // receiver type
+        bool,   // is pointer receiver
+    )>,
 }
 
 #[derive(PartialEq, Debug, Clone)]

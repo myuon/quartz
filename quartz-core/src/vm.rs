@@ -30,7 +30,7 @@ pub enum QVMInstruction {
     Not,
     // constants
     I32Const(i32),
-    AddrConst(usize),
+    AddrConst(usize, String),
     //
     // Only used during generation phase
     LabelAddrConst(String),

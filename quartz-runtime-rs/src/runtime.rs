@@ -125,7 +125,12 @@ impl Runtime {
                     let b = self.pop();
                     self.push(Value(
                         b.0 + a.0,
-                        if b.1 == "&bytes" { "addr" } else { "i32" },
+                        if b.1 == "&bytes" {
+                            "addr"
+                        } else {
+                            assert_eq!(a.1, b.1);
+                            a.1
+                        },
                     ));
                 }
                 QVMInstruction::Sub => {
@@ -154,7 +159,7 @@ impl Runtime {
                 QVMInstruction::I32Const(c) => {
                     self.push(Value(c, "i32"));
                 }
-                QVMInstruction::AddrConst(addr) => {
+                QVMInstruction::AddrConst(addr, _) => {
                     self.push(Value(addr as i32, "addr"));
                 }
                 QVMInstruction::Load(kind) => {
@@ -172,7 +177,7 @@ impl Runtime {
                                 self.stack
                             );
                             let v = self.stack[self.frame_pointer + i];
-                            assert!(v.1 == "i32" || v.1 == "&bytes");
+                            assert!(matches!(v.1, "i32" | "addr" | "&bytes"), "{}", v.1);
                             self.push(v);
                         }
                         "heap" => {
@@ -218,7 +223,7 @@ impl Runtime {
                 }
                 QVMInstruction::LoadArg(r) => {
                     let arg = self.stack[self.frame_pointer - 3 - r];
-                    assert_eq!(arg.1, "i32");
+                    assert!(matches!(arg.1, "i32" | "addr" | "&bytes"), "{}", arg.1);
                     self.push(arg);
                 }
                 QVMInstruction::JumpIfFalse(k) => {
@@ -267,13 +272,13 @@ fn runtime_run_hand_coded() -> Result<()> {
         vec![
             // entrypoint:
             I32Const(2),
-            AddrConst(4),
+            AddrConst(4, String::new()),
             Call, // call main
             Return(0),
             // main:
             I32Const(1),  // a
             I32Const(10), // z
-            AddrConst(0),
+            AddrConst(0, String::new()),
             Load("local"), // load a
             LoadArg(0),    // load b
             Add,           // a + b
@@ -360,6 +365,35 @@ func main() {
         ),
         (
             r#"
+func main() {
+    1;
+    2;
+
+    return 0;
+}
+"#,
+            0,
+        ),
+        (
+            r#"
+struct Point {
+    x: int,
+    y: int,
+}
+
+func main() {
+    let p = Point {
+        x: 1,
+        y: 2,
+    };
+
+    return p.y;
+}
+"#,
+            2,
+        ),
+        (
+            r#"
 struct Point {
     x: int,
     y: int,
@@ -378,7 +412,7 @@ func main() {
     return p.sum();
 }
 "#,
-            10,
+            0,
         ),
     ];
 
