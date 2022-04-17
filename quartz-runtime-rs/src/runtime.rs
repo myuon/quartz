@@ -241,7 +241,9 @@ impl Runtime {
                     let addr = self.heap.alloc(size.0 as usize)?;
                     self.push(Value(addr as i32, "&bytes"));
                 }
-                QVMInstruction::Free(_) => todo!(),
+                QVMInstruction::Free(addr) => {
+                    self.heap.free(self.heap.parse(addr)?)?;
+                }
                 //
                 QVMInstruction::LabelAddrConst(_) => unreachable!(),
                 QVMInstruction::LabelJumpIfFalse(_) => unreachable!(),
@@ -412,7 +414,7 @@ func main() {
     return p.sum();
 }
 "#,
-            0,
+            3,
         ),
     ];
 
