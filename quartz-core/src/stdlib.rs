@@ -44,6 +44,7 @@ pub fn stdlib() -> HashMap<String, Type> {
             Type::Fn(vec![Type::Int, Type::Int], Box::new(Type::Bool)),
         ),
         ("_free", Type::Fn(vec![Type::Any], Box::new(Type::Unit))),
+        ("_new", Type::Fn(vec![Type::Int], Box::new(Type::Bytes))),
         (
             "_slice",
             Type::Fn(vec![Type::Any, Type::Int, Type::Int], Box::new(Type::Any)),

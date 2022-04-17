@@ -1,14 +1,11 @@
-use std::collections::LinkedList;
-
 use anyhow::Result;
 use pretty_assertions::assert_eq;
 use quartz_core::vm::QVMInstruction;
 
+use crate::freelist::Freelist;
+
 #[derive(Clone, Copy, Debug)]
 pub struct Value(i32, &'static str);
-
-#[derive(Clone, Debug)]
-pub struct Data(Vec<i32>, &'static str);
 
 /* StackFrame
     [argument*, return_address, fp, local*]
@@ -18,7 +15,7 @@ pub struct Data(Vec<i32>, &'static str);
 #[derive(Debug)]
 pub struct Runtime {
     stack: Vec<Value>,
-    heap: LinkedList<Data>,
+    heap: Freelist,
     globals: Vec<i32>,
     code: Vec<QVMInstruction>,
     pc: usize,
@@ -30,7 +27,7 @@ impl Runtime {
     pub fn new(code: Vec<QVMInstruction>, globals: usize) -> Runtime {
         Runtime {
             stack: vec![],
-            heap: LinkedList::new(),
+            heap: Freelist::new(1_000_000),
             globals: vec![0; globals],
             code,
             pc: 0,
@@ -319,9 +316,8 @@ func main() {
 "#,
             120,
         ),
-        /*
-                (
-                    r#"
+        (
+            r#"
         func main () {
             let x = _new(5);
             x[0] = 1;
@@ -331,31 +327,30 @@ func main() {
             return x[2];
         }
         "#,
+            10,
+        ),
+        /*    (
+                    r#"
+        struct Point {
+            x: int,
+            y: int,
+        }
+
+        func (self: Point) sum(): int {
+            return _add(self.x, self.y);
+        }
+
+        func main() {
+            let p = Point {
+                x: 1,
+                y: 2,
+            };
+
+            return p.sum();
+        }
+        "#,
                     10,
-                ),
-                 */
-                 /*    (
-                               r#"
-                   struct Point {
-                       x: int,
-                       y: int,
-                   }
-
-                   func (self: Point) sum(): int {
-                       return _add(self.x, self.y);
-                   }
-
-                   func main() {
-                       let p = Point {
-                           x: 1,
-                           y: 2,
-                       };
-
-                       return p.sum();
-                   }
-                   "#,
-                               10,
-                           ),*/
+                ),*/
     ];
 
     for (input, result) in cases {

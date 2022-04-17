@@ -99,7 +99,12 @@ impl<'a> Generator<'a> {
             Expr::Project(_, _, _, _) => todo!(),
             Expr::Deref(_) => todo!(),
             Expr::Ref(_) => todo!(),
-            Expr::Index(e, i) => todo!(),
+            Expr::Index(e, i) => {
+                self.expr(e)?;
+                self.expr(i)?;
+                self.code.push(QVMInstruction::Add);
+                self.code.push(QVMInstruction::Load("local"));
+            }
         }
 
         Ok(())
@@ -151,6 +156,12 @@ impl<'a> Generator<'a> {
                         } else {
                             anyhow::bail!("{} not found", v);
                         }
+                    }
+                    Expr::Index(arr, i) => {
+                        self.expr(arr)?;
+                        self.expr(i)?;
+                        self.code.push(QVMInstruction::Add);
+                        self.code.push(QVMInstruction::Store("local"));
                     }
                     _ => todo!(),
                 }

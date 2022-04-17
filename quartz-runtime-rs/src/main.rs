@@ -3,6 +3,7 @@ use std::io::Read;
 use quartz_core::compiler::Compiler;
 use runtime::Runtime;
 
+mod freelist;
 mod runtime;
 
 fn main() {
