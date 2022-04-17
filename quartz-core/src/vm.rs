@@ -1,9 +1,12 @@
 #[derive(Clone, Debug)]
 pub enum QVMInstruction {
-    // stack
-    Load(usize, &'static str),
-    Store(usize, &'static str),
+    // stack manipulation
+    Load(&'static str),
+    Store(&'static str),
     Pop(usize),
+    // heap manipulation
+    Alloc,
+    Free(usize),
     // function arguments
     LoadArg(usize),
     // control
@@ -27,6 +30,7 @@ pub enum QVMInstruction {
     Not,
     // constants
     I32Const(i32),
+    AddrConst(usize),
     //
     // Only used during generation phase
     LabelCall(String),

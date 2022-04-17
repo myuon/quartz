@@ -49,11 +49,13 @@ impl<'a> Generator<'a> {
         match expr {
             Expr::Var(v) => {
                 if let Some(u) = self.locals.get(v) {
-                    self.code.push(QVMInstruction::Load(*u, "local"));
+                    self.code.push(QVMInstruction::AddrConst(*u));
+                    self.code.push(QVMInstruction::Load("local"));
                 } else if let Some(u) = self.args.get(v) {
                     self.code.push(QVMInstruction::LoadArg(*u));
                 } else if let Some(u) = self.globals.get(v) {
-                    self.code.push(QVMInstruction::Load(*u, "global"));
+                    self.code.push(QVMInstruction::AddrConst(*u));
+                    self.code.push(QVMInstruction::Load("global"));
                 } else {
                     anyhow::bail!("{} not found", v);
                 }
@@ -78,13 +80,17 @@ impl<'a> Generator<'a> {
                 }
 
                 if let Expr::Var(v) = f.as_ref() {
-                    self.code.push(match v.as_str() {
-                        "_add" => QVMInstruction::Add,
-                        "_sub" => QVMInstruction::Sub,
-                        "_mult" => QVMInstruction::Mult,
-                        "_eq" => QVMInstruction::Eq,
-                        _ => QVMInstruction::LabelCall(v.clone()),
-                    });
+                    if v == "_new" {
+                        self.code.extend(vec![QVMInstruction::Alloc]);
+                    } else {
+                        self.code.push(match v.as_str() {
+                            "_add" => QVMInstruction::Add,
+                            "_sub" => QVMInstruction::Sub,
+                            "_mult" => QVMInstruction::Mult,
+                            "_eq" => QVMInstruction::Eq,
+                            _ => QVMInstruction::LabelCall(v.clone()),
+                        });
+                    }
                 } else {
                     todo!();
                 }
@@ -93,6 +99,7 @@ impl<'a> Generator<'a> {
             Expr::Project(_, _, _, _) => todo!(),
             Expr::Deref(_) => todo!(),
             Expr::Ref(_) => todo!(),
+            Expr::Index(e, i) => todo!(),
         }
 
         Ok(())
@@ -136,9 +143,11 @@ impl<'a> Generator<'a> {
                 match v.as_ref() {
                     Expr::Var(v) => {
                         if let Some(u) = self.locals.get(v).cloned() {
-                            self.code.push(QVMInstruction::Store(u, "local"));
+                            self.code.push(QVMInstruction::AddrConst(u));
+                            self.code.push(QVMInstruction::Store("local"));
                         } else if let Some(u) = self.globals.get(v).cloned() {
-                            self.code.push(QVMInstruction::Store(u, "global"));
+                            self.code.push(QVMInstruction::AddrConst(u));
+                            self.code.push(QVMInstruction::Store("global"));
                         } else {
                             anyhow::bail!("{} not found", v);
                         }
@@ -197,7 +206,8 @@ impl CodeGeneration {
         let mut code = generator.code;
 
         self.push_global(name.clone());
-        code.push(QVMInstruction::Store(self.globals[name], "global"));
+        code.push(QVMInstruction::AddrConst(self.globals[name]));
+        code.push(QVMInstruction::Store("global"));
 
         Ok(code)
     }

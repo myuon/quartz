@@ -282,6 +282,13 @@ impl Parser {
                         i,
                     ))
                 }
+                expr if self.expect_lexeme(Lexeme::LBracket).is_ok() => {
+                    // indexing
+                    let index = self.expr()?;
+                    self.expect_lexeme(Lexeme::RBracket)?;
+
+                    Ok(Expr::Index(Box::new(expr), Box::new(index)))
+                }
                 _ => Ok(short_expr),
             }
         }

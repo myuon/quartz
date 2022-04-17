@@ -1,3 +1,5 @@
+use std::collections::LinkedList;
+
 use anyhow::Result;
 use pretty_assertions::assert_eq;
 use quartz_core::vm::QVMInstruction;
@@ -16,7 +18,7 @@ pub struct Data(Vec<i32>, &'static str);
 #[derive(Debug)]
 pub struct Runtime {
     stack: Vec<Value>,
-    heap: Vec<Data>,
+    heap: LinkedList<Data>,
     globals: Vec<i32>,
     code: Vec<QVMInstruction>,
     pc: usize,
@@ -28,7 +30,7 @@ impl Runtime {
     pub fn new(code: Vec<QVMInstruction>, globals: usize) -> Runtime {
         Runtime {
             stack: vec![],
-            heap: vec![],
+            heap: LinkedList::new(),
             globals: vec![0; globals],
             code,
             pc: 0,
@@ -142,39 +144,54 @@ impl Runtime {
                 QVMInstruction::I32Const(c) => {
                     self.push(Value(c, "i32"));
                 }
-                QVMInstruction::Load(i, kind) => match kind {
-                    "local" => {
-                        assert_eq!(
-                            self.stack[self.frame_pointer - 1].1,
-                            "fp",
-                            "{} at {:?}",
-                            self.frame_pointer,
-                            self.stack
-                        );
-                        let v = self.stack[self.frame_pointer + i];
-                        assert_eq!(v.1, "i32");
-                        self.push(v);
-                    }
-                    "global" => {
-                        let value = self.globals[i];
-                        self.push(Value(value, "i32"));
-                    }
-                    _ => {
-                        unreachable!();
-                    }
-                },
-                QVMInstruction::Store(r, kind) => match kind {
-                    "local" => {
-                        self.stack[self.stack_pointer - r] = self.pop();
-                    }
-                    "global" => {
-                        let value = self.pop();
-                        self.globals[r] = value.0;
-                    }
-                    _ => {
-                        unreachable!();
-                    }
-                },
+                QVMInstruction::AddrConst(addr) => {
+                    self.push(Value(addr as i32, "addr"));
+                }
+                QVMInstruction::Load(kind) => {
+                    let addr_value = self.pop();
+                    assert_eq!(addr_value.1, "addr");
+                    let i = addr_value.0 as usize;
+
+                    match kind {
+                        "local" => {
+                            assert_eq!(
+                                self.stack[self.frame_pointer - 1].1,
+                                "fp",
+                                "{} at {:?}",
+                                self.frame_pointer,
+                                self.stack
+                            );
+                            let v = self.stack[self.frame_pointer + i];
+                            assert_eq!(v.1, "i32");
+                            self.push(v);
+                        }
+                        "global" => {
+                            let value = self.globals[i];
+                            self.push(Value(value, "i32"));
+                        }
+                        _ => {
+                            unreachable!();
+                        }
+                    };
+                }
+                QVMInstruction::Store(kind) => {
+                    let addr_value = self.pop();
+                    assert_eq!(addr_value.1, "addr");
+                    let r = addr_value.0 as usize;
+
+                    match kind {
+                        "local" => {
+                            self.stack[self.stack_pointer - r] = self.pop();
+                        }
+                        "global" => {
+                            let value = self.pop();
+                            self.globals[r] = value.0;
+                        }
+                        _ => {
+                            unreachable!();
+                        }
+                    };
+                }
                 QVMInstruction::Pop(r) => {
                     for _ in 0..r {
                         self.pop();
@@ -196,6 +213,8 @@ impl Runtime {
                 //
                 QVMInstruction::LabelCall(_) => unreachable!(),
                 QVMInstruction::LabelJumpIfFalse(_) => unreachable!(),
+                QVMInstruction::Alloc => todo!(),
+                QVMInstruction::Free(_) => todo!(),
             }
 
             self.pc += 1;
@@ -226,12 +245,13 @@ fn runtime_run_hand_coded() -> Result<()> {
             Call(3), // call main
             Return(0),
             // main:
-            I32Const(1),      // a
-            I32Const(10),     // z
-            Load(0, "local"), // load a
-            LoadArg(0),       // load b
-            Add,              // a + b
-            Return(1),        // return
+            I32Const(1),  // a
+            I32Const(10), // z
+            AddrConst(0),
+            Load("local"), // load a
+            LoadArg(0),    // load b
+            Add,           // a + b
+            Return(1),     // return
         ],
         3,
     )];
@@ -299,28 +319,43 @@ func main() {
 "#,
             120,
         ),
-        /*    (
+        /*
+                (
                     r#"
-        struct Point {
-            x: int,
-            y: int,
-        }
+        func main () {
+            let x = _new(5);
+            x[0] = 1;
+            x[1] = 2;
+            x[2] = _add(x[0], x[1]);
 
-        func (self: Point) sum(): int {
-            return _add(self.x, self.y);
-        }
-
-        func main() {
-            let p = Point {
-                x: 1,
-                y: 2,
-            };
-
-            return p.sum();
+            return x[2];
         }
         "#,
                     10,
-                ),*/
+                ),
+                 */
+                 /*    (
+                               r#"
+                   struct Point {
+                       x: int,
+                       y: int,
+                   }
+
+                   func (self: Point) sum(): int {
+                       return _add(self.x, self.y);
+                   }
+
+                   func main() {
+                       let p = Point {
+                           x: 1,
+                           y: 2,
+                       };
+
+                       return p.sum();
+                   }
+                   "#,
+                               10,
+                           ),*/
     ];
 
     for (input, result) in cases {

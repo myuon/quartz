@@ -100,6 +100,7 @@ impl Constraints {
             Type::Ref(r) => {
                 self.apply(r);
             }
+            Type::Bytes => {}
         }
     }
 }
@@ -305,6 +306,17 @@ impl TypeChecker {
             Expr::Ref(e) => {
                 let typ = self.expr(e)?;
                 Ok(Type::Ref(Box::new(typ)))
+            }
+            Expr::Index(e, i) => {
+                let typ = self.expr(e)?;
+                let cs = Constraints::unify(&typ, &Type::Bytes)?;
+                self.apply_constraints(&cs);
+
+                let index_type = self.expr(i)?;
+                let cs = Constraints::unify(&index_type, &Type::Int)?;
+                self.apply_constraints(&cs);
+
+                Ok(Type::Int)
             }
         }
     }

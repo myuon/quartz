@@ -45,6 +45,7 @@ pub enum Expr {
         Box<Expr>,
         String,
     ),
+    Index(Box<Expr>, Box<Expr>),
     Deref(Box<Expr>),
     Ref(Box<Expr>),
 }
@@ -91,6 +92,7 @@ pub enum Type {
     Bool,
     Int,
     String,
+    Bytes,
     Fn(Vec<Type>, Box<Type>),
     Struct(String),
     Ref(Box<Type>),
@@ -131,6 +133,7 @@ impl Type {
             }
             Type::Struct(_) => false,
             Type::Ref(_) => todo!(),
+            Type::Bytes => false,
         }
     }
 
@@ -155,6 +158,7 @@ impl Type {
             }
             Type::Struct(_) => {}
             Type::Ref(_) => todo!(),
+            Type::Bytes => {}
         }
     }
 }
