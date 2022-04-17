@@ -1,9 +1,9 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Debug};
 
 use anyhow::Result;
 
 use crate::{
-    ast::{Declaration, Expr, Function, Module, Statement},
+    ast::{Declaration, Expr, Function, Literal, Module, Statement, Structs},
     vm::QVMInstruction,
 };
 
@@ -16,6 +16,7 @@ struct Generator<'a> {
     globals: &'a HashMap<String, usize>,
     labels: &'a mut HashMap<String, usize>,
     offset: usize,
+    structs: &'a Structs,
 }
 
 impl<'a> Generator<'a> {
@@ -24,6 +25,7 @@ impl<'a> Generator<'a> {
         globals: &'a HashMap<String, usize>,
         labels: &'a mut HashMap<String, usize>,
         offset: usize,
+        structs: &'a Structs,
     ) -> Generator<'a> {
         Generator {
             code: vec![],
@@ -33,6 +35,7 @@ impl<'a> Generator<'a> {
             globals,
             labels,
             offset,
+            structs,
         }
     }
 
@@ -57,7 +60,14 @@ impl<'a> Generator<'a> {
                     self.code.push(QVMInstruction::AddrConst(*u));
                     self.code.push(QVMInstruction::Load("global"));
                 } else {
-                    anyhow::bail!("{} not found", v);
+                    self.code.push(match v.as_str() {
+                        "_add" => QVMInstruction::Add,
+                        "_sub" => QVMInstruction::Sub,
+                        "_mult" => QVMInstruction::Mult,
+                        "_eq" => QVMInstruction::Eq,
+                        "_new" => QVMInstruction::Alloc,
+                        _ => QVMInstruction::LabelAddrConst(v.clone()),
+                    });
                 }
             }
             Expr::Lit(lit) => {
@@ -78,25 +88,67 @@ impl<'a> Generator<'a> {
                 for e in es {
                     self.expr(e)?;
                 }
+                self.expr(f)?;
 
-                if let Expr::Var(v) = f.as_ref() {
-                    if v == "_new" {
-                        self.code.extend(vec![QVMInstruction::Alloc]);
-                    } else {
-                        self.code.push(match v.as_str() {
-                            "_add" => QVMInstruction::Add,
-                            "_sub" => QVMInstruction::Sub,
-                            "_mult" => QVMInstruction::Mult,
-                            "_eq" => QVMInstruction::Eq,
-                            _ => QVMInstruction::LabelCall(v.clone()),
-                        });
-                    }
-                } else {
-                    todo!();
+                // add Call instruction only if the previous instruction is a label address
+                if matches!(self.code.last().unwrap(), QVMInstruction::LabelAddrConst(_)) {
+                    self.code.push(QVMInstruction::Call);
                 }
             }
-            Expr::Struct(_, _) => todo!(),
-            Expr::Project(_, _, _, _) => todo!(),
+            Expr::Struct(st, items) => {
+                /* Example:
+                 *   struct Foo {
+                 *      a: i32,
+                 *      b: i32,
+                 *   }
+                 *   let x = Foo { a: 10, b: 20 };
+                 *
+                 * desugars into:
+                 *   let x = _new(2);
+                 *   x[0] = 10;
+                 *   x[1] = 20;
+                 */
+
+                let var_name = "_struct_".to_string();
+                let size = self.structs.size_of_struct(st);
+
+                let mut desugared = vec![Statement::Let(
+                    var_name.clone(),
+                    Expr::Call(
+                        Box::new(Expr::Var("_new".to_string())),
+                        vec![Expr::Lit(Literal::Int(size as i32))],
+                    ),
+                )];
+                for (label, value) in items {
+                    let index = self.structs.get_projection_offset(st, label)?;
+
+                    desugared.push(Statement::Assignment(
+                        Box::new(Expr::Index(
+                            Box::new(Expr::Var(var_name.clone())),
+                            Box::new(Expr::Lit(Literal::Int(index as i32))),
+                        )),
+                        value.clone(),
+                    ));
+                }
+
+                self.statements(&desugared)?;
+            }
+            Expr::Project(true, st, proj, label) => {
+                self.code
+                    .push(QVMInstruction::LabelAddrConst(label.clone()));
+                todo!()
+            }
+            Expr::Project(false, st, proj, label) => {
+                // [proj].label
+                let index = self.structs.get_projection_offset(st, label)?;
+
+                self.expr(proj)?;
+                self.code.extend(vec![
+                    QVMInstruction::AddrConst(index),
+                    QVMInstruction::Add,
+                    QVMInstruction::Load("local"),
+                ]);
+            }
             Expr::Deref(_) => todo!(),
             Expr::Ref(_) => todo!(),
             Expr::Index(e, i) => {
@@ -186,6 +238,7 @@ impl<'a> Generator<'a> {
 pub struct CodeGeneration {
     global_pointer: usize,
     globals: HashMap<String, usize>,
+    structs: Structs,
 }
 
 impl CodeGeneration {
@@ -193,7 +246,12 @@ impl CodeGeneration {
         CodeGeneration {
             global_pointer: 0,
             globals: HashMap::new(),
+            structs: Structs(HashMap::new()),
         }
+    }
+
+    pub fn context(&mut self, structs: Structs) {
+        self.structs = structs;
     }
 
     fn push_global(&mut self, name: String) {
@@ -212,7 +270,8 @@ impl CodeGeneration {
         labels: &mut HashMap<String, usize>,
         offset: usize,
     ) -> Result<Vec<QVMInstruction>> {
-        let mut generator = Generator::new(HashMap::new(), &self.globals, labels, offset);
+        let mut generator =
+            Generator::new(HashMap::new(), &self.globals, labels, offset, &self.structs);
         generator.expr(expr)?;
         let mut code = generator.code;
 
@@ -234,7 +293,7 @@ impl CodeGeneration {
             args.insert(name.clone(), index);
         }
 
-        let mut generator = Generator::new(args, &self.globals, labels, offset);
+        let mut generator = Generator::new(args, &self.globals, labels, offset, &self.structs);
         for b in &function.body {
             generator.statement(b)?;
         }
@@ -248,7 +307,8 @@ impl CodeGeneration {
         labels: &mut HashMap<String, usize>,
         offset: usize,
     ) -> Result<Vec<QVMInstruction>> {
-        let mut generator = Generator::new(HashMap::new(), &self.globals, labels, offset);
+        let mut generator =
+            Generator::new(HashMap::new(), &self.globals, labels, offset, &self.structs);
         generator.statement(&Statement::Return(Expr::Call(
             Box::new(Expr::Var("main".to_string())),
             vec![],
@@ -292,9 +352,9 @@ impl CodeGeneration {
 
         // resolve labels
         for i in 0..code.len() {
-            if let QVMInstruction::LabelCall(label) = &code[i] {
+            if let QVMInstruction::LabelAddrConst(label) = &code[i] {
                 if let Some(pc) = labels.get(label) {
-                    code[i] = QVMInstruction::Call(*pc);
+                    code[i] = QVMInstruction::AddrConst(*pc);
                 } else {
                     anyhow::bail!("label {} not found", label);
                 }

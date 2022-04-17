@@ -74,11 +74,14 @@ impl Runtime {
                 &self.stack[0..self.stack_pointer].iter().collect::<Vec<_>>(),
                 &self.code[self.pc],
             );
-            match self.code[self.pc].clone() {
+            match self.code[self.pc] {
                 QVMInstruction::Jump(_) => todo!(),
-                QVMInstruction::Call(r) => {
+                QVMInstruction::Call => {
+                    let r = self.pop();
+                    assert_eq!(r.1, "addr");
+
                     self.push(Value((self.pc + 1) as i32, "pc"));
-                    self.pc = r as usize;
+                    self.pc = r.0 as usize;
                     self.push(Value(self.frame_pointer as i32, "fp"));
                     self.frame_pointer = self.stack_pointer;
                     continue;
@@ -235,7 +238,7 @@ impl Runtime {
                 }
                 QVMInstruction::Free(_) => todo!(),
                 //
-                QVMInstruction::LabelCall(_) => unreachable!(),
+                QVMInstruction::LabelAddrConst(_) => unreachable!(),
                 QVMInstruction::LabelJumpIfFalse(_) => unreachable!(),
             }
 
@@ -264,7 +267,8 @@ fn runtime_run_hand_coded() -> Result<()> {
         vec![
             // entrypoint:
             I32Const(2),
-            Call(3), // call main
+            AddrConst(4),
+            Call, // call main
             Return(0),
             // main:
             I32Const(1),  // a
@@ -354,28 +358,28 @@ func main() {
 "#,
             3,
         ),
-        /*    (
-                    r#"
-        struct Point {
-            x: int,
-            y: int,
-        }
+        (
+            r#"
+struct Point {
+    x: int,
+    y: int,
+}
 
-        func (self: Point) sum(): int {
-            return _add(self.x, self.y);
-        }
+func (self: Point) sum(): int {
+    return _add(self.x, self.y);
+}
 
-        func main() {
-            let p = Point {
-                x: 1,
-                y: 2,
-            };
+func main() {
+    let p = Point {
+        x: 1,
+        y: 2,
+    };
 
-            return p.sum();
-        }
-        "#,
-                    10,
-                ),*/
+    return p.sum();
+}
+"#,
+            10,
+        ),
     ];
 
     for (input, result) in cases {

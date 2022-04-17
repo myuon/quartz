@@ -84,7 +84,8 @@ impl Compiler {
 
     pub fn compile(&mut self, input: &str) -> Result<Vec<QVMInstruction>> {
         let mut module = self.parse(input)?;
-        self.typecheck(&mut module)?;
+        let checker = self.typecheck(&mut module)?;
+        self.code_generation.context(checker.structs.clone());
 
         let code = self.code_generation.generate(&module)?;
 

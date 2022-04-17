@@ -13,7 +13,7 @@ pub enum QVMInstruction {
     Jump(usize),
     JumpIfFalse(usize),
     // functions
-    Call(usize),
+    Call,
     Return(usize), // number of caller arguments
     // arithmetic and logic
     Add,
@@ -33,6 +33,6 @@ pub enum QVMInstruction {
     AddrConst(usize),
     //
     // Only used during generation phase
-    LabelCall(String),
+    LabelAddrConst(String),
     LabelJumpIfFalse(String),
 }

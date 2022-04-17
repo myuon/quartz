@@ -161,6 +161,16 @@ impl Type {
             Type::Bytes => {}
         }
     }
+
+    pub fn size_of(&self) -> usize {
+        match self {
+            Type::Unit => 1,
+            Type::Bool => 1,
+            Type::Int => 1,
+            Type::Bytes => 1, // pointer on stack
+            _ => todo!(),
+        }
+    }
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -214,10 +224,17 @@ impl DataValue {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Structs(pub HashMap<String, Vec<(String, Type)>>);
 
 impl Structs {
+    pub fn size_of_struct(&self, st: &str) -> usize {
+        self.0
+            .get(st)
+            .map(|fields| fields.iter().fold(0, |acc, (_, t)| acc + t.size_of()))
+            .unwrap_or(0)
+    }
+
     pub fn get_projection_type(&self, val: &str, label: &str) -> Result<Type> {
         let struct_fields = self
             .0
