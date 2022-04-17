@@ -207,11 +207,17 @@ impl Runtime {
                         continue;
                     }
                 }
+                QVMInstruction::Alloc => {
+                    let size = self.pop();
+                    assert_eq!(size.1, "i32");
+
+                    let addr = self.heap.alloc(size.0 as usize)?;
+                    self.push(Value(addr as i32, "&bytes"));
+                }
+                QVMInstruction::Free(_) => todo!(),
                 //
                 QVMInstruction::LabelCall(_) => unreachable!(),
                 QVMInstruction::LabelJumpIfFalse(_) => unreachable!(),
-                QVMInstruction::Alloc => todo!(),
-                QVMInstruction::Free(_) => todo!(),
             }
 
             self.pc += 1;

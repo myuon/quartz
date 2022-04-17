@@ -108,11 +108,11 @@ impl Freelist {
     pub fn alloc(&mut self, size: usize) -> Result<usize> {
         let mut current = self.root()?;
 
-        while current.next == 0 {
+        while current.next != 0 {
             let prev = current.clone();
             current = self.find_next(&current)?;
 
-            if (current.pointer - prev.get_end_pointer()) > size {
+            if (current.pointer - prev.get_end_pointer()) > size + 3 {
                 let new_object = LinkObjectHeader {
                     pointer: prev.get_end_pointer(),
                     len: size,
@@ -129,4 +129,22 @@ impl Freelist {
 
         anyhow::bail!("no space left: {}", size);
     }
+}
+
+#[test]
+fn test_alloc_many() -> Result<()> {
+    let mut freelist = Freelist::new(100);
+    for _ in 0..(100 / 13) {
+        freelist.alloc(10)?;
+    }
+
+    let mut current = freelist.root()?;
+    for _ in 0..=(100 / 13) {
+        println!("{:?}", current);
+        current = freelist.find_next(&current)?;
+    }
+
+    assert!(freelist.alloc(10).is_err());
+
+    Ok(())
 }
