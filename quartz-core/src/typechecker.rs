@@ -107,6 +107,7 @@ impl Constraints {
     }
 }
 
+#[derive(Clone)]
 pub struct TypeChecker {
     infer_count: usize,
     variables: HashMap<String, Type>,
@@ -457,9 +458,9 @@ impl TypeChecker {
 #[cfg(test)]
 mod tests {
     use crate::{
+        builtin::builtin,
         compiler::Compiler,
         parser::{run_parser, run_parser_statements},
-        stdlib::stdlib,
     };
 
     use super::*;
@@ -550,7 +551,7 @@ mod tests {
         for c in cases {
             let mut module = run_parser(c.0).unwrap();
             let mut typechecker =
-                TypeChecker::new(stdlib(), Structs(HashMap::new()), Methods(HashMap::new()));
+                TypeChecker::new(builtin(), Structs(HashMap::new()), Methods(HashMap::new()));
             let result = typechecker.module(&mut module);
 
             let err = result.unwrap_err();
@@ -564,13 +565,13 @@ mod tests {
             (
                 // declare types for function arguments
                 r#"
-                    func f(a: int, b: string) {
-                        return b.len().eq(a);
-                    }
+func f(a: int, b: string) {
+    return b.len().eq(a);
+}
 
-                    func main() {
-                        return f(1,"hello");
-                    }
+func main() {
+    return f(1,"hello");
+}
                 "#,
                 vec![(
                     "f",
@@ -592,7 +593,21 @@ func main() {
         ];
 
         for c in cases {
-            let compiler = Compiler::new();
+            let mut compiler = Compiler::new();
+            compiler.typechecker.methods.0.insert(
+                ("string".to_string(), "len".to_string()),
+                ("len".to_string(), vec![], Box::new(Type::Int), vec![]),
+            );
+            compiler.typechecker.methods.0.insert(
+                ("int".to_string(), "eq".to_string()),
+                (
+                    "x".to_string(),
+                    vec![("y".to_string(), Type::Int)],
+                    Box::new(Type::Bool),
+                    vec![],
+                ),
+            );
+
             let mut module = compiler.parse(c.0).unwrap();
             let checker = compiler.typecheck(&mut module).expect(&format!("{}", c.0));
 

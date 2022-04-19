@@ -83,7 +83,9 @@ impl<'a> Generator<'a> {
                     Int(n) => {
                         self.code.push(QVMInstruction::I32Const(*n));
                     }
-                    String(_) => todo!(),
+                    String(s) => {
+                        self.expr(&Expr::Struct("string".to_string(), vec![]))?;
+                    }
                 }
             }
             Expr::Call(f, es) => {

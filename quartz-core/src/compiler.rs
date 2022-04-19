@@ -1,13 +1,13 @@
-use std::iter::repeat;
+use std::{collections::HashMap, fs::File, io::Read, iter::repeat};
 
 use anyhow::{Context, Error, Result};
 use thiserror::Error as ThisError;
 
 use crate::{
-    ast::Module,
+    ast::{Methods, Module, Structs},
+    builtin::builtin,
     code_generation::CodeGeneration,
     parser::run_parser,
-    stdlib::{stdlib, stdlib_methods, stdlib_structs},
     typechecker::TypeChecker,
     vm::QVMInstruction,
 };
@@ -19,18 +19,35 @@ pub enum CompileError {
 }
 
 pub struct Compiler {
+    pub typechecker: TypeChecker,
     pub code_generation: CodeGeneration,
 }
 
 impl Compiler {
     pub fn new() -> Compiler {
         Compiler {
+            typechecker: TypeChecker::new(
+                builtin(),
+                Structs(HashMap::new()),
+                Methods(HashMap::new()),
+            ),
             code_generation: CodeGeneration::new(),
         }
     }
 
+    fn load_std(&self) -> Result<String> {
+        let mut f = File::open("../std.qz")?;
+        let mut buffer = String::new();
+
+        f.read_to_string(&mut buffer)?;
+
+        Ok(buffer)
+    }
+
     pub fn parse(&self, input: &str) -> Result<Module> {
-        run_parser(input).context("Phase: parse").map_err(|err| {
+        let input = self.load_std()? + input;
+
+        run_parser(&input).context("Phase: parse").map_err(|err| {
             if let Some(cerr) = err.downcast_ref::<CompileError>() {
                 match cerr {
                     CompileError::ParseError { position, .. } => {
@@ -75,11 +92,12 @@ impl Compiler {
         })
     }
 
-    pub fn typecheck(&self, module: &mut Module) -> Result<TypeChecker> {
-        let mut checker = TypeChecker::new(stdlib(), stdlib_structs(), stdlib_methods());
-        checker.module(module).context("Phase: typecheck")?;
+    pub fn typecheck(&mut self, module: &mut Module) -> Result<TypeChecker> {
+        self.typechecker
+            .module(module)
+            .context("Phase: typecheck")?;
 
-        Ok(checker)
+        Ok(self.typechecker.clone())
     }
 
     pub fn compile(&mut self, input: &str) -> Result<Vec<QVMInstruction>> {

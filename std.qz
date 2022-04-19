@@ -1,0 +1,7 @@
+struct string {
+    data: bytes,
+}
+
+func (s: string) bytes(): bytes {
+    return s.data;
+}
