@@ -84,7 +84,37 @@ impl<'a> Generator<'a> {
                         self.code.push(QVMInstruction::I32Const(*n));
                     }
                     String(s) => {
-                        self.expr(&Expr::Struct("string".to_string(), vec![]))?;
+                        // "Hello"
+                        // => string { data: [Hello as bytes] }
+
+                        self.code.extend(vec![
+                            QVMInstruction::I32Const(s.len() as i32),
+                            QVMInstruction::Alloc,
+                            QVMInstruction::AddrConst(self.local_pointer, format!("string:{}", s)),
+                            QVMInstruction::Load("local"),
+                        ]);
+                        for (i, ch) in s.as_bytes().iter().enumerate() {
+                            self.code.extend(vec![
+                                QVMInstruction::I32Const(*ch as i32),
+                                QVMInstruction::AddrConst(
+                                    self.local_pointer,
+                                    format!("string:{}", i),
+                                ),
+                                QVMInstruction::Load("local"),
+                                QVMInstruction::I32Const(i as i32),
+                                QVMInstruction::Add,
+                                QVMInstruction::Store("heap"),
+                            ]);
+                        }
+                        self.code.extend(vec![
+                            QVMInstruction::I32Const(1),
+                            QVMInstruction::Alloc,
+                            QVMInstruction::AddrConst(self.local_pointer, format!("string:{}", s)),
+                            QVMInstruction::Load("local"),
+                            QVMInstruction::I32Const(0),
+                            QVMInstruction::Add,
+                            QVMInstruction::Store("heap"),
+                        ]);
                     }
                 }
             }

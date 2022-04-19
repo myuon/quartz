@@ -1,5 +1,7 @@
 use anyhow::Result;
 
+use crate::runtime::Value;
+
 #[derive(Debug, Clone)]
 pub struct LinkObjectHeader {
     pointer: usize,
@@ -20,12 +22,14 @@ impl LinkObjectHeader {
 
 #[derive(Debug)]
 pub struct Freelist {
-    pub data: Vec<usize>,
+    pub data: Vec<Value>,
 }
 
 impl Freelist {
     pub fn new(len: usize) -> Freelist {
-        let mut list = Freelist { data: vec![0; len] };
+        let mut list = Freelist {
+            data: vec![Value(0, ""); len],
+        };
 
         let root = 0;
         let last = len - 3;
@@ -49,15 +53,15 @@ impl Freelist {
         let prev = obj.prev;
         let next = obj.next;
 
-        self.data[obj.pointer] = obj.len;
-        self.data[obj.pointer + 1] = prev;
-        self.data[obj.pointer + 2] = next;
+        self.data[obj.pointer] = Value(obj.len as i32, "len");
+        self.data[obj.pointer + 1] = Value(prev as i32, "prev");
+        self.data[obj.pointer + 2] = Value(next as i32, "next");
     }
 
     pub fn parse(&self, index: usize) -> Result<LinkObjectHeader> {
-        let len = self.data[index];
-        let prev = self.data[index + 1];
-        let next = self.data[index + 2];
+        let len = self.data[index].0 as usize;
+        let prev = self.data[index + 1].0 as usize;
+        let next = self.data[index + 2].0 as usize;
 
         Ok(LinkObjectHeader {
             pointer: index,

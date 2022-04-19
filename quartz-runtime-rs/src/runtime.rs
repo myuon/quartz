@@ -5,7 +5,7 @@ use quartz_core::vm::QVMInstruction;
 use crate::freelist::Freelist;
 
 #[derive(Clone, Copy)]
-pub struct Value(i32, &'static str);
+pub struct Value(pub i32, pub &'static str);
 
 impl std::fmt::Debug for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -69,8 +69,8 @@ impl Runtime {
     pub fn run(&mut self) -> Result<()> {
         while self.pc < self.code.len() {
             println!(
-                "{:?} {:?} {:?}",
-                &self.heap.data[0..10],
+                "> {:?}\n{:?} {:?}",
+                &self.heap.data[0..25],
                 &self.stack[0..self.stack_pointer].iter().collect::<Vec<_>>(),
                 &self.code[self.pc],
             );
@@ -105,7 +105,7 @@ impl Runtime {
                     let current_fp = self.frame_pointer;
 
                     let result = self.pop();
-                    assert_eq!(result.1, "i32");
+                    assert!(matches!(result.1, "i32" | "&bytes"), "{:?}", result);
                     self.stack_pointer = self.frame_pointer;
 
                     let fp = self.load(1);
@@ -181,7 +181,7 @@ impl Runtime {
                             self.push(v);
                         }
                         "heap" => {
-                            self.push(Value(self.heap.data[i] as i32, "i32"));
+                            self.push(self.heap.data[i]);
                         }
                         "global" => {
                             let value = self.globals[i];
@@ -203,9 +203,9 @@ impl Runtime {
                         }
                         "heap" => {
                             let value = self.pop();
-                            assert_eq!(value.1, "i32");
+                            assert!(matches!(value.1, "i32" | "&bytes"));
 
-                            self.heap.data[r] = value.0 as usize;
+                            self.heap.data[r] = value;
                         }
                         "global" => {
                             let value = self.pop();
