@@ -7,7 +7,7 @@ use crate::{
     ast::Module,
     code_generation::CodeGeneration,
     parser::run_parser,
-    stdlib::{stdlib, stdlib_methods},
+    stdlib::{stdlib, stdlib_methods, stdlib_structs},
     typechecker::TypeChecker,
     vm::QVMInstruction,
 };
@@ -76,7 +76,7 @@ impl Compiler {
     }
 
     pub fn typecheck(&self, module: &mut Module) -> Result<TypeChecker> {
-        let mut checker = TypeChecker::new(stdlib(), stdlib_methods());
+        let mut checker = TypeChecker::new(stdlib(), stdlib_structs(), stdlib_methods());
         checker.module(module).context("Phase: typecheck")?;
 
         Ok(checker)

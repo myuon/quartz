@@ -265,3 +265,34 @@ impl Structs {
         Ok(field_index)
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct Functions(
+    pub  HashMap<
+        String,
+        (
+            Vec<(String, Type)>, // argument types
+            Box<Type>,           // return type
+            Vec<Statement>,      // body
+        ),
+    >,
+);
+
+#[derive(Debug, Clone)]
+pub struct Methods(
+    pub  HashMap<
+        (String, String), // receiver type, method name
+        (
+            String,              // receiver name
+            Vec<(String, Type)>, // argument types
+            Box<Type>,           // return type
+            Vec<Statement>,      // body
+        ),
+    >,
+);
+
+pub struct Context {
+    pub structs: Structs,
+    pub functions: Functions,
+    pub methods: Methods,
+}

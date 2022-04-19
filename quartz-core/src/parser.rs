@@ -57,7 +57,8 @@ impl Parser {
                 "bool" => Ok(Type::Bool),
                 "string" => Ok(Type::String),
                 "any" => Ok(Type::Any),
-                _ => todo!(),
+                "bytes" => Ok(Type::Bytes),
+                _ => todo!("{:?}", ident),
             }
         }
     }

@@ -3,7 +3,9 @@ use std::collections::HashMap;
 use anyhow::{bail, Context, Result};
 use pretty_assertions::assert_eq;
 
-use crate::ast::{Declaration, Expr, Literal, Module, Statement, Structs, Type};
+use crate::ast::{
+    Declaration, Expr, Functions, Literal, Methods, Module, Statement, Structs, Type,
+};
 
 struct Constraints(Vec<(usize, Type)>);
 
@@ -109,43 +111,21 @@ pub struct TypeChecker {
     infer_count: usize,
     variables: HashMap<String, Type>,
     pub structs: Structs,
-    pub functions: HashMap<
-        String,
-        (
-            Vec<(String, Type)>, // argument types
-            Box<Type>,           // return type
-            Vec<Statement>,      // body
-        ),
-    >,
-    pub methods: HashMap<
-        (String, String), // receiver type, method name
-        (
-            String,              // receiver name
-            Vec<(String, Type)>, // argument types
-            Box<Type>,           // return type
-            Vec<Statement>,      // body
-        ),
-    >,
+    pub functions: Functions,
+    pub methods: Methods,
 }
 
 impl TypeChecker {
     pub fn new(
         variables: HashMap<String, Type>,
-        methods: HashMap<
-            (String, String), // receiver type, method name
-            (
-                String,              // receiver name
-                Vec<(String, Type)>, // argument types
-                Box<Type>,           // return type
-                Vec<Statement>,      // body
-            ),
-        >,
+        structs: Structs,
+        methods: Methods,
     ) -> TypeChecker {
         TypeChecker {
             infer_count: 0,
             variables,
-            structs: Structs(HashMap::new()),
-            functions: HashMap::new(),
+            structs,
+            functions: Functions(HashMap::new()),
             methods,
         }
     }
@@ -166,8 +146,8 @@ impl TypeChecker {
     }
 
     fn load(&self, v: &String) -> Result<Type> {
-        if self.functions.contains_key(v) {
-            let f = self.functions[v].clone();
+        if self.functions.0.contains_key(v) {
+            let f = self.functions.0[v].clone();
             Ok(Type::Fn(f.0.into_iter().map(|(_, v)| v).collect(), f.1))
         } else {
             let t = self
@@ -271,7 +251,7 @@ impl TypeChecker {
                 };
                 *name = typ_name.clone();
 
-                if let Some(method) = self.methods.get(&(typ_name.clone(), field.clone())) {
+                if let Some(method) = self.methods.0.get(&(typ_name.clone(), field.clone())) {
                     // FIXME: if pointer, something could be go wrong
 
                     *is_method = true;
@@ -423,7 +403,7 @@ impl TypeChecker {
                     self.variables = variables;
 
                     if let Some((name, typ, _pointer)) = func.method_of.clone() {
-                        self.methods.insert(
+                        self.methods.0.insert(
                             (typ, func.name.clone()),
                             (
                                 name,
@@ -439,7 +419,7 @@ impl TypeChecker {
                             ),
                         );
                     } else {
-                        self.functions.insert(
+                        self.functions.0.insert(
                             func.name.clone(),
                             (
                                 func.args
@@ -522,7 +502,11 @@ mod tests {
 
         for c in cases {
             let mut module = run_parser_statements(c.0).unwrap();
-            let mut typechecker = TypeChecker::new(HashMap::new(), HashMap::new());
+            let mut typechecker = TypeChecker::new(
+                HashMap::new(),
+                Structs(HashMap::new()),
+                Methods(HashMap::new()),
+            );
             let result = typechecker
                 .statements(&mut module)
                 .expect(&format!("{}", c.0));
@@ -565,7 +549,8 @@ mod tests {
 
         for c in cases {
             let mut module = run_parser(c.0).unwrap();
-            let mut typechecker = TypeChecker::new(stdlib(), HashMap::new());
+            let mut typechecker =
+                TypeChecker::new(stdlib(), Structs(HashMap::new()), Methods(HashMap::new()));
             let result = typechecker.module(&mut module);
 
             let err = result.unwrap_err();

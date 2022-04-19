@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    ast::{Statement, Type},
+    ast::{Methods, Structs, Type},
     compiler::Compiler,
 };
 
@@ -55,15 +55,33 @@ pub fn stdlib() -> HashMap<String, Type> {
     .collect()
 }
 
-pub fn stdlib_methods() -> HashMap<
-    (String, String), // receiver type, method name
-    (
-        String,              // receiver name
-        Vec<(String, Type)>, // argument types
-        Box<Type>,           // return type
-        Vec<Statement>,      // body
-    ),
-> {
+pub fn stdlib_structs() -> Structs {
+    let r = Compiler::new()
+        .parse(
+            r#"
+struct string {
+    data: bytes,
+}
+    "#,
+        )
+        .unwrap();
+
+    let mut result = HashMap::new();
+    for decl in r.0 {
+        use crate::ast::Declaration::*;
+
+        match decl {
+            Struct(s) => {
+                result.insert(s.name, s.fields);
+            }
+            _ => todo!(),
+        }
+    }
+
+    Structs(result)
+}
+
+pub fn stdlib_methods() -> Methods {
     let r = Compiler::new()
         .parse(
             r#"
@@ -119,6 +137,10 @@ pub fn stdlib_methods() -> HashMap<
                 func (x: any) show(): string {
                     return _show(x);
                 }
+
+                func (s: string) bytes(): bytes {
+                    return s.data;
+                }
                 "#,
         )
         .unwrap();
@@ -141,5 +163,5 @@ pub fn stdlib_methods() -> HashMap<
         );
     }
 
-    result.into_iter().map(|(k, v)| (k, v)).collect()
+    Methods(result.into_iter().map(|(k, v)| (k, v)).collect())
 }

@@ -416,6 +416,16 @@ func main() {
 "#,
             3,
         ),
+        (
+            r#"
+func main() {
+    let p = "Hello, World!";
+
+    return p.bytes()[5];
+}
+"#,
+            0,
+        ),
     ];
 
     for (input, result) in cases {
