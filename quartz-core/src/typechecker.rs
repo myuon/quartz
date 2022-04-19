@@ -48,6 +48,10 @@ impl Constraints {
 
                 Ok(result)
             }
+            (Type::Array(t1), Type::Array(t2)) => {
+                let cs = Constraints::unify(t1, t2)?;
+                Ok(cs)
+            }
             (t1, t2) => bail!("Type error, want {:?} but found {:?}", t1, t2),
         }
     }
@@ -102,7 +106,10 @@ impl Constraints {
             Type::Ref(r) => {
                 self.apply(r);
             }
-            Type::Bytes => {}
+            Type::Byte => {}
+            Type::Array(arr) => {
+                self.apply(arr);
+            }
         }
     }
 }
@@ -168,6 +175,14 @@ impl TypeChecker {
                 Literal::Int(_) => Ok(Type::Int),
                 Literal::String(_) => Ok(Type::String),
                 Literal::Nil => Ok(Type::Any),
+                Literal::Array(arr) => {
+                    for e in arr {
+                        let t = self.expr(e)?;
+                        assert_eq!(t, Type::Int);
+                    }
+
+                    Ok(Type::Array(Box::new(Type::Int)))
+                }
             },
             Expr::Call(f, args) => {
                 let fn_type = self.expr(f)?;
@@ -289,15 +304,19 @@ impl TypeChecker {
                 Ok(Type::Ref(Box::new(typ)))
             }
             Expr::Index(e, i) => {
+                let mut r = self.next_infer();
+
                 let typ = self.expr(e)?;
-                let cs = Constraints::unify(&typ, &Type::Bytes)?;
+                let cs = Constraints::unify(&typ, &Type::Array(Box::new(r.clone())))?;
                 self.apply_constraints(&cs);
 
                 let index_type = self.expr(i)?;
                 let cs = Constraints::unify(&index_type, &Type::Int)?;
                 self.apply_constraints(&cs);
 
-                Ok(Type::Int)
+                cs.apply(&mut r);
+
+                Ok(r)
             }
         }
     }

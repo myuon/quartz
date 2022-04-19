@@ -418,6 +418,16 @@ func main() {
         ),
         (
             r#"
+func main(): int {
+    let p = [1,2,3,4];
+
+    return p[2];
+}
+"#,
+            3,
+        ),
+        (
+            r#"
 func main() {
     let p = "Hello, World!";
 
@@ -427,6 +437,37 @@ func main() {
             0,
         ),
     ];
+
+    for (input, result) in cases {
+        let mut compiler = Compiler::new();
+        let code = compiler.compile(input)?;
+
+        let mut runtime = Runtime::new(code.clone(), compiler.code_generation.globals());
+        println!("{}", input);
+        for (n, inst) in runtime.code.iter().enumerate() {
+            println!("{:04} {:?}", n, inst);
+        }
+        runtime.run()?;
+        assert_eq!(runtime.pop().0, result);
+    }
+
+    Ok(())
+}
+
+#[test]
+fn runtime_run_env() -> Result<()> {
+    use quartz_core::compiler::Compiler;
+
+    let cases = vec![(
+        r#"
+func main() {
+    let p = "ABC";
+
+    return p.data;
+}
+"#,
+        0,
+    )];
 
     for (input, result) in cases {
         let mut compiler = Compiler::new();

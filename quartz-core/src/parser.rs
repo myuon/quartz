@@ -57,7 +57,7 @@ impl Parser {
                 "bool" => Ok(Type::Bool),
                 "string" => Ok(Type::String),
                 "any" => Ok(Type::Any),
-                "bytes" => Ok(Type::Bytes),
+                "bytes" => Ok(Type::Array(Box::new(Type::Byte))),
                 _ => todo!("{:?}", ident),
             }
         }
@@ -103,6 +103,21 @@ impl Parser {
                 self.position += 1;
 
                 Ok(Literal::String(s.clone()))
+            }
+            Lexeme::LBracket => {
+                self.position += 1;
+
+                let mut values = vec![];
+                while !self.is_end() && self.peek().lexeme != Lexeme::RBracket {
+                    values.push(self.expr()?);
+                    if self.peek().lexeme == Lexeme::Comma {
+                        self.position += 1;
+                    }
+                }
+
+                self.expect_lexeme(Lexeme::RBracket)?;
+
+                Ok(Literal::Array(values))
             }
             _ => bail!(
                 "Expected a literal but found {:?}",

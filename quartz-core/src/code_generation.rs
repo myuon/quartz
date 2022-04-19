@@ -83,6 +83,25 @@ impl<'a> Generator<'a> {
                     Int(n) => {
                         self.code.push(QVMInstruction::I32Const(*n));
                     }
+                    Array(arr) => {
+                        self.code.extend(vec![
+                            QVMInstruction::I32Const(arr.len() as i32),
+                            QVMInstruction::Alloc,
+                        ]);
+                        for (i, e) in arr.iter().enumerate() {
+                            self.expr(e)?;
+                            self.code.extend(vec![
+                                QVMInstruction::AddrConst(
+                                    self.local_pointer,
+                                    format!("array:{:?}", arr),
+                                ),
+                                QVMInstruction::Load("local"),
+                                QVMInstruction::I32Const(i as i32),
+                                QVMInstruction::Add,
+                                QVMInstruction::Store("heap"),
+                            ]);
+                        }
+                    }
                     String(s) => {
                         // "Hello"
                         // => string { data: [Hello as bytes] }
@@ -90,6 +109,9 @@ impl<'a> Generator<'a> {
                         self.code.extend(vec![
                             QVMInstruction::I32Const(s.len() as i32),
                             QVMInstruction::Alloc,
+                        ]);
+                        self.push_local(format!("!bytes:{}", s));
+                        self.code.extend(vec![
                             QVMInstruction::AddrConst(self.local_pointer, format!("string:{}", s)),
                             QVMInstruction::Load("local"),
                         ]);
@@ -106,9 +128,10 @@ impl<'a> Generator<'a> {
                                 QVMInstruction::Store("heap"),
                             ]);
                         }
+                        self.code
+                            .extend(vec![QVMInstruction::I32Const(1), QVMInstruction::Alloc]);
+                        self.push_local(format!("!string:{}", s));
                         self.code.extend(vec![
-                            QVMInstruction::I32Const(1),
-                            QVMInstruction::Alloc,
                             QVMInstruction::AddrConst(self.local_pointer, format!("string:{}", s)),
                             QVMInstruction::Load("local"),
                             QVMInstruction::I32Const(0),

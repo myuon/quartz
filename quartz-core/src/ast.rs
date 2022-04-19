@@ -8,6 +8,7 @@ pub enum Literal {
     Bool(bool),
     Int(i32),
     String(String),
+    Array(Vec<Expr>),
 }
 
 impl Literal {
@@ -17,6 +18,7 @@ impl Literal {
             Literal::Bool(b) => DataValue::Bool(b),
             Literal::Int(i) => DataValue::Int(i),
             Literal::String(s) => DataValue::String(s),
+            Literal::Array(_) => todo!(),
         }
     }
 }
@@ -96,10 +98,11 @@ pub enum Type {
     Bool,
     Int,
     String,
-    Bytes,
+    Byte,
     Fn(Vec<Type>, Box<Type>),
     Struct(String),
     Ref(Box<Type>),
+    Array(Box<Type>),
 }
 
 impl Type {
@@ -137,7 +140,8 @@ impl Type {
             }
             Type::Struct(_) => false,
             Type::Ref(_) => todo!(),
-            Type::Bytes => false,
+            Type::Byte => false,
+            Type::Array(t) => t.has_infer(index),
         }
     }
 
@@ -162,7 +166,8 @@ impl Type {
             }
             Type::Struct(_) => {}
             Type::Ref(_) => todo!(),
-            Type::Bytes => {}
+            Type::Byte => {}
+            Type::Array(t) => t.subst(index, typ),
         }
     }
 
@@ -171,7 +176,7 @@ impl Type {
             Type::Unit => 1,
             Type::Bool => 1,
             Type::Int => 1,
-            Type::Bytes => 1, // pointer on stack
+            Type::Byte => 1,
             _ => todo!(),
         }
     }

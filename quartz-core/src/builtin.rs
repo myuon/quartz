@@ -25,7 +25,10 @@ pub fn builtin() -> HashMap<String, Type> {
             Type::Fn(vec![Type::Int, Type::Int], Box::new(Type::Bool)),
         ),
         ("_free", Type::Fn(vec![Type::Any], Box::new(Type::Unit))),
-        ("_new", Type::Fn(vec![Type::Int], Box::new(Type::Bytes))),
+        (
+            "_new",
+            Type::Fn(vec![Type::Int], Box::new(Type::Array(Box::new(Type::Byte)))),
+        ),
     ]
     .into_iter()
     .map(|(k, v)| (k.to_string(), v))
