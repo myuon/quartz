@@ -69,7 +69,7 @@ impl Runtime {
     pub fn run(&mut self) -> Result<()> {
         while self.pc < self.code.len() {
             println!(
-                "> {:?}\n{:?} {:?}",
+                "{:?}\n{:?}\n{:?}\n",
                 &self.heap.data[0..25],
                 &self.stack[0..self.stack_pointer].iter().collect::<Vec<_>>(),
                 &self.code[self.pc],
@@ -431,10 +431,10 @@ func main(): int {
 func main() {
     let p = "Hello, World!";
 
-    return p.bytes()[5];
+    return p.bytes()[7];
 }
 "#,
-            0,
+            'W' as i32,
         ),
     ];
 
@@ -458,7 +458,7 @@ func main() {
 fn runtime_run_env() -> Result<()> {
     use quartz_core::compiler::Compiler;
 
-    let cases = vec![(
+    let cases = vec![
         r#"
 func main() {
     let p = "ABC";
@@ -466,10 +466,9 @@ func main() {
     return p.data;
 }
 "#,
-        0,
-    )];
+    ];
 
-    for (input, result) in cases {
+    for input in cases {
         let mut compiler = Compiler::new();
         let code = compiler.compile(input)?;
 
@@ -479,7 +478,17 @@ func main() {
             println!("{:04} {:?}", n, inst);
         }
         runtime.run()?;
-        assert_eq!(runtime.pop().0, result);
+        let bytes = runtime.pop().0 as usize;
+        assert_eq!(
+            String::from_utf8(
+                runtime.heap.data[bytes..bytes + 3]
+                    .iter()
+                    .map(|u| u.0 as u8)
+                    .collect()
+            )
+            .unwrap(),
+            "".to_string(),
+        );
     }
 
     Ok(())
