@@ -91,11 +91,8 @@ impl<'a> Generator<'a> {
                         for (i, e) in arr.iter().enumerate() {
                             self.expr(e)?;
                             self.code.extend(vec![
-                                QVMInstruction::AddrConst(
-                                    self.local_pointer,
-                                    format!("array:{}", i),
-                                ),
-                                QVMInstruction::Load("local"),
+                                QVMInstruction::AddrConst(1, "load:last-1".to_string()),
+                                QVMInstruction::Load("local_rev"),
                                 QVMInstruction::I32Const(i as i32),
                                 QVMInstruction::Add,
                                 QVMInstruction::Store("heap"),
@@ -106,6 +103,8 @@ impl<'a> Generator<'a> {
                         // "Hello"
                         // => string { data: [Hello as bytes] }
 
+                        self.code
+                            .extend(vec![QVMInstruction::I32Const(1), QVMInstruction::Alloc]);
                         self.expr(&Expr::Lit(Literal::Array(
                             s.as_bytes()
                                 .iter()
@@ -113,12 +112,8 @@ impl<'a> Generator<'a> {
                                 .collect::<Vec<_>>(),
                         )))?;
                         self.code.extend(vec![
-                            QVMInstruction::I32Const(1),
-                            QVMInstruction::Alloc,
-                            QVMInstruction::AddrConst(self.local_pointer, format!("string:{}", s)),
-                            QVMInstruction::Load("local"),
-                            QVMInstruction::AddrConst(self.local_pointer, format!("string:{}", s)),
-                            QVMInstruction::Load("local"),
+                            QVMInstruction::AddrConst(1, "load:last-1".to_string()),
+                            QVMInstruction::Load("local_rev"),
                             QVMInstruction::I32Const(0),
                             QVMInstruction::Add,
                             QVMInstruction::Store("heap"),
@@ -158,8 +153,8 @@ impl<'a> Generator<'a> {
                     let index = self.structs.get_projection_offset(st, label)?;
 
                     self.code.extend(vec![
-                        QVMInstruction::AddrConst(self.local_pointer, format!("_new.{}", label)),
-                        QVMInstruction::Load("local"),
+                        QVMInstruction::AddrConst(1, "load:last-1".to_string()),
+                        QVMInstruction::Load("local_rev"),
                         QVMInstruction::I32Const(index as i32),
                         QVMInstruction::Add,
                         QVMInstruction::Store("heap"),

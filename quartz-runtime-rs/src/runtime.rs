@@ -180,6 +180,9 @@ impl Runtime {
                             assert!(matches!(v.1, "i32" | "addr" | "&bytes"), "{}", v.1);
                             self.push(v);
                         }
+                        "local_rev" => {
+                            self.push(self.stack[self.stack_pointer - 1 - i]);
+                        }
                         "heap" => {
                             self.push(self.heap.data[i]);
                         }
@@ -487,7 +490,7 @@ func main() {
                     .collect()
             )
             .unwrap(),
-            "".to_string(),
+            "ABC".to_string(),
         );
     }
 
