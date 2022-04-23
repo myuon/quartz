@@ -28,7 +28,7 @@
     "comments": {
       "patterns": [
         {
-          "match": "^\\s*//.*",
+          "match": "\\s*//.*",
           "name": "comment.line.double-slash.quartz"
         }
       ]
@@ -90,6 +90,9 @@
             },
             {
               "include": "#punctuations"
+            },
+            {
+              "include": "#variables"
             }
           ]
         },
@@ -158,6 +161,14 @@
         {
           "match": "=",
           "name": "keyword.operator.assignment.quartz"
+        },
+        {
+          "match": ":",
+          "name": "keyword.operator.colon.quartz"
+        },
+        {
+          "match": "\\.",
+          "name": "keyword.operator.dot.quartz"
         }
       ]
     },
