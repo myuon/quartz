@@ -3,18 +3,193 @@
   "name": "quartz",
   "patterns": [
     { "include": "#comments" },
-    { "include": "#constants" },
     {
-      "include": "#keywords"
+      "include": "#function_decl"
     },
     {
-      "include": "#strings"
+      "include": "#struct_decl"
     }
   ],
   "repository": {
+    "function_decl": {
+      "patterns": [
+        {
+          "match": "(\\bfunc\\b)(?:\\s*(\\([^\\)]+\\))\\s*)?(\\b\\w+\\b)(?:\\s*(\\([^\\)]+\\))\\s*)",
+          "captures": {
+            "1": {
+              "name": "keyword.function.quartz"
+            },
+            "2": {
+              "patterns": [
+                {
+                  "begin": "\\(",
+                  "beginCaptures": {
+                    "0": {
+                      "name": "punctuation.definition.parameters.begin.quartz"
+                    }
+                  },
+                  "end": "\\)",
+                  "patterns": [
+                    {
+                      "include": "#typed_parameter"
+                    }
+                  ]
+                }
+              ]
+            },
+            "3": {
+              "name": "entity.name.function.quartz"
+            },
+            "4": {
+              "patterns": [
+                {
+                  "begin": "\\(",
+                  "beginCaptures": {
+                    "0": {
+                      "name": "punctuation.definition.parameters.begin.quartz"
+                    }
+                  },
+                  "end": "\\)",
+                  "endCaptures": {
+                    "0": {
+                      "name": "punctuation.definition.parameters.end.quartz"
+                    }
+                  },
+                  "patterns": [
+                    {
+                      "include": "#typed_parameter"
+                    },
+                    {
+                      "match": ",",
+                      "name": "punctuation.separator.parameters.quartz"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "begin": "\\{",
+          "beginCaptures": {
+            "0": { "name": "punctuation.section.scope.quartz" }
+          },
+          "end": "\\}",
+          "endCaptures": {
+            "0": { "name": "punctuation.section.scope.quartz" }
+          },
+          "patterns": [{ "include": "#statement" }]
+        }
+      ]
+    },
+    "struct_decl": {
+      "patterns": [
+        {
+          "match": "(\\bstruct\\b)\\s+(\\S+)\\s*",
+          "captures": {
+            "1": {
+              "name": "keyword.struct.quartz"
+            },
+            "2": {
+              "name": "entity.name.struct.quartz"
+            }
+          }
+        },
+        {
+          "begin": "\\{",
+          "beginCaptures": {
+            "0": { "name": "punctuation.section.scope.quartz" }
+          },
+          "end": "\\}",
+          "endCaptures": {
+            "0": { "name": "punctuation.section.scope.quartz" }
+          },
+          "patterns": [
+            {
+              "include": "#typed_parameter"
+            },
+            {
+              "match": ",",
+              "name": "punctuation.separator.parameters.quartz"
+            }
+          ]
+        }
+      ]
+    },
+    "typed_parameter": {
+      "patterns": [
+        {
+          "match": "(\\w+)\\s*(:)\\s*(\\S+)",
+          "captures": {
+            "1": { "name": "entity.name.variable.quartz" },
+            "2": { "name": "punctuation.separator.type.quartz" },
+            "3": { "name": "entity.name.type.quartz" }
+          }
+        }
+      ]
+    },
+    "typed": {
+      "patterns": [
+        {
+          "match": "(:)\\s*(\\S+)",
+          "captures": {
+            "1": { "name": "punctuation.separator.type.quartz" },
+            "2": { "name": "entity.name.type.quartz" }
+          }
+        }
+      ]
+    },
     "comments": {
       "name": "comment.line.double-slash",
       "match": "//.*"
+    },
+    "statement": {
+      "match": "([^\\;]*);",
+      "name": "meta.statement.quartz",
+      "captures": {
+        "1": { "patterns": [{ "include": "#expr" }] }
+      }
+    },
+    "expr": {
+      "patterns": [
+        {
+          "include": "#keywords"
+        },
+        {
+          "begin": "\\(",
+          "beginCaptures": {
+            "0": { "name": "punctuation.section.scope.begin.quartz" }
+          },
+          "end": "\\)",
+          "endCaptures": {
+            "0": { "name": "punctuation.section.scope.end.quartz" }
+          },
+          "patterns": [
+            {
+              "include": "#expr"
+            },
+            {
+              "match": ",",
+              "name": "punctuation.separator.parameters.quartz"
+            }
+          ]
+        },
+        {
+          "match": "\\b(\\.)\\b",
+          "captures": {
+            "1": { "name": "punctuation.separator.accessor.quartz" }
+          }
+        },
+        {
+          "include": "#strings"
+        },
+        {
+          "include": "#constant"
+        },
+        {
+          "include": "#identifier"
+        }
+      ]
     },
     "constants": {
       "patterns": [
@@ -32,7 +207,7 @@
       "patterns": [
         {
           "name": "keyword.control.quartz",
-          "match": "\\b(if|else|return|continue|loop|while)\\b"
+          "match": "\\b(if|else|return|continue|for|return)\\b"
         },
         {
           "name": "keyword.operator.quartz",
@@ -40,7 +215,7 @@
         },
         {
           "name": "keyword.other.quartz",
-          "match": "\\b(fn|let|struct)\\b"
+          "match": "\\b(func|let|struct)\\b"
         }
       ]
     },
@@ -54,6 +229,14 @@
           "match": "\\\\."
         }
       ]
+    },
+    "storage_types": {
+      "name": "storage.type.quartz",
+      "match": "\\b(int|string|byte|bytes|array)\\b"
+    },
+    "identifier": {
+      "match": "\\b([a-zA-Z_]\\w*)\\b",
+      "name": "identifier.quartz"
     }
   },
   "scopeName": "source.quartz"

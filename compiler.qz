@@ -1,8 +1,8 @@
-fn (s: string) starts_with(prefix: string): bool {
+func (s: string) starts_with(prefix: string): bool {
   return s.slice(0, prefix.len()).eq(prefix);
 }
 
-fn (s: string) slice_after(start: int): string {
+func (s: string) slice_after(start: int): string {
   return s.slice(start, s.len());
 }
 
@@ -17,7 +17,7 @@ struct Lexer {
   tokens: any, // Vec<Token>
 }
 
-fn (self: Lexer) expect(current_input: string, lex: string): bool {
+func (self: Lexer) expect(current_input: string, lex: string): bool {
   if current_input.starts_with(lex) {
     self.position = self.position.add(lex.len());
     self.tokens.push(Token { lexeme: lex });
@@ -28,7 +28,7 @@ fn (self: Lexer) expect(current_input: string, lex: string): bool {
   };
 }
 
-fn (self: Lexer) run(input: string) {
+func (self: Lexer) run(input: string) {
   self.position = 0;
   self.tokens = _vec();
 
@@ -49,13 +49,13 @@ fn (self: Lexer) run(input: string) {
 
 // -----------------------------------------------------------------------------
 
-fn assert_eq(a: any, b: any) {
+func assert_eq(a: any, b: any) {
   if a.eq(b).not() {
     _print("assertion failed: ".concat(a.show()).concat(", ").concat(b.show()));
   };
 }
 
-fn test() {
+func test() {
   assert_eq("foo bar".starts_with("foo"), true);
   assert_eq("foo bar".starts_with("foo baz"), false);
 
@@ -63,7 +63,7 @@ fn test() {
   assert_eq("foo bar".slice_after(6), "r");
 }
 
-fn main() {
+func main() {
   let lexer = Lexer { position: 0, tokens: _vec() };
 
   _print(lexer.run("let a = 10;"));
