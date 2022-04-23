@@ -14,7 +14,7 @@
     "function_decl": {
       "patterns": [
         {
-          "match": "(\\bfunc\\b)(?:\\s*(\\([^\\)]+\\))\\s*)?(\\b\\w+\\b)(?:\\s*(\\([^\\)]+\\))\\s*)",
+          "match": "(func)(?:\\s*(\\([^\\)]+\\)))?\\s*(\\b\\w+\\b)(?:\\s*(\\([^\\)]*\\))\\s*)(:\\s*[^\\{]*)?",
           "captures": {
             "1": {
               "name": "keyword.function.quartz"
@@ -31,7 +31,7 @@
                   "end": "\\)",
                   "patterns": [
                     {
-                      "include": "#typed_parameter"
+                      "include": "#type_arguments"
                     }
                   ]
                 }
@@ -57,15 +57,14 @@
                   },
                   "patterns": [
                     {
-                      "include": "#typed_parameter"
-                    },
-                    {
-                      "match": ",",
-                      "name": "punctuation.separator.parameters.quartz"
+                      "include": "#type_arguments"
                     }
                   ]
                 }
               ]
+            },
+            "5": {
+              "patterns": [{ "include": "#type_annotation" }]
             }
           }
         },
@@ -85,13 +84,13 @@
     "struct_decl": {
       "patterns": [
         {
-          "match": "(\\bstruct\\b)\\s+(\\S+)\\s*",
+          "match": "(struct)\\s*(\\w+)\\s*",
           "captures": {
             "1": {
-              "name": "keyword.struct.quartz"
+              "name": "keyword.control.struct.quartz"
             },
             "2": {
-              "name": "entity.name.struct.quartz"
+              "name": "entity.name.type.struct.quartz"
             }
           }
         },
@@ -106,36 +105,39 @@
           },
           "patterns": [
             {
-              "include": "#typed_parameter"
-            },
-            {
-              "match": ",",
-              "name": "punctuation.separator.parameters.quartz"
+              "match": "(\\w+)\\s*:\\s*(\\w+)(,)",
+              "captures": {
+                "1": { "name": "entity.name.variable.struct.quartz" },
+                "2": { "name": "entity.name.type.struct.quartz" },
+                "3": { "name": "punctuation.separator.struct.quartz" }
+              }
             }
           ]
         }
       ]
     },
-    "typed_parameter": {
+    "type_arguments": {
       "patterns": [
         {
-          "match": "(\\w+)\\s*(:)\\s*(\\S+)",
-          "captures": {
-            "1": { "name": "entity.name.variable.quartz" },
-            "2": { "name": "punctuation.separator.type.quartz" },
-            "3": { "name": "entity.name.type.quartz" }
-          }
+          "include": "#type_annotation"
+        },
+        {
+          "include": "#identifier"
+        },
+        {
+          "match": "(,)",
+          "name": "punctuation.separator.type.quartz"
         }
       ]
     },
-    "typed": {
+    "type_annotation": {
       "patterns": [
         {
-          "match": "(:)\\s*(\\S+)",
-          "captures": {
-            "1": { "name": "punctuation.separator.type.quartz" },
-            "2": { "name": "entity.name.type.quartz" }
-          }
+          "match": ":\\s*",
+          "name": "punctuation.separator.type.quartz"
+        },
+        {
+          "include": "#type"
         }
       ]
     },
@@ -144,11 +146,30 @@
       "match": "//.*"
     },
     "statement": {
-      "match": "([^\\;]*);",
-      "name": "meta.statement.quartz",
-      "captures": {
-        "1": { "patterns": [{ "include": "#expr" }] }
-      }
+      "patterns": [
+        {
+          "match": "(if|while)\\s*([^\\{]+)\\s",
+          "captures": {
+            "1": {
+              "name": "keyword.control.quartz"
+            },
+            "2": {
+              "patterns": [
+                {
+                  "include": "#expr"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "match": "([^\\;]*);",
+          "name": "meta.statement.quartz",
+          "captures": {
+            "1": { "patterns": [{ "include": "#expr" }] }
+          }
+        }
+      ]
     },
     "expr": {
       "patterns": [
@@ -184,12 +205,20 @@
           "include": "#strings"
         },
         {
+          "match": "\\b(\\d+)\\b",
+          "name": "constant.numeric.quartz"
+        },
+        {
           "include": "#constant"
         },
         {
           "include": "#identifier"
         }
       ]
+    },
+    "type": {
+      "match": "[a-zA-Z_]\\w*",
+      "name": "entity.name.type.quartz"
     },
     "constants": {
       "patterns": [
@@ -230,13 +259,23 @@
         }
       ]
     },
-    "storage_types": {
-      "name": "storage.type.quartz",
-      "match": "\\b(int|string|byte|bytes|array)\\b"
-    },
     "identifier": {
-      "match": "\\b([a-zA-Z_]\\w*)\\b",
-      "name": "identifier.quartz"
+      "patterns": [
+        {
+          "match": "\\b(self)\\b",
+          "name": "keyword.self.quartz"
+        },
+        {
+          "match": "\\b([a-zA-Z_]\\w*)\\b(?=\\()",
+          "captures": {
+            "1": { "name": "entity.name.function.quartz" }
+          }
+        },
+        {
+          "match": "\\b([a-zA-Z_]\\w*)\\b",
+          "name": "entity.name.variable.quartz"
+        }
+      ]
     }
   },
   "scopeName": "source.quartz"
