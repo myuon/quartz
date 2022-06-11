@@ -28,6 +28,8 @@ pub enum QVMInstruction {
     And,
     Or,
     Not,
+    // pointer arithmetics
+    PAdd,
     // constants
     I32Const(i32),
     AddrConst(usize, String),

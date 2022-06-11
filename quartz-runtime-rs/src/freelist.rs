@@ -28,7 +28,7 @@ pub struct Freelist {
 impl Freelist {
     pub fn new(len: usize) -> Freelist {
         let mut list = Freelist {
-            data: vec![Value(0, ""); len],
+            data: vec![Value::nil(); len],
         };
 
         let root = 0;
@@ -53,15 +53,15 @@ impl Freelist {
         let prev = obj.prev;
         let next = obj.next;
 
-        self.data[obj.pointer] = Value(obj.len as i32, "len");
-        self.data[obj.pointer + 1] = Value(prev as i32, "prev");
-        self.data[obj.pointer + 2] = Value(next as i32, "next");
+        self.data[obj.pointer] = Value::Int(obj.len as i32, "len");
+        self.data[obj.pointer + 1] = Value::Addr(prev, "prev");
+        self.data[obj.pointer + 2] = Value::Addr(next, "next");
     }
 
     pub fn parse(&self, index: usize) -> Result<LinkObjectHeader> {
-        let len = self.data[index].0 as usize;
-        let prev = self.data[index + 1].0 as usize;
-        let next = self.data[index + 2].0 as usize;
+        let len = self.data[index].as_named_int("len").unwrap() as usize;
+        let prev = self.data[index + 1].as_named_addr("prev").unwrap();
+        let next = self.data[index + 2].as_named_addr("next").unwrap();
 
         Ok(LinkObjectHeader {
             pointer: index,

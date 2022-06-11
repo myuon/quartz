@@ -94,7 +94,7 @@ impl<'a> Generator<'a> {
                                 QVMInstruction::AddrConst(1, "load:last-1".to_string()),
                                 QVMInstruction::Load("local_rev"),
                                 QVMInstruction::I32Const(i as i32),
-                                QVMInstruction::Add,
+                                QVMInstruction::PAdd,
                                 QVMInstruction::Store("heap"),
                             ]);
                         }
@@ -115,7 +115,7 @@ impl<'a> Generator<'a> {
                             QVMInstruction::AddrConst(1, "load:last-1".to_string()),
                             QVMInstruction::Load("local_rev"),
                             QVMInstruction::I32Const(0),
-                            QVMInstruction::Add,
+                            QVMInstruction::PAdd,
                             QVMInstruction::Store("heap"),
                         ]);
                     }
@@ -156,7 +156,7 @@ impl<'a> Generator<'a> {
                         QVMInstruction::AddrConst(1, "load:last-1".to_string()),
                         QVMInstruction::Load("local_rev"),
                         QVMInstruction::I32Const(index as i32),
-                        QVMInstruction::Add,
+                        QVMInstruction::PAdd,
                         QVMInstruction::Store("heap"),
                     ]);
                 }
@@ -175,8 +175,8 @@ impl<'a> Generator<'a> {
 
                 self.expr(proj)?;
                 self.code.extend(vec![
-                    QVMInstruction::AddrConst(index, format!(".{}", label)),
-                    QVMInstruction::Add,
+                    QVMInstruction::I32Const(index as i32),
+                    QVMInstruction::PAdd,
                     QVMInstruction::Load("heap"),
                 ]);
             }
@@ -185,7 +185,7 @@ impl<'a> Generator<'a> {
             Expr::Index(e, i) => {
                 self.expr(e)?;
                 self.expr(i)?;
-                self.code.push(QVMInstruction::Add);
+                self.code.push(QVMInstruction::PAdd);
                 self.code.push(QVMInstruction::Load("heap"));
             }
         }
@@ -247,7 +247,7 @@ impl<'a> Generator<'a> {
                         // => push(v);push(arr);push(i);add;store(heap);
                         self.expr(arr)?;
                         self.expr(i)?;
-                        self.code.push(QVMInstruction::Add);
+                        self.code.push(QVMInstruction::PAdd);
                         self.code.push(QVMInstruction::Store("heap"));
                     }
                     _ => todo!(),

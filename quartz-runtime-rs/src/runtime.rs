@@ -1,16 +1,92 @@
 use anyhow::Result;
-use pretty_assertions::assert_eq;
 use quartz_core::vm::QVMInstruction;
 
 use crate::freelist::Freelist;
 
 #[derive(Clone, Copy)]
-pub struct Value(pub i32, pub &'static str);
+pub enum Value {
+    Int(i32, &'static str),
+    Addr(usize, &'static str),
+}
 
 impl std::fmt::Debug for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}", self.1, self.0)
+        match self {
+            Self::Int(arg0, arg1) => {
+                write!(f, "{}:{}", arg0, arg1)
+            }
+            Self::Addr(arg0, arg1) => {
+                write!(f, "*{}:{}", arg0, arg1)
+            }
+        }
     }
+}
+
+impl Value {
+    pub fn as_bool(self) -> Option<bool> {
+        match self {
+            Value::Int(i, "bool") if i == 0 => Some(false),
+            Value::Int(i, "bool") if i == 1 => Some(true),
+            _ => None,
+        }
+    }
+
+    pub fn as_int(self) -> Option<i32> {
+        match self {
+            Value::Int(i, "int") => Some(i),
+            _ => None,
+        }
+    }
+
+    pub fn as_addr(self) -> Option<usize> {
+        match self {
+            Value::Addr(i, "addr") => Some(i),
+            _ => None,
+        }
+    }
+
+    pub fn as_named_int(self, name: &str) -> Option<i32> {
+        match self {
+            Value::Int(i, n) if n == name => Some(i),
+            _ => None,
+        }
+    }
+
+    pub fn as_named_addr(self, name: &str) -> Option<usize> {
+        match self {
+            Value::Addr(i, n) if n == name => Some(i),
+            _ => None,
+        }
+    }
+
+    pub fn metadata(&self) -> &'static str {
+        match self {
+            Value::Int(_, metadata) => metadata,
+            Value::Addr(_, metadata) => metadata,
+        }
+    }
+
+    pub fn nil() -> Value {
+        Value::Addr(0, "nil")
+    }
+
+    pub fn bool(b: bool) -> Value {
+        Value::Int(if b { 1 } else { 0 }, "bool")
+    }
+
+    pub fn int(i: i32) -> Value {
+        Value::Int(i, "int")
+    }
+
+    pub fn addr(i: usize) -> Value {
+        Value::Addr(i, "addr")
+    }
+}
+
+macro_rules! assert_matches {
+    ($e:expr, $p:pat $(,$t:expr)* $(,)?) => {
+        assert!(matches!($e, $p) $(,$t)*)
+    };
 }
 
 /* StackFrame
@@ -78,11 +154,11 @@ impl Runtime {
                 QVMInstruction::Jump(_) => todo!(),
                 QVMInstruction::Call => {
                     let r = self.pop();
-                    assert_eq!(r.1, "addr");
+                    assert_matches!(r, Value::Addr(_, _));
 
-                    self.push(Value((self.pc + 1) as i32, "pc"));
-                    self.pc = r.0 as usize;
-                    self.push(Value(self.frame_pointer as i32, "fp"));
+                    self.push(Value::Addr(self.pc + 1, "pc"));
+                    self.pc = r.as_addr().unwrap();
+                    self.push(Value::Addr(self.frame_pointer, "fp"));
                     self.frame_pointer = self.stack_pointer;
                     continue;
                 }
@@ -105,50 +181,46 @@ impl Runtime {
                     let current_fp = self.frame_pointer;
 
                     let result = self.pop();
-                    assert!(matches!(result.1, "i32" | "&bytes"), "{:?}", result);
                     self.stack_pointer = self.frame_pointer;
 
                     let fp = self.load(1);
-                    assert_eq!(fp.1, "fp");
-                    self.frame_pointer = fp.0 as usize;
+                    self.frame_pointer = fp.as_named_addr("fp").unwrap();
 
                     let pc = self.load(2);
-                    assert_eq!(pc.1, "pc");
-                    self.pc = pc.0 as usize;
+                    self.pc = pc.as_named_addr("pc").unwrap();
 
                     self.stack[current_fp - (args + 2)] = result;
                     self.stack_pointer -= args + 1; // -2 words (fp, pc), +1 word (return value)
                     continue;
                 }
                 QVMInstruction::Add => {
-                    let a = self.pop();
-                    let b = self.pop();
-                    self.push(Value(
-                        b.0 + a.0,
-                        if b.1 == "&bytes" {
-                            "addr"
-                        } else {
-                            assert_eq!(a.1, b.1);
-                            a.1
-                        },
-                    ));
+                    let a = self.pop().as_int().unwrap();
+                    let b = self.pop().as_int().unwrap();
+                    self.push(Value::int(b + a));
                 }
                 QVMInstruction::Sub => {
-                    let a = self.pop();
-                    let b = self.pop();
-                    self.push(Value(b.0 - a.0, "i32"));
+                    let a = self.pop().as_int().unwrap();
+                    let b = self.pop().as_int().unwrap();
+                    self.push(Value::int(b - a));
                 }
                 QVMInstruction::Mult => {
-                    let a = self.pop();
-                    let b = self.pop();
-                    self.push(Value(b.0 * a.0, "i32"));
+                    let a = self.pop().as_int().unwrap();
+                    let b = self.pop().as_int().unwrap();
+                    self.push(Value::int(b * a));
                 }
                 QVMInstruction::Div => todo!(),
                 QVMInstruction::Mod => todo!(),
                 QVMInstruction::Eq => {
                     let a = self.pop();
                     let b = self.pop();
-                    self.push(Value(if b.0 == a.0 { 1 } else { 0 }, "bool"));
+                    self.push(Value::Int(
+                        if b.as_int().unwrap() == a.as_int().unwrap() {
+                            1
+                        } else {
+                            0
+                        },
+                        "bool",
+                    ));
                 }
                 QVMInstruction::Neq => todo!(),
                 QVMInstruction::Lt => todo!(),
@@ -157,27 +229,27 @@ impl Runtime {
                 QVMInstruction::Or => todo!(),
                 QVMInstruction::Not => todo!(),
                 QVMInstruction::I32Const(c) => {
-                    self.push(Value(c, "i32"));
+                    self.push(Value::int(c));
                 }
                 QVMInstruction::AddrConst(addr, _) => {
-                    self.push(Value(addr as i32, "addr"));
+                    self.push(Value::addr(addr));
                 }
                 QVMInstruction::Load(kind) => {
                     let addr_value = self.pop();
-                    assert_eq!(addr_value.1, "addr");
-                    let i = addr_value.0 as usize;
+                    assert!(matches!(addr_value, Value::Addr(_, "addr")));
+                    let i = addr_value.as_addr().unwrap();
 
                     match kind {
                         "local" => {
-                            assert_eq!(
-                                self.stack[self.frame_pointer - 1].1,
-                                "fp",
+                            assert!(
+                                matches!(self.stack[self.frame_pointer - 1], Value::Addr(_, "fp")),
                                 "{} at {:?}",
                                 self.frame_pointer,
                                 self.stack
                             );
+
                             let v = self.stack[self.frame_pointer + i];
-                            assert!(matches!(v.1, "i32" | "addr" | "&bytes"), "{}", v.1);
+                            assert!(matches!(v.metadata(), "int" | "addr" | "&bytes"), "{:?}", v);
                             self.push(v);
                         }
                         "local_rev" => {
@@ -188,7 +260,7 @@ impl Runtime {
                         }
                         "global" => {
                             let value = self.globals[i];
-                            self.push(Value(value, "i32"));
+                            self.push(Value::int(value));
                         }
                         _ => {
                             unreachable!();
@@ -197,8 +269,8 @@ impl Runtime {
                 }
                 QVMInstruction::Store(kind) => {
                     let addr_value = self.pop();
-                    assert_eq!(addr_value.1, "addr");
-                    let r = addr_value.0 as usize;
+                    assert_matches!(addr_value, Value::Addr(_, "addr"));
+                    let r = addr_value.as_addr().unwrap();
 
                     match kind {
                         "local" => {
@@ -206,13 +278,13 @@ impl Runtime {
                         }
                         "heap" => {
                             let value = self.pop();
-                            assert!(matches!(value.1, "i32" | "&bytes"));
+                            assert_matches!(value.metadata(), "int" | "&bytes", "{:?}", value);
 
                             self.heap.data[r] = value;
                         }
                         "global" => {
                             let value = self.pop();
-                            self.globals[r] = value.0;
+                            self.globals[r] = value.as_int().unwrap();
                         }
                         _ => {
                             unreachable!();
@@ -226,23 +298,25 @@ impl Runtime {
                 }
                 QVMInstruction::LoadArg(r) => {
                     let arg = self.stack[self.frame_pointer - 3 - r];
-                    assert!(matches!(arg.1, "i32" | "addr" | "&bytes"), "{}", arg.1);
+                    assert_matches!(
+                        arg.metadata(),
+                        "int" | "addr" | "&bytes",
+                        "{}",
+                        arg.metadata()
+                    );
                     self.push(arg);
                 }
                 QVMInstruction::JumpIfFalse(k) => {
                     let v = self.pop();
-                    assert_eq!(v.1, "bool");
-                    if v.0 == 0 {
+                    if v.as_bool().unwrap() == false {
                         self.pc = k;
                         continue;
                     }
                 }
                 QVMInstruction::Alloc => {
                     let size = self.pop();
-                    assert_eq!(size.1, "i32");
-
-                    let addr = self.heap.alloc(size.0 as usize)?;
-                    self.push(Value(addr as i32, "&bytes"));
+                    let addr = self.heap.alloc(size.as_int().unwrap() as usize)?;
+                    self.push(Value::Addr(addr, "&bytes"));
                 }
                 QVMInstruction::Free(addr) => {
                     self.heap.free(self.heap.parse(addr)?)?;
@@ -250,6 +324,17 @@ impl Runtime {
                 //
                 QVMInstruction::LabelAddrConst(_) => unreachable!(),
                 QVMInstruction::LabelJumpIfFalse(_) => unreachable!(),
+                QVMInstruction::PAdd => {
+                    let a = self.pop();
+                    let b = match self.pop() {
+                        Value::Addr(b, "&bytes") => b,
+                        Value::Addr(b, "addr") => b,
+                        _ => {
+                            unreachable!();
+                        }
+                    };
+                    self.push(Value::addr(b + a.as_int().unwrap() as usize));
+                }
             }
 
             self.pc += 1;
@@ -295,7 +380,7 @@ fn runtime_run_hand_coded() -> Result<()> {
     for (code, result) in cases {
         let mut runtime = Runtime::new(code, 0);
         runtime.run()?;
-        assert_eq!(result, runtime.pop().0);
+        assert_eq!(result, runtime.pop().as_int().unwrap());
     }
 
     Ok(())
@@ -451,7 +536,8 @@ func main() {
             println!("{:04} {:?}", n, inst);
         }
         runtime.run()?;
-        assert_eq!(runtime.pop().0, result);
+        let pop = runtime.pop();
+        assert_eq!(pop.as_int(), Some(result), "{:?} {:?}", pop, result);
     }
 
     Ok(())
@@ -481,12 +567,12 @@ func main() {
             println!("{:04} {:?}", n, inst);
         }
         runtime.run()?;
-        let bytes = runtime.pop().0 as usize;
+        let bytes = runtime.pop().as_named_addr("&bytes").unwrap();
         assert_eq!(
             String::from_utf8(
                 runtime.heap.data[bytes..bytes + 3]
                     .iter()
-                    .map(|u| u.0 as u8)
+                    .map(|u| u.as_int().unwrap() as u8)
                     .collect()
             )
             .unwrap(),
