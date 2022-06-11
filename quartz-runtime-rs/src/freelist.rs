@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use crate::runtime::Value;
+use crate::runtime::{AddrPlace, Value};
 
 #[derive(Debug, Clone)]
 pub struct LinkObjectHeader {
@@ -54,8 +54,8 @@ impl Freelist {
         let next = obj.next;
 
         self.data[obj.pointer] = Value::Int(obj.len as i32, "len");
-        self.data[obj.pointer + 1] = Value::Addr(prev, "prev");
-        self.data[obj.pointer + 2] = Value::Addr(next, "next");
+        self.data[obj.pointer + 1] = Value::Addr(prev, AddrPlace::Heap, "prev");
+        self.data[obj.pointer + 2] = Value::Addr(next, AddrPlace::Heap, "next");
     }
 
     pub fn parse(&self, index: usize) -> Result<LinkObjectHeader> {

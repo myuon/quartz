@@ -3,10 +3,16 @@ use quartz_core::vm::QVMInstruction;
 
 use crate::freelist::Freelist;
 
+#[derive(Clone, Debug, Copy)]
+pub enum AddrPlace {
+    Heap,
+    Unknown,
+}
+
 #[derive(Clone, Copy)]
 pub enum Value {
     Int(i32, &'static str),
-    Addr(usize, &'static str),
+    Addr(usize, AddrPlace, &'static str),
 }
 
 impl std::fmt::Debug for Value {
@@ -15,7 +21,7 @@ impl std::fmt::Debug for Value {
             Self::Int(arg0, arg1) => {
                 write!(f, "{}:{}", arg0, arg1)
             }
-            Self::Addr(arg0, arg1) => {
+            Self::Addr(arg0, _, arg1) => {
                 write!(f, "*{}:{}", arg0, arg1)
             }
         }
@@ -40,7 +46,7 @@ impl Value {
 
     pub fn as_addr(self) -> Option<usize> {
         match self {
-            Value::Addr(i, "addr") => Some(i),
+            Value::Addr(i, _, "addr") => Some(i),
             _ => None,
         }
     }
@@ -54,7 +60,7 @@ impl Value {
 
     pub fn as_named_addr(self, name: &str) -> Option<usize> {
         match self {
-            Value::Addr(i, n) if n == name => Some(i),
+            Value::Addr(i, _, n) if n == name => Some(i),
             _ => None,
         }
     }
@@ -62,12 +68,12 @@ impl Value {
     pub fn metadata(&self) -> &'static str {
         match self {
             Value::Int(_, metadata) => metadata,
-            Value::Addr(_, metadata) => metadata,
+            Value::Addr(_, _, metadata) => metadata,
         }
     }
 
     pub fn nil() -> Value {
-        Value::Addr(0, "nil")
+        Value::Addr(0, AddrPlace::Unknown, "nil")
     }
 
     pub fn bool(b: bool) -> Value {
@@ -79,7 +85,7 @@ impl Value {
     }
 
     pub fn addr(i: usize) -> Value {
-        Value::Addr(i, "addr")
+        Value::Addr(i, AddrPlace::Heap, "addr")
     }
 }
 
@@ -118,6 +124,8 @@ impl Runtime {
         }
     }
 
+    fn run_gc(&mut self) {}
+
     fn pop(&mut self) -> Value {
         assert!(
             self.stack_pointer > 0,
@@ -154,11 +162,11 @@ impl Runtime {
                 QVMInstruction::Jump(_) => todo!(),
                 QVMInstruction::Call => {
                     let r = self.pop();
-                    assert_matches!(r, Value::Addr(_, _));
+                    assert_matches!(r, Value::Addr(_, AddrPlace::Heap, _));
 
-                    self.push(Value::Addr(self.pc + 1, "pc"));
+                    self.push(Value::Int(self.pc as i32 + 1, "pc"));
                     self.pc = r.as_addr().unwrap();
-                    self.push(Value::Addr(self.frame_pointer, "fp"));
+                    self.push(Value::Int(self.frame_pointer as i32, "fp"));
                     self.frame_pointer = self.stack_pointer;
                     continue;
                 }
@@ -184,10 +192,10 @@ impl Runtime {
                     self.stack_pointer = self.frame_pointer;
 
                     let fp = self.load(1);
-                    self.frame_pointer = fp.as_named_addr("fp").unwrap();
+                    self.frame_pointer = fp.as_named_int("fp").unwrap() as usize;
 
                     let pc = self.load(2);
-                    self.pc = pc.as_named_addr("pc").unwrap();
+                    self.pc = pc.as_named_int("pc").unwrap() as usize;
 
                     self.stack[current_fp - (args + 2)] = result;
                     self.stack_pointer -= args + 1; // -2 words (fp, pc), +1 word (return value)
@@ -236,13 +244,13 @@ impl Runtime {
                 }
                 QVMInstruction::Load(kind) => {
                     let addr_value = self.pop();
-                    assert!(matches!(addr_value, Value::Addr(_, "addr")));
+                    assert!(matches!(addr_value, Value::Addr(_, _, "addr")));
                     let i = addr_value.as_addr().unwrap();
 
                     match kind {
                         "local" => {
                             assert!(
-                                matches!(self.stack[self.frame_pointer - 1], Value::Addr(_, "fp")),
+                                matches!(self.stack[self.frame_pointer - 1], Value::Int(_, "fp")),
                                 "{} at {:?}",
                                 self.frame_pointer,
                                 self.stack
@@ -269,7 +277,7 @@ impl Runtime {
                 }
                 QVMInstruction::Store(kind) => {
                     let addr_value = self.pop();
-                    assert_matches!(addr_value, Value::Addr(_, "addr"));
+                    assert_matches!(addr_value, Value::Addr(_, AddrPlace::Heap, "addr"));
                     let r = addr_value.as_addr().unwrap();
 
                     match kind {
@@ -316,7 +324,7 @@ impl Runtime {
                 QVMInstruction::Alloc => {
                     let size = self.pop();
                     let addr = self.heap.alloc(size.as_int().unwrap() as usize)?;
-                    self.push(Value::Addr(addr, "&bytes"));
+                    self.push(Value::Addr(addr, AddrPlace::Heap, "&bytes"));
                 }
                 QVMInstruction::Free(addr) => {
                     self.heap.free(self.heap.parse(addr)?)?;
@@ -327,8 +335,8 @@ impl Runtime {
                 QVMInstruction::PAdd => {
                     let a = self.pop();
                     let b = match self.pop() {
-                        Value::Addr(b, "&bytes") => b,
-                        Value::Addr(b, "addr") => b,
+                        Value::Addr(b, AddrPlace::Heap, "&bytes") => b,
+                        Value::Addr(b, AddrPlace::Heap, "addr") => b,
                         _ => {
                             unreachable!();
                         }
