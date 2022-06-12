@@ -8,19 +8,24 @@ pub struct LinkObjectHeader {
     len: usize,  // at 0
     prev: usize, // at 1
     next: usize, // at 2
+    info: Value, // at 3
 }
 
 impl LinkObjectHeader {
+    pub fn size_of() -> usize {
+        4
+    }
+
     pub fn is_collectable(&self) -> bool {
         self.len > 0
     }
 
     pub fn get_end_pointer(&self) -> usize {
-        self.pointer + 3 + self.len
+        self.pointer + LinkObjectHeader::size_of() + self.len
     }
 
     pub fn get_data_pointer(&self) -> usize {
-        self.pointer + 3
+        self.pointer + LinkObjectHeader::size_of()
     }
 }
 
@@ -36,18 +41,20 @@ impl Freelist {
         };
 
         let root = 0;
-        let last = len - 3;
+        let last = len - LinkObjectHeader::size_of();
         list.push(LinkObjectHeader {
             pointer: root,
             len: 0,
             prev: last,
             next: last,
+            info: Value::Addr(0, AddrPlace::InfoTable, "nodata"),
         });
         list.push(LinkObjectHeader {
             pointer: last,
             len: 0,
             prev: root,
             next: root,
+            info: Value::Addr(0, AddrPlace::InfoTable, "nodata"),
         });
 
         list
@@ -60,6 +67,7 @@ impl Freelist {
         self.data[obj.pointer] = Value::Int(obj.len as i32, "len");
         self.data[obj.pointer + 1] = Value::Addr(prev, AddrPlace::Heap, "prev");
         self.data[obj.pointer + 2] = Value::Addr(next, AddrPlace::Heap, "next");
+        self.data[obj.pointer + 3] = obj.info;
     }
 
     pub fn parse(&self, index: usize) -> Result<LinkObjectHeader> {
@@ -72,11 +80,21 @@ impl Freelist {
             len,
             prev,
             next,
+            info: self.data[index + 3],
         })
     }
 
     pub fn parse_from_data_pointer(&self, index: usize) -> Result<LinkObjectHeader> {
-        self.parse(index - 3)
+        match self.data[index - 1] {
+            Value::Addr(_, AddrPlace::InfoTable, _) => {}
+            _ => anyhow::bail!(
+                "not a valid data pointer, {} {:?}",
+                index,
+                self.data[index - 1]
+            ),
+        };
+
+        self.parse(index - LinkObjectHeader::size_of())
     }
 
     pub fn root(&self) -> Result<LinkObjectHeader> {
@@ -134,6 +152,7 @@ impl Freelist {
                     len: size,
                     prev: prev.pointer,
                     next: current.pointer,
+                    info: Value::Addr(0, AddrPlace::InfoTable, "nodata"),
                 };
                 let pointer = new_object.get_data_pointer();
 
@@ -143,19 +162,42 @@ impl Freelist {
             }
         }
 
+        for obj in self.debug_objects() {
+            println!("{:?}", obj);
+        }
         anyhow::bail!("no space left: {}", size);
+    }
+
+    pub fn debug_objects(&self) -> Vec<(LinkObjectHeader, Vec<Value>)> {
+        let mut result = vec![];
+
+        let mut current = self.root().unwrap();
+        while let Ok(next) = self.find_next(&current) {
+            if !next.is_collectable() {
+                break;
+            }
+
+            result.push((
+                next.clone(),
+                self.data[next.get_data_pointer()..next.get_end_pointer()].to_vec(),
+            ));
+            current = next;
+        }
+
+        result
     }
 }
 
 #[test]
 fn test_alloc_many() -> Result<()> {
     let mut freelist = Freelist::new(100);
-    for _ in 0..(100 / 13) {
+    let space = 100 - LinkObjectHeader::size_of() * 2;
+    for _ in 0..(space / (10 + LinkObjectHeader::size_of())) {
         freelist.alloc(10)?;
     }
 
     let mut current = freelist.root()?;
-    for _ in 0..=(100 / 13) {
+    for _ in 0..=(space / (10 + LinkObjectHeader::size_of())) {
         println!("{:?}", current);
         current = freelist.find_next(&current)?;
     }

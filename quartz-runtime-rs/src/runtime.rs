@@ -8,6 +8,7 @@ use crate::freelist::Freelist;
 #[derive(Clone, Debug, Copy)]
 pub enum AddrPlace {
     Heap,
+    InfoTable,
     Unknown,
 }
 
@@ -144,12 +145,14 @@ impl Runtime {
                 Value::Addr(i, AddrPlace::Heap, _) => {
                     if !marked.contains(&i) {
                         marked.insert(i);
-                        println!("mark {:?}", i);
-                        // TODO: pointers in object fields
-                        let object = self.heap.parse_from_data_pointer(i)?;
-                        for p in object.get_data_pointer()..object.get_end_pointer() {
-                            println!("adding {:?}", p);
-                            root.push(self.heap.data[p]);
+
+                        // if the next addr is a new object, mark every elements in it
+                        // QUESTION: checking the previous addr being an address to InfoTable is a correct way?
+                        if let Ok(object) = self.heap.parse_from_data_pointer(i) {
+                            for p in object.get_data_pointer()..object.get_end_pointer() {
+                                println!("adding {:?}", p);
+                                root.push(self.heap.data[p]);
+                            }
                         }
                     }
                 }
@@ -203,8 +206,14 @@ impl Runtime {
     pub fn run(&mut self) -> Result<()> {
         while self.pc < self.code.len() {
             println!(
-                "{:?}\n{:?}\n{:?}\n",
-                &self.heap.data[0..25],
+                "{}\n{:?}\n{:?}\n",
+                &self
+                    .heap
+                    .debug_objects()
+                    .iter()
+                    .map(|c| format!("{:?}", c))
+                    .collect::<Vec<_>>()
+                    .join("\n"),
                 &self.stack[0..self.stack_pointer].iter().collect::<Vec<_>>(),
                 &self.code[self.pc],
             );
