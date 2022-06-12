@@ -11,6 +11,10 @@ pub struct LinkObjectHeader {
 }
 
 impl LinkObjectHeader {
+    pub fn is_collectable(&self) -> bool {
+        self.len > 0
+    }
+
     pub fn get_end_pointer(&self) -> usize {
         self.pointer + 3 + self.len
     }

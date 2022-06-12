@@ -30,6 +30,8 @@ pub enum QVMInstruction {
     Not,
     // pointer arithmetics
     PAdd,
+    // Runtime instructions for FFI
+    RuntimeInstr(String),
     // constants
     I32Const(i32),
     AddrConst(usize, String),

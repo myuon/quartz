@@ -124,7 +124,49 @@ impl Runtime {
         }
     }
 
-    fn run_gc(&mut self) {}
+    fn run_gc(&mut self) -> Result<()> {
+        // 1. mark phase
+        let mut marked = vec![];
+
+        // handling the root object in heap...?
+        let mut root = vec![];
+        for g in &self.globals {
+            root.push(Value::addr(*g as usize));
+        }
+        for s in &self.stack[..self.stack_pointer] {
+            root.push(*s);
+        }
+
+        while let Some(r) = root.pop() {
+            match r {
+                Value::Addr(i, AddrPlace::Heap, _) => {
+                    if !marked.contains(&i) {
+                        marked.push(i);
+                        root.push(Value::addr(i));
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        // 2. sweep phase
+        let mut current = self.heap.root()?;
+        while let Ok(next) = self.heap.find_next(&current) {
+            if !next.is_collectable() {
+                break;
+            }
+
+            let addr = next.get_data_pointer();
+            if !marked.contains(&addr) {
+                println!("freeing {:?}", next);
+                self.heap.free(next.clone())?;
+            }
+
+            current = next;
+        }
+
+        Ok(())
+    }
 
     fn pop(&mut self) -> Value {
         assert!(
@@ -329,7 +371,6 @@ impl Runtime {
                 QVMInstruction::Free(addr) => {
                     self.heap.free(self.heap.parse(addr)?)?;
                 }
-                //
                 QVMInstruction::LabelAddrConst(_) => unreachable!(),
                 QVMInstruction::LabelJumpIfFalse(_) => unreachable!(),
                 QVMInstruction::PAdd => {
@@ -343,6 +384,15 @@ impl Runtime {
                     };
                     self.push(Value::addr(b + a.as_int().unwrap() as usize));
                 }
+                QVMInstruction::RuntimeInstr(ref label) => match label.as_str() {
+                    "_gc" => {
+                        self.run_gc()?;
+                        self.push(Value::nil());
+                    }
+                    _ => {
+                        unreachable!();
+                    }
+                },
             }
 
             self.pc += 1;
@@ -586,6 +636,63 @@ func main() {
             .unwrap(),
             "ABC".to_string(),
         );
+    }
+
+    Ok(())
+}
+
+#[test]
+fn runtime_run_gc() -> Result<()> {
+    use quartz_core::compiler::Compiler;
+
+    let cases = vec![(
+        r#"
+            func f(arr): int {
+                return arr[0];
+            }
+
+            func g(): int {
+                let arr = [1,2,3,4];
+                return f(arr);
+            }
+
+            func main() {
+                let preserved = [5,6,7];
+                let p = g();
+
+                _gc;
+                return p;
+            }
+        "#,
+        1,
+        1, // arr being collected
+    )];
+
+    for (input, result, remaining_object_result) in cases {
+        let mut compiler = Compiler::new();
+        let code = compiler.compile(input)?;
+
+        let mut runtime = Runtime::new(code.clone(), compiler.code_generation.globals());
+        println!("{}", input);
+        for (n, inst) in runtime.code.iter().enumerate() {
+            println!("{:04} {:?}", n, inst);
+        }
+        runtime.run()?;
+        let pop = runtime.pop();
+        assert_eq!(pop.as_int(), Some(result), "{:?} {:?}", pop, result);
+
+        let mut remaining_object = 0;
+        let mut current = runtime.heap.root()?;
+        while let Ok(next) = runtime.heap.find_next(&current) {
+            if !next.is_collectable() {
+                break;
+            }
+
+            remaining_object += 1;
+            current = next;
+        }
+
+        assert_eq!(remaining_object_result, remaining_object);
     }
 
     Ok(())
