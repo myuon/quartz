@@ -3,6 +3,31 @@ use std::collections::HashMap;
 use anyhow::{bail, Result};
 
 #[derive(PartialEq, Debug, Clone)]
+pub struct Source<T> {
+    pub data: T,
+    pub start: Option<usize>,
+    pub end: Option<usize>,
+}
+
+impl<T> Source<T> {
+    pub fn new(data: T, start: usize, end: usize) -> Source<T> {
+        Source {
+            data,
+            start: Some(start),
+            end: Some(end),
+        }
+    }
+
+    pub fn unknown(data: T) -> Source<T> {
+        Source {
+            data,
+            start: None,
+            end: None,
+        }
+    }
+}
+
+#[derive(PartialEq, Debug, Clone)]
 pub enum Literal {
     Nil,
     Bool(bool),
@@ -28,11 +53,11 @@ pub enum Statement {
     Let(String, Expr),
     Expr(Expr),
     Return(Expr),
-    If(Box<Expr>, Vec<Statement>, Vec<Statement>),
+    If(Box<Expr>, Vec<Source<Statement>>, Vec<Source<Statement>>),
     Continue,
     Assignment(Box<Expr>, Expr),
-    Loop(Vec<Statement>),
-    While(Box<Expr>, Vec<Statement>),
+    Loop(Vec<Source<Statement>>),
+    While(Box<Expr>, Vec<Source<Statement>>),
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -63,7 +88,7 @@ pub struct Function {
     pub name: String,
     pub args: Vec<(String, Type)>,
     pub return_type: Type,
-    pub body: Vec<Statement>,
+    pub body: Vec<Source<Statement>>,
     pub method_of: Option<(
         String, // receiver name
         String, // receiver type
@@ -276,9 +301,9 @@ pub struct Functions(
     pub  HashMap<
         String,
         (
-            Vec<(String, Type)>, // argument types
-            Box<Type>,           // return type
-            Vec<Statement>,      // body
+            Vec<(String, Type)>,    // argument types
+            Box<Type>,              // return type
+            Vec<Source<Statement>>, // body
         ),
     >,
 );
@@ -288,10 +313,10 @@ pub struct Methods(
     pub  HashMap<
         (String, String), // receiver type, method name
         (
-            String,              // receiver name
-            Vec<(String, Type)>, // argument types
-            Box<Type>,           // return type
-            Vec<Statement>,      // body
+            String,                 // receiver name
+            Vec<(String, Type)>,    // argument types
+            Box<Type>,              // return type
+            Vec<Source<Statement>>, // body
         ),
     >,
 );

@@ -3,7 +3,7 @@ use std::{collections::HashMap, fmt::Debug};
 use anyhow::Result;
 
 use crate::{
-    ast::{Declaration, Expr, Function, Literal, Module, Statement, Structs, Type},
+    ast::{Declaration, Expr, Function, Literal, Module, Source, Statement, Structs, Type},
     vm::QVMInstruction,
 };
 
@@ -195,8 +195,8 @@ impl<'a> Generator<'a> {
         Ok(())
     }
 
-    fn statement(&mut self, statement: &Statement) -> Result<()> {
-        match statement {
+    fn statement(&mut self, statement: &Source<Statement>) -> Result<()> {
+        match &statement.data {
             Statement::Let(v, expr) => {
                 self.expr(expr)?;
                 self.push_local(v.clone());
@@ -274,7 +274,7 @@ impl<'a> Generator<'a> {
         Ok(())
     }
 
-    fn statements(&mut self, statements: &Vec<Statement>) -> Result<()> {
+    fn statements(&mut self, statements: &Vec<Source<Statement>>) -> Result<()> {
         for statement in statements {
             self.statement(statement)?;
         }
@@ -367,10 +367,10 @@ impl CodeGeneration {
     ) -> Result<Vec<QVMInstruction>> {
         let mut generator =
             Generator::new(HashMap::new(), &self.globals, labels, offset, &self.structs);
-        generator.statement(&Statement::Return(Expr::Call(
+        generator.statement(&Source::unknown(Statement::Return(Expr::Call(
             Box::new(Expr::Var("main".to_string())),
             vec![],
-        )))?;
+        ))))?;
 
         Ok(generator.code)
     }

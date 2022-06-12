@@ -4,7 +4,7 @@ use anyhow::{bail, Context, Result};
 use pretty_assertions::assert_eq;
 
 use crate::ast::{
-    Declaration, Expr, Functions, Literal, Methods, Module, Statement, Structs, Type,
+    Declaration, Expr, Functions, Literal, Methods, Module, Source, Statement, Structs, Type,
 };
 
 struct Constraints(Vec<(usize, Type)>);
@@ -115,19 +115,21 @@ impl Constraints {
 }
 
 #[derive(Clone)]
-pub struct TypeChecker {
+pub struct TypeChecker<'s> {
     infer_count: usize,
     variables: HashMap<String, Type>,
     pub structs: Structs,
     pub functions: Functions,
     pub methods: Methods,
+    pub source_code: &'s str,
 }
 
-impl TypeChecker {
+impl<'s> TypeChecker<'s> {
     pub fn new(
         variables: HashMap<String, Type>,
         structs: Structs,
         methods: Methods,
+        source_code: &'s str,
     ) -> TypeChecker {
         TypeChecker {
             infer_count: 0,
@@ -135,6 +137,21 @@ impl TypeChecker {
             structs,
             functions: Functions(HashMap::new()),
             methods,
+            source_code,
+        }
+    }
+
+    fn error_context(
+        &self,
+        start: Option<usize>,
+        end: Option<usize>,
+        unknown_context: &str,
+    ) -> String {
+        match (start, end) {
+            (Some(start), Some(end)) => {
+                format!("{}", &self.source_code[start..end])
+            }
+            _ => unknown_context.to_string(),
         }
     }
 
@@ -321,22 +338,30 @@ impl TypeChecker {
         }
     }
 
-    pub fn statements(&mut self, statements: &mut Vec<Statement>) -> Result<Type> {
+    pub fn statements(&mut self, statements: &mut Vec<Source<Statement>>) -> Result<Type> {
         let mut ret_type = Type::Any;
 
         for statement in statements {
-            match statement {
+            match &mut statement.data {
                 Statement::Let(x, body) => {
                     let body_type = self.expr(body)?;
                     self.variables.insert(x.clone(), body_type);
                     ret_type = Type::Unit;
                 }
                 Statement::Expr(e) => {
-                    self.expr(e)?;
+                    self.expr(e).context(self.error_context(
+                        statement.start,
+                        statement.end,
+                        "expression",
+                    ))?;
                     ret_type = Type::Unit;
                 }
                 Statement::Return(t) => {
-                    ret_type = self.expr(t)?;
+                    ret_type = self.expr(t).context(self.error_context(
+                        statement.start,
+                        statement.end,
+                        "return",
+                    ))?;
                 }
                 Statement::If(cond, then_statements, else_statements) => {
                     let cond_type = self.expr(cond.as_mut())?;
@@ -526,6 +551,7 @@ mod tests {
                 HashMap::new(),
                 Structs(HashMap::new()),
                 Methods(HashMap::new()),
+                "",
             );
             let result = typechecker
                 .statements(&mut module)
@@ -569,12 +595,21 @@ mod tests {
 
         for c in cases {
             let mut module = run_parser(c.0).unwrap();
-            let mut typechecker =
-                TypeChecker::new(builtin(), Structs(HashMap::new()), Methods(HashMap::new()));
+            let mut typechecker = TypeChecker::new(
+                builtin(),
+                Structs(HashMap::new()),
+                Methods(HashMap::new()),
+                "",
+            );
             let result = typechecker.module(&mut module);
 
             let err = result.unwrap_err();
-            assert!(err.to_string().contains(c.1), "err: {:?}\n{}", err, c.0);
+            assert!(
+                format!("{:?}", err).contains(c.1),
+                "err: {:?}\n{}",
+                err,
+                c.0
+            );
         }
     }
 

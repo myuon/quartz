@@ -1,5 +1,5 @@
 use crate::{
-    ast::{Declaration, Expr, Function, Literal, Module, Statement, Struct, Type},
+    ast::{Declaration, Expr, Function, Literal, Module, Source, Statement, Struct, Type},
     compiler::CompileError,
     lexer::{run_lexer, Lexeme, Token},
 };
@@ -15,6 +15,14 @@ impl Parser {
         Parser {
             position: 0,
             input: vec![],
+        }
+    }
+
+    fn source<T>(&self, data: T, start: usize, end: usize) -> Source<T> {
+        Source {
+            data,
+            start: Some(self.input[start].position),
+            end: Some(self.input[end].position),
         }
     }
 
@@ -127,16 +135,18 @@ impl Parser {
         }
     }
 
-    fn statement(&mut self) -> Result<Statement> {
+    fn statement(&mut self) -> Result<Source<Statement>> {
+        let start = self.position;
+
         if self.expect_lexeme(Lexeme::Let).is_ok() {
             let x = self.ident()?;
             self.expect_lexeme(Lexeme::Equal)?;
             let e = self.expr()?;
 
-            Ok(Statement::Let(x, e))
+            Ok(self.source(Statement::Let(x, e), start, self.position))
         } else if self.expect_lexeme(Lexeme::Return).is_ok() {
             let e = self.expr()?;
-            Ok(Statement::Return(e))
+            Ok(self.source(Statement::Return(e), start, self.position))
         } else if self.expect_lexeme(Lexeme::If).is_ok() {
             let cond = self.short_expr()?;
             self.expect_lexeme(Lexeme::LBrace)?;
@@ -154,15 +164,19 @@ impl Parser {
                 vec![]
             };
 
-            Ok(Statement::If(Box::new(cond), then, else_statements))
+            Ok(self.source(
+                Statement::If(Box::new(cond), then, else_statements),
+                start,
+                self.position,
+            ))
         } else if self.expect_lexeme(Lexeme::Continue).is_ok() {
-            Ok(Statement::Continue)
+            Ok(self.source(Statement::Continue, start, self.position))
         } else if self.expect_lexeme(Lexeme::Loop).is_ok() {
             self.expect_lexeme(Lexeme::LBrace)?;
             let statements = self.many_statements()?;
             self.expect_lexeme(Lexeme::RBrace)?;
 
-            Ok(Statement::Loop(statements))
+            Ok(self.source(Statement::Loop(statements), start, self.position))
         } else if self.expect_lexeme(Lexeme::While).is_ok() {
             let cond = self.short_expr()?;
 
@@ -170,16 +184,20 @@ impl Parser {
             let then = self.many_statements()?;
             self.expect_lexeme(Lexeme::RBrace)?;
 
-            Ok(Statement::While(Box::new(cond), then))
+            Ok(self.source(Statement::While(Box::new(cond), then), start, self.position))
         } else {
             let e = self.expr()?;
             if self.expect_lexeme(Lexeme::Equal).is_ok() {
                 // =が続くのであればassingmentで確定
                 let rhs = self.expr()?;
-                Ok(Statement::Assignment(Box::new(e), rhs))
+                Ok(self.source(
+                    Statement::Assignment(Box::new(e), rhs),
+                    start,
+                    self.position,
+                ))
             } else {
                 // それ以外のケースは普通にexpr statement
-                Ok(Statement::Expr(e))
+                Ok(self.source(Statement::Expr(e), start, self.position))
             }
         }
     }
@@ -224,7 +242,7 @@ impl Parser {
         Ok(exprs)
     }
 
-    fn many_statements(&mut self) -> Result<Vec<Statement>> {
+    fn many_statements(&mut self) -> Result<Vec<Source<Statement>>> {
         let mut statements = vec![];
 
         while !self.is_end() && self.peek().lexeme != Lexeme::RBrace {
@@ -429,7 +447,7 @@ impl Parser {
         self.parse_module()
     }
 
-    pub fn run_parser_statements(&mut self, tokens: Vec<Token>) -> Result<Vec<Statement>> {
+    pub fn run_parser_statements(&mut self, tokens: Vec<Token>) -> Result<Vec<Source<Statement>>> {
         self.position = 0;
         self.input = tokens;
 
@@ -456,7 +474,7 @@ pub fn run_parser(input: &str) -> Result<Module> {
     run_parser_from_tokens(run_lexer(input))
 }
 
-fn run_parser_statements_from_tokens(tokens: Vec<Token>) -> Result<Vec<Statement>> {
+fn run_parser_statements_from_tokens(tokens: Vec<Token>) -> Result<Vec<Source<Statement>>> {
     let mut parser = Parser::new();
     let result = parser.run_parser_statements(tokens)?;
 
@@ -467,7 +485,7 @@ fn run_parser_statements_from_tokens(tokens: Vec<Token>) -> Result<Vec<Statement
     Ok(result)
 }
 
-pub fn run_parser_statements(input: &str) -> Result<Vec<Statement>> {
+pub fn run_parser_statements(input: &str) -> Result<Vec<Source<Statement>>> {
     run_parser_statements_from_tokens(run_lexer(input))
 }
 
@@ -536,9 +554,11 @@ mod tests {
                         return 10;
                     };
                 "#,
-                vec![Statement::Loop(vec![Statement::Return(Expr::Lit(
-                    Literal::Int(10),
-                ))])],
+                vec![Statement::Loop(vec![Source::new(
+                    Statement::Return(Expr::Lit(Literal::Int(10))),
+                    52,
+                    61,
+                )])],
             ),
             (
                 r#"
@@ -559,7 +579,16 @@ mod tests {
         for c in cases {
             let result = run_parser_statements(c.0);
             assert!(matches!(result, Ok(_)), "{} {:?}", c.0, result);
-            assert_eq!(result.unwrap(), c.1, "{}", c.0);
+            assert_eq!(
+                result
+                    .unwrap()
+                    .into_iter()
+                    .map(|f| f.data)
+                    .collect::<Vec<_>>(),
+                c.1,
+                "{}",
+                c.0
+            );
         }
     }
 

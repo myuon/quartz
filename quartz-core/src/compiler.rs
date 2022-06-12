@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs::File, io::Read, iter::repeat};
+use std::{collections::HashMap, fs::File, io::Read, iter::repeat, path::PathBuf};
 
 use anyhow::{Context, Error, Result};
 use thiserror::Error as ThisError;
@@ -18,25 +18,29 @@ pub enum CompileError {
     ParseError { source: Error, position: usize },
 }
 
-pub struct Compiler {
-    pub typechecker: TypeChecker,
+pub struct Compiler<'s> {
+    pub typechecker: TypeChecker<'s>,
     pub code_generation: CodeGeneration,
 }
 
-impl Compiler {
-    pub fn new() -> Compiler {
+impl Compiler<'_> {
+    pub fn new() -> Compiler<'static> {
         Compiler {
             typechecker: TypeChecker::new(
                 builtin(),
                 Structs(HashMap::new()),
                 Methods(HashMap::new()),
+                "",
             ),
             code_generation: CodeGeneration::new(),
         }
     }
 
     fn load_std(&self) -> Result<String> {
-        let mut f = File::open("./std.qz")?;
+        let mut d = PathBuf::from(env!("CARGO_WORKSPACE_DIR"));
+        d.push("std.qz");
+
+        let mut f = File::open(format!("{}", d.display()))?;
         let mut buffer = String::new();
 
         f.read_to_string(&mut buffer)?;
@@ -100,12 +104,28 @@ impl Compiler {
         Ok(self.typechecker.clone())
     }
 
-    pub fn compile(&mut self, input: &str) -> Result<Vec<QVMInstruction>> {
+    pub fn compile<'s>(&mut self, input: &'s str) -> Result<Vec<QVMInstruction>> {
+        let mut typechecker = TypeChecker::new(
+            builtin(),
+            Structs(HashMap::new()),
+            Methods(HashMap::new()),
+            input,
+        );
+
         let mut module = self.parse(input).context("parse phase")?;
-        let checker = self.typecheck(&mut module).context("typecheck phase")?;
-        self.code_generation.context(checker.structs.clone());
+
+        typechecker.module(&mut module)?;
+
+        self.code_generation.context(typechecker.structs.clone());
 
         let code = self.code_generation.generate(&module)?;
+
+        self.typechecker = TypeChecker::new(
+            builtin(),
+            Structs(HashMap::new()),
+            Methods(HashMap::new()),
+            "",
+        );
 
         Ok(code)
     }
