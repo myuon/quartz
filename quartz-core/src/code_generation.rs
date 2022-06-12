@@ -252,6 +252,18 @@ impl<'a> Generator<'a> {
                         self.code.push(QVMInstruction::PAdd);
                         self.code.push(QVMInstruction::Store("heap"));
                     }
+                    Expr::Project(false, st, proj, label) => {
+                        // proj.label = v;
+                        // => push(v);push(proj);push(label);add;store(heap);
+                        let index = self.structs.get_projection_offset(st, label)?;
+
+                        self.expr(proj)?;
+                        self.code.extend(vec![
+                            QVMInstruction::I32Const(index as i32),
+                            QVMInstruction::PAdd,
+                            QVMInstruction::Store("heap"),
+                        ]);
+                    }
                     _ => todo!(),
                 }
             }

@@ -75,6 +75,10 @@ impl Freelist {
         })
     }
 
+    pub fn parse_from_data_pointer(&self, index: usize) -> Result<LinkObjectHeader> {
+        self.parse(index - 3)
+    }
+
     pub fn root(&self) -> Result<LinkObjectHeader> {
         self.parse(0)
     }

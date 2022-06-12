@@ -58,6 +58,7 @@ impl Parser {
                 "string" => Ok(Type::String),
                 "any" => Ok(Type::Any),
                 "bytes" => Ok(Type::Array(Box::new(Type::Byte))),
+                "byte" => Ok(Type::Byte),
                 _ => todo!("{:?}", ident),
             }
         }

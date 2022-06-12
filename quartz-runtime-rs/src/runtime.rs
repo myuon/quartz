@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use anyhow::Result;
 use quartz_core::vm::QVMInstruction;
 
@@ -126,7 +128,7 @@ impl Runtime {
 
     fn run_gc(&mut self) -> Result<()> {
         // 1. mark phase
-        let mut marked = vec![];
+        let mut marked = HashSet::new();
 
         // handling the root object in heap...?
         let mut root = vec![];
@@ -141,8 +143,14 @@ impl Runtime {
             match r {
                 Value::Addr(i, AddrPlace::Heap, _) => {
                     if !marked.contains(&i) {
-                        marked.push(i);
-                        root.push(Value::addr(i));
+                        marked.insert(i);
+                        println!("mark {:?}", i);
+                        // TODO: pointers in object fields
+                        let object = self.heap.parse_from_data_pointer(i)?;
+                        for p in object.get_data_pointer()..object.get_end_pointer() {
+                            println!("adding {:?}", p);
+                            root.push(self.heap.data[p]);
+                        }
                     }
                 }
                 _ => {}
@@ -580,6 +588,27 @@ func main() {
 "#,
             'W' as i32,
         ),
+        (
+            r#"
+struct Point {
+    x: int,
+    y: int,
+}
+
+func (p: Point) sum(): int {
+    return _add(p.x, p.y);
+}
+
+func main() {
+    let p = Point { x:0, y:0 };
+    p.x = 1;
+    p.y = 2;
+
+    return p.sum();
+}
+"#,
+            3,
+        ),
     ];
 
     for (input, result) in cases {
@@ -686,6 +715,30 @@ fn runtime_run_gc() -> Result<()> {
         "#,
             0,
             0, // link being collected
+        ),
+        (
+            r#"
+            func f() {
+                // cyclic reference
+                let link = _new(2);
+                link[0] = _padd(link, 1);
+                link[1] = _padd(link, 0);
+
+                let data = _new(1);
+                data[0] = link;
+
+                return data;
+            }
+
+            func main() {
+                let d = f();
+                _gc;
+
+                return 0;
+            }
+        "#,
+            0,
+            2, // data and link NOT being collected
         ),
     ];
 
