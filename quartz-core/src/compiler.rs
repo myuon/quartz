@@ -36,7 +36,7 @@ impl Compiler {
     }
 
     fn load_std(&self) -> Result<String> {
-        let mut f = File::open("../std.qz")?;
+        let mut f = File::open("./std.qz")?;
         let mut buffer = String::new();
 
         f.read_to_string(&mut buffer)?;
@@ -101,8 +101,8 @@ impl Compiler {
     }
 
     pub fn compile(&mut self, input: &str) -> Result<Vec<QVMInstruction>> {
-        let mut module = self.parse(input)?;
-        let checker = self.typecheck(&mut module)?;
+        let mut module = self.parse(input).context("parse phase")?;
+        let checker = self.typecheck(&mut module).context("typecheck phase")?;
         self.code_generation.context(checker.structs.clone());
 
         let code = self.code_generation.generate(&module)?;
