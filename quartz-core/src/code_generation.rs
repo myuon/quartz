@@ -69,6 +69,7 @@ impl<'a> Generator<'a> {
                         "_eq" => QVMInstruction::Eq,
                         "_new" => QVMInstruction::Alloc,
                         "_gc" => QVMInstruction::RuntimeInstr("_gc".to_string()),
+                        "_padd" => QVMInstruction::PAdd,
                         _ => QVMInstruction::LabelAddrConst(v.clone()),
                     });
                 }

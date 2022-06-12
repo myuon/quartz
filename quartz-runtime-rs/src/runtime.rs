@@ -328,8 +328,6 @@ impl Runtime {
                         }
                         "heap" => {
                             let value = self.pop();
-                            assert_matches!(value.metadata(), "int" | "&bytes", "{:?}", value);
-
                             self.heap.data[r] = value;
                         }
                         "global" => {
@@ -645,8 +643,9 @@ func main() {
 fn runtime_run_gc() -> Result<()> {
     use quartz_core::compiler::Compiler;
 
-    let cases = vec![(
-        r#"
+    let cases = vec![
+        (
+            r#"
             func f(arr): int {
                 return arr[0];
             }
@@ -664,9 +663,31 @@ fn runtime_run_gc() -> Result<()> {
                 return p;
             }
         "#,
-        1,
-        1, // arr being collected
-    )];
+            1,
+            1, // arr being collected
+        ),
+        (
+            r#"
+            func f() {
+                // cyclic reference
+                let link = _new(2);
+                link[0] = _padd(link, 1);
+                link[1] = _padd(link, 0);
+
+                return nil;
+            }
+
+            func main() {
+                f();
+                _gc;
+
+                return 0;
+            }
+        "#,
+            0,
+            0, // link being collected
+        ),
+    ];
 
     for (input, result, remaining_object_result) in cases {
         let mut compiler = Compiler::new();
