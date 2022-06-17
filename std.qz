@@ -1,7 +1,29 @@
+func (a: int) eq(b: int): bool {
+    return _eq(a,b);
+}
+
 struct string {
     data: bytes,
 }
 
+func (s: string) len(): int {
+    return _len(s.data);
+}
+
 func (s: string) bytes(): bytes {
     return s.data;
+}
+
+func (s: string) slice(start: int, end: int): string {
+    return string {
+        data: s.data[start],
+    };
+}
+
+func (s: string) starts_with(prefix: string): bool {
+    return s.slice(0, prefix.len()).eq(prefix);
+}
+
+func (s: string) slice_after(start: int): string {
+    return s.slice(start, s.len());
 }

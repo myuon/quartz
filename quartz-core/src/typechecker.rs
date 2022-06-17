@@ -117,7 +117,7 @@ impl Constraints {
 #[derive(Clone)]
 pub struct TypeChecker<'s> {
     infer_count: usize,
-    variables: HashMap<String, Type>,
+    pub variables: HashMap<String, Type>,
     pub structs: Structs,
     pub functions: Functions,
     pub methods: Methods,
@@ -147,6 +147,10 @@ impl<'s> TypeChecker<'s> {
         end: Option<usize>,
         unknown_context: &str,
     ) -> String {
+        if self.source_code.is_empty() {
+            return unknown_context.to_string();
+        }
+
         match (start, end) {
             (Some(start), Some(end)) => {
                 format!("{}", &self.source_code[start..end])

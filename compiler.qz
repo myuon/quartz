@@ -1,13 +1,3 @@
-func (s: string) starts_with(prefix: string): bool {
-  return s.slice(0, prefix.len()).eq(prefix);
-}
-
-func (s: string) slice_after(start: int): string {
-  return s.slice(start, s.len());
-}
-
-// -----------------------------------------------------------------------
-
 struct Token {
   lexeme: string,
 }

@@ -106,9 +106,9 @@ impl Compiler<'_> {
 
     pub fn compile<'s>(&mut self, input: &'s str) -> Result<Vec<QVMInstruction>> {
         let mut typechecker = TypeChecker::new(
-            builtin(),
-            Structs(HashMap::new()),
-            Methods(HashMap::new()),
+            self.typechecker.variables.clone(),
+            self.typechecker.structs.clone(),
+            self.typechecker.methods.clone(),
             input,
         );
 
@@ -121,9 +121,9 @@ impl Compiler<'_> {
         let code = self.code_generation.generate(&module)?;
 
         self.typechecker = TypeChecker::new(
-            builtin(),
-            Structs(HashMap::new()),
-            Methods(HashMap::new()),
+            self.typechecker.variables.clone(),
+            self.typechecker.structs.clone(),
+            self.typechecker.methods.clone(),
             "",
         );
 
