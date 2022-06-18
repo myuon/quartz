@@ -91,6 +91,7 @@ impl<'s> VmFunctionGenerator<'s> {
                             "_padd" => QVMInstruction::PAdd,
                             "_gc" => QVMInstruction::RuntimeInstr("_gc".to_string()),
                             "_len" => QVMInstruction::RuntimeInstr("_len".to_string()),
+                            "_deref" => QVMInstruction::Load("heap"),
                             _ => QVMInstruction::LabelAddrConst(v.clone()),
                         });
                     }
@@ -158,6 +159,7 @@ impl<'s> VmFunctionGenerator<'s> {
                             }
                             _ => {
                                 self.element(left)?;
+                                self.code.push(QVMInstruction::Store("heap"));
                             }
                         }
                     }

@@ -173,9 +173,15 @@ impl<'s> IrFunctionGenerator<'s> {
             Expr::Index(arr, i) => Ok(IrElement::block(
                 "call",
                 vec![
-                    IrElement::Term(IrTerm::Ident("_padd".to_string())),
-                    self.expr(arr.as_ref())?,
-                    self.expr(i.as_ref())?,
+                    IrElement::Term(IrTerm::Ident("_deref".to_string())),
+                    IrElement::block(
+                        "call",
+                        vec![
+                            IrElement::Term(IrTerm::Ident("_padd".to_string())),
+                            self.expr(arr.as_ref())?,
+                            self.expr(i.as_ref())?,
+                        ],
+                    ),
                 ],
             )),
             Expr::Deref(_) => todo!(),
@@ -421,8 +427,8 @@ func main() {
 
         (return (call $_add
             (call $_add
-                (call $_padd $x 1)
-                (call $_padd $x 2)
+                (call $_deref (call $_padd $x 1))
+                (call $_deref (call $_padd $x 2))
             )
             $0
         ))
