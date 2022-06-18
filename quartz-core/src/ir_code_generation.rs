@@ -164,9 +164,15 @@ impl<'s> IrFunctionGenerator<'s> {
                 Ok(IrElement::block(
                     "call",
                     vec![
-                        IrElement::Term(IrTerm::Ident("_padd".to_string())),
-                        self.expr(proj)?,
-                        IrElement::Term(IrTerm::Int(index as i32)),
+                        IrElement::Term(IrTerm::Ident("_deref".to_string())),
+                        IrElement::block(
+                            "call",
+                            vec![
+                                IrElement::Term(IrTerm::Ident("_padd".to_string())),
+                                self.expr(proj)?,
+                                IrElement::Term(IrTerm::Int(index as i32)),
+                            ],
+                        ),
                     ],
                 ))
             }
@@ -461,8 +467,8 @@ func main() {
     (func $Point_sum 1
         (return (call
             $_add
-            (call $_padd $0 0)
-            (call $_padd $0 1)
+            (call $_deref (call $_padd $0 0))
+            (call $_deref (call $_padd $0 1))
         ))
     )
     (func $main 0
