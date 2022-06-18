@@ -202,7 +202,8 @@ impl Type {
             Type::Bool => 1,
             Type::Int => 1,
             Type::Byte => 1,
-            _ => todo!(),
+            Type::Array(_) => 1,
+            _ => todo!("{:?}", self),
         }
     }
 }

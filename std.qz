@@ -10,6 +10,10 @@ func (s: string) len(): int {
     return _len(s.data);
 }
 
+func (s: string) eq(t: string): bool {
+    return _eq(s,t);
+}
+
 func (s: string) bytes(): bytes {
     return s.data;
 }

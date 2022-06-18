@@ -144,6 +144,11 @@ impl Compiler<'_> {
 
     pub fn compile_ir<'s>(&mut self, input: &'s str) -> Result<IrElement> {
         let input = self.with_std(input)?;
+
+        self.compile_ir_nostd(&input)
+    }
+
+    pub fn compile_ir_nostd<'s>(&mut self, input: &'s str) -> Result<IrElement> {
         let mut typechecker = TypeChecker::new(
             self.typechecker.variables.clone(),
             self.typechecker.structs.clone(),

@@ -89,13 +89,53 @@ impl IrFunctionGenerator<'_> {
                 let mut elements = vec![];
                 elements.push(self.expr(f.as_ref())?);
 
+                if let Some(self_obj) = self.self_object.take() {
+                    elements.push(self_obj);
+                }
+
                 for arg in args {
                     elements.push(self.expr(&arg)?);
                 }
 
                 Ok(IrElement::block("call", elements))
             }
-            Expr::Struct(_, _) => todo!(),
+            Expr::Struct(struct_name, exprs) => {
+                // in: A { a: 1, b: 2 }
+                // out: (let $v (new 2))
+                //      (assign (padd $v 0) 1)
+                //      (assign (padd $v 1) 2)
+                //      $v
+                let size = self.structs.size_of_struct(&struct_name);
+
+                let obj = self.var_fresh()?;
+
+                self.ir.push(IrElement::block(
+                    "let",
+                    vec![
+                        IrElement::Term(obj.clone()),
+                        IrElement::instruction("new", vec![IrTerm::Int(size as i32)]),
+                    ],
+                ));
+
+                for (label, expr) in exprs {
+                    let index = self.structs.get_projection_offset(struct_name, label)?;
+                    let v = self.expr(expr)?;
+
+                    self.ir.push(IrElement::block(
+                        "assign",
+                        vec![
+                            IrElement::instruction(
+                                "padd",
+                                vec![obj.clone(), IrTerm::Int(index as i32)],
+                            ),
+                            v,
+                        ],
+                    ));
+                    self.expr(expr)?;
+                }
+
+                Ok(IrElement::Term(obj))
+            }
             Expr::Project(method, struct_name, proj, label) if *method => {
                 self.self_object = Some(self.expr(proj)?);
 
@@ -191,11 +231,23 @@ impl IrGenerator {
     }
 
     pub fn function(&mut self, function: &Function) -> Result<IrElement> {
-        let mut elements = vec![IrElement::Term(IrTerm::Ident(function.name.clone()))];
+        let mut elements = vec![IrElement::Term(IrTerm::Ident(
+            if let Some((_, struct_name, _)) = &function.method_of {
+                format!("{}_{}", struct_name, function.name)
+            } else {
+                function.name.clone()
+            },
+        ))];
         let mut args = HashMap::new();
 
-        for (index, (name, _)) in function.args.iter().enumerate() {
-            args.insert(name.clone(), index);
+        let mut arg_index = 0;
+        if let Some((receiver, _, _)) = &function.method_of {
+            args.insert(receiver.clone(), 0);
+            arg_index += 1;
+        }
+        for (name, _) in &function.args {
+            args.insert(name.clone(), arg_index);
+            arg_index += 1;
         }
 
         let mut generator = IrFunctionGenerator::new(args, &self.structs);
@@ -335,9 +387,11 @@ func main() {
         ))
     )
     (func $main
-        (let $p (new 2))
-        (assign (padd $p 0) 10)
-        (assign (padd $p 1) 20)
+        (let $fresh_1 (new 2))
+        (assign (padd $fresh_1 0) 10)
+        (assign (padd $fresh_1 1) 20)
+
+        (let $p $fresh_1)
 
         (return (call $Point_sum $p))
     )
@@ -348,7 +402,7 @@ func main() {
 
         for (code, ir_code) in cases {
             let mut compiler = Compiler::new();
-            let generated = compiler.compile_ir(code).unwrap();
+            let generated = compiler.compile_ir_nostd(code).unwrap();
 
             let element = parse_ir(ir_code).unwrap();
 
