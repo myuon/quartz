@@ -70,6 +70,7 @@ impl<'a> Generator<'a> {
                         "_new" => QVMInstruction::Alloc,
                         "_gc" => QVMInstruction::RuntimeInstr("_gc".to_string()),
                         "_padd" => QVMInstruction::PAdd,
+                        "_len" => QVMInstruction::RuntimeInstr("_len".to_string()),
                         _ => QVMInstruction::LabelAddrConst(v.clone()),
                     });
                 }
@@ -241,7 +242,7 @@ impl<'a> Generator<'a> {
                             self.code.push(QVMInstruction::AddrConst(u, v.clone()));
                             self.code.push(QVMInstruction::Store("global"));
                         } else {
-                            anyhow::bail!("{} not found", v);
+                            anyhow::bail!("assign: {} not found", v);
                         }
                     }
                     Expr::Index(arr, i) => {

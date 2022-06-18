@@ -117,16 +117,19 @@ impl Compiler<'_> {
     }
 
     pub fn compile<'s>(&mut self, input: &'s str) -> Result<Vec<QVMInstruction>> {
+        let input = self.with_std(input)?;
         let mut typechecker = TypeChecker::new(
             self.typechecker.variables.clone(),
             self.typechecker.structs.clone(),
             self.typechecker.methods.clone(),
-            input,
+            &input,
         );
 
-        let mut module = self.parse(input).context("parse phase")?;
+        let mut module = self.parse(&input).context("parse phase")?;
 
-        typechecker.module(&mut module)?;
+        typechecker
+            .module(&mut module)
+            .context("Phase: typecheck")?;
 
         self.code_generation.context(typechecker.structs.clone());
 

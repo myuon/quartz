@@ -274,12 +274,12 @@ impl Structs {
         let struct_fields = self
             .0
             .get(val)
-            .ok_or(anyhow::anyhow!("{} not found", val))?;
+            .ok_or(anyhow::anyhow!("project: {} not found", val))?;
 
         let (_, t) = struct_fields
             .iter()
             .find(|(name, _)| name == label)
-            .ok_or(anyhow::anyhow!("{} not found", label))?;
+            .ok_or(anyhow::anyhow!("project: {} not found", label))?;
 
         Ok(t.clone())
     }
@@ -288,11 +288,11 @@ impl Structs {
         let struct_fields = self
             .0
             .get(val)
-            .ok_or(anyhow::anyhow!("{} not found", val))?;
+            .ok_or(anyhow::anyhow!("project: {} not found", val))?;
         let field_index = struct_fields
             .iter()
             .position(|(l, _)| l == label)
-            .ok_or(anyhow::anyhow!("{} not found in {}", label, val))?;
+            .ok_or(anyhow::anyhow!("project: {} not found in {}", label, val))?;
         Ok(field_index)
     }
 }

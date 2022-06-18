@@ -299,8 +299,6 @@ mod tests {
 
     use crate::{compiler::Compiler, ir::parse_ir};
 
-    use super::*;
-
     #[test]
     fn test_generate() {
         let cases = vec![

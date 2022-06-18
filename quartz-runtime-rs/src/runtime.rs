@@ -79,6 +79,7 @@ impl Value {
         Value::Addr(0, AddrPlace::Unknown, "nil")
     }
 
+    #[allow(dead_code)]
     pub fn bool(b: bool) -> Value {
         Value::Int(if b { 1 } else { 0 }, "bool")
     }
