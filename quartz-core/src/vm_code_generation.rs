@@ -21,6 +21,14 @@ macro_rules! unvec {
 
         (v1, v2)
     }};
+    ($e:expr, 3) => {{
+        assert_eq!($e.len(), 3);
+        let v3 = $e.pop().unwrap();
+        let v2 = $e.pop().unwrap();
+        let v1 = $e.pop().unwrap();
+
+        (v1, v2, v3)
+    }};
 }
 
 #[derive(Debug)]
@@ -30,6 +38,8 @@ struct VmFunctionGenerator<'s> {
     local_pointer: usize,
     locals: HashMap<String, usize>,
     globals: &'s HashMap<String, usize>,
+    labels: &'s mut HashMap<String, usize>,
+    offset: usize,
 }
 
 impl<'s> VmFunctionGenerator<'s> {
@@ -45,12 +55,18 @@ impl<'s> VmFunctionGenerator<'s> {
             local_pointer: 0,
             locals: HashMap::new(),
             globals,
+            labels,
+            offset,
         }
     }
 
     fn push_local(&mut self, name: String) {
         self.locals.insert(name, self.local_pointer);
         self.local_pointer += 1;
+    }
+
+    fn register_label(&mut self, name: String) {
+        self.labels.insert(name, self.offset + self.code.len());
     }
 
     fn element(&mut self, element: IrElement) -> Result<()> {
@@ -144,6 +160,31 @@ impl<'s> VmFunctionGenerator<'s> {
                                 self.element(left)?;
                             }
                         }
+                    }
+                    "if" => {
+                        let (cond, left, right) = unvec!(block.elements, 3);
+
+                        let label = format!("if-{}", self.globals.len());
+                        let label_then = format!("then-{}", self.globals.len());
+                        let label_else = format!("else-{}", self.globals.len());
+                        let label_end = format!("end-{}", self.globals.len());
+
+                        self.register_label(label.clone());
+                        self.element(cond)?;
+                        self.code
+                            .push(QVMInstruction::LabelJumpIfFalse(label_else.clone()));
+                        self.register_label(label_then.clone());
+                        self.element(left)?;
+                        self.code
+                            .push(QVMInstruction::LabelJumpIfFalse(label_end.clone()));
+                        self.register_label(label_else.clone());
+                        self.element(right)?;
+                        self.register_label(label_end.clone());
+                    }
+                    "seq" => {
+                        let body = unvec!(block.elements, 1);
+
+                        self.element(body)?;
                     }
                     name => todo!("{:?}", name),
                 };

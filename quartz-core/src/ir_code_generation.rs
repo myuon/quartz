@@ -3,21 +3,21 @@ use std::{collections::HashMap, fmt::Debug};
 use anyhow::Result;
 
 use crate::{
-    ast::{Declaration, Expr, Function, Literal, Module, Statement, Structs},
+    ast::{Declaration, Expr, Function, Literal, Module, Source, Statement, Structs},
     ir::{IrBlock, IrElement, IrTerm},
 };
 
 #[derive(Debug)]
 struct IrFunctionGenerator<'s> {
     ir: Vec<IrElement>,
-    args: HashMap<String, usize>,
+    args: &'s HashMap<String, usize>,
     var_index: usize,
     self_object: Option<IrElement>,
     structs: &'s Structs,
 }
 
-impl IrFunctionGenerator<'_> {
-    pub fn new(args: HashMap<String, usize>, structs: &Structs) -> IrFunctionGenerator {
+impl<'s> IrFunctionGenerator<'s> {
+    pub fn new(args: &'s HashMap<String, usize>, structs: &'s Structs) -> IrFunctionGenerator<'s> {
         IrFunctionGenerator {
             ir: vec![],
             args,
@@ -202,7 +202,28 @@ impl IrFunctionGenerator<'_> {
                 let v = self.expr(e)?;
                 self.ir.push(IrElement::block("return", vec![v]));
             }
-            Statement::If(_, _, _) => todo!(),
+            Statement::If(b, s1, s2) => {
+                let v = self.expr(b)?;
+                let gen1 = {
+                    let mut generator = IrFunctionGenerator::new(self.args, &self.structs);
+                    generator.statements(&s1)?;
+                    generator.ir
+                };
+                let gen2 = {
+                    let mut generator = IrFunctionGenerator::new(self.args, &self.structs);
+                    generator.statements(&s2)?;
+                    generator.ir
+                };
+
+                self.ir.push(IrElement::block(
+                    "if",
+                    vec![
+                        v,
+                        IrElement::block("seq", gen1),
+                        IrElement::block("seq", gen2),
+                    ],
+                ));
+            }
             Statement::Continue => todo!(),
             Statement::Assignment(v, e2) => {
                 let v2 = self.expr(e2)?;
@@ -240,6 +261,14 @@ impl IrFunctionGenerator<'_> {
             }
             Statement::Loop(_) => todo!(),
             Statement::While(_, _) => todo!(),
+        }
+
+        Ok(())
+    }
+
+    fn statements(&mut self, statements: &Vec<Source<Statement>>) -> Result<()> {
+        for statement in statements {
+            self.statement(&statement.data)?;
         }
 
         Ok(())
@@ -284,10 +313,8 @@ impl IrGenerator {
 
         elements.push(IrElement::Term(IrTerm::Int(arg_index as i32)));
 
-        let mut generator = IrFunctionGenerator::new(args, &self.structs);
-        for b in &function.body {
-            generator.statement(&b.data)?;
-        }
+        let mut generator = IrFunctionGenerator::new(&args, &self.structs);
+        generator.statements(&function.body)?;
         elements.extend(generator.ir);
 
         Ok(IrElement::Block(IrBlock {
@@ -297,8 +324,9 @@ impl IrGenerator {
     }
 
     pub fn variable(&mut self, name: &String, expr: &Expr) -> Result<IrElement> {
+        let empty = HashMap::new();
         let mut elements = vec![IrElement::Term(IrTerm::Ident(name.clone()))];
-        let mut generator = IrFunctionGenerator::new(HashMap::new(), &self.structs);
+        let mut generator = IrFunctionGenerator::new(&empty, &self.structs);
         elements.push(generator.expr(expr)?);
 
         Ok(IrElement::Block(IrBlock {
