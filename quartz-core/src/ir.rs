@@ -10,31 +10,25 @@ pub enum IrTerm {
     Nil,
     Bool(bool),
     Int(i32),
-    Address(usize),
     Ident(IrIdent),
     Argument(usize),
+    Keyword(String),
 }
 
 #[derive(PartialEq, Debug, Clone)]
-pub struct IrInstruction {
-    code: IrIdent,
-    arguments: Vec<IrTerm>,
+pub struct IrBlock {
+    name: String,
+    elements: Vec<IrElement>,
 }
 
 #[derive(PartialEq, Debug, Clone)]
-pub enum IrBlock {
-    Function {
-        name: IrIdent,
-        body: Vec<IrInstruction>,
-    },
+pub enum IrElement {
+    Term(IrTerm),
+    Block(IrBlock),
 }
-
-#[derive(PartialEq, Debug, Clone)]
-pub struct IrModule(Vec<IrBlock>);
 
 static SPACE_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"^\s+").unwrap());
-static IDENT_PATTERN: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"^(\$)?[a-zA-Z_][a-zA-Z0-9_]*").unwrap());
+static IDENT_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[a-zA-Z_][a-zA-Z0-9_]*").unwrap());
 static NUMBER_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[0-9]+").unwrap());
 static STRING_LITERAL: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"^"((([^"]|\\")*[^\\])?)""#).unwrap());
@@ -42,7 +36,9 @@ static COMMENT_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^//[^\n]*\n"#).
 
 #[derive(PartialEq, Debug, Clone)]
 enum IrLexeme {
-    Ident(String),
+    Ident(String), // $ident
+    Keyword(String),
+    Argument(usize),
     String(String),
     Number(String),
     LParen,
@@ -87,8 +83,28 @@ fn run_lexer(input: &str) -> Vec<IrLexeme> {
             continue;
         }
 
+        if &input[position..position + 1] == "$" {
+            if let Some(m) = NUMBER_PATTERN.find(&input[position + 1..]) {
+                let index = m.as_str().parse::<usize>().unwrap();
+                tokens.push(IrLexeme::Argument(index));
+
+                position += m.end() + 1;
+                continue;
+            }
+
+            if let Some(m) = IDENT_PATTERN.find(&input[position + 1..]) {
+                tokens.push(IrLexeme::Ident(m.as_str().to_string()));
+
+                position += m.end() + 1;
+                continue;
+            }
+
+            unreachable!("{:?}", &input[position..position + 20]);
+        }
+
         if let Some(m) = IDENT_PATTERN.find(&input[position..]) {
-            tokens.push(IrLexeme::Ident(m.as_str().to_string()));
+            let name = m.as_str();
+            tokens.push(IrLexeme::Keyword(name.to_string()));
 
             position += m.end();
             continue;
@@ -138,54 +154,12 @@ impl IrParser<'_> {
         }
     }
 
-    fn ident(&mut self) -> Result<IrIdent> {
-        match &self.tokens[self.position] {
-            IrLexeme::Ident(i) if i.starts_with("$") => {
-                self.position += 1;
-                return Ok(IrIdent(i[1..].to_string()));
-            }
-            lexeme => {
-                bail!("Expected keyword but got {:?}", lexeme);
-            }
-        }
-    }
-
-    fn instruction(&mut self) -> Result<IrInstruction> {
-        let mut terms = vec![];
-
-        self.expect(IrLexeme::LParen)?;
-        let code = match self.next() {
-            IrLexeme::Ident(i) => IrIdent(i.to_string()),
-            _ => unreachable!(),
-        };
-        while self.tokens[self.position] != IrLexeme::RParen {
-            let term = self.term()?;
-            terms.push(term);
-        }
-        self.expect(IrLexeme::RParen)?;
-
-        Ok(IrInstruction {
-            code,
-            arguments: terms,
-        })
-    }
-
-    fn instructions(&mut self) -> Result<Vec<IrInstruction>> {
-        let mut instructions = vec![];
-
-        self.expect(IrLexeme::LParen)?;
-        instructions.push(self.instruction()?);
-        self.expect(IrLexeme::RParen)?;
-
-        Ok(instructions)
-    }
-
     fn term(&mut self) -> Result<IrTerm> {
         let token = self.next();
 
         Ok(match token {
-            IrLexeme::Ident(ident) if ident.starts_with("$") => IrTerm::Ident(self.ident()?),
-            IrLexeme::Ident(ident) => {
+            IrLexeme::Ident(ident) => IrTerm::Ident(IrIdent(ident.to_string())),
+            IrLexeme::Keyword(ident) => {
                 if ident == "nil" {
                     IrTerm::Nil
                 } else if ident == "true" {
@@ -193,7 +167,7 @@ impl IrParser<'_> {
                 } else if ident == "false" {
                     IrTerm::Bool(false)
                 } else {
-                    bail!("Unknown identifier {:?}", ident);
+                    bail!("Unknown keyword {:?}", ident);
                 }
             }
             IrLexeme::Number(n) => {
@@ -207,38 +181,37 @@ impl IrParser<'_> {
         })
     }
 
-    fn block(&mut self) -> Result<IrBlock> {
-        self.expect(IrLexeme::LParen)?;
-        self.expect_ident("func")?;
-        let name = self.ident()?;
-        let body = self.instructions()?;
-        self.expect(IrLexeme::RParen)?;
+    fn element(&mut self) -> Result<IrElement> {
+        if self.expect(IrLexeme::LParen).is_ok() {
+            let name = match self.next() {
+                IrLexeme::Keyword(i) => i.to_string(),
+                _ => unreachable!(),
+            };
+            let mut elements = vec![];
 
-        Ok(IrBlock::Function { name, body })
-    }
+            while self.tokens[self.position] != IrLexeme::RParen {
+                elements.push(self.element()?);
+            }
 
-    fn module(&mut self) -> Result<IrModule> {
-        let mut blocks = vec![];
+            self.expect(IrLexeme::RParen)?;
 
-        self.expect(IrLexeme::LParen)?;
-        self.expect_ident("module")?;
-        while self.tokens[self.position] != IrLexeme::RParen {
-            blocks.push(self.block()?);
+            Ok(IrElement::Block(IrBlock { name, elements }))
+        } else {
+            let term = self.term()?;
+
+            Ok(IrElement::Term(term))
         }
-        self.expect(IrLexeme::RParen)?;
-
-        Ok(IrModule(blocks))
     }
 }
 
-pub fn parse_ir(input: &str) -> Result<IrModule> {
+pub fn parse_ir(input: &str) -> Result<IrElement> {
     let tokens = run_lexer(input);
     let mut parser = IrParser {
         position: 0,
         tokens: &tokens,
     };
 
-    parser.module()
+    parser.element()
 }
 
 #[cfg(test)]
@@ -261,24 +234,24 @@ mod tests {
 "#,
             vec![
                 IrLexeme::LParen,
-                IrLexeme::Ident("module".to_string()),
+                IrLexeme::Keyword("module".to_string()),
                 IrLexeme::LParen,
-                IrLexeme::Ident("func".to_string()),
-                IrLexeme::Ident("$main".to_string()),
+                IrLexeme::Keyword("func".to_string()),
+                IrLexeme::Ident("main".to_string()),
                 IrLexeme::LParen,
                 IrLexeme::LParen,
-                IrLexeme::Ident("let".to_string()),
-                IrLexeme::Ident("$x".to_string()),
+                IrLexeme::Keyword("let".to_string()),
+                IrLexeme::Ident("x".to_string()),
                 IrLexeme::Number("10".to_string()),
                 IrLexeme::RParen,
                 IrLexeme::LParen,
-                IrLexeme::Ident("assign".to_string()),
-                IrLexeme::Ident("$x".to_string()),
+                IrLexeme::Keyword("assign".to_string()),
+                IrLexeme::Ident("x".to_string()),
                 IrLexeme::Number("20".to_string()),
                 IrLexeme::RParen,
                 IrLexeme::LParen,
-                IrLexeme::Ident("return".to_string()),
-                IrLexeme::Ident("$x".to_string()),
+                IrLexeme::Keyword("return".to_string()),
+                IrLexeme::Ident("x".to_string()),
                 IrLexeme::RParen,
                 IrLexeme::RParen,
                 IrLexeme::RParen,
@@ -296,21 +269,49 @@ mod tests {
         let cases = vec![(
             r#"
 (module
-    (func $main (
+    (func $main
         (let $x 10)
         (assign $x 20)
         (return $x)
-    ))
+    )
 )
 "#,
-            vec![],
+            IrElement::Block(IrBlock {
+                name: "module".to_string(),
+                elements: vec![IrElement::Block(IrBlock {
+                    name: "func".to_string(),
+                    elements: vec![
+                        IrElement::Term(IrTerm::Ident(IrIdent("main".to_string()))),
+                        IrElement::Block(IrBlock {
+                            name: "let".to_string(),
+                            elements: vec![
+                                IrElement::Term(IrTerm::Ident(IrIdent("x".to_string()))),
+                                IrElement::Term(IrTerm::Int(10)),
+                            ],
+                        }),
+                        IrElement::Block(IrBlock {
+                            name: "assign".to_string(),
+                            elements: vec![
+                                IrElement::Term(IrTerm::Ident(IrIdent("x".to_string()))),
+                                IrElement::Term(IrTerm::Int(20)),
+                            ],
+                        }),
+                        IrElement::Block(IrBlock {
+                            name: "return".to_string(),
+                            elements: vec![IrElement::Term(IrTerm::Ident(IrIdent(
+                                "x".to_string(),
+                            )))],
+                        }),
+                    ],
+                })],
+            }),
         )];
 
         for (input, result) in cases {
             let ast = parse_ir(input);
 
             assert!(ast.is_ok(), "Error:{:?}\n{}", ast, input);
-            assert_eq!(IrModule(result), ast.unwrap(), "{}", input);
+            assert_eq!(result, ast.unwrap(), "{}", input);
         }
     }
 }
