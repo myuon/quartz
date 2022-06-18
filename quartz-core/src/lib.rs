@@ -8,3 +8,4 @@ pub mod lexer;
 pub mod parser;
 pub mod typechecker;
 pub mod vm;
+pub mod vm_code_generation;

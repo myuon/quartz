@@ -12,6 +12,7 @@ use crate::{
     parser::run_parser,
     typechecker::TypeChecker,
     vm::QVMInstruction,
+    vm_code_generation::VmGenerator,
 };
 
 #[derive(ThisError, Debug)]
@@ -24,6 +25,7 @@ pub struct Compiler<'s> {
     pub typechecker: TypeChecker<'s>,
     pub code_generation: CodeGeneration,
     pub ir_code_generation: IrGenerator,
+    pub vm_code_generation: VmGenerator,
 }
 
 impl Compiler<'_> {
@@ -37,6 +39,7 @@ impl Compiler<'_> {
             ),
             code_generation: CodeGeneration::new(),
             ir_code_generation: IrGenerator::new(),
+            vm_code_generation: VmGenerator::new(),
         }
     }
 
@@ -166,6 +169,20 @@ impl Compiler<'_> {
         self.ir_code_generation.context(typechecker.structs.clone());
 
         let code = self.ir_code_generation.generate(&module)?;
+
+        self.typechecker = TypeChecker::new(
+            self.typechecker.variables.clone(),
+            self.typechecker.structs.clone(),
+            self.typechecker.methods.clone(),
+            "",
+        );
+
+        Ok(code)
+    }
+
+    pub fn compile_via_ir<'s>(&mut self, input: &'s str) -> Result<Vec<QVMInstruction>> {
+        let ir = self.compile_ir(input)?;
+        let code = self.vm_code_generation.generate(ir)?;
 
         self.typechecker = TypeChecker::new(
             self.typechecker.variables.clone(),

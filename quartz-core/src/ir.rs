@@ -12,6 +12,15 @@ pub enum IrTerm {
     Keyword(String),
 }
 
+impl IrTerm {
+    pub fn into_ident(self) -> Result<String> {
+        match self {
+            IrTerm::Ident(s) => Ok(s),
+            _ => bail!("expected ident"),
+        }
+    }
+}
+
 #[derive(PartialEq, Debug, Clone)]
 pub struct IrBlock {
     pub name: String,
@@ -37,6 +46,20 @@ impl IrElement {
             name: name.to_string(),
             elements: elements.into_iter().map(|e| IrElement::Term(e)).collect(),
         })
+    }
+
+    pub fn into_term(self) -> Result<IrTerm> {
+        match self {
+            IrElement::Term(t) => Ok(t),
+            _ => bail!("Expected a term, but found {:?}", self),
+        }
+    }
+
+    pub fn into_block(self) -> Result<IrBlock> {
+        match self {
+            IrElement::Block(b) => Ok(b),
+            _ => bail!("Expected a block, but found {:?}", self),
+        }
     }
 }
 

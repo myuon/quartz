@@ -622,17 +622,35 @@ func main() {
     ];
 
     for (input, result) in cases {
-        let mut compiler = Compiler::new();
-        let code = compiler.compile(input)?;
+        // legacy compile
+        {
+            let mut compiler = Compiler::new();
+            let code = compiler.compile(input)?;
 
-        let mut runtime = Runtime::new(code.clone(), compiler.code_generation.globals());
-        println!("{}", input);
-        for (n, inst) in runtime.code.iter().enumerate() {
-            println!("{:04} {:?}", n, inst);
+            let mut runtime = Runtime::new(code.clone(), compiler.code_generation.globals());
+            println!("{}", input);
+            for (n, inst) in runtime.code.iter().enumerate() {
+                println!("{:04} {:?}", n, inst);
+            }
+            runtime.run()?;
+            let pop = runtime.pop();
+            assert_eq!(pop.as_int(), Some(result), "{:?} {:?}", pop, result);
         }
-        runtime.run()?;
-        let pop = runtime.pop();
-        assert_eq!(pop.as_int(), Some(result), "{:?} {:?}", pop, result);
+
+        // compile via IR
+        {
+            let mut compiler = Compiler::new();
+            let code = compiler.compile_via_ir(input)?;
+
+            let mut runtime = Runtime::new(code.clone(), compiler.code_generation.globals());
+            println!("{}", input);
+            for (n, inst) in runtime.code.iter().enumerate() {
+                println!("{:04} {:?}", n, inst);
+            }
+            runtime.run()?;
+            let pop = runtime.pop();
+            assert_eq!(pop.as_int(), Some(result), "{:?} {:?}", pop, result);
+        }
     }
 
     Ok(())
