@@ -24,24 +24,27 @@ macro_rules! unvec {
 }
 
 #[derive(Debug)]
-struct VmFunctionGenerator {
+struct VmFunctionGenerator<'s> {
     code: Vec<QVMInstruction>,
     arg_len: usize,
     local_pointer: usize,
     locals: HashMap<String, usize>,
+    globals: &'s HashMap<String, usize>,
 }
 
-impl VmFunctionGenerator {
+impl<'s> VmFunctionGenerator<'s> {
     pub fn new(
         arg_len: usize,
-        labels: &mut HashMap<String, usize>,
+        globals: &'s HashMap<String, usize>,
+        labels: &'s mut HashMap<String, usize>,
         offset: usize,
-    ) -> VmFunctionGenerator {
+    ) -> VmFunctionGenerator<'s> {
         VmFunctionGenerator {
             code: Vec::new(),
             arg_len,
             local_pointer: 0,
             locals: HashMap::new(),
+            globals,
         }
     }
 
@@ -58,6 +61,10 @@ impl VmFunctionGenerator {
                         self.code
                             .push(QVMInstruction::AddrConst(*u, format!("local:{}", v)));
                         self.code.push(QVMInstruction::Load("local"));
+                    } else if let Some(u) = self.globals.get(&v) {
+                        self.code
+                            .push(QVMInstruction::AddrConst(*u, format!("global:{}", v)));
+                        self.code.push(QVMInstruction::Load("global"));
                     } else {
                         self.code.push(match v.as_str() {
                             "_add" => QVMInstruction::Add,
@@ -111,7 +118,11 @@ impl VmFunctionGenerator {
                             self.element(elem)?;
                         }
                         self.element(callee.unwrap())?;
-                        self.code.push(QVMInstruction::Call);
+
+                        // If the last instruction is not LabelAddrConst, it will be a builtin operation and no need to run CALL operation
+                        if matches!(self.code.last().unwrap(), QVMInstruction::LabelAddrConst(_)) {
+                            self.code.push(QVMInstruction::Call);
+                        }
                     }
                     "assign" => {
                         let (left, right) = unvec!(block.elements, 2);
@@ -122,6 +133,9 @@ impl VmFunctionGenerator {
                                 if let Some(u) = self.locals.get(&v).cloned() {
                                     self.code.push(QVMInstruction::AddrConst(u, v.clone()));
                                     self.code.push(QVMInstruction::Store("local"));
+                                } else if let Some(u) = self.globals.get(&v).cloned() {
+                                    self.code.push(QVMInstruction::AddrConst(u, v.clone()));
+                                    self.code.push(QVMInstruction::Store("global"));
                                 } else {
                                     anyhow::bail!("assign: {} not found", v);
                                 }
@@ -140,11 +154,26 @@ impl VmFunctionGenerator {
     }
 }
 
-pub struct VmGenerator {}
+pub struct VmGenerator {
+    globals: HashMap<String, usize>,
+    global_pointer: usize,
+}
 
 impl VmGenerator {
     pub fn new() -> VmGenerator {
-        VmGenerator {}
+        VmGenerator {
+            globals: HashMap::new(),
+            global_pointer: 0,
+        }
+    }
+
+    fn push_global(&mut self, name: String) {
+        self.globals.insert(name, self.global_pointer);
+        self.global_pointer += 1;
+    }
+
+    pub fn globals(&self) -> usize {
+        self.globals.len()
     }
 
     pub fn function(
@@ -154,7 +183,7 @@ impl VmGenerator {
         labels: &mut HashMap<String, usize>,
         offset: usize,
     ) -> Result<Vec<QVMInstruction>> {
-        let mut generator = VmFunctionGenerator::new(arg_len, labels, offset);
+        let mut generator = VmFunctionGenerator::new(arg_len, &self.globals, labels, offset);
 
         let mut skip = 2;
         for statement in body {
@@ -169,12 +198,33 @@ impl VmGenerator {
         Ok(generator.code)
     }
 
+    pub fn variable(
+        &mut self,
+        name: String,
+        expr: IrElement,
+        offset: usize,
+        labels: &mut HashMap<String, usize>,
+    ) -> Result<Vec<QVMInstruction>> {
+        let mut generator = VmFunctionGenerator::new(0, &self.globals, labels, offset);
+        generator.element(expr)?;
+        let mut code = generator.code;
+
+        self.push_global(name.clone());
+        code.push(QVMInstruction::AddrConst(
+            self.globals[&name],
+            format!("let_global:{}", name),
+        ));
+        code.push(QVMInstruction::Store("global"));
+
+        Ok(code)
+    }
+
     pub fn call_main(
         &mut self,
         labels: &mut HashMap<String, usize>,
         offset: usize,
     ) -> Result<Vec<QVMInstruction>> {
-        let mut generator = VmFunctionGenerator::new(0, labels, offset);
+        let mut generator = VmFunctionGenerator::new(0, &self.globals, labels, offset);
         generator.element(IrElement::block(
             "return",
             vec![IrElement::instruction(
@@ -189,7 +239,9 @@ impl VmGenerator {
     pub fn generate(&mut self, element: IrElement) -> Result<Vec<QVMInstruction>> {
         let mut code = vec![];
         let mut labels = HashMap::new();
+
         let mut functions = vec![];
+        let mut variables = vec![];
 
         // = first path
 
@@ -198,16 +250,25 @@ impl VmGenerator {
         assert_eq!(block.name, "module");
 
         for element in block.elements {
-            let block = element.into_block()?;
-            if block.name == "func" {
-                assert_eq!(block.name, "func");
-
-                functions.push((
-                    block.elements[0].clone().into_term()?.into_ident()?, // name
-                    block.elements[1].clone().into_term()?.into_int()?,   // arg length
-                    block.elements,
-                ));
+            let mut block = element.into_block()?;
+            match block.name.as_str() {
+                "func" => {
+                    functions.push((
+                        block.elements[0].clone().into_term()?.into_ident()?, // name
+                        block.elements[1].clone().into_term()?.into_int()?,   // arg length
+                        block.elements,
+                    ));
+                }
+                "var" => {
+                    let (name, expr) = unvec!(block.elements, 2);
+                    variables.push((name.into_term()?.into_ident()?, expr));
+                }
+                _ => unreachable!("{:?}", block),
             }
+        }
+
+        for (name, expr) in variables {
+            code.extend(self.variable(name, expr, code.len(), &mut labels)?);
         }
 
         // call main

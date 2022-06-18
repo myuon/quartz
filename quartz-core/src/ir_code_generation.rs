@@ -296,6 +296,17 @@ impl IrGenerator {
         }))
     }
 
+    pub fn variable(&mut self, name: &String, expr: &Expr) -> Result<IrElement> {
+        let mut elements = vec![IrElement::Term(IrTerm::Ident(name.clone()))];
+        let mut generator = IrFunctionGenerator::new(HashMap::new(), &self.structs);
+        elements.push(generator.expr(expr)?);
+
+        Ok(IrElement::Block(IrBlock {
+            name: "var".to_string(),
+            elements,
+        }))
+    }
+
     pub fn module(&mut self, module: &Module) -> Result<IrElement> {
         let mut elements = vec![];
 
@@ -304,7 +315,9 @@ impl IrGenerator {
                 Declaration::Function(f) => {
                     elements.push(self.function(&f)?);
                 }
-                Declaration::Variable(_, _) => todo!(),
+                Declaration::Variable(v, expr) => {
+                    elements.push(self.variable(v, expr)?);
+                }
                 Declaration::Struct(_) => {}
             }
         }
