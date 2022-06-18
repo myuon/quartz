@@ -46,7 +46,18 @@ impl<'s> IrFunctionGenerator<'s> {
                 Literal::Nil => Ok(IrElement::Term(IrTerm::Nil)),
                 Literal::Bool(b) => Ok(IrElement::Term(IrTerm::Bool(*b))),
                 Literal::Int(n) => Ok(IrElement::Term(IrTerm::Int(*n))),
-                Literal::String(_) => todo!(),
+                Literal::String(s) => self.expr(&Expr::Struct(
+                    "string".to_string(),
+                    vec![(
+                        "data".to_string(),
+                        Expr::Lit(Literal::Array(
+                            s.as_bytes()
+                                .iter()
+                                .map(|i| Expr::Lit(Literal::Int(*i as i32)))
+                                .collect::<Vec<_>>(),
+                        )),
+                    )],
+                )),
                 Literal::Array(arr) => {
                     let v = self.var_fresh()?;
                     let n = arr.len() as i32;
@@ -267,6 +278,27 @@ impl<'s> IrFunctionGenerator<'s> {
                                 v2,
                             ],
                         ))
+                    }
+                    Expr::Project(false, st, proj, label) => {
+                        // in: proj.label = v;
+                        // out: (assign (padd proj label) v)
+                        let index = self.structs.get_projection_offset(st, label)?;
+
+                        let element = self.expr(proj)?;
+                        self.ir.push(IrElement::block(
+                            "assign",
+                            vec![
+                                IrElement::block(
+                                    "call",
+                                    vec![
+                                        IrElement::Term(IrTerm::Ident("_padd".to_string())),
+                                        element,
+                                        IrElement::Term(IrTerm::Int(index as i32)),
+                                    ],
+                                ),
+                                v2,
+                            ],
+                        ));
                     }
                     _ => todo!(),
                 }
