@@ -19,6 +19,13 @@ impl IrTerm {
             _ => bail!("expected ident"),
         }
     }
+
+    pub fn into_int(self) -> Result<i32> {
+        match self {
+            IrTerm::Int(i) => Ok(i),
+            _ => bail!("expected int"),
+        }
+    }
 }
 
 #[derive(PartialEq, Debug, Clone)]

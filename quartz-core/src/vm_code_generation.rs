@@ -8,7 +8,14 @@ use crate::{
 };
 
 macro_rules! unvec {
+    ($e:expr, 1) => {{
+        assert_eq!($e.len(), 1);
+        let v1 = $e.pop().unwrap();
+
+        (v1)
+    }};
     ($e:expr, 2) => {{
+        assert_eq!($e.len(), 2);
         let v2 = $e.pop().unwrap();
         let v1 = $e.pop().unwrap();
 
@@ -19,19 +26,28 @@ macro_rules! unvec {
 #[derive(Debug)]
 struct VmFunctionGenerator {
     code: Vec<QVMInstruction>,
+    arg_len: usize,
     local_pointer: usize,
     locals: HashMap<String, usize>,
-    args: HashMap<String, usize>,
 }
 
 impl VmFunctionGenerator {
-    pub fn new(labels: &mut HashMap<String, usize>, offset: usize) -> VmFunctionGenerator {
+    pub fn new(
+        arg_len: usize,
+        labels: &mut HashMap<String, usize>,
+        offset: usize,
+    ) -> VmFunctionGenerator {
         VmFunctionGenerator {
             code: Vec::new(),
+            arg_len,
             local_pointer: 0,
             locals: HashMap::new(),
-            args: HashMap::new(),
         }
+    }
+
+    fn push_local(&mut self, name: String) {
+        self.locals.insert(name, self.local_pointer);
+        self.local_pointer += 1;
     }
 
     fn expr(&mut self, expr: IrElement) -> Result<()> {
@@ -42,8 +58,21 @@ impl VmFunctionGenerator {
         let mut block = element.into_block()?;
 
         match block.name.as_str() {
+            "let" => {
+                let (name, expr) = unvec!(block.elements, 2);
+                let var_name = name.into_term()?.into_ident()?;
+                self.expr(expr)?;
+                self.push_local(var_name);
+            }
+            "return" => {
+                let expr = unvec!(block.elements, 1);
+                self.expr(expr)?;
+                self.code.push(QVMInstruction::Return(self.arg_len));
+            }
             name => todo!("{:?}", name),
-        }
+        };
+
+        Ok(())
     }
 
     pub fn statements(&mut self, statements: Vec<IrElement>) -> Result<()> {
@@ -65,10 +94,11 @@ impl VmGenerator {
     pub fn function(
         &mut self,
         body: Vec<IrElement>,
+        arg_len: usize,
         labels: &mut HashMap<String, usize>,
         offset: usize,
     ) -> Result<Vec<QVMInstruction>> {
-        let mut generator = VmFunctionGenerator::new(labels, offset);
+        let mut generator = VmFunctionGenerator::new(arg_len, labels, offset);
         let mut name = true;
         for statement in body {
             if name {
@@ -87,7 +117,7 @@ impl VmGenerator {
         labels: &mut HashMap<String, usize>,
         offset: usize,
     ) -> Result<Vec<QVMInstruction>> {
-        let mut generator = VmFunctionGenerator::new(labels, offset);
+        let mut generator = VmFunctionGenerator::new(0, labels, offset);
         generator.statement(IrElement::instruction(
             "call",
             vec![IrTerm::Ident("main".to_string())],
@@ -113,7 +143,8 @@ impl VmGenerator {
                 assert_eq!(block.name, "func");
 
                 functions.push((
-                    block.elements[0].clone().into_term()?.into_ident()?,
+                    block.elements[0].clone().into_term()?.into_ident()?, // name
+                    block.elements[1].clone().into_term()?.into_int()?,   // arg length
                     block.elements,
                 ));
             }
@@ -123,9 +154,9 @@ impl VmGenerator {
         labels.insert("main".to_string(), code.len());
         code.extend(self.call_main(&mut labels, code.len())?);
 
-        for (name, function) in functions {
+        for (name, arg_len, function) in functions {
             labels.insert(name, code.len());
-            code.extend(self.function(function, &mut labels, code.len())?);
+            code.extend(self.function(function, arg_len as usize, &mut labels, code.len())?);
         }
 
         // = second path

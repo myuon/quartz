@@ -250,6 +250,8 @@ impl IrGenerator {
             arg_index += 1;
         }
 
+        elements.push(IrElement::Term(IrTerm::Int(arg_index as i32)));
+
         let mut generator = IrFunctionGenerator::new(args, &self.structs);
         for b in &function.body {
             generator.statement(&b.data)?;
@@ -312,7 +314,7 @@ func main() {
 "#,
                 r#"
 (module
-    (func $main
+    (func $main 0
         (let $x 10)
         (assign $x 20)
         (return $x)
@@ -335,7 +337,7 @@ func main() {
 "#,
                 r#"
 (module
-    (func $f
+    (func $f 1
         (let $fresh_1 (new 3))
         (assign (padd $fresh_1 0) 1)
         (assign (padd $fresh_1 1) 2)
@@ -352,7 +354,7 @@ func main() {
             $0
         ))
     )
-    (func $main
+    (func $main 0
         (return (call $f 10))
     )
 )
@@ -377,14 +379,14 @@ func main() {
 "#,
                 r#"
 (module
-    (func $Point_sum
+    (func $Point_sum 1
         (return (call
             $_add
             (padd $0 0)
             (padd $0 1)
         ))
     )
-    (func $main
+    (func $main 0
         (let $fresh_1 (new 2))
         (assign (padd $fresh_1 0) 10)
         (assign (padd $fresh_1 1) 20)
