@@ -7,6 +7,8 @@ use crate::{
     ast::{Methods, Module, Structs},
     builtin::builtin,
     code_generation::CodeGeneration,
+    ir::IrElement,
+    ir_code_generation::IrGenerator,
     parser::run_parser,
     typechecker::TypeChecker,
     vm::QVMInstruction,
@@ -21,6 +23,7 @@ pub enum CompileError {
 pub struct Compiler<'s> {
     pub typechecker: TypeChecker<'s>,
     pub code_generation: CodeGeneration,
+    pub ir_code_generation: IrGenerator,
 }
 
 impl Compiler<'_> {
@@ -33,6 +36,7 @@ impl Compiler<'_> {
                 "",
             ),
             code_generation: CodeGeneration::new(),
+            ir_code_generation: IrGenerator::new(),
         }
     }
 
@@ -46,6 +50,12 @@ impl Compiler<'_> {
         f.read_to_string(&mut buffer)?;
 
         Ok(buffer)
+    }
+
+    fn with_std(&self, input: &str) -> Result<String> {
+        let mut std = self.load_std()?;
+        std.push_str(input);
+        Ok(std)
     }
 
     fn run_parser(&self, input: &str) -> Result<Module> {
@@ -95,12 +105,6 @@ impl Compiler<'_> {
     }
 
     pub fn parse(&self, input: &str) -> Result<Module> {
-        let input = self.load_std()? + input;
-
-        self.run_parser(&input)
-    }
-
-    pub fn parse_nostd(&self, input: &str) -> Result<Module> {
         self.run_parser(&input)
     }
 
@@ -127,6 +131,33 @@ impl Compiler<'_> {
         self.code_generation.context(typechecker.structs.clone());
 
         let code = self.code_generation.generate(&module)?;
+
+        self.typechecker = TypeChecker::new(
+            self.typechecker.variables.clone(),
+            self.typechecker.structs.clone(),
+            self.typechecker.methods.clone(),
+            "",
+        );
+
+        Ok(code)
+    }
+
+    pub fn compile_ir<'s>(&mut self, input: &'s str) -> Result<IrElement> {
+        let input = self.with_std(input)?;
+        let mut typechecker = TypeChecker::new(
+            self.typechecker.variables.clone(),
+            self.typechecker.structs.clone(),
+            self.typechecker.methods.clone(),
+            &input,
+        );
+
+        let mut module = self.parse(&input).context("parse phase")?;
+
+        typechecker.module(&mut module)?;
+
+        self.ir_code_generation.context(typechecker.structs.clone());
+
+        let code = self.ir_code_generation.generate(&module)?;
 
         self.typechecker = TypeChecker::new(
             self.typechecker.variables.clone(),

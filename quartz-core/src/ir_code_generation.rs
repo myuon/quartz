@@ -3,23 +3,27 @@ use std::{collections::HashMap, fmt::Debug};
 use anyhow::Result;
 
 use crate::{
-    ast::{Declaration, Expr, Function, Literal, Module, Statement},
+    ast::{Declaration, Expr, Function, Literal, Module, Statement, Structs},
     ir::{IrBlock, IrElement, IrTerm},
 };
 
 #[derive(Debug)]
-struct IrFunctionGenerator {
+struct IrFunctionGenerator<'s> {
     ir: Vec<IrElement>,
     args: HashMap<String, usize>,
     var_index: usize,
+    self_object: Option<IrElement>,
+    structs: &'s Structs,
 }
 
-impl IrFunctionGenerator {
-    pub fn new(args: HashMap<String, usize>) -> IrFunctionGenerator {
+impl IrFunctionGenerator<'_> {
+    pub fn new(args: HashMap<String, usize>, structs: &Structs) -> IrFunctionGenerator {
         IrFunctionGenerator {
             ir: vec![],
             args,
             var_index: 0,
+            self_object: None,
+            structs,
         }
     }
 
@@ -92,7 +96,22 @@ impl IrFunctionGenerator {
                 Ok(IrElement::block("call", elements))
             }
             Expr::Struct(_, _) => todo!(),
-            Expr::Project(_, _, _, _) => todo!(),
+            Expr::Project(method, struct_name, proj, label) if *method => {
+                self.self_object = Some(self.expr(proj)?);
+
+                Ok(IrElement::Term(IrTerm::Ident(format!(
+                    "{}_{}",
+                    struct_name, label
+                ))))
+            }
+            Expr::Project(_, struct_name, proj, label) => {
+                let index = self.structs.get_projection_offset(struct_name, label)?;
+
+                Ok(IrElement::block(
+                    "padd",
+                    vec![self.expr(proj)?, IrElement::Term(IrTerm::Int(index as i32))],
+                ))
+            }
             Expr::Index(arr, i) => Ok(IrElement::block(
                 "padd",
                 vec![self.expr(arr.as_ref())?, self.expr(i.as_ref())?],
@@ -156,11 +175,19 @@ impl IrFunctionGenerator {
 }
 
 #[derive(Debug)]
-struct IrGenerator {}
+pub struct IrGenerator {
+    structs: Structs,
+}
 
 impl IrGenerator {
     pub fn new() -> IrGenerator {
-        IrGenerator {}
+        IrGenerator {
+            structs: Structs(HashMap::new()),
+        }
+    }
+
+    pub fn context(&mut self, structs: Structs) {
+        self.structs = structs;
     }
 
     pub fn function(&mut self, function: &Function) -> Result<IrElement> {
@@ -171,7 +198,7 @@ impl IrGenerator {
             args.insert(name.clone(), index);
         }
 
-        let mut generator = IrFunctionGenerator::new(args);
+        let mut generator = IrFunctionGenerator::new(args, &self.structs);
         for b in &function.body {
             generator.statement(&b.data)?;
         }
@@ -223,7 +250,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_generate_nostd() {
+    fn test_generate() {
         let cases = vec![
             (
                 r#"
@@ -281,15 +308,51 @@ func main() {
 )
 "#,
             ),
+            (
+                r#"
+struct Point {
+    x: int,
+    y: int,
+}
+
+func (p: Point) sum(): int {
+    return _add(p.x, p.y);
+}
+
+func main() {
+    let p = Point { x: 10, y: 20 };
+
+    return p.sum();
+}
+"#,
+                r#"
+(module
+    (func $Point_sum
+        (return (call
+            $_add
+            (padd $0 0)
+            (padd $0 1)
+        ))
+    )
+    (func $main
+        (let $p (new 2))
+        (assign (padd $p 0) 10)
+        (assign (padd $p 1) 20)
+
+        (return (call $Point_sum $p))
+    )
+)
+"#,
+            ),
         ];
 
         for (code, ir_code) in cases {
-            let compiler = Compiler::new();
-            let module = compiler.parse_nostd(code).unwrap();
+            let mut compiler = Compiler::new();
+            let generated = compiler.compile_ir(code).unwrap();
 
             let element = parse_ir(ir_code).unwrap();
 
-            assert_eq!(generate(&module).unwrap(), element);
+            assert_eq!(generated, element);
         }
     }
 }
