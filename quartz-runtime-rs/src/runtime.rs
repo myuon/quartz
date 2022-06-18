@@ -462,6 +462,7 @@ fn runtime_run_hand_coded() -> Result<()> {
 
 #[test]
 fn runtime_run() -> Result<()> {
+    use pretty_assertions::assert_eq;
     use quartz_core::compiler::Compiler;
 
     let cases = vec![
@@ -641,7 +642,7 @@ func main() {
         {
             let mut compiler = Compiler::new();
             let code = compiler.compile_via_ir(input)?;
-            println!("IR: {:?}", compiler.ir_result);
+            println!("IR:\n{}\n\n", compiler.ir_result.unwrap().show());
 
             let mut runtime = Runtime::new(code.clone(), compiler.code_generation.globals());
             println!("{}", input);

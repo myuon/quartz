@@ -1,4 +1,4 @@
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum QVMInstruction {
     // stack manipulation
     Load(&'static str),

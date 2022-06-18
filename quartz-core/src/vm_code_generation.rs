@@ -175,9 +175,12 @@ impl VmGenerator {
         offset: usize,
     ) -> Result<Vec<QVMInstruction>> {
         let mut generator = VmFunctionGenerator::new(0, labels, offset);
-        generator.element(IrElement::instruction(
-            "call",
-            vec![IrTerm::Ident("main".to_string())],
+        generator.element(IrElement::block(
+            "return",
+            vec![IrElement::instruction(
+                "call",
+                vec![IrTerm::Ident("main".to_string())],
+            )],
         ))?;
 
         Ok(generator.code)
