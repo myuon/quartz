@@ -48,9 +48,7 @@ impl Compiler<'_> {
         Ok(buffer)
     }
 
-    pub fn parse(&self, input: &str) -> Result<Module> {
-        let input = self.load_std()? + input;
-
+    fn run_parser(&self, input: &str) -> Result<Module> {
         run_parser(&input).context("Phase: parse").map_err(|err| {
             if let Some(cerr) = err.downcast_ref::<CompileError>() {
                 match cerr {
@@ -94,6 +92,16 @@ impl Compiler<'_> {
                 err
             }
         })
+    }
+
+    pub fn parse(&self, input: &str) -> Result<Module> {
+        let input = self.load_std()? + input;
+
+        self.run_parser(&input)
+    }
+
+    pub fn parse_nostd(&self, input: &str) -> Result<Module> {
+        self.run_parser(&input)
     }
 
     pub fn typecheck(&mut self, module: &mut Module) -> Result<TypeChecker> {

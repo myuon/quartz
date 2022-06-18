@@ -14,14 +14,30 @@ pub enum IrTerm {
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct IrBlock {
-    name: String,
-    elements: Vec<IrElement>,
+    pub name: String,
+    pub elements: Vec<IrElement>,
 }
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum IrElement {
     Term(IrTerm),
     Block(IrBlock),
+}
+
+impl IrElement {
+    pub fn block(name: &str, elements: Vec<IrElement>) -> IrElement {
+        IrElement::Block(IrBlock {
+            name: name.to_string(),
+            elements,
+        })
+    }
+
+    pub fn instruction(name: &str, elements: Vec<IrTerm>) -> IrElement {
+        IrElement::Block(IrBlock {
+            name: name.to_string(),
+            elements: elements.into_iter().map(|e| IrElement::Term(e)).collect(),
+        })
+    }
 }
 
 static SPACE_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"^\s+").unwrap());
@@ -131,6 +147,7 @@ impl IrParser<'_> {
 
         Ok(match token {
             IrLexeme::Ident(ident) => IrTerm::Ident(ident.to_string()),
+            IrLexeme::Argument(arg) => IrTerm::Argument(*arg),
             IrLexeme::Keyword(ident) => {
                 if ident == "nil" {
                     IrTerm::Nil
@@ -149,7 +166,7 @@ impl IrParser<'_> {
                     bail!("Invalid number {:?}", n);
                 }
             }
-            _ => unreachable!(),
+            token => unreachable!("{:?}", token),
         })
     }
 
