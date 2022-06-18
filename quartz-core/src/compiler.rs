@@ -26,6 +26,7 @@ pub struct Compiler<'s> {
     pub code_generation: CodeGeneration,
     pub ir_code_generation: IrGenerator,
     pub vm_code_generation: VmGenerator,
+    pub ir_result: Option<IrElement>,
 }
 
 impl Compiler<'_> {
@@ -40,6 +41,7 @@ impl Compiler<'_> {
             code_generation: CodeGeneration::new(),
             ir_code_generation: IrGenerator::new(),
             vm_code_generation: VmGenerator::new(),
+            ir_result: None,
         }
     }
 
@@ -182,6 +184,7 @@ impl Compiler<'_> {
 
     pub fn compile_via_ir<'s>(&mut self, input: &'s str) -> Result<Vec<QVMInstruction>> {
         let ir = self.compile_ir(input)?;
+        self.ir_result = Some(ir.clone());
         let code = self.vm_code_generation.generate(ir)?;
 
         self.typechecker = TypeChecker::new(

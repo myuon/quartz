@@ -50,34 +50,90 @@ impl VmFunctionGenerator {
         self.local_pointer += 1;
     }
 
-    fn expr(&mut self, expr: IrElement) -> Result<()> {
-        todo!()
-    }
+    fn element(&mut self, element: IrElement) -> Result<()> {
+        match element {
+            IrElement::Term(term) => match term {
+                IrTerm::Ident(v) => {
+                    if let Some(u) = self.locals.get(&v) {
+                        self.code
+                            .push(QVMInstruction::AddrConst(*u, format!("local:{}", v)));
+                        self.code.push(QVMInstruction::Load("local"));
+                    } else {
+                        self.code.push(match v.as_str() {
+                            "_add" => QVMInstruction::Add,
+                            "_sub" => QVMInstruction::Sub,
+                            "_mult" => QVMInstruction::Mult,
+                            "_eq" => QVMInstruction::Eq,
+                            "_new" => QVMInstruction::Alloc,
+                            "_padd" => QVMInstruction::PAdd,
+                            "_gc" => QVMInstruction::RuntimeInstr("_gc".to_string()),
+                            "_len" => QVMInstruction::RuntimeInstr("_len".to_string()),
+                            _ => QVMInstruction::LabelAddrConst(v.clone()),
+                        });
+                    }
+                }
+                IrTerm::Nil => {
+                    self.code
+                        .push(QVMInstruction::AddrConst(0, "nil".to_string()));
+                }
+                IrTerm::Bool(_) => todo!(),
+                IrTerm::Int(n) => {
+                    self.code.push(QVMInstruction::I32Const(n));
+                }
+                IrTerm::Argument(u) => {
+                    self.code.push(QVMInstruction::LoadArg(u));
+                }
+                IrTerm::Keyword(_) => todo!(),
+            },
+            IrElement::Block(mut block) => {
+                match block.name.as_str() {
+                    "let" => {
+                        let (name, expr) = unvec!(block.elements, 2);
+                        let var_name = name.into_term()?.into_ident()?;
+                        self.element(expr)?;
+                        self.push_local(var_name);
+                    }
+                    "return" => {
+                        let expr = unvec!(block.elements, 1);
+                        self.element(expr)?;
+                        self.code.push(QVMInstruction::Return(self.arg_len));
+                    }
+                    "call" => {
+                        let mut callee = None;
+                        let mut first = true;
+                        for elem in block.elements {
+                            if first {
+                                first = false;
+                                callee = Some(elem);
+                                continue;
+                            }
 
-    fn statement(&mut self, element: IrElement) -> Result<()> {
-        let mut block = element.into_block()?;
+                            self.element(elem)?;
+                        }
+                        self.element(callee.unwrap())?;
+                        self.code.push(QVMInstruction::Call);
+                    }
+                    "assign" => {
+                        let (left, right) = unvec!(block.elements, 2);
+                        self.element(right)?;
 
-        match block.name.as_str() {
-            "let" => {
-                let (name, expr) = unvec!(block.elements, 2);
-                let var_name = name.into_term()?.into_ident()?;
-                self.expr(expr)?;
-                self.push_local(var_name);
+                        match left {
+                            IrElement::Term(IrTerm::Ident(v)) => {
+                                if let Some(u) = self.locals.get(&v).cloned() {
+                                    self.code.push(QVMInstruction::AddrConst(u, v.clone()));
+                                    self.code.push(QVMInstruction::Store("local"));
+                                } else {
+                                    anyhow::bail!("assign: {} not found", v);
+                                }
+                            }
+                            _ => {
+                                self.element(left)?;
+                            }
+                        }
+                    }
+                    name => todo!("{:?}", name),
+                };
             }
-            "return" => {
-                let expr = unvec!(block.elements, 1);
-                self.expr(expr)?;
-                self.code.push(QVMInstruction::Return(self.arg_len));
-            }
-            name => todo!("{:?}", name),
-        };
-
-        Ok(())
-    }
-
-    pub fn statements(&mut self, statements: Vec<IrElement>) -> Result<()> {
-        for statement in statements {
-            self.statement(statement)?;
         }
 
         Ok(())
@@ -99,14 +155,15 @@ impl VmGenerator {
         offset: usize,
     ) -> Result<Vec<QVMInstruction>> {
         let mut generator = VmFunctionGenerator::new(arg_len, labels, offset);
-        let mut name = true;
+
+        let mut skip = 2;
         for statement in body {
-            if name {
-                name = false;
+            if skip > 0 {
+                skip -= 1;
                 continue;
             }
 
-            generator.statement(statement)?;
+            generator.element(statement)?;
         }
 
         Ok(generator.code)
@@ -118,7 +175,7 @@ impl VmGenerator {
         offset: usize,
     ) -> Result<Vec<QVMInstruction>> {
         let mut generator = VmFunctionGenerator::new(0, labels, offset);
-        generator.statement(IrElement::instruction(
+        generator.element(IrElement::instruction(
             "call",
             vec![IrTerm::Ident("main".to_string())],
         ))?;

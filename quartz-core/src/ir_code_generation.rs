@@ -61,7 +61,10 @@ impl IrFunctionGenerator<'_> {
                         "let",
                         vec![
                             IrElement::Term(v.clone()),
-                            IrElement::instruction("new", vec![IrTerm::Int(n)]),
+                            IrElement::instruction(
+                                "call",
+                                vec![IrTerm::Ident("_new".to_string()), IrTerm::Int(n)],
+                            ),
                         ],
                     ));
 
@@ -72,8 +75,12 @@ impl IrFunctionGenerator<'_> {
                             "assign",
                             vec![
                                 IrElement::instruction(
-                                    "padd",
-                                    vec![v.clone(), IrTerm::Int(i as i32)],
+                                    "call",
+                                    vec![
+                                        IrTerm::Ident("_padd".to_string()),
+                                        v.clone(),
+                                        IrTerm::Int(i as i32),
+                                    ],
                                 ),
                                 velem,
                             ],
@@ -113,7 +120,10 @@ impl IrFunctionGenerator<'_> {
                     "let",
                     vec![
                         IrElement::Term(obj.clone()),
-                        IrElement::instruction("new", vec![IrTerm::Int(size as i32)]),
+                        IrElement::instruction(
+                            "call",
+                            vec![IrTerm::Ident("_new".to_string()), IrTerm::Int(size as i32)],
+                        ),
                     ],
                 ));
 
@@ -125,8 +135,12 @@ impl IrFunctionGenerator<'_> {
                         "assign",
                         vec![
                             IrElement::instruction(
-                                "padd",
-                                vec![obj.clone(), IrTerm::Int(index as i32)],
+                                "call",
+                                vec![
+                                    IrTerm::Ident("_padd".to_string()),
+                                    obj.clone(),
+                                    IrTerm::Int(index as i32),
+                                ],
                             ),
                             v,
                         ],
@@ -148,13 +162,21 @@ impl IrFunctionGenerator<'_> {
                 let index = self.structs.get_projection_offset(struct_name, label)?;
 
                 Ok(IrElement::block(
-                    "padd",
-                    vec![self.expr(proj)?, IrElement::Term(IrTerm::Int(index as i32))],
+                    "call",
+                    vec![
+                        IrElement::Term(IrTerm::Ident("_padd".to_string())),
+                        self.expr(proj)?,
+                        IrElement::Term(IrTerm::Int(index as i32)),
+                    ],
                 ))
             }
             Expr::Index(arr, i) => Ok(IrElement::block(
-                "padd",
-                vec![self.expr(arr.as_ref())?, self.expr(i.as_ref())?],
+                "call",
+                vec![
+                    IrElement::Term(IrTerm::Ident("_padd".to_string())),
+                    self.expr(arr.as_ref())?,
+                    self.expr(i.as_ref())?,
+                ],
             )),
             Expr::Deref(_) => todo!(),
             Expr::Ref(_) => todo!(),
@@ -200,7 +222,17 @@ impl IrFunctionGenerator<'_> {
                         let vi = self.expr(i)?;
                         self.ir.push(IrElement::block(
                             "assign",
-                            vec![IrElement::block("padd", vec![varr, vi]), v2],
+                            vec![
+                                IrElement::block(
+                                    "call",
+                                    vec![
+                                        IrElement::Term(IrTerm::Ident("_padd".to_string())),
+                                        varr,
+                                        vi,
+                                    ],
+                                ),
+                                v2,
+                            ],
                         ))
                     }
                     _ => todo!(),
@@ -338,18 +370,18 @@ func main() {
                 r#"
 (module
     (func $f 1
-        (let $fresh_1 (new 3))
-        (assign (padd $fresh_1 0) 1)
-        (assign (padd $fresh_1 1) 2)
-        (assign (padd $fresh_1 2) 3)
+        (let $fresh_1 (call $_new 3))
+        (assign (call $_padd $fresh_1 0) 1)
+        (assign (call $_padd $fresh_1 1) 2)
+        (assign (call $_padd $fresh_1 2) 3)
         (let $x $fresh_1)
 
-        (assign (padd $x 2) 4)
+        (assign (call $_padd $x 2) 4)
 
         (return (call $_add
             (call $_add
-                (padd $x 1)
-                (padd $x 2)
+                (call $_padd $x 1)
+                (call $_padd $x 2)
             )
             $0
         ))
@@ -382,14 +414,14 @@ func main() {
     (func $Point_sum 1
         (return (call
             $_add
-            (padd $0 0)
-            (padd $0 1)
+            (call $_padd $0 0)
+            (call $_padd $0 1)
         ))
     )
     (func $main 0
-        (let $fresh_1 (new 2))
-        (assign (padd $fresh_1 0) 10)
-        (assign (padd $fresh_1 1) 20)
+        (let $fresh_1 (call $_new 2))
+        (assign (call $_padd $fresh_1 0) 10)
+        (assign (call $_padd $fresh_1 1) 20)
 
         (let $p $fresh_1)
 
