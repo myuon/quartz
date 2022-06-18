@@ -33,7 +33,6 @@ enum IrLexeme {
     Ident(String), // $ident
     Keyword(String),
     Argument(usize),
-    String(String),
     Number(String),
     LParen,
     RParen,
@@ -59,15 +58,6 @@ fn run_lexer(input: &str) -> Vec<IrLexeme> {
             tokens.push(IrLexeme::RParen);
             position += 1;
             continue;
-        }
-
-        if &input[position..position + 1] == "\"" {
-            if let Some(m) = IDENT_PATTERN.find(&input[position..]) {
-                tokens.push(IrLexeme::String(m.as_str().to_string()));
-
-                position += m.end();
-                continue;
-            }
         }
 
         if let Some(m) = NUMBER_PATTERN.find(&input[position..]) {
