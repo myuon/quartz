@@ -3,14 +3,11 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 
 #[derive(PartialEq, Debug, Clone)]
-pub struct IrIdent(String);
-
-#[derive(PartialEq, Debug, Clone)]
 pub enum IrTerm {
     Nil,
     Bool(bool),
     Int(i32),
-    Ident(IrIdent),
+    Ident(String),
     Argument(usize),
     Keyword(String),
 }
@@ -30,9 +27,6 @@ pub enum IrElement {
 static SPACE_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"^\s+").unwrap());
 static IDENT_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[a-zA-Z_][a-zA-Z0-9_]*").unwrap());
 static NUMBER_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[0-9]+").unwrap());
-static STRING_LITERAL: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"^"((([^"]|\\")*[^\\])?)""#).unwrap());
-static COMMENT_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^//[^\n]*\n"#).unwrap());
 
 #[derive(PartialEq, Debug, Clone)]
 enum IrLexeme {
@@ -129,18 +123,6 @@ impl IrParser<'_> {
         token
     }
 
-    fn expect_ident(&mut self, ident: &str) -> Result<()> {
-        match &self.tokens[self.position] {
-            IrLexeme::Ident(i) if i == ident => {
-                self.position += 1;
-                return Ok(());
-            }
-            lexeme => {
-                bail!("Expected {:?} but got {:?}", ident, lexeme);
-            }
-        }
-    }
-
     fn expect(&mut self, lexeme: IrLexeme) -> Result<()> {
         if self.tokens[self.position] == lexeme {
             self.position += 1;
@@ -158,7 +140,7 @@ impl IrParser<'_> {
         let token = self.next();
 
         Ok(match token {
-            IrLexeme::Ident(ident) => IrTerm::Ident(IrIdent(ident.to_string())),
+            IrLexeme::Ident(ident) => IrTerm::Ident(ident.to_string()),
             IrLexeme::Keyword(ident) => {
                 if ident == "nil" {
                     IrTerm::Nil
@@ -281,26 +263,24 @@ mod tests {
                 elements: vec![IrElement::Block(IrBlock {
                     name: "func".to_string(),
                     elements: vec![
-                        IrElement::Term(IrTerm::Ident(IrIdent("main".to_string()))),
+                        IrElement::Term(IrTerm::Ident("main".to_string())),
                         IrElement::Block(IrBlock {
                             name: "let".to_string(),
                             elements: vec![
-                                IrElement::Term(IrTerm::Ident(IrIdent("x".to_string()))),
+                                IrElement::Term(IrTerm::Ident("x".to_string())),
                                 IrElement::Term(IrTerm::Int(10)),
                             ],
                         }),
                         IrElement::Block(IrBlock {
                             name: "assign".to_string(),
                             elements: vec![
-                                IrElement::Term(IrTerm::Ident(IrIdent("x".to_string()))),
+                                IrElement::Term(IrTerm::Ident("x".to_string())),
                                 IrElement::Term(IrTerm::Int(20)),
                             ],
                         }),
                         IrElement::Block(IrBlock {
                             name: "return".to_string(),
-                            elements: vec![IrElement::Term(IrTerm::Ident(IrIdent(
-                                "x".to_string(),
-                            )))],
+                            elements: vec![IrElement::Term(IrTerm::Ident("x".to_string()))],
                         }),
                     ],
                 })],
