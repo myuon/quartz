@@ -37,7 +37,10 @@ impl<'s> IrFunctionGenerator<'s> {
         match expr {
             Expr::Var(v) => {
                 if self.args.contains_key(v) {
-                    Ok(IrElement::Term(IrTerm::Argument(self.args[v])))
+                    Ok(IrElement::Term(IrTerm::Argument(
+                        // argument must be specified reverse order (index from fp)
+                        self.args.len() - 1 - self.args[v],
+                    )))
                 } else {
                     Ok(IrElement::Term(IrTerm::Ident(v.clone())))
                 }

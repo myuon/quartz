@@ -23,6 +23,7 @@ pub enum QVMInstruction {
     Div,
     Mod,
     Eq,
+    NotEq,
     Neq,
     Lt,
     Le,

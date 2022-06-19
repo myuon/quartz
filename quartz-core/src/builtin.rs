@@ -33,6 +33,10 @@ pub fn builtin() -> HashMap<String, Type> {
             Type::Fn(vec![Type::Any, Type::Any], Box::new(Type::Bool)),
         ),
         (
+            "_neq",
+            Type::Fn(vec![Type::Int, Type::Int], Box::new(Type::Bool)),
+        ),
+        (
             "_lt",
             Type::Fn(vec![Type::Int, Type::Int], Box::new(Type::Bool)),
         ),

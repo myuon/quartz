@@ -295,6 +295,18 @@ impl Runtime {
                         "bool",
                     ));
                 }
+                QVMInstruction::NotEq => {
+                    let a = self.pop();
+                    let b = self.pop();
+                    self.push(Value::Int(
+                        if b.as_int().unwrap() != a.as_int().unwrap() {
+                            1
+                        } else {
+                            0
+                        },
+                        "bool",
+                    ));
+                }
                 QVMInstruction::Neq => todo!(),
                 QVMInstruction::Lt => {
                     let a = self.pop().as_int().unwrap();
@@ -435,7 +447,8 @@ impl Runtime {
                             i += 1;
                         }
 
-                        println!("{}", String::from_utf8(bytes).unwrap());
+                        self.push(Value::nil());
+                        println!("[quartz]{}", String::from_utf8(bytes).unwrap());
                     }
                     "_len" => {
                         let value = self.pop().as_addr().unwrap();

@@ -7,7 +7,25 @@ func (s: string) len(): int {
 }
 
 func (s: string) eq(t: string): bool {
-    return _eq(s,t);
+    if s.len() != t.len() {
+        return false;
+    };
+
+    let n = 0;
+    while n < s.len() {
+        // FIXME: if (s.data[n] != t.data[n]) {
+        if _neq(s.data[n], t.data[n]) {
+            _println("s.data[n] != t.data[n]");
+            _println(s.data[n]);
+            _println(t.data[n]);
+            _panic;
+            return false;
+        };
+
+        n = n + 1;
+    };
+
+    return true;
 }
 
 func (s: string) bytes(): bytes {
@@ -37,7 +55,15 @@ func (s: string) concat(t: string): string {
 }
 
 // int cannot have any methods then we need to define as a global function... X(
-func int_string(a: int): string {
+func show_bool(b: bool): string {
+    if b {
+        return "true";
+    } else {
+        return "false";
+    };
+}
+
+func show_int(a: int): string {
     let num = a;
     let str = "";
 
@@ -49,18 +75,29 @@ func int_string(a: int): string {
     return str;
 }
 
-func assert_eq(a, b) {
-    if a == b {
+func assert(a: bool) {
+    if a {
         return nil;
     } else {
-        // _println("Assertion failed: ".concat(a).concat(" != ").concat(b));
+        _println("Assertion failed: false");
+        _panic;
+    };
+}
+
+func assert_eq(a: string, b: string) {
+    if a.eq(b) {
+        return nil;
+    } else {
+        _println("Assertion failed: ".concat(a).concat(" != ").concat(b));
         _panic;
     };
 }
 
 // tests
 func main() {
-    "K2".concat("H2O");
-    // assert_eq("hello, world".len(), 12);
+    assert("hello".eq("hello"));
+    // assert_eq(show_bool("foo".concat("bar").eq("foobar")), show_bool(true));
+    // assert_eq(show_int(0), "0");
+    // assert_eq("hello, world".len(), 10);
     // assert_eq(int_string(1000), "1000");
 }
