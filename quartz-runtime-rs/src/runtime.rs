@@ -207,7 +207,7 @@ impl Runtime {
     pub fn run(&mut self) -> Result<()> {
         while self.pc < self.code.len() {
             println!(
-                "{}\n{:?}\n{:?}\n",
+                "{}\n{:?}\n{} {:?}\n",
                 &self
                     .heap
                     .debug_objects()
@@ -216,6 +216,7 @@ impl Runtime {
                     .collect::<Vec<_>>()
                     .join("\n"),
                 &self.stack[0..self.stack_pointer].iter().collect::<Vec<_>>(),
+                self.pc,
                 &self.code[self.pc],
             );
             match self.code[self.pc] {
@@ -330,6 +331,12 @@ impl Runtime {
                             );
 
                             let v = self.stack[self.frame_pointer + i];
+                            assert!(
+                                self.frame_pointer + i < self.stack_pointer,
+                                "{} {}",
+                                self.frame_pointer + i,
+                                self.stack_pointer
+                            );
                             assert!(matches!(v.metadata(), "int" | "addr"), "{:?}", v);
                             self.push(v);
                         }
@@ -438,13 +445,21 @@ impl Runtime {
                     "_copy" => {
                         let target = self.pop().as_addr().unwrap();
                         let source = self.pop().as_addr().unwrap();
-                        let end = self.pop().as_int().unwrap();
-                        let offset = self.pop().as_int().unwrap();
+                        let len = self.pop().as_int().unwrap();
+                        let target_offset = self.pop().as_int().unwrap();
 
-                        for i in offset..offset + end {
-                            self.heap.data[target + i as usize] =
-                                self.heap.data[source + i as usize];
+                        for i in 0..len {
+                            let value = self.heap.data[source + i as usize];
+                            assert!(
+                                matches!(value.metadata(), "int" | "addr"),
+                                "{:?} @ {} + {}",
+                                value,
+                                source,
+                                i
+                            );
+                            self.heap.data[target + i as usize + target_offset as usize] = value;
                         }
+                        self.push(Value::nil());
                     }
                     "_panic" => {
                         panic!("====== PANIC CALLED ======\n{:?}", self.stack);

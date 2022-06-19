@@ -60,7 +60,7 @@ func assert_eq(a, b) {
 
 // tests
 func main() {
-    _println("K2".concat("H2O"));
-    // assert_eq("hello, world".len(), 10);
+    "K2".concat("H2O");
+    // assert_eq("hello, world".len(), 12);
     // assert_eq(int_string(1000), "1000");
 }

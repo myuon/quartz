@@ -156,7 +156,6 @@ impl<'s> IrFunctionGenerator<'s> {
                             v,
                         ],
                     ));
-                    self.expr(expr)?;
                 }
 
                 Ok(IrElement::Term(obj))
