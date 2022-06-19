@@ -71,6 +71,7 @@ pub fn builtin() -> HashMap<String, Type> {
             Type::Fn(
                 vec![
                     Type::Int,
+                    Type::Int,
                     Type::Array(Box::new(Type::Byte)),
                     Type::Array(Box::new(Type::Byte)),
                 ],

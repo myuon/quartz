@@ -30,8 +30,8 @@ func (s: string) slice_after(start: int): string {
 
 func (s: string) concat(t: string): string {
     let buffer = _new(s.len() + t.len());
-    _copy(0, s.data, buffer);
-    _copy(s.len(), t.data, buffer);
+    _copy(0, s.len(), s.data, buffer);
+    _copy(s.len(), t.len(), t.data, buffer);
 
     return string { data: buffer };
 }
@@ -60,7 +60,7 @@ func assert_eq(a, b) {
 
 // tests
 func main() {
-    _println("1".concat("2"));
+    _println("K2".concat("H2O"));
     // assert_eq("hello, world".len(), 10);
     // assert_eq(int_string(1000), "1000");
 }
