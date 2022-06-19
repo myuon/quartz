@@ -38,6 +38,10 @@ pub fn builtin() -> HashMap<String, Type> {
             "_padd",
             Type::Fn(vec![Type::Any, Type::Int], Box::new(Type::Byte)),
         ),
+        (
+            "_println",
+            Type::Fn(vec![Type::String], Box::new(Type::Unit)),
+        ),
     ]
     .into_iter()
     .map(|(k, v)| (k.to_string(), v))

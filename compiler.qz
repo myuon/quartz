@@ -1,61 +1,16 @@
-struct Token {
-  lexeme: string,
-}
-
 struct Lexer {
+  input: string,
   position: int,
-  tokens: any, // Vec<Token>
 }
 
-func (self: Lexer) expect(current_input: string, lex: string): bool {
-  if current_input.starts_with(lex) {
-    self.position = self.position.add(lex.len());
-    self.tokens.push(Token { lexeme: lex });
-
-    return true;
-  } else {
-    return false;
-  };
-}
-
-func (self: Lexer) run(input: string) {
-  self.position = 0;
-  self.tokens = _vec();
-
-  while self.position.lt(input.len()) {
-    let current_input = input.slice_after(self.position);
-    if self.expect(current_input, "let") {
-      // ok
-      _print(self);
-    } else {
-      _print("error in input!\n".concat(current_input));
-      self.position = input.len();
-      return self.tokens;
-    };
-  };
-
-  return self.tokens;
-}
-
-// -----------------------------------------------------------------------------
-
-func assert_eq(a: any, b: any) {
-  if a.eq(b).not() {
-    _print("assertion failed: ".concat(a.show()).concat(", ").concat(b.show()));
-  };
-}
-
-func test() {
-  assert_eq("foo bar".starts_with("foo"), true);
-  assert_eq("foo bar".starts_with("foo baz"), false);
-
-  assert_eq("foo bar".slice_after(1), "oo bar");
-  assert_eq("foo bar".slice_after(6), "r");
+func (l: Lexer) run() {
+  while position < l.input.len() {
+    l.position += 1
+  }
 }
 
 func main() {
-  let lexer = Lexer { position: 0, tokens: _vec() };
+  let input = "(module (func $main 0 (return 10)))";
 
-  _print(lexer.run("let a = 10;"));
-  test();
+  _println(input);
 }

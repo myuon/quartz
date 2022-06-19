@@ -405,6 +405,19 @@ impl Runtime {
                         self.run_gc()?;
                         self.push(Value::nil());
                     }
+                    "_println" => {
+                        let value = self.pop().as_named_addr("&bytes").unwrap();
+                        let addr = self.heap.data[value].as_named_addr("&bytes").unwrap();
+
+                        let mut bytes = vec![];
+                        let mut i = addr;
+                        while self.heap.data[i].as_named_int("len").is_none() {
+                            bytes.push(self.heap.data[i].as_int().unwrap() as u8);
+                            i += 1;
+                        }
+
+                        println!("{}", String::from_utf8(bytes).unwrap());
+                    }
                     _ => {
                         unreachable!();
                     }

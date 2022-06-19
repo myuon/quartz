@@ -92,6 +92,7 @@ impl<'s> VmFunctionGenerator<'s> {
                             "_gc" => QVMInstruction::RuntimeInstr("_gc".to_string()),
                             "_len" => QVMInstruction::RuntimeInstr("_len".to_string()),
                             "_deref" => QVMInstruction::Load("heap"),
+                            "_println" => QVMInstruction::RuntimeInstr("_println".to_string()),
                             _ => QVMInstruction::LabelAddrConst(v.clone()),
                         });
                     }

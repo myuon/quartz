@@ -13,7 +13,7 @@ fn main() -> Result<()> {
     stdin.read_to_string(&mut buffer).unwrap();
 
     let mut compiler = Compiler::new();
-    let code = compiler.compile(&buffer)?;
+    let code = compiler.compile_via_ir(&buffer)?;
     println!(
         "{:?}",
         Runtime::new(code.clone(), compiler.code_generation.globals())
