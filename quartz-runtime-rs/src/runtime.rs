@@ -439,16 +439,15 @@ impl Runtime {
                     "_println" => {
                         let value = self.pop().as_addr().unwrap();
                         let addr = self.heap.data[value].as_addr().unwrap();
+                        let header = self.heap.parse_from_data_pointer(addr)?;
 
                         let mut bytes = vec![];
-                        let mut i = addr;
-                        while self.heap.data[i].as_named_int("len").is_none() {
-                            bytes.push(self.heap.data[i].as_int().unwrap() as u8);
-                            i += 1;
+                        for i in 0..header.len() {
+                            bytes.push(self.heap.data[addr + i].as_int().unwrap() as u8);
                         }
 
                         self.push(Value::nil());
-                        println!("[quartz]{}", String::from_utf8(bytes).unwrap());
+                        println!("[quartz] {}", String::from_utf8(bytes).unwrap());
                     }
                     "_len" => {
                         let value = self.pop().as_addr().unwrap();

@@ -15,10 +15,6 @@ func (s: string) eq(t: string): bool {
     while n < s.len() {
         // FIXME: if (s.data[n] != t.data[n]) {
         if _neq(s.data[n], t.data[n]) {
-            _println("s.data[n] != t.data[n]");
-            _println(s.data[n]);
-            _println(t.data[n]);
-            _panic;
             return false;
         };
 
@@ -84,18 +80,18 @@ func assert(a: bool) {
     };
 }
 
-func assert_eq(a: string, b: string) {
-    if a.eq(b) {
-        return nil;
-    } else {
-        _println("Assertion failed: ".concat(a).concat(" != ").concat(b));
-        _panic;
-    };
-}
+// func assert_eq(a: string, b: string) {
+//     if a.eq(b) {
+//         return nil;
+//     } else {
+//         _println("Assertion failed: ".concat(a).concat(" != ").concat(b));
+//         _panic;
+//     };
+// }
 
 // tests
 func main() {
-    assert("hello".eq("hello"));
+    "T".eq("T");
     // assert_eq(show_bool("foo".concat("bar").eq("foobar")), show_bool(true));
     // assert_eq(show_int(0), "0");
     // assert_eq("hello, world".len(), 10);
