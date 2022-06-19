@@ -37,6 +37,7 @@ pub enum QVMInstruction {
     RuntimeInstr(String),
     // constants
     I32Const(i32),
+    BoolConst(bool), // I32Const can be used instead
     AddrConst(usize, String),
     //
     // Only used during generation phase

@@ -79,7 +79,6 @@ impl Value {
         Value::Addr(0, AddrPlace::Unknown, "nil")
     }
 
-    #[allow(dead_code)]
     pub fn bool(b: bool) -> Value {
         Value::Int(if b { 1 } else { 0 }, "bool")
     }
@@ -396,7 +395,12 @@ impl Runtime {
                 }
                 QVMInstruction::LoadArg(r) => {
                     let arg = self.stack[self.frame_pointer - 3 - r];
-                    assert_matches!(arg.metadata(), "int" | "addr", "{}", arg.metadata());
+                    assert_matches!(
+                        arg.metadata(),
+                        "int" | "addr" | "bool",
+                        "{}",
+                        arg.metadata()
+                    );
                     self.push(arg);
                 }
                 QVMInstruction::JumpIf(k) => {
@@ -480,6 +484,9 @@ impl Runtime {
                         unreachable!();
                     }
                 },
+                QVMInstruction::BoolConst(b) => {
+                    self.push(Value::bool(b));
+                }
                 QVMInstruction::LabelAddrConst(_) => unreachable!(),
                 QVMInstruction::LabelJumpIfFalse(_) => unreachable!(),
                 QVMInstruction::LabelJumpIf(_) => unreachable!(),

@@ -110,8 +110,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         .push(QVMInstruction::AddrConst(0, "nil".to_string()));
                 }
                 IrTerm::Bool(b) => {
-                    self.code
-                        .push(QVMInstruction::I32Const(if b { 1 } else { 0 }));
+                    self.code.push(QVMInstruction::BoolConst(b));
                 }
                 IrTerm::Int(n) => {
                     self.code.push(QVMInstruction::I32Const(n));

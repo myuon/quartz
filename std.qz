@@ -91,7 +91,7 @@ func assert(a: bool) {
 
 // tests
 func main() {
-    "T".eq("T");
+    assert("foo".eq("foo"));
     // assert_eq(show_bool("foo".concat("bar").eq("foobar")), show_bool(true));
     // assert_eq(show_int(0), "0");
     // assert_eq("hello, world".len(), 10);
