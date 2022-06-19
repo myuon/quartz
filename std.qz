@@ -53,6 +53,19 @@ func (s: string) concat(t: string): string {
     return string { data: buffer };
 }
 
+func (s: string) reverse(): string {
+    let buffer = _new(s.len());
+    let n = 0;
+    while n < s.len() {
+        // FIXME: multiple operators
+        // s.len() - n - 1
+        buffer[n] = s.data[_sub(s.len(), n + 1)];
+        n = n + 1;
+    };
+
+    return string { data: buffer };
+}
+
 // int cannot have any methods then we need to define as a global function... X(
 func show_bool(b: bool): string {
     if b {
@@ -98,6 +111,7 @@ func main() {
     assert("foo".eq("foo"));
     assert("foo".concat("bar").eq("foobar"));
     assert_eq("hello".slice(1,5), "ello");
+    assert_eq("hello".reverse(), "olleh");
     assert_eq(show_int(12345), "12345");
     // assert_eq("hello, world".len(), 10);
     // assert_eq(int_string(1000), "1000");
