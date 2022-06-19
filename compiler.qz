@@ -4,13 +4,19 @@ struct Lexer {
 }
 
 func (l: Lexer) run() {
-  while position < l.input.len() {
-    l.position += 1
-  }
+  while l.position < l.input.len() {
+    l.position = l.position + 1;
+    _println(_stringify(l.position));
+  };
 }
 
 func main() {
   let input = "(module (func $main 0 (return 10)))";
+  let lexer = Lexer {
+    input: input, 
+    position: 0,
+  };
+  lexer.run();
 
   _println(input);
 }

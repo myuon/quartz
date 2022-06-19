@@ -89,10 +89,12 @@ impl<'s> VmFunctionGenerator<'s> {
                             "_eq" => QVMInstruction::Eq,
                             "_new" => QVMInstruction::Alloc,
                             "_padd" => QVMInstruction::PAdd,
+                            "_lt" => QVMInstruction::Lt,
                             "_gc" => QVMInstruction::RuntimeInstr("_gc".to_string()),
                             "_len" => QVMInstruction::RuntimeInstr("_len".to_string()),
                             "_deref" => QVMInstruction::Load("heap"),
                             "_println" => QVMInstruction::RuntimeInstr("_println".to_string()),
+                            "_stringify" => QVMInstruction::RuntimeInstr("_stringify".to_string()),
                             _ => QVMInstruction::LabelAddrConst(v.clone()),
                         });
                     }
@@ -185,9 +187,19 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.register_label(label_end.clone());
                     }
                     "seq" => {
-                        let body = unvec!(block.elements, 1);
+                        for elem in block.elements {
+                            self.element(elem)?;
+                        }
+                    }
+                    "while" => {
+                        let (cond, body) = unvec!(block.elements, 2);
 
+                        let label = format!("while-{}", self.globals.len());
+
+                        self.register_label(label.clone());
                         self.element(body)?;
+                        self.element(cond)?;
+                        self.code.push(QVMInstruction::LabelJumpIf(label.clone()));
                     }
                     name => todo!("{:?}", name),
                 };
@@ -338,6 +350,13 @@ impl VmGenerator {
             } else if let QVMInstruction::LabelJumpIfFalse(label) = &code[i] {
                 if let Some(pc) = labels.get(label) {
                     code[i] = QVMInstruction::JumpIfFalse(*pc);
+                } else {
+                    println!("{:?}", code);
+                    anyhow::bail!("label {} not found", label);
+                }
+            } else if let QVMInstruction::LabelJumpIf(label) = &code[i] {
+                if let Some(pc) = labels.get(label) {
+                    code[i] = QVMInstruction::JumpIf(*pc);
                 } else {
                     println!("{:?}", code);
                     anyhow::bail!("label {} not found", label);

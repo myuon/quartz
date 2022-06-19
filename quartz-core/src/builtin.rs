@@ -42,6 +42,14 @@ pub fn builtin() -> HashMap<String, Type> {
             "_println",
             Type::Fn(vec![Type::String], Box::new(Type::Unit)),
         ),
+        (
+            "_stringify",
+            Type::Fn(vec![Type::Any], Box::new(Type::String)),
+        ),
+        (
+            "_or",
+            Type::Fn(vec![Type::Bool, Type::Bool], Box::new(Type::Bool)),
+        ),
     ]
     .into_iter()
     .map(|(k, v)| (k.to_string(), v))

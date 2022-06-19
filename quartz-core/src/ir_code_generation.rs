@@ -304,7 +304,19 @@ impl<'s> IrFunctionGenerator<'s> {
                 }
             }
             Statement::Loop(_) => todo!(),
-            Statement::While(_, _) => todo!(),
+            Statement::While(cond, body) => {
+                let vcond = self.expr(cond)?;
+                let gen = {
+                    let mut generator = IrFunctionGenerator::new(self.args, &self.structs);
+                    generator.statements(&body)?;
+                    generator.ir
+                };
+
+                self.ir.push(IrElement::block(
+                    "while",
+                    vec![vcond, IrElement::block("seq", gen)],
+                ));
+            }
         }
 
         Ok(())

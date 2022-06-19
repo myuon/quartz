@@ -16,6 +16,10 @@ impl LinkObjectHeader {
         4
     }
 
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
     pub fn is_collectable(&self) -> bool {
         self.len > 0
     }

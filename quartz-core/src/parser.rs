@@ -269,7 +269,6 @@ impl Parser {
             Ok(expr)
         } else {
             let mut result = self.short_callee_expr()?;
-
             loop {
                 if self.expect_lexeme(Lexeme::Dot).is_ok() {
                     // projection
@@ -283,6 +282,19 @@ impl Parser {
                     result = Expr::Call(Box::new(result), args);
                 } else {
                     break;
+                }
+            }
+
+            // handling operators here
+            let operators = vec![
+                (Lexeme::Plus, "_add"),
+                (Lexeme::Lt, "_lt"),
+                (Lexeme::Gt, "_gt"),
+            ];
+            for (lexeme, op) in operators {
+                if self.expect_lexeme(lexeme).is_ok() {
+                    let right = self.short_expr()?;
+                    result = Expr::Call(Box::new(Expr::Var(op.to_string())), vec![result, right]);
                 }
             }
 

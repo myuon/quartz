@@ -28,6 +28,11 @@ pub enum Lexeme {
     Equal,
     And,
     Star,
+    Lt,
+    LEq,
+    Gt,
+    GEq,
+    Plus,
     Ident(String),
     Int(i32),
     String(String),
@@ -131,6 +136,11 @@ impl TokenReader {
                     ("=", Lexeme::Equal),
                     ("&", Lexeme::And),
                     ("*", Lexeme::Star),
+                    ("<", Lexeme::Lt),
+                    ("<=", Lexeme::LEq),
+                    (">", Lexeme::Gt),
+                    (">=", Lexeme::GEq),
+                    ("+", Lexeme::Plus),
                 ],
             ) {
                 continue;

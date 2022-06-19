@@ -2,6 +2,18 @@ func (a: int) eq(b: int): bool {
     return _eq(a,b);
 }
 
+func (a: int) string(): string {
+    let num = a;
+    let str = "";
+
+    while num > 0 {
+        str = str + "0";
+        num = _div(num, 10);
+    };
+
+    return str;
+}
+
 struct string {
     data: bytes,
 }

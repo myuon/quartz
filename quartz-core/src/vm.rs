@@ -11,6 +11,7 @@ pub enum QVMInstruction {
     LoadArg(usize),
     // control
     Jump(usize),
+    JumpIf(usize),
     JumpIfFalse(usize),
     // functions
     Call,
@@ -39,4 +40,5 @@ pub enum QVMInstruction {
     // Only used during generation phase
     LabelAddrConst(String),
     LabelJumpIfFalse(String),
+    LabelJumpIf(String),
 }

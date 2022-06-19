@@ -291,7 +291,11 @@ impl Runtime {
                     ));
                 }
                 QVMInstruction::Neq => todo!(),
-                QVMInstruction::Lt => todo!(),
+                QVMInstruction::Lt => {
+                    let a = self.pop().as_int().unwrap();
+                    let b = self.pop().as_int().unwrap();
+                    self.push(Value::Int(if b < a { 1 } else { 0 }, "bool"));
+                }
                 QVMInstruction::Le => todo!(),
                 QVMInstruction::And => todo!(),
                 QVMInstruction::Or => todo!(),
@@ -372,6 +376,13 @@ impl Runtime {
                     );
                     self.push(arg);
                 }
+                QVMInstruction::JumpIf(k) => {
+                    let v = self.pop();
+                    if v.as_bool().unwrap() == true {
+                        self.pc = k;
+                        continue;
+                    }
+                }
                 QVMInstruction::JumpIfFalse(k) => {
                     let v = self.pop();
                     if v.as_bool().unwrap() == false {
@@ -387,8 +398,6 @@ impl Runtime {
                 QVMInstruction::Free(addr) => {
                     self.heap.free(self.heap.parse(addr)?)?;
                 }
-                QVMInstruction::LabelAddrConst(_) => unreachable!(),
-                QVMInstruction::LabelJumpIfFalse(_) => unreachable!(),
                 QVMInstruction::PAdd => {
                     let a = self.pop();
                     let b = match self.pop() {
@@ -406,22 +415,36 @@ impl Runtime {
                         self.push(Value::nil());
                     }
                     "_println" => {
-                        let value = self.pop().as_named_addr("&bytes").unwrap();
-                        let addr = self.heap.data[value].as_named_addr("&bytes").unwrap();
+                        let value = self.pop();
 
-                        let mut bytes = vec![];
-                        let mut i = addr;
-                        while self.heap.data[i].as_named_int("len").is_none() {
-                            bytes.push(self.heap.data[i].as_int().unwrap() as u8);
-                            i += 1;
+                        match value {
+                            Value::Addr(value, _, name) if name == "&bytes" => {
+                                let addr = self.heap.data[value].as_named_addr("&bytes").unwrap();
+
+                                let mut bytes = vec![];
+                                let mut i = addr;
+                                while self.heap.data[i].as_named_int("len").is_none() {
+                                    bytes.push(self.heap.data[i].as_int().unwrap() as u8);
+                                    i += 1;
+                                }
+
+                                println!("{}", String::from_utf8(bytes).unwrap());
+                            }
+                            _ => unreachable!(),
                         }
-
-                        println!("{}", String::from_utf8(bytes).unwrap());
+                    }
+                    "_len" => {
+                        let value = self.pop().as_named_addr("&bytes").unwrap();
+                        let header = self.heap.parse_from_data_pointer(value).unwrap();
+                        self.push(Value::int(header.len() as i32));
                     }
                     _ => {
                         unreachable!();
                     }
                 },
+                QVMInstruction::LabelAddrConst(_) => unreachable!(),
+                QVMInstruction::LabelJumpIfFalse(_) => unreachable!(),
+                QVMInstruction::LabelJumpIf(_) => unreachable!(),
             }
 
             self.pc += 1;

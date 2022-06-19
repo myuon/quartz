@@ -203,6 +203,7 @@ impl Type {
             Type::Int => 1,
             Type::Byte => 1,
             Type::Array(_) => 1,
+            Type::String => 1,
             _ => todo!("{:?}", self),
         }
     }
@@ -271,24 +272,24 @@ impl Structs {
     }
 
     pub fn get_projection_type(&self, val: &str, label: &str) -> Result<Type> {
-        let struct_fields = self
-            .0
-            .get(val)
-            .ok_or(anyhow::anyhow!("project: {} not found", val))?;
+        let struct_fields =
+            self.0
+                .get(val)
+                .ok_or(anyhow::anyhow!("project: {} not found in {}", label, val))?;
 
         let (_, t) = struct_fields
             .iter()
             .find(|(name, _)| name == label)
-            .ok_or(anyhow::anyhow!("project: {} not found", label))?;
+            .ok_or(anyhow::anyhow!("project: {} not found in {}", label, val))?;
 
         Ok(t.clone())
     }
 
     pub fn get_projection_offset(&self, val: &str, label: &str) -> Result<usize> {
-        let struct_fields = self
-            .0
-            .get(val)
-            .ok_or(anyhow::anyhow!("project: {} not found", val))?;
+        let struct_fields =
+            self.0
+                .get(val)
+                .ok_or(anyhow::anyhow!("project: {} not found in {}", label, val))?;
         let field_index = struct_fields
             .iter()
             .position(|(l, _)| l == label)
