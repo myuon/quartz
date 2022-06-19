@@ -205,10 +205,16 @@ impl<'s> VmFunctionGenerator<'s> {
                         let (cond, body) = unvec!(block.elements, 2);
 
                         let label = format!("while-{}-{}", self.globals.len(), self.labels.len());
+                        let p = self.local_pointer;
 
                         self.register_label(label.clone());
                         self.element(body)?;
+
+                        // Before finishing this loop, need to pop local variables
+                        self.code.push(QVMInstruction::Pop(self.local_pointer - p));
+
                         self.element(cond)?;
+
                         self.code.push(QVMInstruction::LabelJumpIf(label.clone()));
                     }
                     name => todo!("{:?}", name),

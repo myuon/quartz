@@ -78,14 +78,16 @@ func show_bool(b: bool): string {
 func show_int(a: int): string {
     let num = a;
     let str = "";
+    let digits = "0123456789";
 
     while num > 0 {
         let r = _mod(num, 10);
-        str = str.concat("0123456789".slice(r, r+1));
+        str = str.concat(digits.slice(r, r+1));
         num = _div(num, 10);
+        _println(str);
     };
 
-    return str;
+    return str.reverse();
 }
 
 func assert(a: bool) {
