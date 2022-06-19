@@ -443,7 +443,7 @@ impl Runtime {
                         }
                     }
                     "_len" => {
-                        let value = self.pop().as_named_addr("&bytes").unwrap();
+                        let value = self.pop().as_addr().unwrap();
                         let header = self.heap.parse_from_data_pointer(value).unwrap();
                         self.push(Value::int(header.len() as i32));
                     }
@@ -457,6 +457,9 @@ impl Runtime {
                             self.heap.data[target + offset as usize + i] =
                                 self.heap.data[source + i];
                         }
+                    }
+                    "_panic" => {
+                        panic!("====== PANIC CALLED ======\n{:?}", self.stack);
                     }
                     _ => {
                         unreachable!();

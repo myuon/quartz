@@ -30,12 +30,16 @@ impl Parser {
         &self.input[self.position]
     }
 
+    fn parse_error(&self, expected: &str, got: &str) -> anyhow::Error {
+        anyhow::anyhow!(CompileError::ParseError {
+            position: self.position,
+            source: anyhow::anyhow!("Expected {} but {}", expected, got),
+        })
+    }
+
     fn expect_lexeme(&mut self, lexeme: Lexeme) -> Result<Token> {
         if self.is_end() {
-            bail!(CompileError::ParseError {
-                position: self.position,
-                source: anyhow::anyhow!("Expected {:?} but EOS", lexeme),
-            });
+            return Err(self.parse_error(&format!("{:?}", lexeme), "EOS"));
         }
 
         let current = self.input[self.position].clone();
@@ -128,10 +132,11 @@ impl Parser {
 
                 Ok(Literal::Array(values))
             }
-            _ => bail!(
-                "Expected a literal but found {:?}",
-                &self.input[self.position..]
-            ),
+            _ => {
+                return Err(
+                    self.parse_error("any literal", &format!("{:?}", &self.input[self.position]))
+                );
+            }
         }
     }
 

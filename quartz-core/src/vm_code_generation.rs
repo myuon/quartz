@@ -94,6 +94,7 @@ impl<'s> VmFunctionGenerator<'s> {
                             "_div" => QVMInstruction::Div,
                             "_mod" => QVMInstruction::Mod,
                             "_gc" => QVMInstruction::RuntimeInstr("_gc".to_string()),
+                            "_panic" => QVMInstruction::RuntimeInstr("_panic".to_string()),
                             "_len" => QVMInstruction::RuntimeInstr("_len".to_string()),
                             "_deref" => QVMInstruction::Load("heap"),
                             "_println" => QVMInstruction::RuntimeInstr("_println".to_string()),

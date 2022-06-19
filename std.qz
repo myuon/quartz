@@ -51,11 +51,11 @@ func int_string(a: int): string {
 
 func assert_eq(a, b) {
     if a == b {
-        return;
+        return nil;
     } else {
         _println("Assertion failed: ".concat(a).concat(" != ").concat(b));
-        _panic();
-    }
+        _panic;
+    };
 }
 
 // tests
