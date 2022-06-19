@@ -76,7 +76,7 @@ pub fn builtin() -> HashMap<String, Type> {
                 vec![
                     Type::Int,
                     Type::Int,
-                    Type::Array(Box::new(Type::Byte)),
+                    Type::Any, // bytes or pointer (_padd(bytes, int) can be applied here)
                     Type::Array(Box::new(Type::Byte)),
                 ],
                 Box::new(Type::Unit),

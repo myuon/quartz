@@ -281,7 +281,11 @@ impl Runtime {
                     let b = self.pop().as_int().unwrap();
                     self.push(Value::int(b / a));
                 }
-                QVMInstruction::Mod => todo!(),
+                QVMInstruction::Mod => {
+                    let a = self.pop().as_int().unwrap();
+                    let b = self.pop().as_int().unwrap();
+                    self.push(Value::int(b % a));
+                }
                 QVMInstruction::Eq => {
                     let a = self.pop();
                     let b = self.pop();

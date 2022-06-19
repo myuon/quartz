@@ -89,6 +89,10 @@ impl Freelist {
     }
 
     pub fn parse_from_data_pointer(&self, index: usize) -> Result<LinkObjectHeader> {
+        if index == 0 {
+            return self.root();
+        }
+
         match self.data[index - 1] {
             Value::Addr(_, AddrPlace::InfoTable, _) => {}
             _ => anyhow::bail!(

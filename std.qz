@@ -29,8 +29,11 @@ func (s: string) bytes(): bytes {
 }
 
 func (s: string) slice(start: int, end: int): string {
+    let buffer = _new(end - start);
+    _copy(0, end - start, _padd(s.data, start), buffer);
+
     return string {
-        data: s.data[start],
+        data: buffer,
     };
 }
 
@@ -64,7 +67,8 @@ func show_int(a: int): string {
     let str = "";
 
     while num > 0 {
-        str = str.concat("0");
+        let r = _mod(num, 10);
+        str = str.concat("0123456789".slice(r, r+1));
         num = _div(num, 10);
     };
 
@@ -80,20 +84,21 @@ func assert(a: bool) {
     };
 }
 
-// func assert_eq(a: string, b: string) {
-//     if a.eq(b) {
-//         return nil;
-//     } else {
-//         _println("Assertion failed: ".concat(a).concat(" != ").concat(b));
-//         _panic;
-//     };
-// }
+func assert_eq(a: string, b: string) {
+    if a.eq(b) {
+        return nil;
+    } else {
+        _println("Assertion failed: ".concat(a).concat(" != ").concat(b));
+        _panic;
+    };
+}
 
 // tests
 func main() {
     assert("foo".eq("foo"));
-    // assert_eq(show_bool("foo".concat("bar").eq("foobar")), show_bool(true));
-    // assert_eq(show_int(0), "0");
+    assert("foo".concat("bar").eq("foobar"));
+    assert_eq("hello".slice(1,5), "ello");
+    assert_eq(show_int(12345), "12345");
     // assert_eq("hello, world".len(), 10);
     // assert_eq(int_string(1000), "1000");
 }

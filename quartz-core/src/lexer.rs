@@ -35,6 +35,7 @@ pub enum Lexeme {
     Gt,
     GEq,
     Plus,
+    Minus,
     Ident(String),
     Int(i32),
     String(String),
@@ -144,6 +145,7 @@ impl TokenReader {
                     ("<=", Lexeme::LEq),
                     (">", Lexeme::Gt),
                     (">=", Lexeme::GEq),
+                    ("-", Lexeme::Minus),
                     ("+", Lexeme::Plus),
                 ],
             ) {
