@@ -330,7 +330,7 @@ impl Runtime {
                             );
 
                             let v = self.stack[self.frame_pointer + i];
-                            assert!(matches!(v.metadata(), "int" | "addr" | "&bytes"), "{:?}", v);
+                            assert!(matches!(v.metadata(), "int" | "addr"), "{:?}", v);
                             self.push(v);
                         }
                         "local_rev" => {
@@ -377,12 +377,7 @@ impl Runtime {
                 }
                 QVMInstruction::LoadArg(r) => {
                     let arg = self.stack[self.frame_pointer - 3 - r];
-                    assert_matches!(
-                        arg.metadata(),
-                        "int" | "addr" | "&bytes",
-                        "{}",
-                        arg.metadata()
-                    );
+                    assert_matches!(arg.metadata(), "int" | "addr", "{}", arg.metadata());
                     self.push(arg);
                 }
                 QVMInstruction::JumpIf(k) => {
@@ -402,7 +397,7 @@ impl Runtime {
                 QVMInstruction::Alloc => {
                     let size = self.pop();
                     let addr = self.heap.alloc(size.as_int().unwrap() as usize)?;
-                    self.push(Value::Addr(addr, AddrPlace::Heap, "&bytes"));
+                    self.push(Value::addr(addr));
                 }
                 QVMInstruction::Free(addr) => {
                     self.heap.free(self.heap.parse(addr)?)?;
@@ -410,7 +405,6 @@ impl Runtime {
                 QVMInstruction::PAdd => {
                     let a = self.pop();
                     let b = match self.pop() {
-                        Value::Addr(b, AddrPlace::Heap, "&bytes") => b,
                         Value::Addr(b, AddrPlace::Heap, "addr") => b,
                         _ => {
                             unreachable!();
@@ -424,23 +418,17 @@ impl Runtime {
                         self.push(Value::nil());
                     }
                     "_println" => {
-                        let value = self.pop();
+                        let value = self.pop().as_addr().unwrap();
+                        let addr = self.heap.data[value].as_addr().unwrap();
 
-                        match value {
-                            Value::Addr(value, _, name) if name == "&bytes" => {
-                                let addr = self.heap.data[value].as_named_addr("&bytes").unwrap();
-
-                                let mut bytes = vec![];
-                                let mut i = addr;
-                                while self.heap.data[i].as_named_int("len").is_none() {
-                                    bytes.push(self.heap.data[i].as_int().unwrap() as u8);
-                                    i += 1;
-                                }
-
-                                println!("{}", String::from_utf8(bytes).unwrap());
-                            }
-                            _ => unreachable!(),
+                        let mut bytes = vec![];
+                        let mut i = addr;
+                        while self.heap.data[i].as_named_int("len").is_none() {
+                            bytes.push(self.heap.data[i].as_int().unwrap() as u8);
+                            i += 1;
                         }
+
+                        println!("{}", String::from_utf8(bytes).unwrap());
                     }
                     "_len" => {
                         let value = self.pop().as_addr().unwrap();
@@ -449,9 +437,9 @@ impl Runtime {
                     }
                     "_copy" => {
                         let offset = self.pop().as_int().unwrap();
-                        let target = self.pop().as_named_addr("&bytes").unwrap();
+                        let target = self.pop().as_addr().unwrap();
                         let source_header = self.heap.parse_from_data_pointer(target)?;
-                        let source = self.pop().as_named_addr("&bytes").unwrap();
+                        let source = self.pop().as_addr().unwrap();
 
                         for i in 0..source_header.len() {
                             self.heap.data[target + offset as usize + i] =
@@ -741,7 +729,7 @@ func main() {
             println!("{:04} {:?}", n, inst);
         }
         runtime.run()?;
-        let bytes = runtime.pop().as_named_addr("&bytes").unwrap();
+        let bytes = runtime.pop().as_addr().unwrap();
         assert_eq!(
             String::from_utf8(
                 runtime.heap.data[bytes..bytes + 3]

@@ -53,12 +53,13 @@ func assert_eq(a, b) {
     if a == b {
         return nil;
     } else {
-        _println("Assertion failed: ".concat(a).concat(" != ").concat(b));
+       //  _println("Assertion failed: ".concat(a).concat(" != ").concat(b));
         _panic;
     };
 }
 
 // tests
 func main() {
-    assert_eq(int_string(1000), "1000");
+    assert_eq("hello, world".len(), 1000);
+    // assert_eq(int_string(1000), "1000");
 }
