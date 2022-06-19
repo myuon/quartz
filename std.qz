@@ -84,7 +84,6 @@ func show_int(a: int): string {
         let r = _mod(num, 10);
         str = str.concat(digits.slice(r, r+1));
         num = _div(num, 10);
-        _println(str);
     };
 
     return str.reverse();
