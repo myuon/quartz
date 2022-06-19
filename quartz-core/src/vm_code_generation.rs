@@ -174,6 +174,7 @@ impl<'s> VmFunctionGenerator<'s> {
                             }
                         }
                     }
+                    // FIXME: pop local variables for then, else blocks
                     "if" => {
                         let (cond, left, right) = unvec!(block.elements, 3);
 

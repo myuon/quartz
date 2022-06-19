@@ -115,6 +115,5 @@ func main() {
     assert_eq("hello".slice(1,5), "ello");
     assert_eq("hello".reverse(), "olleh");
     assert_eq(show_int(12345), "12345");
-    // assert_eq("hello, world".len(), 10);
-    // assert_eq(int_string(1000), "1000");
+    assert_eq(show_int("hello, world".len()), show_int(12));
 }
