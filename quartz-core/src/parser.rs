@@ -63,7 +63,7 @@ impl Parser {
             match ident.as_str() {
                 "int" => Ok(Type::Int),
                 "bool" => Ok(Type::Bool),
-                "string" => Ok(Type::String),
+                "string" => Ok(Type::Struct("string".to_string())),
                 "any" => Ok(Type::Any),
                 "bytes" => Ok(Type::Array(Box::new(Type::Byte))),
                 "byte" => Ok(Type::Byte),
@@ -288,8 +288,9 @@ impl Parser {
             // handling operators here
             let operators = vec![
                 (Lexeme::Plus, "_add"),
-                (Lexeme::Lt, "_lt"),
                 (Lexeme::Gt, "_gt"),
+                (Lexeme::Lt, "_lt"),
+                (Lexeme::DoubleEqual, "_eq"),
             ];
             for (lexeme, op) in operators {
                 if self.expect_lexeme(lexeme).is_ok() {

@@ -276,7 +276,11 @@ impl Runtime {
                     let b = self.pop().as_int().unwrap();
                     self.push(Value::int(b * a));
                 }
-                QVMInstruction::Div => todo!(),
+                QVMInstruction::Div => {
+                    let a = self.pop().as_int().unwrap();
+                    let b = self.pop().as_int().unwrap();
+                    self.push(Value::int(b / a));
+                }
                 QVMInstruction::Mod => todo!(),
                 QVMInstruction::Eq => {
                     let a = self.pop();
@@ -295,6 +299,11 @@ impl Runtime {
                     let a = self.pop().as_int().unwrap();
                     let b = self.pop().as_int().unwrap();
                     self.push(Value::Int(if b < a { 1 } else { 0 }, "bool"));
+                }
+                QVMInstruction::Gt => {
+                    let a = self.pop().as_int().unwrap();
+                    let b = self.pop().as_int().unwrap();
+                    self.push(Value::Int(if b > a { 1 } else { 0 }, "bool"));
                 }
                 QVMInstruction::Le => todo!(),
                 QVMInstruction::And => todo!(),
@@ -437,6 +446,17 @@ impl Runtime {
                         let value = self.pop().as_named_addr("&bytes").unwrap();
                         let header = self.heap.parse_from_data_pointer(value).unwrap();
                         self.push(Value::int(header.len() as i32));
+                    }
+                    "_copy" => {
+                        let offset = self.pop().as_int().unwrap();
+                        let target = self.pop().as_named_addr("&bytes").unwrap();
+                        let source_header = self.heap.parse_from_data_pointer(target)?;
+                        let source = self.pop().as_named_addr("&bytes").unwrap();
+
+                        for i in 0..source_header.len() {
+                            self.heap.data[target + offset as usize + i] =
+                                self.heap.data[source + i];
+                        }
                     }
                     _ => {
                         unreachable!();

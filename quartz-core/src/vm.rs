@@ -26,6 +26,7 @@ pub enum QVMInstruction {
     Neq,
     Lt,
     Le,
+    Gt,
     And,
     Or,
     Not,

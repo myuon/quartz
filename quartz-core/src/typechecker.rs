@@ -95,7 +95,6 @@ impl Constraints {
             Type::Unit => {}
             Type::Bool => {}
             Type::Int => {}
-            Type::String => {}
             Type::Fn(args, ret) => {
                 for arg in args {
                     self.apply(arg);
@@ -194,7 +193,7 @@ impl<'s> TypeChecker<'s> {
             Expr::Lit(lit) => match lit {
                 Literal::Bool(_) => Ok(Type::Bool),
                 Literal::Int(_) => Ok(Type::Int),
-                Literal::String(_) => Ok(Type::String),
+                Literal::String(_) => Ok(Type::Struct("string".to_string())),
                 Literal::Nil => Ok(Type::Any),
                 Literal::Array(arr) => {
                     for e in arr {
@@ -281,7 +280,6 @@ impl<'s> TypeChecker<'s> {
                 let typ_name = match typ.clone() {
                     Type::Struct(s) => s.clone(),
                     Type::Int => "int".to_string(),
-                    Type::String => "string".to_string(),
                     Type::Any => "any".to_string(),
                     Type::Bool => "bool".to_string(),
                     _ => bail!("Cannot project of: {:?}", typ),
@@ -524,8 +522,8 @@ mod tests {
                     let y = "foo";
                     return y;
                 "#,
-                vec![("x", Type::Int), ("y", Type::String)],
-                Type::String,
+                vec![("x", Type::Int), ("y", Type::Struct("string".to_string()))],
+                Type::Struct("string".to_string()),
             ),
             (
                 r#"
@@ -633,7 +631,10 @@ func main() {
                 "#,
                 vec![(
                     "f",
-                    Type::Fn(vec![Type::Int, Type::String], Box::new(Type::Bool)),
+                    Type::Fn(
+                        vec![Type::Int, Type::Struct("string".to_string())],
+                        Box::new(Type::Bool),
+                    ),
                 )],
             ),
             (

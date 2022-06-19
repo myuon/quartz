@@ -122,7 +122,6 @@ pub enum Type {
     Unit,
     Bool,
     Int,
-    String,
     Byte,
     Fn(Vec<Type>, Box<Type>),
     Struct(String),
@@ -159,7 +158,6 @@ impl Type {
             Type::Unit => false,
             Type::Bool => false,
             Type::Int => false,
-            Type::String => false,
             Type::Fn(args, ret) => {
                 args.iter().find(move |t| t.has_infer(index)).is_some() || ret.has_infer(index)
             }
@@ -181,7 +179,6 @@ impl Type {
             Type::Unit => {}
             Type::Bool => {}
             Type::Int => {}
-            Type::String => {}
             Type::Fn(args, ret) => {
                 for arg in args {
                     arg.subst(index, typ);
@@ -203,7 +200,7 @@ impl Type {
             Type::Int => 1,
             Type::Byte => 1,
             Type::Array(_) => 1,
-            Type::String => 1,
+            Type::Struct(_) => 1,
             _ => todo!("{:?}", self),
         }
     }

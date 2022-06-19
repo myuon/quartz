@@ -90,11 +90,15 @@ impl<'s> VmFunctionGenerator<'s> {
                             "_new" => QVMInstruction::Alloc,
                             "_padd" => QVMInstruction::PAdd,
                             "_lt" => QVMInstruction::Lt,
+                            "_gt" => QVMInstruction::Gt,
+                            "_div" => QVMInstruction::Div,
+                            "_mod" => QVMInstruction::Mod,
                             "_gc" => QVMInstruction::RuntimeInstr("_gc".to_string()),
                             "_len" => QVMInstruction::RuntimeInstr("_len".to_string()),
                             "_deref" => QVMInstruction::Load("heap"),
                             "_println" => QVMInstruction::RuntimeInstr("_println".to_string()),
                             "_stringify" => QVMInstruction::RuntimeInstr("_stringify".to_string()),
+                            "_copy" => QVMInstruction::RuntimeInstr("_copy".to_string()),
                             _ => QVMInstruction::LabelAddrConst(v.clone()),
                         });
                     }

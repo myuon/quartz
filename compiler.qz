@@ -6,7 +6,7 @@ struct Lexer {
 func (l: Lexer) run() {
   while l.position < l.input.len() {
     l.position = l.position + 1;
-    _println(_stringify(l.position));
+    _println(int_string(l.position));
   };
 }
 
