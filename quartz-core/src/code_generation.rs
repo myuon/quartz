@@ -74,6 +74,7 @@ impl<'a> Generator<'a> {
                         "_copy" => QVMInstruction::RuntimeInstr("_copy".to_string()),
                         "_panic" => QVMInstruction::RuntimeInstr("_panic".to_string()),
                         "_println" => QVMInstruction::RuntimeInstr("_println".to_string()),
+                        "_neq" => QVMInstruction::NotEq,
                         _ => QVMInstruction::LabelAddrConst(v.clone()),
                     });
                 }
@@ -85,7 +86,9 @@ impl<'a> Generator<'a> {
                     Nil => {
                         self.code.push(QVMInstruction::I32Const(9999));
                     }
-                    Bool(_) => todo!(),
+                    Bool(_) => {
+                        println!("SKIPPING...");
+                    }
                     Int(n) => {
                         self.code.push(QVMInstruction::I32Const(*n));
                     }
