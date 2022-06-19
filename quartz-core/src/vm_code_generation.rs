@@ -178,10 +178,12 @@ impl<'s> VmFunctionGenerator<'s> {
                     "if" => {
                         let (cond, left, right) = unvec!(block.elements, 3);
 
-                        let label = format!("if-{}", self.globals.len());
-                        let label_then = format!("then-{}", self.globals.len());
-                        let label_else = format!("else-{}", self.globals.len());
-                        let label_end = format!("end-{}", self.globals.len());
+                        // FIXME: Area these labels really unqiue?
+                        let index = self.labels.len();
+                        let label = format!("if-{}-{}", self.globals.len(), index);
+                        let label_then = format!("then-{}-{}", self.globals.len(), index);
+                        let label_else = format!("else-{}-{}", self.globals.len(), index);
+                        let label_end = format!("end-{}-{}", self.globals.len(), index);
 
                         self.register_label(label.clone());
                         self.element(cond)?;
@@ -203,7 +205,7 @@ impl<'s> VmFunctionGenerator<'s> {
                     "while" => {
                         let (cond, body) = unvec!(block.elements, 2);
 
-                        let label = format!("while-{}", self.globals.len());
+                        let label = format!("while-{}-{}", self.globals.len(), self.labels.len());
 
                         self.register_label(label.clone());
                         self.element(body)?;

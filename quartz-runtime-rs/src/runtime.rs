@@ -374,7 +374,7 @@ impl Runtime {
 
                     match kind {
                         "local" => {
-                            self.stack[self.stack_pointer - r] = self.pop();
+                            self.stack[self.frame_pointer + r] = self.pop();
                         }
                         "heap" => {
                             let value = self.pop();
