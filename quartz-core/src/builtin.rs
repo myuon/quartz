@@ -70,9 +70,9 @@ pub fn builtin() -> HashMap<String, Type> {
             "_copy",
             Type::Fn(
                 vec![
-                    Type::Array(Box::new(Type::Byte)),
-                    Type::Array(Box::new(Type::Byte)),
                     Type::Int,
+                    Type::Array(Box::new(Type::Byte)),
+                    Type::Array(Box::new(Type::Byte)),
                 ],
                 Box::new(Type::Unit),
             ),

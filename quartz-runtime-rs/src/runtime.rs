@@ -436,10 +436,10 @@ impl Runtime {
                         self.push(Value::int(header.len() as i32));
                     }
                     "_copy" => {
-                        let offset = self.pop().as_int().unwrap();
                         let target = self.pop().as_addr().unwrap();
                         let source_header = self.heap.parse_from_data_pointer(target)?;
                         let source = self.pop().as_addr().unwrap();
+                        let offset = self.pop().as_int().unwrap();
 
                         for i in 0..source_header.len() {
                             self.heap.data[target + offset as usize + i] =

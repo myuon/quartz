@@ -12,6 +12,10 @@ fn main() -> Result<()> {
     if command == Some("test".to_string()) {
         let mut compiler = Compiler::new();
         let code = compiler.compile_via_ir("")?;
+        for (n, inst) in code.iter().enumerate() {
+            println!("{:04} {:?}", n, inst);
+        }
+
         println!(
             "{:?}",
             Runtime::new(code.clone(), compiler.code_generation.globals())

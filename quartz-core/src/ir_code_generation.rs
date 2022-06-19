@@ -175,9 +175,15 @@ impl<'s> IrFunctionGenerator<'s> {
                 Ok(IrElement::block(
                     "call",
                     vec![
-                        IrElement::Term(IrTerm::Ident("_padd".to_string())),
-                        self.expr(proj)?,
-                        IrElement::Term(IrTerm::Int(index as i32)),
+                        IrElement::Term(IrTerm::Ident("_deref".to_string())),
+                        IrElement::block(
+                            "call",
+                            vec![
+                                IrElement::Term(IrTerm::Ident("_padd".to_string())),
+                                self.expr(proj)?,
+                                IrElement::Term(IrTerm::Int(index as i32)),
+                            ],
+                        ),
                     ],
                 ))
             }

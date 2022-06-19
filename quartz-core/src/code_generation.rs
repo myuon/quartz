@@ -71,6 +71,9 @@ impl<'a> Generator<'a> {
                         "_gc" => QVMInstruction::RuntimeInstr("_gc".to_string()),
                         "_padd" => QVMInstruction::PAdd,
                         "_len" => QVMInstruction::RuntimeInstr("_len".to_string()),
+                        "_copy" => QVMInstruction::RuntimeInstr("_copy".to_string()),
+                        "_panic" => QVMInstruction::RuntimeInstr("_panic".to_string()),
+                        "_println" => QVMInstruction::RuntimeInstr("_println".to_string()),
                         _ => QVMInstruction::LabelAddrConst(v.clone()),
                     });
                 }
@@ -269,7 +272,9 @@ impl<'a> Generator<'a> {
                 }
             }
             Statement::Loop(_) => todo!(),
-            Statement::While(_, _) => todo!(),
+            Statement::While(_, _) => {
+                println!("[WARN] While is not supported in this generator");
+            }
         }
 
         Ok(())
