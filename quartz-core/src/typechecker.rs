@@ -3,9 +3,7 @@ use std::collections::HashMap;
 use anyhow::{bail, Context, Result};
 use pretty_assertions::assert_eq;
 
-use crate::ast::{
-    Declaration, Expr, Functions, Literal, Methods, Module, Source, Statement, Structs, Type,
-};
+use crate::ast::{Declaration, Expr, Literal, Methods, Module, Source, Statement, Structs, Type};
 
 struct Constraints(Vec<(usize, Type)>);
 
@@ -118,7 +116,7 @@ pub struct TypeChecker<'s> {
     infer_count: usize,
     pub variables: HashMap<String, Type>,
     pub structs: Structs,
-    pub functions: Functions,
+    pub function_types: HashMap<String, (Vec<Type>, Type)>,
     pub methods: Methods,
     pub source_code: &'s str,
 }
@@ -134,7 +132,7 @@ impl<'s> TypeChecker<'s> {
             infer_count: 0,
             variables,
             structs,
-            functions: Functions(HashMap::new()),
+            function_types: HashMap::new(),
             methods,
             source_code,
         }
@@ -174,9 +172,9 @@ impl<'s> TypeChecker<'s> {
     }
 
     fn load(&self, v: &String) -> Result<Type> {
-        if self.functions.0.contains_key(v) {
-            let f = self.functions.0[v].clone();
-            Ok(Type::Fn(f.0.into_iter().map(|(_, v)| v).collect(), f.1))
+        if self.function_types.contains_key(v) {
+            let f = self.function_types[v].clone();
+            Ok(Type::Fn(f.0, Box::new(f.1)))
         } else {
             let t = self
                 .variables
@@ -410,10 +408,10 @@ impl<'s> TypeChecker<'s> {
     }
 
     pub fn declarations(&mut self, decls: &mut Vec<Declaration>) -> Result<()> {
-        for decl in decls {
+        // preprocess: register all function types in this module
+        for decl in decls.iter() {
             match decl {
                 Declaration::Function(func) => {
-                    let variables = self.variables.clone();
                     let mut arg_types = vec![];
                     for arg in &func.args {
                         let t = if matches!(arg.1, Type::Infer(_)) {
@@ -428,7 +426,7 @@ impl<'s> TypeChecker<'s> {
 
                     let result_type = self.next_infer();
 
-                    // 再帰関数の定義ができるように先にvariableに登録する
+                    // regiter this function too, so that we can call it recursively
                     self.variables.insert(
                         func.name.clone(),
                         Type::Fn(arg_types.clone(), Box::new(result_type)),
@@ -445,10 +443,31 @@ impl<'s> TypeChecker<'s> {
                             },
                         );
                     }
+                }
+                _ => {}
+            }
+        }
+
+        for decl in decls {
+            match decl {
+                Declaration::Function(func) => {
+                    let variables = self.variables.clone();
+                    let mut arg_types = vec![];
+                    for arg in &func.args {
+                        let t = if matches!(arg.1, Type::Infer(_)) {
+                            self.next_infer()
+                        } else {
+                            arg.1.clone()
+                        };
+
+                        arg_types.push(t.clone());
+                        self.variables.insert(arg.0.clone(), t);
+                    }
 
                     let t = self.statements(&mut func.body)?;
                     self.variables = variables;
 
+                    // FIXME: move to preprocess phase
                     if let Some((name, typ, _pointer)) = func.method_of.clone() {
                         self.methods.0.insert(
                             (typ, func.name.clone()),
@@ -466,20 +485,8 @@ impl<'s> TypeChecker<'s> {
                             ),
                         );
                     } else {
-                        self.functions.0.insert(
-                            func.name.clone(),
-                            (
-                                func.args
-                                    .iter()
-                                    .map(|(name, _)| name)
-                                    .cloned()
-                                    .into_iter()
-                                    .zip(arg_types.into_iter())
-                                    .collect(),
-                                Box::new(t.clone()),
-                                func.body.clone(),
-                            ),
-                        );
+                        self.function_types
+                            .insert(func.name.clone(), (arg_types, t.clone()));
                     }
                 }
                 Declaration::Variable(x, e) => {
@@ -645,6 +652,18 @@ func main() {
     a = 20;
 
     return a;
+}
+            "#,
+                vec![],
+            ),
+            (
+                r#"
+func f() {
+    g();
+}
+
+func g() {
+    f();
 }
             "#,
                 vec![],
