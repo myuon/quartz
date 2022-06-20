@@ -106,8 +106,7 @@ func assert_eq(a: string, b: string) {
     };
 }
 
-// tests
-func main() {
+func test() {
     assert("foo".eq("foo"));
     assert("foo".concat("bar").eq("foobar"));
     assert_eq("hello".slice(1,5), "ello");

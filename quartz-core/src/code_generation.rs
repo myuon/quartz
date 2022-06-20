@@ -297,6 +297,7 @@ pub struct CodeGeneration {
     global_pointer: usize,
     globals: HashMap<String, usize>,
     structs: Structs,
+    entrypoint: &'static str,
 }
 
 impl CodeGeneration {
@@ -305,7 +306,12 @@ impl CodeGeneration {
             global_pointer: 0,
             globals: HashMap::new(),
             structs: Structs(HashMap::new()),
+            entrypoint: "main",
         }
+    }
+
+    pub fn set_entrypoint(&mut self, entrypoint: &'static str) {
+        self.entrypoint = entrypoint;
     }
 
     pub fn context(&mut self, structs: Structs) {
@@ -377,7 +383,7 @@ impl CodeGeneration {
         let mut generator =
             Generator::new(HashMap::new(), &self.globals, labels, offset, &self.structs);
         generator.statement(&Source::unknown(Statement::Return(Expr::Call(
-            Box::new(Expr::Var("main".to_string())),
+            Box::new(Expr::Var(self.entrypoint.to_string())),
             vec![],
         ))))?;
 

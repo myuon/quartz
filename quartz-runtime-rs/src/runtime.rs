@@ -726,7 +726,7 @@ func main() {
         // compile via IR
         {
             let mut compiler = Compiler::new();
-            let code = compiler.compile_via_ir(input)?;
+            let code = compiler.compile_via_ir(input, "main")?;
             println!("IR:\n{}\n\n", compiler.ir_result.unwrap().show());
 
             let mut runtime = Runtime::new(code.clone(), compiler.vm_code_generation.globals());

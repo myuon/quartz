@@ -120,6 +120,7 @@ pub struct TypeChecker<'s> {
     pub methods: Methods,
     pub source_code: &'s str,
     function_refcount: HashMap<String, usize>, // for dead code elimination
+    entrypoint: &'static str,
 }
 
 impl<'s> TypeChecker<'s> {
@@ -137,7 +138,12 @@ impl<'s> TypeChecker<'s> {
             methods,
             source_code,
             function_refcount: HashMap::new(),
+            entrypoint: "main",
         }
+    }
+
+    pub fn set_entrypoint(&mut self, entrypoint: &'static str) {
+        self.entrypoint = entrypoint;
     }
 
     fn error_context(
@@ -514,7 +520,7 @@ impl<'s> TypeChecker<'s> {
                 // FIXME: support methods
                 Declaration::Function(func) if func.method_of.is_none() => {
                     // skip main function
-                    if func.name == "main" {
+                    if func.name == self.entrypoint {
                         continue;
                     }
 

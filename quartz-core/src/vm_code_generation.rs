@@ -230,6 +230,7 @@ impl<'s> VmFunctionGenerator<'s> {
 pub struct VmGenerator {
     globals: HashMap<String, usize>,
     global_pointer: usize,
+    entrypoint: &'static str,
 }
 
 impl VmGenerator {
@@ -237,7 +238,12 @@ impl VmGenerator {
         VmGenerator {
             globals: HashMap::new(),
             global_pointer: 0,
+            entrypoint: "main",
         }
+    }
+
+    pub fn set_entrypoint(&mut self, name: &'static str) {
+        self.entrypoint = name;
     }
 
     fn push_global(&mut self, name: String) {
@@ -302,7 +308,7 @@ impl VmGenerator {
             "return",
             vec![IrElement::instruction(
                 "call",
-                vec![IrTerm::Ident("main".to_string())],
+                vec![IrTerm::Ident(self.entrypoint.to_string())],
             )],
         ))?;
 
@@ -345,7 +351,7 @@ impl VmGenerator {
         }
 
         // call main
-        labels.insert("main".to_string(), code.len());
+        labels.insert(self.entrypoint.to_string(), code.len());
         code.extend(self.call_main(&mut labels, code.len())?);
 
         for (name, arg_len, function) in functions {

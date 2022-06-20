@@ -150,13 +150,21 @@ impl Compiler<'_> {
         Ok(code)
     }
 
-    pub fn compile_ir<'s>(&mut self, input: &'s str) -> Result<IrElement> {
+    pub fn compile_ir<'s>(
+        &mut self,
+        input: &'s str,
+        entrypoint: &'static str,
+    ) -> Result<IrElement> {
         let input = self.with_std(input)?;
 
-        self.compile_ir_nostd(&input)
+        self.compile_ir_nostd(&input, entrypoint)
     }
 
-    pub fn compile_ir_nostd<'s>(&mut self, input: &'s str) -> Result<IrElement> {
+    pub fn compile_ir_nostd<'s>(
+        &mut self,
+        input: &'s str,
+        entrypoint: &'static str,
+    ) -> Result<IrElement> {
         let mut typechecker = TypeChecker::new(
             self.typechecker.variables.clone(),
             self.typechecker.structs.clone(),
@@ -166,6 +174,7 @@ impl Compiler<'_> {
 
         let mut module = self.parse(&input).context("parse phase")?;
 
+        typechecker.set_entrypoint(entrypoint);
         typechecker.module(&mut module)?;
 
         self.ir_code_generation.context(typechecker.structs.clone());
@@ -182,9 +191,14 @@ impl Compiler<'_> {
         Ok(code)
     }
 
-    pub fn compile_via_ir<'s>(&mut self, input: &'s str) -> Result<Vec<QVMInstruction>> {
-        let ir = self.compile_ir(input)?;
+    pub fn compile_via_ir<'s>(
+        &mut self,
+        input: &'s str,
+        entrypoint: &'static str,
+    ) -> Result<Vec<QVMInstruction>> {
+        let ir = self.compile_ir(input, entrypoint)?;
         self.ir_result = Some(ir.clone());
+        self.vm_code_generation.set_entrypoint(entrypoint);
         let code = self.vm_code_generation.generate(ir)?;
 
         self.typechecker = TypeChecker::new(
