@@ -7,14 +7,13 @@ func (s: string) len(): int {
 }
 
 func (s: string) eq(t: string): bool {
-    if s.len() != t.len() {
+    if (s.len() != t.len()) {
         return false;
     };
 
     let n = 0;
-    while n < s.len() {
-        // FIXME: if (s.data[n] != t.data[n]) {
-        if _neq(s.data[n], t.data[n]) {
+    while (n < s.len()) {
+        if (s.data[n] != t.data[n]) {
             return false;
         };
 
@@ -56,7 +55,7 @@ func (s: string) concat(t: string): string {
 func (s: string) reverse(): string {
     let buffer = _new(s.len());
     let n = 0;
-    while n < s.len() {
+    while (n < s.len()) {
         // FIXME: multiple operators
         // s.len() - n - 1
         buffer[n] = s.data[_sub(s.len(), n + 1)];
@@ -80,7 +79,7 @@ func show_int(a: int): string {
     let str = "";
     let digits = "0123456789";
 
-    while num > 0 {
+    while (num > 0) {
         let r = _mod(num, 10);
         str = str.concat(digits.slice(r, r+1));
         num = _div(num, 10);

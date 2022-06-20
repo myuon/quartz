@@ -290,22 +290,6 @@ impl Parser {
                 }
             }
 
-            // handling operators here
-            let operators = vec![
-                (Lexeme::Plus, "_add"),
-                (Lexeme::Gt, "_gt"),
-                (Lexeme::Lt, "_lt"),
-                (Lexeme::DoubleEqual, "_eq"),
-                (Lexeme::NotEqual, "_neq"),
-                (Lexeme::Minus, "_sub"),
-            ];
-            for (lexeme, op) in operators {
-                if self.expect_lexeme(lexeme).is_ok() {
-                    let right = self.short_expr()?;
-                    result = Expr::Call(Box::new(Expr::Var(op.to_string())), vec![result, right]);
-                }
-            }
-
             Ok(result)
         }
     }
@@ -318,34 +302,48 @@ impl Parser {
         } else {
             let short_expr = self.short_expr()?;
 
-            match short_expr {
+            let mut result = match short_expr {
                 Expr::Var(v) if self.expect_lexeme(Lexeme::LBrace).is_ok() => {
                     // struct initialization
                     let fields = self.many_fields_with_exprs()?;
                     self.expect_lexeme(Lexeme::RBrace)?;
 
-                    Ok(Expr::Struct(v, fields))
+                    Expr::Struct(v, fields)
                 }
                 expr if self.expect_lexeme(Lexeme::Dot).is_ok() => {
                     // projection
                     let i = self.ident()?;
 
-                    Ok(Expr::Project(
-                        false,
-                        "<infer>".to_string(),
-                        Box::new(expr),
-                        i,
-                    ))
+                    Expr::Project(false, "<infer>".to_string(), Box::new(expr), i)
                 }
                 expr if self.expect_lexeme(Lexeme::LBracket).is_ok() => {
                     // indexing
                     let index = self.expr()?;
                     self.expect_lexeme(Lexeme::RBracket)?;
 
-                    Ok(Expr::Index(Box::new(expr), Box::new(index)))
+                    Expr::Index(Box::new(expr), Box::new(index))
                 }
-                _ => Ok(short_expr),
+                _ => short_expr,
+            };
+
+            // handling operators here
+            let operators = vec![
+                (Lexeme::Plus, "_add"),
+                (Lexeme::Gt, "_gt"),
+                (Lexeme::Lt, "_lt"),
+                (Lexeme::DoubleEqual, "_eq"),
+                (Lexeme::NotEqual, "_neq"),
+                (Lexeme::Minus, "_sub"),
+            ];
+            for (lexeme, op) in operators {
+                if self.expect_lexeme(lexeme).is_ok() {
+                    // This should be short_expr? idk
+                    let right = self.expr()?;
+                    result = Expr::Call(Box::new(Expr::Var(op.to_string())), vec![result, right]);
+                }
             }
+
+            Ok(result)
         }
     }
 
@@ -511,6 +509,8 @@ pub fn run_parser_statements(input: &str) -> Result<Vec<Source<Statement>>> {
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::assert_eq;
+
     use super::*;
 
     #[test]
@@ -593,6 +593,42 @@ mod tests {
                     )),
                     vec![Expr::Var("a1".to_string())],
                 ))],
+            ),
+            (
+                r#"if (s.data[i] != t.data[i]) {
+                    return false;
+                };"#,
+                vec![Statement::If(
+                    Box::new(Expr::Call(
+                        Box::new(Expr::Var("_neq".to_string())),
+                        vec![
+                            Expr::Index(
+                                Box::new(Expr::Project(
+                                    false,
+                                    "<infer>".to_string(),
+                                    Box::new(Expr::Var("s".to_string())),
+                                    "data".to_string(),
+                                )),
+                                Box::new(Expr::Var("i".to_string())),
+                            ),
+                            Expr::Index(
+                                Box::new(Expr::Project(
+                                    false,
+                                    "<infer>".to_string(),
+                                    Box::new(Expr::Var("t".to_string())),
+                                    "data".to_string(),
+                                )),
+                                Box::new(Expr::Var("i".to_string())),
+                            ),
+                        ],
+                    )),
+                    vec![Source::new(
+                        Statement::Return(Expr::Lit(Literal::Bool(false))),
+                        50,
+                        62,
+                    )],
+                    vec![],
+                )],
             ),
         ];
 
