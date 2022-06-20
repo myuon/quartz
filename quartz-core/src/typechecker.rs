@@ -119,6 +119,7 @@ pub struct TypeChecker<'s> {
     pub function_types: HashMap<String, (Vec<Type>, Type)>,
     pub methods: Methods,
     pub source_code: &'s str,
+    function_refcount: HashMap<String, usize>, // for dead code elimination
 }
 
 impl<'s> TypeChecker<'s> {
@@ -135,6 +136,7 @@ impl<'s> TypeChecker<'s> {
             function_types: HashMap::new(),
             methods,
             source_code,
+            function_refcount: HashMap::new(),
         }
     }
 
@@ -171,8 +173,10 @@ impl<'s> TypeChecker<'s> {
         t
     }
 
-    fn load(&self, v: &String) -> Result<Type> {
+    fn load(&mut self, v: &String) -> Result<Type> {
         if self.function_types.contains_key(v) {
+            *self.function_refcount.get_mut(v).unwrap() += 1;
+
             let f = self.function_types[v].clone();
             Ok(Type::Fn(f.0, Box::new(f.1)))
         } else {
@@ -426,11 +430,9 @@ impl<'s> TypeChecker<'s> {
 
                     let result_type = self.next_infer();
 
-                    // regiter this function too, so that we can call it recursively
-                    self.variables.insert(
-                        func.name.clone(),
-                        Type::Fn(arg_types.clone(), Box::new(result_type)),
-                    );
+                    self.function_types
+                        .insert(func.name.clone(), (arg_types.clone(), result_type));
+                    self.function_refcount.insert(func.name.clone(), 0);
 
                     // メソッドのレシーバーも登録する
                     if let Some((name, typ, pointer)) = func.method_of.clone() {
@@ -504,7 +506,31 @@ impl<'s> TypeChecker<'s> {
     }
 
     pub fn module(&mut self, module: &mut Module) -> Result<()> {
-        self.declarations(&mut module.0)
+        self.declarations(&mut module.0)?;
+
+        // update dead_code fields for functions
+        for decl in &mut module.0 {
+            match decl {
+                // FIXME: support methods
+                Declaration::Function(func) if func.method_of.is_none() => {
+                    // skip main function
+                    if func.name == "main" {
+                        continue;
+                    }
+
+                    let c = *self
+                        .function_refcount
+                        .get(&func.name)
+                        .ok_or(anyhow::anyhow!("{:?} not found", func.name))?;
+                    if c == 0 {
+                        func.dead_code = true;
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -668,6 +694,14 @@ func g() {
             "#,
                 vec![],
             ),
+            (
+                r#"
+func f(n: int): int {
+    return f(n - 1) + 1;
+}
+            "#,
+                vec![],
+            ),
         ];
 
         for c in cases {
@@ -687,7 +721,7 @@ func g() {
             );
 
             let mut module = compiler.parse(c.0).unwrap();
-            let checker = compiler.typecheck(&mut module).expect(&format!("{}", c.0));
+            let mut checker = compiler.typecheck(&mut module).expect(&format!("{}", c.0));
 
             for (name, typ) in c.1 {
                 assert_eq!(

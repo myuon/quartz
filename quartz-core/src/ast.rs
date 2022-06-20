@@ -94,6 +94,7 @@ pub struct Function {
         String, // receiver type
         bool,   // is pointer receiver
     )>,
+    pub dead_code: bool,
 }
 
 #[derive(PartialEq, Debug, Clone)]

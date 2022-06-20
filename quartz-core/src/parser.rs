@@ -381,6 +381,7 @@ impl Parser {
             return_type,
             body: statements,
             method_of,
+            dead_code: false, // for now
         }))
     }
 
