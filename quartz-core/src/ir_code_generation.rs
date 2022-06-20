@@ -399,6 +399,11 @@ impl IrGenerator {
         for decl in &module.0 {
             match decl {
                 Declaration::Function(f) => {
+                    // skip if this function is not used
+                    if f.dead_code {
+                        continue;
+                    }
+
                     elements.push(self.function(&f)?);
                 }
                 Declaration::Variable(v, expr) => {
@@ -525,6 +530,25 @@ func main() {
         (let $p $fresh_1)
 
         (return (call $Point_sum $p))
+    )
+)
+"#,
+            ),
+            // skip to bundle unused function
+            (
+                r#"
+func f(c: int): int {
+    return 10;
+}
+
+func main() {
+    return nil;
+}
+"#,
+                r#"
+(module
+    (func $main 0
+        (return nil)
     )
 )
 "#,
