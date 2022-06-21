@@ -712,9 +712,9 @@ func main() {
         // legacy compile
         {
             let mut compiler = Compiler::new();
-            let code = compiler.compile(input)?;
+            let code = compiler.compile(input, "main")?;
 
-            let mut runtime = Runtime::new(code.clone(), compiler.code_generation.globals());
+            let mut runtime = Runtime::new(code.clone(), compiler.vm_code_generation.globals());
             println!("{}", input);
             for (n, inst) in runtime.code.iter().enumerate() {
                 println!("{:04} {:?}", n, inst);
@@ -727,7 +727,7 @@ func main() {
         // compile via IR
         {
             let mut compiler = Compiler::new();
-            let code = compiler.compile_via_ir(input, "main")?;
+            let code = compiler.compile(input, "main")?;
             println!("IR:\n{}\n\n", compiler.ir_result.unwrap().show());
 
             let mut runtime = Runtime::new(code.clone(), compiler.vm_code_generation.globals());
@@ -760,9 +760,9 @@ func main() {
 
     for input in cases {
         let mut compiler = Compiler::new();
-        let code = compiler.compile(input)?;
+        let code = compiler.compile(input, "main")?;
 
-        let mut runtime = Runtime::new(code.clone(), compiler.code_generation.globals());
+        let mut runtime = Runtime::new(code.clone(), compiler.vm_code_generation.globals());
         println!("{}", input);
         for (n, inst) in runtime.code.iter().enumerate() {
             println!("{:04} {:?}", n, inst);
@@ -860,9 +860,9 @@ fn runtime_run_gc() -> Result<()> {
 
     for (input, result, remaining_object_result) in cases {
         let mut compiler = Compiler::new();
-        let code = compiler.compile(input)?;
+        let code = compiler.compile(input, "main")?;
 
-        let mut runtime = Runtime::new(code.clone(), compiler.code_generation.globals());
+        let mut runtime = Runtime::new(code.clone(), compiler.vm_code_generation.globals());
         println!("{}", input);
         for (n, inst) in runtime.code.iter().enumerate() {
             println!("{:04} {:?}", n, inst);

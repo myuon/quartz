@@ -6,7 +6,6 @@ use thiserror::Error as ThisError;
 use crate::{
     ast::{Methods, Module, Structs},
     builtin::builtin,
-    code_generation::CodeGeneration,
     ir::IrElement,
     ir_code_generation::IrGenerator,
     parser::run_parser,
@@ -23,7 +22,6 @@ pub enum CompileError {
 
 pub struct Compiler<'s> {
     pub typechecker: TypeChecker<'s>,
-    pub code_generation: CodeGeneration,
     pub ir_code_generation: IrGenerator,
     pub vm_code_generation: VmGenerator,
     pub ir_result: Option<IrElement>,
@@ -38,7 +36,6 @@ impl Compiler<'_> {
                 Methods(HashMap::new()),
                 "",
             ),
-            code_generation: CodeGeneration::new(),
             ir_code_generation: IrGenerator::new(),
             vm_code_generation: VmGenerator::new(),
             ir_result: None,
@@ -121,35 +118,6 @@ impl Compiler<'_> {
         Ok(self.typechecker.clone())
     }
 
-    pub fn compile<'s>(&mut self, input: &'s str) -> Result<Vec<QVMInstruction>> {
-        let input = self.with_std(input)?;
-        let mut typechecker = TypeChecker::new(
-            self.typechecker.variables.clone(),
-            self.typechecker.structs.clone(),
-            self.typechecker.methods.clone(),
-            &input,
-        );
-
-        let mut module = self.parse(&input).context("parse phase")?;
-
-        typechecker
-            .module(&mut module)
-            .context("Phase: typecheck")?;
-
-        self.code_generation.context(typechecker.structs.clone());
-
-        let code = self.code_generation.generate(&module)?;
-
-        self.typechecker = TypeChecker::new(
-            self.typechecker.variables.clone(),
-            self.typechecker.structs.clone(),
-            self.typechecker.methods.clone(),
-            "",
-        );
-
-        Ok(code)
-    }
-
     pub fn compile_ir<'s>(
         &mut self,
         input: &'s str,
@@ -191,7 +159,7 @@ impl Compiler<'_> {
         Ok(code)
     }
 
-    pub fn compile_via_ir<'s>(
+    pub fn compile<'s>(
         &mut self,
         input: &'s str,
         entrypoint: &'static str,
