@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use anyhow::{bail, Context, Result};
 use pretty_assertions::assert_eq;
@@ -111,7 +111,7 @@ impl Constraints {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TypeChecker<'s> {
     infer_count: usize,
     pub variables: HashMap<String, Type>,
@@ -119,7 +119,8 @@ pub struct TypeChecker<'s> {
     pub function_types: HashMap<String, (Vec<Type>, Type)>,
     pub methods: Methods,
     pub source_code: &'s str,
-    function_refcount: HashMap<String, usize>, // for dead code elimination
+    call_graph: HashMap<String, HashMap<String, ()>>,
+    current_function: Option<String>,
     entrypoint: &'static str,
 }
 
@@ -137,7 +138,8 @@ impl<'s> TypeChecker<'s> {
             function_types: HashMap::new(),
             methods,
             source_code,
-            function_refcount: HashMap::new(),
+            call_graph: HashMap::new(),
+            current_function: None,
             entrypoint: "main",
         }
     }
@@ -181,7 +183,10 @@ impl<'s> TypeChecker<'s> {
 
     fn load(&mut self, v: &String) -> Result<Type> {
         if self.function_types.contains_key(v) {
-            *self.function_refcount.get_mut(v).unwrap() += 1;
+            self.call_graph
+                .entry(self.current_function.clone().unwrap())
+                .or_insert(HashMap::new())
+                .insert(v.clone(), ());
 
             let f = self.function_types[v].clone();
             Ok(Type::Fn(f.0, Box::new(f.1)))
@@ -298,6 +303,11 @@ impl<'s> TypeChecker<'s> {
                     // FIXME: if pointer, something could be go wrong
 
                     *is_method = true;
+
+                    self.call_graph
+                        .entry(self.current_function.clone().unwrap())
+                        .or_insert(HashMap::new())
+                        .insert(format!("{}::{}", name, field), ());
 
                     Ok(Type::Fn(
                         method.1.clone().into_iter().map(|(_, v)| v).collect(),
@@ -438,7 +448,6 @@ impl<'s> TypeChecker<'s> {
 
                     self.function_types
                         .insert(func.name.clone(), (arg_types.clone(), result_type));
-                    self.function_refcount.insert(func.name.clone(), 0);
 
                     // メソッドのレシーバーも登録する
                     if let Some((name, typ, pointer)) = func.method_of.clone() {
@@ -457,8 +466,12 @@ impl<'s> TypeChecker<'s> {
         }
 
         for decl in decls {
+            self.current_function = None;
+
             match decl {
                 Declaration::Function(func) => {
+                    self.current_function = Some(func.name_path());
+
                     let variables = self.variables.clone();
                     let mut arg_types = vec![];
                     for arg in &func.args {
@@ -515,22 +528,29 @@ impl<'s> TypeChecker<'s> {
         self.declarations(&mut module.0)?;
 
         // update dead_code fields for functions
+        // calculate reachable functions from entrypoint
+        let mut reachables = HashSet::new();
+        let mut stack = vec![self.entrypoint];
+        while let Some(func) = stack.pop() {
+            if reachables.contains(&func) {
+                continue;
+            }
+
+            reachables.insert(func);
+            if let Some(targets) = self.call_graph.get(func) {
+                stack.extend(targets.keys().map(|f| f.as_str()));
+            }
+        }
+
         for decl in &mut module.0 {
             match decl {
-                // FIXME: support methods
-                Declaration::Function(func) if func.method_of.is_none() => {
-                    // skip main function
-                    if func.name == self.entrypoint {
+                // TODO: support structs
+                Declaration::Function(func) => {
+                    if reachables.contains(func.name_path().as_str()) {
                         continue;
                     }
 
-                    let c = *self
-                        .function_refcount
-                        .get(&func.name)
-                        .ok_or(anyhow::anyhow!("{:?} not found", func.name))?;
-                    if c == 0 {
-                        func.dead_code = true;
-                    }
+                    func.dead_code = true;
                 }
                 _ => {}
             }

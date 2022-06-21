@@ -31,8 +31,12 @@ fn main() -> Result<()> {
             println!("{:04} {:?}", n, inst);
         }
     } else if command == Some("compile".to_string()) {
+        let mut buffer = String::new();
+        let mut stdin = std::io::stdin();
+        stdin.read_to_string(&mut buffer).unwrap();
+
         let mut compiler = Compiler::new();
-        let code = compiler.compile_via_ir("", "main")?;
+        let code = compiler.compile_via_ir(&buffer, "main")?;
         println!("{}", compiler.ir_result.unwrap().show());
         for (n, inst) in code.iter().enumerate() {
             println!("{:04} {:?}", n, inst);

@@ -97,6 +97,17 @@ pub struct Function {
     pub dead_code: bool,
 }
 
+impl Function {
+    // if the function is a method, [STRUCT_NAME]::[METHOD_NAME]
+    pub fn name_path(&self) -> String {
+        if let Some((_, receiver_type, _)) = &self.method_of {
+            return format!("{}::{}", receiver_type, self.name);
+        } else {
+            return self.name.clone();
+        }
+    }
+}
+
 #[derive(PartialEq, Debug, Clone)]
 pub enum Declaration {
     Function(Function),
