@@ -433,6 +433,7 @@ pub fn generate(module: &Module) -> Result<IrElement> {
 
 #[cfg(test)]
 mod tests {
+    use log::info;
     use pretty_assertions::assert_eq;
 
     use crate::{compiler::Compiler, ir::parse_ir};
@@ -558,7 +559,7 @@ func main() {
         for (code, ir_code) in cases {
             let mut compiler = Compiler::new();
             let generated = compiler.compile_ir_nostd(code, "main").unwrap();
-            println!("{}", generated.show());
+            info!("{}", generated.show());
 
             let element = parse_ir(ir_code).unwrap();
 

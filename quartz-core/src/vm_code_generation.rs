@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::Result;
+use log::info;
 
 use crate::{
     ir::{IrElement, IrTerm},
@@ -367,21 +368,21 @@ impl VmGenerator {
                 if let Some(pc) = labels.get(label) {
                     code[i] = QVMInstruction::AddrConst(*pc, format!("{}:", label));
                 } else {
-                    println!("{:?}", code);
+                    info!("{:?}", code);
                     anyhow::bail!("label {} not found", label);
                 }
             } else if let QVMInstruction::LabelJumpIfFalse(label) = &code[i] {
                 if let Some(pc) = labels.get(label) {
                     code[i] = QVMInstruction::JumpIfFalse(*pc);
                 } else {
-                    println!("{:?}", code);
+                    info!("{:?}", code);
                     anyhow::bail!("label {} not found", label);
                 }
             } else if let QVMInstruction::LabelJumpIf(label) = &code[i] {
                 if let Some(pc) = labels.get(label) {
                     code[i] = QVMInstruction::JumpIf(*pc);
                 } else {
-                    println!("{:?}", code);
+                    info!("{:?}", code);
                     anyhow::bail!("label {} not found", label);
                 }
             }

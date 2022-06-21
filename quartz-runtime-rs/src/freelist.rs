@@ -1,4 +1,5 @@
 use anyhow::Result;
+use log::debug;
 
 use crate::runtime::{AddrPlace, Value};
 
@@ -171,7 +172,7 @@ impl Freelist {
         }
 
         for obj in self.debug_objects() {
-            println!("{:?}", obj);
+            debug!("{:?}", obj);
         }
         anyhow::bail!("no space left: {}", size);
     }
@@ -198,6 +199,8 @@ impl Freelist {
 
 #[test]
 fn test_alloc_many() -> Result<()> {
+    use log::info;
+
     let mut freelist = Freelist::new(100);
     let space = 100 - LinkObjectHeader::size_of() * 2;
     for _ in 0..(space / (10 + LinkObjectHeader::size_of())) {
@@ -206,7 +209,7 @@ fn test_alloc_many() -> Result<()> {
 
     let mut current = freelist.root()?;
     for _ in 0..=(space / (10 + LinkObjectHeader::size_of())) {
-        println!("{:?}", current);
+        info!("{:?}", current);
         current = freelist.find_next(&current)?;
     }
 

@@ -151,7 +151,7 @@ impl Runtime {
                         // QUESTION: checking the previous addr being an address to InfoTable is a correct way?
                         if let Ok(object) = self.heap.parse_from_data_pointer(i) {
                             for p in object.get_data_pointer()..object.get_end_pointer() {
-                                println!("adding {:?}", p);
+                                debug!("adding {:?}", p);
                                 root.push(self.heap.data[p]);
                             }
                         }
@@ -170,7 +170,7 @@ impl Runtime {
 
             let addr = next.get_data_pointer();
             if !marked.contains(&addr) {
-                println!("freeing {:?}", next);
+                debug!("freeing {:?}", next);
                 self.heap.free(next.clone())?;
             }
 
@@ -709,36 +709,17 @@ func main() {
     ];
 
     for (input, result) in cases {
-        // legacy compile
-        {
-            let mut compiler = Compiler::new();
-            let code = compiler.compile(input, "main")?;
+        let mut compiler = Compiler::new();
+        let code = compiler.compile(input, "main")?;
 
-            let mut runtime = Runtime::new(code.clone(), compiler.vm_code_generation.globals());
-            println!("{}", input);
-            for (n, inst) in runtime.code.iter().enumerate() {
-                println!("{:04} {:?}", n, inst);
-            }
-            runtime.run()?;
-            let pop = runtime.pop();
-            assert_eq!(pop.as_int(), Some(result), "{:?} {:?}", pop, result);
+        let mut runtime = Runtime::new(code.clone(), compiler.vm_code_generation.globals());
+        println!("{}", input);
+        for (n, inst) in runtime.code.iter().enumerate() {
+            println!("{:04} {:?}", n, inst);
         }
-
-        // compile via IR
-        {
-            let mut compiler = Compiler::new();
-            let code = compiler.compile(input, "main")?;
-            println!("IR:\n{}\n\n", compiler.ir_result.unwrap().show());
-
-            let mut runtime = Runtime::new(code.clone(), compiler.vm_code_generation.globals());
-            println!("{}", input);
-            for (n, inst) in runtime.code.iter().enumerate() {
-                println!("{:04} {:?}", n, inst);
-            }
-            runtime.run()?;
-            let pop = runtime.pop();
-            assert_eq!(pop.as_int(), Some(result), "{:?} {:?}", pop, result);
-        }
+        runtime.run()?;
+        let pop = runtime.pop();
+        assert_eq!(pop.as_int(), Some(result), "{:?} {:?}", pop, result);
     }
 
     Ok(())
