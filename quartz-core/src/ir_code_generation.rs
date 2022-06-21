@@ -571,7 +571,7 @@ func main() {
 
         for (code, ir_code) in cases {
             let mut compiler = Compiler::new();
-            let generated = compiler.compile_ir_nostd(code, "main").unwrap();
+            let generated = compiler.compile_ir_nostd(code, "main".to_string()).unwrap();
             info!("{}", generated.show());
 
             let element = parse_ir(ir_code).unwrap();

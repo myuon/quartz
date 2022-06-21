@@ -70,6 +70,7 @@ pub fn builtin() -> HashMap<String, Type> {
             "_or",
             Type::Fn(vec![Type::Bool, Type::Bool], Box::new(Type::Bool)),
         ),
+        ("_not", Type::Fn(vec![Type::Bool], Box::new(Type::Bool))),
         (
             "_copy",
             Type::Fn(

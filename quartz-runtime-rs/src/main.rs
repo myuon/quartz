@@ -24,8 +24,10 @@ fn main() -> Result<()> {
 
     let command = args().nth(1);
     if command == Some("test".to_string()) {
+        let entrypoint = env::var("ENTRYPOINT").ok().unwrap_or("test".to_string());
+
         let mut compiler = Compiler::new();
-        let code = compiler.compile("", "test")?;
+        let code = compiler.compile("", entrypoint)?;
         info!("{}", compiler.ir_result.unwrap().show());
         for (n, inst) in code.iter().enumerate() {
             info!("{:04} {:?}", n, inst);
@@ -34,7 +36,7 @@ fn main() -> Result<()> {
         Runtime::new(code.clone(), compiler.vm_code_generation.globals()).run()?;
     } else if command == Some("compile_test".to_string()) {
         let mut compiler = Compiler::new();
-        let code = compiler.compile("", "test")?;
+        let code = compiler.compile("", "test".to_string())?;
         info!("{}", compiler.ir_result.unwrap().show());
         for (n, inst) in code.iter().enumerate() {
             info!("{:04} {:?}", n, inst);
@@ -45,18 +47,20 @@ fn main() -> Result<()> {
         stdin.read_to_string(&mut buffer).unwrap();
 
         let mut compiler = Compiler::new();
-        let code = compiler.compile(&buffer, "main")?;
+        let code = compiler.compile(&buffer, "main".to_string())?;
         info!("{}", compiler.ir_result.unwrap().show());
         for (n, inst) in code.iter().enumerate() {
             info!("{:04} {:?}", n, inst);
         }
     } else {
+        let entrypoint = env::var("ENTRYPOINT").ok().unwrap_or("main".to_string());
+
         let mut buffer = String::new();
         let mut stdin = std::io::stdin();
         stdin.read_to_string(&mut buffer).unwrap();
 
         let mut compiler = Compiler::new();
-        let code = compiler.compile(&buffer, "main")?;
+        let code = compiler.compile(&buffer, entrypoint)?;
 
         Runtime::new(code.clone(), compiler.vm_code_generation.globals()).run()?;
     }

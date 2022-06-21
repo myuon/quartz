@@ -95,6 +95,7 @@ impl<'s> VmFunctionGenerator<'s> {
                             "_gt" => QVMInstruction::Gt,
                             "_div" => QVMInstruction::Div,
                             "_mod" => QVMInstruction::Mod,
+                            "_not" => QVMInstruction::Not,
                             "_gc" => QVMInstruction::RuntimeInstr("_gc".to_string()),
                             "_panic" => QVMInstruction::RuntimeInstr("_panic".to_string()),
                             "_len" => QVMInstruction::RuntimeInstr("_len".to_string()),
@@ -231,7 +232,7 @@ impl<'s> VmFunctionGenerator<'s> {
 pub struct VmGenerator {
     globals: HashMap<String, usize>,
     global_pointer: usize,
-    entrypoint: &'static str,
+    entrypoint: String,
 }
 
 impl VmGenerator {
@@ -239,11 +240,11 @@ impl VmGenerator {
         VmGenerator {
             globals: HashMap::new(),
             global_pointer: 0,
-            entrypoint: "main",
+            entrypoint: "main".to_string(),
         }
     }
 
-    pub fn set_entrypoint(&mut self, name: &'static str) {
+    pub fn set_entrypoint(&mut self, name: String) {
         self.entrypoint = name;
     }
 

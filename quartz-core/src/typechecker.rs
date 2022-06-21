@@ -121,7 +121,7 @@ pub struct TypeChecker<'s> {
     pub source_code: &'s str,
     call_graph: HashMap<String, HashMap<String, ()>>,
     current_function: Option<String>,
-    entrypoint: &'static str,
+    entrypoint: String,
 }
 
 impl<'s> TypeChecker<'s> {
@@ -140,11 +140,11 @@ impl<'s> TypeChecker<'s> {
             source_code,
             call_graph: HashMap::new(),
             current_function: None,
-            entrypoint: "main",
+            entrypoint: "main".to_string(),
         }
     }
 
-    pub fn set_entrypoint(&mut self, entrypoint: &'static str) {
+    pub fn set_entrypoint(&mut self, entrypoint: String) {
         self.entrypoint = entrypoint;
     }
 
@@ -530,7 +530,7 @@ impl<'s> TypeChecker<'s> {
         // update dead_code fields for functions
         // calculate reachable functions from entrypoint
         let mut reachables = HashSet::new();
-        let mut stack = vec![self.entrypoint];
+        let mut stack = vec![self.entrypoint.as_str()];
         while let Some(func) = stack.pop() {
             if reachables.contains(&func) {
                 continue;

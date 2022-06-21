@@ -118,11 +118,7 @@ impl Compiler<'_> {
         Ok(self.typechecker.clone())
     }
 
-    pub fn compile_ir<'s>(
-        &mut self,
-        input: &'s str,
-        entrypoint: &'static str,
-    ) -> Result<IrElement> {
+    pub fn compile_ir<'s>(&mut self, input: &'s str, entrypoint: String) -> Result<IrElement> {
         let input = self.with_std(input)?;
 
         self.compile_ir_nostd(&input, entrypoint)
@@ -131,7 +127,7 @@ impl Compiler<'_> {
     pub fn compile_ir_nostd<'s>(
         &mut self,
         input: &'s str,
-        entrypoint: &'static str,
+        entrypoint: String,
     ) -> Result<IrElement> {
         let mut typechecker = TypeChecker::new(
             self.typechecker.variables.clone(),
@@ -162,9 +158,9 @@ impl Compiler<'_> {
     pub fn compile<'s>(
         &mut self,
         input: &'s str,
-        entrypoint: &'static str,
+        entrypoint: String,
     ) -> Result<Vec<QVMInstruction>> {
-        let ir = self.compile_ir(input, entrypoint)?;
+        let ir = self.compile_ir(input, entrypoint.clone())?;
         self.ir_result = Some(ir.clone());
         self.vm_code_generation.set_entrypoint(entrypoint);
         let code = self.vm_code_generation.generate(ir)?;

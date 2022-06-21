@@ -1,3 +1,27 @@
+func at(s: string, p: int): string {
+  return s.slice(p, p+1);
+}
+
+func find_next_newline(s: string): int {
+  let n = 0;
+  while (n < s.len()) {
+    if at(s,n).eq("")
+  }
+}
+
+func find_space_pattern(s: string): int {
+  let n = 0;
+  while (n < s.len()) {
+    if _not(at(s,n).eq(" ")) {
+      return n;
+    };
+
+    n = n + 1;
+  };
+
+  return n;
+}
+
 struct Lexer {
   input: string,
   position: int,
@@ -5,8 +29,15 @@ struct Lexer {
 
 func (l: Lexer) run() {
   while (l.position < l.input.len()) {
+    let ch = l.input.slice(l.position, l.position + 1);
+
+    let n = find_space_pattern(l.input.slice_after(l.position));
+    if (n > 0) {
+      l.position = l.position + n;
+      continue;
+    };
+
     l.position = l.position + 1;
-    _println(show_int(l.position));
   };
 }
 
@@ -19,4 +50,10 @@ func main() {
   lexer.run();
 
   _println(input);
+}
+
+func compiler_test() {
+  assert_eq(show_int(find_space_pattern("fooo")), show_int(0));
+  assert_eq(show_int(find_space_pattern("    fooo")), show_int(4));
+  assert_eq(show_int(find_space_pattern("    ")), show_int(4));
 }

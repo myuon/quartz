@@ -325,7 +325,10 @@ impl Runtime {
                 QVMInstruction::Le => todo!(),
                 QVMInstruction::And => todo!(),
                 QVMInstruction::Or => todo!(),
-                QVMInstruction::Not => todo!(),
+                QVMInstruction::Not => {
+                    let a = self.pop().as_bool().unwrap();
+                    self.push(Value::bool(!a));
+                }
                 QVMInstruction::I32Const(c) => {
                     self.push(Value::int(c));
                 }
@@ -746,7 +749,7 @@ func main() {
 
     for (input, result) in cases {
         let mut compiler = Compiler::new();
-        let code = compiler.compile(input, "main")?;
+        let code = compiler.compile(input, "main".to_string())?;
 
         let mut runtime = Runtime::new(code.clone(), compiler.vm_code_generation.globals());
         println!("{}", input);
@@ -777,7 +780,7 @@ func main() {
 
     for input in cases {
         let mut compiler = Compiler::new();
-        let code = compiler.compile(input, "main")?;
+        let code = compiler.compile(input, "main".to_string())?;
 
         let mut runtime = Runtime::new(code.clone(), compiler.vm_code_generation.globals());
         println!("{}", input);
@@ -877,7 +880,7 @@ fn runtime_run_gc() -> Result<()> {
 
     for (input, result, remaining_object_result) in cases {
         let mut compiler = Compiler::new();
-        let code = compiler.compile(input, "main")?;
+        let code = compiler.compile(input, "main".to_string())?;
 
         let mut runtime = Runtime::new(code.clone(), compiler.vm_code_generation.globals());
         println!("{}", input);
