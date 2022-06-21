@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use anyhow::Result;
+use log::debug;
 use quartz_core::vm::QVMInstruction;
 
 use crate::freelist::Freelist;
@@ -205,7 +206,7 @@ impl Runtime {
 
     pub fn run(&mut self) -> Result<()> {
         while self.pc < self.code.len() {
-            println!(
+            debug!(
                 "{}\n{:?}\n{} {:?}\n",
                 &self
                     .heap

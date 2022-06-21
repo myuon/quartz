@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.56"
+log = "0.4.17"
 pretty_assertions = "1.2.1"
 "quartz-core" = { path = "../quartz-core" }
-
-[dev-dependencies]
+simplelog = "^0.12.0"
