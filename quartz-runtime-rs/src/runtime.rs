@@ -706,6 +706,42 @@ func main() {
 "#,
             3,
         ),
+        (
+            r#"
+func main() {
+    let sum = 0;
+    let n = 0;
+    while _lt(n, 10) {
+        sum = sum + n;
+        n = n + 1;
+    };
+
+    return sum;
+}
+"#,
+            45,
+        ),
+        (
+            r#"
+struct Modify {
+    a: int,
+}
+
+func (m: Modify) f(c: int) {
+    m.a = m.a + c;
+
+    return nil;
+}
+
+func main() {
+    let m = Modify { a: 10 };
+    m.f(20);
+
+    return m.a;
+}
+"#,
+            30,
+        ),
     ];
 
     for (input, result) in cases {

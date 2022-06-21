@@ -372,7 +372,20 @@ impl IrGenerator {
         elements.push(IrElement::Term(IrTerm::Int(arg_index as i32)));
 
         let mut generator = IrFunctionGenerator::new(&args, &self.structs);
+
         generator.statements(&function.body)?;
+
+        // if last statement was not a return statement, insert it
+        // FIXME: typecheck
+        if !function
+            .body
+            .last()
+            .map(|s| matches!(s.data, Statement::Return(_)))
+            .unwrap_or(false)
+        {
+            generator.statement(&Statement::Return(Expr::Lit(Literal::Nil)))?;
+        }
+
         elements.extend(generator.ir);
 
         Ok(IrElement::Block(IrBlock {
