@@ -113,4 +113,6 @@ func test() {
     assert_eq("hello".reverse(), "olleh");
     assert_eq(show_int(12345), "12345");
     assert_eq(show_int("hello, world".len()), show_int(12));
+    assert("prefix-suffix".starts_with("prefix"));
+    assert(_not("prefix-suffix".starts_with("suffix")));
 }

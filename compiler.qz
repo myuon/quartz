@@ -16,16 +16,11 @@ func find_space_pattern(s: string): int {
 }
 
 func find_exact_pattern(s: string, pattern: string): int {
-  let n = 0;
-  while _and(n < s.len(), n < pattern.len()) {
-    if _not(at(s,n).eq(at(pattern,n))) {
-      return n;
-    };
-
-    n = n + 1;
+  if s.starts_with(pattern) {
+    return pattern.len();
+  } else {
+    return 0;
   };
-
-  return n;
 }
 
 struct Lexer {
@@ -45,6 +40,7 @@ func (l: Lexer) run() {
     };
 
     let n = find_exact_pattern(next_input, "(");
+    _println(show_int(n));
     if (n > 0) {
       _println("(");
       l.position = l.position + n;

@@ -230,10 +230,10 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.register_label(label.clone());
                         self.element(body)?;
 
-                        self.register_label(label_cond.clone());
-
                         // Before finishing this loop, need to pop local variables
                         self.code.push(QVMInstruction::Pop(self.local_pointer - p));
+
+                        self.register_label(label_cond.clone());
 
                         self.element(cond)?;
 
@@ -241,6 +241,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.label_continue = None;
                     }
                     "continue" => {
+                        // FIXME: before jumping to label_continue, need to pop local variables?
                         self.code.push(QVMInstruction::LabelJump(
                             self.label_continue.clone().unwrap(),
                         ));
