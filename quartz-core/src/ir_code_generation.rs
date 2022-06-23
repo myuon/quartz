@@ -249,7 +249,7 @@ impl<'s> IrFunctionGenerator<'s> {
                     ],
                 ));
             }
-            Statement::Continue => todo!(),
+            Statement::Continue => self.ir.push(IrElement::block("continue", vec![])),
             Statement::Assignment(v, e2) => {
                 let v2 = self.expr(e2)?;
 

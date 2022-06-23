@@ -41,6 +41,7 @@ struct VmFunctionGenerator<'s> {
     globals: &'s HashMap<String, usize>,
     labels: &'s mut HashMap<String, usize>,
     offset: usize,
+    label_continue: Option<String>,
 }
 
 impl<'s> VmFunctionGenerator<'s> {
@@ -58,6 +59,7 @@ impl<'s> VmFunctionGenerator<'s> {
             globals,
             labels,
             offset,
+            label_continue: None,
         }
     }
 
@@ -213,6 +215,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         let p = self.local_pointer;
 
                         self.register_label(label.clone());
+                        self.label_continue = Some(label.clone());
                         self.element(body)?;
 
                         // Before finishing this loop, need to pop local variables
@@ -221,7 +224,11 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.element(cond)?;
 
                         self.code.push(QVMInstruction::LabelJumpIf(label.clone()));
+                        self.label_continue = None;
                     }
+                    "continue" => self.code.push(QVMInstruction::LabelJump(
+                        self.label_continue.clone().unwrap(),
+                    )),
                     name => todo!("{:?}", name),
                 };
             }
@@ -384,6 +391,13 @@ impl VmGenerator {
             } else if let QVMInstruction::LabelJumpIf(label) = &code[i] {
                 if let Some(pc) = labels.get(label) {
                     code[i] = QVMInstruction::JumpIf(*pc);
+                } else {
+                    info!("{:?}", code);
+                    anyhow::bail!("label {} not found", label);
+                }
+            } else if let QVMInstruction::LabelJump(label) = &code[i] {
+                if let Some(pc) = labels.get(label) {
+                    code[i] = QVMInstruction::Jump(*pc);
                 } else {
                     info!("{:?}", code);
                     anyhow::bail!("label {} not found", label);

@@ -220,7 +220,6 @@ impl Runtime {
                 &self.code[self.pc],
             );
             match self.code[self.pc] {
-                QVMInstruction::Jump(_) => todo!(),
                 QVMInstruction::Call => {
                     let r = self.pop();
                     assert_matches!(r, Value::Addr(_, AddrPlace::Heap, _));
@@ -419,6 +418,10 @@ impl Runtime {
                     );
                     self.push(arg);
                 }
+                QVMInstruction::Jump(k) => {
+                    self.pc = k;
+                    continue;
+                }
                 QVMInstruction::JumpIf(k) => {
                     let v = self.pop();
                     if v.as_bool().unwrap() == true {
@@ -506,6 +509,7 @@ impl Runtime {
                 QVMInstruction::LabelAddrConst(_) => unreachable!(),
                 QVMInstruction::LabelJumpIfFalse(_) => unreachable!(),
                 QVMInstruction::LabelJumpIf(_) => unreachable!(),
+                QVMInstruction::LabelJump(_) => todo!(),
             }
 
             self.pc += 1;

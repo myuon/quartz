@@ -44,4 +44,5 @@ pub enum QVMInstruction {
     LabelAddrConst(String),
     LabelJumpIfFalse(String),
     LabelJumpIf(String),
+    LabelJump(String),
 }
