@@ -42,6 +42,7 @@ struct VmFunctionGenerator<'s> {
     labels: &'s mut HashMap<String, usize>,
     offset: usize,
     label_continue: Option<String>,
+    source_map: HashMap<usize, String>,
 }
 
 impl<'s> VmFunctionGenerator<'s> {
@@ -60,6 +61,7 @@ impl<'s> VmFunctionGenerator<'s> {
             labels,
             offset,
             label_continue: None,
+            source_map: HashMap::new(),
         }
     }
 
@@ -72,8 +74,13 @@ impl<'s> VmFunctionGenerator<'s> {
         self.labels.insert(name, self.offset + self.code.len());
     }
 
+    fn new_source_map(&mut self, s: impl Into<String>) {
+        self.source_map
+            .insert(self.offset + self.code.len(), s.into());
+    }
+
     fn element(&mut self, element: IrElement) -> Result<()> {
-        match element {
+        match element.clone() {
             IrElement::Term(term) => match term {
                 IrTerm::Ident(v) => {
                     if let Some(u) = self.locals.get(&v) {
@@ -127,6 +134,8 @@ impl<'s> VmFunctionGenerator<'s> {
                 IrTerm::Keyword(_) => todo!(),
             },
             IrElement::Block(mut block) => {
+                self.new_source_map(element.show_compact());
+
                 match block.name.as_str() {
                     "let" => {
                         let (name, expr) = unvec!(block.elements, 2);
@@ -231,9 +240,11 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.code.push(QVMInstruction::LabelJumpIf(label.clone()));
                         self.label_continue = None;
                     }
-                    "continue" => self.code.push(QVMInstruction::LabelJump(
-                        self.label_continue.clone().unwrap(),
-                    )),
+                    "continue" => {
+                        self.code.push(QVMInstruction::LabelJump(
+                            self.label_continue.clone().unwrap(),
+                        ));
+                    }
                     name => todo!("{:?}", name),
                 };
             }
@@ -277,7 +288,7 @@ impl VmGenerator {
         arg_len: usize,
         labels: &mut HashMap<String, usize>,
         offset: usize,
-    ) -> Result<Vec<QVMInstruction>> {
+    ) -> Result<(Vec<QVMInstruction>, HashMap<usize, String>)> {
         let mut generator = VmFunctionGenerator::new(arg_len, &self.globals, labels, offset);
 
         let mut skip = 2;
@@ -290,7 +301,7 @@ impl VmGenerator {
             generator.element(statement)?;
         }
 
-        Ok(generator.code)
+        Ok((generator.code, generator.source_map))
     }
 
     pub fn variable(
@@ -331,12 +342,17 @@ impl VmGenerator {
         Ok(generator.code)
     }
 
-    pub fn generate(&mut self, element: IrElement) -> Result<Vec<QVMInstruction>> {
+    pub fn generate(
+        &mut self,
+        element: IrElement,
+    ) -> Result<(Vec<QVMInstruction>, HashMap<usize, String>)> {
         let mut code = vec![];
         let mut labels = HashMap::new();
 
         let mut functions = vec![];
         let mut variables = vec![];
+
+        let mut source_map: HashMap<usize, String> = HashMap::new();
 
         // = first path
 
@@ -372,7 +388,11 @@ impl VmGenerator {
 
         for (name, arg_len, function) in functions {
             labels.insert(name, code.len());
-            code.extend(self.function(function, arg_len as usize, &mut labels, code.len())?);
+
+            let (code_generated, source_map_generated) =
+                self.function(function, arg_len as usize, &mut labels, code.len())?;
+            code.extend(code_generated);
+            source_map.extend(source_map_generated);
         }
 
         // = second path
@@ -410,6 +430,6 @@ impl VmGenerator {
             }
         }
 
-        Ok(code)
+        Ok((code, source_map))
     }
 }

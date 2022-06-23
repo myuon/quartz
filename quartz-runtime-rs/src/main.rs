@@ -47,10 +47,19 @@ fn main() -> Result<()> {
         stdin.read_to_string(&mut buffer).unwrap();
 
         let mut compiler = Compiler::new();
-        let code = compiler.compile(&buffer, "main".to_string())?;
+        let (code, source_map) = compiler.compile_result(&buffer, "main".to_string())?;
         info!("{}", compiler.ir_result.unwrap().show());
         for (n, inst) in code.iter().enumerate() {
-            info!("{:04} {:?}", n, inst);
+            info!(
+                "{:04} {:?}{}",
+                n,
+                inst,
+                if let Some(s) = source_map.get(&n) {
+                    format!(" ;; {}", s)
+                } else {
+                    "".to_string()
+                }
+            );
         }
     } else {
         let entrypoint = env::var("ENTRYPOINT").ok().unwrap_or("main".to_string());

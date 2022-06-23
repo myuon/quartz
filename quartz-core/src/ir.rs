@@ -69,42 +69,56 @@ impl IrElement {
         }
     }
 
-    pub fn show(&self) -> String {
-        fn go(element: &IrElement, depth: i32) -> String {
-            let make_indent = || "  ".repeat(depth as usize);
+    fn show_recur(&self, depth: i32, compact: bool) -> String {
+        match self {
+            IrElement::Term(t) => match t {
+                IrTerm::Nil => "nil".to_string(),
+                IrTerm::Bool(b) => format!("{}", b),
+                IrTerm::Int(n) => format!("{}", n),
+                IrTerm::Ident(i) => format!("${}", i),
+                IrTerm::Argument(a) => format!("${}", a),
+                IrTerm::Keyword(k) => format!("{}", k),
+            },
+            IrElement::Block(b) => {
+                let mut buffer = String::new();
+                let indent = if compact {
+                    if depth > 0 {
+                        " ".to_string()
+                    } else {
+                        "".to_string()
+                    }
+                } else {
+                    "  ".repeat(depth as usize)
+                };
 
-            match element {
-                IrElement::Term(t) => match t {
-                    IrTerm::Nil => "nil".to_string(),
-                    IrTerm::Bool(b) => format!("{}", b),
-                    IrTerm::Int(n) => format!("{}", n),
-                    IrTerm::Ident(i) => format!("${}", i),
-                    IrTerm::Argument(a) => format!("${}", a),
-                    IrTerm::Keyword(k) => format!("{}", k),
-                },
-                IrElement::Block(b) => {
-                    let mut buffer = String::new();
-                    let indent = make_indent();
-
-                    buffer.push_str(&format!("{}({}", indent, b.name));
-                    for e in &b.elements {
-                        match e {
-                            IrElement::Term(_) => {
-                                buffer.push_str(&format!(" {}", go(e, depth)));
-                            }
-                            IrElement::Block(_) => {
-                                buffer.push_str(&format!("\n{}", go(e, depth + 1)));
-                            }
+                buffer.push_str(&format!("{}({}", indent, b.name));
+                for e in &b.elements {
+                    match e {
+                        IrElement::Term(_) => {
+                            buffer.push_str(&format!(" {}", e.show_recur(depth, compact)));
+                        }
+                        IrElement::Block(_) => {
+                            buffer.push_str(&format!(
+                                "{}{}",
+                                if compact { "" } else { "\n" },
+                                e.show_recur(depth + 1, compact)
+                            ));
                         }
                     }
-                    buffer.push_str(")");
-
-                    buffer
                 }
+                buffer.push_str(")");
+
+                buffer
             }
         }
+    }
 
-        go(self, 0)
+    pub fn show(&self) -> String {
+        self.show_recur(0, false)
+    }
+
+    pub fn show_compact(&self) -> String {
+        self.show_recur(0, true)
     }
 }
 

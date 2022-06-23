@@ -1,8 +1,12 @@
 .PHONY: quartz_test run
 
-quartz_test:
-	@echo "quartz_test"
+test:
+	@echo "quartz test"
 	ENTRYPOINT=compiler_test cargo run < ./compiler.qz
+
+compile:
+	@echo "quartz compile"
+	cargo run compile < ./compiler.qz
 
 run:
 	@echo "quartz run"

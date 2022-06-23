@@ -163,7 +163,7 @@ impl Compiler<'_> {
         let ir = self.compile_ir(input, entrypoint.clone())?;
         self.ir_result = Some(ir.clone());
         self.vm_code_generation.set_entrypoint(entrypoint);
-        let code = self.vm_code_generation.generate(ir)?;
+        let result = self.vm_code_generation.generate(ir)?;
 
         self.typechecker = TypeChecker::new(
             self.typechecker.variables.clone(),
@@ -172,6 +172,26 @@ impl Compiler<'_> {
             "",
         );
 
-        Ok(code)
+        Ok(result.0)
+    }
+
+    pub fn compile_result<'s>(
+        &mut self,
+        input: &'s str,
+        entrypoint: String,
+    ) -> Result<(Vec<QVMInstruction>, HashMap<usize, String>)> {
+        let ir = self.compile_ir(input, entrypoint.clone())?;
+        self.ir_result = Some(ir.clone());
+        self.vm_code_generation.set_entrypoint(entrypoint);
+        let result = self.vm_code_generation.generate(ir)?;
+
+        self.typechecker = TypeChecker::new(
+            self.typechecker.variables.clone(),
+            self.typechecker.structs.clone(),
+            self.typechecker.methods.clone(),
+            "",
+        );
+
+        Ok(result)
     }
 }
