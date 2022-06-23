@@ -448,8 +448,8 @@ impl Runtime {
                     let a = self.pop();
                     let b = match self.pop() {
                         Value::Addr(b, AddrPlace::Heap, "addr") => b,
-                        _ => {
-                            unreachable!();
+                        t => {
+                            unreachable!("{:?}, {:?}", t, &self.stack[0..self.stack_pointer]);
                         }
                     };
                     self.push(Value::addr(b + a.as_int().unwrap() as usize));
