@@ -323,8 +323,16 @@ impl Runtime {
                     self.push(Value::Int(if b > a { 1 } else { 0 }, "bool"));
                 }
                 QVMInstruction::Le => todo!(),
-                QVMInstruction::And => todo!(),
-                QVMInstruction::Or => todo!(),
+                QVMInstruction::And => {
+                    let a = self.pop().as_bool().unwrap();
+                    let b = self.pop().as_bool().unwrap();
+                    self.push(Value::bool(b && a));
+                }
+                QVMInstruction::Or => {
+                    let a = self.pop().as_bool().unwrap();
+                    let b = self.pop().as_bool().unwrap();
+                    self.push(Value::bool(b || a));
+                }
                 QVMInstruction::Not => {
                     let a = self.pop().as_bool().unwrap();
                     self.push(Value::bool(!a));

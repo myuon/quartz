@@ -67,6 +67,10 @@ pub fn builtin() -> HashMap<String, Type> {
             ),
         ),
         (
+            "_and",
+            Type::Fn(vec![Type::Bool, Type::Bool], Box::new(Type::Bool)),
+        ),
+        (
             "_or",
             Type::Fn(vec![Type::Bool, Type::Bool], Box::new(Type::Bool)),
         ),

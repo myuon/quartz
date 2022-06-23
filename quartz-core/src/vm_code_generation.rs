@@ -96,6 +96,8 @@ impl<'s> VmFunctionGenerator<'s> {
                             "_div" => QVMInstruction::Div,
                             "_mod" => QVMInstruction::Mod,
                             "_not" => QVMInstruction::Not,
+                            "_or" => QVMInstruction::Or,
+                            "_and" => QVMInstruction::And,
                             "_gc" => QVMInstruction::RuntimeInstr("_gc".to_string()),
                             "_panic" => QVMInstruction::RuntimeInstr("_panic".to_string()),
                             "_len" => QVMInstruction::RuntimeInstr("_len".to_string()),

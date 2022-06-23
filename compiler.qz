@@ -2,17 +2,23 @@ func at(s: string, p: int): string {
   return s.slice(p, p+1);
 }
 
-func find_next_newline(s: string): int {
-  let n = 0;
-  while (n < s.len()) {
-    if at(s,n).eq("")
-  }
-}
-
 func find_space_pattern(s: string): int {
   let n = 0;
   while (n < s.len()) {
     if _not(at(s,n).eq(" ")) {
+      return n;
+    };
+
+    n = n + 1;
+  };
+
+  return n;
+}
+
+func find_exact_pattern(s: string, pattern: string): int {
+  let n = 0;
+  while _and(n < s.len(), n < pattern.len()) {
+    if _not(at(s,n).eq(at(pattern,n))) {
       return n;
     };
 
@@ -56,4 +62,7 @@ func compiler_test() {
   assert_eq(show_int(find_space_pattern("fooo")), show_int(0));
   assert_eq(show_int(find_space_pattern("    fooo")), show_int(4));
   assert_eq(show_int(find_space_pattern("    ")), show_int(4));
+
+  assert_eq(show_int(find_exact_pattern("abcde_fg", "abc")), show_int(3));
+  assert_eq(show_int(find_exact_pattern("kabcd", "abc")), show_int(0));
 }
