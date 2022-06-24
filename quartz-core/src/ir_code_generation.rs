@@ -11,7 +11,7 @@ use crate::{
 struct IrFunctionGenerator<'s> {
     ir: Vec<IrElement>,
     args: &'s HashMap<String, usize>,
-    var_index: usize,
+    fresh_var_index: usize,
     self_object: Option<IrElement>,
     structs: &'s Structs,
 }
@@ -21,16 +21,16 @@ impl<'s> IrFunctionGenerator<'s> {
         IrFunctionGenerator {
             ir: vec![],
             args,
-            var_index: 0,
+            fresh_var_index: 0,
             self_object: None,
             structs,
         }
     }
 
     pub fn var_fresh(&mut self) -> Result<IrTerm> {
-        self.var_index += 1;
+        self.fresh_var_index += 1;
 
-        Ok(IrTerm::Ident(format!("fresh_{}", self.var_index)))
+        Ok(IrTerm::Ident(format!("fresh_{}", self.fresh_var_index)))
     }
 
     pub fn expr(&mut self, expr: &Expr) -> Result<IrElement> {
@@ -206,7 +206,7 @@ impl<'s> IrFunctionGenerator<'s> {
         }
     }
 
-    pub fn statement(&mut self, statement: &Statement) -> Result<()> {
+    fn statement(&mut self, statement: &Statement) -> Result<()> {
         match statement {
             Statement::Let(x, e) => {
                 let v = self.expr(e)?;
@@ -322,9 +322,34 @@ impl<'s> IrFunctionGenerator<'s> {
         Ok(())
     }
 
-    fn statements(&mut self, statements: &Vec<Source<Statement>>) -> Result<()> {
+    // for normal blocks
+    pub fn statements(&mut self, statements: &Vec<Source<Statement>>) -> Result<()> {
+        self.ir.push(IrElement::block("begin_scope", vec![]));
+
         for statement in statements {
             self.statement(&statement.data)?;
+        }
+
+        self.ir.push(IrElement::block("end_scope", vec![]));
+
+        Ok(())
+    }
+
+    // for functions
+    pub fn function(&mut self, statements: &Vec<Source<Statement>>) -> Result<()> {
+        // if last statement was not a return statement, insert it
+        // FIXME: typecheck
+        let need_return_nil_insert = !statements
+            .last()
+            .map(|s| matches!(s.data, Statement::Return(_)))
+            .unwrap_or(false);
+
+        for statement in statements {
+            self.statement(&statement.data)?;
+        }
+
+        if need_return_nil_insert {
+            self.statement(&Statement::Return(Expr::Lit(Literal::Nil)))?;
         }
 
         Ok(())
@@ -371,18 +396,7 @@ impl IrGenerator {
 
         let mut generator = IrFunctionGenerator::new(&args, &self.structs);
 
-        generator.statements(&function.body)?;
-
-        // if last statement was not a return statement, insert it
-        // FIXME: typecheck
-        if !function
-            .body
-            .last()
-            .map(|s| matches!(s.data, Statement::Return(_)))
-            .unwrap_or(false)
-        {
-            generator.statement(&Statement::Return(Expr::Lit(Literal::Nil)))?;
-        }
+        generator.function(&function.body)?;
 
         elements.extend(generator.ir);
 

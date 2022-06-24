@@ -42,8 +42,8 @@ struct VmFunctionGenerator<'s> {
     labels: &'s mut HashMap<String, usize>,
     offset: usize,
     label_continue: Option<String>,
-    label_continue_local_pointer: usize,
     source_map: HashMap<usize, String>,
+    scope_local_pointers: Vec<usize>,
 }
 
 impl<'s> VmFunctionGenerator<'s> {
@@ -62,8 +62,8 @@ impl<'s> VmFunctionGenerator<'s> {
             labels,
             offset,
             label_continue: None,
-            label_continue_local_pointer: 0,
             source_map: HashMap::new(),
+            scope_local_pointers: Vec::new(),
         }
     }
 
@@ -230,35 +230,31 @@ impl<'s> VmFunctionGenerator<'s> {
                         let label_cond =
                             format!("while-cond-{}-{}", self.globals.len(), self.labels.len());
                         self.label_continue = Some(label_cond.clone());
-                        self.label_continue_local_pointer = self.local_pointer;
 
                         self.code
                             .push(QVMInstruction::LabelJump(label_cond.clone()));
 
-                        let p = self.local_pointer;
-
                         self.register_label(label.clone());
                         self.element(body)?;
 
-                        // Before finishing this loop, need to pop local variables
-                        self.code.push(QVMInstruction::Pop(self.local_pointer - p));
-
                         self.register_label(label_cond.clone());
-
                         self.element(cond)?;
 
                         self.code.push(QVMInstruction::LabelJumpIf(label.clone()));
                         self.label_continue = None;
-                        self.label_continue_local_pointer = 0;
                     }
                     "continue" => {
-                        self.code.push(QVMInstruction::Pop(
-                            self.local_pointer - self.label_continue_local_pointer,
-                        ));
-
                         self.code.push(QVMInstruction::LabelJump(
                             self.label_continue.clone().unwrap(),
                         ));
+                    }
+                    "begin_scope" => {
+                        self.scope_local_pointers.push(self.local_pointer);
+                    }
+                    "end_scope" => {
+                        let p = self.scope_local_pointers.pop().unwrap();
+                        self.code.push(QVMInstruction::Pop(self.local_pointer - p));
+                        self.local_pointer = p;
                     }
                     name => todo!("{:?}", name),
                 };

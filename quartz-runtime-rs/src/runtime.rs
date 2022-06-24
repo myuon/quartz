@@ -785,6 +785,30 @@ func main() {
 "#,
             1,
         ),
+        (
+            r#"
+func main() {
+    let n = 0;
+    let result = 0;
+
+    while _lt(n, 10) {
+        let k = n;
+        if _eq(k, 0) {
+            let p = 1;
+
+            result = p;
+        } else {
+            result = result + n;
+        };
+
+        n = n + 1;
+    };
+
+    return result;
+}
+"#,
+            46,
+        ),
     ];
 
     for (input, result) in cases {
