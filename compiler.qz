@@ -32,6 +32,7 @@ func (l: Lexer) run() {
   while (l.position < l.input.len()) {
     let ch = l.input.slice(l.position, l.position + 1);
     let next_input = l.input.slice_after(l.position);
+    _println(next_input);
 
     let n = find_space_pattern(next_input);
     if (n > 0) {
@@ -40,7 +41,6 @@ func (l: Lexer) run() {
     };
 
     let n = find_exact_pattern(next_input, "(");
-    _println(show_int(n));
     if (n > 0) {
       _println("(");
       l.position = l.position + n;

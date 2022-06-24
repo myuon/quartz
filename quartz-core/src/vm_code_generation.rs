@@ -42,6 +42,7 @@ struct VmFunctionGenerator<'s> {
     labels: &'s mut HashMap<String, usize>,
     offset: usize,
     label_continue: Option<String>,
+    label_continue_local_pointer: usize,
     source_map: HashMap<usize, String>,
 }
 
@@ -61,6 +62,7 @@ impl<'s> VmFunctionGenerator<'s> {
             labels,
             offset,
             label_continue: None,
+            label_continue_local_pointer: 0,
             source_map: HashMap::new(),
         }
     }
@@ -224,6 +226,10 @@ impl<'s> VmFunctionGenerator<'s> {
                         let label_cond =
                             format!("while-cond-{}-{}", self.globals.len(), self.labels.len());
                         self.label_continue = Some(label_cond.clone());
+                        self.label_continue_local_pointer = self.local_pointer;
+
+                        self.code
+                            .push(QVMInstruction::LabelJump(label_cond.clone()));
 
                         let p = self.local_pointer;
 
@@ -239,9 +245,13 @@ impl<'s> VmFunctionGenerator<'s> {
 
                         self.code.push(QVMInstruction::LabelJumpIf(label.clone()));
                         self.label_continue = None;
+                        self.label_continue_local_pointer = 0;
                     }
                     "continue" => {
-                        // FIXME: before jumping to label_continue, need to pop local variables?
+                        self.code.push(QVMInstruction::Pop(
+                            self.local_pointer - self.label_continue_local_pointer,
+                        ));
+
                         self.code.push(QVMInstruction::LabelJump(
                             self.label_continue.clone().unwrap(),
                         ));

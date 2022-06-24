@@ -762,6 +762,20 @@ func main() {
 "#,
             30,
         ),
+        (
+            r#"
+func main() {
+    let result = 1;
+
+    while false {
+        result = 0;
+    };
+
+    return result;
+}
+"#,
+            1,
+        ),
     ];
 
     for (input, result) in cases {
