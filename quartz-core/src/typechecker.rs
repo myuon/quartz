@@ -325,21 +325,6 @@ impl<'s> TypeChecker<'s> {
                     })
                 }
             }
-            Expr::Deref(d) => {
-                let typ = self.expr(d)?;
-                Ok(typ
-                    .as_ref_type()
-                    .ok_or(anyhow::anyhow!(
-                        "Expected reference type but found: {:?}",
-                        typ
-                    ))?
-                    .as_ref()
-                    .clone())
-            }
-            Expr::Ref(e) => {
-                let typ = self.expr(e)?;
-                Ok(Type::Ref(Box::new(typ)))
-            }
             Expr::Index(e, i) => {
                 let mut r = self.next_infer();
 

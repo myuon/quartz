@@ -203,8 +203,6 @@ impl<'s> IrFunctionGenerator<'s> {
                     ),
                 ],
             )),
-            Expr::Deref(_) => todo!(),
-            Expr::Ref(_) => todo!(),
         }
     }
 

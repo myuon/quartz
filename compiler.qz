@@ -40,12 +40,16 @@ func (l: Lexer) run() {
       continue;
     };
 
+    _println("find_space_pattern");
+
     let n = find_exact_pattern(next_input, "(");
     if (n > 0) {
       _println("(");
       l.position = l.position + n;
       continue;
     };
+
+    _println("find_exact_pattern");
 
     l.position = l.position + 1;
   };

@@ -73,8 +73,6 @@ pub enum Expr {
         String,
     ),
     Index(Box<Expr>, Box<Expr>),
-    Deref(Box<Expr>),
-    Ref(Box<Expr>),
 }
 
 #[derive(PartialEq, Debug, Clone)]

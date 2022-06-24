@@ -191,8 +191,9 @@ impl<'s> VmFunctionGenerator<'s> {
                             }
                         }
                     }
-                    // FIXME: pop local variables for then, else blocks
                     "if" => {
+                        let p = self.local_pointer;
+
                         let (cond, left, right) = unvec!(block.elements, 3);
 
                         // FIXME: Area these labels really unqiue?
@@ -213,6 +214,8 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.register_label(label_else.clone());
                         self.element(right)?;
                         self.register_label(label_end.clone());
+
+                        self.code.push(QVMInstruction::Pop(self.local_pointer - p));
                     }
                     "seq" => {
                         for elem in block.elements {
