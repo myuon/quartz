@@ -204,21 +204,26 @@ impl Runtime {
         self.stack[self.stack_pointer - offset]
     }
 
+    fn debug_info(&self) -> String {
+        format!(
+            "{}\n{:?}\n{} {:?}\n",
+            &self
+                .heap
+                .debug_objects()
+                .iter()
+                .map(|c| format!("{:?}", c))
+                .collect::<Vec<_>>()
+                .join("\n"),
+            &self.stack[0..self.stack_pointer].iter().collect::<Vec<_>>(),
+            self.pc,
+            &self.code[self.pc..self.pc + 5]
+        )
+    }
+
     pub fn run(&mut self) -> Result<()> {
         while self.pc < self.code.len() {
-            debug!(
-                "{}\n{:?}\n{} {:?}\n",
-                &self
-                    .heap
-                    .debug_objects()
-                    .iter()
-                    .map(|c| format!("{:?}", c))
-                    .collect::<Vec<_>>()
-                    .join("\n"),
-                &self.stack[0..self.stack_pointer].iter().collect::<Vec<_>>(),
-                self.pc,
-                &self.code[self.pc],
-            );
+            debug!("{}", self.debug_info(),);
+
             match self.code[self.pc] {
                 QVMInstruction::Call => {
                     let r = self.pop();
@@ -503,6 +508,10 @@ impl Runtime {
                     }
                     "_panic" => {
                         panic!("====== PANIC CALLED ======\n{:?}", self.stack);
+                    }
+                    "_debug" => {
+                        println!("{}", self.debug_info());
+                        self.push(Value::nil());
                     }
                     _ => {
                         unreachable!();
