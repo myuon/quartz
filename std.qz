@@ -23,6 +23,19 @@ func (s: string) eq(t: string): bool {
     return true;
 }
 
+func (s: string) starts_with(prefix: string): bool {
+    let n = 0;
+    while (n < prefix.len()) {
+        if (s.data[n] != prefix.data[n]) {
+            return false;
+        };
+
+        n = n + 1;
+    };
+
+    return true;
+}
+
 func (s: string) bytes(): bytes {
     return s.data;
 }
@@ -34,10 +47,6 @@ func (s: string) slice(start: int, end: int): string {
     return string {
         data: buffer,
     };
-}
-
-func (s: string) starts_with(prefix: string): bool {
-    return s.slice(0, prefix.len()).eq(prefix);
 }
 
 func (s: string) slice_after(start: int): string {

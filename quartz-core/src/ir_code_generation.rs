@@ -216,10 +216,9 @@ impl<'s> IrFunctionGenerator<'s> {
                 ));
             }
             Statement::Expr(e) => {
-                let x = self.var_fresh()?;
                 let v = self.expr(e)?;
-                self.ir
-                    .push(IrElement::block("let", vec![IrElement::Term(x), v]));
+                self.ir.push(v);
+                self.ir.push(IrElement::instruction("pop", vec![]));
             }
             Statement::Return(e) => {
                 let v = self.expr(e)?;

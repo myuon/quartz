@@ -244,6 +244,9 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.label_continue = None;
                     }
                     "continue" => {
+                        // pop local variables just like end_scope
+                        let p = self.scope_local_pointers.last().unwrap();
+                        self.code.push(QVMInstruction::Pop(self.local_pointer - *p));
                         self.code.push(QVMInstruction::LabelJump(
                             self.label_continue.clone().unwrap(),
                         ));
@@ -255,6 +258,9 @@ impl<'s> VmFunctionGenerator<'s> {
                         let p = self.scope_local_pointers.pop().unwrap();
                         self.code.push(QVMInstruction::Pop(self.local_pointer - p));
                         self.local_pointer = p;
+                    }
+                    "pop" => {
+                        self.code.push(QVMInstruction::Pop(1));
                     }
                     name => todo!("{:?}", name),
                 };

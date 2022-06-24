@@ -2,8 +2,8 @@ func at(s: string, p: int): string {
   return s.slice(p, p+1);
 }
 
-func find_space_pattern(s: string): int {
-  let n = 0;
+func find_space_pattern(s: string, start: int): int {
+  let n = start;
   while (n < s.len()) {
     if _not(at(s,n).eq(" ")) {
       return n;
@@ -15,12 +15,17 @@ func find_space_pattern(s: string): int {
   return n;
 }
 
-func find_exact_pattern(s: string, pattern: string): int {
-  if s.starts_with(pattern) {
-    return pattern.len();
-  } else {
-    return 0;
+func find_exact_pattern(s: string, start: int, pattern: string): int {
+  let n = start;
+  while (n < pattern.len()) {
+      if (s.data[n] != pattern.data[n - start]) {
+          return n;
+      };
+
+      n = n + 1;
   };
+
+  return n - start;
 }
 
 struct Lexer {
@@ -30,16 +35,15 @@ struct Lexer {
 
 func (l: Lexer) run() {
   while (l.position < l.input.len()) {
-    let ch = l.input.slice(l.position, l.position + 1);
-    let next_input = l.input.slice_after(l.position);
+    _println(l.input.slice_after(l.position));
 
-    let n = find_space_pattern(next_input);
+    let n = find_space_pattern(l.input, l.position);
     if (n > 0) {
       l.position = l.position + n;
       continue;
     };
 
-    let n = find_exact_pattern(next_input, "(");
+    let n = find_exact_pattern(l.input, l.position, "(");
     if (n > 0) {
       _println("(");
       l.position = l.position + n;
@@ -62,10 +66,10 @@ func main() {
 }
 
 func compiler_test() {
-  assert_eq(show_int(find_space_pattern("fooo")), show_int(0));
-  assert_eq(show_int(find_space_pattern("    fooo")), show_int(4));
-  assert_eq(show_int(find_space_pattern("    ")), show_int(4));
+  assert_eq(show_int(find_space_pattern("fooo", 0)), show_int(0));
+  assert_eq(show_int(find_space_pattern("    fooo", 0)), show_int(4));
+  assert_eq(show_int(find_space_pattern("    ", 0)), show_int(4));
 
-  assert_eq(show_int(find_exact_pattern("abcde_fg", "abc")), show_int(3));
-  assert_eq(show_int(find_exact_pattern("kabcd", "abc")), show_int(0));
+  assert_eq(show_int(find_exact_pattern("abcde_fg", 0, "abc")), show_int(3));
+  assert_eq(show_int(find_exact_pattern("kabcd", 0, "abc")), show_int(0));
 }
