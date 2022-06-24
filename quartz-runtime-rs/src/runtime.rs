@@ -216,7 +216,7 @@ impl Runtime {
                 .join("\n"),
             &self.stack[0..self.stack_pointer].iter().collect::<Vec<_>>(),
             self.pc,
-            &self.code[self.pc..self.pc + 5]
+            &self.code[self.pc]
         )
     }
 

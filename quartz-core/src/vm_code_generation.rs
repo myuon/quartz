@@ -193,30 +193,30 @@ impl<'s> VmFunctionGenerator<'s> {
                         }
                     }
                     "if" => {
-                        let p = self.local_pointer;
-
                         let (cond, left, right) = unvec!(block.elements, 3);
 
                         // FIXME: Area these labels really unqiue?
                         let index = self.labels.len();
                         let label = format!("if-{}-{}", self.globals.len(), index);
-                        let label_then = format!("then-{}-{}", self.globals.len(), index);
                         let label_else = format!("else-{}-{}", self.globals.len(), index);
                         let label_end = format!("end-{}-{}", self.globals.len(), index);
 
+                        // condition
                         self.register_label(label.clone());
                         self.element(cond)?;
                         self.code
                             .push(QVMInstruction::LabelJumpIfFalse(label_else.clone()));
-                        self.register_label(label_then.clone());
+
+                        // then block
                         self.element(left)?;
-                        self.code
-                            .push(QVMInstruction::LabelJumpIfFalse(label_end.clone()));
+                        self.code.push(QVMInstruction::LabelJump(label_end.clone()));
+
+                        // else block
                         self.register_label(label_else.clone());
                         self.element(right)?;
-                        self.register_label(label_end.clone());
 
-                        self.code.push(QVMInstruction::Pop(self.local_pointer - p));
+                        // endif
+                        self.register_label(label_end.clone());
                     }
                     "seq" => {
                         for elem in block.elements {
