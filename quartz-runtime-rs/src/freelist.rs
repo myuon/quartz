@@ -1,5 +1,6 @@
 use anyhow::Result;
 use log::debug;
+use serde::{Deserialize, Serialize};
 
 use crate::runtime::{AddrPlace, Value};
 
@@ -34,7 +35,8 @@ impl LinkObjectHeader {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(bound(deserialize = "'de: 'static"))]
 pub struct Freelist {
     pub data: Vec<Value>,
 }

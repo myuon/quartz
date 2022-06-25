@@ -44,6 +44,11 @@ func (l: Lexer) run() {
     };
 
     let n = find_exact_pattern(l.input, l.position, "(");
+    if (l.position == 1) {
+      _debug;
+      _start_debugger;
+    };
+
     if (n > 0) {
       _println("(");
       l.position = l.position + n;

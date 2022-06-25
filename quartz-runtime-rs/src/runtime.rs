@@ -1,19 +1,20 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, fs::File, io::Write};
 
 use anyhow::Result;
 use log::debug;
 use quartz_core::vm::QVMInstruction;
+use serde::{Deserialize, Serialize};
 
 use crate::freelist::Freelist;
 
-#[derive(Clone, Debug, Copy)]
+#[derive(Clone, Debug, Copy, Serialize, Deserialize)]
 pub enum AddrPlace {
     Heap,
     InfoTable,
     Unknown,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub enum Value {
     Int(i32, &'static str),
     Addr(usize, AddrPlace, &'static str),
@@ -104,7 +105,8 @@ macro_rules! assert_matches {
                                     ^ new fp
 */
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(bound(deserialize = "'de: 'static"))]
 pub struct Runtime {
     stack: Vec<Value>,
     heap: Freelist,
@@ -119,7 +121,7 @@ impl Runtime {
     pub fn new(code: Vec<QVMInstruction>, globals: usize) -> Runtime {
         Runtime {
             stack: vec![],
-            heap: Freelist::new(1_000_000),
+            heap: Freelist::new(1_000),
             globals: vec![0; globals],
             code,
             pc: 0,
@@ -513,6 +515,13 @@ impl Runtime {
                     "_debug" => {
                         println!("{}", self.debug_info());
                         self.push(Value::nil());
+                    }
+                    "_start_debugger" => {
+                        let mut file = File::create("./quartz-debugger.json").unwrap();
+                        file.write_all(&serde_json::to_vec_pretty(&self).unwrap())
+                            .unwrap();
+
+                        return Ok(());
                     }
                     _ => {
                         unreachable!();

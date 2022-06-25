@@ -117,6 +117,9 @@ impl<'s> VmFunctionGenerator<'s> {
                             "_stringify" => QVMInstruction::RuntimeInstr("_stringify".to_string()),
                             "_copy" => QVMInstruction::RuntimeInstr("_copy".to_string()),
                             "_debug" => QVMInstruction::RuntimeInstr("_debug".to_string()),
+                            "_start_debugger" => {
+                                QVMInstruction::RuntimeInstr("_start_debugger".to_string())
+                            }
                             _ => QVMInstruction::LabelAddrConst(v.clone()),
                         });
                     }

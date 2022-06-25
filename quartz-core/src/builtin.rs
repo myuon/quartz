@@ -56,6 +56,7 @@ pub fn builtin() -> HashMap<String, Type> {
         ("_gc", Type::Unit),
         ("_panic", Type::Unit),
         ("_debug", Type::Unit),
+        ("_start_debugger", Type::Unit),
         (
             "_padd",
             Type::Fn(vec![Type::Any, Type::Int], Box::new(Type::Byte)),
