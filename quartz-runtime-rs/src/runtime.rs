@@ -306,7 +306,7 @@ impl Runtime {
                         "bool",
                     ));
                 }
-                QVMInstruction::NotEq => {
+                QVMInstruction::Neq => {
                     let a = self.pop();
                     let b = self.pop();
                     self.push(Value::Int(
@@ -318,7 +318,6 @@ impl Runtime {
                         "bool",
                     ));
                 }
-                QVMInstruction::Neq => todo!(),
                 QVMInstruction::Lt => {
                     let a = self.pop().as_int().unwrap();
                     let b = self.pop().as_int().unwrap();

@@ -1,10 +1,11 @@
 use anyhow::Result;
 use log::info;
-use quartz_core::compiler::Compiler;
+use quartz_core::{compiler::Compiler, vm::QVMSource};
 use runtime::Runtime;
 use std::{
     env::{self, args},
-    io::Read,
+    fs::File,
+    io::{Read, Write},
 };
 
 mod freelist;
@@ -61,6 +62,15 @@ fn main() -> Result<()> {
                 }
             );
         }
+
+        let mut file = File::create("./out.qasm").unwrap();
+        file.write_all(
+            &QVMSource::new(code)
+                .into_string()
+                .bytes()
+                .collect::<Vec<_>>(),
+        )
+        .unwrap();
     } else {
         let entrypoint = env::var("ENTRYPOINT").ok().unwrap_or("main".to_string());
 

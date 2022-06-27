@@ -99,7 +99,7 @@ impl<'s> VmFunctionGenerator<'s> {
                             "_sub" => QVMInstruction::Sub,
                             "_mult" => QVMInstruction::Mult,
                             "_eq" => QVMInstruction::Eq,
-                            "_neq" => QVMInstruction::NotEq,
+                            "_neq" => QVMInstruction::Neq,
                             "_new" => QVMInstruction::Alloc,
                             "_padd" => QVMInstruction::PAdd,
                             "_lt" => QVMInstruction::Lt,
