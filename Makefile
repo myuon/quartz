@@ -1,4 +1,4 @@
-.PHONY: quartz_test run
+.PHONY: test test_std compile run debug_run
 
 test:
 	@echo "quartz test"

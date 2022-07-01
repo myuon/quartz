@@ -7,6 +7,7 @@ use std::{
     env,
     fs::File,
     io::{Read, Write},
+    path::PathBuf,
 };
 
 mod freelist;
@@ -27,7 +28,10 @@ enum Command {
     #[clap(name = "test", about = "Run a Quartz test program")]
     Test,
     #[clap(name = "compile", about = "Compile a Quartz program")]
-    Compile,
+    Compile {
+        #[clap(short, long, value_parser, value_name = "FILE")]
+        qasm_output: Option<PathBuf>,
+    },
     #[clap(name = "test_compiler", about = "Run Quartz compiler tests")]
     TestCompiler,
 }
@@ -45,7 +49,7 @@ fn main() -> Result<()> {
     )?;
 
     let cli = Cli::parse();
-    match &cli.command {
+    match cli.command {
         Command::Run => {
             let entrypoint = env::var("ENTRYPOINT").ok().unwrap_or("main".to_string());
 
@@ -58,7 +62,7 @@ fn main() -> Result<()> {
 
             Runtime::new(code.clone(), compiler.vm_code_generation.globals()).run()?;
         }
-        Command::Compile => {
+        Command::Compile { qasm_output } => {
             let mut buffer = String::new();
             let mut stdin = std::io::stdin();
             stdin.read_to_string(&mut buffer).unwrap();
@@ -73,7 +77,7 @@ fn main() -> Result<()> {
                 info!("{:04} {:?}", n, inst);
             }
 
-            let mut file = File::create("./out.qasm").unwrap();
+            let mut file = File::create(qasm_output.unwrap_or("./out.qasm".into())).unwrap();
             file.write_all(
                 &QVMSource::new(code)
                     .into_string()

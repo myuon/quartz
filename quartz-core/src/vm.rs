@@ -54,104 +54,96 @@ impl QVMInstruction {
 
         match self {
             Load(s) => {
-                format!("load {}", s)
+                format!("LOAD {}", s)
             }
             Store(s) => {
-                format!("store {}", s)
+                format!("STORE {}", s)
             }
             Pop(n) => {
-                format!("pop {}", n)
+                format!("POP {}", n)
             }
             Alloc => {
-                format!("alloc")
+                format!("ALLOC")
             }
             Free(n) => {
-                format!("free {}", n)
+                format!("FREE {}", n)
             }
             LoadArg(n) => {
-                format!("loadarg {}", n)
+                format!("LOADARG {}", n)
             }
             Jump(n) => {
-                format!("jump {}", n)
+                format!("JUMP {}", n)
             }
             JumpIf(n) => {
-                format!("jumpif {}", n)
+                format!("JUMPIF {}", n)
             }
             JumpIfFalse(n) => {
-                format!("jumpiffalse {}", n)
+                format!("JUMPIFNOT {}", n)
             }
             Call => {
-                format!("call")
+                format!("CALL")
             }
             Return(n) => {
-                format!("return {}", n)
+                format!("RETURN {}", n)
             }
             Add => {
-                format!("add")
+                format!("ADD")
             }
             Sub => {
-                format!("sub")
+                format!("SUB")
             }
             Mult => {
-                format!("mult")
+                format!("MULT")
             }
             Div => {
-                format!("div")
+                format!("DIV")
             }
             Mod => {
-                format!("mod")
+                format!("MOD")
             }
             Eq => {
-                format!("eq")
+                format!("EQ")
             }
             Neq => {
-                format!("neq")
+                format!("NEQ")
             }
             Lt => {
-                format!("lt")
+                format!("LT")
             }
             Le => {
-                format!("le")
+                format!("LE")
             }
             Gt => {
-                format!("gt")
+                format!("GT")
             }
             And => {
-                format!("and")
+                format!("AND")
             }
             Or => {
-                format!("or")
+                format!("OR")
             }
             Not => {
-                format!("not")
+                format!("NOT")
             }
             PAdd => {
-                format!("padd")
+                format!("PADD")
             }
             RuntimeInstr(s) => {
-                format!("runtime {}", s)
+                format!("RUNTIMEINSTR {}", s)
             }
             I32Const(n) => {
-                format!("i32const {}", n)
+                format!("I32CONST {}", n)
             }
             BoolConst(b) => {
-                format!("boolconst {}", b)
+                format!("BOOLCONST {}", b)
             }
             AddrConst(n, s) => {
-                format!("addrconst {} {}", n, s)
+                format!("ADDRCONST {} {}", n, s)
             }
-            LabelAddrConst(s) => {
-                format!("labeladdrconst {}", s)
-            }
-            LabelJumpIfFalse(s) => {
-                format!("labeljumpiffalse {}", s)
-            }
-            LabelJumpIf(s) => {
-                format!("labeljumpif {}", s)
-            }
-            LabelJump(s) => {
-                format!("labeljump {}", s)
-            }
+            LabelAddrConst(_) => unreachable!(),
+            LabelJumpIfFalse(_) => unreachable!(),
+            LabelJumpIf(_) => unreachable!(),
+            LabelJump(_) => unreachable!(),
         }
     }
 }
