@@ -17,7 +17,7 @@ use std::{
 };
 use tui::{
     backend::CrosstermBackend,
-    widgets::{Block, Borders, Paragraph},
+    widgets::{Block, Borders, Paragraph, Wrap},
     Terminal,
 };
 
@@ -187,7 +187,10 @@ fn start_debugger(
             let block = Block::default()
                 .title("n:step r:resume q:quit")
                 .borders(Borders::ALL);
-            f.render_widget(Paragraph::new(runtime.debug_info()), block.inner(size));
+            f.render_widget(
+                Paragraph::new(runtime.debug_info()).wrap(Wrap { trim: false }),
+                block.inner(size),
+            );
             f.render_widget(block, size);
         })?;
 
