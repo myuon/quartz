@@ -140,21 +140,22 @@ impl<'s> VmFunctionGenerator<'s> {
                 IrTerm::Keyword(_) => todo!(),
             },
             IrElement::Block(mut block) => {
-                self.new_source_map(element.show_compact());
-
                 match block.name.as_str() {
                     "let" => {
+                        self.new_source_map(element.show_compact());
                         let (name, expr) = unvec!(block.elements, 2);
                         let var_name = name.into_term()?.into_ident()?;
                         self.element(expr)?;
                         self.push_local(var_name);
                     }
                     "return" => {
+                        self.new_source_map(element.show_compact());
                         let expr = unvec!(block.elements, 1);
                         self.element(expr)?;
                         self.code.push(QVMInstruction::Return(self.arg_len));
                     }
                     "call" => {
+                        self.new_source_map(element.show_compact());
                         let mut callee = None;
                         let mut first = true;
                         for elem in block.elements {
@@ -174,6 +175,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         }
                     }
                     "assign" => {
+                        self.new_source_map(element.show_compact());
                         let (left, right) = unvec!(block.elements, 2);
                         self.element(right)?;
 
@@ -196,6 +198,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         }
                     }
                     "if" => {
+                        self.new_source_map(IrElement::block("if", vec![]).show_compact());
                         let (cond, left, right) = unvec!(block.elements, 3);
 
                         // FIXME: Area these labels really unqiue?
@@ -206,27 +209,33 @@ impl<'s> VmFunctionGenerator<'s> {
 
                         // condition
                         self.register_label(label.clone());
+                        self.new_source_map(IrElement::block("if:cond", vec![]).show_compact());
                         self.element(cond)?;
                         self.code
                             .push(QVMInstruction::LabelJumpIfFalse(label_else.clone()));
 
                         // then block
+                        self.new_source_map(IrElement::block("if:then", vec![]).show_compact());
                         self.element(left)?;
                         self.code.push(QVMInstruction::LabelJump(label_end.clone()));
 
                         // else block
+                        self.new_source_map(IrElement::block("if:else", vec![]).show_compact());
                         self.register_label(label_else.clone());
                         self.element(right)?;
 
                         // endif
                         self.register_label(label_end.clone());
+                        self.new_source_map(IrElement::block("if:end", vec![]).show_compact());
                     }
                     "seq" => {
+                        self.new_source_map(IrElement::block("seq", vec![]).show_compact());
                         for elem in block.elements {
                             self.element(elem)?;
                         }
                     }
                     "while" => {
+                        self.new_source_map(IrElement::block("while", vec![]).show_compact());
                         let (cond, body) = unvec!(block.elements, 2);
 
                         let label = format!("while-{}-{}", self.globals.len(), self.labels.len());
@@ -237,16 +246,21 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.code
                             .push(QVMInstruction::LabelJump(label_cond.clone()));
 
+                        self.new_source_map(IrElement::block("while:body", vec![]).show_compact());
                         self.register_label(label.clone());
                         self.element(body)?;
 
                         self.register_label(label_cond.clone());
+                        self.new_source_map(IrElement::block("while:cond", vec![]).show_compact());
                         self.element(cond)?;
 
                         self.code.push(QVMInstruction::LabelJumpIf(label.clone()));
                         self.label_continue = None;
+                        self.new_source_map(IrElement::block("while:end", vec![]).show_compact());
                     }
                     "continue" => {
+                        self.new_source_map(element.show_compact());
+
                         // pop local variables just like end_scope
                         let p = self.scope_local_pointers.last().unwrap();
                         self.code.push(QVMInstruction::Pop(self.local_pointer - *p));
@@ -255,14 +269,17 @@ impl<'s> VmFunctionGenerator<'s> {
                         ));
                     }
                     "begin_scope" => {
+                        self.new_source_map(element.show_compact());
                         self.scope_local_pointers.push(self.local_pointer);
                     }
                     "end_scope" => {
+                        self.new_source_map(element.show_compact());
                         let p = self.scope_local_pointers.pop().unwrap();
                         self.code.push(QVMInstruction::Pop(self.local_pointer - p));
                         self.local_pointer = p;
                     }
                     "pop" => {
+                        self.new_source_map(element.show_compact());
                         self.code.push(QVMInstruction::Pop(1));
                     }
                     name => todo!("{:?}", name),

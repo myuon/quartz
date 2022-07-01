@@ -51,16 +51,10 @@ fn main() -> Result<()> {
         let (code, source_map) = compiler.compile_result(&buffer, "main".to_string())?;
         info!("{}", compiler.ir_result.unwrap().show());
         for (n, inst) in code.iter().enumerate() {
-            info!(
-                "{:04} {:?}{}",
-                n,
-                inst,
-                if let Some(s) = source_map.get(&n) {
-                    format!(" ;; {}", s)
-                } else {
-                    "".to_string()
-                }
-            );
+            if let Some(s) = source_map.get(&n) {
+                info!(";; {}", s);
+            }
+            info!("{:04} {:?}", n, inst);
         }
 
         let mut file = File::create("./out.qasm").unwrap();
