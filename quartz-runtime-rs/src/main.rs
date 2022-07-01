@@ -34,13 +34,18 @@ enum Command {
     },
     #[clap(name = "test_compiler", about = "Run Quartz compiler tests")]
     TestCompiler,
-    #[clap(name = "debug", about = "Debug a Quartz program with a debugger json")]
-    Debug { debugger_json: Option<PathBuf> },
-    #[clap(
-        name = "debug_show",
-        about = "Show debug information with a debugger json"
-    )]
-    DebugShow { debugger_json: Option<PathBuf> },
+    #[clap(subcommand)]
+    Debug(DebugSubCommand),
+}
+
+#[derive(Subcommand)]
+enum DebugSubCommand {
+    #[clap(name = "resume", about = "Resume a debug session")]
+    Resume { debugger_json: Option<PathBuf> },
+    #[clap(name = "step", about = "Step a debug session")]
+    Step { debugger_json: Option<PathBuf> },
+    #[clap(name = "show", about = "Show debug information with a debugger json")]
+    Show { debugger_json: Option<PathBuf> },
 }
 
 fn main() -> Result<()> {
@@ -113,19 +118,27 @@ fn main() -> Result<()> {
                 info!("{:04} {:?}", n, inst);
             }
         }
-        Command::Debug { debugger_json } => {
-            let mut runtime = Runtime::new_from_debugger_json(
-                debugger_json.unwrap_or("./quartz-debugger.json".into()),
-            )?;
-            runtime.run().unwrap();
-        }
-        Command::DebugShow { debugger_json } => {
-            let runtime = Runtime::new_from_debugger_json(
-                debugger_json.unwrap_or("./quartz-debugger.json".into()),
-            )?;
+        Command::Debug(debug) => match debug {
+            DebugSubCommand::Resume { debugger_json } => {
+                let mut runtime = Runtime::new_from_debugger_json(
+                    debugger_json.unwrap_or("./quartz-debugger.json".into()),
+                )?;
+                runtime.run().unwrap();
+            }
+            DebugSubCommand::Step { debugger_json } => {
+                let mut runtime = Runtime::new_from_debugger_json(
+                    debugger_json.unwrap_or("./quartz-debugger.json".into()),
+                )?;
+                runtime.step().unwrap();
+            }
+            DebugSubCommand::Show { debugger_json } => {
+                let runtime = Runtime::new_from_debugger_json(
+                    debugger_json.unwrap_or("./quartz-debugger.json".into()),
+                )?;
 
-            info!("{}", runtime.debug_info());
-        }
+                info!("{}", runtime.debug_info());
+            }
+        },
     }
 
     Ok(())
