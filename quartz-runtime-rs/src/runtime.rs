@@ -225,7 +225,6 @@ impl Runtime {
     pub fn run(&mut self) -> Result<()> {
         while self.pc < self.code.len() {
             debug!("{}", self.debug_info());
-            println!("{}", self.debug_info());
 
             match self.code[self.pc] {
                 QVMInstruction::Call => {
