@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.56"
 log = "0.4.17"
-once_cell = "1.10.0"
+once_cell = "1.12.0"
 pretty_assertions = "1.2.1"
 regex = "1.5.5"
 serde = { version = "1.0.137", features = ["derive"] }

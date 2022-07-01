@@ -1,15 +1,36 @@
 use anyhow::Result;
+use clap::{Parser, Subcommand};
 use log::info;
 use quartz_core::{compiler::Compiler, vm::QVMSource};
 use runtime::Runtime;
 use std::{
-    env::{self, args},
+    env,
     fs::File,
     io::{Read, Write},
 };
 
 mod freelist;
 mod runtime;
+
+#[derive(Parser)]
+#[clap(author, version, about, long_about = None)]
+#[clap(propagate_version = true)]
+struct Cli {
+    #[clap(subcommand)]
+    command: Command,
+}
+
+#[derive(Subcommand)]
+enum Command {
+    #[clap(name = "run", about = "Run a Quartz program")]
+    Run,
+    #[clap(name = "test", about = "Run a Quartz test program")]
+    Test,
+    #[clap(name = "compile", about = "Compile a Quartz program")]
+    Compile,
+    #[clap(name = "test_compiler", about = "Run Quartz compiler tests")]
+    TestCompiler,
+}
 
 fn main() -> Result<()> {
     simplelog::TermLogger::init(
@@ -23,59 +44,64 @@ fn main() -> Result<()> {
         simplelog::ColorChoice::Auto,
     )?;
 
-    let command = args().nth(1);
-    if command == Some("test".to_string()) {
-        let entrypoint = env::var("ENTRYPOINT").ok().unwrap_or("test".to_string());
+    let cli = Cli::parse();
+    match &cli.command {
+        Command::Run => {
+            let entrypoint = env::var("ENTRYPOINT").ok().unwrap_or("main".to_string());
 
-        let mut compiler = Compiler::new();
-        let code = compiler.compile("", entrypoint)?;
-        info!("{}", compiler.ir_result.unwrap().show());
-        for (n, inst) in code.iter().enumerate() {
-            info!("{:04} {:?}", n, inst);
+            let mut buffer = String::new();
+            let mut stdin = std::io::stdin();
+            stdin.read_to_string(&mut buffer).unwrap();
+
+            let mut compiler = Compiler::new();
+            let code = compiler.compile(&buffer, entrypoint)?;
+
+            Runtime::new(code.clone(), compiler.vm_code_generation.globals()).run()?;
         }
+        Command::Compile => {
+            let mut buffer = String::new();
+            let mut stdin = std::io::stdin();
+            stdin.read_to_string(&mut buffer).unwrap();
 
-        Runtime::new(code.clone(), compiler.vm_code_generation.globals()).run()?;
-    } else if command == Some("compile_test".to_string()) {
-        let mut compiler = Compiler::new();
-        let code = compiler.compile("", "test".to_string())?;
-        info!("{}", compiler.ir_result.unwrap().show());
-        for (n, inst) in code.iter().enumerate() {
-            info!("{:04} {:?}", n, inst);
-        }
-    } else if command == Some("compile".to_string()) {
-        let mut buffer = String::new();
-        let mut stdin = std::io::stdin();
-        stdin.read_to_string(&mut buffer).unwrap();
-
-        let mut compiler = Compiler::new();
-        let (code, source_map) = compiler.compile_result(&buffer, "main".to_string())?;
-        info!("{}", compiler.ir_result.unwrap().show());
-        for (n, inst) in code.iter().enumerate() {
-            if let Some(s) = source_map.get(&n) {
-                info!(";; {}", s);
+            let mut compiler = Compiler::new();
+            let (code, source_map) = compiler.compile_result(&buffer, "main".to_string())?;
+            info!("{}", compiler.ir_result.unwrap().show());
+            for (n, inst) in code.iter().enumerate() {
+                if let Some(s) = source_map.get(&n) {
+                    info!(";; {}", s);
+                }
+                info!("{:04} {:?}", n, inst);
             }
-            info!("{:04} {:?}", n, inst);
+
+            let mut file = File::create("./out.qasm").unwrap();
+            file.write_all(
+                &QVMSource::new(code)
+                    .into_string()
+                    .bytes()
+                    .collect::<Vec<_>>(),
+            )
+            .unwrap();
         }
+        Command::Test => {
+            let entrypoint = env::var("ENTRYPOINT").ok().unwrap_or("test".to_string());
 
-        let mut file = File::create("./out.qasm").unwrap();
-        file.write_all(
-            &QVMSource::new(code)
-                .into_string()
-                .bytes()
-                .collect::<Vec<_>>(),
-        )
-        .unwrap();
-    } else {
-        let entrypoint = env::var("ENTRYPOINT").ok().unwrap_or("main".to_string());
+            let mut compiler = Compiler::new();
+            let code = compiler.compile("", entrypoint)?;
+            info!("{}", compiler.ir_result.unwrap().show());
+            for (n, inst) in code.iter().enumerate() {
+                info!("{:04} {:?}", n, inst);
+            }
 
-        let mut buffer = String::new();
-        let mut stdin = std::io::stdin();
-        stdin.read_to_string(&mut buffer).unwrap();
-
-        let mut compiler = Compiler::new();
-        let code = compiler.compile(&buffer, entrypoint)?;
-
-        Runtime::new(code.clone(), compiler.vm_code_generation.globals()).run()?;
+            Runtime::new(code.clone(), compiler.vm_code_generation.globals()).run()?;
+        }
+        Command::TestCompiler => {
+            let mut compiler = Compiler::new();
+            let code = compiler.compile("", "test".to_string())?;
+            info!("{}", compiler.ir_result.unwrap().show());
+            for (n, inst) in code.iter().enumerate() {
+                info!("{:04} {:?}", n, inst);
+            }
+        }
     }
 
     Ok(())
