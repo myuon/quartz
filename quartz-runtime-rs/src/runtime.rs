@@ -14,9 +14,9 @@ pub enum AddrPlace {
     Unknown,
 }
 
-#[derive(Clone, Copy, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub enum Value {
-    Int(i32, &'static str),
+    Int(i32, String),
     Addr(usize, AddrPlace, &'static str),
 }
 
@@ -36,15 +36,15 @@ impl std::fmt::Debug for Value {
 impl Value {
     pub fn as_bool(self) -> Option<bool> {
         match self {
-            Value::Int(i, "bool") if i == 0 => Some(false),
-            Value::Int(i, "bool") if i == 1 => Some(true),
+            Value::Int(i, m) if m == "bool" && i == 0 => Some(false),
+            Value::Int(i, m) if m == "bool" && i == 1 => Some(true),
             _ => None,
         }
     }
 
     pub fn as_int(self) -> Option<i32> {
         match self {
-            Value::Int(i, "int") => Some(i),
+            Value::Int(i, m) if m == "int" => Some(i),
             _ => None,
         }
     }
@@ -70,10 +70,10 @@ impl Value {
         }
     }
 
-    pub fn metadata(&self) -> &'static str {
+    pub fn metadata(&self) -> String {
         match self {
-            Value::Int(_, metadata) => metadata,
-            Value::Addr(_, _, metadata) => metadata,
+            Value::Int(_, metadata) => metadata.clone(),
+            Value::Addr(_, _, metadata) => metadata.to_string(),
         }
     }
 
@@ -82,11 +82,11 @@ impl Value {
     }
 
     pub fn bool(b: bool) -> Value {
-        Value::Int(if b { 1 } else { 0 }, "bool")
+        Value::Int(if b { 1 } else { 0 }, "bool".to_string())
     }
 
     pub fn int(i: i32) -> Value {
-        Value::Int(i, "int")
+        Value::Int(i, "int".to_string())
     }
 
     pub fn addr(i: usize) -> Value {
@@ -140,7 +140,7 @@ impl Runtime {
             root.push(Value::addr(*g as usize));
         }
         for s in &self.stack[..self.stack_pointer] {
-            root.push(*s);
+            root.push(s.clone());
         }
 
         while let Some(r) = root.pop() {
@@ -154,7 +154,7 @@ impl Runtime {
                         if let Ok(object) = self.heap.parse_from_data_pointer(i) {
                             for p in object.get_data_pointer()..object.get_end_pointer() {
                                 debug!("adding {:?}", p);
-                                root.push(self.heap.data[p]);
+                                root.push(self.heap.data[p].clone());
                             }
                         }
                     }
@@ -190,7 +190,7 @@ impl Runtime {
             self.stack
         );
         self.stack_pointer -= 1;
-        self.stack[self.stack_pointer]
+        self.stack[self.stack_pointer].clone()
     }
 
     fn push(&mut self, value: Value) {
@@ -203,7 +203,7 @@ impl Runtime {
     }
 
     fn load(&mut self, offset: usize) -> Value {
-        self.stack[self.stack_pointer - offset]
+        self.stack[self.stack_pointer - offset].clone()
     }
 
     fn debug_info(&self) -> String {
@@ -231,9 +231,9 @@ impl Runtime {
                     let r = self.pop();
                     assert_matches!(r, Value::Addr(_, AddrPlace::Heap, _));
 
-                    self.push(Value::Int(self.pc as i32 + 1, "pc"));
+                    self.push(Value::Int(self.pc as i32 + 1, "pc".to_string()));
                     self.pc = r.as_addr().unwrap();
-                    self.push(Value::Int(self.frame_pointer as i32, "fp"));
+                    self.push(Value::Int(self.frame_pointer as i32, "fp".to_string()));
                     self.frame_pointer = self.stack_pointer;
                     continue;
                 }
@@ -302,7 +302,7 @@ impl Runtime {
                         } else {
                             0
                         },
-                        "bool",
+                        "bool".to_string(),
                     ));
                 }
                 QVMInstruction::Neq => {
@@ -314,18 +314,18 @@ impl Runtime {
                         } else {
                             0
                         },
-                        "bool",
+                        "bool".to_string(),
                     ));
                 }
                 QVMInstruction::Lt => {
                     let a = self.pop().as_int().unwrap();
                     let b = self.pop().as_int().unwrap();
-                    self.push(Value::Int(if b < a { 1 } else { 0 }, "bool"));
+                    self.push(Value::Int(if b < a { 1 } else { 0 }, "bool".to_string()));
                 }
                 QVMInstruction::Gt => {
                     let a = self.pop().as_int().unwrap();
                     let b = self.pop().as_int().unwrap();
-                    self.push(Value::Int(if b > a { 1 } else { 0 }, "bool"));
+                    self.push(Value::Int(if b > a { 1 } else { 0 }, "bool".to_string()));
                 }
                 QVMInstruction::Le => todo!(),
                 QVMInstruction::And => {
@@ -356,27 +356,30 @@ impl Runtime {
                     match kind.as_str() {
                         "local" => {
                             assert!(
-                                matches!(self.stack[self.frame_pointer - 1], Value::Int(_, "fp")),
+                                self.stack[self.frame_pointer - 1]
+                                    .clone()
+                                    .as_named_int("fp")
+                                    .is_some(),
                                 "{} at {:?}",
                                 self.frame_pointer,
                                 self.stack
                             );
 
-                            let v = self.stack[self.frame_pointer + i];
+                            let v = self.stack[self.frame_pointer + i].clone();
                             assert!(
                                 self.frame_pointer + i < self.stack_pointer,
                                 "{} {}",
                                 self.frame_pointer + i,
                                 self.stack_pointer
                             );
-                            assert!(matches!(v.metadata(), "int" | "addr"), "{:?}", v);
+                            assert!(matches!(v.metadata().as_str(), "int" | "addr"), "{:?}", v);
                             self.push(v);
                         }
                         "local_rev" => {
-                            self.push(self.stack[self.stack_pointer - 1 - i]);
+                            self.push(self.stack[self.stack_pointer - 1 - i].clone());
                         }
                         "heap" => {
-                            self.push(self.heap.data[i]);
+                            self.push(self.heap.data[i].clone());
                         }
                         "global" => {
                             let value = self.globals[i];
@@ -415,9 +418,9 @@ impl Runtime {
                     }
                 }
                 QVMInstruction::LoadArg(r) => {
-                    let arg = self.stack[self.frame_pointer - 3 - r];
+                    let arg = self.stack[self.frame_pointer - 3 - r].clone();
                     assert_matches!(
-                        arg.metadata(),
+                        arg.metadata().as_str(),
                         "int" | "addr" | "bool",
                         "{}",
                         arg.metadata()
@@ -472,12 +475,12 @@ impl Runtime {
                     }
                     "_println" => {
                         let value = self.pop().as_addr().unwrap();
-                        let addr = self.heap.data[value].as_addr().unwrap();
+                        let addr = self.heap.data[value].clone().as_addr().unwrap();
                         let header = self.heap.parse_from_data_pointer(addr)?;
 
                         let mut bytes = vec![];
                         for i in 0..header.len() {
-                            bytes.push(self.heap.data[addr + i].as_int().unwrap() as u8);
+                            bytes.push(self.heap.data[addr + i].clone().as_int().unwrap() as u8);
                         }
 
                         self.push(Value::nil());
@@ -495,9 +498,9 @@ impl Runtime {
                         let target_offset = self.pop().as_int().unwrap();
 
                         for i in 0..len {
-                            let value = self.heap.data[source + i as usize];
+                            let value = self.heap.data[source + i as usize].clone();
                             assert!(
-                                matches!(value.metadata(), "int" | "addr"),
+                                matches!(value.metadata().as_str(), "int" | "addr"),
                                 "{:?} @ {} + {}",
                                 value,
                                 source,
@@ -830,7 +833,7 @@ func main() {
         }
         runtime.run()?;
         let pop = runtime.pop();
-        assert_eq!(pop.as_int(), Some(result), "{:?} {:?}", pop, result);
+        assert_eq!(pop.clone().as_int(), Some(result), "{:?} {:?}", pop, result);
     }
 
     Ok(())
@@ -865,7 +868,7 @@ func main() {
             String::from_utf8(
                 runtime.heap.data[bytes..bytes + 3]
                     .iter()
-                    .map(|u| u.as_int().unwrap() as u8)
+                    .map(|u| u.clone().as_int().unwrap() as u8)
                     .collect()
             )
             .unwrap(),
@@ -961,7 +964,7 @@ fn runtime_run_gc() -> Result<()> {
         }
         runtime.run()?;
         let pop = runtime.pop();
-        assert_eq!(pop.as_int(), Some(result), "{:?} {:?}", pop, result);
+        assert_eq!(pop.clone().as_int(), Some(result), "{:?} {:?}", pop, result);
 
         let mut remaining_object = 0;
         let mut current = runtime.heap.root()?;

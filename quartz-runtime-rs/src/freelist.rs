@@ -71,23 +71,23 @@ impl Freelist {
         let prev = obj.prev;
         let next = obj.next;
 
-        self.data[obj.pointer] = Value::Int(obj.len as i32, "len");
+        self.data[obj.pointer] = Value::Int(obj.len as i32, "len".to_string());
         self.data[obj.pointer + 1] = Value::Addr(prev, AddrPlace::Heap, "prev");
         self.data[obj.pointer + 2] = Value::Addr(next, AddrPlace::Heap, "next");
         self.data[obj.pointer + 3] = obj.info;
     }
 
     pub fn parse(&self, index: usize) -> Result<LinkObjectHeader> {
-        let len = self.data[index].as_named_int("len").unwrap() as usize;
-        let prev = self.data[index + 1].as_named_addr("prev").unwrap();
-        let next = self.data[index + 2].as_named_addr("next").unwrap();
+        let len = self.data[index].clone().as_named_int("len").unwrap() as usize;
+        let prev = self.data[index + 1].clone().as_named_addr("prev").unwrap();
+        let next = self.data[index + 2].clone().as_named_addr("next").unwrap();
 
         Ok(LinkObjectHeader {
             pointer: index,
             len,
             prev,
             next,
-            info: self.data[index + 3],
+            info: self.data[index + 3].clone(),
         })
     }
 
