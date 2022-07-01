@@ -17,7 +17,7 @@ pub enum AddrPlace {
 #[derive(Clone, Serialize, Deserialize)]
 pub enum Value {
     Int(i32, String),
-    Addr(usize, AddrPlace, &'static str),
+    Addr(usize, AddrPlace, String),
 }
 
 impl std::fmt::Debug for Value {
@@ -51,7 +51,7 @@ impl Value {
 
     pub fn as_addr(self) -> Option<usize> {
         match self {
-            Value::Addr(i, _, "addr") => Some(i),
+            Value::Addr(i, _, m) if m == "addr" => Some(i),
             _ => None,
         }
     }
@@ -78,7 +78,7 @@ impl Value {
     }
 
     pub fn nil() -> Value {
-        Value::Addr(0, AddrPlace::Unknown, "nil")
+        Value::Addr(0, AddrPlace::Unknown, "nil".to_string())
     }
 
     pub fn bool(b: bool) -> Value {
@@ -90,7 +90,7 @@ impl Value {
     }
 
     pub fn addr(i: usize) -> Value {
-        Value::Addr(i, AddrPlace::Heap, "addr")
+        Value::Addr(i, AddrPlace::Heap, "addr".to_string())
     }
 }
 
@@ -350,7 +350,8 @@ impl Runtime {
                 }
                 QVMInstruction::Load(kind) => {
                     let addr_value = self.pop();
-                    assert!(matches!(addr_value, Value::Addr(_, _, "addr")));
+                    assert!(addr_value.clone().as_addr().is_some());
+
                     let i = addr_value.as_addr().unwrap();
 
                     match kind.as_str() {
@@ -392,7 +393,8 @@ impl Runtime {
                 }
                 QVMInstruction::Store(kind) => {
                     let addr_value = self.pop();
-                    assert_matches!(addr_value, Value::Addr(_, AddrPlace::Heap, "addr"));
+                    assert!(addr_value.clone().as_addr().is_some());
+                    assert_matches!(addr_value, Value::Addr(_, AddrPlace::Heap, _));
                     let r = addr_value.as_addr().unwrap();
 
                     match kind.as_str() {
@@ -456,7 +458,7 @@ impl Runtime {
                 QVMInstruction::PAdd => {
                     let a = self.pop();
                     let b = match self.pop() {
-                        Value::Addr(b, AddrPlace::Heap, "addr") => b,
+                        Value::Addr(b, AddrPlace::Heap, m) if m == "addr" => b,
                         t => {
                             unreachable!(
                                 "{}, {:?}, {:?}",

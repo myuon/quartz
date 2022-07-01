@@ -54,14 +54,14 @@ impl Freelist {
             len: 0,
             prev: last,
             next: last,
-            info: Value::Addr(0, AddrPlace::InfoTable, "nodata"),
+            info: Value::Addr(0, AddrPlace::InfoTable, "nodata".to_string()),
         });
         list.push(LinkObjectHeader {
             pointer: last,
             len: 0,
             prev: root,
             next: root,
-            info: Value::Addr(0, AddrPlace::InfoTable, "nodata"),
+            info: Value::Addr(0, AddrPlace::InfoTable, "nodata".to_string()),
         });
 
         list
@@ -72,8 +72,8 @@ impl Freelist {
         let next = obj.next;
 
         self.data[obj.pointer] = Value::Int(obj.len as i32, "len".to_string());
-        self.data[obj.pointer + 1] = Value::Addr(prev, AddrPlace::Heap, "prev");
-        self.data[obj.pointer + 2] = Value::Addr(next, AddrPlace::Heap, "next");
+        self.data[obj.pointer + 1] = Value::Addr(prev, AddrPlace::Heap, "prev".to_string());
+        self.data[obj.pointer + 2] = Value::Addr(next, AddrPlace::Heap, "next".to_string());
         self.data[obj.pointer + 3] = obj.info;
     }
 
@@ -163,7 +163,7 @@ impl Freelist {
                     len: size,
                     prev: prev.pointer,
                     next: current.pointer,
-                    info: Value::Addr(0, AddrPlace::InfoTable, "nodata"),
+                    info: Value::Addr(0, AddrPlace::InfoTable, "nodata".to_string()),
                 };
                 let pointer = new_object.get_data_pointer();
 
