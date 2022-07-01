@@ -36,7 +36,6 @@ impl LinkObjectHeader {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(bound(deserialize = "'de: 'static"))]
 pub struct Freelist {
     pub data: Vec<Value>,
 }

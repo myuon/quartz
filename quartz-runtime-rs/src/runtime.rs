@@ -106,7 +106,6 @@ macro_rules! assert_matches {
 */
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(bound(deserialize = "'de: 'static"))]
 pub struct Runtime {
     stack: Vec<Value>,
     heap: Freelist,
