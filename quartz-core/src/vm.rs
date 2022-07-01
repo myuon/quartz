@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub enum QVMInstruction {
     // stack manipulation
-    Load(&'static str),
-    Store(&'static str),
+    Load(String),
+    Store(String),
     Pop(usize),
     // heap manipulation
     Alloc,

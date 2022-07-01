@@ -226,7 +226,7 @@ impl Runtime {
         while self.pc < self.code.len() {
             debug!("{}", self.debug_info());
 
-            match self.code[self.pc] {
+            match self.code[self.pc].clone() {
                 QVMInstruction::Call => {
                     let r = self.pop();
                     assert_matches!(r, Value::Addr(_, AddrPlace::Heap, _));
@@ -353,7 +353,7 @@ impl Runtime {
                     assert!(matches!(addr_value, Value::Addr(_, _, "addr")));
                     let i = addr_value.as_addr().unwrap();
 
-                    match kind {
+                    match kind.as_str() {
                         "local" => {
                             assert!(
                                 matches!(self.stack[self.frame_pointer - 1], Value::Int(_, "fp")),
@@ -392,7 +392,7 @@ impl Runtime {
                     assert_matches!(addr_value, Value::Addr(_, AddrPlace::Heap, "addr"));
                     let r = addr_value.as_addr().unwrap();
 
-                    match kind {
+                    match kind.as_str() {
                         "local" => {
                             self.stack[self.frame_pointer + r] = self.pop();
                         }
@@ -566,10 +566,10 @@ fn runtime_run_hand_coded() -> Result<()> {
             I32Const(1),  // a
             I32Const(10), // z
             AddrConst(0, String::new()),
-            Load("local"), // load a
-            LoadArg(0),    // load b
-            Add,           // a + b
-            Return(1),     // return
+            Load("local".to_string()), // load a
+            LoadArg(0),                // load b
+            Add,                       // a + b
+            Return(1),                 // return
         ],
         3,
     )];

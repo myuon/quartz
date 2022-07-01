@@ -88,11 +88,11 @@ impl<'s> VmFunctionGenerator<'s> {
                     if let Some(u) = self.locals.get(&v) {
                         self.code
                             .push(QVMInstruction::AddrConst(*u, format!("local:{}", v)));
-                        self.code.push(QVMInstruction::Load("local"));
+                        self.code.push(QVMInstruction::Load("local".to_string()));
                     } else if let Some(u) = self.globals.get(&v) {
                         self.code
                             .push(QVMInstruction::AddrConst(*u, format!("global:{}", v)));
-                        self.code.push(QVMInstruction::Load("global"));
+                        self.code.push(QVMInstruction::Load("global".to_string()));
                     } else {
                         self.code.push(match v.as_str() {
                             "_add" => QVMInstruction::Add,
@@ -112,7 +112,7 @@ impl<'s> VmFunctionGenerator<'s> {
                             "_gc" => QVMInstruction::RuntimeInstr("_gc".to_string()),
                             "_panic" => QVMInstruction::RuntimeInstr("_panic".to_string()),
                             "_len" => QVMInstruction::RuntimeInstr("_len".to_string()),
-                            "_deref" => QVMInstruction::Load("heap"),
+                            "_deref" => QVMInstruction::Load("heap".to_string()),
                             "_println" => QVMInstruction::RuntimeInstr("_println".to_string()),
                             "_stringify" => QVMInstruction::RuntimeInstr("_stringify".to_string()),
                             "_copy" => QVMInstruction::RuntimeInstr("_copy".to_string()),
@@ -183,17 +183,17 @@ impl<'s> VmFunctionGenerator<'s> {
                             IrElement::Term(IrTerm::Ident(v)) => {
                                 if let Some(u) = self.locals.get(&v).cloned() {
                                     self.code.push(QVMInstruction::AddrConst(u, v.clone()));
-                                    self.code.push(QVMInstruction::Store("local"));
+                                    self.code.push(QVMInstruction::Store("local".to_string()));
                                 } else if let Some(u) = self.globals.get(&v).cloned() {
                                     self.code.push(QVMInstruction::AddrConst(u, v.clone()));
-                                    self.code.push(QVMInstruction::Store("global"));
+                                    self.code.push(QVMInstruction::Store("global".to_string()));
                                 } else {
                                     anyhow::bail!("assign: {} not found", v);
                                 }
                             }
                             _ => {
                                 self.element(left)?;
-                                self.code.push(QVMInstruction::Store("heap"));
+                                self.code.push(QVMInstruction::Store("heap".to_string()));
                             }
                         }
                     }
@@ -357,7 +357,7 @@ impl VmGenerator {
             self.globals[&name],
             format!("let_global:{}", name),
         ));
-        code.push(QVMInstruction::Store("global"));
+        code.push(QVMInstruction::Store("global".to_string()));
 
         Ok(code)
     }
