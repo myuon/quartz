@@ -112,13 +112,13 @@ macro_rules! assert_matches {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Runtime {
-    stack: Vec<Value>,
-    heap: Freelist,
-    globals: Vec<i32>,
-    code: Vec<QVMInstruction>,
-    pc: usize,
-    stack_pointer: usize,
-    frame_pointer: usize,
+    pub(crate) stack: Vec<Value>,
+    pub(crate) heap: Freelist,
+    pub(crate) globals: Vec<i32>,
+    pub(crate) code: Vec<QVMInstruction>,
+    pub(crate) pc: usize,
+    pub(crate) stack_pointer: usize,
+    pub(crate) frame_pointer: usize,
 }
 
 impl Runtime {
@@ -218,7 +218,7 @@ impl Runtime {
         self.stack[self.stack_pointer - offset].clone()
     }
 
-    fn debug_info(&self) -> String {
+    pub(crate) fn debug_info(&self) -> String {
         format!(
             "{}\n{:?}\n{} {:?}\n",
             &self
@@ -234,327 +234,338 @@ impl Runtime {
         )
     }
 
-    pub fn run(&mut self) -> Result<()> {
-        while self.pc < self.code.len() {
-            debug!("{}", self.debug_info());
+    pub fn step(&mut self) -> Result<()> {
+        match self.code[self.pc].clone() {
+            QVMInstruction::Call => {
+                let r = self.pop();
+                assert_matches!(r, Value::Addr(_, AddrPlace::Heap, _));
 
-            match self.code[self.pc].clone() {
-                QVMInstruction::Call => {
-                    let r = self.pop();
-                    assert_matches!(r, Value::Addr(_, AddrPlace::Heap, _));
+                self.push(Value::Int(self.pc as i32 + 1, "pc".to_string()));
+                self.pc = r.as_addr().unwrap();
+                self.push(Value::Int(self.frame_pointer as i32, "fp".to_string()));
+                self.frame_pointer = self.stack_pointer;
 
-                    self.push(Value::Int(self.pc as i32 + 1, "pc".to_string()));
-                    self.pc = r.as_addr().unwrap();
-                    self.push(Value::Int(self.frame_pointer as i32, "fp".to_string()));
-                    self.frame_pointer = self.stack_pointer;
-                    continue;
+                return Ok(());
+            }
+            QVMInstruction::Return(args) => {
+                // exit this program
+                if self.frame_pointer == 0 {
+                    return Ok(());
                 }
-                QVMInstruction::Return(args) => {
-                    // exit this program
-                    if self.frame_pointer == 0 {
-                        return Ok(());
+
+                /* Before:
+                 * [..., argument*, pc, fp, local*, return_value]
+                 *                          ^ fp    ^ sp
+                 *
+                 * After:
+                 * [..., return_value]
+                 *       ^ sp
+                 *
+                 */
+
+                let current_fp = self.frame_pointer;
+
+                let result = self.pop();
+                self.stack_pointer = self.frame_pointer;
+
+                let fp = self.load(1);
+                self.frame_pointer = fp.as_named_int("fp").unwrap() as usize;
+
+                let pc = self.load(2);
+                self.pc = pc.as_named_int("pc").unwrap() as usize;
+
+                self.stack[current_fp - (args + 2)] = result;
+                self.stack_pointer -= args + 1; // -2 words (fp, pc), +1 word (return value)
+
+                return Ok(());
+            }
+            QVMInstruction::Add => {
+                let a = self.pop().as_int().unwrap();
+                let b = self.pop().as_int().unwrap();
+                self.push(Value::int(b + a));
+            }
+            QVMInstruction::Sub => {
+                let a = self.pop().as_int().unwrap();
+                let b = self.pop().as_int().unwrap();
+                self.push(Value::int(b - a));
+            }
+            QVMInstruction::Mult => {
+                let a = self.pop().as_int().unwrap();
+                let b = self.pop().as_int().unwrap();
+                self.push(Value::int(b * a));
+            }
+            QVMInstruction::Div => {
+                let a = self.pop().as_int().unwrap();
+                let b = self.pop().as_int().unwrap();
+                self.push(Value::int(b / a));
+            }
+            QVMInstruction::Mod => {
+                let a = self.pop().as_int().unwrap();
+                let b = self.pop().as_int().unwrap();
+                self.push(Value::int(b % a));
+            }
+            QVMInstruction::Eq => {
+                let a = self.pop();
+                let b = self.pop();
+                self.push(Value::Int(
+                    if b.as_int().unwrap() == a.as_int().unwrap() {
+                        1
+                    } else {
+                        0
+                    },
+                    "bool".to_string(),
+                ));
+            }
+            QVMInstruction::Neq => {
+                let a = self.pop();
+                let b = self.pop();
+                self.push(Value::Int(
+                    if b.as_int().unwrap() != a.as_int().unwrap() {
+                        1
+                    } else {
+                        0
+                    },
+                    "bool".to_string(),
+                ));
+            }
+            QVMInstruction::Lt => {
+                let a = self.pop().as_int().unwrap();
+                let b = self.pop().as_int().unwrap();
+                self.push(Value::Int(if b < a { 1 } else { 0 }, "bool".to_string()));
+            }
+            QVMInstruction::Gt => {
+                let a = self.pop().as_int().unwrap();
+                let b = self.pop().as_int().unwrap();
+                self.push(Value::Int(if b > a { 1 } else { 0 }, "bool".to_string()));
+            }
+            QVMInstruction::Le => todo!(),
+            QVMInstruction::And => {
+                let a = self.pop().as_bool().unwrap();
+                let b = self.pop().as_bool().unwrap();
+                self.push(Value::bool(b && a));
+            }
+            QVMInstruction::Or => {
+                let a = self.pop().as_bool().unwrap();
+                let b = self.pop().as_bool().unwrap();
+                self.push(Value::bool(b || a));
+            }
+            QVMInstruction::Not => {
+                let a = self.pop().as_bool().unwrap();
+                self.push(Value::bool(!a));
+            }
+            QVMInstruction::I32Const(c) => {
+                self.push(Value::int(c));
+            }
+            QVMInstruction::AddrConst(addr, _) => {
+                self.push(Value::addr(addr));
+            }
+            QVMInstruction::Load(kind) => {
+                let addr_value = self.pop();
+                assert!(addr_value.clone().as_addr().is_some());
+
+                let i = addr_value.as_addr().unwrap();
+
+                match kind.as_str() {
+                    "local" => {
+                        assert!(
+                            self.stack[self.frame_pointer - 1]
+                                .clone()
+                                .as_named_int("fp")
+                                .is_some(),
+                            "{} at {:?}",
+                            self.frame_pointer,
+                            self.stack
+                        );
+
+                        let v = self.stack[self.frame_pointer + i].clone();
+                        assert!(
+                            self.frame_pointer + i < self.stack_pointer,
+                            "{} {}",
+                            self.frame_pointer + i,
+                            self.stack_pointer
+                        );
+                        assert!(matches!(v.metadata().as_str(), "int" | "addr"), "{:?}", v);
+                        self.push(v);
                     }
-
-                    /* Before:
-                     * [..., argument*, pc, fp, local*, return_value]
-                     *                          ^ fp    ^ sp
-                     *
-                     * After:
-                     * [..., return_value]
-                     *       ^ sp
-                     *
-                     */
-
-                    let current_fp = self.frame_pointer;
-
-                    let result = self.pop();
-                    self.stack_pointer = self.frame_pointer;
-
-                    let fp = self.load(1);
-                    self.frame_pointer = fp.as_named_int("fp").unwrap() as usize;
-
-                    let pc = self.load(2);
-                    self.pc = pc.as_named_int("pc").unwrap() as usize;
-
-                    self.stack[current_fp - (args + 2)] = result;
-                    self.stack_pointer -= args + 1; // -2 words (fp, pc), +1 word (return value)
-                    continue;
-                }
-                QVMInstruction::Add => {
-                    let a = self.pop().as_int().unwrap();
-                    let b = self.pop().as_int().unwrap();
-                    self.push(Value::int(b + a));
-                }
-                QVMInstruction::Sub => {
-                    let a = self.pop().as_int().unwrap();
-                    let b = self.pop().as_int().unwrap();
-                    self.push(Value::int(b - a));
-                }
-                QVMInstruction::Mult => {
-                    let a = self.pop().as_int().unwrap();
-                    let b = self.pop().as_int().unwrap();
-                    self.push(Value::int(b * a));
-                }
-                QVMInstruction::Div => {
-                    let a = self.pop().as_int().unwrap();
-                    let b = self.pop().as_int().unwrap();
-                    self.push(Value::int(b / a));
-                }
-                QVMInstruction::Mod => {
-                    let a = self.pop().as_int().unwrap();
-                    let b = self.pop().as_int().unwrap();
-                    self.push(Value::int(b % a));
-                }
-                QVMInstruction::Eq => {
-                    let a = self.pop();
-                    let b = self.pop();
-                    self.push(Value::Int(
-                        if b.as_int().unwrap() == a.as_int().unwrap() {
-                            1
-                        } else {
-                            0
-                        },
-                        "bool".to_string(),
-                    ));
-                }
-                QVMInstruction::Neq => {
-                    let a = self.pop();
-                    let b = self.pop();
-                    self.push(Value::Int(
-                        if b.as_int().unwrap() != a.as_int().unwrap() {
-                            1
-                        } else {
-                            0
-                        },
-                        "bool".to_string(),
-                    ));
-                }
-                QVMInstruction::Lt => {
-                    let a = self.pop().as_int().unwrap();
-                    let b = self.pop().as_int().unwrap();
-                    self.push(Value::Int(if b < a { 1 } else { 0 }, "bool".to_string()));
-                }
-                QVMInstruction::Gt => {
-                    let a = self.pop().as_int().unwrap();
-                    let b = self.pop().as_int().unwrap();
-                    self.push(Value::Int(if b > a { 1 } else { 0 }, "bool".to_string()));
-                }
-                QVMInstruction::Le => todo!(),
-                QVMInstruction::And => {
-                    let a = self.pop().as_bool().unwrap();
-                    let b = self.pop().as_bool().unwrap();
-                    self.push(Value::bool(b && a));
-                }
-                QVMInstruction::Or => {
-                    let a = self.pop().as_bool().unwrap();
-                    let b = self.pop().as_bool().unwrap();
-                    self.push(Value::bool(b || a));
-                }
-                QVMInstruction::Not => {
-                    let a = self.pop().as_bool().unwrap();
-                    self.push(Value::bool(!a));
-                }
-                QVMInstruction::I32Const(c) => {
-                    self.push(Value::int(c));
-                }
-                QVMInstruction::AddrConst(addr, _) => {
-                    self.push(Value::addr(addr));
-                }
-                QVMInstruction::Load(kind) => {
-                    let addr_value = self.pop();
-                    assert!(addr_value.clone().as_addr().is_some());
-
-                    let i = addr_value.as_addr().unwrap();
-
-                    match kind.as_str() {
-                        "local" => {
-                            assert!(
-                                self.stack[self.frame_pointer - 1]
-                                    .clone()
-                                    .as_named_int("fp")
-                                    .is_some(),
-                                "{} at {:?}",
-                                self.frame_pointer,
-                                self.stack
-                            );
-
-                            let v = self.stack[self.frame_pointer + i].clone();
-                            assert!(
-                                self.frame_pointer + i < self.stack_pointer,
-                                "{} {}",
-                                self.frame_pointer + i,
-                                self.stack_pointer
-                            );
-                            assert!(matches!(v.metadata().as_str(), "int" | "addr"), "{:?}", v);
-                            self.push(v);
-                        }
-                        "local_rev" => {
-                            self.push(self.stack[self.stack_pointer - 1 - i].clone());
-                        }
-                        "heap" => {
-                            self.push(self.heap.data[i].clone());
-                        }
-                        "global" => {
-                            let value = self.globals[i];
-                            self.push(Value::int(value));
-                        }
-                        _ => {
-                            unreachable!();
-                        }
-                    };
-                }
-                QVMInstruction::Store(kind) => {
-                    let addr_value = self.pop();
-                    assert!(addr_value.clone().as_addr().is_some());
-                    assert_matches!(addr_value, Value::Addr(_, AddrPlace::Heap, _));
-                    let r = addr_value.as_addr().unwrap();
-
-                    match kind.as_str() {
-                        "local" => {
-                            self.stack[self.frame_pointer + r] = self.pop();
-                        }
-                        "heap" => {
-                            let value = self.pop();
-                            self.heap.data[r] = value;
-                        }
-                        "global" => {
-                            let value = self.pop();
-                            self.globals[r] = value.as_int().unwrap();
-                        }
-                        _ => {
-                            unreachable!();
-                        }
-                    };
-                }
-                QVMInstruction::Pop(r) => {
-                    for _ in 0..r {
-                        self.pop();
+                    "local_rev" => {
+                        self.push(self.stack[self.stack_pointer - 1 - i].clone());
                     }
-                }
-                QVMInstruction::LoadArg(r) => {
-                    let arg = self.stack[self.frame_pointer - 3 - r].clone();
-                    assert_matches!(
-                        arg.metadata().as_str(),
-                        "int" | "addr" | "bool",
-                        "{}",
-                        arg.metadata()
-                    );
-                    self.push(arg);
-                }
-                QVMInstruction::Jump(k) => {
-                    self.pc = k;
-                    continue;
-                }
-                QVMInstruction::JumpIf(k) => {
-                    let v = self.pop();
-                    if v.as_bool().unwrap() == true {
-                        self.pc = k;
-                        continue;
+                    "heap" => {
+                        self.push(self.heap.data[i].clone());
                     }
-                }
-                QVMInstruction::JumpIfFalse(k) => {
-                    let v = self.pop();
-                    if v.as_bool().unwrap() == false {
-                        self.pc = k;
-                        continue;
-                    }
-                }
-                QVMInstruction::Alloc => {
-                    let size = self.pop();
-                    let addr = self.heap.alloc(size.as_int().unwrap() as usize)?;
-                    self.push(Value::addr(addr));
-                }
-                QVMInstruction::Free(addr) => {
-                    self.heap.free(self.heap.parse(addr)?)?;
-                }
-                QVMInstruction::PAdd => {
-                    let a = self.pop();
-                    let b = match self.pop() {
-                        Value::Addr(b, AddrPlace::Heap, m) if m == "addr" => b,
-                        t => {
-                            unreachable!(
-                                "{}, {:?}, {:?}",
-                                self.pc,
-                                t,
-                                &self.stack[0..self.stack_pointer]
-                            );
-                        }
-                    };
-                    self.push(Value::addr(b + a.as_int().unwrap() as usize));
-                }
-                QVMInstruction::RuntimeInstr(ref label) => match label.as_str() {
-                    "_gc" => {
-                        self.run_gc()?;
-                        self.push(Value::nil());
-                    }
-                    "_println" => {
-                        let value = self.pop().as_addr().unwrap();
-                        let addr = self.heap.data[value].clone().as_addr().unwrap();
-                        let header = self.heap.parse_from_data_pointer(addr)?;
-
-                        let mut bytes = vec![];
-                        for i in 0..header.len() {
-                            bytes.push(self.heap.data[addr + i].clone().as_int().unwrap() as u8);
-                        }
-
-                        self.push(Value::nil());
-                        println!("[quartz] {}", String::from_utf8(bytes).unwrap());
-                    }
-                    "_len" => {
-                        let value = self.pop().as_addr().unwrap();
-                        let header = self.heap.parse_from_data_pointer(value).unwrap();
-                        self.push(Value::int(header.len() as i32));
-                    }
-                    "_copy" => {
-                        let target = self.pop().as_addr().unwrap();
-                        let source = self.pop().as_addr().unwrap();
-                        let len = self.pop().as_int().unwrap();
-                        let target_offset = self.pop().as_int().unwrap();
-
-                        for i in 0..len {
-                            let value = self.heap.data[source + i as usize].clone();
-                            assert!(
-                                matches!(value.metadata().as_str(), "int" | "addr"),
-                                "{:?} @ {} + {}",
-                                value,
-                                source,
-                                i
-                            );
-                            self.heap.data[target + i as usize + target_offset as usize] = value;
-                        }
-                        self.push(Value::nil());
-                    }
-                    "_panic" => {
-                        panic!("====== PANIC CALLED ======\n{:?}", self.stack);
-                    }
-                    "_debug" => {
-                        println!("{}", self.debug_info());
-                        self.push(Value::nil());
-                    }
-                    "_start_debugger" => {
-                        // Increment PC to process this instruction.
-                        self.pc += 1;
-
-                        let mut file = File::create("./quartz-debugger.json").unwrap();
-                        file.write_all(&serde_json::to_vec_pretty(&self).unwrap())
-                            .unwrap();
-
-                        return Ok(());
+                    "global" => {
+                        let value = self.globals[i];
+                        self.push(Value::int(value));
                     }
                     _ => {
                         unreachable!();
                     }
-                },
-                QVMInstruction::BoolConst(b) => {
-                    self.push(Value::bool(b));
-                }
-                QVMInstruction::LabelAddrConst(_) => unreachable!(),
-                QVMInstruction::LabelJumpIfFalse(_) => unreachable!(),
-                QVMInstruction::LabelJumpIf(_) => unreachable!(),
-                QVMInstruction::LabelJump(_) => todo!(),
+                };
             }
+            QVMInstruction::Store(kind) => {
+                let addr_value = self.pop();
+                assert!(addr_value.clone().as_addr().is_some());
+                assert_matches!(addr_value, Value::Addr(_, AddrPlace::Heap, _));
+                let r = addr_value.as_addr().unwrap();
 
-            self.pc += 1;
+                match kind.as_str() {
+                    "local" => {
+                        self.stack[self.frame_pointer + r] = self.pop();
+                    }
+                    "heap" => {
+                        let value = self.pop();
+                        self.heap.data[r] = value;
+                    }
+                    "global" => {
+                        let value = self.pop();
+                        self.globals[r] = value.as_int().unwrap();
+                    }
+                    _ => {
+                        unreachable!();
+                    }
+                };
+            }
+            QVMInstruction::Pop(r) => {
+                for _ in 0..r {
+                    self.pop();
+                }
+            }
+            QVMInstruction::LoadArg(r) => {
+                let arg = self.stack[self.frame_pointer - 3 - r].clone();
+                assert_matches!(
+                    arg.metadata().as_str(),
+                    "int" | "addr" | "bool",
+                    "{}",
+                    arg.metadata()
+                );
+                self.push(arg);
+            }
+            QVMInstruction::Jump(k) => {
+                self.pc = k;
+
+                return Ok(());
+            }
+            QVMInstruction::JumpIf(k) => {
+                let v = self.pop();
+                if v.as_bool().unwrap() == true {
+                    self.pc = k;
+
+                    return Ok(());
+                }
+            }
+            QVMInstruction::JumpIfFalse(k) => {
+                let v = self.pop();
+                if v.as_bool().unwrap() == false {
+                    self.pc = k;
+
+                    return Ok(());
+                }
+            }
+            QVMInstruction::Alloc => {
+                let size = self.pop();
+                let addr = self.heap.alloc(size.as_int().unwrap() as usize)?;
+                self.push(Value::addr(addr));
+            }
+            QVMInstruction::Free(addr) => {
+                self.heap.free(self.heap.parse(addr)?)?;
+            }
+            QVMInstruction::PAdd => {
+                let a = self.pop();
+                let b = match self.pop() {
+                    Value::Addr(b, AddrPlace::Heap, m) if m == "addr" => b,
+                    t => {
+                        unreachable!(
+                            "{}, {:?}, {:?}",
+                            self.pc,
+                            t,
+                            &self.stack[0..self.stack_pointer]
+                        );
+                    }
+                };
+                self.push(Value::addr(b + a.as_int().unwrap() as usize));
+            }
+            QVMInstruction::RuntimeInstr(ref label) => match label.as_str() {
+                "_gc" => {
+                    self.run_gc()?;
+                    self.push(Value::nil());
+                }
+                "_println" => {
+                    let value = self.pop().as_addr().unwrap();
+                    let addr = self.heap.data[value].clone().as_addr().unwrap();
+                    let header = self.heap.parse_from_data_pointer(addr)?;
+
+                    let mut bytes = vec![];
+                    for i in 0..header.len() {
+                        bytes.push(self.heap.data[addr + i].clone().as_int().unwrap() as u8);
+                    }
+
+                    self.push(Value::nil());
+                    println!("[quartz] {}", String::from_utf8(bytes).unwrap());
+                }
+                "_len" => {
+                    let value = self.pop().as_addr().unwrap();
+                    let header = self.heap.parse_from_data_pointer(value).unwrap();
+                    self.push(Value::int(header.len() as i32));
+                }
+                "_copy" => {
+                    let target = self.pop().as_addr().unwrap();
+                    let source = self.pop().as_addr().unwrap();
+                    let len = self.pop().as_int().unwrap();
+                    let target_offset = self.pop().as_int().unwrap();
+
+                    for i in 0..len {
+                        let value = self.heap.data[source + i as usize].clone();
+                        assert!(
+                            matches!(value.metadata().as_str(), "int" | "addr"),
+                            "{:?} @ {} + {}",
+                            value,
+                            source,
+                            i
+                        );
+                        self.heap.data[target + i as usize + target_offset as usize] = value;
+                    }
+                    self.push(Value::nil());
+                }
+                "_panic" => {
+                    panic!("====== PANIC CALLED ======\n{:?}", self.stack);
+                }
+                "_debug" => {
+                    println!("{}", self.debug_info());
+                    self.push(Value::nil());
+                }
+                "_start_debugger" => {
+                    // Increment PC to process this instruction.
+                    self.pc += 1;
+
+                    let mut file = File::create("./quartz-debugger.json").unwrap();
+                    file.write_all(&serde_json::to_vec_pretty(&self).unwrap())
+                        .unwrap();
+
+                    return Ok(());
+                }
+                _ => {
+                    unreachable!();
+                }
+            },
+            QVMInstruction::BoolConst(b) => {
+                self.push(Value::bool(b));
+            }
+            QVMInstruction::LabelAddrConst(_) => unreachable!(),
+            QVMInstruction::LabelJumpIfFalse(_) => unreachable!(),
+            QVMInstruction::LabelJumpIf(_) => unreachable!(),
+            QVMInstruction::LabelJump(_) => todo!(),
+        }
+
+        self.pc += 1;
+
+        Ok(())
+    }
+
+    pub fn run(&mut self) -> Result<()> {
+        while self.pc < self.code.len() {
+            debug!("{}", self.debug_info());
+
+            self.step()?;
         }
 
         Ok(())
