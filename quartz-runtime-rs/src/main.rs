@@ -1,13 +1,24 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use log::info;
+use crossterm::{
+    event::{Event, KeyCode},
+    execute,
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+};
+use log::{error, info};
 use quartz_core::{compiler::Compiler, vm::QVMSource};
 use runtime::Runtime;
 use std::{
     env,
     fs::File,
-    io::{Read, Write},
+    io::{Read, Stdout, Write},
     path::PathBuf,
+    time::Duration,
+};
+use tui::{
+    backend::CrosstermBackend,
+    widgets::{Block, Borders, Paragraph},
+    Terminal,
 };
 
 mod freelist;
@@ -36,6 +47,8 @@ enum Command {
     TestCompiler,
     #[clap(subcommand)]
     Debug(DebugSubCommand),
+    #[clap(name = "debugger", about = "Start the Quartz debugger")]
+    Debugger { debugger_json: Option<PathBuf> },
 }
 
 #[derive(Subcommand)]
@@ -139,6 +152,62 @@ fn main() -> Result<()> {
                 info!("{}", runtime.debug_info());
             }
         },
+        Command::Debugger { debugger_json } => {
+            let mut runtime = Runtime::new_from_debugger_json(
+                debugger_json.unwrap_or("./quartz-debugger.json".into()),
+            )?;
+
+            enable_raw_mode()?;
+
+            let mut stdout = std::io::stdout();
+            execute!(stdout, EnterAlternateScreen)?;
+            let backend = CrosstermBackend::new(stdout);
+            let mut terminal = Terminal::new(backend)?;
+
+            if let Err(err) = start_debugger(&mut runtime, &mut terminal) {
+                error!("{:?}", err);
+            }
+
+            disable_raw_mode()?;
+            execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
+            terminal.show_cursor()?;
+        }
+    }
+
+    Ok(())
+}
+
+fn start_debugger(
+    runtime: &mut Runtime,
+    terminal: &mut Terminal<CrosstermBackend<Stdout>>,
+) -> Result<()> {
+    loop {
+        terminal.draw(|f| {
+            let size = f.size();
+            let block = Block::default()
+                .title("n:step r:resume q:quit")
+                .borders(Borders::ALL);
+            f.render_widget(Paragraph::new(runtime.debug_info()), block.inner(size));
+            f.render_widget(block, size);
+        })?;
+
+        if crossterm::event::poll(Duration::from_millis(500))? {
+            match crossterm::event::read()? {
+                Event::Key(event) => match event.code {
+                    KeyCode::Char('n') => {
+                        runtime.step().unwrap();
+                    }
+                    KeyCode::Char('r') => {
+                        runtime.run().unwrap();
+                    }
+                    KeyCode::Char('q') => {
+                        break;
+                    }
+                    _ => (),
+                },
+                _ => (),
+            }
+        }
     }
 
     Ok(())

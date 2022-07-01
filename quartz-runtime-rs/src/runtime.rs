@@ -535,7 +535,9 @@ impl Runtime {
                     self.push(Value::nil());
                 }
                 "_start_debugger" => {
-                    // Increment PC to process this instruction.
+                    self.push(Value::nil());
+
+                    // Increment PC ahead to process this instruction.
                     self.pc += 1;
 
                     let mut file = File::create("./quartz-debugger.json").unwrap();
