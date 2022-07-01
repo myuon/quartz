@@ -1,4 +1,9 @@
-use std::{collections::HashSet, fs::File, io::Write};
+use std::{
+    collections::HashSet,
+    fs::File,
+    io::{Read, Write},
+    path::PathBuf,
+};
 
 use anyhow::Result;
 use log::debug;
@@ -127,6 +132,14 @@ impl Runtime {
             stack_pointer: 0,
             frame_pointer: 0,
         }
+    }
+
+    pub fn new_from_debugger_json(path: PathBuf) -> Result<Self> {
+        let mut file = File::open(path).unwrap();
+        let mut contents = String::new();
+        file.read_to_string(&mut contents)?;
+
+        Ok(serde_json::from_str(&contents).unwrap())
     }
 
     fn run_gc(&mut self) -> Result<()> {
@@ -519,6 +532,9 @@ impl Runtime {
                         self.push(Value::nil());
                     }
                     "_start_debugger" => {
+                        // Increment PC to process this instruction.
+                        self.pc += 1;
+
                         let mut file = File::create("./quartz-debugger.json").unwrap();
                         file.write_all(&serde_json::to_vec_pretty(&self).unwrap())
                             .unwrap();

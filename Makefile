@@ -16,6 +16,6 @@ run:
 	@echo "quartz run"
 	cargo run -- run < ./compiler.qz
 
-debug_run:
+debug:
 	@echo "quartz debug_run"
-	DEBUG=true cargo run -- run < ./compiler.qz
+	DEBUG=true cargo run -- debug quartz-debugger.json

@@ -34,6 +34,8 @@ enum Command {
     },
     #[clap(name = "test_compiler", about = "Run Quartz compiler tests")]
     TestCompiler,
+    #[clap(name = "debug", about = "Debug a Quartz program with debugger json")]
+    Debug { debugger_json: Option<PathBuf> },
 }
 
 fn main() -> Result<()> {
@@ -105,6 +107,11 @@ fn main() -> Result<()> {
             for (n, inst) in code.iter().enumerate() {
                 info!("{:04} {:?}", n, inst);
             }
+        }
+        Command::Debug { debugger_json } => {
+            let mut runtime =
+                Runtime::new_from_debugger_json(debugger_json.unwrap_or("./debugger.json".into()))?;
+            runtime.run().unwrap();
         }
     }
 
