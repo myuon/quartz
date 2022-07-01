@@ -475,10 +475,11 @@ impl Runtime {
                     Value::Addr(b, AddrPlace::Heap, m) if m == "addr" => b,
                     t => {
                         unreachable!(
-                            "{}, {:?}, {:?}",
+                            "{}, {:?}, {:?} ({:?})",
                             self.pc,
                             t,
-                            &self.stack[0..self.stack_pointer]
+                            &self.stack[0..self.stack_pointer],
+                            a,
                         );
                     }
                 };
@@ -541,7 +542,7 @@ impl Runtime {
                     file.write_all(&serde_json::to_vec_pretty(&self).unwrap())
                         .unwrap();
 
-                    return Ok(());
+                    std::process::exit(0);
                 }
                 _ => {
                     unreachable!();
