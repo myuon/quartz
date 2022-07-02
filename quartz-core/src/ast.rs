@@ -279,15 +279,21 @@ impl Structs {
     }
 
     pub fn get_projection_type(&self, val: &str, label: &str) -> Result<Type> {
-        let struct_fields =
-            self.0
-                .get(val)
-                .ok_or(anyhow::anyhow!("project: {} not found in {}", label, val))?;
+        let struct_fields = self.0.get(val).ok_or(anyhow::anyhow!(
+            "project type: {} not found in {}",
+            label,
+            val
+        ))?;
 
-        let (_, t) = struct_fields
-            .iter()
-            .find(|(name, _)| name == label)
-            .ok_or(anyhow::anyhow!("project: {} not found in {}", label, val))?;
+        let (_, t) =
+            struct_fields
+                .iter()
+                .find(|(name, _)| name == label)
+                .ok_or(anyhow::anyhow!(
+                    "project type: {} not found in {}",
+                    label,
+                    val
+                ))?;
 
         Ok(t.clone())
     }

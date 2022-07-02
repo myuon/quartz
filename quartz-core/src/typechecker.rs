@@ -314,7 +314,10 @@ impl<'s> TypeChecker<'s> {
                         method.2.clone(),
                     ))
                 } else {
-                    let field_type = self.structs.get_projection_type(&typ_name, &field)?;
+                    let field_type = self
+                        .structs
+                        .get_projection_type(&typ_name, &field)
+                        .context(self.error_context(None, None, "projection"))?;
 
                     *is_method = false;
 
