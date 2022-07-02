@@ -21,6 +21,7 @@ pub enum AddrPlace {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub enum Value {
+    Bool(bool),
     Int(i32, String),
     Addr(usize, AddrPlace, String),
 }
@@ -34,6 +35,9 @@ impl std::fmt::Debug for Value {
             Self::Addr(arg0, _, arg1) => {
                 write!(f, "*{}:{}", arg0, arg1)
             }
+            Value::Bool(b) => {
+                write!(f, "{}", if *b { "true" } else { "false" })
+            }
         }
     }
 }
@@ -41,8 +45,7 @@ impl std::fmt::Debug for Value {
 impl Value {
     pub fn as_bool(self) -> Option<bool> {
         match self {
-            Value::Int(i, m) if m == "bool" && i == 0 => Some(false),
-            Value::Int(i, m) if m == "bool" && i == 1 => Some(true),
+            Value::Bool(b) => Some(b),
             _ => None,
         }
     }
@@ -79,6 +82,7 @@ impl Value {
         match self {
             Value::Int(_, metadata) => metadata.clone(),
             Value::Addr(_, _, metadata) => metadata.to_string(),
+            Value::Bool(_) => unreachable!(),
         }
     }
 
@@ -87,7 +91,7 @@ impl Value {
     }
 
     pub fn bool(b: bool) -> Value {
-        Value::Int(if b { 1 } else { 0 }, "bool".to_string())
+        Value::Bool(b)
     }
 
     pub fn int(i: i32) -> Value {
@@ -317,36 +321,22 @@ impl Runtime {
             QVMInstruction::Eq => {
                 let a = self.pop();
                 let b = self.pop();
-                self.push(Value::Int(
-                    if b.as_int().unwrap() == a.as_int().unwrap() {
-                        1
-                    } else {
-                        0
-                    },
-                    "bool".to_string(),
-                ));
+                self.push(Value::bool(b.as_int().unwrap() == a.as_int().unwrap()));
             }
             QVMInstruction::Neq => {
                 let a = self.pop();
                 let b = self.pop();
-                self.push(Value::Int(
-                    if b.as_int().unwrap() != a.as_int().unwrap() {
-                        1
-                    } else {
-                        0
-                    },
-                    "bool".to_string(),
-                ));
+                self.push(Value::bool(b.as_int().unwrap() != a.as_int().unwrap()));
             }
             QVMInstruction::Lt => {
                 let a = self.pop().as_int().unwrap();
                 let b = self.pop().as_int().unwrap();
-                self.push(Value::Int(if b < a { 1 } else { 0 }, "bool".to_string()));
+                self.push(Value::bool(b < a));
             }
             QVMInstruction::Gt => {
                 let a = self.pop().as_int().unwrap();
                 let b = self.pop().as_int().unwrap();
-                self.push(Value::Int(if b > a { 1 } else { 0 }, "bool".to_string()));
+                self.push(Value::bool(b > a));
             }
             QVMInstruction::Le => todo!(),
             QVMInstruction::And => {
@@ -441,7 +431,7 @@ impl Runtime {
                 let arg = self.stack[self.frame_pointer - 3 - r].clone();
                 assert_matches!(
                     arg.metadata().as_str(),
-                    "int" | "addr" | "bool",
+                    "int" | "addr",
                     "{}",
                     arg.metadata()
                 );
