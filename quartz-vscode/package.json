@@ -47,7 +47,7 @@
       },
       {
         "language": "quartz-ir",
-        "scopeName": "source.quartzir",
+        "scopeName": "source.qir",
         "path": "./qir/syntaxes/quartzir.tmLanguage.json"
       }
     ]

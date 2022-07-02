@@ -1,7 +1,0 @@
-make --dry-run --always-make --keep-going --print-directory
-make: Entering directory `/Users/ioijoi/workspace/quartz'
-echo "quartz test"
-ENTRYPOINT=compiler_test cargo run -- test < ./compiler.qz
- 
-make: Leaving directory `/Users/ioijoi/workspace/quartz'
- 

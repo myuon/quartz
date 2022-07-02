@@ -1,9 +1,12 @@
 {
   "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
-  "name": "quartz-ir",
+  "name": "quartzir",
   "patterns": [
     {
       "include": "#punctuations"
+    },
+    {
+      "include": "#elements"
     },
     {
       "include": "#literals"
@@ -14,11 +17,11 @@
       "patterns": [
         {
           "match": "\\$[a-zA-Z0-9_]+",
-          "name": "variable.language.quartz.identifier"
+          "name": "variable.language.qir.identifier"
         },
         {
           "match": "[a-zA-Z0-9_]+",
-          "name": "keyword.other.quartz"
+          "name": "keyword.other.qir"
         }
       ]
     },
@@ -26,46 +29,30 @@
       "patterns": [
         {
           "match": "\\b\\d+\\b",
-          "name": "constant.numeric.quartz"
+          "name": "constant.numeric.qir"
         },
         {
           "match": "\\b(true|false)\\b",
-          "name": "constant.language.bool.quartz"
+          "name": "constant.language.bool.qir"
         },
         {
           "match": "\\b(nil)\\b",
-          "name": "constant.language.nil.quartz"
+          "name": "constant.language.nil.qir"
         },
         {
           "match": "\"(\\\\.|[^\"])*\"",
-          "name": "string.quoted.double.quartz"
+          "name": "string.quoted.double.qir"
         }
       ]
     },
     "punctuations": {
       "patterns": [
         {
-          "match": ",",
-          "name": "punctuation.separator.quartz"
-        },
-        {
-          "match": "[{}]",
-          "name": "punctuation.section.curly.quartz"
-        },
-        {
           "match": "[()]",
-          "name": "punctuation.section.paren.quartz"
-        },
-        {
-          "match": ";",
-          "name": "punctuation.terminator.quartz"
-        },
-        {
-          "match": "[\\[\\]]",
-          "name": "punctuation.section.bracket.quartz"
+          "name": "punctuation.section.paren.qir"
         }
       ]
     }
   },
-  "scopeName": "source.quartz-ir"
+  "scopeName": "source.qir"
 }
