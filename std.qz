@@ -97,6 +97,29 @@ func show_int(a: int): string {
     return str.reverse();
 }
 
+struct substring {
+    str: string,
+    start: int,
+    end: int,
+}
+
+func (s: string) slice_sub(start: int, end: int) {
+    return substring {
+        str: s,
+        start: start,
+        end: end,
+    };
+}
+
+func (s: substring) to_string(): string {
+    let buffer = _new(s.end - s.start);
+    _copy(0, s.end - s.start, _padd(s.str.data, s.start), buffer);
+
+    return string {
+        data: buffer,
+    };
+}
+
 func assert(a: bool) {
     if a {
         return nil;
@@ -125,4 +148,5 @@ func test() {
     assert_eq(show_int("hello, world".len()), show_int(12));
     assert("prefix-suffix".starts_with("prefix"));
     assert(_not("prefix-suffix".starts_with("suffix")));
+    assert_eq("hello".slice_sub(1,5).to_string(), "ello");
 }
