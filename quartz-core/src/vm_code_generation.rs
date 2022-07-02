@@ -44,6 +44,7 @@ struct VmFunctionGenerator<'s> {
     label_continue: Option<String>,
     source_map: HashMap<usize, String>,
     scope_local_pointers: Vec<usize>,
+    current_continue_scope: Option<usize>,
 }
 
 impl<'s> VmFunctionGenerator<'s> {
@@ -64,6 +65,7 @@ impl<'s> VmFunctionGenerator<'s> {
             label_continue: None,
             source_map: HashMap::new(),
             scope_local_pointers: Vec::new(),
+            current_continue_scope: None,
         }
     }
 
@@ -236,6 +238,8 @@ impl<'s> VmFunctionGenerator<'s> {
                         }
                     }
                     "while" => {
+                        self.current_continue_scope = Some(self.local_pointer);
+
                         self.new_source_map(IrElement::block("while", vec![]).show_compact());
                         let (cond, body) = unvec!(block.elements, 2);
 
@@ -268,8 +272,8 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.new_source_map(element.show_compact());
 
                         // pop local variables just like end_scope
-                        let p = self.scope_local_pointers.last().unwrap();
-                        self.code.push(QVMInstruction::Pop(self.local_pointer - *p));
+                        let p = self.current_continue_scope.unwrap();
+                        self.code.push(QVMInstruction::Pop(self.local_pointer - p));
                         self.code.push(QVMInstruction::LabelJump(
                             self.label_continue.clone().unwrap(),
                         ));
