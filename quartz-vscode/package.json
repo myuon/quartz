@@ -37,6 +37,15 @@
           ".qirv"
         ],
         "configuration": "./qir/language-configuration.json"
+      },
+      {
+        "id": "quartz-asmv",
+        "aliases": [
+          "qasmv"
+        ],
+        "extensions": [
+          ".qasmv"
+        ]
       }
     ],
     "grammars": [
@@ -49,6 +58,11 @@
         "language": "quartz-ir",
         "scopeName": "source.qir",
         "path": "./qir/syntaxes/quartzir.tmLanguage.json"
+      },
+      {
+        "language": "quartz-asmv",
+        "scopeName": "source.qasmv",
+        "path": "./qasmv/syntaxes/qasmv.tmLanguage.json"
       }
     ]
   },
