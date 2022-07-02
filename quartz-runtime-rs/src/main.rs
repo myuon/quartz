@@ -40,8 +40,12 @@ enum Command {
     Test,
     #[clap(name = "compile", about = "Compile a Quartz program")]
     Compile {
-        #[clap(short, long, value_parser, value_name = "FILE")]
+        #[clap(long, value_parser, value_name = "FILE")]
         qasm_output: Option<PathBuf>,
+        #[clap(long, value_parser, value_name = "FILE")]
+        qasmv_output: Option<PathBuf>,
+        #[clap(long, value_parser, value_name = "FILE")]
+        qirv_output: Option<PathBuf>,
     },
     #[clap(name = "test_compiler", about = "Run Quartz compiler tests")]
     TestCompiler,
@@ -87,22 +91,38 @@ fn main() -> Result<()> {
 
             Runtime::new(code.clone(), compiler.vm_code_generation.globals()).run()?;
         }
-        Command::Compile { qasm_output } => {
+        Command::Compile {
+            qasm_output,
+            qasmv_output,
+            qirv_output,
+        } => {
             let mut buffer = String::new();
             let mut stdin = std::io::stdin();
             stdin.read_to_string(&mut buffer).unwrap();
 
             let mut compiler = Compiler::new();
             let (code, source_map) = compiler.compile_result(&buffer, "main".to_string())?;
-            info!("{}", compiler.ir_result.unwrap().show());
+            let ir = compiler.ir_result.unwrap().show();
+            info!("{}", ir);
+
+            let mut file = File::create(qirv_output.unwrap_or("./build/out.qirv".into())).unwrap();
+            file.write_all(ir.as_bytes()).unwrap();
+
+            let mut qirv = String::new();
             for (n, inst) in code.iter().enumerate() {
                 if let Some(s) = source_map.get(&n) {
                     info!(";; {}", s);
+                    qirv += &format!(";; {}\n", s);
                 }
                 info!("{:04} {:?}", n, inst);
+                qirv += &format!("{:04} {:?}\n", n, inst);
             }
 
-            let mut file = File::create(qasm_output.unwrap_or("./out.qasm".into())).unwrap();
+            let mut file =
+                File::create(qasmv_output.unwrap_or("./build/out.qasmv".into())).unwrap();
+            file.write_all(qirv.as_bytes()).unwrap();
+
+            let mut file = File::create(qasm_output.unwrap_or("./build/out.qasm".into())).unwrap();
             file.write_all(
                 &QVMSource::new(code)
                     .into_string()

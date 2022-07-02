@@ -9,18 +9,34 @@
   "categories": [
     "Programming Languages"
   ],
+  "scripts": {
+    "prepackage": "rm -r *.vsix",
+    "package": "vsce package"
+  },
   "contributes": {
     "languages": [
       {
         "id": "quartz",
         "aliases": [
           "quartz",
-          "quartz"
+          "qz"
         ],
         "extensions": [
           ".qz"
         ],
         "configuration": "./language-configuration.json"
+      },
+      {
+        "id": "quartz-ir",
+        "aliases": [
+          "quartz-ir",
+          "qir"
+        ],
+        "extensions": [
+          ".qir",
+          ".qirv"
+        ],
+        "configuration": "./qir/language-configuration.json"
       }
     ],
     "grammars": [
@@ -28,7 +44,15 @@
         "language": "quartz",
         "scopeName": "source.quartz",
         "path": "./syntaxes/quartz.tmLanguage.json"
+      },
+      {
+        "language": "quartz-ir",
+        "scopeName": "source.quartzir",
+        "path": "./qir/syntaxes/quartzir.tmLanguage.json"
       }
     ]
+  },
+  "devDependencies": {
+    "vsce": "^2.9.2"
   }
 }
