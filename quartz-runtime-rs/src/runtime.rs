@@ -521,11 +521,11 @@ impl Runtime {
                 "_copy" => {
                     let target = self.pop().as_addr().unwrap();
                     let source = self.pop().as_addr().unwrap();
-                    let len = self.pop().as_int().unwrap();
-                    let target_offset = self.pop().as_int().unwrap();
+                    let len = self.pop().as_int().unwrap() as usize;
+                    let target_offset = self.pop().as_int().unwrap() as usize;
 
                     for i in 0..len {
-                        let value = self.heap.data[source + i as usize].clone();
+                        let value = self.heap.data[source + i].clone();
                         assert!(
                             matches!(value.metadata().as_str(), "int" | "addr"),
                             "{:?} @ {} + {}",
@@ -533,8 +533,9 @@ impl Runtime {
                             source,
                             i
                         );
-                        self.heap.data[target + i as usize + target_offset as usize] = value;
+                        self.heap.data[target + i + target_offset] = value;
                     }
+
                     self.push(Value::nil());
                 }
                 "_panic" => {

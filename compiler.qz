@@ -1,5 +1,3 @@
-
-
 func find_space_pattern(s: substring): int {
     let n = 0;
     while (n < s.len()) {
