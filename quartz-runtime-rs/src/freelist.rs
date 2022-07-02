@@ -2,7 +2,7 @@ use anyhow::Result;
 use log::debug;
 use serde::{Deserialize, Serialize};
 
-use crate::runtime::{AddrPlace, Value, ValueIntFlag};
+use crate::runtime::{AddrPlace, Value, ValueAddrFlag, ValueIntFlag};
 
 #[derive(Debug, Clone)]
 pub struct LinkObjectHeader {
@@ -53,14 +53,14 @@ impl Freelist {
             len: 0,
             prev: last,
             next: last,
-            info: Value::Addr(0, AddrPlace::InfoTable, "nodata".to_string()),
+            info: Value::Addr(0, AddrPlace::InfoTable, ValueAddrFlag::Nodata),
         });
         list.push(LinkObjectHeader {
             pointer: last,
             len: 0,
             prev: root,
             next: root,
-            info: Value::Addr(0, AddrPlace::InfoTable, "nodata".to_string()),
+            info: Value::Addr(0, AddrPlace::InfoTable, ValueAddrFlag::Nodata),
         });
 
         list
@@ -71,8 +71,8 @@ impl Freelist {
         let next = obj.next;
 
         self.data[obj.pointer] = Value::Int(obj.len as i32, ValueIntFlag::Len);
-        self.data[obj.pointer + 1] = Value::Addr(prev, AddrPlace::Heap, "prev".to_string());
-        self.data[obj.pointer + 2] = Value::Addr(next, AddrPlace::Heap, "next".to_string());
+        self.data[obj.pointer + 1] = Value::Addr(prev, AddrPlace::Heap, ValueAddrFlag::Prev);
+        self.data[obj.pointer + 2] = Value::Addr(next, AddrPlace::Heap, ValueAddrFlag::Next);
         self.data[obj.pointer + 3] = obj.info;
     }
 
@@ -81,8 +81,14 @@ impl Freelist {
             .clone()
             .as_named_int(ValueIntFlag::Len)
             .unwrap() as usize;
-        let prev = self.data[index + 1].clone().as_named_addr("prev").unwrap();
-        let next = self.data[index + 2].clone().as_named_addr("next").unwrap();
+        let prev = self.data[index + 1]
+            .clone()
+            .as_named_addr(ValueAddrFlag::Prev)
+            .unwrap();
+        let next = self.data[index + 2]
+            .clone()
+            .as_named_addr(ValueAddrFlag::Next)
+            .unwrap();
 
         Ok(LinkObjectHeader {
             pointer: index,
@@ -165,7 +171,7 @@ impl Freelist {
                     len: size,
                     prev: prev.pointer,
                     next: current.pointer,
-                    info: Value::Addr(0, AddrPlace::InfoTable, "nodata".to_string()),
+                    info: Value::Addr(0, AddrPlace::InfoTable, ValueAddrFlag::Nodata),
                 };
                 let pointer = new_object.get_data_pointer();
 

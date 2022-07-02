@@ -27,12 +27,20 @@ pub enum ValueIntFlag {
     Fp,  // frame pointer
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum ValueAddrFlag {
+    Addr,   // default
+    Nodata, // no data in heap
+    Prev,   // prev in heap
+    Next,   // next in heap
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Value {
     Nil,
     Bool(bool),
     Int(i32, ValueIntFlag),
-    Addr(usize, AddrPlace, String),
+    Addr(usize, AddrPlace, ValueAddrFlag),
 }
 
 impl Value {
@@ -52,7 +60,7 @@ impl Value {
 
     pub fn as_addr(self) -> Option<usize> {
         match self {
-            Value::Addr(i, _, m) if m == "addr" => Some(i),
+            Value::Addr(i, _, ValueAddrFlag::Addr) => Some(i),
             _ => None,
         }
     }
@@ -64,9 +72,9 @@ impl Value {
         }
     }
 
-    pub fn as_named_addr(self, name: &str) -> Option<usize> {
+    pub fn as_named_addr(self, flag: ValueAddrFlag) -> Option<usize> {
         match self {
-            Value::Addr(i, _, n) if n == name => Some(i),
+            Value::Addr(i, _, n) if n == flag => Some(i),
             _ => None,
         }
     }
@@ -84,7 +92,7 @@ impl Value {
     }
 
     pub fn addr(i: usize) -> Value {
-        Value::Addr(i, AddrPlace::Heap, "addr".to_string())
+        Value::Addr(i, AddrPlace::Heap, ValueAddrFlag::Addr)
     }
 }
 
@@ -447,7 +455,7 @@ impl Runtime {
             QVMInstruction::PAdd => {
                 let a = self.pop();
                 let b = match self.pop() {
-                    Value::Addr(b, AddrPlace::Heap, m) if m == "addr" => b,
+                    Value::Addr(b, AddrPlace::Heap, ValueAddrFlag::Addr) => b,
                     t => {
                         unreachable!(
                             "{}, {:?}, {:?} ({:?})",
@@ -462,7 +470,7 @@ impl Runtime {
             }
             QVMInstruction::PAddIm(a) => {
                 let b = match self.pop() {
-                    Value::Addr(b, AddrPlace::Heap, m) if m == "addr" => b,
+                    Value::Addr(b, AddrPlace::Heap, ValueAddrFlag::Addr) => b,
                     t => {
                         unreachable!(
                             "{}, {:?}, {:?} ({:?})",
