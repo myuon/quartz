@@ -1,10 +1,17 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub enum Variable {
+    Local,
+    Heap,
+    Global,
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub enum QVMInstruction {
     // stack manipulation
-    Load(String),
-    Store(String),
+    Load(Variable),
+    Store(Variable),
     Pop(usize),
     // heap manipulation
     Alloc,
@@ -54,10 +61,10 @@ impl QVMInstruction {
 
         match self {
             Load(s) => {
-                format!("LOAD {}", s)
+                format!("LOAD {:?}", s)
             }
             Store(s) => {
-                format!("STORE {}", s)
+                format!("STORE {:?}", s)
             }
             Pop(n) => {
                 format!("POP {}", n)

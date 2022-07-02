@@ -7,7 +7,7 @@ use std::{
 
 use anyhow::Result;
 use log::debug;
-use quartz_core::vm::QVMInstruction;
+use quartz_core::vm::{QVMInstruction, Variable};
 use serde::{Deserialize, Serialize};
 
 use crate::freelist::Freelist;
@@ -375,8 +375,8 @@ impl Runtime {
 
                 let i = addr_value.as_addr().unwrap();
 
-                match kind.as_str() {
-                    "local" => {
+                match kind {
+                    Variable::Local => {
                         assert!(
                             self.stack[self.frame_pointer - 1]
                                 .clone()
@@ -397,18 +397,12 @@ impl Runtime {
                         assert!(matches!(v.metadata().as_str(), "int" | "addr"), "{:?}", v);
                         self.push(v);
                     }
-                    "local_rev" => {
-                        self.push(self.stack[self.stack_pointer - 1 - i].clone());
-                    }
-                    "heap" => {
+                    Variable::Heap => {
                         self.push(self.heap.data[i].clone());
                     }
-                    "global" => {
+                    Variable::Global => {
                         let value = self.globals[i];
                         self.push(Value::int(value));
-                    }
-                    _ => {
-                        unreachable!();
                     }
                 };
             }
@@ -418,20 +412,17 @@ impl Runtime {
                 assert_matches!(addr_value, Value::Addr(_, AddrPlace::Heap, _));
                 let r = addr_value.as_addr().unwrap();
 
-                match kind.as_str() {
-                    "local" => {
+                match kind {
+                    Variable::Local => {
                         self.stack[self.frame_pointer + r] = self.pop();
                     }
-                    "heap" => {
+                    Variable::Heap => {
                         let value = self.pop();
                         self.heap.data[r] = value;
                     }
-                    "global" => {
+                    Variable::Global => {
                         let value = self.pop();
                         self.globals[r] = value.as_int().unwrap();
-                    }
-                    _ => {
-                        unreachable!();
                     }
                 };
             }
@@ -637,10 +628,10 @@ fn runtime_run_hand_coded() -> Result<()> {
             I32Const(1),  // a
             I32Const(10), // z
             AddrConst(0, String::new()),
-            Load("local".to_string()), // load a
-            LoadArg(0),                // load b
-            Add,                       // a + b
-            Return(1),                 // return
+            Load(Variable::Local), // load a
+            LoadArg(0),            // load b
+            Add,                   // a + b
+            Return(1),             // return
         ],
         3,
     )];
