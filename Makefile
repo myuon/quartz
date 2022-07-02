@@ -14,7 +14,7 @@ compile:
 
 run:
 	@echo "quartz run"
-	cargo run -- run < ./compiler.qz
+	time cargo run -- run < ./compiler.qz
 
 profile:
 	@echo "quartz run --profile"

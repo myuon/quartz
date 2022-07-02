@@ -38,12 +38,14 @@ impl LinkObjectHeader {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Freelist {
     pub data: Vec<Value>,
+    alloc_search_pointer: usize,
 }
 
 impl Freelist {
     pub fn new(len: usize) -> Freelist {
         let mut list = Freelist {
             data: vec![Value::nil(); len],
+            alloc_search_pointer: 0,
         };
 
         let root = 0;
@@ -155,7 +157,7 @@ impl Freelist {
     }
 
     pub fn alloc(&mut self, size: usize) -> Result<usize> {
-        let mut current = self.root()?;
+        let mut current = self.parse(self.alloc_search_pointer)?;
 
         while current.next != 0 {
             let prev = current.clone();
@@ -176,6 +178,8 @@ impl Freelist {
                 return Ok(pointer);
             }
         }
+
+        // SUGGESTION: run GC here
 
         for obj in self.debug_objects() {
             debug!("{:?}", obj);
