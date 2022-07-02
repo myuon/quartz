@@ -119,6 +119,8 @@ pub struct Runtime {
     pub(crate) pc: usize,
     pub(crate) stack_pointer: usize,
     pub(crate) frame_pointer: usize,
+    debugger_json_path: PathBuf,
+    debug_mode: bool,
 }
 
 impl Runtime {
@@ -131,7 +133,14 @@ impl Runtime {
             pc: 0,
             stack_pointer: 0,
             frame_pointer: 0,
+            debugger_json_path: PathBuf::new(),
+            debug_mode: false,
         }
+    }
+
+    pub fn set_debug_mode(&mut self, debugger_json: PathBuf) {
+        self.debug_mode = true;
+        self.debugger_json_path = debugger_json;
     }
 
     pub fn new_from_debugger_json(path: PathBuf) -> Result<Self> {
@@ -537,14 +546,16 @@ impl Runtime {
                 "_start_debugger" => {
                     self.push(Value::nil());
 
-                    // Increment PC ahead to process this instruction.
-                    self.pc += 1;
+                    if self.debug_mode {
+                        // Increment PC ahead to process this instruction.
+                        self.pc += 1;
 
-                    let mut file = File::create("./quartz-debugger.json").unwrap();
-                    file.write_all(&serde_json::to_vec_pretty(&self).unwrap())
-                        .unwrap();
+                        let mut file = File::create("./quartz-debugger.json").unwrap();
+                        file.write_all(&serde_json::to_vec_pretty(&self).unwrap())
+                            .unwrap();
 
-                    std::process::exit(0);
+                        std::process::exit(0);
+                    }
                 }
                 "_check_sp" => {
                     debug!("{}", self.debug_info());

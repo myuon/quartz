@@ -57,6 +57,8 @@ enum Command {
 
 #[derive(Subcommand)]
 enum DebugSubCommand {
+    #[clap(name = "start", about = "Start a debug session")]
+    Start { debugger_json: Option<PathBuf> },
     #[clap(name = "resume", about = "Resume a debug session")]
     Resume { debugger_json: Option<PathBuf> },
     #[clap(name = "step", about = "Step a debug session")]
@@ -170,6 +172,20 @@ fn main() -> Result<()> {
                 )?;
 
                 info!("{}", runtime.debug_info());
+            }
+            DebugSubCommand::Start { debugger_json } => {
+                let entrypoint = env::var("ENTRYPOINT").ok().unwrap_or("main".to_string());
+
+                let mut buffer = String::new();
+                let mut stdin = std::io::stdin();
+                stdin.read_to_string(&mut buffer).unwrap();
+
+                let mut compiler = Compiler::new();
+                let code = compiler.compile(&buffer, entrypoint)?;
+
+                let mut runtime = Runtime::new(code.clone(), compiler.vm_code_generation.globals());
+                runtime.set_debug_mode(debugger_json.unwrap_or("./quartz-debugger.json".into()));
+                runtime.run()?;
             }
         },
         Command::Debugger { debugger_json } => {
