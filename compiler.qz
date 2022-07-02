@@ -44,10 +44,10 @@ func (l: Lexer) run() {
       continue;
     };
 
-    let n2 = find_exact_pattern(l.input, l.position, "(");
-    if (n2 > 0) {
+    let n = find_exact_pattern(l.input, l.position, "(");
+    if (n > 0) {
       _println("(");
-      l.position = l.position + n2;
+      l.position = l.position + n;
       continue;
     };
 
@@ -63,7 +63,7 @@ func main() {
   };
   lexer.run();
 
-  _println(input);
+  _println("== COMPILE FINISHED");
 }
 
 func compiler_test() {

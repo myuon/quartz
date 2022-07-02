@@ -259,6 +259,7 @@ impl Runtime {
             QVMInstruction::Return(args) => {
                 // exit this program
                 if self.frame_pointer == 0 {
+                    self.pc = self.code.len();
                     return Ok(());
                 }
 
