@@ -67,6 +67,14 @@ struct substring {
     end: int,
 }
 
+func (s: string) to_substring(): substring {
+    return substring {
+        str: s,
+        start: 0,
+        end: s.len(),
+    };
+}
+
 func (s: string) slice(start: int, end: int): substring {
     return substring {
         str: s,
@@ -86,6 +94,23 @@ func (s: substring) to_string(): string {
     return string {
         data: buffer,
     };
+}
+
+// FIXME: faster implementation
+func (s: substring) eq(t: substring): bool {
+    return s.to_string().eq(t.to_string());
+}
+
+func (s: substring) len(): int {
+    return s.end - s.start;
+}
+
+func (s: substring) at(n: int): string {
+    return s.str.slice(s.start + n, s.start + n + 1).to_string();
+}
+
+func (s: string) at(p: int): string {
+    return s.slice(p, p+1).to_string();
 }
 
 // int cannot have any methods then we need to define as a global function... X(
@@ -133,6 +158,7 @@ func test() {
     assert("foo".eq("foo"));
     assert("foo".concat("bar").eq("foobar"));
     assert_eq("hello".slice(1,5).to_string(), "ello");
+    assert_eq(show_int("hello".slice(1,5).len()), show_int(4));
     assert_eq("hello".slice_after(3).to_string(), "lo");
     assert_eq("hello".reverse(), "olleh");
     assert_eq(show_int(12345), "12345");
