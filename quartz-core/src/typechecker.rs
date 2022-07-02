@@ -3,7 +3,10 @@ use std::collections::{HashMap, HashSet};
 use anyhow::{bail, Context, Result};
 use pretty_assertions::assert_eq;
 
-use crate::ast::{Declaration, Expr, Literal, Methods, Module, Source, Statement, Structs, Type};
+use crate::{
+    ast::{Declaration, Expr, Literal, Methods, Module, Source, Statement, Structs, Type},
+    compiler::specify_source_in_input,
+};
 
 struct Constraints(Vec<(usize, Type)>);
 
@@ -159,9 +162,7 @@ impl<'s> TypeChecker<'s> {
         }
 
         match (start, end) {
-            (Some(start), Some(end)) => {
-                format!("{}", &self.source_code[start..end])
-            }
+            (Some(start), Some(end)) => specify_source_in_input(self.source_code, start, end),
             _ => unknown_context.to_string(),
         }
     }
@@ -317,7 +318,7 @@ impl<'s> TypeChecker<'s> {
                     let field_type = self
                         .structs
                         .get_projection_type(&typ_name, &field)
-                        .context(self.error_context(None, None, "projection"))?;
+                        .context(self.error_context(expr.start, expr.end, "projection"))?;
 
                     *is_method = false;
 

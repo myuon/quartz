@@ -20,6 +20,44 @@ pub enum CompileError {
     ParseError { source: Error, position: usize },
 }
 
+pub fn specify_source_in_input(input: &str, start: usize, end: usize) -> String {
+    let position = start;
+
+    let mut lines = input.lines();
+    let current_line_number = input[..position].lines().count();
+    let prev_line = lines.nth(current_line_number - 2).unwrap();
+    let current_line = lines.next().unwrap();
+    let next_line = lines.next().unwrap();
+
+    let mut current_line_position = position;
+    while &input[current_line_position - 1..current_line_position] != "\n"
+        && current_line_position > 0
+    {
+        current_line_position -= 1;
+    }
+
+    let current_line_width = position - current_line_position;
+
+    format!(
+        "position: {}, line: {}, width: {}\n{}",
+        position,
+        current_line_number,
+        current_line_width,
+        vec![
+            format!("{}\t| {}", current_line_number - 1, prev_line),
+            format!("{}\t| {}", current_line_number, current_line),
+            format!(
+                "{}\t| {}{}",
+                current_line_number,
+                repeat(' ').take(current_line_width).collect::<String>(),
+                repeat('^').take(end - start).collect::<String>(),
+            ),
+            format!("{}\t| {}", current_line_number + 1, next_line),
+        ]
+        .join("\n")
+    )
+}
+
 pub struct Compiler<'s> {
     pub typechecker: TypeChecker<'s>,
     pub ir_code_generation: IrGenerator,
@@ -65,38 +103,7 @@ impl Compiler<'_> {
             if let Some(cerr) = err.downcast_ref::<CompileError>() {
                 match cerr {
                     CompileError::ParseError { position, .. } => {
-                        let mut lines = input.lines();
-                        let current_line_number = input[..*position].lines().count();
-                        let prev_line = lines.nth(current_line_number - 2).unwrap();
-                        let current_line = lines.next().unwrap();
-                        let next_line = lines.next().unwrap();
-
-                        let mut current_line_position = *position;
-                        while &input[current_line_position - 1..current_line_position] != "\n"
-                            && current_line_position > 0
-                        {
-                            current_line_position -= 1;
-                        }
-
-                        let current_line_width = position - current_line_position;
-
-                        let message = format!(
-                            "position: {}, line: {}, width: {}\n{}",
-                            position,
-                            current_line_number,
-                            current_line_width,
-                            vec![
-                                format!("{}\t| {}", current_line_number - 1, prev_line),
-                                format!("{}\t| {}", current_line_number, current_line),
-                                format!(
-                                    "{}\t| {}^",
-                                    current_line_number,
-                                    repeat(' ').take(current_line_width).collect::<String>()
-                                ),
-                                format!("{}\t| {}", current_line_number + 1, next_line),
-                            ]
-                            .join("\n")
-                        );
+                        let message = specify_source_in_input(input, *position, *position + 1);
                         err.context(message)
                     }
                 }
