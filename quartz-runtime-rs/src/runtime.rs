@@ -19,27 +19,20 @@ pub enum AddrPlace {
     Unknown,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
-pub enum Value {
-    Bool(bool),
-    Int(i32, String),
-    Addr(usize, AddrPlace, String),
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum ValueIntFlag {
+    Int, // default
+    Len, // length in heap
+    Pc,  // program counter
+    Fp,  // frame pointer
 }
 
-impl std::fmt::Debug for Value {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Int(arg0, arg1) => {
-                write!(f, "{}:{}", arg0, arg1)
-            }
-            Self::Addr(arg0, _, arg1) => {
-                write!(f, "*{}:{}", arg0, arg1)
-            }
-            Value::Bool(b) => {
-                write!(f, "{}", if *b { "true" } else { "false" })
-            }
-        }
-    }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum Value {
+    Nil,
+    Bool(bool),
+    Int(i32, ValueIntFlag),
+    Addr(usize, AddrPlace, String),
 }
 
 impl Value {
@@ -52,7 +45,7 @@ impl Value {
 
     pub fn as_int(self) -> Option<i32> {
         match self {
-            Value::Int(i, m) if m == "int" => Some(i),
+            Value::Int(i, ValueIntFlag::Int) => Some(i),
             _ => None,
         }
     }
@@ -64,9 +57,9 @@ impl Value {
         }
     }
 
-    pub fn as_named_int(self, name: &str) -> Option<i32> {
+    pub fn as_named_int(self, flag: ValueIntFlag) -> Option<i32> {
         match self {
-            Value::Int(i, n) if n == name => Some(i),
+            Value::Int(i, n) if n == flag => Some(i),
             _ => None,
         }
     }
@@ -78,16 +71,8 @@ impl Value {
         }
     }
 
-    pub fn metadata(&self) -> String {
-        match self {
-            Value::Int(_, metadata) => metadata.clone(),
-            Value::Addr(_, _, metadata) => metadata.to_string(),
-            Value::Bool(_) => unreachable!(),
-        }
-    }
-
     pub fn nil() -> Value {
-        Value::Addr(0, AddrPlace::Unknown, "nil".to_string())
+        Value::Nil
     }
 
     pub fn bool(b: bool) -> Value {
@@ -95,7 +80,7 @@ impl Value {
     }
 
     pub fn int(i: i32) -> Value {
-        Value::Int(i, "int".to_string())
+        Value::Int(i, ValueIntFlag::Int)
     }
 
     pub fn addr(i: usize) -> Value {
@@ -253,9 +238,9 @@ impl Runtime {
                 let r = self.pop();
                 assert_matches!(r, Value::Addr(_, AddrPlace::Heap, _));
 
-                self.push(Value::Int(self.pc as i32 + 1, "pc".to_string()));
+                self.push(Value::Int(self.pc as i32 + 1, ValueIntFlag::Pc));
                 self.pc = r.as_addr().unwrap();
-                self.push(Value::Int(self.frame_pointer as i32, "fp".to_string()));
+                self.push(Value::Int(self.frame_pointer as i32, ValueIntFlag::Fp));
                 self.frame_pointer = self.stack_pointer;
 
                 return Ok(());
@@ -283,10 +268,10 @@ impl Runtime {
                 self.stack_pointer = self.frame_pointer;
 
                 let fp = self.load(1);
-                self.frame_pointer = fp.as_named_int("fp").unwrap() as usize;
+                self.frame_pointer = fp.as_named_int(ValueIntFlag::Fp).unwrap() as usize;
 
                 let pc = self.load(2);
-                self.pc = pc.as_named_int("pc").unwrap() as usize;
+                self.pc = pc.as_named_int(ValueIntFlag::Pc).unwrap() as usize;
 
                 self.stack[current_fp - (args + 2)] = result;
                 self.stack_pointer -= args + 1; // -2 words (fp, pc), +1 word (return value)
@@ -370,7 +355,7 @@ impl Runtime {
                         assert!(
                             self.stack[self.frame_pointer - 1]
                                 .clone()
-                                .as_named_int("fp")
+                                .as_named_int(ValueIntFlag::Fp)
                                 .is_some(),
                             "{} at {:?}",
                             self.frame_pointer,
@@ -384,7 +369,6 @@ impl Runtime {
                             self.frame_pointer + i,
                             self.stack_pointer
                         );
-                        assert!(matches!(v.metadata().as_str(), "int" | "addr"), "{:?}", v);
                         self.push(v);
                     }
                     Variable::Heap => {
@@ -429,12 +413,6 @@ impl Runtime {
             }
             QVMInstruction::LoadArg(r) => {
                 let arg = self.stack[self.frame_pointer - 3 - r].clone();
-                assert_matches!(
-                    arg.metadata().as_str(),
-                    "int" | "addr",
-                    "{}",
-                    arg.metadata()
-                );
                 self.push(arg);
             }
             QVMInstruction::Jump(k) => {
@@ -528,13 +506,6 @@ impl Runtime {
 
                     for i in 0..len {
                         let value = self.heap.data[source + i].clone();
-                        assert!(
-                            matches!(value.metadata().as_str(), "int" | "addr"),
-                            "{:?} @ {} + {}",
-                            value,
-                            source,
-                            i
-                        );
                         self.heap.data[target + i + target_offset] = value;
                     }
 

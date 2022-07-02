@@ -2,7 +2,7 @@ use anyhow::Result;
 use log::debug;
 use serde::{Deserialize, Serialize};
 
-use crate::runtime::{AddrPlace, Value};
+use crate::runtime::{AddrPlace, Value, ValueIntFlag};
 
 #[derive(Debug, Clone)]
 pub struct LinkObjectHeader {
@@ -70,14 +70,17 @@ impl Freelist {
         let prev = obj.prev;
         let next = obj.next;
 
-        self.data[obj.pointer] = Value::Int(obj.len as i32, "len".to_string());
+        self.data[obj.pointer] = Value::Int(obj.len as i32, ValueIntFlag::Len);
         self.data[obj.pointer + 1] = Value::Addr(prev, AddrPlace::Heap, "prev".to_string());
         self.data[obj.pointer + 2] = Value::Addr(next, AddrPlace::Heap, "next".to_string());
         self.data[obj.pointer + 3] = obj.info;
     }
 
     pub fn parse(&self, index: usize) -> Result<LinkObjectHeader> {
-        let len = self.data[index].clone().as_named_int("len").unwrap() as usize;
+        let len = self.data[index]
+            .clone()
+            .as_named_int(ValueIntFlag::Len)
+            .unwrap() as usize;
         let prev = self.data[index + 1].clone().as_named_addr("prev").unwrap();
         let next = self.data[index + 2].clone().as_named_addr("next").unwrap();
 
