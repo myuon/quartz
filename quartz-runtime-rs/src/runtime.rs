@@ -127,7 +127,7 @@ impl Runtime {
     pub fn new(code: Vec<QVMInstruction>, globals: usize) -> Runtime {
         Runtime {
             stack: vec![],
-            heap: Freelist::new(1_000),
+            heap: Freelist::new(100_000),
             globals: vec![0; globals],
             code,
             pc: 0,

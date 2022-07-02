@@ -109,6 +109,23 @@ func (s: substring) at(n: int): string {
     return s.str.slice(s.start + n, s.start + n + 1).to_string();
 }
 
+func (s: substring) slice(start: int, end: int): substring {
+    if (s.end < s.start + end) {
+        _println("end ".concat(show_int(end)).concat(" but ").concat(show_int(s.start + end)));
+        _panic;
+    };
+
+    return substring {
+        str: s.str,
+        start: s.start + start,
+        end: s.start + end,
+    };
+}
+
+func (s: substring) slice_after(start: int): substring {
+    return s.slice(start, s.len());
+}
+
 func (s: string) at(p: int): string {
     return s.slice(p, p+1).to_string();
 }

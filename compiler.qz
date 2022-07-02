@@ -1,7 +1,7 @@
 
 
 func find_space_pattern(s: substring): int {
-    let n = s.start;
+    let n = 0;
     while (n < s.len()) {
         if _not(s.at(n).eq(" ")) {
             return n;
@@ -16,14 +16,67 @@ func find_space_pattern(s: substring): int {
 func find_exact_pattern(s: substring, pattern: string): int {
     let n = 0;
     while (n < pattern.len()) {
-        if (s.at(n) != pattern.at(n - start)) {
+        if _not(s.at(n).eq(pattern.at(n))) {
             return n;
         };
 
         n = n + 1;
     };
 
-    return n - start;
+    return n;
+}
+
+func matches(s: string, pattern: string): bool {
+    let n = 0;
+    while (n < pattern.len()) {
+        if s.eq(pattern.at(n)) {
+            return true;
+        };
+
+        n = n + 1;
+    };
+
+    return false;
+}
+
+func find_numbers(s: substring): int {
+    let n = 0;
+    while (n < s.len()) {
+        if _not(matches(s.at(n), "012456789")) {
+            return n;
+        };
+
+        n = n + 1;
+    };
+
+    return n;
+}
+
+func find_identifier(s: substring): int {
+    if _not(s.at(0).eq("$")) {
+        return 0;
+    };
+
+    let n = find_variable_letters(s.slice_after(1));
+    if (n > 0) {
+        return n + 1;
+    };
+
+    return 0;
+}
+
+// [0-9a-zA-Z_]
+func find_variable_letters(s: substring): int {
+    let n = 0;
+    while (n < s.len()) {
+        if _not(matches(s.at(n), "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_")) {
+            return n;
+        };
+
+        n = n + 1;
+    };
+
+    return n;
 }
 
 struct Lexer {
@@ -35,7 +88,6 @@ func (l: Lexer) run() {
     while (l.position < l.input.len()) {
         _start_debugger;
         let current = l.input.slice_after(l.position);
-        _println(current.to_string());
 
         let n = find_space_pattern(current);
         if (n > 0) {
@@ -53,6 +105,27 @@ func (l: Lexer) run() {
         let n = find_exact_pattern(current, ")");
         if (n > 0) {
             _println("RPAREN");
+            l.position = l.position + n;
+            continue;
+        };
+
+        let n = find_numbers(current);
+        if (n > 0) {
+            _println("NUMBER ".concat(current.slice(0, n).to_string()));
+            l.position = l.position + n;
+            continue;
+        };
+
+        let n = find_identifier(current);
+        if (n > 0) {
+            _println("IDENT ".concat(current.slice(0, n).to_string()));
+            l.position = l.position + n;
+            continue;
+        };
+
+        let n = find_variable_letters(current);
+        if (n > 0) {
+            _println("KEYWORD ".concat(current.slice(0, n).to_string()));
             l.position = l.position + n;
             continue;
         };
@@ -77,6 +150,6 @@ func compiler_test() {
     assert_eq(show_int(find_space_pattern("    fooo".to_substring())), show_int(4));
     assert_eq(show_int(find_space_pattern("    ".to_substring())), show_int(4));
 
-    assert_eq(show_int(find_exact_pattern("abcde_fg", 0, "abc")), show_int(3));
-    assert_eq(show_int(find_exact_pattern("kabcd", 0, "abc")), show_int(0));
+    assert_eq(show_int(find_exact_pattern("abcde_fg".to_substring(), "abc")), show_int(3));
+    assert_eq(show_int(find_exact_pattern("kabcd".to_substring(), "abc")), show_int(0));
 }
