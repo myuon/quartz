@@ -35,6 +35,7 @@ struct Lexer {
 
 func (l: Lexer) run() {
   while (l.position < l.input.len()) {
+    _start_debugger;
     _println(l.input.slice_after(l.position));
 
     let n = find_space_pattern(l.input, l.position);
@@ -43,12 +44,10 @@ func (l: Lexer) run() {
       continue;
     };
 
-    let n = find_exact_pattern(l.input, l.position, "(");
-    _debug;
-    _start_debugger;
-    if (n > 0) {
+    let n2 = find_exact_pattern(l.input, l.position, "(");
+    if (n2 > 0) {
       _println("(");
-      l.position = l.position + n;
+      l.position = l.position + n2;
       continue;
     };
 

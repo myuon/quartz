@@ -120,6 +120,7 @@ impl<'s> VmFunctionGenerator<'s> {
                             "_start_debugger" => {
                                 QVMInstruction::RuntimeInstr("_start_debugger".to_string())
                             }
+                            "_check_sp" => QVMInstruction::RuntimeInstr("_check_sp".to_string()),
                             _ => QVMInstruction::LabelAddrConst(v.clone()),
                         });
                     }
@@ -248,6 +249,11 @@ impl<'s> VmFunctionGenerator<'s> {
 
                         self.new_source_map(IrElement::block("while:body", vec![]).show_compact());
                         self.register_label(label.clone());
+
+                        // additional check
+                        self.element(IrElement::Term(IrTerm::Int(self.local_pointer as i32)))?;
+                        self.element(IrElement::Term(IrTerm::Ident("_check_sp".to_string())))?;
+
                         self.element(body)?;
 
                         self.register_label(label_cond.clone());

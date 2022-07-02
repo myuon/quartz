@@ -546,6 +546,15 @@ impl Runtime {
 
                     std::process::exit(0);
                 }
+                "_check_sp" => {
+                    debug!("{}", self.debug_info());
+
+                    let sp = self.pop();
+                    assert_eq!(
+                        sp.as_int().unwrap() as usize,
+                        self.stack_pointer - self.frame_pointer
+                    );
+                }
                 _ => {
                     unreachable!();
                 }
