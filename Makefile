@@ -22,4 +22,4 @@ debug:
 
 debugger:
 	@echo "quartz debugger"
-	DEBUG=true cargo run -- debugger quartz-debugger.json
+	cargo run -- debugger quartz-debugger.json

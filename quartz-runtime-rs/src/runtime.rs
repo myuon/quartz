@@ -573,6 +573,21 @@ impl Runtime {
         Ok(())
     }
 
+    pub fn step_out(&mut self) -> Result<()> {
+        while self.pc < self.code.len() {
+            debug!("{}", self.debug_info());
+            let is_return = matches!(self.code[self.pc], QVMInstruction::Return(_));
+
+            self.step()?;
+
+            if is_return {
+                break;
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn run(&mut self) -> Result<()> {
         while self.pc < self.code.len() {
             debug!("{}", self.debug_info());

@@ -185,7 +185,7 @@ fn start_debugger(
         terminal.draw(|f| {
             let size = f.size();
             let block = Block::default()
-                .title("n:step r:resume q:quit")
+                .title("n:step o:step out r:resume q:quit")
                 .borders(Borders::ALL);
             f.render_widget(
                 Paragraph::new(runtime.debug_info()).wrap(Wrap { trim: false }),
@@ -199,6 +199,9 @@ fn start_debugger(
                 Event::Key(event) => match event.code {
                     KeyCode::Char('n') => {
                         runtime.step().unwrap();
+                    }
+                    KeyCode::Char('o') => {
+                        runtime.step_out().unwrap();
                     }
                     KeyCode::Char('r') => {
                         runtime.run().unwrap();
