@@ -10,6 +10,7 @@ anyhow = "1.0.56"
 clap = { version = "3.2.8", features = ["derive"] }
 crossterm = "0.23.2"
 log = "0.4.17"
+pprof = { version = "0.10.0", features = ["flamegraph"] }
 pretty_assertions = "1.2.1"
 "quartz-core" = { path = "../quartz-core" }
 serde = { version = "1.0.137", features = ["derive"] }

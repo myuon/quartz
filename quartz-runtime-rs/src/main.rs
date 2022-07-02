@@ -35,7 +35,10 @@ struct Cli {
 #[derive(Subcommand)]
 enum Command {
     #[clap(name = "run", about = "Run a Quartz program")]
-    Run,
+    Run {
+        #[clap(long, short)]
+        profile: bool,
+    },
     #[clap(name = "test", about = "Run a Quartz test program")]
     Test,
     #[clap(name = "compile", about = "Compile a Quartz program")]
@@ -81,7 +84,7 @@ fn main() -> Result<()> {
 
     let cli = Cli::parse();
     match cli.command {
-        Command::Run => {
+        Command::Run { profile } => {
             let entrypoint = env::var("ENTRYPOINT").ok().unwrap_or("main".to_string());
 
             let mut buffer = String::new();
@@ -91,7 +94,22 @@ fn main() -> Result<()> {
             let mut compiler = Compiler::new();
             let code = compiler.compile(&buffer, entrypoint)?;
 
-            Runtime::new(code.clone(), compiler.vm_code_generation.globals()).run()?;
+            if profile {
+                let guard = pprof::ProfilerGuardBuilder::default()
+                    .frequency(10)
+                    .blocklist(&["libc", "libgcc", "pthread", "vdso"])
+                    .build()
+                    .unwrap();
+
+                Runtime::new(code.clone(), compiler.vm_code_generation.globals()).run()?;
+
+                if let Ok(report) = guard.report().build() {
+                    let file = File::create("./build/prof-flamegraph.svg").unwrap();
+                    report.flamegraph(file).unwrap();
+                };
+            } else {
+                Runtime::new(code.clone(), compiler.vm_code_generation.globals()).run()?;
+            }
         }
         Command::Compile {
             qasm_output,
