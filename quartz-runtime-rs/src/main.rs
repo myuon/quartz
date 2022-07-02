@@ -96,8 +96,7 @@ fn main() -> Result<()> {
 
             if profile {
                 let guard = pprof::ProfilerGuardBuilder::default()
-                    .frequency(10)
-                    .blocklist(&["libc", "libgcc", "pthread", "vdso"])
+                    .frequency(1000)
                     .build()
                     .unwrap();
 

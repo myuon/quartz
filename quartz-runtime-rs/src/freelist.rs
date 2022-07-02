@@ -77,25 +77,21 @@ impl Freelist {
     }
 
     pub fn parse(&self, index: usize) -> Result<LinkObjectHeader> {
-        let len = self.data[index]
-            .clone()
-            .as_named_int(ValueIntFlag::Len)
-            .unwrap() as usize;
-        let prev = self.data[index + 1]
-            .clone()
-            .as_named_addr(ValueAddrFlag::Prev)
-            .unwrap();
-        let next = self.data[index + 2]
-            .clone()
-            .as_named_addr(ValueAddrFlag::Next)
-            .unwrap();
+        let len = self.data[index].clone();
+        let prev = self.data[index + 1].clone();
+        let next = self.data[index + 2].clone();
+        let info = self.data[index + 3].clone();
+
+        let len = len.as_named_int(ValueIntFlag::Len).unwrap() as usize;
+        let prev = prev.as_named_addr(ValueAddrFlag::Prev).unwrap();
+        let next = next.as_named_addr(ValueAddrFlag::Next).unwrap();
 
         Ok(LinkObjectHeader {
             pointer: index,
             len,
             prev,
             next,
-            info: self.data[index + 3].clone(),
+            info,
         })
     }
 
