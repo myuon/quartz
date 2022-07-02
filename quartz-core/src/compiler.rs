@@ -27,7 +27,7 @@ pub fn specify_source_in_input(input: &str, start: usize, end: usize) -> String 
     let current_line_number = input[..position].lines().count();
     let prev_line = lines.nth(current_line_number - 2).unwrap();
     let current_line = lines.next().unwrap();
-    let next_line = lines.next().unwrap();
+    let next_line = lines.next().unwrap_or(current_line);
 
     let mut current_line_position = position;
     while &input[current_line_position - 1..current_line_position] != "\n"
