@@ -40,19 +40,6 @@ func (s: string) bytes(): bytes {
     return s.data;
 }
 
-func (s: string) slice(start: int, end: int): string {
-    let buffer = _new(end - start);
-    _copy(0, end - start, _padd(s.data, start), buffer);
-
-    return string {
-        data: buffer,
-    };
-}
-
-func (s: string) slice_after(start: int): string {
-    return s.slice(start, s.len());
-}
-
 func (s: string) concat(t: string): string {
     let buffer = _new(s.len() + t.len());
     _copy(0, s.len(), s.data, buffer);
@@ -74,6 +61,33 @@ func (s: string) reverse(): string {
     return string { data: buffer };
 }
 
+struct substring {
+    str: string,
+    start: int,
+    end: int,
+}
+
+func (s: string) slice(start: int, end: int): substring {
+    return substring {
+        str: s,
+        start: start,
+        end: end,
+    };
+}
+
+func (s: string) slice_after(start: int): substring {
+    return s.slice(start, s.len());
+}
+
+func (s: substring) to_string(): string {
+    let buffer = _new(s.end - s.start);
+    _copy(0, s.end - s.start, _padd(s.str.data, s.start), buffer);
+
+    return string {
+        data: buffer,
+    };
+}
+
 // int cannot have any methods then we need to define as a global function... X(
 func show_bool(b: bool): string {
     if b {
@@ -90,34 +104,11 @@ func show_int(a: int): string {
 
     while (num > 0) {
         let r = _mod(num, 10);
-        str = str.concat(digits.slice(r, r+1));
+        str = str.concat(digits.slice(r, r+1).to_string());
         num = _div(num, 10);
     };
 
     return str.reverse();
-}
-
-struct substring {
-    str: string,
-    start: int,
-    end: int,
-}
-
-func (s: string) slice_sub(start: int, end: int) {
-    return substring {
-        str: s,
-        start: start,
-        end: end,
-    };
-}
-
-func (s: substring) to_string(): string {
-    let buffer = _new(s.end - s.start);
-    _copy(0, s.end - s.start, _padd(s.str.data, s.start), buffer);
-
-    return string {
-        data: buffer,
-    };
 }
 
 func assert(a: bool) {
@@ -141,12 +132,11 @@ func assert_eq(a: string, b: string) {
 func test() {
     assert("foo".eq("foo"));
     assert("foo".concat("bar").eq("foobar"));
-    assert_eq("hello".slice(1,5), "ello");
-    assert_eq("hello".slice_after(3), "lo");
+    assert_eq("hello".slice(1,5).to_string(), "ello");
+    assert_eq("hello".slice_after(3).to_string(), "lo");
     assert_eq("hello".reverse(), "olleh");
     assert_eq(show_int(12345), "12345");
     assert_eq(show_int("hello, world".len()), show_int(12));
     assert("prefix-suffix".starts_with("prefix"));
     assert(_not("prefix-suffix".starts_with("suffix")));
-    assert_eq("hello".slice_sub(1,5).to_string(), "ello");
 }

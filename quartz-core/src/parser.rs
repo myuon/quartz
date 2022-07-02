@@ -75,7 +75,7 @@ impl Parser {
                 "any" => Ok(Type::Any),
                 "bytes" => Ok(Type::Array(Box::new(Type::Byte))),
                 "byte" => Ok(Type::Byte),
-                _ => todo!("{:?}", ident),
+                _ => Ok(Type::Struct(ident)),
             }
         }
     }
@@ -325,10 +325,14 @@ impl Parser {
                         i,
                     );
                 } else if self.expect_lexeme(Lexeme::LParen).is_ok() {
+                    let result_end = self.position;
                     let args = self.many_exprs()?;
                     self.expect_lexeme(Lexeme::RParen)?;
 
-                    result = Expr::Call(Box::new(self.source_from(result, result_start)), args);
+                    result = Expr::Call(
+                        Box::new(self.source(result, result_start, result_end)),
+                        args,
+                    );
                 } else {
                     break;
                 }

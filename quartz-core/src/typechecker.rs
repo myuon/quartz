@@ -254,11 +254,15 @@ impl<'s> TypeChecker<'s> {
                         Box::new(ret_type_inferred.clone()),
                     ),
                 )
-                .context(format!(
-                    "Unify {:?} & {:?} from {:?}",
-                    fn_type,
-                    Type::Fn(arg_types_inferred, Box::new(ret_type_inferred.clone())),
-                    Expr::Call(f.clone(), args_cloned)
+                .context(self.error_context(
+                    f.start,
+                    f.end,
+                    &format!(
+                        "Unify {:?} & {:?} from {:?}",
+                        fn_type,
+                        Type::Fn(arg_types_inferred, Box::new(ret_type_inferred.clone())),
+                        Expr::Call(f.clone(), args_cloned)
+                    ),
                 ))?;
 
                 self.apply_constraints(&cs);
