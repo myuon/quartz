@@ -200,8 +200,8 @@ impl<'s> TypeChecker<'s> {
         }
     }
 
-    pub fn expr(&mut self, expr: &mut Expr) -> Result<Type> {
-        match expr {
+    pub fn expr(&mut self, expr: &mut Source<Expr>) -> Result<Type> {
+        match &mut expr.data {
             Expr::Var(v) => self.load(v),
             Expr::Lit(lit) => match lit {
                 Literal::Bool(_) => Ok(Type::Bool),
@@ -357,11 +357,8 @@ impl<'s> TypeChecker<'s> {
                     ret_type = Type::Unit;
                 }
                 Statement::Expr(e) => {
-                    self.expr(e).context(self.error_context(
-                        statement.start,
-                        statement.end,
-                        "expression",
-                    ))?;
+                    self.expr(e)
+                        .context(self.error_context(e.start, e.end, "expression"))?;
                     ret_type = Type::Unit;
                 }
                 Statement::Return(t) => {

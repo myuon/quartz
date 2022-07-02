@@ -33,7 +33,7 @@ pub enum Literal {
     Bool(bool),
     Int(i32),
     String(String),
-    Array(Vec<Expr>),
+    Array(Vec<Source<Expr>>),
 }
 
 impl Literal {
@@ -50,29 +50,33 @@ impl Literal {
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Statement {
-    Let(String, Expr),
-    Expr(Expr),
-    Return(Expr),
-    If(Box<Expr>, Vec<Source<Statement>>, Vec<Source<Statement>>),
+    Let(String, Source<Expr>),
+    Expr(Source<Expr>),
+    Return(Source<Expr>),
+    If(
+        Box<Source<Expr>>,
+        Vec<Source<Statement>>,
+        Vec<Source<Statement>>,
+    ),
     Continue,
-    Assignment(Box<Expr>, Expr),
+    Assignment(Box<Source<Expr>>, Source<Expr>),
     Loop(Vec<Source<Statement>>),
-    While(Box<Expr>, Vec<Source<Statement>>),
+    While(Box<Source<Expr>>, Vec<Source<Statement>>),
 }
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Expr {
     Var(String),
     Lit(Literal),
-    Call(Box<Expr>, Vec<Expr>),
-    Struct(String, Vec<(String, Expr)>),
+    Call(Box<Source<Expr>>, Vec<Source<Expr>>),
+    Struct(String, Vec<(String, Source<Expr>)>),
     Project(
         bool,   // is_method
         String, // name of the struct (will be filled in typecheck phase)
-        Box<Expr>,
+        Box<Source<Expr>>,
         String,
     ),
-    Index(Box<Expr>, Box<Expr>),
+    Index(Box<Source<Expr>>, Box<Source<Expr>>),
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -109,7 +113,7 @@ impl Function {
 #[derive(PartialEq, Debug, Clone)]
 pub enum Declaration {
     Function(Function),
-    Variable(String, Expr),
+    Variable(String, Source<Expr>),
     Struct(Struct),
 }
 

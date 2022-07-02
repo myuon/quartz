@@ -33,8 +33,8 @@ impl<'s> IrFunctionGenerator<'s> {
         Ok(IrTerm::Ident(format!("fresh_{}", self.fresh_var_index)))
     }
 
-    pub fn expr(&mut self, expr: &Expr) -> Result<IrElement> {
-        match expr {
+    pub fn expr(&mut self, expr: &Source<Expr>) -> Result<IrElement> {
+        match &expr.data {
             Expr::Var(v) => {
                 if self.args.contains_key(v) {
                     Ok(IrElement::Term(IrTerm::Argument(
@@ -49,18 +49,18 @@ impl<'s> IrFunctionGenerator<'s> {
                 Literal::Nil => Ok(IrElement::Term(IrTerm::Nil)),
                 Literal::Bool(b) => Ok(IrElement::Term(IrTerm::Bool(*b))),
                 Literal::Int(n) => Ok(IrElement::Term(IrTerm::Int(*n))),
-                Literal::String(s) => self.expr(&Expr::Struct(
+                Literal::String(s) => self.expr(&Source::unknown(Expr::Struct(
                     "string".to_string(),
                     vec![(
                         "data".to_string(),
-                        Expr::Lit(Literal::Array(
+                        Source::unknown(Expr::Lit(Literal::Array(
                             s.as_bytes()
                                 .iter()
-                                .map(|i| Expr::Lit(Literal::Int(*i as i32)))
+                                .map(|i| Source::unknown(Expr::Lit(Literal::Int(*i as i32))))
                                 .collect::<Vec<_>>(),
-                        )),
+                        ))),
                     )],
-                )),
+                ))),
                 Literal::Array(arr) => {
                     let v = self.var_fresh()?;
                     let n = arr.len() as i32;
@@ -250,7 +250,7 @@ impl<'s> IrFunctionGenerator<'s> {
             Statement::Assignment(v, e2) => {
                 let v2 = self.expr(e2)?;
 
-                match v.as_ref() {
+                match &v.data {
                     Expr::Var(v) => {
                         self.ir.push(IrElement::block(
                             "assign",
@@ -348,7 +348,7 @@ impl<'s> IrFunctionGenerator<'s> {
         }
 
         if need_return_nil_insert {
-            self.statement(&Statement::Return(Expr::Lit(Literal::Nil)))?;
+            self.statement(&Statement::Return(Source::unknown(Expr::Lit(Literal::Nil))))?;
         }
 
         Ok(())
@@ -405,7 +405,7 @@ impl IrGenerator {
         }))
     }
 
-    pub fn variable(&mut self, name: &String, expr: &Expr) -> Result<IrElement> {
+    pub fn variable(&mut self, name: &String, expr: &Source<Expr>) -> Result<IrElement> {
         let empty = HashMap::new();
         let mut elements = vec![IrElement::Term(IrTerm::Ident(name.clone()))];
         let mut generator = IrFunctionGenerator::new(&empty, &self.structs);
