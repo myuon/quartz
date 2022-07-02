@@ -408,7 +408,13 @@ impl Runtime {
             }
             QVMInstruction::Store(kind) => {
                 let addr_value = self.pop();
-                assert!(addr_value.clone().as_addr().is_some());
+                assert_matches!(
+                    addr_value.clone().as_addr(),
+                    Some(_),
+                    "{:?} at {}",
+                    addr_value,
+                    self.pc
+                );
                 assert_matches!(addr_value, Value::Addr(_, AddrPlace::Heap, _));
                 let r = addr_value.as_addr().unwrap();
 
@@ -485,6 +491,21 @@ impl Runtime {
                     }
                 };
                 self.push(Value::addr(b + a.as_int().unwrap() as usize));
+            }
+            QVMInstruction::PAddIm(a) => {
+                let b = match self.pop() {
+                    Value::Addr(b, AddrPlace::Heap, m) if m == "addr" => b,
+                    t => {
+                        unreachable!(
+                            "{}, {:?}, {:?} ({:?})",
+                            self.pc,
+                            t,
+                            &self.stack[0..self.stack_pointer],
+                            a,
+                        );
+                    }
+                };
+                self.push(Value::addr(b + a));
             }
             QVMInstruction::RuntimeInstr(ref label) => match label.as_str() {
                 "_gc" => {

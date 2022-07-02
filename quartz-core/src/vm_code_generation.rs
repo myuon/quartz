@@ -6,6 +6,7 @@ use log::info;
 use crate::{
     ir::{IrElement, IrTerm},
     vm::{QVMInstruction, Variable},
+    vm_optimizer::VmOptimizer,
 };
 
 macro_rules! unvec {
@@ -475,6 +476,27 @@ impl VmGenerator {
                     anyhow::bail!("label {} not found", label);
                 }
             }
+        }
+
+        // optimize
+        {
+            let mut optimizer = VmOptimizer::new();
+            let (optimized_code, code_map) = optimizer.optimize(code);
+
+            let mut new_source_map: HashMap<usize, String> = HashMap::new();
+            for (k, v) in source_map {
+                if let Some(p) = code_map.get(k) {
+                    new_source_map
+                        .entry(*p)
+                        .and_modify(|e| {
+                            *e += v.as_str();
+                        })
+                        .or_insert(v.to_string());
+                }
+            }
+
+            code = optimized_code;
+            source_map = new_source_map;
         }
 
         Ok((code, source_map))

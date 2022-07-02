@@ -41,6 +41,7 @@ pub enum QVMInstruction {
     Not,
     // pointer arithmetics
     PAdd,
+    PAddIm(usize),
     // Runtime instructions for FFI
     RuntimeInstr(String),
     // constants
@@ -134,6 +135,9 @@ impl QVMInstruction {
             }
             PAdd => {
                 format!("PADD")
+            }
+            PAddIm(n) => {
+                format!("PADDIM {}", n)
             }
             RuntimeInstr(s) => {
                 format!("RUNTIMEINSTR {}", s)
