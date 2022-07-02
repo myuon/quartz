@@ -471,6 +471,17 @@ impl<'s> TypeChecker<'s> {
                         self.variables.insert(arg.0.clone(), t);
                     }
 
+                    if let Some((name, typ, pointer)) = func.method_of.clone() {
+                        self.variables.insert(
+                            name.clone(),
+                            if pointer {
+                                Type::Ref(Box::new(Type::Struct(typ)))
+                            } else {
+                                Type::Struct(typ)
+                            },
+                        );
+                    }
+
                     let t = self.statements(&mut func.body)?;
                     self.variables = variables;
 
