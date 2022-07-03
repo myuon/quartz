@@ -91,11 +91,11 @@ impl<'s> VmFunctionGenerator<'s> {
                     if let Some(u) = self.locals.get(&v) {
                         self.code
                             .push(QVMInstruction::AddrConst(*u, Variable::Local));
-                        self.code.push(QVMInstruction::Load(Variable::Local));
+                        self.code.push(QVMInstruction::Load);
                     } else if let Some(u) = self.globals.get(&v) {
                         self.code
                             .push(QVMInstruction::AddrConst(*u, Variable::Global));
-                        self.code.push(QVMInstruction::Load(Variable::Global));
+                        self.code.push(QVMInstruction::Load);
                     } else {
                         self.code.push(match v.as_str() {
                             "_add" => QVMInstruction::Add,
@@ -193,18 +193,18 @@ impl<'s> VmFunctionGenerator<'s> {
                                 if let Some(u) = self.locals.get(&v).cloned() {
                                     self.code
                                         .push(QVMInstruction::AddrConst(u, Variable::Local));
-                                    self.code.push(QVMInstruction::Store(Variable::Local));
+                                    self.code.push(QVMInstruction::Store);
                                 } else if let Some(u) = self.globals.get(&v).cloned() {
                                     self.code
                                         .push(QVMInstruction::AddrConst(u, Variable::Global));
-                                    self.code.push(QVMInstruction::Store(Variable::Global));
+                                    self.code.push(QVMInstruction::Store);
                                 } else {
                                     anyhow::bail!("assign: {} not found", v);
                                 }
                             }
                             _ => {
                                 self.element(left)?;
-                                self.code.push(QVMInstruction::Store(Variable::Heap));
+                                self.code.push(QVMInstruction::Store);
                             }
                         }
                     }
@@ -383,7 +383,7 @@ impl VmGenerator {
             self.globals[&name],
             Variable::Global,
         ));
-        code.push(QVMInstruction::Store(Variable::Global));
+        code.push(QVMInstruction::Store);
 
         Ok(code)
     }

@@ -16,8 +16,18 @@ use crate::freelist::Freelist;
 pub enum AddrPlace {
     Stack,
     Heap,
+    Static,
     InfoTable,
-    Unknown,
+}
+
+impl AddrPlace {
+    pub fn from_variable(variable: Variable) -> AddrPlace {
+        match variable {
+            Variable::Local => AddrPlace::Stack,
+            Variable::Heap => AddrPlace::Heap,
+            Variable::Global => AddrPlace::Static,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -92,8 +102,8 @@ impl Value {
         Value::Int(i, ValueIntFlag::Int)
     }
 
-    pub fn addr(i: usize) -> Value {
-        Value::Addr(i, AddrPlace::Heap, ValueAddrFlag::Addr)
+    pub fn addr(i: usize, p: AddrPlace) -> Value {
+        Value::Addr(i, p, ValueAddrFlag::Addr)
     }
 }
 
@@ -156,7 +166,7 @@ impl Runtime {
         // handling the root object in heap...?
         let mut root = vec![];
         for g in &self.globals {
-            root.push(Value::addr(*g as usize));
+            root.push(Value::addr(*g as usize, AddrPlace::Static));
         }
         for s in &self.stack[..self.stack_pointer] {
             root.push(s.clone());
@@ -356,46 +366,48 @@ impl Runtime {
             QVMInstruction::I32Const(c) => {
                 self.push(Value::int(c));
             }
-            QVMInstruction::AddrConst(addr, _) => {
-                self.push(Value::addr(addr));
+            QVMInstruction::AddrConst(addr, variable) => {
+                self.push(Value::addr(addr, AddrPlace::from_variable(variable)));
             }
-            QVMInstruction::Load(kind) => {
+            QVMInstruction::Load => {
                 let addr_value = self.pop();
                 assert!(addr_value.clone().as_addr().is_some());
 
-                let i = addr_value.as_addr().unwrap();
+                match addr_value {
+                    Value::Addr(i, space, _) => match space {
+                        AddrPlace::Stack => {
+                            assert!(
+                                self.stack[self.frame_pointer - 1]
+                                    .clone()
+                                    .as_named_int(ValueIntFlag::Fp)
+                                    .is_some(),
+                                "{} at {:?}",
+                                self.frame_pointer,
+                                self.stack
+                            );
 
-                match kind {
-                    Variable::Local => {
-                        assert!(
-                            self.stack[self.frame_pointer - 1]
-                                .clone()
-                                .as_named_int(ValueIntFlag::Fp)
-                                .is_some(),
-                            "{} at {:?}",
-                            self.frame_pointer,
-                            self.stack
-                        );
-
-                        let v = self.stack[self.frame_pointer + i].clone();
-                        assert!(
-                            self.frame_pointer + i < self.stack_pointer,
-                            "{} {}",
-                            self.frame_pointer + i,
-                            self.stack_pointer
-                        );
-                        self.push(v);
-                    }
-                    Variable::Heap => {
-                        self.push(self.heap.data[i].clone());
-                    }
-                    Variable::Global => {
-                        let value = self.globals[i];
-                        self.push(Value::int(value));
-                    }
+                            let v = self.stack[self.frame_pointer + i].clone();
+                            assert!(
+                                self.frame_pointer + i < self.stack_pointer,
+                                "{} {}",
+                                self.frame_pointer + i,
+                                self.stack_pointer
+                            );
+                            self.push(v);
+                        }
+                        AddrPlace::Heap => {
+                            self.push(self.heap.data[i].clone());
+                        }
+                        AddrPlace::Static => {
+                            let value = self.globals[i];
+                            self.push(Value::int(value));
+                        }
+                        _ => unreachable!(),
+                    },
+                    _ => unreachable!(),
                 };
             }
-            QVMInstruction::Store(kind) => {
+            QVMInstruction::Store => {
                 let addr_value = self.pop();
                 assert_matches!(
                     addr_value.clone().as_addr(),
@@ -404,22 +416,24 @@ impl Runtime {
                     addr_value,
                     self.pc
                 );
-                assert_matches!(addr_value, Value::Addr(_, AddrPlace::Heap, _));
-                let r = addr_value.as_addr().unwrap();
 
-                match kind {
-                    Variable::Local => {
-                        self.stack[self.frame_pointer + r] = self.pop();
-                    }
-                    Variable::Heap => {
-                        let value = self.pop();
-                        self.heap.data[r] = value;
-                    }
-                    Variable::Global => {
-                        let value = self.pop();
-                        self.globals[r] = value.as_int().unwrap();
-                    }
-                };
+                match addr_value {
+                    Value::Addr(r, space, _) => match space {
+                        AddrPlace::Stack => {
+                            self.stack[self.frame_pointer + r] = self.pop();
+                        }
+                        AddrPlace::Heap => {
+                            let value = self.pop();
+                            self.heap.data[r] = value;
+                        }
+                        AddrPlace::Static => {
+                            let value = self.pop();
+                            self.globals[r] = value.as_int().unwrap();
+                        }
+                        _ => unreachable!(),
+                    },
+                    _ => unreachable!(),
+                }
             }
             QVMInstruction::Pop(r) => {
                 for _ in 0..r {
@@ -454,15 +468,15 @@ impl Runtime {
             QVMInstruction::Alloc => {
                 let size = self.pop();
                 let addr = self.heap.alloc(size.as_int().unwrap() as usize)?;
-                self.push(Value::addr(addr));
+                self.push(Value::addr(addr, AddrPlace::Heap));
             }
             QVMInstruction::Free(addr) => {
                 self.heap.free(self.heap.parse(addr)?)?;
             }
             QVMInstruction::PAdd => {
                 let a = self.pop();
-                let b = match self.pop() {
-                    Value::Addr(b, AddrPlace::Heap, ValueAddrFlag::Addr) => b,
+                let (b, v) = match self.pop() {
+                    Value::Addr(b, v, ValueAddrFlag::Addr) => (b, v),
                     t => {
                         unreachable!(
                             "{}, {:?}, {:?} ({:?})",
@@ -473,11 +487,11 @@ impl Runtime {
                         );
                     }
                 };
-                self.push(Value::addr(b + a.as_int().unwrap() as usize));
+                self.push(Value::addr(b + a.as_int().unwrap() as usize, v));
             }
             QVMInstruction::PAddIm(a) => {
-                let b = match self.pop() {
-                    Value::Addr(b, AddrPlace::Heap, ValueAddrFlag::Addr) => b,
+                let (b, v) = match self.pop() {
+                    Value::Addr(b, v, ValueAddrFlag::Addr) => (b, v),
                     t => {
                         unreachable!(
                             "{}, {:?}, {:?} ({:?})",
@@ -488,7 +502,7 @@ impl Runtime {
                         );
                     }
                 };
-                self.push(Value::addr(b + a));
+                self.push(Value::addr(b + a, v));
             }
             QVMInstruction::RuntimeInstr(ref label) => match label.as_str() {
                 "_gc" => {
@@ -639,7 +653,7 @@ fn runtime_run_hand_coded() -> Result<()> {
             I32Const(1),                   // a
             I32Const(10),                  // z
             AddrConst(0, Variable::Local), // a + b
-            Load(Variable::Local),         // load a
+            Load,                          // load a
             LoadArg(0),                    // load b
             Add,                           // a + b
             Return(1, 1),                  // return

@@ -11,8 +11,8 @@ pub enum Variable {
 pub enum QVMInstruction {
     Nop,
     // stack manipulation
-    Load(Variable),
-    Store(Variable),
+    Load,
+    Store,
     Pop(usize),
     // heap manipulation
     Alloc,
@@ -63,11 +63,11 @@ impl QVMInstruction {
         use QVMInstruction::*;
 
         match self {
-            Load(s) => {
-                format!("LOAD {:?}", s)
+            Load => {
+                format!("LOAD")
             }
-            Store(s) => {
-                format!("STORE {:?}", s)
+            Store => {
+                format!("STORE")
             }
             Pop(n) => {
                 format!("POP {}", n)
