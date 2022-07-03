@@ -698,7 +698,7 @@ func main() {
         ),
         (
             r#"
-func main() {
+func main(): int {
     let x = _new(5);
     x[0] = 1;
     x[1] = 2;

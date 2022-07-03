@@ -117,7 +117,6 @@ impl Constraints {
 #[derive(Clone, Debug)]
 pub struct TypeChecker<'s> {
     infer_count: usize,
-    inferred: HashMap<usize, Type>,
     pub variables: HashMap<String, Type>,
     pub structs: Structs,
     pub function_types: HashMap<String, (Vec<Type>, Type)>,
@@ -136,8 +135,7 @@ impl<'s> TypeChecker<'s> {
         source_code: &'s str,
     ) -> TypeChecker {
         TypeChecker {
-            infer_count: 0,
-            inferred: HashMap::new(),
+            infer_count: 1,
             variables,
             structs,
             function_types: HashMap::new(),
@@ -210,7 +208,7 @@ impl<'s> TypeChecker<'s> {
                 Literal::Bool(_) => Ok(Type::Bool),
                 Literal::Int(_) => Ok(Type::Int),
                 Literal::String(_) => Ok(Type::Struct("string".to_string())),
-                Literal::Nil => Ok(Type::Any),
+                Literal::Nil => Ok(Type::Unit),
                 Literal::Array(arr, t) => {
                     for e in arr {
                         let etype = self.expr(e)?;
@@ -248,7 +246,7 @@ impl<'s> TypeChecker<'s> {
                     arg_types_inferred.push(self.expr(arg)?);
                 }
 
-                let mut ret_type_inferred = self.next_infer();
+                let mut ret_type_inferred = fn_type.as_fn_type().unwrap().1.as_ref().clone();
 
                 let cs = Constraints::unify(
                     &fn_type,
@@ -271,7 +269,6 @@ impl<'s> TypeChecker<'s> {
                 self.apply_constraints(&cs);
 
                 cs.apply(&mut ret_type_inferred);
-                self.inferred.extend(cs.0);
 
                 Ok(ret_type_inferred)
             }
@@ -284,7 +281,6 @@ impl<'s> TypeChecker<'s> {
 
                     let cs = Constraints::unify(&v1, &self.expr(v2)?)?;
                     self.apply_constraints(&cs);
-                    self.inferred.extend(cs.0);
                 }
 
                 Ok(Type::Struct(s.clone()))
@@ -350,7 +346,6 @@ impl<'s> TypeChecker<'s> {
                 self.apply_constraints(&cs);
 
                 cs.apply(&mut r);
-                self.inferred.extend(cs.0);
 
                 Ok(r)
             }
@@ -447,11 +442,10 @@ impl<'s> TypeChecker<'s> {
                         self.variables.insert(arg.0.clone(), t);
                     }
 
-                    let result_type = self.next_infer();
-
-                    func.return_type = result_type.clone();
-                    self.function_types
-                        .insert(func.name.clone(), (arg_types.clone(), result_type));
+                    self.function_types.insert(
+                        func.name.clone(),
+                        (arg_types.clone(), func.return_type.clone()),
+                    );
 
                     // メソッドのレシーバーも登録する
                     if let Some((name, typ, pointer)) = func.method_of.clone() {
@@ -500,7 +494,12 @@ impl<'s> TypeChecker<'s> {
                         );
                     }
 
-                    let t = self.statements(&mut func.body)?;
+                    let mut t = self.statements(&mut func.body)?;
+                    let cs = Constraints::unify(&t, &func.return_type)?;
+                    self.apply_constraints(&cs);
+                    cs.apply(&mut t);
+                    func.return_type = t.clone();
+
                     self.variables = variables;
 
                     // FIXME: move to preprocess phase
@@ -742,6 +741,19 @@ func f(n: int): int {
 }
             "#,
                 vec![],
+            ),
+            (
+                r#"
+func main() {
+    let x = _new(5);
+    x[0] = 1;
+    x[1] = 2;
+    x[2] = _add(x[0], x[1]);
+
+    return x[2];
+}
+            "#,
+                vec![("main", Type::Fn(vec![], Box::new(Type::Int)))],
             ),
         ];
 

@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Debug};
 
-use anyhow::Result;
+use anyhow::{bail, Context, Result};
 
 use crate::{
     ast::{Declaration, Expr, Function, Literal, Module, Source, Statement, Structs, Type},
@@ -27,16 +27,16 @@ impl<'s> IrFunctionGenerator<'s> {
         }
     }
 
-    fn stack_size_of(&self, ty: &Type) -> usize {
-        match ty {
+    fn stack_size_of(&self, ty: &Type) -> Result<usize> {
+        Ok(match ty {
             Type::Unit => 1,
             Type::Bool => 1,
             Type::Int => 1,
             Type::Byte => 1,
-            Type::Struct(s) => 1, // self.structs.size_of_struct(s.as_str()),
+            Type::Struct(_) => 1, // self.structs.size_of_struct(s.as_str()),
             Type::Array(_) => 1,
-            _ => unreachable!("{:?}", ty),
-        }
+            _ => bail!("Unsupported type: {:?}", ty),
+        })
     }
 
     pub fn var_fresh(&mut self) -> Result<IrTerm> {
@@ -88,7 +88,9 @@ impl<'s> IrFunctionGenerator<'s> {
                         "let",
                         vec![
                             IrElement::Term(IrTerm::Int(
-                                self.stack_size_of(&Type::Array(Box::new(t.clone()))) as i32,
+                                self.stack_size_of(&Type::Array(Box::new(t.clone())))
+                                    .context(format!("{:?}", expr))?
+                                    as i32,
                             )),
                             IrElement::Term(v.clone()),
                             IrElement::instruction(
@@ -150,7 +152,7 @@ impl<'s> IrFunctionGenerator<'s> {
                     "let",
                     vec![
                         IrElement::Term(IrTerm::Int(
-                            self.stack_size_of(&Type::Struct(struct_name.clone())) as i32,
+                            self.stack_size_of(&Type::Struct(struct_name.clone()))? as i32,
                         )),
                         IrElement::Term(obj.clone()),
                         IrElement::instruction(
@@ -232,7 +234,7 @@ impl<'s> IrFunctionGenerator<'s> {
                 self.ir.push(IrElement::block(
                     "let",
                     vec![
-                        IrElement::Term(IrTerm::Int(self.stack_size_of(t) as i32)),
+                        IrElement::Term(IrTerm::Int(self.stack_size_of(t)? as i32)),
                         IrElement::Term(IrTerm::Ident(x.to_string())),
                         v,
                     ],
@@ -243,7 +245,7 @@ impl<'s> IrFunctionGenerator<'s> {
                 self.ir.push(v);
                 self.ir.push(IrElement::instruction(
                     "pop",
-                    vec![IrTerm::Int(self.stack_size_of(t) as i32)],
+                    vec![IrTerm::Int(self.stack_size_of(t)? as i32)],
                 ));
             }
             Statement::Return(e, t) => {
@@ -251,7 +253,9 @@ impl<'s> IrFunctionGenerator<'s> {
                 self.ir.push(IrElement::block(
                     "return",
                     vec![
-                        IrElement::Term(IrTerm::Int(self.stack_size_of(t) as i32)),
+                        IrElement::Term(IrTerm::Int(
+                            self.stack_size_of(t).context(format!("{:?}", statement))? as i32,
+                        )),
                         v,
                     ],
                 ));
