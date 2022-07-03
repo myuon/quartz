@@ -577,19 +577,6 @@ impl Runtime {
             QVMInstruction::BoolConst(b) => {
                 self.push(Value::bool(b));
             }
-            QVMInstruction::Deref => match self.pop() {
-                Value::Addr(addr, space, _) => match space {
-                    AddrPlace::Stack => {
-                        self.push(self.stack[addr].clone());
-                    }
-                    AddrPlace::Heap => {
-                        let value = self.heap.data[addr].clone();
-                        self.push(value);
-                    }
-                    _ => unreachable!(),
-                },
-                _ => unreachable!(),
-            },
             QVMInstruction::LabelI32Const(_) => unreachable!(),
             QVMInstruction::LabelJumpIfFalse(_) => unreachable!(),
             QVMInstruction::LabelJumpIf(_) => unreachable!(),
@@ -912,6 +899,7 @@ func main() {
 
         let mut runtime = Runtime::new(code.clone(), compiler.vm_code_generation.globals());
         println!("{}", input);
+        println!("{}", compiler.ir_result.unwrap().show());
         for (n, inst) in runtime.code.iter().enumerate() {
             println!("{:04} {:?}", n, inst);
         }

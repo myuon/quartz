@@ -43,7 +43,6 @@ pub enum QVMInstruction {
     // pointer arithmetics
     PAdd,
     PAddIm(usize),
-    Deref,
     // Runtime instructions for FFI
     RuntimeInstr(String),
     // constants
@@ -155,9 +154,6 @@ impl QVMInstruction {
             }
             Nop => {
                 format!("NOP")
-            }
-            Deref => {
-                format!("DEREF")
             }
             LabelI32Const(_) => unreachable!(),
             LabelJumpIfFalse(_) => unreachable!(),

@@ -33,7 +33,7 @@ impl<'s> IrFunctionGenerator<'s> {
             Type::Bool => 1,
             Type::Int => 1,
             Type::Byte => 1,
-            Type::Struct(s) => self.structs.size_of_struct(s.as_str()),
+            Type::Struct(_) => 1, // struct will be into 2 statements and the addr to struct is 1 word
             Type::Array(_) => 1,
             _ => bail!("Unsupported type: {:?}", ty),
         })
@@ -140,11 +140,10 @@ impl<'s> IrFunctionGenerator<'s> {
             }
             Expr::Struct(struct_name, exprs) => {
                 // in: A { a: 1, b: 2 }
-                // out: (let $v (data 1 2))
-                //      $v
+                // out: (let $fresh (data 1 2))
+                //      $fresh
                 let size = self.structs.size_of_struct(&struct_name);
-
-                let obj = self.var_fresh()?;
+                let fresh = self.var_fresh()?;
 
                 let mut data = vec![IrElement::Term(IrTerm::Nil); size];
                 for (label, expr) in exprs {
@@ -157,14 +156,14 @@ impl<'s> IrFunctionGenerator<'s> {
                     "let",
                     vec![
                         IrElement::Term(IrTerm::Int(
-                            self.stack_size_of(&Type::Struct(struct_name.clone()))? as i32,
+                            self.structs.size_of_struct(struct_name.as_str()) as i32,
                         )),
-                        IrElement::Term(obj.clone()),
+                        IrElement::Term(fresh.clone()),
                         IrElement::block("data", data),
                     ],
                 ));
 
-                Ok(IrElement::Term(obj))
+                Ok(IrElement::instruction("ref", vec![fresh]))
             }
             Expr::Project(method, struct_name, proj, label) if *method => {
                 self.self_object = Some(self.expr(proj)?);
@@ -569,11 +568,8 @@ func main() {
         ))
     )
     (func $main 0
-        (let 1 $fresh_1 (call $_new 2))
-        (assign (call $_padd $fresh_1 0) 10)
-        (assign (call $_padd $fresh_1 1) 20)
-
-        (let 1 $p $fresh_1)
+        (let 2 $fresh_1 (data 10 20))
+        (let 1 $p (ref $fresh_1))
 
         (return 1 (call $Point_sum $p))
     )

@@ -132,16 +132,36 @@ func (l: Lexer) run() {
     };
 }
 
-func main() {
-    let input = "(module (func $main 0 (return 10)))";
-    let lexer = Lexer {
-        input: input, 
-        position: 0,
-    };
-    lexer.run();
+// func main() {
+//     _start_debugger;
+//     let input = "(module (func $main 0 (return 10)))";
+//     let lexer = Lexer {
+//         input: input, 
+//         position: 0,
+//     };
+//     lexer.run();
 
-    _println("== COMPILE FINISHED");
+//     _println("== COMPILE FINISHED");
+// }
+struct Point {
+    x: int,
+    y: int,
 }
+
+func (self: Point) sum(): int {
+    return _add(self.x, self.y);
+}
+
+func main() {
+    _start_debugger;
+    let p = Point {
+        x: 1,
+        y: 2,
+    };
+
+    return p.sum();
+}
+
 
 func compiler_test() {
     assert_eq(show_int(find_space_pattern("fooo".to_substring())), show_int(0));

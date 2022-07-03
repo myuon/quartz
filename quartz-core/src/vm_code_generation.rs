@@ -115,7 +115,7 @@ impl<'s> VmFunctionGenerator<'s> {
                             "_gc" => QVMInstruction::RuntimeInstr("_gc".to_string()),
                             "_panic" => QVMInstruction::RuntimeInstr("_panic".to_string()),
                             "_len" => QVMInstruction::RuntimeInstr("_len".to_string()),
-                            "_deref" => QVMInstruction::Deref,
+                            "_deref" => QVMInstruction::Load,
                             "_println" => QVMInstruction::RuntimeInstr("_println".to_string()),
                             "_stringify" => QVMInstruction::RuntimeInstr("_stringify".to_string()),
                             "_copy" => QVMInstruction::RuntimeInstr("_copy".to_string()),
@@ -307,6 +307,14 @@ impl<'s> VmFunctionGenerator<'s> {
                         for elem in block.elements {
                             self.element(elem)?;
                         }
+                    }
+                    "ref" => {
+                        self.new_source_map(element.show_compact());
+                        let target = unvec!(block.elements, 1);
+                        self.element(target)?;
+
+                        let p = self.code.pop().unwrap();
+                        assert!(matches!(p, QVMInstruction::Load));
                     }
                     name => todo!("{:?}", name),
                 };
