@@ -66,7 +66,7 @@ pub enum Statement {
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Expr {
-    Var(String),
+    Var(String, Type),
     Lit(Literal),
     Call(Box<Source<Expr>>, Vec<Source<Expr>>),
     Struct(String, Vec<(String, Source<Expr>)>),

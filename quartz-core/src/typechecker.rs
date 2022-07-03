@@ -203,7 +203,11 @@ impl<'s> TypeChecker<'s> {
 
     pub fn expr(&mut self, expr: &mut Source<Expr>) -> Result<Type> {
         match &mut expr.data {
-            Expr::Var(v) => self.load(v),
+            Expr::Var(v, t) => {
+                let vtype = self.load(v)?;
+                *t = vtype.clone();
+                Ok(vtype)
+            }
             Expr::Lit(lit) => match lit {
                 Literal::Bool(_) => Ok(Type::Bool),
                 Literal::Int(_) => Ok(Type::Int),

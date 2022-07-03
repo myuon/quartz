@@ -33,8 +33,9 @@ impl<'s> IrFunctionGenerator<'s> {
             Type::Bool => 1,
             Type::Int => 1,
             Type::Byte => 1,
-            Type::Struct(_) => 1, // struct will be into 2 statements and the addr to struct is 1 word
+            Type::Struct(s) => self.structs.size_of_struct(s.as_str()),
             Type::Array(_) => 1,
+            Type::Fn(_, _) => 1,
             _ => bail!("Unsupported type: {:?}", ty),
         })
     }
@@ -47,14 +48,27 @@ impl<'s> IrFunctionGenerator<'s> {
 
     pub fn expr(&mut self, expr: &Source<Expr>) -> Result<IrElement> {
         match &expr.data {
-            Expr::Var(v) => {
+            Expr::Var(v, t) => {
+                let size = self.stack_size_of(t)?;
+
                 if self.args.contains_key(v) {
-                    Ok(IrElement::Term(IrTerm::Argument(
-                        // argument must be specified reverse order (index from fp)
-                        self.args.len() - 1 - self.args[v],
-                    )))
+                    if size == 1 {
+                        Ok(IrElement::Term(IrTerm::Argument(self.args[v])))
+                    } else {
+                        Ok(IrElement::instruction(
+                            "vector",
+                            vec![IrTerm::Int(size as i32), IrTerm::Argument(self.args[v])],
+                        ))
+                    }
                 } else {
-                    Ok(IrElement::Term(IrTerm::Ident(v.clone())))
+                    if size == 1 {
+                        Ok(IrElement::Term(IrTerm::Ident(v.clone())))
+                    } else {
+                        Ok(IrElement::instruction(
+                            "vector",
+                            vec![IrTerm::Int(size as i32), IrTerm::Ident(v.clone())],
+                        ))
+                    }
                 }
             }
             Expr::Lit(literal) => match literal {
@@ -153,10 +167,7 @@ impl<'s> IrFunctionGenerator<'s> {
                     data[index] = v;
                 }
 
-                Ok(IrElement::block(
-                    "ref",
-                    vec![IrElement::block("data", data)],
-                ))
+                Ok(IrElement::block("data", data))
             }
             Expr::Project(method, struct_name, proj, label) if *method => {
                 self.self_object = Some(self.expr(proj)?);
@@ -261,7 +272,7 @@ impl<'s> IrFunctionGenerator<'s> {
                 let v2 = self.expr(e2)?;
 
                 match &v.data {
-                    Expr::Var(v) => {
+                    Expr::Var(v, _) => {
                         self.ir.push(IrElement::block(
                             "assign",
                             vec![IrElement::Term(IrTerm::Ident(v.to_string())), v2],
@@ -384,6 +395,19 @@ impl IrGenerator {
         self.structs = structs;
     }
 
+    fn stack_size_of(&self, ty: &Type) -> Result<usize> {
+        Ok(match ty {
+            Type::Unit => 1,
+            Type::Bool => 1,
+            Type::Int => 1,
+            Type::Byte => 1,
+            Type::Struct(s) => self.structs.size_of_struct(s.as_str()),
+            Type::Array(_) => 1,
+            Type::Fn(_, _) => 1,
+            _ => bail!("Unsupported type: {:?}", ty),
+        })
+    }
+
     pub fn function(&mut self, function: &Function) -> Result<IrElement> {
         let mut elements = vec![IrElement::Term(IrTerm::Ident(
             if let Some((_, struct_name, _)) = &function.method_of {
@@ -395,13 +419,15 @@ impl IrGenerator {
         let mut args = HashMap::new();
 
         let mut arg_index = 0;
-        if let Some((receiver, _, _)) = &function.method_of {
-            args.insert(receiver.clone(), 0);
-            arg_index += 1;
+
+        // argument in reverse order
+        for (name, typ) in function.args.iter().rev() {
+            arg_index += self.stack_size_of(typ)?;
+            args.insert(name.clone(), arg_index - 1);
         }
-        for (name, _) in &function.args {
-            args.insert(name.clone(), arg_index);
-            arg_index += 1;
+        if let Some((receiver, struct_name, _)) = &function.method_of {
+            arg_index += self.stack_size_of(&Type::Struct(struct_name.clone()))?;
+            args.insert(receiver.clone(), arg_index - 1);
         }
 
         elements.push(IrElement::Term(IrTerm::Int(arg_index as i32)));

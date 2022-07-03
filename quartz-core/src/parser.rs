@@ -301,7 +301,7 @@ impl Parser {
 
     fn short_callee_expr(&mut self) -> Result<Expr> {
         self.ident()
-            .map(|v| Expr::Var(v))
+            .map(|v| Expr::Var(v, Type::Infer(0)))
             .or_else(|_| -> Result<Expr> { self.literal().map(|lit| Expr::Lit(lit)) })
     }
 
@@ -348,7 +348,7 @@ impl Parser {
         let short_expr = self.short_expr()?;
 
         let mut result = match short_expr {
-            Expr::Var(v) if self.expect_lexeme(Lexeme::LBrace).is_ok() => {
+            Expr::Var(v, _) if self.expect_lexeme(Lexeme::LBrace).is_ok() => {
                 // struct initialization
                 let fields = self.many_fields_with_exprs()?;
                 self.expect_lexeme(Lexeme::RBrace)?;
@@ -395,7 +395,7 @@ impl Parser {
                 let right_start = self.position;
                 let right = self.expr()?;
                 result = Expr::Call(
-                    Box::new(Source::unknown(Expr::Var(op.to_string()))),
+                    Box::new(Source::unknown(Expr::Var(op.to_string(), Type::Infer(0)))),
                     vec![
                         self.source_from(result, short_expr_start),
                         self.source_from(right, right_start),

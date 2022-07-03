@@ -181,9 +181,9 @@ impl<'s> VmFunctionGenerator<'s> {
                                 continue;
                             }
 
-                            self.element(elem, true)?;
+                            self.element(elem, load)?;
                         }
-                        self.element(callee.unwrap(), true)?;
+                        self.element(callee.unwrap(), load)?;
 
                         // If the last instruction is not LabelAddrConst, it will be a builtin operation and no need to run CALL operation
                         if matches!(self.code.last().unwrap(), QVMInstruction::LabelI32Const(_)) {
@@ -307,6 +307,27 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.new_source_map(element.show_compact());
                         let target = unvec!(block.elements, 1);
                         self.element(target, false)?;
+                    }
+                    "vector" => {
+                        self.new_source_map(element.show_compact());
+                        let (size, element) = unvec!(block.elements, 2);
+
+                        for i in 0..size.into_term()?.into_int()? {
+                            self.element(
+                                IrElement::block(
+                                    "call",
+                                    vec![
+                                        IrElement::Term(IrTerm::Ident("_padd".to_string())),
+                                        element.clone(),
+                                        IrElement::Term(IrTerm::Int(i as i32)),
+                                    ],
+                                ),
+                                false,
+                            )?;
+                            if load {
+                                self.code.push(QVMInstruction::Load);
+                            }
+                        }
                     }
                     name => todo!("{:?}", name),
                 };
