@@ -33,7 +33,7 @@ pub enum Literal {
     Bool(bool),
     Int(i32),
     String(String),
-    Array(Vec<Source<Expr>>),
+    Array(Vec<Source<Expr>>, Type),
 }
 
 impl Literal {
@@ -43,14 +43,14 @@ impl Literal {
             Literal::Bool(b) => DataValue::Bool(b),
             Literal::Int(i) => DataValue::Int(i),
             Literal::String(s) => DataValue::String(s),
-            Literal::Array(_) => todo!(),
+            Literal::Array(_, _) => todo!(),
         }
     }
 }
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Statement {
-    Let(String, Source<Expr>),
+    Let(String, Source<Expr>, Type),
     Expr(Source<Expr>, Type),
     Return(Source<Expr>, Type),
     If(

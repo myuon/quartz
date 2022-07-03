@@ -33,9 +33,9 @@ impl<'s> IrFunctionGenerator<'s> {
             Type::Bool => 1,
             Type::Int => 1,
             Type::Byte => 1,
-            Type::Struct(s) => self.structs.size_of_struct(s.as_str()),
+            Type::Struct(s) => 1, // self.structs.size_of_struct(s.as_str()),
             Type::Array(_) => 1,
-            _ => unreachable!(),
+            _ => unreachable!("{:?}", ty),
         }
     }
 
@@ -70,10 +70,11 @@ impl<'s> IrFunctionGenerator<'s> {
                                 .iter()
                                 .map(|i| Source::unknown(Expr::Lit(Literal::Int(*i as i32))))
                                 .collect::<Vec<_>>(),
+                            Type::Int,
                         ))),
                     )],
                 ))),
-                Literal::Array(arr) => {
+                Literal::Array(arr, t) => {
                     let v = self.var_fresh()?;
                     let n = arr.len() as i32;
 
@@ -86,6 +87,9 @@ impl<'s> IrFunctionGenerator<'s> {
                     self.ir.push(IrElement::block(
                         "let",
                         vec![
+                            IrElement::Term(IrTerm::Int(
+                                self.stack_size_of(&Type::Array(Box::new(t.clone()))) as i32,
+                            )),
                             IrElement::Term(v.clone()),
                             IrElement::instruction(
                                 "call",
@@ -145,6 +149,9 @@ impl<'s> IrFunctionGenerator<'s> {
                 self.ir.push(IrElement::block(
                     "let",
                     vec![
+                        IrElement::Term(IrTerm::Int(
+                            self.stack_size_of(&Type::Struct(struct_name.clone())) as i32,
+                        )),
                         IrElement::Term(obj.clone()),
                         IrElement::instruction(
                             "call",
@@ -220,11 +227,15 @@ impl<'s> IrFunctionGenerator<'s> {
 
     fn statement(&mut self, statement: &Statement) -> Result<()> {
         match statement {
-            Statement::Let(x, e) => {
+            Statement::Let(x, e, t) => {
                 let v = self.expr(e)?;
                 self.ir.push(IrElement::block(
                     "let",
-                    vec![IrElement::Term(IrTerm::Ident(x.to_string())), v],
+                    vec![
+                        IrElement::Term(IrTerm::Int(self.stack_size_of(t) as i32)),
+                        IrElement::Term(IrTerm::Ident(x.to_string())),
+                        v,
+                    ],
                 ));
             }
             Statement::Expr(e, t) => {
@@ -500,9 +511,9 @@ func main() {
                 r#"
 (module
     (func $main 0
-        (let $x 10)
+        (let 1 $x 10)
         (assign $x 20)
-        (return $x)
+        (return 1 $x)
     )
 )
 "#,
@@ -523,15 +534,15 @@ func main() {
                 r#"
 (module
     (func $f 1
-        (let $fresh_1 (call $_new 3))
+        (let 1 $fresh_1 (call $_new 3))
         (assign (call $_padd $fresh_1 0) 1)
         (assign (call $_padd $fresh_1 1) 2)
         (assign (call $_padd $fresh_1 2) 3)
-        (let $x $fresh_1)
+        (let 1 $x $fresh_1)
 
         (assign (call $_padd $x 2) 4)
 
-        (return (call $_add
+        (return 1 (call $_add
             (call $_add
                 (call $_deref (call $_padd $x 1))
                 (call $_deref (call $_padd $x 2))
@@ -540,7 +551,7 @@ func main() {
         ))
     )
     (func $main 0
-        (return (call $f 10))
+        (return 1 (call $f 10))
     )
 )
 "#,
@@ -565,20 +576,20 @@ func main() {
                 r#"
 (module
     (func $Point_sum 1
-        (return (call
+        (return 1 (call
             $_add
             (call $_deref (call $_padd $0 0))
             (call $_deref (call $_padd $0 1))
         ))
     )
     (func $main 0
-        (let $fresh_1 (call $_new 2))
+        (let 1 $fresh_1 (call $_new 2))
         (assign (call $_padd $fresh_1 0) 10)
         (assign (call $_padd $fresh_1 1) 20)
 
-        (let $p $fresh_1)
+        (let 1 $p $fresh_1)
 
-        (return (call $Point_sum $p))
+        (return 1 (call $Point_sum $p))
     )
 )
 "#,
@@ -597,7 +608,7 @@ func main() {
                 r#"
 (module
     (func $main 0
-        (return nil)
+        (return 1 nil)
     )
 )
 "#,

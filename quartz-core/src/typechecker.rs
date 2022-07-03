@@ -117,6 +117,7 @@ impl Constraints {
 #[derive(Clone, Debug)]
 pub struct TypeChecker<'s> {
     infer_count: usize,
+    inferred: HashMap<usize, Type>,
     pub variables: HashMap<String, Type>,
     pub structs: Structs,
     pub function_types: HashMap<String, (Vec<Type>, Type)>,
@@ -136,6 +137,7 @@ impl<'s> TypeChecker<'s> {
     ) -> TypeChecker {
         TypeChecker {
             infer_count: 0,
+            inferred: HashMap::new(),
             variables,
             structs,
             function_types: HashMap::new(),
@@ -209,10 +211,11 @@ impl<'s> TypeChecker<'s> {
                 Literal::Int(_) => Ok(Type::Int),
                 Literal::String(_) => Ok(Type::Struct("string".to_string())),
                 Literal::Nil => Ok(Type::Any),
-                Literal::Array(arr) => {
+                Literal::Array(arr, t) => {
                     for e in arr {
-                        let t = self.expr(e)?;
-                        assert_eq!(t, Type::Int);
+                        let etype = self.expr(e)?;
+                        *t = etype.clone();
+                        assert_eq!(etype, Type::Int);
                     }
 
                     Ok(Type::Array(Box::new(Type::Int)))
@@ -268,6 +271,7 @@ impl<'s> TypeChecker<'s> {
                 self.apply_constraints(&cs);
 
                 cs.apply(&mut ret_type_inferred);
+                self.inferred.extend(cs.0);
 
                 Ok(ret_type_inferred)
             }
@@ -280,6 +284,7 @@ impl<'s> TypeChecker<'s> {
 
                     let cs = Constraints::unify(&v1, &self.expr(v2)?)?;
                     self.apply_constraints(&cs);
+                    self.inferred.extend(cs.0);
                 }
 
                 Ok(Type::Struct(s.clone()))
@@ -345,6 +350,7 @@ impl<'s> TypeChecker<'s> {
                 self.apply_constraints(&cs);
 
                 cs.apply(&mut r);
+                self.inferred.extend(cs.0);
 
                 Ok(r)
             }
@@ -354,10 +360,13 @@ impl<'s> TypeChecker<'s> {
     pub fn statements(&mut self, statements: &mut Vec<Source<Statement>>) -> Result<Type> {
         let mut ret_type = Type::Any;
 
-        for statement in statements {
+        for i in 0..statements.len() {
+            let statement = &mut statements[i];
+
             match &mut statement.data {
-                Statement::Let(x, body) => {
+                Statement::Let(x, body, t) => {
                     let body_type = self.expr(body)?;
+                    *t = body_type.clone();
                     self.variables.insert(x.clone(), body_type);
                     ret_type = Type::Unit;
                 }
@@ -423,7 +432,7 @@ impl<'s> TypeChecker<'s> {
 
     pub fn declarations(&mut self, decls: &mut Vec<Declaration>) -> Result<()> {
         // preprocess: register all function types in this module
-        for decl in decls.iter() {
+        for decl in decls.into_iter() {
             match decl {
                 Declaration::Function(func) => {
                     let mut arg_types = vec![];
@@ -440,6 +449,7 @@ impl<'s> TypeChecker<'s> {
 
                     let result_type = self.next_infer();
 
+                    func.return_type = result_type.clone();
                     self.function_types
                         .insert(func.name.clone(), (arg_types.clone(), result_type));
 

@@ -136,7 +136,7 @@ impl Parser {
 
                 self.expect_lexeme(Lexeme::RBracket)?;
 
-                Ok(Literal::Array(values))
+                Ok(Literal::Array(values, Type::Infer(0)))
             }
             _ => {
                 return Err(
@@ -157,7 +157,7 @@ impl Parser {
             let e = self.expr()?;
 
             Ok(self.source(
-                Statement::Let(x, self.source_from(e, e_start)),
+                Statement::Let(x, self.source_from(e, e_start), Type::Infer(0)),
                 start,
                 self.position,
             ))

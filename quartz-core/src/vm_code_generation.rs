@@ -70,9 +70,9 @@ impl<'s> VmFunctionGenerator<'s> {
         }
     }
 
-    fn push_local(&mut self, name: String) {
+    fn push_local(&mut self, name: String, size: usize) {
         self.locals.insert(name, self.local_pointer);
-        self.local_pointer += 1;
+        self.local_pointer += size;
     }
 
     fn register_label(&mut self, name: String) {
@@ -147,10 +147,12 @@ impl<'s> VmFunctionGenerator<'s> {
                 match block.name.as_str() {
                     "let" => {
                         self.new_source_map(element.show_compact());
-                        let (name, expr) = unvec!(block.elements, 2);
+                        let (size, name, expr) = unvec!(block.elements, 3);
                         let var_name = name.into_term()?.into_ident()?;
+                        let size = size.into_term()?.into_int()? as usize;
+
                         self.element(expr)?;
-                        self.push_local(var_name);
+                        self.push_local(var_name, size);
                     }
                     "return" => {
                         self.new_source_map(element.show_compact());
