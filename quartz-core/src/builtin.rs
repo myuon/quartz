@@ -78,6 +78,14 @@ pub fn builtin() -> HashMap<String, Type> {
         ),
         ("_not", Type::Fn(vec![Type::Bool], Box::new(Type::Bool))),
         (
+            "_int_to_byte",
+            Type::Fn(vec![Type::Int], Box::new(Type::Byte)),
+        ),
+        (
+            "_byte_to_int",
+            Type::Fn(vec![Type::Byte], Box::new(Type::Int)),
+        ),
+        (
             "_copy",
             Type::Fn(
                 vec![

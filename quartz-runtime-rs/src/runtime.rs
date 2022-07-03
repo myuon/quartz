@@ -566,6 +566,7 @@ impl Runtime {
             QVMInstruction::LabelJumpIfFalse(_) => unreachable!(),
             QVMInstruction::LabelJumpIf(_) => unreachable!(),
             QVMInstruction::LabelJump(_) => todo!(),
+            QVMInstruction::Nop => {}
         }
 
         self.pc += 1;
@@ -698,11 +699,11 @@ func main() {
         ),
         (
             r#"
-func main(): int {
+func main(): byte {
     let x = _new(5);
-    x[0] = 1;
-    x[1] = 2;
-    x[2] = _add(x[0], x[1]);
+    x[0] = _int_to_byte(1);
+    x[1] = _int_to_byte(2);
+    x[2] = _int_to_byte(_add(_byte_to_int(x[0]), _byte_to_int(x[1])));
 
     return x[2];
 }
@@ -941,7 +942,7 @@ fn runtime_run_gc() -> Result<()> {
     let cases = vec![
         (
             r#"
-            func f(arr): int {
+            func f(arr: ints): int {
                 return arr[0];
             }
 
@@ -990,8 +991,7 @@ fn runtime_run_gc() -> Result<()> {
                 link[0] = _padd(link, 1);
                 link[1] = _padd(link, 0);
 
-                let data = _new(1);
-                data[0] = link;
+                let data = [link];
 
                 return data;
             }

@@ -75,6 +75,7 @@ impl Parser {
                 "any" => Ok(Type::Any),
                 "bytes" => Ok(Type::Array(Box::new(Type::Byte))),
                 "byte" => Ok(Type::Byte),
+                "ints" => Ok(Type::Array(Box::new(Type::Int))),
                 _ => Ok(Type::Struct(ident)),
             }
         }

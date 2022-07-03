@@ -213,10 +213,9 @@ impl<'s> TypeChecker<'s> {
                     for e in arr {
                         let etype = self.expr(e)?;
                         *t = etype.clone();
-                        assert_eq!(etype, Type::Int);
                     }
 
-                    Ok(Type::Array(Box::new(Type::Int)))
+                    Ok(Type::Array(Box::new(t.clone())))
                 }
             },
             Expr::Call(f, args) => {
@@ -340,6 +339,7 @@ impl<'s> TypeChecker<'s> {
                 let typ = self.expr(e)?;
                 let cs = Constraints::unify(&typ, &Type::Array(Box::new(r.clone())))?;
                 self.apply_constraints(&cs);
+                cs.apply(&mut r);
 
                 let index_type = self.expr(i)?;
                 let cs = Constraints::unify(&index_type, &Type::Int)?;
@@ -440,6 +440,10 @@ impl<'s> TypeChecker<'s> {
 
                         arg_types.push(t.clone());
                         self.variables.insert(arg.0.clone(), t);
+                    }
+
+                    if let Type::Infer(0) = func.return_type {
+                        func.return_type = self.next_infer();
                     }
 
                     self.function_types.insert(
@@ -744,16 +748,16 @@ func f(n: int): int {
             ),
             (
                 r#"
-func main() {
+func main(): byte {
     let x = _new(5);
-    x[0] = 1;
-    x[1] = 2;
-    x[2] = _add(x[0], x[1]);
+    x[0] = _int_to_byte(1);
+    x[1] = _int_to_byte(2);
+    x[2] = _int_to_byte(_add(_byte_to_int(x[0]), _byte_to_int(x[1])));
 
     return x[2];
 }
             "#,
-                vec![("main", Type::Fn(vec![], Box::new(Type::Int)))],
+                vec![("main", Type::Fn(vec![], Box::new(Type::Byte)))],
             ),
         ];
 

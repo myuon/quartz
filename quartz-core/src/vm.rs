@@ -9,6 +9,7 @@ pub enum Variable {
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub enum QVMInstruction {
+    Nop,
     // stack manipulation
     Load(Variable),
     Store(Variable),
@@ -150,6 +151,9 @@ impl QVMInstruction {
             }
             AddrConst(n, s) => {
                 format!("ADDRCONST {} {}", n, s)
+            }
+            Nop => {
+                format!("NOP")
             }
             LabelAddrConst(_) => unreachable!(),
             LabelJumpIfFalse(_) => unreachable!(),

@@ -13,7 +13,7 @@ func (s: string) eq(t: string): bool {
 
     let n = 0;
     while (n < s.len()) {
-        if (s.data[n] != t.data[n]) {
+        if (_byte_to_int(s.data[n]) != _byte_to_int(t.data[n])) {
             return false;
         };
 
@@ -26,7 +26,7 @@ func (s: string) eq(t: string): bool {
 func (s: string) starts_with(prefix: string): bool {
     let n = 0;
     while (n < prefix.len()) {
-        if (s.data[n] != prefix.data[n]) {
+        if (_byte_to_int(s.data[n]) != _byte_to_int(prefix.data[n])) {
             return false;
         };
 
