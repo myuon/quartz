@@ -14,6 +14,7 @@ pub enum QVMInstruction {
     Load,
     Store,
     Pop(usize),
+    Ref,
     // heap manipulation
     Alloc,
     Free(usize),
@@ -70,6 +71,9 @@ impl QVMInstruction {
             }
             Pop(n) => {
                 format!("POP {}", n)
+            }
+            Ref => {
+                format!("REF")
             }
             Alloc => {
                 format!("ALLOC")

@@ -276,10 +276,12 @@ pub struct Structs(pub HashMap<String, Vec<(String, Type)>>);
 
 impl Structs {
     pub fn size_of_struct(&self, st: &str) -> usize {
+        // pointer to info table + number of fields
         self.0
             .get(st)
             .map(|fields| fields.iter().fold(0, |acc, (_, t)| acc + t.size_of()))
             .unwrap_or(0)
+            + 1
     }
 
     pub fn get_projection_type(&self, val: &str, label: &str) -> Result<Type> {
@@ -311,7 +313,7 @@ impl Structs {
             .iter()
             .position(|(l, _)| l == label)
             .ok_or(anyhow::anyhow!("project: {} not found in {}", label, val))?;
-        Ok(field_index)
+        Ok(field_index + 1)
     }
 }
 

@@ -140,10 +140,13 @@ impl<'s> IrFunctionGenerator<'s> {
             }
             Expr::Struct(struct_name, exprs) => {
                 // in: A { a: 1, b: 2 }
-                // out: (ref (data 1 2))
+                // out: (data POINTER_TO_INFO_TABLE 1 2)
                 let size = self.structs.size_of_struct(&struct_name);
 
                 let mut data = vec![IrElement::Term(IrTerm::Nil); size];
+                // FIXME: POINTER_TO_INFO_TABLE
+                data[0] = IrElement::Term(IrTerm::Nil);
+
                 for (label, expr) in exprs {
                     let index = self.structs.get_projection_offset(struct_name, label)?;
                     let v = self.expr(expr)?;
@@ -553,12 +556,12 @@ func main() {
     (func $Point_sum 1
         (return 1 (call
             $_add
-            (call $_deref (call $_padd (ref $0) 0))
             (call $_deref (call $_padd (ref $0) 1))
+            (call $_deref (call $_padd (ref $0) 2))
         ))
     )
     (func $main 0
-        (let 1 $p (ref (data 10 20)))
+        (let 1 $p (ref (data nil 10 20)))
 
         (return 1 (call $Point_sum $p))
     )
