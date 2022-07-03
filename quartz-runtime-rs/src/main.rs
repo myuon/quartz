@@ -62,6 +62,8 @@ enum Command {
 enum DebugSubCommand {
     #[clap(name = "start", about = "Start a debug session")]
     Start { debugger_json: Option<PathBuf> },
+    #[clap(name = "start", about = "Run the program until it hits a breakpoint")]
+    Run { debugger_json: Option<PathBuf> },
     #[clap(name = "resume", about = "Resume a debug session")]
     Resume { debugger_json: Option<PathBuf> },
     #[clap(name = "step", about = "Step a debug session")]
@@ -191,6 +193,22 @@ fn main() -> Result<()> {
                 info!("{}", runtime.debug_info());
             }
             DebugSubCommand::Start { debugger_json } => {
+                let entrypoint = env::var("ENTRYPOINT").ok().unwrap_or("main".to_string());
+
+                let mut buffer = String::new();
+                let mut stdin = std::io::stdin();
+                stdin.read_to_string(&mut buffer).unwrap();
+
+                let mut compiler = Compiler::new();
+                let code = compiler.compile(&buffer, entrypoint)?;
+
+                let runtime = Runtime::new(code.clone(), compiler.vm_code_generation.globals());
+                let mut file =
+                    File::create(debugger_json.unwrap_or("./quartz-debugger.json".into())).unwrap();
+                file.write_all(&serde_json::to_vec_pretty(&runtime).unwrap())
+                    .unwrap();
+            }
+            DebugSubCommand::Run { debugger_json } => {
                 let entrypoint = env::var("ENTRYPOINT").ok().unwrap_or("main".to_string());
 
                 let mut buffer = String::new();

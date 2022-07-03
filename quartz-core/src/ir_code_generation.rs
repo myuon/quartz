@@ -174,7 +174,7 @@ impl<'s> IrFunctionGenerator<'s> {
                             "call",
                             vec![
                                 IrElement::Term(IrTerm::Ident("_padd".to_string())),
-                                self.expr(proj)?,
+                                IrElement::block("ref", vec![self.expr(proj)?]),
                                 IrElement::Term(IrTerm::Int(index as i32)),
                             ],
                         ),
@@ -553,13 +553,12 @@ func main() {
     (func $Point_sum 1
         (return 1 (call
             $_add
-            (call $_deref (call $_padd $0 0))
-            (call $_deref (call $_padd $0 1))
+            (call $_deref (call $_padd (ref $0) 0))
+            (call $_deref (call $_padd (ref $0) 1))
         ))
     )
     (func $main 0
-        (let 2 $fresh_1 (data 10 20))
-        (let 1 $p (ref $fresh_1))
+        (let 1 $p (ref (data 10 20)))
 
         (return 1 (call $Point_sum $p))
     )
