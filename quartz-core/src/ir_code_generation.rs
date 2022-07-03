@@ -140,10 +140,8 @@ impl<'s> IrFunctionGenerator<'s> {
             }
             Expr::Struct(struct_name, exprs) => {
                 // in: A { a: 1, b: 2 }
-                // out: (let $fresh (data 1 2))
-                //      $fresh
+                // out: (ref (data 1 2))
                 let size = self.structs.size_of_struct(&struct_name);
-                let fresh = self.var_fresh()?;
 
                 let mut data = vec![IrElement::Term(IrTerm::Nil); size];
                 for (label, expr) in exprs {
@@ -152,18 +150,10 @@ impl<'s> IrFunctionGenerator<'s> {
                     data[index] = v;
                 }
 
-                self.ir.push(IrElement::block(
-                    "let",
-                    vec![
-                        IrElement::Term(IrTerm::Int(
-                            self.structs.size_of_struct(struct_name.as_str()) as i32,
-                        )),
-                        IrElement::Term(fresh.clone()),
-                        IrElement::block("data", data),
-                    ],
-                ));
-
-                Ok(IrElement::instruction("ref", vec![fresh]))
+                Ok(IrElement::block(
+                    "ref",
+                    vec![IrElement::block("data", data)],
+                ))
             }
             Expr::Project(method, struct_name, proj, label) if *method => {
                 self.self_object = Some(self.expr(proj)?);
