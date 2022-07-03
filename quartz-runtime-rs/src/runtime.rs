@@ -366,9 +366,32 @@ impl Runtime {
             QVMInstruction::I32Const(c) => {
                 self.push(Value::int(c));
             }
-            QVMInstruction::AddrConst(addr, variable) => {
-                self.push(Value::addr(addr, AddrPlace::from_variable(variable)));
-            }
+            QVMInstruction::AddrConst(addr, variable) => match variable {
+                Variable::Local => {
+                    assert!(
+                        self.stack[self.frame_pointer - 1]
+                            .clone()
+                            .as_named_int(ValueIntFlag::Fp)
+                            .is_some(),
+                        "{} at {:?}",
+                        self.frame_pointer,
+                        self.stack
+                    );
+                    assert!(
+                        self.frame_pointer + addr < self.stack_pointer,
+                        "{} {}",
+                        self.frame_pointer + addr,
+                        self.stack_pointer
+                    );
+
+                    // Calculate absolute index in stack
+                    // This is mandatory because the relative index will be changed by the current call stack
+                    self.push(Value::addr(self.frame_pointer + addr, AddrPlace::Stack));
+                }
+                _ => {
+                    self.push(Value::addr(addr, AddrPlace::from_variable(variable)));
+                }
+            },
             QVMInstruction::Load => {
                 let addr_value = self.pop();
                 assert!(addr_value.clone().as_addr().is_some());
@@ -376,24 +399,7 @@ impl Runtime {
                 match addr_value {
                     Value::Addr(i, space, _) => match space {
                         AddrPlace::Stack => {
-                            assert!(
-                                self.stack[self.frame_pointer - 1]
-                                    .clone()
-                                    .as_named_int(ValueIntFlag::Fp)
-                                    .is_some(),
-                                "{} at {:?}",
-                                self.frame_pointer,
-                                self.stack
-                            );
-
-                            let v = self.stack[self.frame_pointer + i].clone();
-                            assert!(
-                                self.frame_pointer + i < self.stack_pointer,
-                                "{} {}",
-                                self.frame_pointer + i,
-                                self.stack_pointer
-                            );
-                            self.push(v);
+                            self.push(self.stack[i].clone());
                         }
                         AddrPlace::Heap => {
                             self.push(self.heap.data[i].clone());
