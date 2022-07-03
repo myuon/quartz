@@ -3,7 +3,7 @@ use std::{collections::HashMap, fmt::Debug};
 use anyhow::Result;
 
 use crate::{
-    ast::{Declaration, Expr, Function, Literal, Module, Source, Statement, Structs},
+    ast::{Declaration, Expr, Function, Literal, Module, Source, Statement, Structs, Type},
     ir::{IrBlock, IrElement, IrTerm},
 };
 
@@ -24,6 +24,18 @@ impl<'s> IrFunctionGenerator<'s> {
             fresh_var_index: 0,
             self_object: None,
             structs,
+        }
+    }
+
+    fn stack_size_of(&self, ty: &Type) -> usize {
+        match ty {
+            Type::Unit => 1,
+            Type::Bool => 1,
+            Type::Int => 1,
+            Type::Byte => 1,
+            Type::Struct(s) => self.structs.size_of_struct(s.as_str()),
+            Type::Array(_) => 1,
+            _ => unreachable!(),
         }
     }
 
@@ -215,10 +227,13 @@ impl<'s> IrFunctionGenerator<'s> {
                     vec![IrElement::Term(IrTerm::Ident(x.to_string())), v],
                 ));
             }
-            Statement::Expr(e) => {
+            Statement::Expr(e, t) => {
                 let v = self.expr(e)?;
                 self.ir.push(v);
-                self.ir.push(IrElement::instruction("pop", vec![]));
+                self.ir.push(IrElement::instruction(
+                    "pop",
+                    vec![IrTerm::Int(self.stack_size_of(t) as i32)],
+                ));
             }
             Statement::Return(e) => {
                 let v = self.expr(e)?;

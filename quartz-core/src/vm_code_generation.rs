@@ -291,7 +291,9 @@ impl<'s> VmFunctionGenerator<'s> {
                     }
                     "pop" => {
                         self.new_source_map(element.show_compact());
-                        self.code.push(QVMInstruction::Pop(1));
+                        let n = unvec!(block.elements, 1);
+                        self.code
+                            .push(QVMInstruction::Pop(n.into_term()?.into_int()? as usize));
                     }
                     name => todo!("{:?}", name),
                 };

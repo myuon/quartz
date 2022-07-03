@@ -361,9 +361,12 @@ impl<'s> TypeChecker<'s> {
                     self.variables.insert(x.clone(), body_type);
                     ret_type = Type::Unit;
                 }
-                Statement::Expr(e) => {
-                    self.expr(e)
-                        .context(self.error_context(e.start, e.end, "expression"))?;
+                Statement::Expr(e, t) => {
+                    let etype =
+                        self.expr(e)
+                            .context(self.error_context(e.start, e.end, "expression"))?;
+                    *t = etype;
+
                     ret_type = Type::Unit;
                 }
                 Statement::Return(t) => {

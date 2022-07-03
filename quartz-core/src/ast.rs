@@ -51,7 +51,7 @@ impl Literal {
 #[derive(PartialEq, Debug, Clone)]
 pub enum Statement {
     Let(String, Source<Expr>),
-    Expr(Source<Expr>),
+    Expr(Source<Expr>, Type),
     Return(Source<Expr>),
     If(
         Box<Source<Expr>>,
