@@ -589,11 +589,26 @@ impl Runtime {
             QVMInstruction::InfoConst(i) => {
                 self.push(Value::addr(i, AddrPlace::InfoTable));
             }
+            QVMInstruction::Nop => {}
+            QVMInstruction::Copy => match self.pop() {
+                Value::Addr(addr, AddrPlace::Stack, _) => {
+                    let value = self.stack[addr].clone();
+                    if let Value::Addr(size, AddrPlace::InfoTable, _) = value {
+                        for i in 0..=size {
+                            self.push(self.stack[addr + i].clone());
+                        }
+                    } else {
+                        self.push(value);
+                    }
+                }
+                value => {
+                    self.push(value);
+                }
+            },
             QVMInstruction::LabelI32Const(_) => unreachable!(),
             QVMInstruction::LabelJumpIfFalse(_) => unreachable!(),
             QVMInstruction::LabelJumpIf(_) => unreachable!(),
             QVMInstruction::LabelJump(_) => todo!(),
-            QVMInstruction::Nop => {}
         }
 
         self.pc += 1;

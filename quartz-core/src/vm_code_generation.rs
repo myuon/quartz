@@ -181,7 +181,8 @@ impl<'s> VmFunctionGenerator<'s> {
                                 continue;
                             }
 
-                            self.element(elem, load)?;
+                            self.element(elem, false)?;
+                            self.code.push(QVMInstruction::Copy);
                         }
                         self.element(callee.unwrap(), load)?;
 

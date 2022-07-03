@@ -48,27 +48,11 @@ impl<'s> IrFunctionGenerator<'s> {
 
     pub fn expr(&mut self, expr: &Source<Expr>) -> Result<IrElement> {
         match &expr.data {
-            Expr::Var(v, t) => {
-                let size = self.stack_size_of(t)?;
-
+            Expr::Var(v, _) => {
                 if self.args.contains_key(v) {
-                    if size == 1 {
-                        Ok(IrElement::Term(IrTerm::Argument(self.args[v])))
-                    } else {
-                        Ok(IrElement::instruction(
-                            "vector",
-                            vec![IrTerm::Int(size as i32), IrTerm::Argument(self.args[v])],
-                        ))
-                    }
+                    Ok(IrElement::Term(IrTerm::Argument(self.args[v])))
                 } else {
-                    if size == 1 {
-                        Ok(IrElement::Term(IrTerm::Ident(v.clone())))
-                    } else {
-                        Ok(IrElement::instruction(
-                            "vector",
-                            vec![IrTerm::Int(size as i32), IrTerm::Ident(v.clone())],
-                        ))
-                    }
+                    Ok(IrElement::Term(IrTerm::Ident(v.clone())))
                 }
             }
             Expr::Lit(literal) => match literal {

@@ -15,6 +15,7 @@ pub enum QVMInstruction {
     Store,
     Pop(usize),
     Ref,
+    Copy,
     // heap manipulation
     Alloc,
     Free(usize),
@@ -75,6 +76,9 @@ impl QVMInstruction {
             }
             Ref => {
                 format!("REF")
+            }
+            Copy => {
+                format!("COPY")
             }
             Alloc => {
                 format!("ALLOC")
