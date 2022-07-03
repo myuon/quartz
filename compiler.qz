@@ -83,8 +83,8 @@ struct Lexer {
 }
 
 func (l: Lexer) run() {
-    while (l.position < l.input.len()) {
         _start_debugger;
+    while (l.position < l.input.len()) {
         let current = l.input.slice_after(l.position);
 
         let n = find_space_pattern(current);

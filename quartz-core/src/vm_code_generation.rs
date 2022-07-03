@@ -90,11 +90,11 @@ impl<'s> VmFunctionGenerator<'s> {
                 IrTerm::Ident(v) => {
                     if let Some(u) = self.locals.get(&v) {
                         self.code
-                            .push(QVMInstruction::AddrConst(*u, format!("local:{}", v)));
+                            .push(QVMInstruction::AddrConst(*u, Variable::Local));
                         self.code.push(QVMInstruction::Load(Variable::Local));
                     } else if let Some(u) = self.globals.get(&v) {
                         self.code
-                            .push(QVMInstruction::AddrConst(*u, format!("global:{}", v)));
+                            .push(QVMInstruction::AddrConst(*u, Variable::Global));
                         self.code.push(QVMInstruction::Load(Variable::Global));
                     } else {
                         self.code.push(match v.as_str() {
@@ -115,7 +115,7 @@ impl<'s> VmFunctionGenerator<'s> {
                             "_gc" => QVMInstruction::RuntimeInstr("_gc".to_string()),
                             "_panic" => QVMInstruction::RuntimeInstr("_panic".to_string()),
                             "_len" => QVMInstruction::RuntimeInstr("_len".to_string()),
-                            "_deref" => QVMInstruction::Load(Variable::Heap),
+                            "_deref" => QVMInstruction::Deref,
                             "_println" => QVMInstruction::RuntimeInstr("_println".to_string()),
                             "_stringify" => QVMInstruction::RuntimeInstr("_stringify".to_string()),
                             "_copy" => QVMInstruction::RuntimeInstr("_copy".to_string()),
@@ -132,7 +132,7 @@ impl<'s> VmFunctionGenerator<'s> {
                 }
                 IrTerm::Nil => {
                     self.code
-                        .push(QVMInstruction::AddrConst(0, "nil".to_string()));
+                        .push(QVMInstruction::AddrConst(0, Variable::Global));
                 }
                 IrTerm::Bool(b) => {
                     self.code.push(QVMInstruction::BoolConst(b));
@@ -191,10 +191,12 @@ impl<'s> VmFunctionGenerator<'s> {
                         match left {
                             IrElement::Term(IrTerm::Ident(v)) => {
                                 if let Some(u) = self.locals.get(&v).cloned() {
-                                    self.code.push(QVMInstruction::AddrConst(u, v.clone()));
+                                    self.code
+                                        .push(QVMInstruction::AddrConst(u, Variable::Local));
                                     self.code.push(QVMInstruction::Store(Variable::Local));
                                 } else if let Some(u) = self.globals.get(&v).cloned() {
-                                    self.code.push(QVMInstruction::AddrConst(u, v.clone()));
+                                    self.code
+                                        .push(QVMInstruction::AddrConst(u, Variable::Global));
                                     self.code.push(QVMInstruction::Store(Variable::Global));
                                 } else {
                                     anyhow::bail!("assign: {} not found", v);
@@ -300,6 +302,12 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.code
                             .push(QVMInstruction::Pop(n.into_term()?.into_int()? as usize));
                     }
+                    "data" => {
+                        self.new_source_map(IrElement::block("data", vec![]).show_compact());
+                        for elem in block.elements {
+                            self.element(elem)?;
+                        }
+                    }
                     name => todo!("{:?}", name),
                 };
             }
@@ -373,7 +381,7 @@ impl VmGenerator {
         self.push_global(name.clone());
         code.push(QVMInstruction::AddrConst(
             self.globals[&name],
-            format!("let_global:{}", name),
+            Variable::Global,
         ));
         code.push(QVMInstruction::Store(Variable::Global));
 
@@ -456,7 +464,7 @@ impl VmGenerator {
         for i in 0..code.len() {
             if let QVMInstruction::LabelAddrConst(label) = &code[i] {
                 if let Some(pc) = labels.get(label) {
-                    code[i] = QVMInstruction::AddrConst(*pc, format!("{}:", label));
+                    code[i] = QVMInstruction::AddrConst(*pc, Variable::Global);
                 } else {
                     info!("{:?}", code);
                     anyhow::bail!("label {} not found", label);

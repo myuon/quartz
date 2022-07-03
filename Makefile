@@ -23,7 +23,7 @@ profile:
 
 debug:
 	@echo "quartz debug_run"
-	DEBUG=true cargo run -- debug quartz-debugger.json
+	cargo run -- debug start < ./compiler.qz
 
 debugger:
 	@echo "quartz debugger"

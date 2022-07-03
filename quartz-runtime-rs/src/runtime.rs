@@ -14,6 +14,7 @@ use crate::freelist::Freelist;
 
 #[derive(Clone, Debug, Copy, Serialize, Deserialize)]
 pub enum AddrPlace {
+    Stack,
     Heap,
     InfoTable,
     Unknown,
@@ -562,6 +563,19 @@ impl Runtime {
             QVMInstruction::BoolConst(b) => {
                 self.push(Value::bool(b));
             }
+            QVMInstruction::Deref => match self.pop() {
+                Value::Addr(addr, space, _) => match space {
+                    AddrPlace::Stack => {
+                        self.push(self.stack[addr].clone());
+                    }
+                    AddrPlace::Heap => {
+                        let value = self.heap.data[addr].clone();
+                        self.push(value);
+                    }
+                    _ => unreachable!(),
+                },
+                _ => unreachable!(),
+            },
             QVMInstruction::LabelAddrConst(_) => unreachable!(),
             QVMInstruction::LabelJumpIfFalse(_) => unreachable!(),
             QVMInstruction::LabelJumpIf(_) => unreachable!(),
@@ -618,17 +632,17 @@ fn runtime_run_hand_coded() -> Result<()> {
         vec![
             // entrypoint:
             I32Const(2),
-            AddrConst(4, String::new()),
+            AddrConst(4, Variable::Global),
             Call, // call main
             Return(0, 1),
             // main:
-            I32Const(1),  // a
-            I32Const(10), // z
-            AddrConst(0, String::new()),
-            Load(Variable::Local), // load a
-            LoadArg(0),            // load b
-            Add,                   // a + b
-            Return(1, 1),          // return
+            I32Const(1),                   // a
+            I32Const(10),                  // z
+            AddrConst(0, Variable::Local), // a + b
+            Load(Variable::Local),         // load a
+            LoadArg(0),                    // load b
+            Add,                           // a + b
+            Return(1, 1),                  // return
         ],
         3,
     )];

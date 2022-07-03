@@ -33,7 +33,7 @@ impl<'s> IrFunctionGenerator<'s> {
             Type::Bool => 1,
             Type::Int => 1,
             Type::Byte => 1,
-            Type::Struct(_) => 1, // self.structs.size_of_struct(s.as_str()),
+            Type::Struct(s) => self.structs.size_of_struct(s.as_str()),
             Type::Array(_) => 1,
             _ => bail!("Unsupported type: {:?}", ty),
         })
@@ -140,13 +140,18 @@ impl<'s> IrFunctionGenerator<'s> {
             }
             Expr::Struct(struct_name, exprs) => {
                 // in: A { a: 1, b: 2 }
-                // out: (let $v (new 2))
-                //      (assign (padd $v 0) 1)
-                //      (assign (padd $v 1) 2)
+                // out: (let $v (data 1 2))
                 //      $v
                 let size = self.structs.size_of_struct(&struct_name);
 
                 let obj = self.var_fresh()?;
+
+                let mut data = vec![IrElement::Term(IrTerm::Nil); size];
+                for (label, expr) in exprs {
+                    let index = self.structs.get_projection_offset(struct_name, label)?;
+                    let v = self.expr(expr)?;
+                    data[index] = v;
+                }
 
                 self.ir.push(IrElement::block(
                     "let",
@@ -155,32 +160,9 @@ impl<'s> IrFunctionGenerator<'s> {
                             self.stack_size_of(&Type::Struct(struct_name.clone()))? as i32,
                         )),
                         IrElement::Term(obj.clone()),
-                        IrElement::instruction(
-                            "call",
-                            vec![IrTerm::Ident("_new".to_string()), IrTerm::Int(size as i32)],
-                        ),
+                        IrElement::block("data", data),
                     ],
                 ));
-
-                for (label, expr) in exprs {
-                    let index = self.structs.get_projection_offset(struct_name, label)?;
-                    let v = self.expr(expr)?;
-
-                    self.ir.push(IrElement::block(
-                        "assign",
-                        vec![
-                            IrElement::instruction(
-                                "call",
-                                vec![
-                                    IrTerm::Ident("_padd".to_string()),
-                                    obj.clone(),
-                                    IrTerm::Int(index as i32),
-                                ],
-                            ),
-                            v,
-                        ],
-                    ));
-                }
 
                 Ok(IrElement::Term(obj))
             }

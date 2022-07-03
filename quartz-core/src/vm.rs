@@ -43,12 +43,13 @@ pub enum QVMInstruction {
     // pointer arithmetics
     PAdd,
     PAddIm(usize),
+    Deref,
     // Runtime instructions for FFI
     RuntimeInstr(String),
     // constants
     I32Const(i32),
     BoolConst(bool), // I32Const can be used instead
-    AddrConst(usize, String),
+    AddrConst(usize, Variable),
     //
     // Only used during generation phase
     LabelAddrConst(String),
@@ -150,10 +151,13 @@ impl QVMInstruction {
                 format!("BOOLCONST {}", b)
             }
             AddrConst(n, s) => {
-                format!("ADDRCONST {} {}", n, s)
+                format!("ADDRCONST {} {:?}", n, s)
             }
             Nop => {
                 format!("NOP")
+            }
+            Deref => {
+                format!("DEREF")
             }
             LabelAddrConst(_) => unreachable!(),
             LabelJumpIfFalse(_) => unreachable!(),
