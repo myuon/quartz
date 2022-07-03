@@ -46,8 +46,8 @@ impl VmOptimizer {
                     result[i] = QVMInstruction::JumpIfFalse(code_map[n]);
                 }
                 QVMInstruction::Call => match &result[i - 1] {
-                    QVMInstruction::AddrConst(n, s) => {
-                        result[i - 1] = QVMInstruction::AddrConst(code_map[*n], s.clone());
+                    QVMInstruction::I32Const(n) => {
+                        result[i - 1] = QVMInstruction::I32Const(code_map[*n as usize] as i32);
                     }
                     _ => (),
                 },
