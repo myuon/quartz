@@ -83,7 +83,7 @@ struct Lexer {
 }
 
 func (l: Lexer) run() {
-        _start_debugger;
+    _start_debugger;
     while (l.position < l.input.len()) {
         let current = l.input.slice_after(l.position);
 
@@ -132,29 +132,16 @@ func (l: Lexer) run() {
     };
 }
 
-// func main() {
-//     _start_debugger;
-//     let input = "(module (func $main 0 (return 10)))";
-//     let lexer = Lexer {
-//         input: input, 
-//         position: 0,
-//     };
-//     lexer.run();
-
-//     _println("== COMPILE FINISHED");
-// }
 func main() {
-    _start_debugger;
-    let sum = 0;
-    let n = 0;
-    while _lt(n, 10) {
-        sum = sum + n;
-        n = n + 1;
+    let input = "(module (func $main 0 (return 10)))";
+    let lexer = Lexer {
+        input: input, 
+        position: 0,
     };
+    lexer.run();
 
-    return sum;
+    _println("== COMPILE FINISHED");
 }
-
 
 func compiler_test() {
     assert_eq(show_int(find_space_pattern("fooo".to_substring())), show_int(0));
