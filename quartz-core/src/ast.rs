@@ -52,7 +52,7 @@ impl Literal {
 pub enum Statement {
     Let(String, Source<Expr>),
     Expr(Source<Expr>, Type),
-    Return(Source<Expr>),
+    Return(Source<Expr>, Type),
     If(
         Box<Source<Expr>>,
         Vec<Source<Statement>>,

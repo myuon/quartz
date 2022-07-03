@@ -24,7 +24,7 @@ pub enum QVMInstruction {
     JumpIfFalse(usize),
     // functions
     Call,
-    Return(usize), // number of caller arguments
+    Return(usize, usize), // number of caller arguments, size of return value
     // arithmetic and logic
     Add,
     Sub,
@@ -91,8 +91,8 @@ impl QVMInstruction {
             Call => {
                 format!("CALL")
             }
-            Return(n) => {
-                format!("RETURN {}", n)
+            Return(n, s) => {
+                format!("RETURN {} {}", n, s)
             }
             Add => {
                 format!("ADD")

@@ -235,9 +235,15 @@ impl<'s> IrFunctionGenerator<'s> {
                     vec![IrTerm::Int(self.stack_size_of(t) as i32)],
                 ));
             }
-            Statement::Return(e) => {
+            Statement::Return(e, t) => {
                 let v = self.expr(e)?;
-                self.ir.push(IrElement::block("return", vec![v]));
+                self.ir.push(IrElement::block(
+                    "return",
+                    vec![
+                        IrElement::Term(IrTerm::Int(self.stack_size_of(t) as i32)),
+                        v,
+                    ],
+                ));
             }
             Statement::If(b, s1, s2) => {
                 let v = self.expr(b)?;
@@ -355,7 +361,7 @@ impl<'s> IrFunctionGenerator<'s> {
         // FIXME: typecheck
         let need_return_nil_insert = !statements
             .last()
-            .map(|s| matches!(s.data, Statement::Return(_)))
+            .map(|s| matches!(s.data, Statement::Return(_, _)))
             .unwrap_or(false);
 
         for statement in statements {
@@ -363,7 +369,10 @@ impl<'s> IrFunctionGenerator<'s> {
         }
 
         if need_return_nil_insert {
-            self.statement(&Statement::Return(Source::unknown(Expr::Lit(Literal::Nil))))?;
+            self.statement(&Statement::Return(
+                Source::unknown(Expr::Lit(Literal::Nil)),
+                Type::Unit,
+            ))?;
         }
 
         Ok(())

@@ -369,12 +369,13 @@ impl<'s> TypeChecker<'s> {
 
                     ret_type = Type::Unit;
                 }
-                Statement::Return(t) => {
-                    ret_type = self.expr(t).context(self.error_context(
+                Statement::Return(e, t) => {
+                    ret_type = self.expr(e).context(self.error_context(
                         statement.start,
                         statement.end,
                         "return",
                     ))?;
+                    *t = ret_type.clone();
                 }
                 Statement::If(cond, then_statements, else_statements) => {
                     let cond_type = self.expr(cond.as_mut())?;

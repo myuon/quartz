@@ -253,7 +253,7 @@ impl Runtime {
 
                 return Ok(());
             }
-            QVMInstruction::Return(args) => {
+            QVMInstruction::Return(args, size) => {
                 // exit this program
                 if self.frame_pointer == 0 {
                     self.pc = self.code.len();
@@ -272,7 +272,11 @@ impl Runtime {
 
                 let current_fp = self.frame_pointer;
 
-                let result = self.pop();
+                assert!(size > 0);
+                let mut results = vec![];
+                for _ in 0..size {
+                    results.push(self.pop());
+                }
                 self.stack_pointer = self.frame_pointer;
 
                 let fp = self.load(1);
@@ -281,8 +285,10 @@ impl Runtime {
                 let pc = self.load(2);
                 self.pc = pc.as_named_int(ValueIntFlag::Pc).unwrap() as usize;
 
-                self.stack[current_fp - (args + 2)] = result;
-                self.stack_pointer -= args + 1; // -2 words (fp, pc), +1 word (return value)
+                for (i, r) in results.into_iter().enumerate() {
+                    self.stack[current_fp - (args + 2) + i] = r;
+                }
+                self.stack_pointer -= args + size; // -2 words (fp, pc), +size word (return value)
 
                 return Ok(());
             }
@@ -570,7 +576,7 @@ impl Runtime {
     pub fn step_out(&mut self) -> Result<()> {
         while self.pc < self.code.len() {
             debug!("{}", self.debug_info());
-            let is_return = matches!(self.code[self.pc], QVMInstruction::Return(_));
+            let is_return = matches!(self.code[self.pc], QVMInstruction::Return(_, _));
 
             self.step()?;
 
@@ -613,7 +619,7 @@ fn runtime_run_hand_coded() -> Result<()> {
             I32Const(2),
             AddrConst(4, String::new()),
             Call, // call main
-            Return(0),
+            Return(0, 1),
             // main:
             I32Const(1),  // a
             I32Const(10), // z
@@ -621,7 +627,7 @@ fn runtime_run_hand_coded() -> Result<()> {
             Load(Variable::Local), // load a
             LoadArg(0),            // load b
             Add,                   // a + b
-            Return(1),             // return
+            Return(1, 1),          // return
         ],
         3,
     )];

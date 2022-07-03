@@ -154,9 +154,10 @@ impl<'s> VmFunctionGenerator<'s> {
                     }
                     "return" => {
                         self.new_source_map(element.show_compact());
-                        let expr = unvec!(block.elements, 1);
+                        let (size, expr) = unvec!(block.elements, 2);
+                        let size = size.into_term()?.into_int()? as usize;
                         self.element(expr)?;
-                        self.code.push(QVMInstruction::Return(self.arg_len));
+                        self.code.push(QVMInstruction::Return(self.arg_len, size));
                     }
                     "call" => {
                         self.new_source_map(element.show_compact());
@@ -383,10 +384,10 @@ impl VmGenerator {
         let mut generator = VmFunctionGenerator::new(0, &self.globals, labels, offset);
         generator.element(IrElement::block(
             "return",
-            vec![IrElement::instruction(
-                "call",
-                vec![IrTerm::Ident(self.entrypoint.to_string())],
-            )],
+            vec![
+                IrElement::Term(IrTerm::Int(1)),
+                IrElement::instruction("call", vec![IrTerm::Ident(self.entrypoint.to_string())]),
+            ],
         ))?;
 
         Ok(generator.code)

@@ -165,7 +165,7 @@ impl Parser {
             let e_start = self.position;
             let e = self.expr()?;
             Ok(self.source(
-                Statement::Return(self.source_from(e, e_start)),
+                Statement::Return(self.source_from(e, e_start), Type::Infer(0)),
                 start,
                 self.position,
             ))
