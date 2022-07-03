@@ -586,6 +586,9 @@ impl Runtime {
             QVMInstruction::Ref => {
                 self.push(Value::addr(self.stack_pointer, AddrPlace::Stack));
             }
+            QVMInstruction::InfoConst(i) => {
+                self.push(Value::addr(i, AddrPlace::InfoTable));
+            }
             QVMInstruction::LabelI32Const(_) => unreachable!(),
             QVMInstruction::LabelJumpIfFalse(_) => unreachable!(),
             QVMInstruction::LabelJumpIf(_) => unreachable!(),

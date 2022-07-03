@@ -145,7 +145,7 @@ impl<'s> IrFunctionGenerator<'s> {
 
                 let mut data = vec![IrElement::Term(IrTerm::Nil); size];
                 // FIXME: POINTER_TO_INFO_TABLE
-                data[0] = IrElement::Term(IrTerm::Nil);
+                data[0] = IrElement::Term(IrTerm::Info(size - 1));
 
                 for (label, expr) in exprs {
                     let index = self.structs.get_projection_offset(struct_name, label)?;

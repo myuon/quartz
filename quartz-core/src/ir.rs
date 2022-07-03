@@ -9,6 +9,7 @@ pub enum IrTerm {
     Int(i32),
     Ident(String),
     Argument(usize),
+    Info(usize),
 }
 
 impl IrTerm {
@@ -76,6 +77,7 @@ impl IrElement {
                 IrTerm::Int(n) => format!("{}", n),
                 IrTerm::Ident(i) => format!("${}", i),
                 IrTerm::Argument(a) => format!("${}", a),
+                IrTerm::Info(i) => format!("{}", i),
             },
             IrElement::Block(b) => {
                 let mut buffer = String::new();

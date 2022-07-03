@@ -148,6 +148,9 @@ impl<'s> VmFunctionGenerator<'s> {
                 IrTerm::Argument(u) => {
                     self.code.push(QVMInstruction::LoadArg(u));
                 }
+                IrTerm::Info(u) => {
+                    self.code.push(QVMInstruction::InfoConst(u));
+                }
             },
             IrElement::Block(mut block) => {
                 match block.name.as_str() {
