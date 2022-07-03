@@ -143,23 +143,16 @@ func (l: Lexer) run() {
 
 //     _println("== COMPILE FINISHED");
 // }
-struct Point {
-    x: int,
-    y: int,
-}
-
-func (self: Point) sum(): int {
-    return _add(self.x, self.y);
-}
-
 func main() {
     _start_debugger;
-    let p = Point {
-        x: 1,
-        y: 2,
+    let sum = 0;
+    let n = 0;
+    while _lt(n, 10) {
+        sum = sum + n;
+        n = n + 1;
     };
 
-    return p.sum();
+    return sum;
 }
 
 

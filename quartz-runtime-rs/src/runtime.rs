@@ -426,7 +426,7 @@ impl Runtime {
                 match addr_value {
                     Value::Addr(r, space, _) => match space {
                         AddrPlace::Stack => {
-                            self.stack[self.frame_pointer + r] = self.pop();
+                            self.stack[r] = self.pop();
                         }
                         AddrPlace::Heap => {
                             let value = self.pop();
@@ -639,9 +639,9 @@ fn runtime_run_hand_coded() -> Result<()> {
         vec![
             // entrypoint:
             I32Const(2),
-            AddrConst(4, Variable::Global),
+            I32Const(4),
             Call, // call main
-            Return(0, 1),
+            Return(1, 1),
             // main:
             I32Const(1),                   // a
             I32Const(10),                  // z
