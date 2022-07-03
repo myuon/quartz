@@ -255,10 +255,10 @@ impl Runtime {
         match self.code[self.pc].clone() {
             QVMInstruction::Call => {
                 let r = self.pop();
-                assert_matches!(r, Value::Addr(_, AddrPlace::Heap, _));
+                assert_matches!(r, Value::Int(_, _), "{:?}", r);
 
                 self.push(Value::Int(self.pc as i32 + 1, ValueIntFlag::Pc));
-                self.pc = r.as_addr().unwrap();
+                self.pc = r.as_int().unwrap() as usize;
                 self.push(Value::Int(self.frame_pointer as i32, ValueIntFlag::Fp));
                 self.frame_pointer = self.stack_pointer;
 
@@ -590,7 +590,7 @@ impl Runtime {
                 },
                 _ => unreachable!(),
             },
-            QVMInstruction::LabelAddrConst(_) => unreachable!(),
+            QVMInstruction::LabelI32Const(_) => unreachable!(),
             QVMInstruction::LabelJumpIfFalse(_) => unreachable!(),
             QVMInstruction::LabelJumpIf(_) => unreachable!(),
             QVMInstruction::LabelJump(_) => todo!(),

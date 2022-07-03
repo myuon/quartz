@@ -52,7 +52,7 @@ pub enum QVMInstruction {
     AddrConst(usize, Variable),
     //
     // Only used during generation phase
-    LabelAddrConst(String),
+    LabelI32Const(String),
     LabelJumpIfFalse(String),
     LabelJumpIf(String),
     LabelJump(String),
@@ -159,7 +159,7 @@ impl QVMInstruction {
             Deref => {
                 format!("DEREF")
             }
-            LabelAddrConst(_) => unreachable!(),
+            LabelI32Const(_) => unreachable!(),
             LabelJumpIfFalse(_) => unreachable!(),
             LabelJumpIf(_) => unreachable!(),
             LabelJump(_) => unreachable!(),

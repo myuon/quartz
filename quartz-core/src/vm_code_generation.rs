@@ -126,7 +126,7 @@ impl<'s> VmFunctionGenerator<'s> {
                                 QVMInstruction::RuntimeInstr("_start_debugger".to_string())
                             }
                             "_check_sp" => QVMInstruction::RuntimeInstr("_check_sp".to_string()),
-                            _ => QVMInstruction::LabelAddrConst(v.clone()),
+                            _ => QVMInstruction::LabelI32Const(v.clone()),
                         });
                     }
                 }
@@ -179,7 +179,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.element(callee.unwrap())?;
 
                         // If the last instruction is not LabelAddrConst, it will be a builtin operation and no need to run CALL operation
-                        if matches!(self.code.last().unwrap(), QVMInstruction::LabelAddrConst(_)) {
+                        if matches!(self.code.last().unwrap(), QVMInstruction::LabelI32Const(_)) {
                             self.code.push(QVMInstruction::Call);
                         }
                     }
@@ -462,9 +462,9 @@ impl VmGenerator {
 
         // resolve labels
         for i in 0..code.len() {
-            if let QVMInstruction::LabelAddrConst(label) = &code[i] {
+            if let QVMInstruction::LabelI32Const(label) = &code[i] {
                 if let Some(pc) = labels.get(label) {
-                    code[i] = QVMInstruction::AddrConst(*pc, Variable::Global);
+                    code[i] = QVMInstruction::I32Const(*pc as i32);
                 } else {
                     info!("{:?}", code);
                     anyhow::bail!("label {} not found", label);
