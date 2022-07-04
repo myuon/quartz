@@ -393,26 +393,30 @@ impl Runtime {
                 }
             },
             QVMInstruction::Load(u) => {
-                for j in 0..u {
-                    let addr_value = self.pop();
-                    assert!(addr_value.clone().as_addr().is_some());
+                let addr_value = self.pop();
+                assert!(addr_value.clone().as_addr().is_some());
 
-                    match addr_value {
-                        Value::Addr(i, space, _) => match space {
-                            AddrPlace::Stack => {
+                match addr_value {
+                    Value::Addr(i, space, _) => match space {
+                        AddrPlace::Stack => {
+                            for j in 0..u {
                                 self.push(self.stack[i + j].clone());
                             }
-                            AddrPlace::Heap => {
+                        }
+                        AddrPlace::Heap => {
+                            for j in 0..u {
                                 self.push(self.heap.data[i + j].clone());
                             }
-                            AddrPlace::Static => {
+                        }
+                        AddrPlace::Static => {
+                            for j in 0..u {
                                 let value = self.globals[i + j];
                                 self.push(Value::int(value));
                             }
-                            _ => unreachable!(),
-                        },
+                        }
                         _ => unreachable!(),
-                    };
+                    },
+                    _ => unreachable!(),
                 }
             }
             QVMInstruction::Store => {
