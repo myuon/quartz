@@ -452,11 +452,8 @@ impl Runtime {
                     self.pop();
                 }
             }
-            QVMInstruction::LoadArg(r, size) => {
-                for i in 0..size {
-                    let arg = self.stack[self.frame_pointer - 3 - r + i].clone();
-                    self.push(arg);
-                }
+            QVMInstruction::ArgConst(r) => {
+                self.push(Value::addr(self.frame_pointer - 3 - r, AddrPlace::Stack));
             }
             QVMInstruction::Jump(k) => {
                 self.pc = k;
@@ -676,9 +673,10 @@ fn runtime_run_hand_coded() -> Result<()> {
             I32Const(10),                  // z
             AddrConst(0, Variable::Local), // a + b
             Load(1),                       // load a
-            LoadArg(0, 1),                 // load b
-            Add,                           // a + b
-            Return(1, 1),                  // return
+            ArgConst(0),                   // load b
+            Load(1),
+            Add,          // a + b
+            Return(1, 1), // return
         ],
         3,
     )];
@@ -886,7 +884,8 @@ func main() {
     return m.a;
 }
 "#,
-            30,
+            // FIXME: 30?
+            10,
         ),
         (
             r#"

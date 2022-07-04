@@ -146,7 +146,10 @@ impl<'s> VmFunctionGenerator<'s> {
                     self.code.push(QVMInstruction::I32Const(n));
                 }
                 IrTerm::Argument(u, size) => {
-                    self.code.push(QVMInstruction::LoadArg(u, size));
+                    self.code.push(QVMInstruction::ArgConst(u));
+                    if load {
+                        self.code.push(QVMInstruction::Load(size));
+                    }
                 }
                 IrTerm::Info(u) => {
                     self.code.push(QVMInstruction::InfoConst(u));

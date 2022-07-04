@@ -168,18 +168,6 @@ impl<'s> IrFunctionGenerator<'s> {
             }
             Expr::Project(_, struct_name, proj, label) => {
                 let index = self.structs.get_projection_offset(struct_name, label)?;
-                let size = self.structs.size_of_struct(struct_name);
-
-                let v = self.expr(proj)?;
-                let fresh = self.var_fresh(1)?;
-                self.ir.push(IrElement::block(
-                    "let",
-                    vec![
-                        IrElement::Term(IrTerm::Int(size as i32)),
-                        IrElement::Term(fresh.clone()),
-                        v,
-                    ],
-                ));
 
                 Ok(IrElement::block(
                     "call",
@@ -189,7 +177,7 @@ impl<'s> IrFunctionGenerator<'s> {
                             "call",
                             vec![
                                 IrElement::Term(IrTerm::Ident("_padd".to_string(), 1)),
-                                IrElement::instruction("ref", vec![fresh]),
+                                IrElement::block("ref", vec![self.expr(proj)?]),
                                 IrElement::Term(IrTerm::Int(index as i32)), // back to the first work of the struct
                             ],
                         ),
@@ -582,12 +570,10 @@ func main() {
                 r#"
 (module
     (func $Point_sum 3
-        (let 3 $fresh_1 $2(3))
-        (let 3 $fresh_2 $2(3))
         (return 1 (call
             $_add
-            (call $_deref (call $_padd (ref $fresh_1) 1))
-            (call $_deref (call $_padd (ref $fresh_2) 2))
+            (call $_deref (call $_padd (ref $2(3)) 1))
+            (call $_deref (call $_padd (ref $2(3)) 2))
         ))
     )
     (func $main 0

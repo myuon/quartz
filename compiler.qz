@@ -83,6 +83,7 @@ struct Lexer {
 }
 
 func (l: Lexer) run() {
+        _start_debugger;
     while (l.position < l.input.len()) {
         let current = l.input.slice_after(l.position);
 
@@ -133,7 +134,6 @@ func (l: Lexer) run() {
 
 func main() {
     let input = "(module (func $main 0 (return 10)))";
-    _start_debugger;
     let lexer = Lexer {
         input: input, 
         position: 0,
@@ -150,21 +150,4 @@ func compiler_test() {
 
     assert_eq(show_int(find_exact_pattern("abcde_fg".to_substring(), "abc")), show_int(3));
     assert_eq(show_int(find_exact_pattern("kabcd".to_substring(), "abc")), show_int(0));
-}
-
-struct Modify {
-    a: int,
-}
-
-func (m: Modify) f(c: int) {
-    m.a = m.a + c;
-
-    return nil;
-}
-
-func main() {
-    let m = Modify { a: 10 };
-    m.f(20);
-
-    return m.a;
 }

@@ -19,8 +19,6 @@ pub enum QVMInstruction {
     // heap manipulation
     Alloc,
     Free(usize),
-    // function arguments
-    LoadArg(usize, usize), // index, size
     // control
     Jump(usize),
     JumpIf(usize),
@@ -51,6 +49,8 @@ pub enum QVMInstruction {
     I32Const(i32),
     BoolConst(bool), // I32Const can be used instead
     AddrConst(usize, Variable),
+    ArgConst(usize), //     function arguments
+
     InfoConst(usize), // pointer to info table
     //
     // Only used during generation phase
@@ -85,9 +85,6 @@ impl QVMInstruction {
             }
             Free(n) => {
                 format!("FREE {}", n)
-            }
-            LoadArg(i, s) => {
-                format!("LOADARG {} {}", i, s)
             }
             Jump(n) => {
                 format!("JUMP {}", n)
@@ -160,6 +157,9 @@ impl QVMInstruction {
             }
             AddrConst(n, s) => {
                 format!("ADDRCONST {} {:?}", n, s)
+            }
+            ArgConst(n) => {
+                format!("ARGCONST {}", n)
             }
             Nop => {
                 format!("NOP")

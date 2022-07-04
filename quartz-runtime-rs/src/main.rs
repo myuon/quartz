@@ -62,7 +62,7 @@ enum Command {
 enum DebugSubCommand {
     #[clap(name = "start", about = "Start a debug session")]
     Start { debugger_json: Option<PathBuf> },
-    #[clap(name = "start", about = "Run the program until it hits a breakpoint")]
+    #[clap(name = "run", about = "Run the program until it hits a breakpoint")]
     Run { debugger_json: Option<PathBuf> },
     #[clap(name = "resume", about = "Resume a debug session")]
     Resume { debugger_json: Option<PathBuf> },
