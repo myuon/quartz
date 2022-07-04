@@ -7,15 +7,15 @@ pub enum IrTerm {
     Nil,
     Bool(bool),
     Int(i32),
-    Ident(String),
-    Argument(usize),
+    Ident(String, usize),   // name, size
+    Argument(usize, usize), // index, size
     Info(usize),
 }
 
 impl IrTerm {
     pub fn into_ident(self) -> Result<String> {
         match self {
-            IrTerm::Ident(s) => Ok(s),
+            IrTerm::Ident(s, _) => Ok(s),
             _ => bail!("expected ident"),
         }
     }
@@ -75,8 +75,8 @@ impl IrElement {
                 IrTerm::Nil => "nil".to_string(),
                 IrTerm::Bool(b) => format!("{}", b),
                 IrTerm::Int(n) => format!("{}", n),
-                IrTerm::Ident(i) => format!("${}", i),
-                IrTerm::Argument(a) => format!("${}", a),
+                IrTerm::Ident(i, u) => format!("${},{}", i, u),
+                IrTerm::Argument(a, u) => format!("${},{}", a, u),
                 IrTerm::Info(i) => format!("{}", i),
             },
             IrElement::Block(b) => {
@@ -228,8 +228,8 @@ impl IrParser<'_> {
         let token = self.next();
 
         Ok(match token {
-            IrLexeme::Ident(ident) => IrTerm::Ident(ident.to_string()),
-            IrLexeme::Argument(arg) => IrTerm::Argument(*arg),
+            IrLexeme::Ident(ident) => IrTerm::Ident(ident.to_string(), 1), // FIXME: support multiple words
+            IrLexeme::Argument(arg) => IrTerm::Argument(*arg, 1), // FIXME: support multiple words
             IrLexeme::Keyword(ident) => {
                 if ident == "nil" {
                     IrTerm::Nil
@@ -352,24 +352,24 @@ mod tests {
                 elements: vec![IrElement::Block(IrBlock {
                     name: "func".to_string(),
                     elements: vec![
-                        IrElement::Term(IrTerm::Ident("main".to_string())),
+                        IrElement::Term(IrTerm::Ident("main".to_string(), 1)),
                         IrElement::Block(IrBlock {
                             name: "let".to_string(),
                             elements: vec![
-                                IrElement::Term(IrTerm::Ident("x".to_string())),
+                                IrElement::Term(IrTerm::Ident("x".to_string(), 1)),
                                 IrElement::Term(IrTerm::Int(10)),
                             ],
                         }),
                         IrElement::Block(IrBlock {
                             name: "assign".to_string(),
                             elements: vec![
-                                IrElement::Term(IrTerm::Ident("x".to_string())),
+                                IrElement::Term(IrTerm::Ident("x".to_string(), 1)),
                                 IrElement::Term(IrTerm::Int(20)),
                             ],
                         }),
                         IrElement::Block(IrBlock {
                             name: "return".to_string(),
-                            elements: vec![IrElement::Term(IrTerm::Ident("x".to_string()))],
+                            elements: vec![IrElement::Term(IrTerm::Ident("x".to_string(), 1))],
                         }),
                     ],
                 })],

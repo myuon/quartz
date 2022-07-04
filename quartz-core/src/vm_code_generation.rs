@@ -88,18 +88,18 @@ impl<'s> VmFunctionGenerator<'s> {
     fn element(&mut self, element: IrElement, load: bool) -> Result<()> {
         match element.clone() {
             IrElement::Term(term) => match term {
-                IrTerm::Ident(v) => {
+                IrTerm::Ident(v, size) => {
                     if let Some(u) = self.locals.get(&v) {
                         self.code
                             .push(QVMInstruction::AddrConst(*u, Variable::Local));
                         if load {
-                            self.code.push(QVMInstruction::Load);
+                            self.code.push(QVMInstruction::Load(size));
                         }
                     } else if let Some(u) = self.globals.get(&v) {
                         self.code
                             .push(QVMInstruction::AddrConst(*u, Variable::Global));
                         if load {
-                            self.code.push(QVMInstruction::Load);
+                            self.code.push(QVMInstruction::Load(size));
                         }
                     } else {
                         self.code.push(match v.as_str() {
@@ -120,7 +120,7 @@ impl<'s> VmFunctionGenerator<'s> {
                             "_gc" => QVMInstruction::RuntimeInstr("_gc".to_string()),
                             "_panic" => QVMInstruction::RuntimeInstr("_panic".to_string()),
                             "_len" => QVMInstruction::RuntimeInstr("_len".to_string()),
-                            "_deref" => QVMInstruction::Load,
+                            "_deref" => QVMInstruction::Load(size),
                             "_println" => QVMInstruction::RuntimeInstr("_println".to_string()),
                             "_stringify" => QVMInstruction::RuntimeInstr("_stringify".to_string()),
                             "_copy" => QVMInstruction::RuntimeInstr("_copy".to_string()),
@@ -145,8 +145,8 @@ impl<'s> VmFunctionGenerator<'s> {
                 IrTerm::Int(n) => {
                     self.code.push(QVMInstruction::I32Const(n));
                 }
-                IrTerm::Argument(u) => {
-                    self.code.push(QVMInstruction::LoadArg(u));
+                IrTerm::Argument(u, size) => {
+                    self.code.push(QVMInstruction::LoadArg(u, size));
                 }
                 IrTerm::Info(u) => {
                     self.code.push(QVMInstruction::InfoConst(u));
@@ -181,8 +181,7 @@ impl<'s> VmFunctionGenerator<'s> {
                                 continue;
                             }
 
-                            self.element(elem, false)?;
-                            self.code.push(QVMInstruction::Copy);
+                            self.element(elem, true)?;
                         }
                         self.element(callee.unwrap(), load)?;
 
@@ -258,7 +257,7 @@ impl<'s> VmFunctionGenerator<'s> {
                             true,
                         )?;
                         self.element(
-                            IrElement::Term(IrTerm::Ident("_check_sp".to_string())),
+                            IrElement::Term(IrTerm::Ident("_check_sp".to_string(), 1)),
                             true,
                         )?;
 
@@ -312,13 +311,14 @@ impl<'s> VmFunctionGenerator<'s> {
                     "vector" => {
                         self.new_source_map(element.show_compact());
                         let (size, element) = unvec!(block.elements, 2);
+                        let size = size.into_term()?.into_int()? as usize;
 
-                        for i in 0..size.into_term()?.into_int()? {
+                        for i in 0..size {
                             self.element(
                                 IrElement::block(
                                     "call",
                                     vec![
-                                        IrElement::Term(IrTerm::Ident("_padd".to_string())),
+                                        IrElement::Term(IrTerm::Ident("_padd".to_string(), 1)),
                                         element.clone(),
                                         IrElement::Term(IrTerm::Int(i as i32)),
                                     ],
@@ -326,7 +326,7 @@ impl<'s> VmFunctionGenerator<'s> {
                                 false,
                             )?;
                             if load {
-                                self.code.push(QVMInstruction::Load);
+                                self.code.push(QVMInstruction::Load(size));
                             }
                         }
                     }
@@ -423,7 +423,7 @@ impl VmGenerator {
                     IrElement::Term(IrTerm::Int(1)),
                     IrElement::instruction(
                         "call",
-                        vec![IrTerm::Ident(self.entrypoint.to_string())],
+                        vec![IrTerm::Ident(self.entrypoint.to_string(), 1)],
                     ),
                 ],
             ),

@@ -11,7 +11,7 @@ pub enum Variable {
 pub enum QVMInstruction {
     Nop,
     // stack manipulation
-    Load,
+    Load(usize),
     Store,
     Pop(usize),
     Ref,
@@ -20,7 +20,7 @@ pub enum QVMInstruction {
     Alloc,
     Free(usize),
     // function arguments
-    LoadArg(usize),
+    LoadArg(usize, usize), // index, size
     // control
     Jump(usize),
     JumpIf(usize),
@@ -65,8 +65,8 @@ impl QVMInstruction {
         use QVMInstruction::*;
 
         match self {
-            Load => {
-                format!("LOAD")
+            Load(u) => {
+                format!("load {}", u)
             }
             Store => {
                 format!("STORE")
@@ -86,8 +86,8 @@ impl QVMInstruction {
             Free(n) => {
                 format!("FREE {}", n)
             }
-            LoadArg(n) => {
-                format!("LOADARG {}", n)
+            LoadArg(i, s) => {
+                format!("LOADARG {} {}", i, s)
             }
             Jump(n) => {
                 format!("JUMP {}", n)

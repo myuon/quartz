@@ -392,26 +392,28 @@ impl Runtime {
                     self.push(Value::addr(addr, AddrPlace::from_variable(variable)));
                 }
             },
-            QVMInstruction::Load => {
-                let addr_value = self.pop();
-                assert!(addr_value.clone().as_addr().is_some());
+            QVMInstruction::Load(u) => {
+                for j in 0..u {
+                    let addr_value = self.pop();
+                    assert!(addr_value.clone().as_addr().is_some());
 
-                match addr_value {
-                    Value::Addr(i, space, _) => match space {
-                        AddrPlace::Stack => {
-                            self.push(self.stack[i].clone());
-                        }
-                        AddrPlace::Heap => {
-                            self.push(self.heap.data[i].clone());
-                        }
-                        AddrPlace::Static => {
-                            let value = self.globals[i];
-                            self.push(Value::int(value));
-                        }
+                    match addr_value {
+                        Value::Addr(i, space, _) => match space {
+                            AddrPlace::Stack => {
+                                self.push(self.stack[i + j].clone());
+                            }
+                            AddrPlace::Heap => {
+                                self.push(self.heap.data[i + j].clone());
+                            }
+                            AddrPlace::Static => {
+                                let value = self.globals[i + j];
+                                self.push(Value::int(value));
+                            }
+                            _ => unreachable!(),
+                        },
                         _ => unreachable!(),
-                    },
-                    _ => unreachable!(),
-                };
+                    };
+                }
             }
             QVMInstruction::Store => {
                 let addr_value = self.pop();
@@ -446,9 +448,11 @@ impl Runtime {
                     self.pop();
                 }
             }
-            QVMInstruction::LoadArg(r) => {
-                let arg = self.stack[self.frame_pointer - 3 - r].clone();
-                self.push(arg);
+            QVMInstruction::LoadArg(r, size) => {
+                for i in 0..size {
+                    let arg = self.stack[self.frame_pointer - 3 - r + i].clone();
+                    self.push(arg);
+                }
             }
             QVMInstruction::Jump(k) => {
                 self.pc = k;
@@ -667,8 +671,8 @@ fn runtime_run_hand_coded() -> Result<()> {
             I32Const(1),                   // a
             I32Const(10),                  // z
             AddrConst(0, Variable::Local), // a + b
-            Load,                          // load a
-            LoadArg(0),                    // load b
+            Load(1),                       // load a
+            LoadArg(0, 1),                 // load b
             Add,                           // a + b
             Return(1, 1),                  // return
         ],
