@@ -157,15 +157,14 @@ struct Point {
     y: int,
 }
 
-func (self: Point) sum(): int {
-    return _add(self.x, self.y);
+func (p: Point) sum(): int {
+    return _add(p.x, p.y);
 }
 
 func main() {
-    let p = Point {
-        x: 1,
-        y: 2,
-    };
+    let p = Point { x:0, y:0 };
+    p.x = 1;
+    p.y = 2;
 
     return p.sum();
 }

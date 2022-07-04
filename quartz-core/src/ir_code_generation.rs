@@ -270,10 +270,9 @@ impl<'s> IrFunctionGenerator<'s> {
             }
             Statement::Continue => self.ir.push(IrElement::block("continue", vec![])),
             Statement::Assignment(v, e2) => {
-                let v2 = self.expr(e2)?;
-
                 match &v.data {
                     Expr::Var(v, _) => {
+                        let v2 = self.expr(e2)?;
                         self.ir.push(IrElement::block(
                             "assign",
                             vec![IrElement::Term(IrTerm::Ident(v.to_string(), 1)), v2],
@@ -283,6 +282,7 @@ impl<'s> IrFunctionGenerator<'s> {
                         // in: arr[i] = e2;
                         // out: (assign (padd arr i) e2)
 
+                        let v2 = self.expr(e2)?;
                         let varr = self.expr(arr)?;
                         let vi = self.expr(i)?;
                         self.ir.push(IrElement::block(
@@ -300,12 +300,23 @@ impl<'s> IrFunctionGenerator<'s> {
                             ],
                         ))
                     }
-                    Expr::Project(false, st, proj, label) => {
-                        // in: proj.label = v;
-                        // out: (assign (padd proj label) v)
-                        let index = self.structs.get_projection_offset(st, label)?;
+                    Expr::Project(false, struct_name, proj, label) => {
+                        let index = self.structs.get_projection_offset(struct_name, label)?;
+                        let size = self.structs.size_of_struct(struct_name);
 
-                        let element = self.expr(proj)?;
+                        let v = self.expr(proj)?;
+                        let fresh = self.var_fresh(1)?;
+                        self.ir.push(IrElement::block(
+                            "let",
+                            vec![
+                                IrElement::Term(IrTerm::Int(size as i32)),
+                                IrElement::Term(fresh.clone()),
+                                v,
+                            ],
+                        ));
+
+                        let v2 = self.expr(e2)?;
+
                         self.ir.push(IrElement::block(
                             "assign",
                             vec![
@@ -313,8 +324,8 @@ impl<'s> IrFunctionGenerator<'s> {
                                     "call",
                                     vec![
                                         IrElement::Term(IrTerm::Ident("_padd".to_string(), 1)),
-                                        element,
-                                        IrElement::Term(IrTerm::Int(index as i32)),
+                                        IrElement::instruction("ref", vec![fresh]),
+                                        IrElement::Term(IrTerm::Int(index as i32)), // back to the first work of the struct
                                     ],
                                 ),
                                 v2,

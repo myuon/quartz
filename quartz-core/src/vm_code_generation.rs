@@ -299,8 +299,14 @@ impl<'s> VmFunctionGenerator<'s> {
                     }
                     "data" => {
                         self.new_source_map(IrElement::block("data", vec![]).show_compact());
-                        for elem in block.elements {
-                            self.element(elem, true)?;
+                        for (i, elem) in block.elements.into_iter().enumerate() {
+                            if i == 0 {
+                                self.code.push(QVMInstruction::InfoConst(
+                                    elem.into_term()?.into_int()? as usize,
+                                ));
+                            } else {
+                                self.element(elem, true)?;
+                            }
                         }
                     }
                     "ref" => {
