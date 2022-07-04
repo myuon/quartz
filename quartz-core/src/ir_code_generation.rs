@@ -148,7 +148,7 @@ impl<'s> IrFunctionGenerator<'s> {
 
                 let mut data = vec![IrElement::Term(IrTerm::Nil); size];
                 // FIXME: POINTER_TO_INFO_TABLE
-                data[0] = IrElement::Term(IrTerm::Info(size - 1));
+                data[0] = IrElement::Term(IrTerm::Int((size - 1) as i32));
 
                 for (label, expr) in exprs {
                     let index = self.structs.get_projection_offset(struct_name, label)?;
@@ -548,13 +548,14 @@ func main() {
 
         (assign (call $_padd $x 2) 4)
 
-        (return 1 (call $_add
+        (return 1
             (call $_add
-                (call $_deref (call $_padd $x 1))
-                (call $_deref (call $_padd $x 2))
+                (call $_add
+                    (call $_deref (call $_padd $x 1))
+                    (call $_deref (call $_padd $x 2)))
+                $0
             )
-            $0
-        ))
+        )
     )
     (func $main 0
         (return 1 (call $f 10))
@@ -581,17 +582,19 @@ func main() {
 "#,
                 r#"
 (module
-    (func $Point_sum 1
+    (func $Point_sum 3
+        (let 3 $fresh_1 $2(3))
+        (let 3 $fresh_2 $2(3))
         (return 1 (call
             $_add
-            (call $_deref (call $_padd (ref $0) 1))
-            (call $_deref (call $_padd (ref $0) 2))
+            (call $_deref (call $_padd (ref $fresh_1) 1))
+            (call $_deref (call $_padd (ref $fresh_2) 2))
         ))
     )
     (func $main 0
-        (let 1 $p (ref (data nil 10 20)))
+        (let 3 $p (data 2 10 20))
 
-        (return 1 (call $Point_sum $p))
+        (return 1 (call $Point_sum(3) $p(3)))
     )
 )
 "#,

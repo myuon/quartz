@@ -128,9 +128,9 @@ static NUMBER_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[0-9]+").unwrap(
 
 #[derive(PartialEq, Debug, Clone)]
 enum IrLexeme {
-    Ident(String), // $ident
+    Ident(String, usize), // $ident
     Keyword(String),
-    Argument(usize),
+    Argument(usize, usize),
     Number(String),
     LParen,
     RParen,
@@ -168,16 +168,45 @@ fn run_lexer(input: &str) -> Vec<IrLexeme> {
         if &input[position..position + 1] == "$" {
             if let Some(m) = NUMBER_PATTERN.find(&input[position + 1..]) {
                 let index = m.as_str().parse::<usize>().unwrap();
-                tokens.push(IrLexeme::Argument(index));
-
+                let mut token = IrLexeme::Argument(index, 1);
                 position += m.end() + 1;
+
+                if &input[position..position + 1] == "(" {
+                    position += 1;
+
+                    if let Some(m) = NUMBER_PATTERN.find(&input[position..]) {
+                        let size = m.as_str().parse::<usize>().unwrap();
+                        token = IrLexeme::Argument(index, size);
+                        position += m.end();
+                    }
+                    assert_eq!(&input[position..position + 1], ")");
+                    position += 1;
+                }
+
+                tokens.push(token);
+
                 continue;
             }
 
             if let Some(m) = IDENT_PATTERN.find(&input[position + 1..]) {
-                tokens.push(IrLexeme::Ident(m.as_str().to_string()));
-
+                let ident = m.as_str().to_string();
+                let mut token = IrLexeme::Ident(ident.clone(), 1);
                 position += m.end() + 1;
+
+                if &input[position..position + 1] == "(" {
+                    position += 1;
+
+                    if let Some(m) = NUMBER_PATTERN.find(&input[position..]) {
+                        let size = m.as_str().parse::<usize>().unwrap();
+                        token = IrLexeme::Ident(ident, size);
+                        position += m.end();
+                    }
+                    assert_eq!(&input[position..position + 1], ")");
+                    position += 1;
+                }
+
+                tokens.push(token);
+
                 continue;
             }
 
@@ -228,8 +257,8 @@ impl IrParser<'_> {
         let token = self.next();
 
         Ok(match token {
-            IrLexeme::Ident(ident) => IrTerm::Ident(ident.to_string(), 1), // FIXME: support multiple words
-            IrLexeme::Argument(arg) => IrTerm::Argument(*arg, 1), // FIXME: support multiple words
+            IrLexeme::Ident(ident, i) => IrTerm::Ident(ident.to_string(), *i), // FIXME: support multiple words
+            IrLexeme::Argument(arg, i) => IrTerm::Argument(*arg, *i), // FIXME: support multiple words
             IrLexeme::Keyword(ident) => {
                 if ident == "nil" {
                     IrTerm::Nil
@@ -308,21 +337,21 @@ mod tests {
                 IrLexeme::Keyword("module".to_string()),
                 IrLexeme::LParen,
                 IrLexeme::Keyword("func".to_string()),
-                IrLexeme::Ident("main".to_string()),
+                IrLexeme::Ident("main".to_string(), 1),
                 IrLexeme::LParen,
                 IrLexeme::LParen,
                 IrLexeme::Keyword("let".to_string()),
-                IrLexeme::Ident("x".to_string()),
+                IrLexeme::Ident("x".to_string(), 1),
                 IrLexeme::Number("10".to_string()),
                 IrLexeme::RParen,
                 IrLexeme::LParen,
                 IrLexeme::Keyword("assign".to_string()),
-                IrLexeme::Ident("x".to_string()),
+                IrLexeme::Ident("x".to_string(), 1),
                 IrLexeme::Number("20".to_string()),
                 IrLexeme::RParen,
                 IrLexeme::LParen,
                 IrLexeme::Keyword("return".to_string()),
-                IrLexeme::Ident("x".to_string()),
+                IrLexeme::Ident("x".to_string(), 1),
                 IrLexeme::RParen,
                 IrLexeme::RParen,
                 IrLexeme::RParen,
