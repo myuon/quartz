@@ -302,19 +302,7 @@ impl<'s> IrFunctionGenerator<'s> {
                     }
                     Expr::Project(false, struct_name, proj, label) => {
                         let index = self.structs.get_projection_offset(struct_name, label)?;
-                        let size = self.structs.size_of_struct(struct_name);
-
                         let v = self.expr(proj)?;
-                        let fresh = self.var_fresh(1)?;
-                        self.ir.push(IrElement::block(
-                            "let",
-                            vec![
-                                IrElement::Term(IrTerm::Int(size as i32)),
-                                IrElement::Term(fresh.clone()),
-                                v,
-                            ],
-                        ));
-
                         let v2 = self.expr(e2)?;
 
                         self.ir.push(IrElement::block(
@@ -324,7 +312,7 @@ impl<'s> IrFunctionGenerator<'s> {
                                     "call",
                                     vec![
                                         IrElement::Term(IrTerm::Ident("_padd".to_string(), 1)),
-                                        IrElement::instruction("ref", vec![fresh]),
+                                        IrElement::block("ref", vec![v]),
                                         IrElement::Term(IrTerm::Int(index as i32)), // back to the first work of the struct
                                     ],
                                 ),

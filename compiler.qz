@@ -152,19 +152,19 @@ func compiler_test() {
     assert_eq(show_int(find_exact_pattern("kabcd".to_substring(), "abc")), show_int(0));
 }
 
-struct Point {
-    x: int,
-    y: int,
+struct Modify {
+    a: int,
 }
 
-func (p: Point) sum(): int {
-    return _add(p.x, p.y);
+func (m: Modify) f(c: int) {
+    m.a = m.a + c;
+
+    return nil;
 }
 
 func main() {
-    let p = Point { x:0, y:0 };
-    p.x = 1;
-    p.y = 2;
+    let m = Modify { a: 10 };
+    m.f(20);
 
-    return p.sum();
+    return m.a;
 }
