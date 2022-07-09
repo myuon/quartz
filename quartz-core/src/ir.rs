@@ -2,7 +2,7 @@ use anyhow::{bail, Result};
 use once_cell::sync::Lazy;
 use regex::Regex;
 
-use crate::ast::Type;
+use crate::ast::{size_of, Structs, Type};
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum IrTerm {
@@ -141,15 +141,34 @@ impl IrElement {
 
     // = Types
 
-    pub fn ir_type(typ: &Type) -> IrElement {
+    pub fn ir_type(typ: &Type, structs: &Structs) -> IrElement {
         match typ {
             Type::Bool => IrElement::ident("bool"),
             Type::Int => IrElement::ident("int"),
             Type::Byte => IrElement::ident("byte"),
             Type::Unit => IrElement::ident("unit"),
             Type::Fn(_, _) => IrElement::ident("addr"),
-            Type::Struct(_) => IrElement::ident("addr"),
+            Type::Struct(t) => IrElement::block(
+                "struct",
+                vec![IrElement::int(
+                    size_of(&Type::Struct(t.clone()), structs) as i32
+                )],
+            ),
             Type::Array(_) => IrElement::ident("array"),
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn size_of_as_ir_type(typ: &IrElement) -> Result<usize> {
+        match typ {
+            IrElement::Term(IrTerm::Ident(_, _)) => Ok(1),
+            IrElement::Block(block) => {
+                if &block.name == "struct" {
+                    Ok(block.elements[0].clone().into_term()?.into_int()? as usize)
+                } else {
+                    unreachable!()
+                }
+            }
             _ => unreachable!(),
         }
     }
@@ -190,6 +209,10 @@ impl IrElement {
 
     pub fn i_assign(lhs: IrElement, rhs: IrElement) -> IrElement {
         IrElement::block("assign", vec![lhs, rhs])
+    }
+
+    pub fn i_unload(element: IrElement) -> IrElement {
+        IrElement::block("unload", vec![element])
     }
 
     pub fn i_copy(size: usize, source: IrElement) -> IrElement {

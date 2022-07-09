@@ -43,9 +43,23 @@ macro_rules! unvec {
 }
 
 #[derive(Debug)]
+struct Args(Vec<IrElement>);
+
+impl Args {
+    pub fn arg_position(&self, arg: usize) -> Result<usize> {
+        let mut index = 0;
+        for i in 0..=arg {
+            index += IrElement::size_of_as_ir_type(&self.0[i])?;
+        }
+
+        Ok(index - 1)
+    }
+}
+
+#[derive(Debug)]
 struct VmFunctionGenerator<'s> {
     code: Vec<QVMInstruction>,
-    args: Vec<IrElement>,
+    args: Args,
     local_pointer: usize,
     locals: HashMap<String, (usize, IrElement)>,
     globals: &'s HashMap<String, usize>,
@@ -66,7 +80,7 @@ impl<'s> VmFunctionGenerator<'s> {
     ) -> VmFunctionGenerator<'s> {
         VmFunctionGenerator {
             code: Vec::new(),
-            args,
+            args: Args(args),
             local_pointer: 0,
             locals: HashMap::new(),
             globals,
@@ -142,14 +156,10 @@ impl<'s> VmFunctionGenerator<'s> {
         match element.clone() {
             IrElement::Term(term) => match term {
                 IrTerm::Ident(v, size) => {
-                    if let Some((u, typ)) = self.locals.get(&v) {
+                    if let Some((u, _)) = self.locals.get(&v) {
                         self.code
                             .push(QVMInstruction::AddrConst(*u, Variable::Local));
-
-                        // load if not an addr variable
-                        if !IrElement::is_ir_type_addr(typ) {
-                            self.code.push(QVMInstruction::Load(size));
-                        }
+                        self.code.push(QVMInstruction::Load(size));
                     } else if let Some(u) = self.globals.get(&v) {
                         self.code
                             .push(QVMInstruction::AddrConst(*u, Variable::Global));
@@ -199,10 +209,9 @@ impl<'s> VmFunctionGenerator<'s> {
                     self.code.push(QVMInstruction::I32Const(n));
                 }
                 IrTerm::Argument(u, size) => {
-                    self.code.push(QVMInstruction::ArgConst(u));
-                    if !IrElement::is_ir_type_addr(&self.args[u]) {
-                        self.code.push(QVMInstruction::Load(size));
-                    }
+                    self.code
+                        .push(QVMInstruction::ArgConst(self.args.arg_position(u)?));
+                    self.code.push(QVMInstruction::Load(size));
                 }
                 IrTerm::Info(u) => {
                     self.code.push(QVMInstruction::InfoConst(u));
@@ -225,7 +234,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         let size = size.into_term()?.into_int()? as usize;
                         self.element(expr)?;
                         self.code
-                            .push(QVMInstruction::Return(self.args.len(), size));
+                            .push(QVMInstruction::Return(self.args.0.len(), size));
                     }
                     "call" => {
                         self.new_source_map(element.show_compact());
@@ -368,6 +377,13 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.element(elem)?;
                         self.code
                             .push(QVMInstruction::Load(size.into_term()?.into_int()? as usize));
+                    }
+                    "unload" => {
+                        self.new_source_map(element.show_compact());
+                        let element = unvec!(block.elements, 1);
+                        self.element(element)?;
+                        let code = self.code.pop();
+                        assert!(matches!(code, Some(QVMInstruction::Load(_))));
                     }
                     name => todo!("{:?}", name),
                 };

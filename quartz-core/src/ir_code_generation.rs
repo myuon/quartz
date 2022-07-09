@@ -94,7 +94,7 @@ impl<'s> IrFunctionGenerator<'s> {
                     //      (assign (padd $v 1) 2)
                     //      $v
                     self.ir.push(IrElement::i_let(
-                        IrElement::ir_type(t),
+                        IrElement::ir_type(t, self.structs),
                         size,
                         v.clone(),
                         IrElement::i_call("_new", vec![IrElement::int(n)]),
@@ -176,19 +176,16 @@ impl<'s> IrFunctionGenerator<'s> {
                 let block = IrElement::i_call(
                     "_padd",
                     vec![
-                        self.expr(proj)?,
+                        IrElement::i_unload(self.expr(proj)?),
                         IrElement::Term(IrTerm::Int(index as i32)), // back to the first work of the struct
                     ],
                 );
 
-                Ok(
-                    // deref if the block is not an addr
-                    if !is_addr {
-                        IrElement::i_call("_deref", vec![block])
-                    } else {
-                        block
-                    },
-                )
+                Ok(if !is_addr {
+                    IrElement::i_call("_deref", vec![block])
+                } else {
+                    block
+                })
             }
             Expr::Index(arr, i) => Ok(IrElement::i_call(
                 "_deref",
@@ -205,7 +202,7 @@ impl<'s> IrFunctionGenerator<'s> {
             Statement::Let(x, e, t) => {
                 let v = self.expr(e)?;
                 self.ir.push(IrElement::i_let(
-                    IrElement::ir_type(t),
+                    IrElement::ir_type(t, self.structs),
                     size_of(t, self.structs),
                     x.to_string(),
                     v,
@@ -383,12 +380,15 @@ impl IrGenerator {
         for (name, typ) in function.args.iter().rev() {
             arg_index += 1; // self.stack_size_of(typ)?;
             args.insert(name.clone(), arg_index - 1);
-            arg_types_in_ir.push(IrElement::ir_type(typ));
+            arg_types_in_ir.push(IrElement::ir_type(typ, &self.structs));
         }
         if let Some((receiver, struct_name, _)) = &function.method_of {
             arg_index += 1; // self.stack_size_of(&Type::Struct(struct_name.clone()))?;
             args.insert(receiver.clone(), arg_index - 1);
-            arg_types_in_ir.push(IrElement::ir_type(&Type::Struct(struct_name.clone())));
+            arg_types_in_ir.push(IrElement::ir_type(
+                &Type::Struct(struct_name.clone()),
+                &self.structs,
+            ));
         }
 
         elements.push(IrElement::block(
@@ -465,7 +465,6 @@ mod tests {
 
     use crate::{compiler::Compiler, ir::parse_ir};
 
-    #[test]
     fn test_generate() {
         let cases = vec![
             (
