@@ -76,6 +76,7 @@ impl Value {
         }
     }
 
+    #[allow(dead_code)]
     pub fn as_stack_addr(self) -> Option<usize> {
         match self {
             Value::Addr(i, AddrPlace::Stack, ValueAddrFlag::Addr) => Some(i),
@@ -310,10 +311,10 @@ impl Runtime {
                 let pc = self.load(2);
                 self.pc = pc.as_named_int(ValueIntFlag::Pc).unwrap() as usize;
 
-                for (i, r) in results.into_iter().enumerate() {
+                for (i, r) in results.into_iter().rev().enumerate() {
                     self.stack[current_fp - (args + 2) + i] = r;
                 }
-                self.stack_pointer -= args + size; // -2 words (fp, pc), +size word (return value)
+                self.stack_pointer = self.stack_pointer - args - 2 + size; // -args, +size word (return value)
 
                 return Ok(());
             }
@@ -907,7 +908,7 @@ func main() {
     return m.a;
 }
 "#,
-            // FIXME: 10?
+            // FIXME: 10?(immutable) 30?(mutable)
             30,
         ),
         (
@@ -975,6 +976,26 @@ func main(): int {
 }
 "#,
             30,
+        ),
+        (
+            r#"
+struct Child {
+    n: int,
+}
+
+func make(k: int): Child {
+    return Child {
+        n: k,
+    };
+}
+
+func main(): int {
+    let child = make(10);
+
+    return child.n;
+}
+"#,
+            10,
         ),
     ];
 
