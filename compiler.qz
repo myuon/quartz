@@ -151,3 +151,27 @@ func compiler_test() {
     assert_eq(show_int(find_exact_pattern("abcde_fg".to_substring(), "abc")), show_int(3));
     assert_eq(show_int(find_exact_pattern("kabcd".to_substring(), "abc")), show_int(0));
 }
+
+struct Child {
+    n: int,
+}
+
+struct Nested {
+    child: Child,
+    m: int,
+}
+
+func f(n: Nested): int {
+    return n.child.n + n.m;
+}
+
+func main(): int {
+    let nested = Nested {
+        child: Child {
+            n: 10,
+        },
+        m: 20,
+    };
+
+    return f(nested);
+}

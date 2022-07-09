@@ -59,9 +59,9 @@ pub enum Statement {
         Vec<Source<Statement>>,
     ),
     Continue,
-    Assignment(Box<Source<Expr>>, Source<Expr>),
+    Assignment(Source<Expr>, Source<Expr>),
     Loop(Vec<Source<Statement>>),
-    While(Box<Source<Expr>>, Vec<Source<Statement>>),
+    While(Source<Expr>, Vec<Source<Statement>>),
 }
 
 #[derive(PartialEq, Debug, Clone)]

@@ -925,6 +925,34 @@ func main() {
 "#,
             46,
         ),
+        (
+            r#"
+struct Child {
+    n: int,
+}
+
+struct Nested {
+    child: Child,
+    m: int,
+}
+
+func f(n: Nested): int {
+    return n.child.n + n.m;
+}
+
+func main(): int {
+    let nested = Nested {
+        child: Child {
+            n: 10,
+        },
+        m: 20,
+    };
+
+    return f(nested);
+}
+"#,
+            30,
+        ),
     ];
 
     for (input, result) in cases {

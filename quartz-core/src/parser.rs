@@ -214,7 +214,7 @@ impl Parser {
             self.expect_lexeme(Lexeme::RBrace)?;
 
             Ok(self.source(
-                Statement::While(Box::new(self.source_from(cond, e_start)), then),
+                Statement::While(self.source_from(cond, e_start), then),
                 start,
                 self.position,
             ))
@@ -227,7 +227,7 @@ impl Parser {
                 let rhs = self.expr()?;
                 Ok(self.source(
                     Statement::Assignment(
-                        Box::new(self.source_from(e, e_start)),
+                        self.source_from(e, e_start),
                         self.source_from(rhs, rhs_start),
                     ),
                     start,
