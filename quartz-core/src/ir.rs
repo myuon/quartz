@@ -122,6 +122,7 @@ impl IrElement {
     }
 
     // = IR instructions
+
     pub fn i_let(s: usize, ident: String, element: IrElement) -> IrElement {
         IrElement::block(
             "let",
@@ -131,6 +132,10 @@ impl IrElement {
                 element,
             ],
         )
+    }
+
+    pub fn i_assign(lhs: IrElement, rhs: IrElement) -> IrElement {
+        IrElement::block("assign", vec![lhs, rhs])
     }
 }
 
