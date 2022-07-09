@@ -3,7 +3,9 @@ use std::{collections::HashMap, fmt::Debug};
 use anyhow::{bail, Context, Result};
 
 use crate::{
-    ast::{Declaration, Expr, Function, Literal, Module, Source, Statement, Structs, Type},
+    ast::{
+        size_of, Declaration, Expr, Function, Literal, Module, Source, Statement, Structs, Type,
+    },
     ir::{IrBlock, IrElement, IrTerm},
 };
 
@@ -146,7 +148,7 @@ impl<'s> IrFunctionGenerator<'s> {
 
                 Ok(IrElement::Term(IrTerm::Ident(
                     format!("{}_{}", struct_name, label),
-                    self.structs.size_of_struct(struct_name),
+                    1,
                 )))
             }
             Expr::Project(_, struct_name, proj, label) => {
@@ -189,7 +191,7 @@ impl<'s> IrFunctionGenerator<'s> {
                 let v = self.expr(e)?;
                 self.ir.push(IrElement::i_let(
                     IrElement::ir_type(t),
-                    1, // IS THIS TRUE? (for now?)
+                    size_of(t, self.structs),
                     x.to_string(),
                     v,
                 ));
@@ -535,8 +537,8 @@ func main() {
         ))
     )
     (func $main (args)
-        (let $addr 1 $p(1) (data 2 10 20))
-        (return 1 (call $Point_sum(3) $p))
+        (let $addr 3 $p(1) (data 2 10 20))
+        (return 1 (call $Point_sum $p))
     )
 )
 "#,

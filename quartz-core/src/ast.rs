@@ -308,12 +308,12 @@ impl Structs {
                 .ok_or(anyhow::anyhow!("project: {} not found in {}", label, val))?;
 
         let mut index = 1; // pointer to info table
-        for (l, t) in struct_fields {
+        for (l, _t) in struct_fields {
             if l == label {
                 break;
             }
 
-            index += size_of(t, &self);
+            index += 1; // size_of(t, &self);
         }
 
         Ok(index)

@@ -182,7 +182,7 @@ impl IrElement {
             vec![
                 typ,
                 IrElement::Term(IrTerm::Int(s as i32)),
-                IrElement::Term(IrTerm::Ident(ident, s)),
+                IrElement::Term(IrTerm::Ident(ident, 1)),
                 element,
             ],
         )
