@@ -312,11 +312,6 @@ impl<'s> VmFunctionGenerator<'s> {
                             }
                         }
                     }
-                    "ref" => {
-                        self.new_source_map(element.show_compact());
-                        let target = unvec!(block.elements, 1);
-                        self.element(target, false)?;
-                    }
                     "vector" => {
                         self.new_source_map(element.show_compact());
                         let (size, element) = unvec!(block.elements, 2);

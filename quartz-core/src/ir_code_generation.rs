@@ -324,7 +324,7 @@ impl<'s> IrFunctionGenerator<'s> {
                                     "call",
                                     vec![
                                         IrElement::Term(IrTerm::Ident("_padd".to_string(), 1)),
-                                        IrElement::block("ref", vec![v]),
+                                        v,
                                         IrElement::Term(IrTerm::Int(index as i32)), // back to the first work of the struct
                                     ],
                                 ),
