@@ -515,7 +515,7 @@ func main() {
         (assign (call $_padd $fresh_1 0) 1)
         (assign (call $_padd $fresh_1 1) 2)
         (assign (call $_padd $fresh_1 2) 3)
-        (let $addr 1 $x $fresh_1)
+        (let $array 1 $x $fresh_1)
 
         (assign (call $_padd $x 2) 4)
 

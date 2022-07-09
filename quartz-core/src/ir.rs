@@ -137,7 +137,7 @@ impl IrElement {
             Type::Unit => IrElement::ident("unit"),
             Type::Fn(_, _) => IrElement::ident("addr"),
             Type::Struct(_) => IrElement::ident("addr"),
-            Type::Array(_) => IrElement::ident("addr"),
+            Type::Array(_) => IrElement::ident("array"),
             _ => unreachable!(),
         }
     }
