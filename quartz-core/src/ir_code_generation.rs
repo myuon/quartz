@@ -143,8 +143,10 @@ impl<'s> IrFunctionGenerator<'s> {
             }
             Expr::Struct(struct_name, exprs) => {
                 // in: A { a: 1, b: 2 }
-                // out: (data POINTER_TO_INFO_TABLE 1 2)
+                // out: (let $fresh (data POINTER_TO_INFO_TABLE 1 2))
+                //      $fresh
                 let size = self.structs.size_of_struct(&struct_name);
+                let var = self.var_fresh(size)?;
 
                 let mut data = vec![IrElement::Term(IrTerm::Nil); size];
                 // FIXME: POINTER_TO_INFO_TABLE
@@ -156,7 +158,16 @@ impl<'s> IrFunctionGenerator<'s> {
                     data[index] = v;
                 }
 
-                Ok(IrElement::block("data", data))
+                self.ir.push(IrElement::block(
+                    "let",
+                    vec![
+                        IrElement::Term(IrTerm::Int(size as i32)),
+                        IrElement::Term(var.clone()),
+                        IrElement::block("data", data),
+                    ],
+                ));
+
+                Ok(IrElement::Term(var))
             }
             Expr::Project(method, struct_name, proj, label) if *method => {
                 self.self_object = Some(self.expr(proj)?);
