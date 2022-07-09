@@ -909,7 +909,7 @@ func main() {
 }
 "#,
             // FIXME: 10?(immutable) 30?(mutable)
-            30,
+            10,
         ),
         (
             r#"
@@ -961,6 +961,7 @@ struct Nested {
 }
 
 func f(n: Nested): int {
+    n.child.n = n.child.n + 1;
     return n.child.n + n.m;
 }
 
@@ -975,7 +976,7 @@ func main(): int {
     return f(nested);
 }
 "#,
-            30,
+            31,
         ),
         (
             r#"

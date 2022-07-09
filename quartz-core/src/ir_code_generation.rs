@@ -145,15 +145,9 @@ impl<'s> IrFunctionGenerator<'s> {
                 ) as i32)));
 
                 // FIXME: field order
-                for (label, expr) in exprs {
-                    let typ = self.structs.get_projection_type(struct_name, label)?;
-                    let size = size_of(&typ, &self.structs);
-
+                for (_label, expr) in exprs {
                     let v = self.expr(expr)?;
-                    data.push(match typ {
-                        Type::Struct(_) => IrElement::i_copy(size, v),
-                        _ => v,
-                    });
+                    data.push(v);
                 }
 
                 Ok(IrElement::block("data", data))
@@ -168,23 +162,34 @@ impl<'s> IrFunctionGenerator<'s> {
             }
             Expr::Project(_, struct_name, proj, label) => {
                 let index = self.structs.get_projection_offset(struct_name, label)?;
-                let is_addr = self
+                let is_value_struct = self
                     .structs
                     .get_projection_type(struct_name, label)?
-                    .is_addr_type();
+                    .is_struct();
+
+                // FIXME: really?
+                let is_proj_variable = match proj.data {
+                    Expr::Var(_, _) => true,
+                    _ => false,
+                };
+                let value = self.expr(proj)?;
 
                 let block = IrElement::i_call(
                     "_padd",
                     vec![
-                        IrElement::i_unload(self.expr(proj)?),
+                        if is_proj_variable {
+                            IrElement::i_unload(value)
+                        } else {
+                            value
+                        },
                         IrElement::Term(IrTerm::Int(index as i32)), // back to the first work of the struct
                     ],
                 );
 
-                Ok(if !is_addr {
-                    IrElement::i_call("_deref", vec![block])
-                } else {
+                Ok(if is_value_struct {
                     block
+                } else {
+                    IrElement::i_call("_deref", vec![block])
                 })
             }
             Expr::Index(arr, i) => Ok(IrElement::i_call(
@@ -274,6 +279,11 @@ impl<'s> IrFunctionGenerator<'s> {
                     }
                     Expr::Project(false, struct_name, proj, label) => {
                         let index = self.structs.get_projection_offset(struct_name, label)?;
+                        // FIXME: really?
+                        let is_proj_variable = match proj.data {
+                            Expr::Var(_, _) => true,
+                            _ => false,
+                        };
                         let v = self.expr(proj)?;
                         let v2 = self.expr(e2)?;
 
@@ -281,7 +291,11 @@ impl<'s> IrFunctionGenerator<'s> {
                             IrElement::i_call(
                                 "_padd",
                                 vec![
-                                    v,
+                                    if is_proj_variable {
+                                        IrElement::i_unload(v)
+                                    } else {
+                                        v
+                                    },
                                     IrElement::Term(IrTerm::Int(index as i32)), // back to the first work of the struct
                                 ],
                             ),

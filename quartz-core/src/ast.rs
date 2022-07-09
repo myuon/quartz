@@ -208,9 +208,8 @@ impl Type {
     }
 
     // Whether the representation is an adress or not
-    pub fn is_addr_type(&self) -> bool {
+    pub fn is_struct(&self) -> bool {
         match self {
-            Type::Ref(_) => true,
             Type::Struct(_) => true,
             _ => false,
         }

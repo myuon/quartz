@@ -381,9 +381,14 @@ impl<'s> VmFunctionGenerator<'s> {
                     "unload" => {
                         self.new_source_map(element.show_compact());
                         let element = unvec!(block.elements, 1);
-                        self.element(element)?;
+                        self.element(element.clone())?;
                         let code = self.code.pop();
-                        assert!(matches!(code, Some(QVMInstruction::Load(_))));
+                        assert!(
+                            matches!(code, Some(QVMInstruction::Load(_))),
+                            "{:?} {}",
+                            code,
+                            element.show()
+                        );
                     }
                     name => todo!("{:?}", name),
                 };
