@@ -48,9 +48,7 @@ impl<'s> IrFunctionGenerator<'s> {
 
     pub fn expr(&mut self, expr: &Source<Expr>) -> Result<IrElement> {
         match &expr.data {
-            Expr::Var(v, t) => {
-                let size = self.stack_size_of(t)?;
-
+            Expr::Var(v, _) => {
                 if self.args.contains_key(v) {
                     Ok(IrElement::Term(IrTerm::Argument(self.args[v], 1)))
                 } else {
@@ -353,19 +351,6 @@ impl IrGenerator {
         self.structs = structs;
     }
 
-    fn stack_size_of(&self, ty: &Type) -> Result<usize> {
-        Ok(match ty {
-            Type::Unit => 1,
-            Type::Bool => 1,
-            Type::Int => 1,
-            Type::Byte => 1,
-            Type::Struct(s) => self.structs.size_of_struct(s.as_str()),
-            Type::Array(_) => 1,
-            Type::Fn(_, _) => 1,
-            _ => bail!("Unsupported type: {:?}", ty),
-        })
-    }
-
     pub fn function(&mut self, function: &Function) -> Result<IrElement> {
         let mut elements = vec![IrElement::Term(IrTerm::Ident(
             if let Some((_, struct_name, _)) = &function.method_of {
@@ -465,6 +450,7 @@ mod tests {
 
     use crate::{compiler::Compiler, ir::parse_ir};
 
+    #[test]
     fn test_generate() {
         let cases = vec![
             (
@@ -546,13 +532,13 @@ func main() {
     (func $Point_sum (args $addr)
         (return 1 (call
             $_add
-            (call $_deref (call $_padd $2(3) 1))
-            (call $_deref (call $_padd $2(3) 2))
+            (call $_deref (call $_padd $0 1))
+            (call $_deref (call $_padd $0 2))
         ))
     )
     (func $main (args)
         (let $addr 1 $p(1) (data 2 10 20))
-        (return 1 (call $Point_sum(3) $p(3)))
+        (return 1 (call $Point_sum(3) $p))
     )
 )
 "#,
