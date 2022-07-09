@@ -48,11 +48,20 @@ struct Args(Vec<IrElement>);
 impl Args {
     pub fn arg_position(&self, arg: usize) -> Result<usize> {
         let mut index = 0;
-        for i in 0..=arg {
-            index += IrElement::size_of_as_ir_type(&self.0[i])?;
+        for t in self.0.iter().rev().take(arg + 1) {
+            index += IrElement::size_of_as_ir_type(&t)?;
         }
 
         Ok(index - 1)
+    }
+
+    pub fn total_word(&self) -> Result<usize> {
+        let mut total = 0;
+        for i in 0..self.0.len() {
+            total += IrElement::size_of_as_ir_type(&self.0[i])?;
+        }
+
+        Ok(total)
     }
 }
 
@@ -234,7 +243,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         let size = size.into_term()?.into_int()? as usize;
                         self.element(expr)?;
                         self.code
-                            .push(QVMInstruction::Return(self.args.0.len(), size));
+                            .push(QVMInstruction::Return(self.args.total_word()?, size));
                     }
                     "call" => {
                         self.new_source_map(element.show_compact());
