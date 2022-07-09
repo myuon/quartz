@@ -76,6 +76,20 @@ impl Value {
         }
     }
 
+    pub fn as_stack_addr(self) -> Option<usize> {
+        match self {
+            Value::Addr(i, AddrPlace::Stack, ValueAddrFlag::Addr) => Some(i),
+            _ => None,
+        }
+    }
+
+    pub fn as_heap_addr(self) -> Option<usize> {
+        match self {
+            Value::Addr(i, AddrPlace::Heap, ValueAddrFlag::Addr) => Some(i),
+            _ => None,
+        }
+    }
+
     pub fn as_named_int(self, flag: ValueIntFlag) -> Option<i32> {
         match self {
             Value::Int(i, n) if n == flag => Some(i),
@@ -414,7 +428,7 @@ impl Runtime {
                                 self.push(Value::int(value));
                             }
                         }
-                        _ => unreachable!(),
+                        t => unreachable!("{:?}", t),
                     },
                     _ => unreachable!(),
                 }
@@ -533,7 +547,7 @@ impl Runtime {
                     println!("[quartz] {}", String::from_utf8(bytes).unwrap());
                 }
                 "_len" => {
-                    let value = self.pop().as_addr().unwrap();
+                    let value = self.pop().as_heap_addr().unwrap();
                     let header = self.heap.parse_from_data_pointer(value).unwrap();
                     self.push(Value::int(header.len() as i32));
                 }
@@ -823,10 +837,20 @@ func main(): int {
 func main() {
     let p = "Hello, World!";
 
-    return p.data[7];
+    return p.bytes()[7];
 }
 "#,
             'W' as i32,
+        ),
+        (
+            r#"
+func main() {
+    let p = "Hello, World!";
+
+    return p.len();
+}
+"#,
+            13,
         ),
         (
             r#"
