@@ -479,6 +479,7 @@ mod tests {
 
     use crate::{compiler::Compiler, ir::parse_ir};
 
+    #[test]
     fn test_generate() {
         let cases = vec![
             (
@@ -557,15 +558,15 @@ func main() {
 "#,
                 r#"
 (module
-    (func $Point_sum (args $addr)
+    (func $Point_sum (args (struct 3))
         (return 1 (call
             $_add
-            (call $_deref (call $_padd $0(3) 1))
-            (call $_deref (call $_padd $0(3) 2))
+            (call $_deref (call $_padd (unload $0(3)) 1))
+            (call $_deref (call $_padd (unload $0(3)) 2))
         ))
     )
     (func $main (args)
-        (let $addr 3 $p(1) (data 3 10 20))
+        (let (struct 3) 3 $p(1) (data 3 10 20))
         (return 1 (call $Point_sum $p(3)))
     )
 )
