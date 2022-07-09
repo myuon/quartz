@@ -130,10 +130,8 @@ impl<'s> IrFunctionGenerator<'s> {
             }
             Expr::Struct(struct_name, exprs) => {
                 // in: A { a: 1, b: 2 }
-                // out: (let $fresh (data POINTER_TO_INFO_TABLE 1 2))
-                //      $fresh
+                // out: (let (data POINTER_TO_INFO_TABLE 1 2))
                 let size = self.structs.size_of_struct(&struct_name);
-                let var = self.var_fresh();
 
                 let mut data = vec![IrElement::Term(IrTerm::Nil); size];
                 // FIXME: POINTER_TO_INFO_TABLE
@@ -145,14 +143,7 @@ impl<'s> IrFunctionGenerator<'s> {
                     data[index] = v;
                 }
 
-                self.ir.push(IrElement::i_let(
-                    IrElement::ir_type(&Type::Struct(struct_name.clone())),
-                    size,
-                    var.clone(),
-                    IrElement::block("data", data),
-                ));
-
-                Ok(IrElement::Term(IrTerm::Ident(var, size)))
+                Ok(IrElement::block("data", data))
             }
             Expr::Project(method, struct_name, proj, label) if *method => {
                 self.self_object = Some(self.expr(proj)?);
@@ -179,7 +170,7 @@ impl<'s> IrFunctionGenerator<'s> {
 
                 Ok(
                     // deref if the block is addr
-                    if is_addr {
+                    if !is_addr {
                         IrElement::i_call("_deref", vec![block])
                     } else {
                         block
@@ -556,14 +547,12 @@ func main() {
     (func $Point_sum (args $addr)
         (return 1 (call
             $_add
-            (call $_padd $2(3) 1)
-            (call $_padd $2(3) 2)
+            (call $_deref (call $_padd $2(3) 1))
+            (call $_deref (call $_padd $2(3) 2))
         ))
     )
     (func $main (args)
-        (let $addr 3 $fresh_1(3) (data 2 10 20))
-        (let $addr 1 $p $fresh_1(3))
-
+        (let $addr 1 $p(1) (data 2 10 20))
         (return 1 (call $Point_sum(3) $p(3)))
     )
 )
