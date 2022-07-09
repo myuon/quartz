@@ -43,6 +43,10 @@ pub enum IrElement {
 }
 
 impl IrElement {
+    pub fn ident(name: impl Into<String>) -> IrElement {
+        IrElement::Term(IrTerm::Ident(name.into(), 1))
+    }
+
     pub fn block(name: &str, elements: Vec<IrElement>) -> IrElement {
         IrElement::Block(IrBlock {
             name: name.to_string(),
@@ -127,13 +131,29 @@ impl IrElement {
 
     pub fn ir_type(typ: &Type) -> IrElement {
         match typ {
-            Type::Bool => IrElement::instruction("bool", vec![]),
-            Type::Int => IrElement::instruction("int", vec![]),
-            Type::Byte => IrElement::instruction("addr", vec![]),
-            Type::Unit => IrElement::instruction("addr", vec![]),
-            Type::Fn(_, _) => IrElement::instruction("addr", vec![]),
-            Type::Struct(_) => IrElement::instruction("addr", vec![]),
-            Type::Array(_) => IrElement::instruction("addr", vec![]),
+            Type::Bool => IrElement::ident("bool"),
+            Type::Int => IrElement::ident("int"),
+            Type::Byte => IrElement::ident("byte"),
+            Type::Unit => IrElement::ident("unit"),
+            Type::Fn(_, _) => IrElement::ident("addr"),
+            Type::Struct(_) => IrElement::ident("addr"),
+            Type::Array(_) => IrElement::ident("addr"),
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn is_ir_type_addr(typ: &IrElement) -> bool {
+        match typ {
+            IrElement::Term(term) => match term {
+                IrTerm::Ident(ident, _) => {
+                    if ident == "addr" {
+                        return true;
+                    }
+
+                    return false;
+                }
+                _ => unreachable!(),
+            },
             _ => unreachable!(),
         }
     }

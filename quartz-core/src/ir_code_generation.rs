@@ -385,20 +385,25 @@ impl IrGenerator {
             1,
         ))];
         let mut args = HashMap::new();
-
         let mut arg_index = 0;
+        let mut arg_types_in_ir = vec![];
 
         // argument in reverse order
         for (name, typ) in function.args.iter().rev() {
             arg_index += self.stack_size_of(typ)?;
             args.insert(name.clone(), arg_index - 1);
+            arg_types_in_ir.push(IrElement::ir_type(typ));
         }
         if let Some((receiver, struct_name, _)) = &function.method_of {
             arg_index += self.stack_size_of(&Type::Struct(struct_name.clone()))?;
             args.insert(receiver.clone(), arg_index - 1);
+            arg_types_in_ir.push(IrElement::ir_type(&Type::Struct(struct_name.clone())));
         }
 
-        elements.push(IrElement::Term(IrTerm::Int(arg_index as i32)));
+        elements.push(IrElement::block(
+            "args",
+            arg_types_in_ir.into_iter().rev().collect(),
+        ));
 
         let mut generator = IrFunctionGenerator::new(&args, &self.structs);
 
@@ -482,8 +487,8 @@ func main() {
 "#,
                 r#"
 (module
-    (func $main 0
-        (let (int) 1 $x 10)
+    (func $main (args)
+        (let $int 1 $x 10)
         (assign $x 20)
         (return 1 $x)
     )
@@ -505,12 +510,12 @@ func main() {
 "#,
                 r#"
 (module
-    (func $f 1
-        (let (int) 1 $fresh_1 (call $_new 3))
+    (func $f (args $int)
+        (let $int 1 $fresh_1 (call $_new 3))
         (assign (call $_padd $fresh_1 0) 1)
         (assign (call $_padd $fresh_1 1) 2)
         (assign (call $_padd $fresh_1 2) 3)
-        (let (addr) 1 $x $fresh_1)
+        (let $addr 1 $x $fresh_1)
 
         (assign (call $_padd $x 2) 4)
 
@@ -523,7 +528,7 @@ func main() {
             )
         )
     )
-    (func $main 0
+    (func $main (args)
         (return 1 (call $f 10))
     )
 )
@@ -548,16 +553,16 @@ func main() {
 "#,
                 r#"
 (module
-    (func $Point_sum 3
+    (func $Point_sum (args $addr)
         (return 1 (call
             $_add
             (call $_padd $2(3) 1)
             (call $_padd $2(3) 2)
         ))
     )
-    (func $main 0
-        (let (addr) 3 $fresh_1(3) (data 2 10 20))
-        (let (addr) 1 $p $fresh_1(3))
+    (func $main (args)
+        (let $addr 3 $fresh_1(3) (data 2 10 20))
+        (let $addr 1 $p $fresh_1(3))
 
         (return 1 (call $Point_sum(3) $p(3)))
     )
@@ -577,7 +582,7 @@ func main() {
 "#,
                 r#"
 (module
-    (func $main 0
+    (func $main (args)
         (return 1 nil)
     )
 )
@@ -592,7 +597,7 @@ func main() {
 
             let element = parse_ir(ir_code).unwrap();
 
-            assert_eq!(generated, element);
+            assert_eq!(generated, element, "{}", code);
         }
     }
 }

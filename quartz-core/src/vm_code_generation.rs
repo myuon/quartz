@@ -45,9 +45,10 @@ macro_rules! unvec {
 #[derive(Debug)]
 struct VmFunctionGenerator<'s> {
     code: Vec<QVMInstruction>,
-    arg_len: usize,
+    args: Vec<IrElement>,
+    arg_len: usize, // deprecated
     local_pointer: usize,
-    locals: HashMap<String, usize>,
+    locals: HashMap<String, (usize, IrElement)>,
     globals: &'s HashMap<String, usize>,
     labels: &'s mut HashMap<String, usize>,
     offset: usize,
@@ -60,12 +61,14 @@ struct VmFunctionGenerator<'s> {
 impl<'s> VmFunctionGenerator<'s> {
     pub fn new(
         arg_len: usize,
+        args: Vec<IrElement>,
         globals: &'s HashMap<String, usize>,
         labels: &'s mut HashMap<String, usize>,
         offset: usize,
     ) -> VmFunctionGenerator<'s> {
         VmFunctionGenerator {
             code: Vec::new(),
+            args,
             arg_len,
             local_pointer: 0,
             locals: HashMap::new(),
@@ -79,8 +82,8 @@ impl<'s> VmFunctionGenerator<'s> {
         }
     }
 
-    fn push_local(&mut self, name: String, size: usize) {
-        self.locals.insert(name, self.local_pointer);
+    fn push_local(&mut self, name: String, size: usize, typ: IrElement) {
+        self.locals.insert(name, (self.local_pointer, typ));
         self.local_pointer += size;
     }
 
@@ -98,7 +101,7 @@ impl<'s> VmFunctionGenerator<'s> {
         match element.clone() {
             IrElement::Term(term) => match term {
                 IrTerm::Ident(v, _) => {
-                    if let Some(u) = self.locals.get(&v) {
+                    if let Some((u, _)) = self.locals.get(&v) {
                         self.code
                             .push(QVMInstruction::AddrConst(*u, Variable::Local));
                     } else if let Some(u) = self.globals.get(&v) {
@@ -142,10 +145,14 @@ impl<'s> VmFunctionGenerator<'s> {
         match element.clone() {
             IrElement::Term(term) => match term {
                 IrTerm::Ident(v, size) => {
-                    if let Some(u) = self.locals.get(&v) {
+                    if let Some((u, typ)) = self.locals.get(&v) {
                         self.code
                             .push(QVMInstruction::AddrConst(*u, Variable::Local));
-                        self.code.push(QVMInstruction::Load(size));
+
+                        // load if not an addr variable
+                        if !IrElement::is_ir_type_addr(typ) {
+                            self.code.push(QVMInstruction::Load(size));
+                        }
                     } else if let Some(u) = self.globals.get(&v) {
                         self.code
                             .push(QVMInstruction::AddrConst(*u, Variable::Global));
@@ -196,7 +203,11 @@ impl<'s> VmFunctionGenerator<'s> {
                 }
                 IrTerm::Argument(u, size) => {
                     self.code.push(QVMInstruction::ArgConst(u));
-                    self.code.push(QVMInstruction::Load(size));
+
+                    // load if not an addr variable
+                    if !IrElement::is_ir_type_addr(&self.args[u]) {
+                        self.code.push(QVMInstruction::Load(size));
+                    }
                 }
                 IrTerm::Info(u) => {
                     self.code.push(QVMInstruction::InfoConst(u));
@@ -211,7 +222,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         let size = size.into_term()?.into_int()? as usize;
 
                         self.element(expr)?;
-                        self.push_local(var_name, size);
+                        self.push_local(var_name, size, typ);
                     }
                     "return" => {
                         self.new_source_map(element.show_compact());
@@ -393,11 +404,11 @@ impl VmGenerator {
     pub fn function(
         &mut self,
         body: Vec<IrElement>,
-        arg_len: usize,
+        args: Vec<IrElement>,
         labels: &mut HashMap<String, usize>,
         offset: usize,
     ) -> Result<(Vec<QVMInstruction>, HashMap<usize, String>)> {
-        let mut generator = VmFunctionGenerator::new(arg_len, &self.globals, labels, offset);
+        let mut generator = VmFunctionGenerator::new(args.len(), args, &self.globals, labels, offset);
 
         let mut skip = 2;
         for statement in body {
@@ -425,7 +436,7 @@ impl VmGenerator {
             Variable::Global,
         )];
 
-        let mut generator = VmFunctionGenerator::new(0, &self.globals, labels, offset);
+        let mut generator = VmFunctionGenerator::new(0, vec![], &self.globals, labels, offset);
         generator.element(expr)?;
         code.extend(generator.code);
         code.push(QVMInstruction::Store);
@@ -438,7 +449,7 @@ impl VmGenerator {
         labels: &mut HashMap<String, usize>,
         offset: usize,
     ) -> Result<Vec<QVMInstruction>> {
-        let mut generator = VmFunctionGenerator::new(0, &self.globals, labels, offset);
+        let mut generator = VmFunctionGenerator::new(0, vec![], &self.globals, labels, offset);
         generator.element(IrElement::block(
             "return",
             vec![
@@ -472,9 +483,12 @@ impl VmGenerator {
             let mut block = element.into_block()?;
             match block.name.as_str() {
                 "func" => {
+                    let type_block = block.elements[1].clone().into_block()?;
+                    assert_eq!(type_block.name, "args");
+
                     functions.push((
                         block.elements[0].clone().into_term()?.into_ident()?, // name
-                        block.elements[1].clone().into_term()?.into_int()?,   // arg length
+                        type_block.elements,                                  // arg types
                         block.elements,
                     ));
                 }
@@ -494,11 +508,11 @@ impl VmGenerator {
         labels.insert(self.entrypoint.to_string(), code.len());
         code.extend(self.call_main(&mut labels, code.len())?);
 
-        for (name, arg_len, function) in functions {
+        for (name, args, function) in functions {
             labels.insert(name, code.len());
 
             let (code_generated, source_map_generated) =
-                self.function(function, arg_len as usize, &mut labels, code.len())?;
+                self.function(function, args, &mut labels, code.len())?;
             code.extend(code_generated);
             source_map.extend(source_map_generated);
         }
