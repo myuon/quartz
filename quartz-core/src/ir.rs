@@ -123,6 +123,10 @@ impl IrElement {
 
     // = IR instructions
 
+    pub fn int(num: i32) -> IrElement {
+        IrElement::Term(IrTerm::Int(num))
+    }
+
     pub fn i_let(s: usize, ident: String, element: IrElement) -> IrElement {
         IrElement::block(
             "let",
@@ -136,6 +140,16 @@ impl IrElement {
 
     pub fn i_assign(lhs: IrElement, rhs: IrElement) -> IrElement {
         IrElement::block("assign", vec![lhs, rhs])
+    }
+
+    pub fn i_call(name: impl Into<String>, mut args: Vec<IrElement>) -> IrElement {
+        args.insert(0, IrElement::Term(IrTerm::Ident(name.into(), 1)));
+
+        IrElement::i_call_raw(args)
+    }
+
+    pub fn i_call_raw(args: Vec<IrElement>) -> IrElement {
+        IrElement::block("call", args)
     }
 }
 

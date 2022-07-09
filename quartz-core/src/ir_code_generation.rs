@@ -90,22 +90,18 @@ impl<'s> IrFunctionGenerator<'s> {
                     self.ir.push(IrElement::i_let(
                         size,
                         v.clone(),
-                        IrElement::instruction(
-                            "call",
-                            vec![IrTerm::Ident("_new".to_string(), 1), IrTerm::Int(n)],
-                        ),
+                        IrElement::i_call("_new", vec![IrElement::int(n)]),
                     ));
 
                     for (i, elem) in arr.into_iter().enumerate() {
                         let velem = self.expr(&elem)?;
 
                         self.ir.push(IrElement::i_assign(
-                            IrElement::instruction(
-                                "call",
+                            IrElement::i_call(
+                                "_padd",
                                 vec![
-                                    IrTerm::Ident("_padd".to_string(), 1),
-                                    IrTerm::Ident(v.clone(), size),
-                                    IrTerm::Int(i as i32),
+                                    IrElement::Term(IrTerm::Ident(v.clone(), size)),
+                                    IrElement::int(i as i32),
                                 ],
                             ),
                             velem,
@@ -129,7 +125,7 @@ impl<'s> IrFunctionGenerator<'s> {
                     elements.push(self.expr(&arg)?);
                 }
 
-                Ok(IrElement::block("call", elements))
+                Ok(IrElement::i_call_raw(elements))
             }
             Expr::Struct(struct_name, exprs) => {
                 // in: A { a: 1, b: 2 }
@@ -171,10 +167,9 @@ impl<'s> IrFunctionGenerator<'s> {
                     .get_projection_type(struct_name, label)?
                     .is_addr_type();
 
-                let block = IrElement::block(
-                    "call",
+                let block = IrElement::i_call(
+                    "_padd",
                     vec![
-                        IrElement::Term(IrTerm::Ident("_padd".to_string(), 1)),
                         self.expr(proj)?,
                         IrElement::Term(IrTerm::Int(index as i32)), // back to the first work of the struct
                     ],
@@ -183,31 +178,18 @@ impl<'s> IrFunctionGenerator<'s> {
                 Ok(
                     // deref if the block is addr
                     if is_addr {
-                        IrElement::block(
-                            "call",
-                            vec![
-                                IrElement::Term(IrTerm::Ident("_deref".to_string(), 1)),
-                                block,
-                            ],
-                        )
+                        IrElement::i_call("_deref", vec![block])
                     } else {
                         block
                     },
                 )
             }
-            Expr::Index(arr, i) => Ok(IrElement::block(
-                "call",
-                vec![
-                    IrElement::Term(IrTerm::Ident("_deref".to_string(), 1)),
-                    IrElement::block(
-                        "call",
-                        vec![
-                            IrElement::Term(IrTerm::Ident("_padd".to_string(), 1)),
-                            self.expr(arr.as_ref())?,
-                            self.expr(i.as_ref())?,
-                        ],
-                    ),
-                ],
+            Expr::Index(arr, i) => Ok(IrElement::i_call(
+                "_deref",
+                vec![IrElement::i_call(
+                    "_padd",
+                    vec![self.expr(arr.as_ref())?, self.expr(i.as_ref())?],
+                )],
             )),
         }
     }
@@ -282,14 +264,7 @@ impl<'s> IrFunctionGenerator<'s> {
                         let varr = self.expr(arr)?;
                         let vi = self.expr(i)?;
                         self.ir.push(IrElement::i_assign(
-                            IrElement::block(
-                                "call",
-                                vec![
-                                    IrElement::Term(IrTerm::Ident("_padd".to_string(), 1)),
-                                    varr,
-                                    vi,
-                                ],
-                            ),
+                            IrElement::i_call("_pdd", vec![varr, vi]),
                             v2,
                         ))
                     }
@@ -299,10 +274,9 @@ impl<'s> IrFunctionGenerator<'s> {
                         let v2 = self.expr(e2)?;
 
                         self.ir.push(IrElement::i_assign(
-                            IrElement::block(
-                                "call",
+                            IrElement::i_call(
+                                "_padd",
                                 vec![
-                                    IrElement::Term(IrTerm::Ident("_padd".to_string(), 1)),
                                     v,
                                     IrElement::Term(IrTerm::Int(index as i32)), // back to the first work of the struct
                                 ],
