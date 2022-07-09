@@ -207,18 +207,6 @@ impl Type {
         }
     }
 
-    pub fn size_of(&self) -> usize {
-        match self {
-            Type::Unit => 1,
-            Type::Bool => 1,
-            Type::Int => 1,
-            Type::Byte => 1,
-            Type::Array(_) => 1,
-            Type::Struct(_) => 1,
-            _ => todo!("{:?}", self),
-        }
-    }
-
     // Whether the representation is an adress or not
     pub fn is_addr_type(&self) -> bool {
         match self {
@@ -288,7 +276,7 @@ impl Structs {
         // pointer to info table + number of fields
         self.0
             .get(st)
-            .map(|fields| fields.iter().fold(0, |acc, (_, t)| acc + t.size_of()))
+            .map(|fields| fields.iter().map(|t| size_of(&t.1, &self)).sum())
             .unwrap_or(0)
             + 1
     }
@@ -318,11 +306,31 @@ impl Structs {
             self.0
                 .get(val)
                 .ok_or(anyhow::anyhow!("project: {} not found in {}", label, val))?;
-        let field_index = struct_fields
-            .iter()
-            .position(|(l, _)| l == label)
-            .ok_or(anyhow::anyhow!("project: {} not found in {}", label, val))?;
-        Ok(field_index + 1)
+
+        let mut index = 1; // pointer to info table
+        for (l, t) in struct_fields {
+            if l == label {
+                break;
+            }
+
+            index += size_of(t, &self);
+        }
+
+        Ok(index)
+    }
+}
+
+// size ON STACK
+pub fn size_of(typ: &Type, structs: &Structs) -> usize {
+    match typ {
+        Type::Unit => 1,
+        Type::Bool => 1,
+        Type::Int => 1,
+        Type::Byte => 1,
+        Type::Fn(_, _) => 1,
+        Type::Struct(st) => structs.size_of_struct(st),
+        Type::Array(_) => 1, // array itself must be allocated on heap
+        _ => unreachable!(),
     }
 }
 

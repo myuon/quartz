@@ -133,14 +133,14 @@ impl<'s> IrFunctionGenerator<'s> {
                 // out: (let (data POINTER_TO_INFO_TABLE 1 2))
                 let size = self.structs.size_of_struct(&struct_name);
 
-                let mut data = vec![IrElement::Term(IrTerm::Nil); size];
+                let mut data = vec![];
                 // FIXME: POINTER_TO_INFO_TABLE
-                data[0] = IrElement::Term(IrTerm::Int((size - 1) as i32));
+                data.push(IrElement::Term(IrTerm::Int((size - 1) as i32)));
 
-                for (label, expr) in exprs {
-                    let index = self.structs.get_projection_offset(struct_name, label)?;
+                // FIXME: field order
+                for (_label, expr) in exprs {
                     let v = self.expr(expr)?;
-                    data[index] = v;
+                    data.push(v);
                 }
 
                 Ok(IrElement::block("data", data))
