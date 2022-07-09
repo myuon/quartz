@@ -378,6 +378,13 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.code
                             .push(QVMInstruction::Load(size.into_term()?.into_int()? as usize));
                     }
+                    "load" => {
+                        self.new_source_map(element.show_compact());
+                        let (size, element) = unvec!(block.elements, 2);
+                        self.element(element.clone())?;
+                        self.code
+                            .push(QVMInstruction::Load(size.into_term()?.into_int()? as usize));
+                    }
                     "unload" => {
                         self.new_source_map(element.show_compact());
                         let element = unvec!(block.elements, 1);

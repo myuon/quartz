@@ -162,35 +162,18 @@ impl<'s> IrFunctionGenerator<'s> {
             }
             Expr::Project(_, struct_name, proj, label) => {
                 let index = self.structs.get_projection_offset(struct_name, label)?;
-                let is_value_struct = self
-                    .structs
-                    .get_projection_type(struct_name, label)?
-                    .is_struct();
-
-                // FIXME: really?
-                let is_proj_variable = match proj.data {
-                    Expr::Var(_, _) => true,
-                    _ => false,
-                };
+                let value_type = self.structs.get_projection_type(struct_name, label)?;
                 let value = self.expr(proj)?;
 
                 let block = IrElement::i_call(
                     "_padd",
                     vec![
-                        if is_proj_variable {
-                            IrElement::i_unload(value)
-                        } else {
-                            value
-                        },
+                        IrElement::i_unload(value),
                         IrElement::Term(IrTerm::Int(index as i32)), // back to the first work of the struct
                     ],
                 );
 
-                Ok(if is_value_struct {
-                    block
-                } else {
-                    IrElement::i_call("_deref", vec![block])
-                })
+                Ok(IrElement::i_load(size_of(&value_type, self.structs), block))
             }
             Expr::Index(arr, i) => Ok(IrElement::i_call(
                 "_deref",
@@ -279,11 +262,6 @@ impl<'s> IrFunctionGenerator<'s> {
                     }
                     Expr::Project(false, struct_name, proj, label) => {
                         let index = self.structs.get_projection_offset(struct_name, label)?;
-                        // FIXME: really?
-                        let is_proj_variable = match proj.data {
-                            Expr::Var(_, _) => true,
-                            _ => false,
-                        };
                         let v = self.expr(proj)?;
                         let v2 = self.expr(e2)?;
 
@@ -291,11 +269,7 @@ impl<'s> IrFunctionGenerator<'s> {
                             IrElement::i_call(
                                 "_padd",
                                 vec![
-                                    if is_proj_variable {
-                                        IrElement::i_unload(v)
-                                    } else {
-                                        v
-                                    },
+                                    IrElement::i_unload(v),
                                     IrElement::Term(IrTerm::Int(index as i32)), // back to the first work of the struct
                                 ],
                             ),
@@ -561,8 +535,8 @@ func main() {
     (func $Point_sum (args (struct 3))
         (return 1 (call
             $_add
-            (call $_deref (call $_padd (unload $0(3)) 1))
-            (call $_deref (call $_padd (unload $0(3)) 2))
+            (load 1 (call $_padd (unload $0(3)) 1))
+            (load 1 (call $_padd (unload $0(3)) 2))
         ))
     )
     (func $main (args)

@@ -535,8 +535,7 @@ impl Runtime {
                     self.push(Value::nil());
                 }
                 "_println" => {
-                    let value = self.pop().as_addr().unwrap();
-                    let addr = self.heap.data[value].clone().as_addr().unwrap();
+                    let addr = self.pop().as_heap_addr().unwrap();
                     let header = self.heap.parse_from_data_pointer(addr)?;
 
                     let mut bytes = vec![];
@@ -960,9 +959,9 @@ struct Nested {
     m: int,
 }
 
-func f(n: Nested): int {
-    n.child.n = n.child.n + 1;
-    return n.child.n + n.m;
+func f(self: Nested): int {
+    self.child.n = self.child.n + 1;
+    return self.child.n + self.m;
 }
 
 func main(): int {
@@ -994,6 +993,63 @@ func main(): int {
     let child = make(10);
 
     return child.n;
+}
+"#,
+            10,
+        ),
+        (
+            r#"
+struct Child {
+    n: int,
+}
+
+func id(n: int): int {
+    return n;
+}
+
+struct Nested {
+    child: Child,
+    m: int,
+}
+
+
+func main(): int {
+    let nested = Nested {
+        child: Child {
+            n: 10,
+        },
+        m: 20,
+    };
+
+    return id(nested.child.n);
+}
+"#,
+            10,
+        ),
+        (
+            r#"
+struct Child {
+    n: int,
+}
+
+func (c: Child) getN(): int {
+    return c.n;
+}
+
+struct Nested {
+    child: Child,
+    m: int,
+}
+
+func main(): int {
+    let nested = Nested {
+        child: Child {
+            n: 10,
+        },
+        m: 20,
+    };
+
+    return nested.child.getN();
 }
 "#,
             10,
