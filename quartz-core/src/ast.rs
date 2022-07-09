@@ -218,6 +218,16 @@ impl Type {
             _ => todo!("{:?}", self),
         }
     }
+
+    // Whether the representation is an adress or not
+    pub fn is_addr_type(&self) -> bool {
+        match self {
+            Type::Ref(_) => true,
+            Type::Struct(_) => true,
+            Type::Array(_) => true,
+            _ => false,
+        }
+    }
 }
 
 #[derive(PartialEq, Debug, Clone)]

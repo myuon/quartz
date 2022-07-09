@@ -168,21 +168,34 @@ impl<'s> IrFunctionGenerator<'s> {
             }
             Expr::Project(_, struct_name, proj, label) => {
                 let index = self.structs.get_projection_offset(struct_name, label)?;
+                let is_addr = self
+                    .structs
+                    .get_projection_type(struct_name, label)?
+                    .is_addr_type();
 
-                Ok(IrElement::block(
+                let block = IrElement::block(
                     "call",
                     vec![
-                        IrElement::Term(IrTerm::Ident("_deref".to_string(), 1)),
+                        IrElement::Term(IrTerm::Ident("_padd".to_string(), 1)),
+                        self.expr(proj)?,
+                        IrElement::Term(IrTerm::Int(index as i32)), // back to the first work of the struct
+                    ],
+                );
+
+                Ok(
+                    // deref if the block is addr
+                    if is_addr {
                         IrElement::block(
                             "call",
                             vec![
-                                IrElement::Term(IrTerm::Ident("_padd".to_string(), 1)),
-                                IrElement::block("ref", vec![self.expr(proj)?]),
-                                IrElement::Term(IrTerm::Int(index as i32)), // back to the first work of the struct
+                                IrElement::Term(IrTerm::Ident("_deref".to_string(), 1)),
+                                block,
                             ],
-                        ),
-                    ],
-                ))
+                        )
+                    } else {
+                        block
+                    },
+                )
             }
             Expr::Index(arr, i) => Ok(IrElement::block(
                 "call",
