@@ -357,24 +357,6 @@ impl<'s> VmFunctionGenerator<'s> {
                             }
                         }
                     }
-                    "vector" => {
-                        self.new_source_map(element.show_compact());
-                        let (size, element) = unvec!(block.elements, 2);
-                        let size = size.into_term()?.into_int()? as usize;
-
-                        for i in 0..size {
-                            self.element(
-                                IrElement::i_call(
-                                    "_padd",
-                                    vec![element.clone(), IrElement::Term(IrTerm::Int(i as i32))],
-                                ),
-                                false,
-                            )?;
-                            if load {
-                                self.code.push(QVMInstruction::Load(size));
-                            }
-                        }
-                    }
                     name => todo!("{:?}", name),
                 };
             }
