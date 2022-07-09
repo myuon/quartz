@@ -2,6 +2,8 @@ use anyhow::{bail, Result};
 use once_cell::sync::Lazy;
 use regex::Regex;
 
+use crate::ast::Type;
+
 #[derive(PartialEq, Debug, Clone)]
 pub enum IrTerm {
     Nil,
@@ -121,16 +123,32 @@ impl IrElement {
         self.show_recur(0, true)
     }
 
+    // = Types
+
+    pub fn ir_type(typ: &Type) -> IrElement {
+        match typ {
+            Type::Bool => IrElement::instruction("bool", vec![]),
+            Type::Int => IrElement::instruction("int", vec![]),
+            Type::Byte => IrElement::instruction("addr", vec![]),
+            Type::Unit => IrElement::instruction("addr", vec![]),
+            Type::Fn(_, _) => IrElement::instruction("addr", vec![]),
+            Type::Struct(_) => IrElement::instruction("addr", vec![]),
+            Type::Array(_) => IrElement::instruction("addr", vec![]),
+            _ => unreachable!(),
+        }
+    }
+
     // = IR instructions
 
     pub fn int(num: i32) -> IrElement {
         IrElement::Term(IrTerm::Int(num))
     }
 
-    pub fn i_let(s: usize, ident: String, element: IrElement) -> IrElement {
+    pub fn i_let(typ: IrElement, s: usize, ident: String, element: IrElement) -> IrElement {
         IrElement::block(
             "let",
             vec![
+                typ,
                 IrElement::Term(IrTerm::Int(s as i32)),
                 IrElement::Term(IrTerm::Ident(ident, s)),
                 element,

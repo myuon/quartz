@@ -88,6 +88,7 @@ impl<'s> IrFunctionGenerator<'s> {
                     //      (assign (padd $v 1) 2)
                     //      $v
                     self.ir.push(IrElement::i_let(
+                        IrElement::ir_type(t),
                         size,
                         v.clone(),
                         IrElement::i_call("_new", vec![IrElement::int(n)]),
@@ -145,6 +146,7 @@ impl<'s> IrFunctionGenerator<'s> {
                 }
 
                 self.ir.push(IrElement::i_let(
+                    IrElement::ir_type(&Type::Struct(struct_name.clone())),
                     size,
                     var.clone(),
                     IrElement::block("data", data),
@@ -196,9 +198,10 @@ impl<'s> IrFunctionGenerator<'s> {
 
     fn statement(&mut self, statement: &Statement) -> Result<()> {
         match statement {
-            Statement::Let(x, e, _) => {
+            Statement::Let(x, e, t) => {
                 let v = self.expr(e)?;
                 self.ir.push(IrElement::i_let(
+                    IrElement::ir_type(t),
                     1, // IS THIS TRUE? (for now?)
                     x.to_string(),
                     v,
@@ -480,7 +483,7 @@ func main() {
                 r#"
 (module
     (func $main 0
-        (let 1 $x 10)
+        (let (int) 1 $x 10)
         (assign $x 20)
         (return 1 $x)
     )
@@ -503,11 +506,11 @@ func main() {
                 r#"
 (module
     (func $f 1
-        (let 1 $fresh_1 (call $_new 3))
+        (let (int) 1 $fresh_1 (call $_new 3))
         (assign (call $_padd $fresh_1 0) 1)
         (assign (call $_padd $fresh_1 1) 2)
         (assign (call $_padd $fresh_1 2) 3)
-        (let 1 $x $fresh_1)
+        (let (addr) 1 $x $fresh_1)
 
         (assign (call $_padd $x 2) 4)
 
@@ -553,8 +556,8 @@ func main() {
         ))
     )
     (func $main 0
-        (let 3 $fresh_1(3) (data 2 10 20))
-        (let 1 $p $fresh_1(3))
+        (let (addr) 3 $fresh_1(3) (data 2 10 20))
+        (let (addr) 1 $p $fresh_1(3))
 
         (return 1 (call $Point_sum(3) $p(3)))
     )

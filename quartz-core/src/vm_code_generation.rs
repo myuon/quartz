@@ -31,6 +31,15 @@ macro_rules! unvec {
 
         (v1, v2, v3)
     }};
+    ($e:expr, 4) => {{
+        assert_eq!($e.len(), 4);
+        let v4 = $e.pop().unwrap();
+        let v3 = $e.pop().unwrap();
+        let v2 = $e.pop().unwrap();
+        let v1 = $e.pop().unwrap();
+
+        (v1, v2, v3, v4)
+    }};
 }
 
 #[derive(Debug)]
@@ -197,7 +206,7 @@ impl<'s> VmFunctionGenerator<'s> {
                 match block.name.as_str() {
                     "let" => {
                         self.new_source_map(element.show_compact());
-                        let (size, name, expr) = unvec!(block.elements, 3);
+                        let (typ, size, name, expr) = unvec!(block.elements, 4);
                         let var_name = name.into_term()?.into_ident()?;
                         let size = size.into_term()?.into_int()? as usize;
 
