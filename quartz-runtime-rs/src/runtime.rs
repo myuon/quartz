@@ -420,6 +420,7 @@ impl Runtime {
                 }
             }
             QVMInstruction::Store => {
+                let value = self.pop();
                 let addr_value = self.pop();
                 assert_matches!(
                     addr_value.clone().as_addr(),
@@ -432,14 +433,12 @@ impl Runtime {
                 match addr_value {
                     Value::Addr(r, space, _) => match space {
                         AddrPlace::Stack => {
-                            self.stack[r] = self.pop();
+                            self.stack[r] = value;
                         }
                         AddrPlace::Heap => {
-                            let value = self.pop();
                             self.heap.data[r] = value;
                         }
                         AddrPlace::Static => {
-                            let value = self.pop();
                             self.globals[r] = value.as_int().unwrap();
                         }
                         _ => unreachable!(),

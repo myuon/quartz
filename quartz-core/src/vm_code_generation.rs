@@ -84,6 +84,51 @@ impl<'s> VmFunctionGenerator<'s> {
             .insert(self.offset + self.code.len(), s.into());
     }
 
+    // compile to an address (lvar)
+    fn element_addr(&mut self, element: IrElement) -> Result<()> {
+        match element.clone() {
+            IrElement::Term(term) => match term {
+                IrTerm::Ident(v, _) => {
+                    if let Some(u) = self.locals.get(&v) {
+                        self.code
+                            .push(QVMInstruction::AddrConst(*u, Variable::Local));
+                    } else if let Some(u) = self.globals.get(&v) {
+                        self.code
+                            .push(QVMInstruction::AddrConst(*u, Variable::Global));
+                    } else {
+                        unreachable!("{}", element.show());
+                    }
+                }
+                _ => unreachable!("{}", element.show()),
+            },
+            IrElement::Block(block) => match block.name.as_str() {
+                "call" => {
+                    self.new_source_map(element.show_compact());
+                    let mut callee = None;
+                    let mut first = true;
+                    for elem in block.elements {
+                        if first {
+                            first = false;
+                            callee = Some(elem);
+                            continue;
+                        }
+
+                        self.element(elem, true)?;
+                    }
+                    self.element(callee.unwrap(), true)?;
+
+                    // If the last instruction is not LabelAddrConst, it will be a builtin operation and no need to run CALL operation
+                    if matches!(self.code.last().unwrap(), QVMInstruction::LabelI32Const(_)) {
+                        self.code.push(QVMInstruction::Call);
+                    }
+                }
+                _ => unreachable!("{}", element.show()),
+            },
+        }
+
+        Ok(())
+    }
+
     // set load to be false for the left value
     fn element(&mut self, element: IrElement, load: bool) -> Result<()> {
         match element.clone() {
@@ -195,9 +240,9 @@ impl<'s> VmFunctionGenerator<'s> {
                     }
                     "assign" => {
                         self.new_source_map(element.show_compact());
-                        let (left, right) = unvec!(block.elements, 2);
-                        self.element(right, true)?;
-                        self.element(left, false)?;
+                        let (lhs, rhs) = unvec!(block.elements, 2);
+                        self.element_addr(lhs)?;
+                        self.element(rhs, true)?;
                         self.code.push(QVMInstruction::Store);
                     }
                     "if" => {
@@ -396,15 +441,15 @@ impl VmGenerator {
         offset: usize,
         labels: &mut HashMap<String, usize>,
     ) -> Result<Vec<QVMInstruction>> {
-        let mut generator = VmFunctionGenerator::new(0, &self.globals, labels, offset);
-        generator.element(expr, true)?;
-        let mut code = generator.code;
-
         self.push_global(name.clone());
-        code.push(QVMInstruction::AddrConst(
+        let mut code = vec![QVMInstruction::AddrConst(
             self.globals[&name],
             Variable::Global,
-        ));
+        )];
+
+        let mut generator = VmFunctionGenerator::new(0, &self.globals, labels, offset);
+        generator.element(expr, true)?;
+        code.extend(generator.code);
         code.push(QVMInstruction::Store);
 
         Ok(code)
