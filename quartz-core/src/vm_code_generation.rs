@@ -46,7 +46,6 @@ macro_rules! unvec {
 struct VmFunctionGenerator<'s> {
     code: Vec<QVMInstruction>,
     args: Vec<IrElement>,
-    arg_len: usize, // deprecated
     local_pointer: usize,
     locals: HashMap<String, (usize, IrElement)>,
     globals: &'s HashMap<String, usize>,
@@ -60,7 +59,6 @@ struct VmFunctionGenerator<'s> {
 
 impl<'s> VmFunctionGenerator<'s> {
     pub fn new(
-        arg_len: usize,
         args: Vec<IrElement>,
         globals: &'s HashMap<String, usize>,
         labels: &'s mut HashMap<String, usize>,
@@ -69,7 +67,6 @@ impl<'s> VmFunctionGenerator<'s> {
         VmFunctionGenerator {
             code: Vec::new(),
             args,
-            arg_len,
             local_pointer: 0,
             locals: HashMap::new(),
             globals,
@@ -229,7 +226,8 @@ impl<'s> VmFunctionGenerator<'s> {
                         let (size, expr) = unvec!(block.elements, 2);
                         let size = size.into_term()?.into_int()? as usize;
                         self.element(expr)?;
-                        self.code.push(QVMInstruction::Return(self.arg_len, size));
+                        self.code
+                            .push(QVMInstruction::Return(self.args.len(), size));
                     }
                     "call" => {
                         self.new_source_map(element.show_compact());
@@ -408,7 +406,7 @@ impl VmGenerator {
         labels: &mut HashMap<String, usize>,
         offset: usize,
     ) -> Result<(Vec<QVMInstruction>, HashMap<usize, String>)> {
-        let mut generator = VmFunctionGenerator::new(args.len(), args, &self.globals, labels, offset);
+        let mut generator = VmFunctionGenerator::new(args, &self.globals, labels, offset);
 
         let mut skip = 2;
         for statement in body {
@@ -436,7 +434,7 @@ impl VmGenerator {
             Variable::Global,
         )];
 
-        let mut generator = VmFunctionGenerator::new(0, vec![], &self.globals, labels, offset);
+        let mut generator = VmFunctionGenerator::new(vec![], &self.globals, labels, offset);
         generator.element(expr)?;
         code.extend(generator.code);
         code.push(QVMInstruction::Store);
@@ -449,7 +447,7 @@ impl VmGenerator {
         labels: &mut HashMap<String, usize>,
         offset: usize,
     ) -> Result<Vec<QVMInstruction>> {
-        let mut generator = VmFunctionGenerator::new(0, vec![], &self.globals, labels, offset);
+        let mut generator = VmFunctionGenerator::new(vec![], &self.globals, labels, offset);
         generator.element(IrElement::block(
             "return",
             vec![
