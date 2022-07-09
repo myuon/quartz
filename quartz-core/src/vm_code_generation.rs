@@ -200,7 +200,9 @@ impl<'s> VmFunctionGenerator<'s> {
                 }
                 IrTerm::Argument(u, size) => {
                     self.code.push(QVMInstruction::ArgConst(u));
-                    self.code.push(QVMInstruction::Load(size));
+                    if !IrElement::is_ir_type_addr(&self.args[u]) {
+                        self.code.push(QVMInstruction::Load(size));
+                    }
                 }
                 IrTerm::Info(u) => {
                     self.code.push(QVMInstruction::InfoConst(u));

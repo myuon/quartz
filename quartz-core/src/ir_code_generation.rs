@@ -50,11 +50,17 @@ impl<'s> IrFunctionGenerator<'s> {
 
     pub fn expr(&mut self, expr: &Source<Expr>) -> Result<IrElement> {
         match &expr.data {
-            Expr::Var(v, _) => {
+            Expr::Var(v, typ) => {
                 if self.args.contains_key(v) {
-                    Ok(IrElement::Term(IrTerm::Argument(self.args[v], 1)))
+                    Ok(IrElement::Term(IrTerm::Argument(
+                        self.args[v],
+                        size_of(typ, self.structs),
+                    )))
                 } else {
-                    Ok(IrElement::Term(IrTerm::Ident(v.clone(), 1)))
+                    Ok(IrElement::Term(IrTerm::Ident(
+                        v.clone(),
+                        size_of(typ, self.structs),
+                    )))
                 }
             }
             Expr::Lit(literal) => match literal {
@@ -541,13 +547,13 @@ func main() {
     (func $Point_sum (args $addr)
         (return 1 (call
             $_add
-            (call $_deref (call $_padd $0 1))
-            (call $_deref (call $_padd $0 2))
+            (call $_deref (call $_padd $0(3) 1))
+            (call $_deref (call $_padd $0(3) 2))
         ))
     )
     (func $main (args)
         (let $addr 3 $p(1) (data 3 10 20))
-        (return 1 (call $Point_sum $p))
+        (return 1 (call $Point_sum $p(3)))
     )
 )
 "#,

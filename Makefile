@@ -21,9 +21,13 @@ profile:
 	@echo "quartz run --profile"
 	cargo run -- run --profile < ./compiler.qz
 
+start_debug:
+	@echo "quartz start_debug"
+	cargo run -- debug start < ./compiler.qz
+
 debug:
 	@echo "quartz debug_run"
-	cargo run -- debug start < ./compiler.qz
+	cargo run -- debug run < ./compiler.qz
 
 debugger:
 	@echo "quartz debugger"

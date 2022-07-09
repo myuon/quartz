@@ -83,7 +83,8 @@ struct Lexer {
 }
 
 func (l: Lexer) run() {
-        _start_debugger;
+    _start_debugger;
+    _println("foo");
     while (l.position < l.input.len()) {
         let current = l.input.slice_after(l.position);
 
