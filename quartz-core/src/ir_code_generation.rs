@@ -264,7 +264,7 @@ impl<'s> IrFunctionGenerator<'s> {
                         let varr = self.expr(arr)?;
                         let vi = self.expr(i)?;
                         self.ir.push(IrElement::i_assign(
-                            IrElement::i_call("_pdd", vec![varr, vi]),
+                            IrElement::i_call("_padd", vec![varr, vi]),
                             v2,
                         ))
                     }

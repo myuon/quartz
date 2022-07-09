@@ -319,13 +319,9 @@ impl<'s> VmFunctionGenerator<'s> {
 
                         for i in 0..size {
                             self.element(
-                                IrElement::block(
-                                    "call",
-                                    vec![
-                                        IrElement::Term(IrTerm::Ident("_padd".to_string(), 1)),
-                                        element.clone(),
-                                        IrElement::Term(IrTerm::Int(i as i32)),
-                                    ],
+                                IrElement::i_call(
+                                    "_padd",
+                                    vec![element.clone(), IrElement::Term(IrTerm::Int(i as i32))],
                                 ),
                                 false,
                             )?;
