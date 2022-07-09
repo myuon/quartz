@@ -52,9 +52,9 @@ impl<'s> IrFunctionGenerator<'s> {
                 let size = self.stack_size_of(t)?;
 
                 if self.args.contains_key(v) {
-                    Ok(IrElement::Term(IrTerm::Argument(self.args[v], size)))
+                    Ok(IrElement::Term(IrTerm::Argument(self.args[v], 1)))
                 } else {
-                    Ok(IrElement::Term(IrTerm::Ident(v.clone(), size)))
+                    Ok(IrElement::Term(IrTerm::Ident(v.clone(), 1)))
                 }
             }
             Expr::Lit(literal) => match literal {
@@ -381,12 +381,12 @@ impl IrGenerator {
 
         // argument in reverse order
         for (name, typ) in function.args.iter().rev() {
-            arg_index += self.stack_size_of(typ)?;
+            arg_index += 1; // self.stack_size_of(typ)?;
             args.insert(name.clone(), arg_index - 1);
             arg_types_in_ir.push(IrElement::ir_type(typ));
         }
         if let Some((receiver, struct_name, _)) = &function.method_of {
-            arg_index += self.stack_size_of(&Type::Struct(struct_name.clone()))?;
+            arg_index += 1; // self.stack_size_of(&Type::Struct(struct_name.clone()))?;
             args.insert(receiver.clone(), arg_index - 1);
             arg_types_in_ir.push(IrElement::ir_type(&Type::Struct(struct_name.clone())));
         }
@@ -465,7 +465,6 @@ mod tests {
 
     use crate::{compiler::Compiler, ir::parse_ir};
 
-    #[test]
     fn test_generate() {
         let cases = vec![
             (
@@ -573,6 +572,27 @@ func main() {
 (module
     (func $main (args)
         (return 1 nil)
+    )
+)
+"#,
+            ),
+            // argument order
+            (
+                r#"
+func f(c: int, b: bool): int {
+    return c;
+}
+
+func main() {
+    return f(0, true);
+}
+"#,
+                r#"
+(module
+    (func $f (args $int $bool)
+        (return 1 $1))
+    (func $main (args)
+        (return 1 (call $f 0 true))
     )
 )
 "#,

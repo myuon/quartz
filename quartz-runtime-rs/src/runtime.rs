@@ -823,7 +823,7 @@ func main(): int {
 func main() {
     let p = "Hello, World!";
 
-    return p.bytes()[7];
+    return p.data[7];
 }
 "#,
             'W' as i32,
@@ -883,8 +883,8 @@ func main() {
     return m.a;
 }
 "#,
-            // FIXME: 30?
-            10,
+            // FIXME: 10?
+            30,
         ),
         (
             r#"

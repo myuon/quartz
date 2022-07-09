@@ -81,8 +81,20 @@ impl IrElement {
                 IrTerm::Nil => "nil".to_string(),
                 IrTerm::Bool(b) => format!("{}", b),
                 IrTerm::Int(n) => format!("{}", n),
-                IrTerm::Ident(i, _) => format!("${}", i),
-                IrTerm::Argument(a, _) => format!("${}", a),
+                IrTerm::Ident(i, t) => {
+                    if *t > 1 {
+                        format!("${}({})", i, t)
+                    } else {
+                        format!("${}", i)
+                    }
+                }
+                IrTerm::Argument(a, t) => {
+                    if *t > 1 {
+                        format!("${}({})", a, t)
+                    } else {
+                        format!("{}", a)
+                    }
+                }
                 IrTerm::Info(i) => format!("{}", i),
             },
             IrElement::Block(b) => {
