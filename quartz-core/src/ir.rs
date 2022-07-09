@@ -120,6 +120,18 @@ impl IrElement {
     pub fn show_compact(&self) -> String {
         self.show_recur(0, true)
     }
+
+    // = IR instructions
+    pub fn i_let(s: usize, ident: String, element: IrElement) -> IrElement {
+        IrElement::block(
+            "let",
+            vec![
+                IrElement::Term(IrTerm::Int(s as i32)),
+                IrElement::Term(IrTerm::Ident(ident, s)),
+                element,
+            ],
+        )
+    }
 }
 
 static SPACE_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"^\s+").unwrap());

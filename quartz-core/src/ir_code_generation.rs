@@ -40,13 +40,10 @@ impl<'s> IrFunctionGenerator<'s> {
         })
     }
 
-    pub fn var_fresh(&mut self, size: usize) -> Result<IrTerm> {
+    pub fn var_fresh(&mut self) -> String {
         self.fresh_var_index += 1;
 
-        Ok(IrTerm::Ident(
-            format!("fresh_{}", self.fresh_var_index),
-            size,
-        ))
+        format!("fresh_{}", self.fresh_var_index)
     }
 
     pub fn expr(&mut self, expr: &Source<Expr>) -> Result<IrElement> {
@@ -78,7 +75,10 @@ impl<'s> IrFunctionGenerator<'s> {
                     )],
                 ))),
                 Literal::Array(arr, t) => {
-                    let v = self.var_fresh(self.stack_size_of(t)?)?;
+                    let size = self
+                        .stack_size_of(&Type::Array(Box::new(t.clone())))
+                        .context(format!("{:?}", expr))?;
+                    let v = self.var_fresh();
                     let n = arr.len() as i32;
 
                     // in: [1,2]
@@ -87,20 +87,13 @@ impl<'s> IrFunctionGenerator<'s> {
                     //      (assign (padd $v 0) 1)
                     //      (assign (padd $v 1) 2)
                     //      $v
-                    self.ir.push(IrElement::block(
-                        "let",
-                        vec![
-                            IrElement::Term(IrTerm::Int(
-                                self.stack_size_of(&Type::Array(Box::new(t.clone())))
-                                    .context(format!("{:?}", expr))?
-                                    as i32,
-                            )),
-                            IrElement::Term(v.clone()),
-                            IrElement::instruction(
-                                "call",
-                                vec![IrTerm::Ident("_new".to_string(), 1), IrTerm::Int(n)],
-                            ),
-                        ],
+                    self.ir.push(IrElement::i_let(
+                        size,
+                        v.clone(),
+                        IrElement::instruction(
+                            "call",
+                            vec![IrTerm::Ident("_new".to_string(), 1), IrTerm::Int(n)],
+                        ),
                     ));
 
                     for (i, elem) in arr.into_iter().enumerate() {
@@ -113,7 +106,7 @@ impl<'s> IrFunctionGenerator<'s> {
                                     "call",
                                     vec![
                                         IrTerm::Ident("_padd".to_string(), 1),
-                                        v.clone(),
+                                        IrTerm::Ident(v.clone(), size),
                                         IrTerm::Int(i as i32),
                                     ],
                                 ),
@@ -122,7 +115,7 @@ impl<'s> IrFunctionGenerator<'s> {
                         ))
                     }
 
-                    Ok(IrElement::Term(v))
+                    Ok(IrElement::Term(IrTerm::Ident(v, size)))
                 }
             },
             Expr::Call(f, args) => {
@@ -146,7 +139,7 @@ impl<'s> IrFunctionGenerator<'s> {
                 // out: (let $fresh (data POINTER_TO_INFO_TABLE 1 2))
                 //      $fresh
                 let size = self.structs.size_of_struct(&struct_name);
-                let var = self.var_fresh(size)?;
+                let var = self.var_fresh();
 
                 let mut data = vec![IrElement::Term(IrTerm::Nil); size];
                 // FIXME: POINTER_TO_INFO_TABLE
@@ -158,16 +151,13 @@ impl<'s> IrFunctionGenerator<'s> {
                     data[index] = v;
                 }
 
-                self.ir.push(IrElement::block(
-                    "let",
-                    vec![
-                        IrElement::Term(IrTerm::Int(size as i32)),
-                        IrElement::Term(var.clone()),
-                        IrElement::block("data", data),
-                    ],
+                self.ir.push(IrElement::i_let(
+                    size,
+                    var.clone(),
+                    IrElement::block("data", data),
                 ));
 
-                Ok(IrElement::Term(var))
+                Ok(IrElement::Term(IrTerm::Ident(var, size)))
             }
             Expr::Project(method, struct_name, proj, label) if *method => {
                 self.self_object = Some(self.expr(proj)?);
@@ -229,13 +219,10 @@ impl<'s> IrFunctionGenerator<'s> {
         match statement {
             Statement::Let(x, e, _) => {
                 let v = self.expr(e)?;
-                self.ir.push(IrElement::block(
-                    "let",
-                    vec![
-                        IrElement::Term(IrTerm::Int(1)), // IS THIS TRUE? (for now?)
-                        IrElement::Term(IrTerm::Ident(x.to_string(), 1)),
-                        v,
-                    ],
+                self.ir.push(IrElement::i_let(
+                    1, // IS THIS TRUE? (for now?)
+                    x.to_string(),
+                    v,
                 ));
             }
             Statement::Expr(e, t) => {
