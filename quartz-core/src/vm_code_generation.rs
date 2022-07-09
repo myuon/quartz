@@ -358,6 +358,15 @@ impl<'s> VmFunctionGenerator<'s> {
                             }
                         }
                     }
+                    // FIXME: integrate with _copy and load and _deref?
+                    "copy" => {
+                        self.new_source_map(element.show_compact());
+                        let (size, elem) = unvec!(block.elements, 2);
+
+                        self.element(elem)?;
+                        self.code
+                            .push(QVMInstruction::Load(size.into_term()?.into_int()? as usize));
+                    }
                     name => todo!("{:?}", name),
                 };
             }

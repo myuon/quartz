@@ -139,9 +139,15 @@ impl<'s> IrFunctionGenerator<'s> {
                 ) as i32)));
 
                 // FIXME: field order
-                for (_label, expr) in exprs {
+                for (label, expr) in exprs {
+                    let typ = self.structs.get_projection_type(struct_name, label)?;
+                    let size = size_of(&typ, &self.structs);
+
                     let v = self.expr(expr)?;
-                    data.push(v);
+                    data.push(match typ {
+                        Type::Struct(_) => IrElement::i_copy(size, v),
+                        _ => v,
+                    });
                 }
 
                 Ok(IrElement::block("data", data))
@@ -170,7 +176,7 @@ impl<'s> IrFunctionGenerator<'s> {
                 );
 
                 Ok(
-                    // deref if the block is addr
+                    // deref if the block is not an addr
                     if !is_addr {
                         IrElement::i_call("_deref", vec![block])
                     } else {

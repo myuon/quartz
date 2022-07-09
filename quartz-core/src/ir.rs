@@ -192,6 +192,10 @@ impl IrElement {
         IrElement::block("assign", vec![lhs, rhs])
     }
 
+    pub fn i_copy(size: usize, source: IrElement) -> IrElement {
+        IrElement::block("copy", vec![IrElement::int(size as i32), source])
+    }
+
     pub fn i_call(name: impl Into<String>, mut args: Vec<IrElement>) -> IrElement {
         args.insert(0, IrElement::Term(IrTerm::Ident(name.into(), 1)));
 
