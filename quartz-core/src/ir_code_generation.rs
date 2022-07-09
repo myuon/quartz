@@ -227,12 +227,12 @@ impl<'s> IrFunctionGenerator<'s> {
 
     fn statement(&mut self, statement: &Statement) -> Result<()> {
         match statement {
-            Statement::Let(x, e, t) => {
+            Statement::Let(x, e, _) => {
                 let v = self.expr(e)?;
                 self.ir.push(IrElement::block(
                     "let",
                     vec![
-                        IrElement::Term(IrTerm::Int(self.stack_size_of(t)? as i32)),
+                        IrElement::Term(IrTerm::Int(1)), // IS THIS TRUE? (for now?)
                         IrElement::Term(IrTerm::Ident(x.to_string(), 1)),
                         v,
                     ],
@@ -596,12 +596,13 @@ func main() {
     (func $Point_sum 3
         (return 1 (call
             $_add
-            (call $_deref (call $_padd (ref $2(3)) 1))
-            (call $_deref (call $_padd (ref $2(3)) 2))
+            (call $_padd $2(3) 1)
+            (call $_padd $2(3) 2)
         ))
     )
     (func $main 0
-        (let 3 $p (data 2 10 20))
+        (let 3 $fresh_1(3) (data 2 10 20))
+        (let 1 $p $fresh_1(3))
 
         (return 1 (call $Point_sum(3) $p(3)))
     )
