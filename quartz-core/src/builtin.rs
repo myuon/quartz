@@ -17,10 +17,6 @@ pub fn builtin() -> HashMap<String, Type> {
             Type::Fn(vec![Type::Int, Type::Int], Box::new(Type::Int)),
         ),
         (
-            "_mult",
-            Type::Fn(vec![Type::Int, Type::Int], Box::new(Type::Int)),
-        ),
-        (
             "_div",
             Type::Fn(vec![Type::Int, Type::Int], Box::new(Type::Int)),
         ),

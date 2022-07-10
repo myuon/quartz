@@ -194,7 +194,6 @@ impl<'s> VmFunctionGenerator<'s> {
                             "_len" => QVMInstruction::RuntimeInstr("_len".to_string()),
                             "_deref" => QVMInstruction::Load(size),
                             "_println" => QVMInstruction::RuntimeInstr("_println".to_string()),
-                            "_stringify" => QVMInstruction::RuntimeInstr("_stringify".to_string()),
                             "_copy" => QVMInstruction::RuntimeInstr("_copy".to_string()),
                             "_debug" => QVMInstruction::RuntimeInstr("_debug".to_string()),
                             "_int_to_byte" => QVMInstruction::Nop,
