@@ -23,7 +23,7 @@ impl LinkObjectHeader {
     }
 
     pub fn is_collectable(&self) -> bool {
-        self.len > 0
+        self.pointer != 0 && self.next != 0
     }
 
     pub fn get_end_pointer(&self) -> usize {

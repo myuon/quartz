@@ -267,10 +267,11 @@ impl<'s> VmFunctionGenerator<'s> {
                     }
                     "assign" => {
                         self.new_source_map(element.show_compact());
-                        let (lhs, rhs) = unvec!(block.elements, 2);
+                        let (size, lhs, rhs) = unvec!(block.elements, 3);
                         self.element_addr(lhs)?;
                         self.element(rhs)?;
-                        self.code.push(QVMInstruction::Store);
+                        self.code
+                            .push(QVMInstruction::Store(size.into_term()?.into_int()? as usize));
                     }
                     "if" => {
                         self.new_source_map(IrElement::block("if", vec![]).show_compact());
@@ -468,6 +469,7 @@ impl VmGenerator {
     pub fn variable(
         &mut self,
         name: String,
+        size: usize,
         expr: IrElement,
         offset: usize,
         labels: &mut HashMap<String, usize>,
@@ -481,7 +483,7 @@ impl VmGenerator {
         let mut generator = VmFunctionGenerator::new(vec![], &self.globals, labels, offset);
         generator.element(expr)?;
         code.extend(generator.code);
-        code.push(QVMInstruction::Store);
+        code.push(QVMInstruction::Store(size));
 
         Ok(code)
     }
@@ -535,15 +537,19 @@ impl VmGenerator {
                     ));
                 }
                 "var" => {
-                    let (name, expr) = unvec!(block.elements, 2);
-                    variables.push((name.into_term()?.into_ident()?, expr));
+                    let (size, name, expr) = unvec!(block.elements, 3);
+                    variables.push((
+                        name.into_term()?.into_ident()?,
+                        size.into_term()?.into_int()? as usize,
+                        expr,
+                    ));
                 }
                 _ => unreachable!("{:?}", block),
             }
         }
 
-        for (name, expr) in variables {
-            code.extend(self.variable(name, expr, code.len(), &mut labels)?);
+        for (name, size, expr) in variables {
+            code.extend(self.variable(name, size, expr, code.len(), &mut labels)?);
         }
 
         // call main

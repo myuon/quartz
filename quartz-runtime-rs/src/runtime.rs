@@ -434,8 +434,12 @@ impl Runtime {
                     _ => unreachable!(),
                 }
             }
-            QVMInstruction::Store => {
-                let value = self.pop();
+            QVMInstruction::Store(size) => {
+                let mut values = vec![];
+                for _ in 0..size {
+                    values.push(self.pop());
+                }
+
                 let addr_value = self.pop();
                 assert_matches!(
                     addr_value.clone().as_addr(),
@@ -448,13 +452,19 @@ impl Runtime {
                 match addr_value {
                     Value::Addr(r, space, _) => match space {
                         AddrPlace::Stack => {
-                            self.stack[r] = value;
+                            for j in 0..size {
+                                self.stack[r + j] = values[j].clone();
+                            }
                         }
                         AddrPlace::Heap => {
-                            self.heap.data[r] = value;
+                            for j in 0..size {
+                                self.heap.data[r + j] = values[j].clone();
+                            }
                         }
                         AddrPlace::Static => {
-                            self.globals[r] = value.as_int().unwrap();
+                            for j in 0..size {
+                                self.globals[r + j] = values[j].clone().as_int().unwrap();
+                            }
                         }
                         _ => unreachable!(),
                     },

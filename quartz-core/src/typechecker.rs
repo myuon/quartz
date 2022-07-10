@@ -532,8 +532,9 @@ impl<'s> TypeChecker<'s> {
                             .insert(func.name.clone(), (arg_types, t.clone()));
                     }
                 }
-                Declaration::Variable(x, e) => {
+                Declaration::Variable(x, e, typ) => {
                     let t = self.expr(e)?;
+                    *typ = t.clone();
                     self.variables.insert(x.clone(), t);
                 }
                 Declaration::Struct(st) => {

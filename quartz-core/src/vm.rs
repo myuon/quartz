@@ -12,7 +12,7 @@ pub enum QVMInstruction {
     Nop,
     // stack manipulation
     Load(usize),
-    Store,
+    Store(usize),
     Pop(usize),
     Ref,
     Copy,
@@ -66,10 +66,10 @@ impl QVMInstruction {
 
         match self {
             Load(u) => {
-                format!("load {}", u)
+                format!("LOAD {}", u)
             }
-            Store => {
-                format!("STORE")
+            Store(u) => {
+                format!("STORE {}", u)
             }
             Pop(n) => {
                 format!("POP {}", n)

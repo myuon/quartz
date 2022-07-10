@@ -494,7 +494,11 @@ impl Parser {
             let e = self.expr()?;
             self.expect_lexeme(Lexeme::SemiColon)?;
 
-            Ok(Declaration::Variable(x, self.source_from(e, e_start)))
+            Ok(Declaration::Variable(
+                x,
+                self.source_from(e, e_start),
+                Type::Infer(0),
+            ))
         } else if self.expect_lexeme(Lexeme::Struct).is_ok() {
             let name = self.ident()?;
             self.expect_lexeme(Lexeme::LBrace)?;

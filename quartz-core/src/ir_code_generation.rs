@@ -104,6 +104,7 @@ impl<'s> IrFunctionGenerator<'s> {
                         let velem = self.expr(&elem)?;
 
                         self.ir.push(IrElement::i_assign(
+                            1,
                             IrElement::i_call(
                                 "_padd",
                                 vec![
@@ -241,9 +242,10 @@ impl<'s> IrFunctionGenerator<'s> {
             Statement::Continue => self.ir.push(IrElement::block("continue", vec![])),
             Statement::Assignment(v, e2) => {
                 match &v.data {
-                    Expr::Var(v, _) => {
+                    Expr::Var(v, typ) => {
                         let v2 = self.expr(e2)?;
                         self.ir.push(IrElement::i_assign(
+                            size_of(typ, self.structs),
                             IrElement::Term(IrTerm::Ident(v.to_string(), 1)),
                             v2,
                         ));
@@ -256,6 +258,7 @@ impl<'s> IrFunctionGenerator<'s> {
                         let varr = self.expr(arr)?;
                         let vi = self.expr(i)?;
                         self.ir.push(IrElement::i_assign(
+                            1, // FIXME: calculate the size of the array element
                             IrElement::i_call("_padd", vec![varr, vi]),
                             v2,
                         ))
@@ -264,8 +267,10 @@ impl<'s> IrFunctionGenerator<'s> {
                         let index = self.structs.get_projection_offset(struct_name, label)?;
                         let v = self.expr(proj)?;
                         let v2 = self.expr(e2)?;
+                        let value_type = self.structs.get_projection_type(&struct_name, label)?;
 
                         self.ir.push(IrElement::i_assign(
+                            size_of(&value_type, self.structs),
                             IrElement::i_call(
                                 "_padd",
                                 vec![
@@ -396,9 +401,17 @@ impl IrGenerator {
         }))
     }
 
-    pub fn variable(&mut self, name: &String, expr: &Source<Expr>) -> Result<IrElement> {
+    pub fn variable(
+        &mut self,
+        name: &String,
+        expr: &Source<Expr>,
+        typ: &Type,
+    ) -> Result<IrElement> {
         let empty = HashMap::new();
-        let mut elements = vec![IrElement::Term(IrTerm::Ident(name.clone(), 1))];
+        let mut elements = vec![
+            IrElement::int(size_of(typ, &self.structs) as i32),
+            IrElement::Term(IrTerm::Ident(name.clone(), 1)),
+        ];
         let mut generator = IrFunctionGenerator::new(&empty, &self.structs);
         elements.push(generator.expr(expr)?);
 
@@ -421,8 +434,8 @@ impl IrGenerator {
 
                     elements.push(self.function(&f)?);
                 }
-                Declaration::Variable(v, expr) => {
-                    elements.push(self.variable(v, expr)?);
+                Declaration::Variable(v, expr, t) => {
+                    elements.push(self.variable(v, expr, t)?);
                 }
                 Declaration::Struct(_) => {}
             }

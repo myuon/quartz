@@ -134,6 +134,8 @@ func (l: Lexer) run() {
 }
 
 func main() {
+    _println(show_int(123));
+
     let input = "(module (func $main 0 (return 10)))";
     let lexer = Lexer {
         input: input, 

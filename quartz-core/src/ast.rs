@@ -113,7 +113,7 @@ impl Function {
 #[derive(PartialEq, Debug, Clone)]
 pub enum Declaration {
     Function(Function),
-    Variable(String, Source<Expr>),
+    Variable(String, Source<Expr>, Type),
     Struct(Struct),
 }
 
