@@ -414,6 +414,18 @@ impl Runtime {
                 match addr_value {
                     Value::Addr(i, space, _) => match space {
                         AddrPlace::Stack => {
+                            if u > 1 {
+                                assert!(
+                                    matches!(
+                                        self.stack[i],
+                                        Value::Addr(_, AddrPlace::InfoTable, _)
+                                    ),
+                                    "{:?} {}",
+                                    self.stack[i],
+                                    self.pc,
+                                );
+                            }
+
                             for j in 0..u {
                                 self.push(self.stack[i + j].clone());
                             }
@@ -439,6 +451,7 @@ impl Runtime {
                 for _ in 0..size {
                     values.push(self.pop());
                 }
+                values.reverse();
 
                 let addr_value = self.pop();
                 assert_matches!(
@@ -452,6 +465,18 @@ impl Runtime {
                 match addr_value {
                     Value::Addr(r, space, _) => match space {
                         AddrPlace::Stack => {
+                            if size > 1 {
+                                assert!(
+                                    matches!(
+                                        self.stack[r],
+                                        Value::Addr(_, AddrPlace::InfoTable, _)
+                                    ),
+                                    "{:?} {}",
+                                    self.stack[r],
+                                    self.pc,
+                                );
+                            }
+
                             for j in 0..size {
                                 self.stack[r + j] = values[j].clone();
                             }
