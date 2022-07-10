@@ -95,7 +95,6 @@ impl<'s> IrFunctionGenerator<'s> {
                     //      $v
                     self.ir.push(IrElement::i_let(
                         IrElement::ir_type(t, self.structs),
-                        size,
                         v.clone(),
                         IrElement::i_call("_new", vec![IrElement::int(n)]),
                     ));
@@ -192,7 +191,6 @@ impl<'s> IrFunctionGenerator<'s> {
                 let v = self.expr(e)?;
                 self.ir.push(IrElement::i_let(
                     IrElement::ir_type(t, self.structs),
-                    size_of(t, self.structs),
                     x.to_string(),
                     v,
                 ));

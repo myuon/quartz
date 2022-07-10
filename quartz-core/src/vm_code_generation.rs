@@ -229,9 +229,9 @@ impl<'s> VmFunctionGenerator<'s> {
                 match block.name.as_str() {
                     "let" => {
                         self.new_source_map(element.show_compact());
-                        let (typ, size, name, expr) = unvec!(block.elements, 4);
+                        let (typ, name, expr) = unvec!(block.elements, 3);
                         let var_name = name.into_term()?.into_ident()?;
-                        let size = size.into_term()?.into_int()? as usize;
+                        let size = IrElement::size_of_as_ir_type(&typ)?;
 
                         self.element(expr)?;
                         self.push_local(var_name, size, typ);
