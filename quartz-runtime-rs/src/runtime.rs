@@ -491,7 +491,7 @@ impl Runtime {
                                 self.globals[r + j] = values[j].clone().as_int().unwrap();
                             }
                         }
-                        _ => unreachable!(),
+                        _ => unreachable!("{:?}", addr_value),
                     },
                     _ => unreachable!(),
                 }
@@ -570,7 +570,10 @@ impl Runtime {
                     self.push(Value::nil());
                 }
                 "_println" => {
-                    let addr = self.pop().as_heap_addr().unwrap();
+                    let string_data = self.pop();
+                    let _ = self.pop(); // pointer to info table
+
+                    let addr = string_data.as_heap_addr().unwrap();
                     let header = self.heap.parse_from_data_pointer(addr)?;
 
                     let mut bytes = vec![];

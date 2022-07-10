@@ -145,7 +145,6 @@ func show_int(a: int): string {
     let digits = "0123456789";
 
     while (num > 0) {
-        _start_debugger;
         let r = _mod(num, 10);
         let ch = digits.slice(r, r+1).to_string();
         str = str.concat(ch);
