@@ -407,9 +407,6 @@ impl<'s> TypeChecker<'s> {
 
                     ret_type = Type::Unit;
                 }
-                Statement::Loop(body) => {
-                    ret_type = self.statements(body)?;
-                }
                 Statement::While(cond, body) => {
                     let cond_type = self.expr(cond)?;
                     let cs = Constraints::unify(&cond_type, &Type::Bool)?;

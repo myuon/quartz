@@ -199,12 +199,6 @@ impl Parser {
             ))
         } else if self.expect_lexeme(Lexeme::Continue).is_ok() {
             Ok(self.source(Statement::Continue, start, self.position))
-        } else if self.expect_lexeme(Lexeme::Loop).is_ok() {
-            self.expect_lexeme(Lexeme::LBrace)?;
-            let statements = self.many_statements()?;
-            self.expect_lexeme(Lexeme::RBrace)?;
-
-            Ok(self.source(Statement::Loop(statements), start, self.position))
         } else if self.expect_lexeme(Lexeme::While).is_ok() {
             let e_start = self.position;
             let cond = self.short_expr()?;

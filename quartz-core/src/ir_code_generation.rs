@@ -284,7 +284,6 @@ impl<'s> IrFunctionGenerator<'s> {
                     _ => todo!(),
                 }
             }
-            Statement::Loop(_) => todo!(),
             Statement::While(cond, body) => {
                 let vcond = self.expr(cond)?;
                 let gen = {

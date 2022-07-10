@@ -60,7 +60,6 @@ pub enum Statement {
     ),
     Continue,
     Assignment(Source<Expr>, Source<Expr>),
-    Loop(Vec<Source<Statement>>),
     While(Source<Expr>, Vec<Source<Statement>>),
 }
 
