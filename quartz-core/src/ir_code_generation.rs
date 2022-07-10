@@ -477,8 +477,8 @@ func main() {
                 r#"
 (module
     (func $main (args)
-        (let $int 1 $x 10)
-        (assign $x 20)
+        (let $int $x 10)
+        (assign 1 $x 20)
         (return 1 $x)
     )
 )
@@ -500,13 +500,13 @@ func main() {
                 r#"
 (module
     (func $f (args $int)
-        (let $int 1 $fresh_1 (call $_new 3))
-        (assign (call $_padd $fresh_1 0) 1)
-        (assign (call $_padd $fresh_1 1) 2)
-        (assign (call $_padd $fresh_1 2) 3)
-        (let $array 1 $x $fresh_1)
+        (let $int $fresh_1 (call $_new 3))
+        (assign 1 (call $_padd $fresh_1 0) 1)
+        (assign 1 (call $_padd $fresh_1 1) 2)
+        (assign 1 (call $_padd $fresh_1 2) 3)
+        (let $array $x $fresh_1)
 
-        (assign (call $_padd $x 2) 4)
+        (assign 1 (call $_padd $x 2) 4)
 
         (return 1
             (call $_add
@@ -550,7 +550,7 @@ func main() {
         ))
     )
     (func $main (args)
-        (let (struct 3) 3 $p(1) (data 3 10 20))
+        (let (struct 3) $p(1) (data 3 10 20))
         (return 1 (call $Point_sum $p(3)))
     )
 )

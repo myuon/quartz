@@ -593,38 +593,16 @@ mod tests {
 
     #[test]
     fn test_typecheck_statements() {
-        let cases = vec![
-            (
-                // primitive types
-                r#"
+        let cases = vec![(
+            // primitive types
+            r#"
                     let x = 5;
                     let y = "foo";
                     return y;
                 "#,
-                vec![("x", Type::Int), ("y", Type::Struct("string".to_string()))],
-                Type::Struct("string".to_string()),
-            ),
-            (
-                r#"
-                    loop {
-                        return 10;
-                    };
-                "#,
-                vec![],
-                Type::Int,
-            ),
-            (
-                r#"
-                    loop {
-                        if true {
-                            return 10;
-                        };
-                    };
-                "#,
-                vec![],
-                Type::Int,
-            ),
-        ];
+            vec![("x", Type::Int), ("y", Type::Struct("string".to_string()))],
+            Type::Struct("string".to_string()),
+        )];
 
         for c in cases {
             let mut module = run_parser_statements(c.0).unwrap();

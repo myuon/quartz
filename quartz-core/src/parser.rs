@@ -588,11 +588,6 @@ mod tests {
             r#"let x = 10; return x;"#,
             r#"1; _panic(); 10;"#,
             r#"
-                    loop {
-                        return 10;
-                    };
-                "#,
-            r#"
                     obj.call(a1);
                 "#,
             r#"if (s.data[i] != t.data[i]) {
