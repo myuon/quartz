@@ -16,16 +16,22 @@ struct IrFunctionGenerator<'s> {
     fresh_var_index: usize,
     self_object: Option<IrElement>,
     structs: &'s Structs,
+    strings: &'s mut Vec<String>,
 }
 
 impl<'s> IrFunctionGenerator<'s> {
-    pub fn new(args: &'s HashMap<String, usize>, structs: &'s Structs) -> IrFunctionGenerator<'s> {
+    pub fn new(
+        args: &'s HashMap<String, usize>,
+        structs: &'s Structs,
+        strings: &'s mut Vec<String>,
+    ) -> IrFunctionGenerator<'s> {
         IrFunctionGenerator {
             ir: vec![],
             args,
             fresh_var_index: 0,
             self_object: None,
             structs,
+            strings,
         }
     }
 
@@ -67,19 +73,12 @@ impl<'s> IrFunctionGenerator<'s> {
                 Literal::Nil => Ok(IrElement::Term(IrTerm::Nil)),
                 Literal::Bool(b) => Ok(IrElement::Term(IrTerm::Bool(*b))),
                 Literal::Int(n) => Ok(IrElement::Term(IrTerm::Int(*n))),
-                Literal::String(s) => self.expr(&Source::unknown(Expr::Struct(
-                    "string".to_string(),
-                    vec![(
-                        "data".to_string(),
-                        Source::unknown(Expr::Lit(Literal::Array(
-                            s.as_bytes()
-                                .iter()
-                                .map(|i| Source::unknown(Expr::Lit(Literal::Int(*i as i32))))
-                                .collect::<Vec<_>>(),
-                            Type::Int,
-                        ))),
-                    )],
-                ))),
+                Literal::String(s) => {
+                    let t = self.strings.len();
+                    self.strings.push(s.clone());
+
+                    Ok(IrElement::block("string", vec![IrElement::int(t as i32)]))
+                }
                 Literal::Array(arr, t) => {
                     let size = self
                         .stack_size_of(&Type::Array(Box::new(t.clone())))
@@ -218,12 +217,14 @@ impl<'s> IrFunctionGenerator<'s> {
             Statement::If(b, s1, s2) => {
                 let v = self.expr(b)?;
                 let gen1 = {
-                    let mut generator = IrFunctionGenerator::new(self.args, &self.structs);
+                    let mut generator =
+                        IrFunctionGenerator::new(self.args, &self.structs, &mut self.strings);
                     generator.statements(&s1)?;
                     generator.ir
                 };
                 let gen2 = {
-                    let mut generator = IrFunctionGenerator::new(self.args, &self.structs);
+                    let mut generator =
+                        IrFunctionGenerator::new(self.args, &self.structs, &mut self.strings);
                     generator.statements(&s2)?;
                     generator.ir
                 };
@@ -285,7 +286,8 @@ impl<'s> IrFunctionGenerator<'s> {
             Statement::While(cond, body) => {
                 let vcond = self.expr(cond)?;
                 let gen = {
-                    let mut generator = IrFunctionGenerator::new(self.args, &self.structs);
+                    let mut generator =
+                        IrFunctionGenerator::new(self.args, &self.structs, &mut self.strings);
                     generator.statements(&body)?;
                     generator.ir
                 };
@@ -340,12 +342,14 @@ impl<'s> IrFunctionGenerator<'s> {
 #[derive(Debug)]
 pub struct IrGenerator {
     structs: Structs,
+    strings: Vec<String>,
 }
 
 impl IrGenerator {
     pub fn new() -> IrGenerator {
         IrGenerator {
             structs: Structs(HashMap::new()),
+            strings: vec![],
         }
     }
 
@@ -386,7 +390,7 @@ impl IrGenerator {
             arg_types_in_ir.into_iter().rev().collect(),
         ));
 
-        let mut generator = IrFunctionGenerator::new(&args, &self.structs);
+        let mut generator = IrFunctionGenerator::new(&args, &self.structs, &mut self.strings);
 
         generator.function(&function.body)?;
 
@@ -409,7 +413,7 @@ impl IrGenerator {
             IrElement::int(size_of(typ, &self.structs) as i32),
             IrElement::Term(IrTerm::Ident(name.clone(), 1)),
         ];
-        let mut generator = IrFunctionGenerator::new(&empty, &self.structs);
+        let mut generator = IrFunctionGenerator::new(&empty, &self.structs, &mut self.strings);
         elements.push(generator.expr(expr)?);
 
         Ok(IrElement::Block(IrBlock {
@@ -438,9 +442,24 @@ impl IrGenerator {
             }
         }
 
+        let mut strings = self
+            .strings
+            .iter()
+            .map(|t| {
+                IrElement::block(
+                    "data",
+                    t.as_bytes()
+                        .iter()
+                        .map(|i| IrElement::int(*i as i32))
+                        .collect(),
+                )
+            })
+            .collect::<Vec<_>>();
+        strings.extend(elements);
+
         Ok(IrElement::Block(IrBlock {
             name: "module".to_string(),
-            elements,
+            elements: strings,
         }))
     }
 
@@ -592,6 +611,24 @@ func main() {
         (return 1 $1))
     (func $main (args)
         (return 1 (call $f 0 true))
+    )
+)
+"#,
+            ),
+            (
+                r#"
+func main() {
+    let s = "foo";
+
+    return _println(s);
+}
+"#,
+                r#"
+(module
+    (data 102 111 111)
+    (func $main (args)
+        (let (struct 1) $s (string 0))
+        (return 1 (call $_println $s))
     )
 )
 "#,
