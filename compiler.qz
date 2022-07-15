@@ -83,6 +83,7 @@ struct Lexer {
 }
 
 func (l: Lexer) run() {
+    _start_debugger;
     _println(show_int(l.input.len()));
     while (l.position < l.input.len()) {
         let current = l.input.slice_after(l.position);

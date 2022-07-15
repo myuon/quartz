@@ -55,6 +55,7 @@ pub enum Value {
     Addr(usize, AddrPlace, ValueAddrFlag),
 }
 
+#[allow(dead_code)]
 impl Value {
     pub fn as_bool(self) -> Option<bool> {
         match self {
@@ -63,11 +64,12 @@ impl Value {
         }
     }
 
-    pub fn as_int(self) -> Option<i32> {
+    pub fn as_int(self) -> Result<i32> {
         match self {
             Value::Int(i, ValueIntFlag::Int) => Some(i),
             _ => None,
         }
+        .ok_or(anyhow::anyhow!("expected int but got {:?}", self))
     }
 
     pub fn as_addr(self) -> Option<usize> {
@@ -77,7 +79,6 @@ impl Value {
         }
     }
 
-    #[allow(dead_code)]
     pub fn as_stack_addr(self) -> Option<usize> {
         match self {
             Value::Addr(i, AddrPlace::Stack, ValueAddrFlag::Addr) => Some(i),
@@ -265,6 +266,83 @@ impl Runtime {
             self.pc,
             &self.code[self.pc]
         )
+    }
+
+    fn read(&self, value: Value) -> &Value {
+        self.read_with_offset(value, 0)
+    }
+
+    fn read_with_offset(&self, value: Value, offset: i32) -> &Value {
+        match value {
+            Value::Addr(addr, AddrPlace::Heap, _) => {
+                &self.heap.data[(addr as i32 + offset) as usize]
+            }
+            Value::Addr(addr, AddrPlace::Stack, _) => &self.stack[(addr as i32 + offset) as usize],
+            _ => todo!(),
+        }
+    }
+
+    fn read_values(&self, value: Value) -> Result<Vec<Value>> {
+        match value {
+            Value::Addr(addr, AddrPlace::Heap, _) => {
+                let header = self.heap.parse_from_data_pointer(addr)?;
+
+                let mut bytes = vec![];
+                for i in 0..header.len() {
+                    bytes.push(self.heap.data[addr + i].clone());
+                }
+
+                Ok(bytes)
+            }
+            Value::Addr(addr, AddrPlace::Stack, _) => {
+                let len = self.stack[addr - 1].clone().as_int().unwrap() as usize;
+
+                let mut bytes = vec![];
+                for i in 0..len {
+                    bytes.push(self.stack[addr + i].clone());
+                }
+
+                Ok(bytes)
+            }
+            _ => todo!(),
+        }
+    }
+
+    fn read_values_by(&self, value: Value, size: usize) -> Result<Vec<Value>> {
+        match value {
+            Value::Addr(addr, AddrPlace::Heap, _) => {
+                let header = self.heap.parse_from_data_pointer(addr)?;
+                assert!(size <= header.len(), "{} {}", size, header.len());
+
+                let mut bytes = vec![];
+                for i in 0..size {
+                    bytes.push(self.heap.data[addr + i].clone());
+                }
+
+                Ok(bytes)
+            }
+            Value::Addr(addr, AddrPlace::Stack, _) => {
+                let len = self.stack[addr - 1].clone().as_int().unwrap() as usize;
+                assert!(size <= len, "{} {}", size, len);
+
+                let mut bytes = vec![];
+                for i in 0..size {
+                    bytes.push(self.stack[addr + i].clone());
+                }
+
+                Ok(bytes)
+            }
+            _ => todo!(),
+        }
+    }
+
+    fn read_string_at(&self, value: Value) -> Result<String> {
+        let mut bytes = vec![];
+        for v in self.read_values(value)? {
+            bytes.push(v.as_int().unwrap() as u8);
+        }
+
+        String::from_utf8(bytes).map_err(|e| e.into())
     }
 
     pub fn step(&mut self) -> Result<()> {
@@ -574,30 +652,26 @@ impl Runtime {
                     let string_data = self.pop();
                     let _ = self.pop(); // pointer to info table
 
-                    let addr = string_data.as_heap_addr().unwrap();
-                    let header = self.heap.parse_from_data_pointer(addr)?;
-
-                    let mut bytes = vec![];
-                    for i in 0..header.len() {
-                        bytes.push(self.heap.data[addr + i].clone().as_int().unwrap() as u8);
-                    }
+                    let s = self.read_string_at(string_data)?;
+                    println!("[quartz] {}", s);
 
                     self.push(Value::nil());
-                    println!("[quartz] {}", String::from_utf8(bytes).unwrap());
                 }
                 "_len" => {
-                    let p = self.pop().as_addr().unwrap();
-                    self.push(Value::int(self.stack[p - 1].clone().as_int().unwrap()));
+                    let p = self.pop();
+                    self.push(Value::int(
+                        self.read_with_offset(p, -1).clone().as_int().unwrap(),
+                    ));
                 }
                 "_copy" => {
                     let target = self.pop().as_addr().unwrap();
-                    let source = self.pop().as_addr().unwrap();
-                    let len = self.pop().as_int().unwrap() as usize;
+                    let source = self.pop();
+                    let size = self.pop().as_int().unwrap() as usize;
                     let target_offset = self.pop().as_int().unwrap() as usize;
 
-                    for i in 0..len {
-                        let value = self.heap.data[source + i].clone();
-                        self.heap.data[target + i + target_offset] = value;
+                    let bytes = self.read_values_by(source, size)?;
+                    for (i, byte) in bytes.into_iter().enumerate() {
+                        self.heap.data[target + i + target_offset] = byte;
                     }
 
                     self.push(Value::nil());
@@ -1106,7 +1180,7 @@ func main(): int {
         }
         runtime.run()?;
         let pop = runtime.pop();
-        assert_eq!(pop.clone().as_int(), Some(result), "{:?} {:?}", pop, result);
+        assert_eq!(pop.clone().as_int().unwrap(), result, "{:?} {:?}", pop, result);
     }
 
     Ok(())
@@ -1139,7 +1213,7 @@ func main() {
         let bytes = runtime.pop().as_addr().unwrap();
         assert_eq!(
             String::from_utf8(
-                runtime.heap.data[bytes..bytes + 3]
+                runtime.stack[bytes..bytes + 3]
                     .iter()
                     .map(|u| u.clone().as_int().unwrap() as u8)
                     .collect()
@@ -1236,7 +1310,7 @@ fn runtime_run_gc() -> Result<()> {
         }
         runtime.run()?;
         let pop = runtime.pop();
-        assert_eq!(pop.clone().as_int(), Some(result), "{:?} {:?}", pop, result);
+        assert_eq!(pop.clone().as_int().unwrap(), result, "{:?} {:?}", pop, result);
 
         let mut remaining_object = 0;
         let mut current = runtime.heap.root()?;
