@@ -77,7 +77,13 @@ impl<'s> IrFunctionGenerator<'s> {
                     let t = self.strings.len();
                     self.strings.push(s.clone());
 
-                    Ok(IrElement::block("string", vec![IrElement::int(t as i32)]))
+                    Ok(IrElement::block(
+                        "data",
+                        vec![
+                            IrElement::int(2),
+                            IrElement::block("string", vec![IrElement::int(t as i32)]),
+                        ],
+                    ))
                 }
                 Literal::Array(arr, t) => {
                     let size = self
@@ -630,7 +636,7 @@ func main() {
 (module
     (text 3 102 111 111)
     (func $main (args)
-        (let (struct 1) $s (string 0))
+        (let (struct 1) $s (data 2 (string 0)))
         (return 1 (call $_println $s))
     )
 )

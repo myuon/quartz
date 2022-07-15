@@ -78,6 +78,7 @@ struct VmFunctionGenerator<'s> {
     source_map: HashMap<usize, String>,
     scope_local_pointers: Vec<usize>,
     current_continue_scope: Option<usize>,
+    string_pointers: &'s Vec<usize>,
 }
 
 impl<'s> VmFunctionGenerator<'s> {
@@ -86,6 +87,7 @@ impl<'s> VmFunctionGenerator<'s> {
         globals: &'s HashMap<String, usize>,
         labels: &'s mut HashMap<String, usize>,
         offset: usize,
+        string_pointers: &'s Vec<usize>,
     ) -> VmFunctionGenerator<'s> {
         VmFunctionGenerator {
             code: Vec::new(),
@@ -99,6 +101,7 @@ impl<'s> VmFunctionGenerator<'s> {
             source_map: HashMap::new(),
             scope_local_pointers: Vec::new(),
             current_continue_scope: None,
+            string_pointers,
         }
     }
 
@@ -406,6 +409,15 @@ impl<'s> VmFunctionGenerator<'s> {
                             element.show()
                         );
                     }
+                    "string" => {
+                        self.new_source_map(element.show_compact());
+                        let string = unvec!(block.elements, 1);
+                        let n = string.into_term()?.into_int()? as usize;
+                        self.code.push(QVMInstruction::AddrConst(
+                            self.string_pointers[n],
+                            Variable::StackAbsolute,
+                        ));
+                    }
                     name => todo!("{:?}", name),
                 };
             }
@@ -449,8 +461,10 @@ impl VmGenerator {
         args: Vec<IrElement>,
         labels: &mut HashMap<String, usize>,
         offset: usize,
+        string_pointers: &Vec<usize>,
     ) -> Result<(Vec<QVMInstruction>, HashMap<usize, String>)> {
-        let mut generator = VmFunctionGenerator::new(args, &self.globals, labels, offset);
+        let mut generator =
+            VmFunctionGenerator::new(args, &self.globals, labels, offset, string_pointers);
 
         let mut skip = 2;
         for statement in body {
@@ -472,6 +486,7 @@ impl VmGenerator {
         expr: IrElement,
         offset: usize,
         labels: &mut HashMap<String, usize>,
+        string_pointers: &Vec<usize>,
     ) -> Result<Vec<QVMInstruction>> {
         self.push_global(name.clone());
         let mut code = vec![QVMInstruction::AddrConst(
@@ -479,7 +494,8 @@ impl VmGenerator {
             Variable::Global,
         )];
 
-        let mut generator = VmFunctionGenerator::new(vec![], &self.globals, labels, offset);
+        let mut generator =
+            VmFunctionGenerator::new(vec![], &self.globals, labels, offset, string_pointers);
         generator.element(expr)?;
         code.extend(generator.code);
         code.push(QVMInstruction::Store(size));
@@ -491,8 +507,10 @@ impl VmGenerator {
         &mut self,
         labels: &mut HashMap<String, usize>,
         offset: usize,
+        string_pointers: &Vec<usize>,
     ) -> Result<Vec<QVMInstruction>> {
-        let mut generator = VmFunctionGenerator::new(vec![], &self.globals, labels, offset);
+        let mut generator =
+            VmFunctionGenerator::new(vec![], &self.globals, labels, offset, &string_pointers);
         generator.element(IrElement::block(
             "return",
             vec![
@@ -522,9 +540,19 @@ impl VmGenerator {
         let block = element.into_block()?;
         assert_eq!(block.name, "module");
 
+        let mut string_pointers = vec![];
+
         for element in block.elements {
             let mut block = element.into_block()?;
             match block.name.as_str() {
+                "text" => {
+                    // text segment must be processed at first
+                    // +1 for skipping the size value
+                    string_pointers.push(code.len() + 1);
+                    for i in block.elements {
+                        code.push(QVMInstruction::I32Const(i.into_term()?.into_int()?));
+                    }
+                }
                 "func" => {
                     let type_block = block.elements[1].clone().into_block()?;
                     assert_eq!(type_block.name, "args");
@@ -548,18 +576,25 @@ impl VmGenerator {
         }
 
         for (name, size, expr) in variables {
-            code.extend(self.variable(name, size, expr, code.len(), &mut labels)?);
+            code.extend(self.variable(
+                name,
+                size,
+                expr,
+                code.len(),
+                &mut labels,
+                &string_pointers,
+            )?);
         }
 
         // call main
         labels.insert(self.entrypoint.to_string(), code.len());
-        code.extend(self.call_main(&mut labels, code.len())?);
+        code.extend(self.call_main(&mut labels, code.len(), &string_pointers)?);
 
         for (name, args, function) in functions {
             labels.insert(name, code.len());
 
             let (code_generated, source_map_generated) =
-                self.function(function, args, &mut labels, code.len())?;
+                self.function(function, args, &mut labels, code.len(), &string_pointers)?;
             code.extend(code_generated);
             source_map.extend(source_map_generated);
         }

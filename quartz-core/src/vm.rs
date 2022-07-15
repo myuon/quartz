@@ -5,6 +5,7 @@ pub enum Variable {
     Local,
     Heap,
     Global,
+    StackAbsolute,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]

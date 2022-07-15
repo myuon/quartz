@@ -26,6 +26,7 @@ impl AddrPlace {
             Variable::Local => AddrPlace::Stack,
             Variable::Heap => AddrPlace::Heap,
             Variable::Global => AddrPlace::Static,
+            Variable::StackAbsolute => AddrPlace::Stack,
         }
     }
 }
@@ -585,9 +586,8 @@ impl Runtime {
                     println!("[quartz] {}", String::from_utf8(bytes).unwrap());
                 }
                 "_len" => {
-                    let value = self.pop().as_heap_addr().unwrap();
-                    let header = self.heap.parse_from_data_pointer(value).unwrap();
-                    self.push(Value::int(header.len() as i32));
+                    let p = self.pop().as_addr().unwrap();
+                    self.push(Value::int(self.stack[p - 1].clone().as_int().unwrap()));
                 }
                 "_copy" => {
                     let target = self.pop().as_addr().unwrap();
