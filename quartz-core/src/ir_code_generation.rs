@@ -442,17 +442,20 @@ impl IrGenerator {
             }
         }
 
+        // string segment
         let mut strings = self
             .strings
             .iter()
             .map(|t| {
-                IrElement::block(
-                    "data",
+                let mut bytes = vec![IrElement::int(t.as_bytes().len() as i32)];
+                bytes.extend(
                     t.as_bytes()
                         .iter()
                         .map(|i| IrElement::int(*i as i32))
-                        .collect(),
-                )
+                        .collect::<Vec<_>>(),
+                );
+
+                IrElement::block("text", bytes)
             })
             .collect::<Vec<_>>();
         strings.extend(elements);
@@ -625,7 +628,7 @@ func main() {
 "#,
                 r#"
 (module
-    (data 102 111 111)
+    (text 3 102 111 111)
     (func $main (args)
         (let (struct 1) $s (string 0))
         (return 1 (call $_println $s))
