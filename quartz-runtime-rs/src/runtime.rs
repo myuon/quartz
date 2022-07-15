@@ -69,7 +69,7 @@ impl Value {
             Value::Int(i, ValueIntFlag::Int) => Some(i),
             _ => None,
         }
-        .ok_or(anyhow::anyhow!("expected int but got {:?}", self))
+        .ok_or_else(|| anyhow::anyhow!("expected int but got {:?}", self))
     }
 
     pub fn as_addr(self) -> Option<usize> {
