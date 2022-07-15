@@ -283,6 +283,22 @@ impl Runtime {
         }
     }
 
+    fn read_bytes_len(&self, value: Value) -> Result<usize> {
+        match value {
+            Value::Addr(addr, AddrPlace::Heap, _) => {
+                let header = self.heap.parse_from_data_pointer(addr)?;
+
+                Ok(header.len())
+            }
+            Value::Addr(addr, AddrPlace::Stack, _) => {
+                let len = self.stack[addr - 1].clone().as_int().unwrap() as usize;
+
+                Ok(len)
+            }
+            _ => todo!(),
+        }
+    }
+
     fn read_values(&self, value: Value) -> Result<Vec<Value>> {
         match value {
             Value::Addr(addr, AddrPlace::Heap, _) => {
@@ -660,8 +676,9 @@ impl Runtime {
                 }
                 "_len" => {
                     let p = self.pop();
+                    let size = self.read_bytes_len(p)?;
 
-                    self.push(Value::int(self.read_string_at(p)?.len() as i32));
+                    self.push(Value::int(size as i32));
                 }
                 "_copy" => {
                     let target = self.pop().as_addr().unwrap();
