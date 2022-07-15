@@ -268,6 +268,7 @@ impl Runtime {
         )
     }
 
+    #[allow(dead_code)]
     fn read(&self, value: Value) -> &Value {
         self.read_with_offset(value, 0)
     }
@@ -659,9 +660,8 @@ impl Runtime {
                 }
                 "_len" => {
                     let p = self.pop();
-                    self.push(Value::int(
-                        self.read_with_offset(p, -1).clone().as_int().unwrap(),
-                    ));
+
+                    self.push(Value::int(self.read_string_at(p)?.len() as i32));
                 }
                 "_copy" => {
                     let target = self.pop().as_addr().unwrap();
@@ -1180,7 +1180,13 @@ func main(): int {
         }
         runtime.run()?;
         let pop = runtime.pop();
-        assert_eq!(pop.clone().as_int().unwrap(), result, "{:?} {:?}", pop, result);
+        assert_eq!(
+            pop.clone().as_int().unwrap(),
+            result,
+            "{:?} {:?}",
+            pop,
+            result
+        );
     }
 
     Ok(())
@@ -1310,7 +1316,13 @@ fn runtime_run_gc() -> Result<()> {
         }
         runtime.run()?;
         let pop = runtime.pop();
-        assert_eq!(pop.clone().as_int().unwrap(), result, "{:?} {:?}", pop, result);
+        assert_eq!(
+            pop.clone().as_int().unwrap(),
+            result,
+            "{:?} {:?}",
+            pop,
+            result
+        );
 
         let mut remaining_object = 0;
         let mut current = runtime.heap.root()?;
