@@ -33,6 +33,7 @@ impl Constraints {
             (_, Type::Any) => Ok(Constraints::new()),
             (Type::Infer(u), t) => Ok(Constraints::singleton(*u, t.clone())),
             (t, Type::Infer(u)) => Ok(Constraints::singleton(*u, t.clone())),
+            (Type::Ref(s), Type::Ref(t)) => Ok(Constraints::unify(&s, &t)?),
             (Type::Fn(args1, ret1), Type::Fn(args2, ret2)) => {
                 if args1.len() != args2.len() {
                     bail!("Type error: want {:?} but found {:?}", args1, args2);
@@ -65,7 +66,7 @@ impl Constraints {
         match (t1, t2) {
             (Type::Nil, Type::Optional(_)) => Ok(Constraints::new()),
             (t, Type::Optional(s)) => Constraints::unify(t, s),
-            (t1, t2) => bail!("Type error, want {:?} but found {:?}", t1, t2),
+            (t1, t2) => bail!("[coerce] Type error, want {:?} but found {:?}", t1, t2),
         }
     }
 

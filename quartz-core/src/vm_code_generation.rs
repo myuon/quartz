@@ -201,6 +201,7 @@ impl<'s> VmFunctionGenerator<'s> {
                             "_debug" => QVMInstruction::RuntimeInstr("_debug".to_string()),
                             "_int_to_byte" => QVMInstruction::Nop,
                             "_byte_to_int" => QVMInstruction::Nop,
+                            "_nil_to_ref" => QVMInstruction::Nop,
                             "_start_debugger" => {
                                 QVMInstruction::RuntimeInstr("_start_debugger".to_string())
                             }

@@ -1215,6 +1215,29 @@ func main() {
 "#,
             10,
         ),
+        (
+            r#"
+struct Nat {
+    succ: ref Nat,
+}
+
+func main() {
+    let zero = Nat {
+        succ: _nil_to_ref(nil),
+    };
+    let two = Nat {
+        succ: ref Nat {
+            succ: ref Nat {
+                succ: _nil_to_ref(nil),
+            },
+        },
+    };
+
+    return 1;
+}
+"#,
+            1,
+        ),
     ];
 
     for (input, result) in cases {

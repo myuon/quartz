@@ -322,6 +322,7 @@ impl Structs {
 }
 
 // size ON STACK
+// FIXME: can be into an infinite loop
 pub fn size_of(typ: &Type, structs: &Structs) -> usize {
     match typ {
         Type::Bool => 1,
@@ -331,6 +332,7 @@ pub fn size_of(typ: &Type, structs: &Structs) -> usize {
         Type::Fn(_, _) => 1,
         Type::Struct(st) => structs.size_of_struct(st),
         Type::Array(_) => 1, // array itself must be allocated on heap
+        Type::Ref(_) => 1,
         Type::Optional(t) => size_of(t, structs), // optional<T> is a union of T and nil
         _ => unreachable!(),
     }

@@ -82,6 +82,10 @@ pub fn builtin() -> HashMap<String, Type> {
             Type::Fn(vec![Type::Byte], Box::new(Type::Int)),
         ),
         (
+            "_nil_to_ref",
+            Type::Fn(vec![Type::Nil], Box::new(Type::Ref(Box::new(Type::Any)))),
+        ),
+        (
             "_copy",
             Type::Fn(
                 vec![

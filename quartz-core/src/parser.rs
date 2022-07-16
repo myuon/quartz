@@ -64,6 +64,11 @@ impl Parser {
     }
 
     fn atype(&mut self) -> Result<Type> {
+        let mut is_ref = false;
+        if self.expect_lexeme(Lexeme::Ref).is_ok() {
+            is_ref = true;
+        }
+
         let ident = self.ident()?;
         let mut result = match ident.as_str() {
             "int" => Type::Int,
@@ -77,6 +82,10 @@ impl Parser {
         };
         if self.expect_lexeme(Lexeme::Question).is_ok() {
             result = Type::Optional(Box::new(result));
+        }
+
+        if is_ref {
+            result = Type::Ref(Box::new(result));
         }
 
         Ok(result)
