@@ -211,6 +211,7 @@ impl<'s> IrFunctionGenerator<'s> {
                 Ok(IrElement::Term(IrTerm::Ident(v, 1)))
             }
             Expr::Deref(e, t) => Ok(IrElement::i_deref(size_of(t, self.structs), self.expr(e)?)),
+            Expr::As(e, _) => self.expr(e),
         }
     }
 

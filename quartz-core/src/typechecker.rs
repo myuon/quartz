@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use anyhow::{bail, Context, Result};
+use log::info;
 use pretty_assertions::assert_eq;
 
 use crate::{
@@ -275,7 +276,8 @@ impl<'s> TypeChecker<'s> {
                         actual_arg_type = self.expr(&mut args[i])?;
                     }
 
-                    let cs = Constraints::unify(&expected_arg_type, &actual_arg_type)?;
+                    let cs = Constraints::unify(&expected_arg_type, &actual_arg_type)
+                        .context(self.error_context(args[i].start, args[i].end, "unify"))?;
                     self.apply_constraints(&cs);
                     cs.apply(&mut ret_type);
                 }
@@ -283,7 +285,12 @@ impl<'s> TypeChecker<'s> {
                 Ok(ret_type)
             }
             Expr::Struct(s, fields) => {
-                assert_eq!(self.structs.0.contains_key(s), true);
+                assert_eq!(
+                    self.structs.0.contains_key(s),
+                    true,
+                    "{}",
+                    self.error_context(expr.start, expr.end, "")
+                );
 
                 let def = self.structs.0[s].clone();
                 for ((k1, v1), (k2, v2, t)) in def.iter().zip(fields.into_iter()) {
@@ -368,6 +375,12 @@ impl<'s> TypeChecker<'s> {
                     bail!("Cannot deref non-ref type: {:?}", typ);
                 }
             }
+            Expr::As(e, t) => {
+                let e_type = self.expr(e)?;
+                info!("coercing {:?} -> {:?}", e_type, t);
+
+                Ok(t.clone())
+            }
         }
     }
 
@@ -402,12 +415,15 @@ impl<'s> TypeChecker<'s> {
                 }
                 Statement::If(cond, then_statements, else_statements) => {
                     let cond_type = self.expr(cond.as_mut())?;
-                    let cs = Constraints::unify(&cond_type, &Type::Bool)?;
+                    let cs = Constraints::unify(&cond_type, &Type::Bool)
+                        .context(self.error_context(cond.start, cond.end, "if condition"))?;
                     self.apply_constraints(&cs);
 
                     let mut then_type = self.statements(then_statements)?;
                     let else_type = self.statements(else_statements)?;
-                    let cs = Constraints::unify(&then_type, &else_type)?;
+                    let cs = Constraints::unify(&then_type, &else_type).context(
+                        self.error_context(statement.start, statement.end, "if branches"),
+                    )?;
                     self.apply_constraints(&cs);
 
                     cs.apply(&mut then_type);
@@ -417,18 +433,23 @@ impl<'s> TypeChecker<'s> {
                 Statement::Continue => {}
                 Statement::Assignment(lhs, rhs) => {
                     let typ = self.expr(lhs)?;
-                    let cs = Constraints::unify(&typ, &self.expr(rhs)?)?;
+                    let cs = Constraints::unify(&typ, &self.expr(rhs)?).context(
+                        self.error_context(statement.start, statement.end, "assignment"),
+                    )?;
                     self.apply_constraints(&cs);
 
                     ret_type = Type::Nil;
                 }
                 Statement::While(cond, body) => {
                     let cond_type = self.expr(cond)?;
-                    let cs = Constraints::unify(&cond_type, &Type::Bool)?;
+                    let cs = Constraints::unify(&cond_type, &Type::Bool)
+                        .context(self.error_context(cond.start, cond.end, "while condition"))?;
                     self.apply_constraints(&cs);
 
                     let mut body_type = self.statements(body)?;
-                    let cs = Constraints::unify(&body_type, &Type::Nil)?;
+                    let cs = Constraints::unify(&body_type, &Type::Nil).context(
+                        self.error_context(body[0].start, body.last().unwrap().end, "while body"),
+                    )?;
                     self.apply_constraints(&cs);
 
                     cs.apply(&mut body_type);

@@ -82,55 +82,150 @@ struct Lexer {
     position: int,
 }
 
-func (l: Lexer) run() {
-    _start_debugger;
-    _println(show_int(l.input.len()));
-    while (l.position < l.input.len()) {
-        let current = l.input.slice_after(l.position);
+struct Token {
+    type: string,
+    value_string: string?,
+    value_int: int?,
+}
 
-        let n = find_space_pattern(current);
-        if (n > 0) {
-            l.position = l.position + n;
-            continue;
-        };
+func (l: Lexer) next_token(): Token {
+    let current = l.input.slice_after(l.position);
 
-        let n = find_exact_pattern(current, "(");
-        if (n > 0) {
-            _println("LPAREN");
-            l.position = l.position + n;
-            continue;
-        };
-
-        let n = find_exact_pattern(current, ")");
-        if (n > 0) {
-            _println("RPAREN");
-            l.position = l.position + n;
-            continue;
-        };
-
-        let n = find_numbers(current);
-        if (n > 0) {
-            _println("NUMBER ".concat(current.slice(0, n).to_string()));
-            l.position = l.position + n;
-            continue;
-        };
-
-        let n = find_identifier(current);
-        if (n > 0) {
-            _println("IDENT ".concat(current.slice(0, n).to_string()));
-            l.position = l.position + n;
-            continue;
-        };
-
-        let n = find_variable_letters(current);
-        if (n > 0) {
-            _println("KEYWORD ".concat(current.slice(0, n).to_string()));
-            l.position = l.position + n;
-            continue;
-        };
-
-        l.position = l.position + 1;
+    // no return/continue here
+    let n = find_space_pattern(current);
+    if (n > 0) {
+        l.position = l.position + n;
     };
+
+    let n = find_exact_pattern(current, "(");
+    if (n > 0) {
+        l.position = l.position + n;
+
+        return Token {
+            type: "LPAREN",
+            value_string: nil,
+            value_int: nil,
+        };
+    };
+
+    let n = find_exact_pattern(current, ")");
+    if (n > 0) {
+        l.position = l.position + n;
+
+        return Token {
+            type: "RPAREN",
+            value_string: nil,
+            value_int: nil,
+        };
+    };
+
+    let n = find_numbers(current);
+    if (n > 0) {
+        l.position = l.position + n;
+
+        return Token {
+            type: "NUMBER",
+            value_string: nil,
+            value_int: current.slice(0, n).parse_int(),
+        };
+    };
+
+    let n = find_identifier(current);
+    if (n > 0) {
+        l.position = l.position + n;
+
+        return Token {
+            type: "IDENT",
+            value_string: current.slice(0, n).to_string(),
+            value_int: nil,
+        };
+    };
+
+    let n = find_variable_letters(current);
+    if (n > 0) {
+        l.position = l.position + n;
+
+        return Token {
+            type: "VARIABLE",
+            value_string: current.slice(0, n).to_string(),
+            value_int: nil,
+        };
+    };
+
+    _panic;
+    return Token {
+        type: "",
+        value_string: nil,
+        value_int: nil,
+    };
+}
+
+struct IrTerm {
+    type: string, // NIL | BOOL | INT | IDENT | ARGUMENT | INFO
+    value_bool: bool?,
+    value_int: int?,
+    value_ident: string?,
+    value_argument: string?,
+    value_info: int?,
+}
+
+struct IrBlock {
+    name: string,
+    elements: IrElementList,
+}
+
+struct IrElementListNode {
+    node: IrElement,
+    next: ref IrElementList,
+}
+struct IrElementList {
+    cons: IrElementListNode?,
+}
+
+func IrElementList_nil(): IrElementList {
+    return IrElementList {
+        cons: nil,
+    };
+}
+
+func (self: IrElementList) cons(node: IrElement): IrElementList {
+    return IrElementList {
+        cons: IrElementListNode {
+            node: node,
+            next: ref self,
+        },
+    };
+}
+
+func (l: Lexer) element(): IrElement? {
+    let token = l.next_token();
+
+    // block
+    if (token.type == "LPAREN") {
+        let name = l.next_token();
+        assert_eq(name.type, "KEYWORD");
+        let name_string = name.value_string as string;
+
+        let next = l.element();
+        let elements = IrElementList_nil();
+        while _not(next == nil) {
+            elements = elements.cons(next as IrElement);
+            next = l.element();
+        };
+
+        return IrBlock {
+            name: name_string,
+            elements: elements,
+        };
+    };
+
+    return nil;
+}
+
+struct IrElement {
+    type: string, // BLOCK or TERM
+    term: IrTerm?,
+    block: IrBlock?,
 }
 
 func main() {
@@ -139,7 +234,6 @@ func main() {
         input: input, 
         position: 0,
     };
-    lexer.run();
 
     _println("== COMPILE FINISHED");
 }

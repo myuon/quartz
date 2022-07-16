@@ -130,6 +130,43 @@ func (s: string) at(p: int): string {
     return s.slice(p, p+1).to_string();
 }
 
+func (s: string) char_to_digit(): int {
+    let digits = "0123456789";
+    let n = 0;
+    while (n < digits.len()) {
+        if (s.at(0).eq(digits.at(n))) {
+            return n;
+        };
+
+        n = n + 1;
+    };
+
+    _panic;
+    return 0;
+}
+
+func (s: string) parse_int(): int {
+    let i = 0;
+    let result = 0;
+    while (i < s.len()) {
+        result = _mult(result,10) + s.at(i).char_to_digit();
+        i = i + 1;
+    };
+
+    return result;
+}
+
+func (s: substring) parse_int(): int {
+    let i = 0;
+    let result = 0;
+    while (i < s.len()) {
+        result = _mult(result,10) + s.at(i).char_to_digit();
+        i = i + 1;
+    };
+
+    return result;
+}
+
 // int cannot have any methods then we need to define as a global function... X(
 func show_bool(b: bool): string {
     if b {
@@ -183,4 +220,5 @@ func test() {
     assert_eq(show_int("hello, world".len()), show_int(12));
     assert("prefix-suffix".starts_with("prefix"));
     assert(_not("prefix-suffix".starts_with("suffix")));
+    assert("12345".parse_int() == 12345);
 }

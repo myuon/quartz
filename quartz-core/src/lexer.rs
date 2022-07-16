@@ -38,6 +38,7 @@ pub enum Lexeme {
     Minus,
     Question,
     Ref,
+    As,
     Ident(String),
     Int(i32),
     String(String),
@@ -54,6 +55,15 @@ static COMMENT_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^//[^\n]*\n"#).
 pub struct Token {
     pub lexeme: Lexeme,
     pub position: usize,
+}
+
+fn is_term_boundary(s: &str) -> bool {
+    let next = s.chars().next();
+    if let Some(ch) = next {
+        !ch.is_ascii_alphanumeric() && ch != '_'
+    } else {
+        true
+    }
 }
 
 struct TokenReader {
@@ -83,9 +93,35 @@ impl TokenReader {
         }
     }
 
+    fn matches_term(&mut self, input: &str, keyword: &str, lexeme: Lexeme) -> bool {
+        if input[self.position..].starts_with(keyword)
+            && is_term_boundary(&input[self.position + keyword.len()..])
+        {
+            self.tokens.push(Token {
+                lexeme,
+                position: self.position,
+            });
+            self.position += keyword.len();
+
+            true
+        } else {
+            false
+        }
+    }
+
     fn matches_any(&mut self, input: &str, patterns: Vec<(&str, Lexeme)>) -> bool {
         for (keyword, lexeme) in patterns {
             if self.matches(input, keyword, lexeme) {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    fn matches_any_term(&mut self, input: &str, patterns: Vec<(&str, Lexeme)>) -> bool {
+        for (keyword, lexeme) in patterns {
+            if self.matches_term(input, keyword, lexeme) {
                 return true;
             }
         }
@@ -113,7 +149,7 @@ impl TokenReader {
                 None => (),
             }
 
-            if self.matches_any(
+            if self.matches_any_term(
                 input,
                 vec![
                     ("nil", Lexeme::Nil),
@@ -129,6 +165,19 @@ impl TokenReader {
                     ("continue", Lexeme::Continue),
                     ("struct", Lexeme::Struct),
                     ("ref", Lexeme::Ref),
+                    ("as", Lexeme::As),
+                ],
+            ) {
+                continue;
+            }
+
+            if self.matches_any(
+                input,
+                vec![
+                    ("==", Lexeme::DoubleEqual),
+                    ("!=", Lexeme::NotEqual),
+                    ("<=", Lexeme::LEq),
+                    (">=", Lexeme::GEq),
                     ("(", Lexeme::LParen),
                     (")", Lexeme::RParen),
                     ("{", Lexeme::LBrace),
@@ -139,15 +188,11 @@ impl TokenReader {
                     (":", Lexeme::Colon),
                     (",", Lexeme::Comma),
                     (".", Lexeme::Dot),
-                    ("==", Lexeme::DoubleEqual),
-                    ("!=", Lexeme::NotEqual),
                     ("=", Lexeme::Equal),
                     ("&", Lexeme::And),
                     ("*", Lexeme::Star),
                     ("<", Lexeme::Lt),
-                    ("<=", Lexeme::LEq),
                     (">", Lexeme::Gt),
-                    (">=", Lexeme::GEq),
                     ("-", Lexeme::Minus),
                     ("+", Lexeme::Plus),
                     ("?", Lexeme::Question),

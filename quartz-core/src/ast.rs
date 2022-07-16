@@ -78,6 +78,7 @@ pub enum Expr {
     Index(Box<Source<Expr>>, Box<Source<Expr>>),
     Ref(Box<Source<Expr>>, Type),
     Deref(Box<Source<Expr>>, Type),
+    As(Box<Source<Expr>>, Type),
 }
 
 #[derive(PartialEq, Debug, Clone)]

@@ -382,6 +382,10 @@ impl Parser {
                     Box::new(self.source_from(index, index_start)),
                 )
             }
+            expr if self.expect_lexeme(Lexeme::As).is_ok() => {
+                let typ = self.atype()?;
+                Expr::As(Box::new(self.source_from(expr, short_expr_start)), typ)
+            }
             _ => short_expr,
         };
 
