@@ -1240,7 +1240,7 @@ func main() {
     };
     let three = ref two;
 
-    return 1;
+    return two.add(three);
 }
 "#,
             1,
@@ -1253,10 +1253,8 @@ func main() {
 
         let mut runtime = Runtime::new(code.clone(), compiler.vm_code_generation.globals());
         println!("{}", input);
-        println!("{}", compiler.ir_result.unwrap().show());
-        for (n, inst) in runtime.code.iter().enumerate() {
-            println!("{:04} {:?}", n, inst);
-        }
+        println!("{}", compiler.ir_result.clone().unwrap().show());
+        println!("{}", compiler.show_qasmv(&code));
         runtime.run()?;
         let pop = runtime.pop();
         assert_eq!(

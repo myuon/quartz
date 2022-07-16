@@ -77,6 +77,7 @@ pub enum Expr {
     ),
     Index(Box<Source<Expr>>, Box<Source<Expr>>),
     Ref(Box<Source<Expr>>, Type),
+    Deref(Box<Source<Expr>>),
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -214,6 +215,13 @@ impl Type {
     pub fn is_struct(&self) -> bool {
         match self {
             Type::Struct(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_ref(&self) -> bool {
+        match self {
+            Type::Ref(_) => true,
             _ => false,
         }
     }

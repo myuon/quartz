@@ -1,6 +1,7 @@
 use std::{collections::HashMap, fs::File, io::Read, iter::repeat, path::PathBuf};
 
 use anyhow::{Context, Error, Result};
+use log::info;
 use thiserror::Error as ThisError;
 
 use crate::{
@@ -63,6 +64,7 @@ pub struct Compiler<'s> {
     pub ir_code_generation: IrGenerator,
     pub vm_code_generation: VmGenerator,
     pub ir_result: Option<IrElement>,
+    pub ir_source_map: HashMap<usize, String>,
 }
 
 impl Compiler<'_> {
@@ -72,6 +74,7 @@ impl Compiler<'_> {
             ir_code_generation: IrGenerator::new(),
             vm_code_generation: VmGenerator::new(),
             ir_result: None,
+            ir_source_map: HashMap::new(),
         }
     }
 
@@ -163,7 +166,8 @@ impl Compiler<'_> {
         let ir = self.compile_ir(input, entrypoint.clone())?;
         self.ir_result = Some(ir.clone());
         self.vm_code_generation.set_entrypoint(entrypoint);
-        let result = self.vm_code_generation.generate(ir)?;
+        let (code, source_map) = self.vm_code_generation.generate(ir)?;
+        self.ir_source_map = source_map;
 
         self.typechecker = TypeChecker::new(
             self.typechecker.variables.clone(),
@@ -171,18 +175,19 @@ impl Compiler<'_> {
             "",
         );
 
-        Ok(result.0)
+        Ok(code)
     }
 
     pub fn compile_result<'s>(
         &mut self,
         input: &'s str,
         entrypoint: String,
-    ) -> Result<(Vec<QVMInstruction>, HashMap<usize, String>)> {
+    ) -> Result<Vec<QVMInstruction>> {
         let ir = self.compile_ir(input, entrypoint.clone())?;
         self.ir_result = Some(ir.clone());
         self.vm_code_generation.set_entrypoint(entrypoint);
-        let result = self.vm_code_generation.generate(ir)?;
+        let (code, source_map) = self.vm_code_generation.generate(ir)?;
+        self.ir_source_map = source_map;
 
         self.typechecker = TypeChecker::new(
             self.typechecker.variables.clone(),
@@ -190,6 +195,20 @@ impl Compiler<'_> {
             "",
         );
 
-        Ok(result)
+        Ok(code)
+    }
+
+    pub fn show_qasmv<'s>(&mut self, code: &'s [QVMInstruction]) -> String {
+        let mut result = String::new();
+        for (n, inst) in code.iter().enumerate() {
+            if let Some(s) = self.ir_source_map.get(&n) {
+                info!(";; {}", s);
+                result += &format!(";; {}\n", s);
+            }
+            info!("{:04} {:?}", n, inst);
+            result += &format!("{:04} {:?}\n", n, inst);
+        }
+
+        result
     }
 }

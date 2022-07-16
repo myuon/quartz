@@ -210,6 +210,7 @@ impl<'s> IrFunctionGenerator<'s> {
 
                 Ok(IrElement::Term(IrTerm::Ident(v, 1)))
             }
+            Expr::Deref(e) => Ok(IrElement::i_call("_deref", vec![self.expr(e.as_ref())?])),
         }
     }
 

@@ -122,26 +122,17 @@ fn main() -> Result<()> {
             stdin.read_to_string(&mut buffer).unwrap();
 
             let mut compiler = Compiler::new();
-            let (code, source_map) = compiler.compile_result(&buffer, "main".to_string())?;
-            let ir = compiler.ir_result.unwrap().show();
+            let code = compiler.compile_result(&buffer, "main".to_string())?;
+            let ir = compiler.ir_result.clone().unwrap().show();
             info!("{}", ir);
 
             let mut file = File::create(qirv_output.unwrap_or("./build/out.qirv".into())).unwrap();
             file.write_all(ir.as_bytes()).unwrap();
 
-            let mut qirv = String::new();
-            for (n, inst) in code.iter().enumerate() {
-                if let Some(s) = source_map.get(&n) {
-                    info!(";; {}", s);
-                    qirv += &format!(";; {}\n", s);
-                }
-                info!("{:04} {:?}", n, inst);
-                qirv += &format!("{:04} {:?}\n", n, inst);
-            }
-
             let mut file =
                 File::create(qasmv_output.unwrap_or("./build/out.qasmv".into())).unwrap();
-            file.write_all(qirv.as_bytes()).unwrap();
+            file.write_all(compiler.show_qasmv(&code).as_bytes())
+                .unwrap();
 
             let mut file = File::create(qasm_output.unwrap_or("./build/out.qasm".into())).unwrap();
             file.write_all(
