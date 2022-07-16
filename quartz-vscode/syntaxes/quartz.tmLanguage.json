@@ -147,7 +147,7 @@
     "keywords": {
       "patterns": [
         {
-          "match": "\\b(for|if|while|return|let)\\b",
+          "match": "\\b(for|if|while|return|let|continue)\\b",
           "name": "keyword.control.quartz"
         },
         {
@@ -165,6 +165,14 @@
         {
           "match": ":",
           "name": "keyword.operator.colon.quartz"
+        },
+        {
+          "match": "\\?",
+          "name": "keyword.operator.question.quartz"
+        },
+        {
+          "match": "\\b(ref)\\b",
+          "name": "keyword.other.ref.quartz"
         },
         {
           "match": "\\.",
