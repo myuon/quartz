@@ -135,9 +135,23 @@ impl<'s> IrFunctionGenerator<'s> {
                 ) as i32)));
 
                 // FIXME: field order
-                for (_label, expr) in exprs {
-                    let v = self.expr(expr)?;
-                    data.push(v);
+                for (label, expr, typ) in exprs {
+                    let mut result = self.expr(expr)?;
+
+                    // coerce check
+                    let actual_size = size_of(typ, self.structs);
+                    let expected_size = size_of(
+                        &self.structs.get_projection_type(&struct_name, label)?,
+                        self.structs,
+                    );
+                    if expected_size != actual_size {
+                        assert!(actual_size <= expected_size);
+                        assert!(expected_size >= 2);
+
+                        result = IrElement::i_coerce(actual_size, expected_size, result);
+                    }
+
+                    data.push(result);
                 }
 
                 Ok(IrElement::block("data", data))

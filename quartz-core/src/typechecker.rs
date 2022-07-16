@@ -294,11 +294,15 @@ impl<'s> TypeChecker<'s> {
                 assert_eq!(self.structs.0.contains_key(s), true);
 
                 let def = self.structs.0[s].clone();
-                for ((k1, v1), (k2, v2)) in def.iter().zip(fields.into_iter()) {
+                for ((k1, v1), (k2, v2, t)) in def.iter().zip(fields.into_iter()) {
                     assert_eq!(k1, k2);
 
-                    let cs = Constraints::coerce(&self.expr(v2)?, &v1)?;
+                    let mut result = self.expr(v2)?;
+                    let cs = Constraints::coerce(&result, &v1)?;
                     self.apply_constraints(&cs);
+                    cs.apply(&mut result);
+
+                    *t = result;
                 }
 
                 Ok(Type::Struct(s.clone()))

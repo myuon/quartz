@@ -191,6 +191,10 @@ impl IrElement {
 
     // = IR instructions
 
+    pub fn nil() -> IrElement {
+        IrElement::Term(IrTerm::Nil)
+    }
+
     pub fn int(num: i32) -> IrElement {
         IrElement::Term(IrTerm::Int(num))
     }
@@ -226,6 +230,17 @@ impl IrElement {
 
     pub fn i_call_raw(args: Vec<IrElement>) -> IrElement {
         IrElement::block("call", args)
+    }
+
+    pub fn i_coerce(actual_size: usize, expected_size: usize, element: IrElement) -> IrElement {
+        IrElement::block(
+            "coerce",
+            vec![
+                IrElement::int(actual_size as i32),
+                IrElement::int(expected_size as i32),
+                element,
+            ],
+        )
     }
 }
 

@@ -459,7 +459,7 @@ impl Parser {
         Ok(fields)
     }
 
-    fn many_fields_with_exprs(&mut self) -> Result<Vec<(String, Source<Expr>)>> {
+    fn many_fields_with_exprs(&mut self) -> Result<Vec<(String, Source<Expr>, Type)>> {
         let mut fields = vec![];
 
         while self.peek().lexeme != Lexeme::RBrace {
@@ -467,7 +467,7 @@ impl Parser {
             self.expect_lexeme(Lexeme::Colon)?;
             let e_start = self.position;
             let e = self.expr()?;
-            fields.push((name, self.source_from(e, e_start)));
+            fields.push((name, self.source_from(e, e_start), Type::Infer(0)));
 
             // allow trailing comma
             match self.expect_lexeme(Lexeme::Comma) {
