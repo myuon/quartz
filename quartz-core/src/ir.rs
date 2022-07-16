@@ -155,6 +155,7 @@ impl IrElement {
                 )],
             ),
             Type::Array(_) => IrElement::ident("array"),
+            Type::Ref(_) => IrElement::ident("ref"),
             _ => unreachable!(),
         }
     }

@@ -348,6 +348,7 @@ impl Parser {
     }
 
     fn expr(&mut self) -> Result<Expr> {
+        let is_ref = self.expect_lexeme(Lexeme::Ref).is_ok();
         let short_expr_start = self.position;
         let short_expr = self.short_expr()?;
 
@@ -383,6 +384,13 @@ impl Parser {
             }
             _ => short_expr,
         };
+
+        if is_ref {
+            result = Expr::Ref(
+                Box::new(self.source(result, short_expr_start, self.position)),
+                Type::Infer(0),
+            );
+        }
 
         // handling operators here
         let operators = vec![

@@ -136,6 +136,7 @@ pub struct TypeChecker<'s> {
     pub variables: HashMap<String, Type>,
     pub structs: Structs,
     pub function_types: HashMap<String, (Vec<Type>, Type)>,
+    pub method_types: HashMap<(String, String), (Vec<Type>, Type)>,
     pub methods: Methods,
     pub source_code: &'s str,
     call_graph: HashMap<String, HashMap<String, ()>>,
@@ -155,6 +156,7 @@ impl<'s> TypeChecker<'s> {
             variables,
             structs,
             function_types: HashMap::new(),
+            method_types: HashMap::new(),
             methods,
             source_code,
             call_graph: HashMap::new(),
@@ -373,6 +375,13 @@ impl<'s> TypeChecker<'s> {
 
                 Ok(r)
             }
+            Expr::Ref(e, t) => {
+                let e_type = self.expr(e)?;
+                *t = e_type.clone();
+
+                let ty = Type::Ref(Box::new(e_type));
+                Ok(ty)
+            }
         }
     }
 
@@ -467,10 +476,17 @@ impl<'s> TypeChecker<'s> {
                         func.return_type = self.next_infer();
                     }
 
-                    self.function_types.insert(
-                        func.name.clone(),
-                        (arg_types.clone(), func.return_type.clone()),
-                    );
+                    if let Some((_name, typ, _pointer)) = func.method_of.clone() {
+                        self.method_types.insert(
+                            (typ, func.name.clone()),
+                            (arg_types.clone(), func.return_type.clone()),
+                        );
+                    } else {
+                        self.function_types.insert(
+                            func.name.clone(),
+                            (arg_types.clone(), func.return_type.clone()),
+                        );
+                    }
 
                     // メソッドのレシーバーも登録する
                     if let Some((name, typ, pointer)) = func.method_of.clone() {

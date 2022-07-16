@@ -1221,17 +1221,24 @@ struct Nat {
     succ: ref Nat,
 }
 
+func (n: Nat) add(m: Nat): Nat {
+    if (n.succ == nil) {
+        return m;
+    } else {
+        return n.succ.add(m.succ);
+    };
+}
+
 func main() {
     let zero = Nat {
         succ: _nil_to_ref(nil),
     };
     let two = Nat {
         succ: ref Nat {
-            succ: ref Nat {
-                succ: _nil_to_ref(nil),
-            },
+            succ: ref zero,
         },
     };
+    let three = ref two;
 
     return 1;
 }

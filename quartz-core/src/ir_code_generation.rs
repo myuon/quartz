@@ -186,6 +186,30 @@ impl<'s> IrFunctionGenerator<'s> {
                     vec![self.expr(arr.as_ref())?, self.expr(i.as_ref())?],
                 )],
             )),
+            Expr::Ref(e, t) => {
+                let v = self.var_fresh();
+                let size = size_of(t, self.structs);
+                self.ir.push(IrElement::i_let(
+                    IrElement::ir_type(&Type::Ref(Box::new(t.clone())), self.structs),
+                    v.clone(),
+                    IrElement::i_call("_new", vec![IrElement::int(size as i32)]),
+                ));
+
+                let e_value = self.expr(e)?;
+                self.ir.push(IrElement::i_assign(
+                    size,
+                    IrElement::i_call(
+                        "_padd",
+                        vec![
+                            IrElement::Term(IrTerm::Ident(v.clone(), 1)),
+                            IrElement::int(0 as i32),
+                        ],
+                    ),
+                    e_value,
+                ));
+
+                Ok(IrElement::Term(IrTerm::Ident(v, 1)))
+            }
         }
     }
 

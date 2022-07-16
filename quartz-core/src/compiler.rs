@@ -146,7 +146,7 @@ impl Compiler<'_> {
         let mut module = self.parse(&input).context("parse phase")?;
 
         typechecker.set_entrypoint(entrypoint);
-        typechecker.module(&mut module)?;
+        typechecker.module(&mut module).context("typecheck phase")?;
 
         self.ir_code_generation.context(typechecker.structs.clone());
 
