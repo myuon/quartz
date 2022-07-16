@@ -53,11 +53,18 @@ impl Constraints {
                 let cs = Constraints::unify(t1, t2)?;
                 Ok(cs)
             }
-            (Type::Optional(_), Type::Nil) => Ok(Constraints::new()),
-            (Type::Optional(t), Type::Optional(s)) => {
-                let cs = Constraints::unify(t, s)?;
-                Ok(cs)
-            }
+            (t1, t2) => bail!("Type error, want {:?} but found {:?}", t1, t2),
+        }
+    }
+
+    fn coerce(t1: &Type, t2: &Type) -> Result<Constraints> {
+        if let Ok(c) = Constraints::unify(t1, t2) {
+            return Ok(c);
+        }
+
+        match (t1, t2) {
+            (Type::Nil, Type::Optional(_)) => Ok(Constraints::new()),
+            (t, Type::Optional(s)) => Constraints::unify(t, s),
             (t1, t2) => bail!("Type error, want {:?} but found {:?}", t1, t2),
         }
     }
@@ -290,7 +297,7 @@ impl<'s> TypeChecker<'s> {
                 for ((k1, v1), (k2, v2)) in def.iter().zip(fields.into_iter()) {
                     assert_eq!(k1, k2);
 
-                    let cs = Constraints::unify(&v1, &self.expr(v2)?)?;
+                    let cs = Constraints::coerce(&self.expr(v2)?, &v1)?;
                     self.apply_constraints(&cs);
                 }
 

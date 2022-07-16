@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Debug};
 
-use anyhow::{bail, Context, Result};
+use anyhow::Result;
 
 use crate::{
     ast::{
@@ -33,19 +33,6 @@ impl<'s> IrFunctionGenerator<'s> {
             structs,
             strings,
         }
-    }
-
-    fn stack_size_of(&self, ty: &Type) -> Result<usize> {
-        Ok(match ty {
-            Type::Bool => 1,
-            Type::Int => 1,
-            Type::Byte => 1,
-            Type::Struct(s) => self.structs.size_of_struct(s.as_str()),
-            Type::Array(_) => 1,
-            Type::Fn(_, _) => 1,
-            Type::Nil => 1,
-            _ => bail!("Unsupported type: {:?}", ty),
-        })
     }
 
     pub fn var_fresh(&mut self) -> String {
@@ -86,9 +73,7 @@ impl<'s> IrFunctionGenerator<'s> {
                     ))
                 }
                 Literal::Array(arr, t) => {
-                    let size = self
-                        .stack_size_of(&Type::Array(Box::new(t.clone())))
-                        .context(format!("{:?}", expr))?;
+                    let size = size_of(&Type::Array(Box::new(t.clone())), self.structs);
                     let v = self.var_fresh();
                     let n = arr.len() as i32;
 
@@ -205,7 +190,7 @@ impl<'s> IrFunctionGenerator<'s> {
                 self.ir.push(v);
                 self.ir.push(IrElement::instruction(
                     "pop",
-                    vec![IrTerm::Int(self.stack_size_of(t)? as i32)],
+                    vec![IrTerm::Int(size_of(t, self.structs) as i32)],
                 ));
             }
             Statement::Return(e, t) => {
@@ -213,9 +198,7 @@ impl<'s> IrFunctionGenerator<'s> {
                 self.ir.push(IrElement::block(
                     "return",
                     vec![
-                        IrElement::Term(IrTerm::Int(
-                            self.stack_size_of(t).context(format!("{:?}", statement))? as i32,
-                        )),
+                        IrElement::Term(IrTerm::Int(size_of(t, self.structs) as i32)),
                         v,
                     ],
                 ));

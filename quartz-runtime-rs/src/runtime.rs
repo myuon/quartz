@@ -1185,18 +1185,19 @@ func main(): int {
         ),
         (
             r#"
-struct Nat {
-    is_zero: bool,
-    succ: Nat?,
+struct Foo {
+    value: int?,
 }
 
 func main() {
-    let n = Nat {
-        is_zero: true,
-        succ: nil,
+    let foo = Foo {
+        value: 100,
+    };
+    let bar = Foo {
+        value: nil,
     };
 
-    return 0;
+    return bar.value;
 }
 "#,
             10,
