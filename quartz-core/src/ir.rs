@@ -146,7 +146,7 @@ impl IrElement {
             Type::Bool => IrElement::ident("bool"),
             Type::Int => IrElement::ident("int"),
             Type::Byte => IrElement::ident("byte"),
-            Type::Unit => IrElement::ident("unit"),
+            Type::Nil => IrElement::ident("nil"),
             Type::Fn(_, _) => IrElement::ident("addr"),
             Type::Struct(t) => IrElement::block(
                 "struct",

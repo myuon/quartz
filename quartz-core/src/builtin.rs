@@ -40,7 +40,7 @@ pub fn builtin() -> HashMap<String, Type> {
             "_gt",
             Type::Fn(vec![Type::Int, Type::Int], Box::new(Type::Bool)),
         ),
-        ("_free", Type::Fn(vec![Type::Any], Box::new(Type::Unit))),
+        ("_free", Type::Fn(vec![Type::Any], Box::new(Type::Nil))),
         (
             "_new",
             Type::Fn(vec![Type::Int], Box::new(Type::Array(Box::new(Type::Byte)))),
@@ -49,10 +49,10 @@ pub fn builtin() -> HashMap<String, Type> {
             "_len",
             Type::Fn(vec![Type::Array(Box::new(Type::Byte))], Box::new(Type::Int)),
         ),
-        ("_gc", Type::Unit),
-        ("_panic", Type::Unit),
-        ("_debug", Type::Unit),
-        ("_start_debugger", Type::Unit),
+        ("_gc", Type::Nil),
+        ("_panic", Type::Nil),
+        ("_debug", Type::Nil),
+        ("_start_debugger", Type::Nil),
         (
             "_padd",
             Type::Fn(vec![Type::Any, Type::Int], Box::new(Type::Byte)),
@@ -61,7 +61,7 @@ pub fn builtin() -> HashMap<String, Type> {
             "_println",
             Type::Fn(
                 vec![Type::Struct("string".to_string())],
-                Box::new(Type::Unit),
+                Box::new(Type::Nil),
             ),
         ),
         (
@@ -90,7 +90,7 @@ pub fn builtin() -> HashMap<String, Type> {
                     Type::Any, // bytes or pointer (_padd(bytes, int) can be applied here)
                     Type::Array(Box::new(Type::Byte)),
                 ],
-                Box::new(Type::Unit),
+                Box::new(Type::Nil),
             ),
         ),
     ]

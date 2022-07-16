@@ -1183,6 +1183,24 @@ func main(): int {
 "#,
             10,
         ),
+        (
+            r#"
+struct Nat {
+    is_zero: bool,
+    succ: Nat?,
+}
+
+func main() {
+    let n = Nat {
+        is_zero: true,
+        succ: nil,
+    };
+
+    return 0;
+}
+"#,
+            10,
+        ),
     ];
 
     for (input, result) in cases {

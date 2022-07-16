@@ -132,7 +132,7 @@ pub struct Module(pub Vec<Declaration>);
 pub enum Type {
     Infer(usize), // for typecheck
     Any,
-    Unit,
+    Nil, // literal "nil"
     Bool,
     Int,
     Byte,
@@ -140,6 +140,7 @@ pub enum Type {
     Struct(String),
     Ref(Box<Type>),
     Array(Box<Type>),
+    Optional(Box<Type>),
 }
 
 impl Type {
@@ -168,7 +169,6 @@ impl Type {
         match self {
             Type::Infer(t) => *t == index,
             Type::Any => false,
-            Type::Unit => false,
             Type::Bool => false,
             Type::Int => false,
             Type::Fn(args, ret) => {
@@ -178,6 +178,8 @@ impl Type {
             Type::Ref(_) => todo!(),
             Type::Byte => false,
             Type::Array(t) => t.has_infer(index),
+            Type::Optional(t) => t.has_infer(index),
+            Type::Nil => false,
         }
     }
 
@@ -189,7 +191,6 @@ impl Type {
                 }
             }
             Type::Any => {}
-            Type::Unit => {}
             Type::Bool => {}
             Type::Int => {}
             Type::Fn(args, ret) => {
@@ -203,6 +204,8 @@ impl Type {
             Type::Ref(_) => todo!(),
             Type::Byte => {}
             Type::Array(t) => t.subst(index, typ),
+            Type::Optional(t) => t.subst(index, typ),
+            Type::Nil => {}
         }
     }
 
@@ -321,13 +324,14 @@ impl Structs {
 // size ON STACK
 pub fn size_of(typ: &Type, structs: &Structs) -> usize {
     match typ {
-        Type::Unit => 1,
         Type::Bool => 1,
+        Type::Nil => 1,
         Type::Int => 1,
         Type::Byte => 1,
         Type::Fn(_, _) => 1,
         Type::Struct(st) => structs.size_of_struct(st),
         Type::Array(_) => 1, // array itself must be allocated on heap
+        Type::Optional(t) => size_of(t, structs), // optional<T> is a union of T and nil
         _ => unreachable!(),
     }
 }

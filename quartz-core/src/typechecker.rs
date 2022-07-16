@@ -53,6 +53,11 @@ impl Constraints {
                 let cs = Constraints::unify(t1, t2)?;
                 Ok(cs)
             }
+            (Type::Optional(_), Type::Nil) => Ok(Constraints::new()),
+            (Type::Optional(t), Type::Optional(s)) => {
+                let cs = Constraints::unify(t, s)?;
+                Ok(cs)
+            }
             (t1, t2) => bail!("Type error, want {:?} but found {:?}", t1, t2),
         }
     }
@@ -93,7 +98,7 @@ impl Constraints {
                 }
             }
             Type::Any => {}
-            Type::Unit => {}
+            Type::Nil => {}
             Type::Bool => {}
             Type::Int => {}
             Type::Fn(args, ret) => {
@@ -109,6 +114,9 @@ impl Constraints {
             Type::Byte => {}
             Type::Array(arr) => {
                 self.apply(arr);
+            }
+            Type::Optional(t) => {
+                self.apply(t);
             }
         }
     }
@@ -212,7 +220,7 @@ impl<'s> TypeChecker<'s> {
                 Literal::Bool(_) => Ok(Type::Bool),
                 Literal::Int(_) => Ok(Type::Int),
                 Literal::String(_) => Ok(Type::Struct("string".to_string())),
-                Literal::Nil => Ok(Type::Unit),
+                Literal::Nil => Ok(Type::Nil),
                 Literal::Array(arr, t) => {
                     for e in arr {
                         let etype = self.expr(e)?;
@@ -367,7 +375,7 @@ impl<'s> TypeChecker<'s> {
                     let body_type = self.expr(body)?;
                     *t = body_type.clone();
                     self.variables.insert(x.clone(), body_type);
-                    ret_type = Type::Unit;
+                    ret_type = Type::Nil;
                 }
                 Statement::Expr(e, t) => {
                     let etype =
@@ -375,7 +383,7 @@ impl<'s> TypeChecker<'s> {
                             .context(self.error_context(e.start, e.end, "expression"))?;
                     *t = etype;
 
-                    ret_type = Type::Unit;
+                    ret_type = Type::Nil;
                 }
                 Statement::Return(e, t) => {
                     ret_type = self.expr(e).context(self.error_context(
@@ -405,7 +413,7 @@ impl<'s> TypeChecker<'s> {
                     let cs = Constraints::unify(&typ, &self.expr(rhs)?)?;
                     self.apply_constraints(&cs);
 
-                    ret_type = Type::Unit;
+                    ret_type = Type::Nil;
                 }
                 Statement::While(cond, body) => {
                     let cond_type = self.expr(cond)?;
@@ -413,7 +421,7 @@ impl<'s> TypeChecker<'s> {
                     self.apply_constraints(&cs);
 
                     let mut body_type = self.statements(body)?;
-                    let cs = Constraints::unify(&body_type, &Type::Unit)?;
+                    let cs = Constraints::unify(&body_type, &Type::Nil)?;
                     self.apply_constraints(&cs);
 
                     cs.apply(&mut body_type);

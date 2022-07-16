@@ -64,21 +64,22 @@ impl Parser {
     }
 
     fn atype(&mut self) -> Result<Type> {
-        if self.expect_lexeme(Lexeme::And).is_ok() {
-            Ok(Type::Ref(Box::new(self.atype()?)))
-        } else {
-            let ident = self.ident()?;
-            match ident.as_str() {
-                "int" => Ok(Type::Int),
-                "bool" => Ok(Type::Bool),
-                "string" => Ok(Type::Struct("string".to_string())),
-                "any" => Ok(Type::Any),
-                "bytes" => Ok(Type::Array(Box::new(Type::Byte))),
-                "byte" => Ok(Type::Byte),
-                "ints" => Ok(Type::Array(Box::new(Type::Int))),
-                _ => Ok(Type::Struct(ident)),
-            }
+        let ident = self.ident()?;
+        let mut result = match ident.as_str() {
+            "int" => Type::Int,
+            "bool" => Type::Bool,
+            "string" => Type::Struct("string".to_string()),
+            "any" => Type::Any,
+            "bytes" => Type::Array(Box::new(Type::Byte)),
+            "byte" => Type::Byte,
+            "ints" => Type::Array(Box::new(Type::Int)),
+            _ => Type::Struct(ident),
+        };
+        if self.expect_lexeme(Lexeme::Question).is_ok() {
+            result = Type::Optional(Box::new(result));
         }
+
+        Ok(result)
     }
 
     fn ident(&mut self) -> Result<String> {

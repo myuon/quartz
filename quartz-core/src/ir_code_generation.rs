@@ -37,13 +37,13 @@ impl<'s> IrFunctionGenerator<'s> {
 
     fn stack_size_of(&self, ty: &Type) -> Result<usize> {
         Ok(match ty {
-            Type::Unit => 1,
             Type::Bool => 1,
             Type::Int => 1,
             Type::Byte => 1,
             Type::Struct(s) => self.structs.size_of_struct(s.as_str()),
             Type::Array(_) => 1,
             Type::Fn(_, _) => 1,
+            Type::Nil => 1,
             _ => bail!("Unsupported type: {:?}", ty),
         })
     }
@@ -337,7 +337,7 @@ impl<'s> IrFunctionGenerator<'s> {
         if need_return_nil_insert {
             self.statement(&Statement::Return(
                 Source::unknown(Expr::Lit(Literal::Nil)),
-                Type::Unit,
+                Type::Nil,
             ))?;
         }
 
