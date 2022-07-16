@@ -350,22 +350,3 @@ pub struct Functions(
         ),
     >,
 );
-
-#[derive(Debug, Clone)]
-pub struct Methods(
-    pub  HashMap<
-        (String, String), // receiver type, method name
-        (
-            String,                 // receiver name
-            Vec<(String, Type)>,    // argument types
-            Box<Type>,              // return type
-            Vec<Source<Statement>>, // body
-        ),
-    >,
-);
-
-pub struct Context {
-    pub structs: Structs,
-    pub functions: Functions,
-    pub methods: Methods,
-}

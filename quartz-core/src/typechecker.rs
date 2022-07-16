@@ -4,7 +4,7 @@ use anyhow::{bail, Context, Result};
 use pretty_assertions::assert_eq;
 
 use crate::{
-    ast::{Declaration, Expr, Literal, Methods, Module, Source, Statement, Structs, Type},
+    ast::{Declaration, Expr, Literal, Module, Source, Statement, Structs, Type},
     compiler::specify_source_in_input,
 };
 
@@ -137,7 +137,6 @@ pub struct TypeChecker<'s> {
     pub structs: Structs,
     pub function_types: HashMap<String, (Vec<Type>, Type)>,
     pub method_types: HashMap<(String, String), (Vec<Type>, Type)>,
-    pub methods: Methods,
     pub source_code: &'s str,
     call_graph: HashMap<String, HashMap<String, ()>>,
     current_function: Option<String>,
@@ -148,7 +147,6 @@ impl<'s> TypeChecker<'s> {
     pub fn new(
         variables: HashMap<String, Type>,
         structs: Structs,
-        methods: Methods,
         source_code: &'s str,
     ) -> TypeChecker {
         TypeChecker {
@@ -157,7 +155,6 @@ impl<'s> TypeChecker<'s> {
             structs,
             function_types: HashMap::new(),
             method_types: HashMap::new(),
-            methods,
             source_code,
             call_graph: HashMap::new(),
             current_function: None,
@@ -330,7 +327,9 @@ impl<'s> TypeChecker<'s> {
                 };
                 *name = typ_name.clone();
 
-                if let Some(method) = self.methods.0.get(&(typ_name.clone(), field.clone())) {
+                if let Some((arg_types, return_type)) =
+                    self.method_types.get(&(typ_name.clone(), field.clone()))
+                {
                     // FIXME: if pointer, something could be go wrong
 
                     *is_method = true;
@@ -340,10 +339,7 @@ impl<'s> TypeChecker<'s> {
                         .or_insert(HashMap::new())
                         .insert(format!("{}::{}", name, field), ());
 
-                    Ok(Type::Fn(
-                        method.1.clone().into_iter().map(|(_, v)| v).collect(),
-                        method.2.clone(),
-                    ))
+                    Ok(Type::Fn(arg_types.clone(), Box::new(return_type.clone())))
                 } else {
                     let field_type = self
                         .structs
@@ -543,26 +539,13 @@ impl<'s> TypeChecker<'s> {
 
                     self.variables = variables;
 
-                    // FIXME: move to preprocess phase
-                    if let Some((name, typ, _pointer)) = func.method_of.clone() {
-                        self.methods.0.insert(
-                            (typ, func.name.clone()),
-                            (
-                                name,
-                                func.args
-                                    .iter()
-                                    .map(|(name, _)| name)
-                                    .cloned()
-                                    .into_iter()
-                                    .zip(arg_types.into_iter())
-                                    .collect(),
-                                Box::new(t.clone()),
-                                func.body.clone(),
-                            ),
-                        );
+                    if let Some((_name, typ, _pointer)) = func.method_of.clone() {
+                        self.method_types
+                            .get_mut(&(typ, func.name.clone()))
+                            .unwrap()
+                            .1 = t;
                     } else {
-                        self.function_types
-                            .insert(func.name.clone(), (arg_types, t.clone()));
+                        self.function_types.get_mut(&func.name).unwrap().1 = t;
                     }
                 }
                 Declaration::Variable(x, e, typ) => {
@@ -642,12 +625,7 @@ mod tests {
 
         for c in cases {
             let mut module = run_parser_statements(c.0).unwrap();
-            let mut typechecker = TypeChecker::new(
-                HashMap::new(),
-                Structs(HashMap::new()),
-                Methods(HashMap::new()),
-                "",
-            );
+            let mut typechecker = TypeChecker::new(HashMap::new(), Structs(HashMap::new()), "");
             let result = typechecker
                 .statements(&mut module)
                 .expect(&format!("{}", c.0));
@@ -690,12 +668,7 @@ mod tests {
 
         for c in cases {
             let mut module = run_parser(c.0).unwrap();
-            let mut typechecker = TypeChecker::new(
-                builtin(),
-                Structs(HashMap::new()),
-                Methods(HashMap::new()),
-                "",
-            );
+            let mut typechecker = TypeChecker::new(builtin(), Structs(HashMap::new()), "");
             let result = typechecker.module(&mut module);
 
             let err = result.unwrap_err();
@@ -779,18 +752,13 @@ func main(): byte {
 
         for c in cases {
             let mut compiler = Compiler::new();
-            compiler.typechecker.methods.0.insert(
+            compiler.typechecker.method_types.insert(
                 ("string".to_string(), "len".to_string()),
-                ("len".to_string(), vec![], Box::new(Type::Int), vec![]),
+                (vec![], Type::Int),
             );
-            compiler.typechecker.methods.0.insert(
+            compiler.typechecker.method_types.insert(
                 ("int".to_string(), "eq".to_string()),
-                (
-                    "x".to_string(),
-                    vec![("y".to_string(), Type::Int)],
-                    Box::new(Type::Bool),
-                    vec![],
-                ),
+                (vec![Type::Int], Type::Bool),
             );
 
             let mut module = compiler.parse(c.0).unwrap();

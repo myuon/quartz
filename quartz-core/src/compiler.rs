@@ -4,7 +4,7 @@ use anyhow::{Context, Error, Result};
 use thiserror::Error as ThisError;
 
 use crate::{
-    ast::{Methods, Module, Structs},
+    ast::{Module, Structs},
     builtin::builtin,
     ir::IrElement,
     ir_code_generation::IrGenerator,
@@ -68,12 +68,7 @@ pub struct Compiler<'s> {
 impl Compiler<'_> {
     pub fn new() -> Compiler<'static> {
         Compiler {
-            typechecker: TypeChecker::new(
-                builtin(),
-                Structs(HashMap::new()),
-                Methods(HashMap::new()),
-                "",
-            ),
+            typechecker: TypeChecker::new(builtin(), Structs(HashMap::new()), ""),
             ir_code_generation: IrGenerator::new(),
             vm_code_generation: VmGenerator::new(),
             ir_result: None,
@@ -139,7 +134,6 @@ impl Compiler<'_> {
         let mut typechecker = TypeChecker::new(
             self.typechecker.variables.clone(),
             self.typechecker.structs.clone(),
-            self.typechecker.methods.clone(),
             &input,
         );
 
@@ -155,7 +149,6 @@ impl Compiler<'_> {
         self.typechecker = TypeChecker::new(
             self.typechecker.variables.clone(),
             self.typechecker.structs.clone(),
-            self.typechecker.methods.clone(),
             "",
         );
 
@@ -175,7 +168,6 @@ impl Compiler<'_> {
         self.typechecker = TypeChecker::new(
             self.typechecker.variables.clone(),
             self.typechecker.structs.clone(),
-            self.typechecker.methods.clone(),
             "",
         );
 
@@ -195,7 +187,6 @@ impl Compiler<'_> {
         self.typechecker = TypeChecker::new(
             self.typechecker.variables.clone(),
             self.typechecker.structs.clone(),
-            self.typechecker.methods.clone(),
             "",
         );
 
