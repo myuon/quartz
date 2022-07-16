@@ -243,52 +243,30 @@ impl<'s> TypeChecker<'s> {
                     return Ok(Type::Any);
                 }
 
-                fn_type.as_fn_type().ok_or(anyhow::anyhow!(
-                    "Expected function type but found: {:?}",
-                    fn_type
-                ))?;
+                let (expected_arg_types, expected_ret_type) = fn_type.as_fn_type().ok_or(
+                    anyhow::anyhow!("Cannot call non-function type {:?}", fn_type),
+                )?;
+                let mut ret_type = expected_ret_type.as_ref().clone();
 
-                let expected_arg_len = fn_type.as_fn_type().unwrap().0.len();
                 let actual_arg_len = args.len();
-                if expected_arg_len != actual_arg_len {
+                if expected_arg_types.len() != actual_arg_len {
                     anyhow::bail!(
                         "Expected {} arguments but given {}",
-                        expected_arg_len,
+                        expected_arg_types.len(),
                         actual_arg_len
                     );
                 }
 
-                let mut arg_types_inferred = vec![];
-                let args_cloned = args.clone();
-                for arg in args {
-                    arg_types_inferred.push(self.expr(arg)?);
+                for i in 0..actual_arg_len {
+                    let expected_arg_type = &expected_arg_types[i];
+                    let actual_arg_type = self.expr(&mut args[i])?;
+
+                    let cs = Constraints::unify(&expected_arg_type, &actual_arg_type)?;
+                    self.apply_constraints(&cs);
+                    cs.apply(&mut ret_type);
                 }
 
-                let mut ret_type_inferred = fn_type.as_fn_type().unwrap().1.as_ref().clone();
-
-                let cs = Constraints::unify(
-                    &fn_type,
-                    &Type::Fn(
-                        arg_types_inferred.clone(),
-                        Box::new(ret_type_inferred.clone()),
-                    ),
-                )
-                .context(self.error_context(
-                    f.start,
-                    f.end,
-                    &format!(
-                        "Unify {:?} & {:?} from {:?}",
-                        fn_type,
-                        Type::Fn(arg_types_inferred, Box::new(ret_type_inferred.clone())),
-                        Expr::Call(f.clone(), args_cloned)
-                    ),
-                ))?;
-
-                self.apply_constraints(&cs);
-
-                cs.apply(&mut ret_type_inferred);
-
-                Ok(ret_type_inferred)
+                Ok(ret_type)
             }
             Expr::Struct(s, fields) => {
                 assert_eq!(self.structs.0.contains_key(s), true);
@@ -483,18 +461,6 @@ impl<'s> TypeChecker<'s> {
                             (arg_types.clone(), func.return_type.clone()),
                         );
                     }
-
-                    // メソッドのレシーバーも登録する
-                    if let Some((name, typ, pointer)) = func.method_of.clone() {
-                        self.variables.insert(
-                            name.clone(),
-                            if pointer {
-                                Type::Ref(Box::new(Type::Struct(typ)))
-                            } else {
-                                Type::Struct(typ)
-                            },
-                        );
-                    }
                 }
                 _ => {}
             }
@@ -650,7 +616,7 @@ mod tests {
                         x();
                     }
                 "#,
-                "Expected function type but found",
+                "Cannot call non-function type Int",
             ),
             (
                 r#"
