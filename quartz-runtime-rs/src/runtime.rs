@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::freelist::Freelist;
 
-#[derive(Clone, Debug, Copy, Serialize, Deserialize)]
+#[derive(Clone, Debug, Copy, Serialize, Deserialize, PartialEq)]
 pub enum AddrPlace {
     Stack,
     Heap,
@@ -47,7 +47,7 @@ pub enum ValueAddrFlag {
     Next,   // next in heap
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum Value {
     Nil,
     Bool(bool),
@@ -442,7 +442,16 @@ impl Runtime {
             QVMInstruction::Eq => {
                 let a = self.pop();
                 let b = self.pop();
-                self.push(Value::bool(b.as_int().unwrap() == a.as_int().unwrap()));
+                let r = match (a, b) {
+                    // FIXME: should we just support other heterogeneous cases like nil?
+                    (Value::Nil, b) => b == Value::Nil,
+                    (a, Value::Nil) => a == Value::Nil,
+                    (Value::Bool(s), Value::Bool(t)) => s == t,
+                    (Value::Int(s, f), Value::Int(t, g)) if f == g => s == t,
+                    (Value::Addr(s, f, j), Value::Addr(t, g, k)) if f == g && j == k => s == t,
+                    _ => todo!(),
+                };
+                self.push(Value::bool(r));
             }
             QVMInstruction::Neq => {
                 let a = self.pop();
@@ -1197,7 +1206,11 @@ func main() {
         value: nil,
     };
 
-    return bar.value;
+    if (bar.value == nil) {
+        return 10;
+    } else {
+        return 20;
+    };
 }
 "#,
             10,
