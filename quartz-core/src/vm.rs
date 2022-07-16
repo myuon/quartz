@@ -50,7 +50,8 @@ pub enum QVMInstruction {
     I32Const(i32),
     BoolConst(bool), // I32Const can be used instead
     AddrConst(usize, Variable),
-    ArgConst(usize), //     function arguments
+    ArgConst(usize), // function arguments
+    NilConst,
 
     InfoConst(usize), // pointer to info table
     //
@@ -167,6 +168,9 @@ impl QVMInstruction {
             }
             InfoConst(n) => {
                 format!("INFOCONST {}", n)
+            }
+            NilConst => {
+                format!("NILCONST")
             }
             LabelI32Const(_) => unreachable!(),
             LabelJumpIfFalse(_) => unreachable!(),

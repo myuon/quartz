@@ -264,8 +264,11 @@ impl<'s> TypeChecker<'s> {
                     // derefernce check
                     // FIXME: nested derefernces
                     if actual_arg_type.is_ref() && !expected_arg_type.is_ref() {
-                        actual_arg_type = actual_arg_type.as_ref_type().unwrap().as_ref().clone();
-                        args[i] = Source::unknown(Expr::Deref(Box::new(args[i].clone())));
+                        args[i] =
+                            Source::unknown(Expr::Deref(Box::new(args[i].clone()), Type::Infer(0)));
+
+                        // try typecheck again
+                        actual_arg_type = self.expr(&mut args[i])?;
                     }
 
                     let cs = Constraints::unify(&expected_arg_type, &actual_arg_type)?;
@@ -363,9 +366,10 @@ impl<'s> TypeChecker<'s> {
                 let ty = Type::Ref(Box::new(e_type));
                 Ok(ty)
             }
-            Expr::Deref(d) => {
+            Expr::Deref(d, t) => {
                 let mut typ = self.expr(d)?;
                 if let Type::Ref(b) = &mut typ {
+                    *t = b.as_ref().clone();
                     return Ok(b.as_ref().clone());
                 } else {
                     bail!("Cannot deref non-ref type: {:?}", typ);

@@ -179,12 +179,12 @@ impl<'s> IrFunctionGenerator<'s> {
 
                 Ok(IrElement::i_load(size_of(&value_type, self.structs), block))
             }
-            Expr::Index(arr, i) => Ok(IrElement::i_call(
-                "_deref",
-                vec![IrElement::i_call(
+            Expr::Index(arr, i) => Ok(IrElement::i_deref(
+                1, // FIXME: calculate size
+                IrElement::i_call(
                     "_padd",
                     vec![self.expr(arr.as_ref())?, self.expr(i.as_ref())?],
-                )],
+                ),
             )),
             Expr::Ref(e, t) => {
                 let v = self.var_fresh();
@@ -210,7 +210,7 @@ impl<'s> IrFunctionGenerator<'s> {
 
                 Ok(IrElement::Term(IrTerm::Ident(v, 1)))
             }
-            Expr::Deref(e) => Ok(IrElement::i_call("_deref", vec![self.expr(e.as_ref())?])),
+            Expr::Deref(e, t) => Ok(IrElement::i_deref(size_of(t, self.structs), self.expr(e)?)),
         }
     }
 
@@ -561,8 +561,8 @@ func main() {
         (return 1
             (call $_add
                 (call $_add
-                    (call $_deref (call $_padd $x 1))
-                    (call $_deref (call $_padd $x 2)))
+                    (deref 1 (call $_padd $x 1))
+                    (deref 1 (call $_padd $x 2)))
                 $0
             )
         )

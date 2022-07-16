@@ -6,7 +6,7 @@ use std::{
 };
 
 use anyhow::Result;
-use log::debug;
+use log::{debug, info};
 use quartz_core::vm::{QVMInstruction, Variable};
 use serde::{Deserialize, Serialize};
 
@@ -109,6 +109,10 @@ impl Value {
 
     pub fn nil() -> Value {
         Value::Nil
+    }
+
+    pub fn is_nil(&self) -> bool {
+        self == &Value::nil()
     }
 
     pub fn bool(b: bool) -> Value {
@@ -254,7 +258,8 @@ impl Runtime {
 
     pub(crate) fn debug_info(&self) -> String {
         format!(
-            "{}\n{:?}\n{} {:?}\n",
+            "{:?}\n{}\n{:?}\n{} {:?}\n",
+            self.globals,
             &self
                 .heap
                 .debug_objects()
@@ -444,12 +449,12 @@ impl Runtime {
                 let b = self.pop();
                 let r = match (a, b) {
                     // FIXME: should we just support other heterogeneous cases like nil?
-                    (Value::Nil, b) => b == Value::Nil,
-                    (a, Value::Nil) => a == Value::Nil,
+                    (a, b) if a.is_nil() => b.is_nil(),
+                    (a, b) if b.is_nil() => a.is_nil(),
                     (Value::Bool(s), Value::Bool(t)) => s == t,
                     (Value::Int(s, f), Value::Int(t, g)) if f == g => s == t,
                     (Value::Addr(s, f, j), Value::Addr(t, g, k)) if f == g && j == k => s == t,
-                    _ => todo!(),
+                    (a, b) => todo!("{:?} == {:?}", a, b),
                 };
                 self.push(Value::bool(r));
             }
@@ -514,9 +519,13 @@ impl Runtime {
             },
             QVMInstruction::Load(u) => {
                 let addr_value = self.pop();
-                assert!(addr_value.clone().as_addr().is_some());
+                assert!(addr_value.is_nil() || addr_value.clone().as_addr().is_some());
 
                 match addr_value {
+                    a if a.is_nil() => {
+                        info!("{}", self.debug_info());
+                        panic!("nil pointer exception");
+                    }
                     Value::Addr(i, space, _) => match space {
                         AddrPlace::Stack => {
                             if u > 1 {
@@ -761,6 +770,9 @@ impl Runtime {
                     self.push(value);
                 }
             },
+            QVMInstruction::NilConst => {
+                self.push(Value::nil());
+            }
             QVMInstruction::LabelI32Const(_) => unreachable!(),
             QVMInstruction::LabelJumpIfFalse(_) => unreachable!(),
             QVMInstruction::LabelJumpIf(_) => unreachable!(),

@@ -195,7 +195,6 @@ impl<'s> VmFunctionGenerator<'s> {
                             "_gc" => QVMInstruction::RuntimeInstr("_gc".to_string()),
                             "_panic" => QVMInstruction::RuntimeInstr("_panic".to_string()),
                             "_len" => QVMInstruction::RuntimeInstr("_len".to_string()),
-                            "_deref" => QVMInstruction::Load(size),
                             "_println" => QVMInstruction::RuntimeInstr("_println".to_string()),
                             "_copy" => QVMInstruction::RuntimeInstr("_copy".to_string()),
                             "_debug" => QVMInstruction::RuntimeInstr("_debug".to_string()),
@@ -211,8 +210,7 @@ impl<'s> VmFunctionGenerator<'s> {
                     }
                 }
                 IrTerm::Nil => {
-                    self.code
-                        .push(QVMInstruction::AddrConst(0, Variable::Global));
+                    self.code.push(QVMInstruction::NilConst);
                 }
                 IrTerm::Bool(b) => {
                     self.code.push(QVMInstruction::BoolConst(b));
@@ -418,6 +416,13 @@ impl<'s> VmFunctionGenerator<'s> {
                             self.string_pointers[n],
                             Variable::StackAbsolute,
                         ));
+                    }
+                    "deref" => {
+                        self.new_source_map(element.show_compact());
+                        let (size, element) = unvec!(block.elements, 2);
+                        self.element(element)?;
+                        self.code
+                            .push(QVMInstruction::Load(size.into_term()?.into_int()? as usize));
                     }
                     name => todo!("{:?}", name),
                 };

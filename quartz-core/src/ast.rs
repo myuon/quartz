@@ -77,7 +77,7 @@ pub enum Expr {
     ),
     Index(Box<Source<Expr>>, Box<Source<Expr>>),
     Ref(Box<Source<Expr>>, Type),
-    Deref(Box<Source<Expr>>),
+    Deref(Box<Source<Expr>>, Type),
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -343,7 +343,7 @@ pub fn size_of(typ: &Type, structs: &Structs) -> usize {
         Type::Array(_) => 1, // array itself must be allocated on heap
         Type::Ref(_) => 1,
         Type::Optional(t) => size_of(t, structs), // optional<T> is a union of T and nil
-        _ => unreachable!(),
+        _ => unreachable!("{:?}", typ),
     }
 }
 
