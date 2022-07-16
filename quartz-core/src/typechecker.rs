@@ -263,7 +263,11 @@ impl<'s> TypeChecker<'s> {
 
                     // derefernce check
                     // FIXME: nested derefernces
-                    if actual_arg_type.is_ref() && !expected_arg_type.is_ref() {
+                    if actual_arg_type.is_ref()
+                        && !expected_arg_type.is_ref()
+                    // FIXME: this is a hack
+                    && !(expected_arg_type == &Type::Any)
+                    {
                         args[i] =
                             Source::unknown(Expr::Deref(Box::new(args[i].clone()), Type::Infer(0)));
 
@@ -296,27 +300,11 @@ impl<'s> TypeChecker<'s> {
                 Ok(Type::Struct(s.clone()))
             }
             Expr::Project(is_method, name, expr, field) => {
-                let mut typ = self.expr(expr)?;
-
-                let mut pointer = false;
-
-                // FIXME: support nested refs
-                if let Some(b) = typ.as_ref_type() {
-                    typ = b.as_ref().clone();
-                    pointer = true;
-                }
-
-                let typ_name = match typ.clone() {
-                    Type::Struct(s) => s.clone(),
-                    Type::Int => "int".to_string(),
-                    Type::Any => "any".to_string(),
-                    Type::Bool => "bool".to_string(),
-                    _ => bail!("Cannot project of: {:?}", typ),
-                };
-                *name = typ_name.clone();
+                let typ = self.expr(expr)?;
+                *name = typ.method_selector_name();
 
                 if let Some((arg_types, return_type)) =
-                    self.method_types.get(&(typ_name.clone(), field.clone()))
+                    self.method_types.get(&(name.clone(), field.clone()))
                 {
                     // FIXME: if pointer, something could be go wrong
 
@@ -327,20 +315,25 @@ impl<'s> TypeChecker<'s> {
                         .or_insert(HashMap::new())
                         .insert(format!("{}::{}", name, field), ());
 
+                    // deref the receiver if necessary
+                    // FIXME: nested derefernces
+                    if let Some(r) = typ.as_ref_type() {
+                        *expr = Box::new(Source::unknown(Expr::Deref(
+                            expr.clone(),
+                            r.as_ref().clone(),
+                        )));
+                    }
+
                     Ok(Type::Fn(arg_types.clone(), Box::new(return_type.clone())))
                 } else {
                     let field_type = self
                         .structs
-                        .get_projection_type(&typ_name, &field)
+                        .get_projection_type(&name, &field)
                         .context(self.error_context(expr.start, expr.end, "projection"))?;
 
                     *is_method = false;
 
-                    Ok(if pointer {
-                        Type::Ref(Box::new(field_type.clone()))
-                    } else {
-                        field_type.clone()
-                    })
+                    Ok(field_type.clone())
                 }
             }
             Expr::Index(e, i) => {

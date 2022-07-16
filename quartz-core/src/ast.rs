@@ -225,6 +225,20 @@ impl Type {
             _ => false,
         }
     }
+
+    pub fn method_selector_name(&self) -> String {
+        match self {
+            Type::Any => "any".to_string(),
+            Type::Bool => "bool".to_string(),
+            Type::Int => "int".to_string(),
+            Type::Byte => "byte".to_string(),
+            Type::Struct(s) => s.to_string(),
+            Type::Ref(r) => r.method_selector_name(),
+            Type::Array(_) => "array".to_string(),
+            Type::Optional(n) => n.method_selector_name(),
+            _ => todo!(),
+        }
+    }
 }
 
 #[derive(PartialEq, Debug, Clone)]

@@ -1237,7 +1237,17 @@ func (n: Nat) add(m: Nat): Nat {
     if (n.succ == nil) {
         return m;
     } else {
-        return n.succ.add(m.succ);
+        return Nat {
+            succ: ref n.succ.add(m)
+        };
+    };
+}
+
+func (n: Nat) to_int(): int {
+    if (n.succ == nil) {
+        return 0;
+    } else {
+        return n.succ.to_int() + 1;
     };
 }
 
@@ -1250,12 +1260,14 @@ func main() {
             succ: ref zero,
         },
     };
-    let three = ref two;
+    let three = Nat {
+        succ: ref two,
+    };
 
-    return two.add(three);
+    return two.add(three).to_int();
 }
 "#,
-            1,
+            5,
         ),
     ];
 
