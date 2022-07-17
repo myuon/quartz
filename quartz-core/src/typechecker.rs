@@ -347,12 +347,14 @@ impl<'s> TypeChecker<'s> {
                 let mut r = self.next_infer();
 
                 let typ = self.expr(e)?;
-                let cs = Constraints::unify(&typ, &Type::Array(Box::new(r.clone())))?;
+                let cs = Constraints::unify(&typ, &Type::Array(Box::new(r.clone())))
+                    .context(self.error_context(e.start, e.end, "index"))?;
                 self.apply_constraints(&cs);
                 cs.apply(&mut r);
 
                 let index_type = self.expr(i)?;
-                let cs = Constraints::unify(&index_type, &Type::Int)?;
+                let cs = Constraints::unify(&index_type, &Type::Int)
+                    .context(self.error_context(i.start, i.end, "index"))?;
                 self.apply_constraints(&cs);
 
                 cs.apply(&mut r);
@@ -531,7 +533,12 @@ impl<'s> TypeChecker<'s> {
                     }
 
                     let mut t = self.statements(&mut func.body)?;
-                    let cs = Constraints::unify(&t, &func.return_type)?;
+                    let cs =
+                        Constraints::coerce(&t, &func.return_type).context(self.error_context(
+                            func.body[0].start,
+                            func.body.last().unwrap().end,
+                            "function return type",
+                        ))?;
                     self.apply_constraints(&cs);
                     cs.apply(&mut t);
                     func.return_type = t.clone();

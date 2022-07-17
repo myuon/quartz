@@ -424,6 +424,25 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.code
                             .push(QVMInstruction::Load(size.into_term()?.into_int()? as usize));
                     }
+                    "coerce" => {
+                        self.new_source_map(element.show_compact());
+                        let (actual_size, expected_size, element) = unvec!(block.elements, 3);
+                        let actual_size = actual_size.into_term()?.into_int()? as usize;
+                        let expected_size = expected_size.into_term()?.into_int()? as usize;
+
+                        self.element(element)?;
+                        self.code.extend(vec![
+                            QVMInstruction::AddrConst(
+                                self.local_pointer - actual_size,
+                                Variable::Local,
+                            ),
+                            QVMInstruction::InfoConst(expected_size),
+                            QVMInstruction::Store(1),
+                        ]);
+                        for _ in 0..expected_size - actual_size {
+                            self.code.push(QVMInstruction::NilConst);
+                        }
+                    }
                     name => todo!("{:?}", name),
                 };
             }

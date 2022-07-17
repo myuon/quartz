@@ -171,8 +171,8 @@
           "name": "keyword.operator.question.quartz"
         },
         {
-          "match": "\\b(ref)\\b",
-          "name": "keyword.other.ref.quartz"
+          "match": "\\b(ref|as)\\b",
+          "name": "keyword.other.quartz"
         },
         {
           "match": "\\.",

@@ -141,13 +141,16 @@ impl Compiler<'_> {
         );
 
         let mut module = self.parse(&input).context("parse phase")?;
+        info!("parsed");
 
         typechecker.set_entrypoint(entrypoint);
         typechecker.module(&mut module).context("typecheck phase")?;
+        info!("typecheck");
 
         self.ir_code_generation.context(typechecker.structs.clone());
 
         let code = self.ir_code_generation.generate(&module)?;
+        info!("ir generated");
 
         self.typechecker = TypeChecker::new(
             self.typechecker.variables.clone(),

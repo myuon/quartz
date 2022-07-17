@@ -197,6 +197,12 @@ func (self: IrElementList) cons(node: IrElement): IrElementList {
     };
 }
 
+struct IrElement {
+    type: string, // BLOCK or TERM
+    term: IrTerm?,
+    block: IrBlock?,
+}
+
 func (l: Lexer) element(): IrElement? {
     let token = l.next_token();
 
@@ -213,19 +219,17 @@ func (l: Lexer) element(): IrElement? {
             next = l.element();
         };
 
-        return IrBlock {
-            name: name_string,
-            elements: elements,
+        return IrElement {
+            type: "BLOCK",
+            term: nil,
+            block: IrBlock {
+                name: name_string,
+                elements: elements,
+            },
         };
     };
 
     return nil;
-}
-
-struct IrElement {
-    type: string, // BLOCK or TERM
-    term: IrTerm?,
-    block: IrBlock?,
 }
 
 func main() {
@@ -234,6 +238,7 @@ func main() {
         input: input, 
         position: 0,
     };
+    lexer.element();
 
     _println("== COMPILE FINISHED");
 }
