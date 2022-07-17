@@ -156,7 +156,8 @@ impl IrElement {
             ),
             Type::Array(_) => IrElement::ident("array"),
             Type::Ref(_) => IrElement::ident("ref"),
-            _ => unreachable!(),
+            Type::Optional(t) => IrElement::block("optional", vec![IrElement::ir_type(t, structs)]),
+            t => unreachable!("{:?}", t),
         }
     }
 
@@ -166,6 +167,8 @@ impl IrElement {
             IrElement::Block(block) => {
                 if &block.name == "struct" {
                     Ok(block.elements[0].clone().into_term()?.into_int()? as usize)
+                } else if &block.name == "optional" {
+                    IrElement::size_of_as_ir_type(&block.elements[0])
                 } else {
                     unreachable!()
                 }

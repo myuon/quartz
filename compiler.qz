@@ -176,23 +176,23 @@ struct IrBlock {
 
 struct IrElementListNode {
     node: IrElement,
-    next: ref IrElementList,
+    next: IrElementList,
 }
 struct IrElementList {
-    cons: IrElementListNode?,
+    cons: ref IrElementListNode,
 }
 
 func IrElementList_nil(): IrElementList {
     return IrElementList {
-        cons: nil,
+        cons: _nil_to_ref(nil),
     };
 }
 
 func (self: IrElementList) cons(node: IrElement): IrElementList {
     return IrElementList {
-        cons: IrElementListNode {
+        cons: ref IrElementListNode {
             node: node,
-            next: ref self,
+            next: self,
         },
     };
 }

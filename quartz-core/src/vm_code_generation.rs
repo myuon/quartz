@@ -432,16 +432,10 @@ impl<'s> VmFunctionGenerator<'s> {
 
                         self.element(element)?;
                         self.code.extend(vec![
-                            QVMInstruction::AddrConst(
-                                self.local_pointer - actual_size,
-                                Variable::Local,
-                            ),
-                            QVMInstruction::InfoConst(expected_size),
-                            QVMInstruction::Store(1),
+                            QVMInstruction::I32Const(expected_size as i32),
+                            QVMInstruction::I32Const(actual_size as i32),
+                            QVMInstruction::RuntimeInstr("_coerce".to_string()),
                         ]);
-                        for _ in 0..expected_size - actual_size {
-                            self.code.push(QVMInstruction::NilConst);
-                        }
                     }
                     name => todo!("{:?}", name),
                 };

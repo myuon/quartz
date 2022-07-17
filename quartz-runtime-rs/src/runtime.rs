@@ -243,6 +243,16 @@ impl Runtime {
         self.stack[self.stack_pointer].clone()
     }
 
+    fn pop_many(&mut self, size: usize) -> Vec<Value> {
+        let mut values = vec![];
+        for _ in 0..size {
+            values.push(self.pop());
+        }
+        values.reverse();
+
+        values
+    }
+
     fn push(&mut self, value: Value) {
         self.stack_pointer += 1;
         if self.stack.len() < self.stack_pointer {
@@ -740,6 +750,25 @@ impl Runtime {
                         sp.as_int().unwrap() as usize,
                         self.stack_pointer - self.frame_pointer
                     );
+                }
+                "_coerce" => {
+                    let actual_size = self.pop().as_int()? as usize;
+                    let expected_size = self.pop().as_int()? as usize;
+                    assert!(expected_size >= actual_size);
+                    let values = self.pop_many(actual_size);
+
+                    self.push(Value::addr(expected_size, AddrPlace::InfoTable));
+                    if values.len() > 1 {
+                        for v in values.into_iter().skip(1) {
+                            self.push(v);
+                        }
+                    } else {
+                        self.push(values[0].clone());
+                    }
+
+                    for _ in 0..expected_size - actual_size {
+                        self.push(Value::nil());
+                    }
                 }
                 _ => {
                     unreachable!();
@@ -1268,6 +1297,38 @@ func main() {
 }
 "#,
             5,
+        ),
+        (
+            r#"
+struct Point {
+    x: int,
+    y: int,
+}
+
+struct CoerceNil {
+    point: Point?,
+}
+
+struct CoerceRef {
+    point: ref Point,
+}
+
+func main() {
+    let c1 = CoerceNil {
+        point: nil,
+    };
+    let c2 = CoerceRef {
+        point: _nil_to_ref(nil),
+    };
+
+    if (c1.point == nil) {
+        return 1;
+    } else {
+        return 0;
+    };
+}
+"#,
+            1,
         ),
     ];
 
