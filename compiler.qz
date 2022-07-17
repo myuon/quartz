@@ -205,6 +205,7 @@ struct IrElement {
 
 func (l: Lexer) element(): IrElement? {
     let token = l.next_token();
+    _println(token.type);
 
     // block
     if (token.type == "LPAREN") {

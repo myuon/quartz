@@ -267,8 +267,26 @@ impl Runtime {
     }
 
     pub(crate) fn debug_info(&self) -> String {
+        let mut stack_frames = vec![];
+        let mut current_frame = vec![];
+        let mut p = 0;
+        for s in &self.stack[0..self.stack_pointer] {
+            match s {
+                Value::Int(_, ValueIntFlag::Pc) => {
+                    stack_frames.push((p - current_frame.len(), current_frame));
+                    current_frame = vec![];
+                }
+                _ => {}
+            }
+
+            current_frame.push(s.clone());
+            p += 1;
+        }
+        stack_frames.push((p - current_frame.len(), current_frame));
+
         format!(
-            "{:?}\n{}\n{:?}\n{} {:?}\n",
+            "sp:{}\n{:?}\n{}\n{}\n{} {:?}\n",
+            self.stack_pointer,
             self.globals,
             &self
                 .heap
@@ -277,7 +295,12 @@ impl Runtime {
                 .map(|c| format!("{:?}", c))
                 .collect::<Vec<_>>()
                 .join("\n"),
-            &self.stack[0..self.stack_pointer].iter().collect::<Vec<_>>(),
+            stack_frames
+                .into_iter()
+                .skip(1) // skipping data segment
+                .map(|(p, ds)| format!("{} {:?}", p, ds))
+                .collect::<Vec<_>>()
+                .join("\n"),
             self.pc,
             &self.code[self.pc]
         )
@@ -762,12 +785,16 @@ impl Runtime {
                         for v in values.into_iter().skip(1) {
                             self.push(v);
                         }
+
+                        for _ in 0..expected_size - actual_size {
+                            self.push(Value::nil());
+                        }
                     } else {
                         self.push(values[0].clone());
-                    }
 
-                    for _ in 0..expected_size - actual_size {
-                        self.push(Value::nil());
+                        for _ in 0..expected_size - actual_size - 1 {
+                            self.push(Value::nil());
+                        }
                     }
                 }
                 _ => {
