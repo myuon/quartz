@@ -27,8 +27,6 @@ pub fn specify_source_in_input(input: &str, start: usize, end: usize) -> String 
     let mut lines = input.lines();
     let current_line_number = input[..position].lines().count();
     let prev_line = lines.nth(current_line_number - 2).unwrap();
-    let current_line = lines.next().unwrap();
-    let next_line = lines.next().unwrap_or(current_line);
 
     let mut current_line_position = position;
     while &input[current_line_position - 1..current_line_position] != "\n"
@@ -39,23 +37,64 @@ pub fn specify_source_in_input(input: &str, start: usize, end: usize) -> String 
 
     let current_line_width = position - current_line_position;
 
+    let mut end_line_position = end;
+    while &input[end_line_position..end_line_position + 1] != "\n" {
+        end_line_position += 1;
+    }
+
+    let mut code_lines = vec![];
+    code_lines.push(format!("{}\t| {}", current_line_number - 1, prev_line));
+
+    let range_lines_count = {
+        let mut result = 0;
+        let mut position = start;
+        while position < end {
+            if &input[position..position + 1] == "\n" {
+                result += 1;
+            }
+
+            position += 1;
+        }
+
+        result += 1;
+
+        result as usize
+    };
+
+    for i in 0..range_lines_count {
+        let current_line = lines.next().unwrap();
+
+        code_lines.push(format!("{}\t| {}", current_line_number + i, current_line));
+        if i == 0 {
+            code_lines.push(format!(
+                "{}\t| {}{}",
+                current_line_number + i,
+                repeat(' ').take(current_line_width).collect::<String>(),
+                repeat('^')
+                    .take(current_line.len() - current_line_width)
+                    .collect::<String>(),
+            ));
+        } else {
+            code_lines.push(format!(
+                "{}\t| {}",
+                current_line_number + i,
+                repeat('^').take(current_line.len()).collect::<String>(),
+            ));
+        }
+    }
+
+    code_lines.push(format!(
+        "{}\t| {}",
+        current_line_number + range_lines_count,
+        lines.next().unwrap()
+    ));
+
     format!(
         "position: {}, line: {}, width: {}\n{}",
         position,
         current_line_number,
         current_line_width,
-        vec![
-            format!("{}\t| {}", current_line_number - 1, prev_line),
-            format!("{}\t| {}", current_line_number, current_line),
-            format!(
-                "{}\t| {}{}",
-                current_line_number,
-                repeat(' ').take(current_line_width).collect::<String>(),
-                repeat('^').take(end - start).collect::<String>(),
-            ),
-            format!("{}\t| {}", current_line_number + 1, next_line),
-        ]
-        .join("\n")
+        code_lines.join("\n")
     )
 }
 
