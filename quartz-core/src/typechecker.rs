@@ -260,7 +260,8 @@ impl<'s> TypeChecker<'s> {
 
                 let actual_arg_len = args.len();
                 let expected_arg_len = if fn_type.is_method_type() {
-                    expected_arg_types.len() - 1
+                    // FIXME: -1
+                    expected_arg_types.len()
                 } else {
                     expected_arg_types.len()
                 };
@@ -532,7 +533,11 @@ impl<'s> TypeChecker<'s> {
                     for arg in &mut func.args {
                         // NOTE: infer self type
                         if arg.0 == "self" {
-                            arg.1 = Type::Ref(Box::new(typ.clone()));
+                            // FIXME: use Ref
+                            // arg.1 = Type::Ref(Box::new(typ.clone()));
+                            arg.1 = typ.clone();
+                            // FIXME: remove self for now
+                            continue;
                         }
 
                         let t = if matches!(arg.1, Type::Infer(_)) {

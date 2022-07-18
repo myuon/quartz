@@ -38,7 +38,9 @@ pub fn specify_source_in_input(input: &str, start: usize, end: usize) -> String 
     let current_line_width = position - current_line_position;
 
     let mut end_line_position = end;
-    while &input[end_line_position..end_line_position + 1] != "\n" {
+    while end_line_position < input.len()
+        && &input[end_line_position..end_line_position + 1] != "\n"
+    {
         end_line_position += 1;
     }
 
@@ -93,7 +95,7 @@ pub fn specify_source_in_input(input: &str, start: usize, end: usize) -> String 
     code_lines.push(format!(
         "{}\t| {}",
         current_line_number + range_lines_count,
-        lines.next().unwrap()
+        lines.next().unwrap_or("")
     ));
 
     format!(
