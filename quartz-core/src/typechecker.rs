@@ -383,6 +383,7 @@ impl<'s> TypeChecker<'s> {
 
                 Ok(t.clone())
             }
+            Expr::Self_ => todo!(),
         }
     }
 
@@ -497,6 +498,33 @@ impl<'s> TypeChecker<'s> {
                         );
                     }
                 }
+                Declaration::Method(typ, func) => {
+                    let mut arg_types = vec![];
+                    for arg in &func.args {
+                        // FIXME: remove self for now
+                        if arg.0 == "self" {
+                            continue;
+                        }
+
+                        let t = if matches!(arg.1, Type::Infer(_)) {
+                            self.next_infer()
+                        } else {
+                            arg.1.clone()
+                        };
+
+                        arg_types.push(t.clone());
+                        self.variables.insert(arg.0.clone(), t);
+                    }
+
+                    if let Type::Infer(0) = func.return_type {
+                        func.return_type = self.next_infer();
+                    }
+
+                    self.method_types.insert(
+                        (typ.method_selector_name(), func.name.clone()),
+                        (arg_types.clone(), func.return_type.clone()),
+                    );
+                }
                 _ => {}
             }
         }
@@ -553,6 +581,51 @@ impl<'s> TypeChecker<'s> {
                     } else {
                         self.function_types.get_mut(&func.name).unwrap().1 = t;
                     }
+                }
+                Declaration::Method(typ, func) => {
+                    self.current_function = Some(func.name_path());
+
+                    let variables = self.variables.clone();
+                    let mut arg_types = vec![];
+                    for arg in &func.args {
+                        let t = if matches!(arg.1, Type::Infer(_)) {
+                            self.next_infer()
+                        } else {
+                            arg.1.clone()
+                        };
+
+                        arg_types.push(t.clone());
+                        self.variables.insert(arg.0.clone(), t);
+                    }
+
+                    if let Some((name, typ, pointer)) = func.method_of.clone() {
+                        self.variables.insert(
+                            name.clone(),
+                            if pointer {
+                                Type::Ref(Box::new(Type::Struct(typ)))
+                            } else {
+                                Type::Struct(typ)
+                            },
+                        );
+                    }
+
+                    let mut t = self.statements(&mut func.body)?;
+                    let cs =
+                        Constraints::coerce(&t, &func.return_type).context(self.error_context(
+                            func.body[0].start,
+                            func.body.last().unwrap().end,
+                            "function return type",
+                        ))?;
+                    self.apply_constraints(&cs);
+                    cs.apply(&mut t);
+                    func.return_type = t.clone();
+
+                    self.variables = variables;
+
+                    self.method_types
+                        .get_mut(&(typ.method_selector_name(), func.name.clone()))
+                        .unwrap()
+                        .1 = t;
                 }
                 Declaration::Variable(x, e, typ) => {
                     let t = self.expr(e)?;

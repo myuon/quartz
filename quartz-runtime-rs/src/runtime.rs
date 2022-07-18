@@ -745,7 +745,7 @@ impl Runtime {
                     self.push(Value::nil());
                 }
                 "_panic" => {
-                    panic!("====== PANIC CALLED ======\n{:?}", self.stack);
+                    panic!("====== PANIC CALLED ======");
                 }
                 "_debug" => {
                     println!("{}", self.debug_info());
@@ -1100,8 +1100,8 @@ struct Modify {
     a: int,
 }
 
-func (m: Modify) f(c: int) {
-    m.a = m.a + c;
+method Modify f(self, c: int) {
+    self.a = self.a + c;
 
     return nil;
 }
@@ -1113,8 +1113,7 @@ func main() {
     return m.a;
 }
 "#,
-            // FIXME: 10?(immutable) 30?(mutable)
-            10,
+            10, // FIXME: using reference
         ),
         (
             r#"
@@ -1165,9 +1164,9 @@ struct Nested {
     m: int,
 }
 
-func f(self: Nested): int {
-    self.child.n = self.child.n + 1;
-    return self.child.n + self.m;
+func f(this: Nested): int {
+    this.child.n = this.child.n + 1;
+    return this.child.n + this.m;
 }
 
 func main(): int {

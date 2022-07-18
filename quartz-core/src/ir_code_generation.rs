@@ -212,6 +212,7 @@ impl<'s> IrFunctionGenerator<'s> {
             }
             Expr::Deref(e, t) => Ok(IrElement::i_deref(size_of(t, self.structs), self.expr(e)?)),
             Expr::As(e, _) => self.expr(e),
+            Expr::Self_ => todo!(),
         }
     }
 
@@ -431,6 +432,40 @@ impl IrGenerator {
         }))
     }
 
+    pub fn method(&mut self, typ: &Type, function: &Function) -> Result<IrElement> {
+        let mut elements = vec![IrElement::Term(IrTerm::Ident(
+            format!("{}_{}", typ.method_selector_name(), function.name),
+            1,
+        ))];
+        let mut args = HashMap::new();
+        let mut arg_index = 0;
+        let mut arg_types_in_ir = vec![];
+
+        // argument in reverse order
+        for (name, typ) in function.args.iter().rev() {
+            arg_index += 1; // self.stack_size_of(typ)?;
+            args.insert(name.clone(), arg_index - 1);
+            arg_types_in_ir.push(IrElement::ir_type(typ, &self.structs));
+        }
+
+        elements.push(IrElement::block(
+            "args",
+            arg_types_in_ir.into_iter().rev().collect(),
+        ));
+
+        let mut generator = IrFunctionGenerator::new(&args, &self.structs, &mut self.strings);
+
+        generator.function(&function.body)?;
+
+        elements.extend(generator.ir);
+
+        // FIXME: method block for ITable
+        Ok(IrElement::Block(IrBlock {
+            name: "func".to_string(),
+            elements,
+        }))
+    }
+
     pub fn variable(
         &mut self,
         name: &String,
@@ -463,6 +498,14 @@ impl IrGenerator {
                     }
 
                     elements.push(self.function(&f)?);
+                }
+                Declaration::Method(typ, f) => {
+                    // skip if this function is not used
+                    if f.dead_code {
+                        continue;
+                    }
+
+                    elements.push(self.method(typ, f)?);
                 }
                 Declaration::Variable(v, expr, t) => {
                     elements.push(self.variable(v, expr, t)?);

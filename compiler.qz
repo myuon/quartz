@@ -205,10 +205,9 @@ struct IrElement {
 
 func (l: Lexer) element(): IrElement? {
     let token = l.next_token();
-    _println(token.type);
 
     // block
-    if (token.type == "LPAREN") {
+    if (token.type.eq("LPAREN")) {
         let name = l.next_token();
         assert_eq(name.type, "KEYWORD");
         let name_string = name.value_string as string;

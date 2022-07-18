@@ -79,6 +79,7 @@ pub enum Expr {
     Ref(Box<Source<Expr>>, Type),
     Deref(Box<Source<Expr>>, Type),
     As(Box<Source<Expr>>, Type),
+    Self_,
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -114,6 +115,7 @@ impl Function {
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Declaration {
+    Method(Type, Function),
     Function(Function),
     Variable(String, Source<Expr>, Type),
     Struct(Struct),
@@ -237,7 +239,7 @@ impl Type {
             Type::Ref(r) => r.method_selector_name(),
             Type::Array(_) => "array".to_string(),
             Type::Optional(n) => n.method_selector_name(),
-            _ => todo!(),
+            s => todo!("{:?}", s),
         }
     }
 }

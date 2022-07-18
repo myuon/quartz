@@ -177,6 +177,10 @@ func show_bool(b: bool): string {
 }
 
 func show_int(a: int): string {
+    if (a == 0) {
+        return "0";
+    };
+
     let num = a;
     let str = "";
     let digits = "0123456789";

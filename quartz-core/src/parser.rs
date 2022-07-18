@@ -98,6 +98,11 @@ impl Parser {
 
                 Ok(t.to_string())
             }
+            Lexeme::Self_ => {
+                self.position += 1;
+
+                Ok("self".to_string())
+            }
             _ => bail!(
                 "Expected an ident but found {:?}",
                 &self.input[self.position..]
@@ -304,8 +309,7 @@ impl Parser {
     }
 
     fn short_callee_expr(&mut self) -> Result<Expr> {
-        self.ident()
-            .map(|v| Expr::Var(v, Type::Infer(0)))
+        (self.ident().map(|v| Expr::Var(v, Type::Infer(0))))
             .or_else(|_| -> Result<Expr> { self.literal().map(|lit| Expr::Lit(lit)) })
     }
 
@@ -451,6 +455,13 @@ impl Parser {
         let statements = self.many_statements()?;
         self.expect_lexeme(Lexeme::RBrace)?;
 
+        // checking self
+        for (a, _) in &args {
+            if a == "self" {
+                bail!("`self` is not allowed in function arguments.");
+            }
+        }
+
         Ok(Declaration::Function(Function {
             name,
             args,
@@ -459,6 +470,47 @@ impl Parser {
             method_of,
             dead_code: false, // for now
         }))
+    }
+
+    fn declaration_method(&mut self) -> Result<Declaration> {
+        let typ = self.atype()?;
+
+        let name = self.ident()?;
+        self.expect_lexeme(Lexeme::LParen)?;
+        let mut args = self.many_arguments()?;
+        self.expect_lexeme(Lexeme::RParen)?;
+
+        let return_type = if self.expect_lexeme(Lexeme::Colon).is_ok() {
+            self.atype()?
+        } else {
+            Type::Infer(0)
+        };
+
+        self.expect_lexeme(Lexeme::LBrace)?;
+        let statements = self.many_statements()?;
+        self.expect_lexeme(Lexeme::RBrace)?;
+
+        // type for self
+        if args[0].0 == "self" {
+            args[0].1 = typ.clone();
+        }
+        for (s, _) in &args[1..] {
+            if s == "self" {
+                bail!("`self` must be placed first in method arguments.");
+            }
+        }
+
+        Ok(Declaration::Method(
+            typ.clone(),
+            Function {
+                name,
+                args,
+                return_type,
+                body: statements,
+                method_of: None,
+                dead_code: false,
+            },
+        ))
     }
 
     fn many_fields_with_types(&mut self) -> Result<Vec<(String, Type)>> {
@@ -503,6 +555,8 @@ impl Parser {
     fn declaration(&mut self) -> Result<Declaration> {
         if self.expect_lexeme(Lexeme::Func).is_ok() {
             self.declaration_function()
+        } else if self.expect_lexeme(Lexeme::Method).is_ok() {
+            self.declaration_method()
         } else if self.expect_lexeme(Lexeme::Let).is_ok() {
             let x = self.ident()?;
             self.expect_lexeme(Lexeme::Equal)?;

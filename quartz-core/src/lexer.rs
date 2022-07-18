@@ -7,6 +7,7 @@ pub enum Lexeme {
     True,
     False,
     Func,
+    Method,
     Let,
     Return,
     If,
@@ -39,6 +40,7 @@ pub enum Lexeme {
     Question,
     Ref,
     As,
+    Self_,
     Ident(String),
     Int(i32),
     String(String),
@@ -156,6 +158,7 @@ impl TokenReader {
                     ("true", Lexeme::True),
                     ("false", Lexeme::False),
                     ("func", Lexeme::Func),
+                    ("method", Lexeme::Method),
                     ("let", Lexeme::Let),
                     ("return", Lexeme::Return),
                     ("if", Lexeme::If),
@@ -166,6 +169,7 @@ impl TokenReader {
                     ("struct", Lexeme::Struct),
                     ("ref", Lexeme::Ref),
                     ("as", Lexeme::As),
+                    ("self", Lexeme::Self_),
                 ],
             ) {
                 continue;
