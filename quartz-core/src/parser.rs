@@ -36,7 +36,7 @@ impl Parser {
 
     fn parse_error(&self, expected: &str, got: &str) -> anyhow::Error {
         anyhow::anyhow!(CompileError::ParseError {
-            position: self.position,
+            position: self.input[self.position].position,
             source: anyhow::anyhow!("Expected {} but {}", expected, got),
         })
     }
@@ -103,10 +103,7 @@ impl Parser {
 
                 Ok("self".to_string())
             }
-            _ => bail!(
-                "Expected an ident but found {:?}",
-                &self.input[self.position..]
-            ),
+            t => Err(self.parse_error("ident", &format!("{:?}", t))),
         }
     }
 
@@ -428,17 +425,7 @@ impl Parser {
     }
 
     fn declaration_function(&mut self) -> Result<Declaration> {
-        let method_of = if self.expect_lexeme(Lexeme::LParen).is_ok() {
-            let ident = self.ident()?;
-            self.expect_lexeme(Lexeme::Colon)?;
-            let pointer = self.expect_lexeme(Lexeme::And).is_ok();
-            let type_name = self.ident()?;
-            self.expect_lexeme(Lexeme::RParen)?;
-
-            Some((ident, type_name, pointer))
-        } else {
-            None
-        };
+        let method_of = None;
 
         let name = self.ident()?;
         self.expect_lexeme(Lexeme::LParen)?;

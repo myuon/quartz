@@ -188,7 +188,7 @@ func IrElementList_nil(): IrElementList {
     };
 }
 
-func (self: IrElementList) cons(node: IrElement): IrElementList {
+method IrElementList cons(self, node: IrElement): IrElementList {
     return IrElementList {
         cons: ref IrElementListNode {
             node: node,
