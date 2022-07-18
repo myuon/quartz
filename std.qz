@@ -2,18 +2,18 @@ struct string {
     data: bytes,
 }
 
-func (s: string) len(): int {
-    return _len(s.data);
+method string len(self): int {
+    return _len(self.data);
 }
 
-func (s: string) eq(t: string): bool {
-    if (s.len() != t.len()) {
+method string eq(self, t: string): bool {
+    if (self.len() != t.len()) {
         return false;
     };
 
     let n = 0;
-    while (n < s.len()) {
-        if (_byte_to_int(s.data[n]) != _byte_to_int(t.data[n])) {
+    while (n < self.len()) {
+        if (_byte_to_int(self.data[n]) != _byte_to_int(t.data[n])) {
             return false;
         };
 
@@ -23,10 +23,10 @@ func (s: string) eq(t: string): bool {
     return true;
 }
 
-func (s: string) starts_with(prefix: string): bool {
+method string starts_with(self, prefix: string): bool {
     let n = 0;
     while (n < prefix.len()) {
-        if (_byte_to_int(s.data[n]) != _byte_to_int(prefix.data[n])) {
+        if (_byte_to_int(self.data[n]) != _byte_to_int(prefix.data[n])) {
             return false;
         };
 
@@ -36,25 +36,25 @@ func (s: string) starts_with(prefix: string): bool {
     return true;
 }
 
-func (s: string) bytes(): bytes {
-    return s.data;
+method string bytes(self): bytes {
+    return self.data;
 }
 
-func (s: string) concat(t: string): string {
-    let buffer = _new(s.len() + t.len());
-    _copy(0, s.len(), s.data, buffer);
-    _copy(s.len(), t.len(), t.data, buffer);
+method string concat(self, t: string): string {
+    let buffer = _new(self.len() + t.len());
+    _copy(0, self.len(), self.data, buffer);
+    _copy(self.len(), t.len(), t.data, buffer);
 
     return string { data: buffer };
 }
 
-func (s: string) reverse(): string {
-    let buffer = _new(s.len());
+method string reverse(self): string {
+    let buffer = _new(self.len());
     let n = 0;
-    while (n < s.len()) {
+    while (n < self.len()) {
         // FIXME: multiple operators
         // s.len() - n - 1
-        buffer[n] = s.data[_sub(s.len(), n + 1)];
+        buffer[n] = self.data[_sub(self.len(), n + 1)];
         n = n + 1;
     };
 
@@ -67,17 +67,17 @@ struct substring {
     end: int,
 }
 
-func (s: string) to_substring(): substring {
+method string to_substring(self): substring {
     return substring {
-        str: s,
+        str: self,
         start: 0,
-        end: s.len(),
+        end: self.len(),
     };
 }
 
-func (s: string) slice(start: int, end: int): substring {
+method string slice(self, start: int, end: int): substring {
     return substring {
-        str: s,
+        str: self,
         start: start,
         end: end,
     };
@@ -87,9 +87,9 @@ method string slice_after(self, start: int): substring {
     return self.slice(start, self.len());
 }
 
-func (s: substring) to_string(): string {
-    let buffer = _new(s.end - s.start);
-    _copy(0, s.end - s.start, _padd(s.str.data, s.start), buffer);
+method substring to_string(self): string {
+    let buffer = _new(self.end - self.start);
+    _copy(0, self.end - self.start, _padd(self.str.data, self.start), buffer);
 
     return string {
         data: buffer,
@@ -97,44 +97,44 @@ func (s: substring) to_string(): string {
 }
 
 // FIXME: faster implementation
-func (s: substring) eq(t: substring): bool {
-    return s.to_string().eq(t.to_string());
+method substring eq(self, t: substring): bool {
+    return self.to_string().eq(t.to_string());
 }
 
-func (s: substring) len(): int {
-    return s.end - s.start;
+method substring len(self): int {
+    return self.end - self.start;
 }
 
-func (s: substring) at(n: int): string {
-    return s.str.slice(s.start + n, s.start + n + 1).to_string();
+method substring at(self, n: int): string {
+    return self.str.slice(self.start + n, self.start + n + 1).to_string();
 }
 
-func (s: substring) slice(start: int, end: int): substring {
-    if (s.end < s.start + end) {
-        _println("end ".concat(show_int(end)).concat(" but ").concat(show_int(s.start + end)));
+method substring slice(self, start: int, end: int): substring {
+    if (self.end < self.start + end) {
+        _println("end ".concat(show_int(end)).concat(" but ").concat(show_int(self.start + end)));
         _panic;
     };
 
     return substring {
-        str: s.str,
-        start: s.start + start,
-        end: s.start + end,
+        str: self.str,
+        start: self.start + start,
+        end: self.start + end,
     };
 }
 
-func (s: substring) slice_after(start: int): substring {
-    return s.slice(start, s.len());
+method substring slice_after(self, start: int): substring {
+    return self.slice(start, self.len());
 }
 
-func (s: string) at(p: int): string {
-    return s.slice(p, p+1).to_string();
+method string at(self, p: int): string {
+    return self.slice(p, p+1).to_string();
 }
 
-func (s: string) char_to_digit(): int {
+method string char_to_digit(self): int {
     let digits = "0123456789";
     let n = 0;
     while (n < digits.len()) {
-        if (s.at(0).eq(digits.at(n))) {
+        if (self.at(0).eq(digits.at(n))) {
             return n;
         };
 
@@ -145,22 +145,22 @@ func (s: string) char_to_digit(): int {
     return 0;
 }
 
-func (s: string) parse_int(): int {
+method string parse_int(self): int {
     let i = 0;
     let result = 0;
-    while (i < s.len()) {
-        result = _mult(result,10) + s.at(i).char_to_digit();
+    while (i < self.len()) {
+        result = _mult(result,10) + self.at(i).char_to_digit();
         i = i + 1;
     };
 
     return result;
 }
 
-func (s: substring) parse_int(): int {
+method substring parse_int(self): int {
     let i = 0;
     let result = 0;
-    while (i < s.len()) {
-        result = _mult(result,10) + s.at(i).char_to_digit();
+    while (i < self.len()) {
+        result = _mult(result, 10) + self.at(i).char_to_digit();
         i = i + 1;
     };
 

@@ -203,20 +203,20 @@ struct IrElement {
     block: IrBlock?,
 }
 
-func (l: Lexer) element(): IrElement? {
-    let token = l.next_token();
+method Lexer element(self): IrElement? {
+    let token = self.next_token();
 
     // block
     if (token.type.eq("LPAREN")) {
-        let name = l.next_token();
+        let name = self.next_token();
         assert_eq(name.type, "KEYWORD");
         let name_string = name.value_string as string;
 
-        let next = l.element();
+        let next = self.element();
         let elements = IrElementList_nil();
         while _not(next == nil) {
             elements = elements.cons(next as IrElement);
-            next = l.element();
+            next = self.element();
         };
 
         return IrElement {
