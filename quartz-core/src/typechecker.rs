@@ -254,9 +254,10 @@ impl<'s> TypeChecker<'s> {
                 let actual_arg_len = args.len();
                 if expected_arg_types.len() != actual_arg_len {
                     anyhow::bail!(
-                        "Expected {} arguments but given {}",
+                        "Expected {} arguments but given {}, {}",
                         expected_arg_types.len(),
-                        actual_arg_len
+                        actual_arg_len,
+                        self.error_context(f.start, f.end, "")
                     );
                 }
 
@@ -299,6 +300,19 @@ impl<'s> TypeChecker<'s> {
                     assert_eq!(k1, k2);
 
                     let mut result = self.expr(v2)?;
+
+                    // auto-deref here
+                    if let Some(r) = result.as_ref_type() {
+                        if !v1.is_ref() {
+                            *v2 = Source::unknown(Expr::Deref(
+                                Box::new(v2.clone()),
+                                r.as_ref().clone(),
+                            ));
+
+                            result = self.expr(v2)?;
+                        }
+                    }
+
                     let cs = Constraints::coerce(&result, &v1)?;
                     self.apply_constraints(&cs);
                     cs.apply(&mut result);
@@ -499,10 +513,10 @@ impl<'s> TypeChecker<'s> {
                 }
                 Declaration::Method(typ, func) => {
                     let mut arg_types = vec![];
-                    for arg in &func.args {
-                        // FIXME: remove self for now
+                    for arg in &mut func.args {
+                        // NOTE: infer self type
                         if arg.0 == "self" {
-                            continue;
+                            arg.1 = Type::Ref(Box::new(typ.clone()));
                         }
 
                         let t = if matches!(arg.1, Type::Infer(_)) {

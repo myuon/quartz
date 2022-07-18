@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Debug};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 
 use crate::{
     ast::{
@@ -84,7 +84,7 @@ impl<'s> IrFunctionGenerator<'s> {
                     //      (assign (padd $v 1) 2)
                     //      $v
                     self.ir.push(IrElement::i_let(
-                        IrElement::ir_type(t, self.structs),
+                        IrElement::ir_type(t, self.structs)?,
                         v.clone(),
                         IrElement::i_call("_new", vec![IrElement::int(n)]),
                     ));
@@ -190,7 +190,7 @@ impl<'s> IrFunctionGenerator<'s> {
                 let v = self.var_fresh();
                 let size = size_of(t, self.structs);
                 self.ir.push(IrElement::i_let(
-                    IrElement::ir_type(&Type::Ref(Box::new(t.clone())), self.structs),
+                    IrElement::ir_type(&Type::Ref(Box::new(t.clone())), self.structs)?,
                     v.clone(),
                     IrElement::i_call("_new", vec![IrElement::int(size as i32)]),
                 ));
@@ -221,7 +221,7 @@ impl<'s> IrFunctionGenerator<'s> {
             Statement::Let(x, e, t) => {
                 let v = self.expr(e)?;
                 self.ir.push(IrElement::i_let(
-                    IrElement::ir_type(t, self.structs),
+                    IrElement::ir_type(t, self.structs)?,
                     x.to_string(),
                     v,
                 ));
@@ -397,7 +397,7 @@ impl IrGenerator {
         for (name, typ) in function.args.iter().rev() {
             arg_index += 1; // self.stack_size_of(typ)?;
             args.insert(name.clone(), arg_index - 1);
-            arg_types_in_ir.push(IrElement::ir_type(typ, &self.structs));
+            arg_types_in_ir.push(IrElement::ir_type(typ, &self.structs)?);
         }
 
         elements.push(IrElement::block(
@@ -430,7 +430,10 @@ impl IrGenerator {
         for (name, typ) in function.args.iter().rev() {
             arg_index += 1; // self.stack_size_of(typ)?;
             args.insert(name.clone(), arg_index - 1);
-            arg_types_in_ir.push(IrElement::ir_type(typ, &self.structs));
+            arg_types_in_ir.push(
+                IrElement::ir_type(typ, &self.structs)
+                    .context(format!("at method: {:?}::{}", typ, function.name))?,
+            );
         }
 
         elements.push(IrElement::block(

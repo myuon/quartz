@@ -141,8 +141,8 @@ impl IrElement {
 
     // = Types
 
-    pub fn ir_type(typ: &Type, structs: &Structs) -> IrElement {
-        match typ {
+    pub fn ir_type(typ: &Type, structs: &Structs) -> Result<IrElement> {
+        Ok(match typ {
             Type::Bool => IrElement::ident("bool"),
             Type::Int => IrElement::ident("int"),
             Type::Byte => IrElement::ident("byte"),
@@ -156,9 +156,11 @@ impl IrElement {
             ),
             Type::Array(_) => IrElement::ident("array"),
             Type::Ref(_) => IrElement::ident("ref"),
-            Type::Optional(t) => IrElement::block("optional", vec![IrElement::ir_type(t, structs)]),
-            t => unreachable!("{:?}", t),
-        }
+            Type::Optional(t) => {
+                IrElement::block("optional", vec![IrElement::ir_type(t, structs)?])
+            }
+            t => bail!("Unsupported type: {:?}", t),
+        })
     }
 
     pub fn size_of_as_ir_type(typ: &IrElement) -> Result<usize> {

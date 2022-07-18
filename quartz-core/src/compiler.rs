@@ -65,7 +65,14 @@ pub fn specify_source_in_input(input: &str, start: usize, end: usize) -> String 
         let current_line = lines.next().unwrap();
 
         code_lines.push(format!("{}\t| {}", current_line_number + i, current_line));
-        if i == 0 {
+        if range_lines_count == 1 {
+            code_lines.push(format!(
+                "{}\t| {}{}",
+                current_line_number + i,
+                repeat(' ').take(current_line_width).collect::<String>(),
+                repeat('^').take(end - start).collect::<String>(),
+            ));
+        } else if i == 0 {
             code_lines.push(format!(
                 "{}\t| {}{}",
                 current_line_number + i,
