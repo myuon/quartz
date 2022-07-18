@@ -104,7 +104,7 @@ pub struct Function {
 
 impl Function {
     // if the function is a method, [STRUCT_NAME]::[METHOD_NAME]
-    pub fn name_path(&self) -> String {
+    fn name_path(&self) -> String {
         if let Some((_, receiver_type, _)) = &self.method_of {
             return format!("{}::{}", receiver_type, self.name);
         } else {
@@ -126,6 +126,17 @@ impl Declaration {
         match self {
             Declaration::Function(f) => Ok(f),
             _ => bail!("Expected function declaration, but found {:?}", self),
+        }
+    }
+
+    // if the function is a method, [STRUCT_NAME]::[METHOD_NAME]
+    pub fn function_path(&self) -> Option<String> {
+        match self {
+            Declaration::Method(typ, func) => {
+                Some(format!("{}::{}", typ.method_selector_name(), func.name))
+            }
+            Declaration::Function(func) => Some(func.name_path()),
+            _ => None,
         }
     }
 }
