@@ -116,6 +116,13 @@ impl Constraints {
                 }
                 self.apply(ret);
             }
+            Type::Method(self_, args, ret) => {
+                self.apply(self_);
+                for arg in args {
+                    self.apply(arg);
+                }
+                self.apply(ret);
+            }
             Type::Struct(_) => {}
             Type::Ref(r) => {
                 self.apply(r);
@@ -252,10 +259,15 @@ impl<'s> TypeChecker<'s> {
                 let mut ret_type = expected_ret_type.as_ref().clone();
 
                 let actual_arg_len = args.len();
-                if expected_arg_types.len() != actual_arg_len {
+                let expected_arg_len = if fn_type.is_method_type() {
+                    expected_arg_types.len() - 1
+                } else {
+                    expected_arg_types.len()
+                };
+                if expected_arg_len != actual_arg_len {
                     anyhow::bail!(
                         "Expected {} arguments but given {}, {}",
-                        expected_arg_types.len(),
+                        expected_arg_len,
                         actual_arg_len,
                         self.error_context(f.start, f.end, "")
                     );
@@ -351,7 +363,11 @@ impl<'s> TypeChecker<'s> {
                         )));
                     }
 
-                    Ok(Type::Fn(arg_types.clone(), Box::new(return_type.clone())))
+                    Ok(Type::Method(
+                        Box::new(typ),
+                        arg_types.clone(),
+                        Box::new(return_type.clone()),
+                    ))
                 } else {
                     let field_type = self
                         .structs

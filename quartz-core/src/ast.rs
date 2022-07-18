@@ -137,6 +137,7 @@ pub enum Type {
     Int,
     Byte,
     Fn(Vec<Type>, Box<Type>),
+    Method(Box<Type>, Vec<Type>, Box<Type>),
     Struct(String),
     Ref(Box<Type>),
     Array(Box<Type>),
@@ -147,7 +148,15 @@ impl Type {
     pub fn as_fn_type(&self) -> Option<(&Vec<Type>, &Box<Type>)> {
         match self {
             Type::Fn(args, ret) => Some((args, ret)),
+            Type::Method(_, args, ret) => Some((args, ret)),
             _ => None,
+        }
+    }
+
+    pub fn is_method_type(&self) -> bool {
+        match self {
+            Type::Method(_, _, _) => true,
+            _ => false,
         }
     }
 
@@ -174,6 +183,11 @@ impl Type {
             Type::Fn(args, ret) => {
                 args.iter().find(move |t| t.has_infer(index)).is_some() || ret.has_infer(index)
             }
+            Type::Method(self_, args, ret) => {
+                self_.has_infer(index)
+                    || args.iter().find(move |t| t.has_infer(index)).is_some()
+                    || ret.has_infer(index)
+            }
             Type::Struct(_) => false,
             Type::Ref(_) => todo!(),
             Type::Byte => false,
@@ -194,6 +208,14 @@ impl Type {
             Type::Bool => {}
             Type::Int => {}
             Type::Fn(args, ret) => {
+                for arg in args {
+                    arg.subst(index, typ);
+                }
+
+                ret.subst(index, typ);
+            }
+            Type::Method(self_, args, ret) => {
+                self_.subst(index, typ);
                 for arg in args {
                     arg.subst(index, typ);
                 }
