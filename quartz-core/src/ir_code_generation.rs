@@ -388,14 +388,7 @@ impl IrGenerator {
     }
 
     pub fn function(&mut self, function: &Function) -> Result<IrElement> {
-        let mut elements = vec![IrElement::Term(IrTerm::Ident(
-            if let Some((_, struct_name, _)) = &function.method_of {
-                format!("{}_{}", struct_name, function.name)
-            } else {
-                function.name.clone()
-            },
-            1,
-        ))];
+        let mut elements = vec![IrElement::Term(IrTerm::Ident(function.name.clone(), 1))];
         let mut args = HashMap::new();
         let mut arg_index = 0;
         let mut arg_types_in_ir = vec![];
@@ -405,14 +398,6 @@ impl IrGenerator {
             arg_index += 1; // self.stack_size_of(typ)?;
             args.insert(name.clone(), arg_index - 1);
             arg_types_in_ir.push(IrElement::ir_type(typ, &self.structs));
-        }
-        if let Some((receiver, struct_name, _)) = &function.method_of {
-            arg_index += 1; // self.stack_size_of(&Type::Struct(struct_name.clone()))?;
-            args.insert(receiver.clone(), arg_index - 1);
-            arg_types_in_ir.push(IrElement::ir_type(
-                &Type::Struct(struct_name.clone()),
-                &self.structs,
-            ));
         }
 
         elements.push(IrElement::block(
@@ -624,8 +609,8 @@ struct Point {
     y: int,
 }
 
-func (p: Point) sum(): int {
-    return _add(p.x, p.y);
+method Point sum(self): int {
+    return _add(self.x, self.y);
 }
 
 func main() {

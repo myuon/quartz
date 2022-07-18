@@ -94,23 +94,7 @@ pub struct Function {
     pub args: Vec<(String, Type)>,
     pub return_type: Type,
     pub body: Vec<Source<Statement>>,
-    pub method_of: Option<(
-        String, // receiver name
-        String, // receiver type
-        bool,   // is pointer receiver
-    )>,
     pub dead_code: bool,
-}
-
-impl Function {
-    // if the function is a method, [STRUCT_NAME]::[METHOD_NAME]
-    fn name_path(&self) -> String {
-        if let Some((_, receiver_type, _)) = &self.method_of {
-            return format!("{}::{}", receiver_type, self.name);
-        } else {
-            return self.name.clone();
-        }
-    }
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -135,7 +119,7 @@ impl Declaration {
             Declaration::Method(typ, func) => {
                 Some(format!("{}::{}", typ.method_selector_name(), func.name))
             }
-            Declaration::Function(func) => Some(func.name_path()),
+            Declaration::Function(func) => Some(func.name.clone()),
             _ => None,
         }
     }

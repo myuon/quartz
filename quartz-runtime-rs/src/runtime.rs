@@ -1013,7 +1013,7 @@ struct Point {
     y: int,
 }
 
-func (self: Point) sum(): int {
+method Point sum(self): int {
     return _add(self.x, self.y);
 }
 
@@ -1065,8 +1065,8 @@ struct Point {
     y: int,
 }
 
-func (p: Point) sum(): int {
-    return _add(p.x, p.y);
+method Point sum(self): int {
+    return _add(self.x, self.y);
 }
 
 func main() {
@@ -1164,9 +1164,9 @@ struct Nested {
     m: int,
 }
 
-func f(this: Nested): int {
-    this.child.n = this.child.n + 1;
-    return this.child.n + this.m;
+method Nested f(self): int {
+    self.child.n = self.child.n + 1;
+    return self.child.n + self.m;
 }
 
 func main(): int {
@@ -1177,7 +1177,7 @@ func main(): int {
         m: 20,
     };
 
-    return f(nested);
+    return nested.f();
 }
 "#,
             31,
@@ -1237,8 +1237,8 @@ struct Child {
     n: int,
 }
 
-func (c: Child) getN(): int {
-    return c.n;
+method Child getN(self): int {
+    return self.n;
 }
 
 struct Nested {
@@ -1288,21 +1288,21 @@ struct Nat {
     succ: ref Nat,
 }
 
-func (n: Nat) add(m: Nat): Nat {
-    if (n.succ == nil) {
+method Nat add(self, m: Nat): Nat {
+    if (self.succ == nil) {
         return m;
     } else {
         return Nat {
-            succ: ref n.succ.add(m)
+            succ: ref self.succ.add(m)
         };
     };
 }
 
-func (n: Nat) to_int(): int {
-    if (n.succ == nil) {
+method Nat to_int(self): int {
+    if (self.succ == nil) {
         return 0;
     } else {
-        return n.succ.to_int() + 1;
+        return self.succ.to_int() + 1;
     };
 }
 

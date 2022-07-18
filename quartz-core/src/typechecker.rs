@@ -492,17 +492,10 @@ impl<'s> TypeChecker<'s> {
                         func.return_type = self.next_infer();
                     }
 
-                    if let Some((_name, typ, _pointer)) = func.method_of.clone() {
-                        self.method_types.insert(
-                            (typ, func.name.clone()),
-                            (arg_types.clone(), func.return_type.clone()),
-                        );
-                    } else {
-                        self.function_types.insert(
-                            func.name.clone(),
-                            (arg_types.clone(), func.return_type.clone()),
-                        );
-                    }
+                    self.function_types.insert(
+                        func.name.clone(),
+                        (arg_types.clone(), func.return_type.clone()),
+                    );
                 }
                 Declaration::Method(typ, func) => {
                     let mut arg_types = vec![];
@@ -553,17 +546,6 @@ impl<'s> TypeChecker<'s> {
                         self.variables.insert(arg.0.clone(), t);
                     }
 
-                    if let Some((name, typ, pointer)) = func.method_of.clone() {
-                        self.variables.insert(
-                            name.clone(),
-                            if pointer {
-                                Type::Ref(Box::new(Type::Struct(typ)))
-                            } else {
-                                Type::Struct(typ)
-                            },
-                        );
-                    }
-
                     let mut t = self.statements(&mut func.body)?;
                     let cs =
                         Constraints::coerce(&t, &func.return_type).context(self.error_context(
@@ -577,14 +559,7 @@ impl<'s> TypeChecker<'s> {
 
                     self.variables = variables;
 
-                    if let Some((_name, typ, _pointer)) = func.method_of.clone() {
-                        self.method_types
-                            .get_mut(&(typ, func.name.clone()))
-                            .unwrap()
-                            .1 = t;
-                    } else {
-                        self.function_types.get_mut(&func.name).unwrap().1 = t;
-                    }
+                    self.function_types.get_mut(&func.name).unwrap().1 = t;
                 }
                 Declaration::Method(typ, func) => {
                     let variables = self.variables.clone();
@@ -598,17 +573,6 @@ impl<'s> TypeChecker<'s> {
 
                         arg_types.push(t.clone());
                         self.variables.insert(arg.0.clone(), t);
-                    }
-
-                    if let Some((name, typ, pointer)) = func.method_of.clone() {
-                        self.variables.insert(
-                            name.clone(),
-                            if pointer {
-                                Type::Ref(Box::new(Type::Struct(typ)))
-                            } else {
-                                Type::Struct(typ)
-                            },
-                        );
                     }
 
                     let mut t = self.statements(&mut func.body)?;

@@ -425,8 +425,6 @@ impl Parser {
     }
 
     fn declaration_function(&mut self) -> Result<Declaration> {
-        let method_of = None;
-
         let name = self.ident()?;
         self.expect_lexeme(Lexeme::LParen)?;
         let args = self.many_arguments()?;
@@ -454,7 +452,6 @@ impl Parser {
             args,
             return_type,
             body: statements,
-            method_of,
             dead_code: false, // for now
         }))
     }
@@ -496,7 +493,6 @@ impl Parser {
                 args,
                 return_type,
                 body: statements,
-                method_of: None,
                 dead_code: false,
             },
         ))
