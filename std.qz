@@ -83,8 +83,8 @@ func (s: string) slice(start: int, end: int): substring {
     };
 }
 
-func (s: string) slice_after(start: int): substring {
-    return s.slice(start, s.len());
+method string slice_after(self, start: int): substring {
+    return self.slice(start, self.len());
 }
 
 func (s: substring) to_string(): string {

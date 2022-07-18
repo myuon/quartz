@@ -88,18 +88,18 @@ struct Token {
     value_int: int?,
 }
 
-func (l: Lexer) next_token(): Token {
-    let current = l.input.slice_after(l.position);
+method Lexer next_token(self): Token {
+    let current = self.input.slice_after(self.position);
 
     // no return/continue here
     let n = find_space_pattern(current);
     if (n > 0) {
-        l.position = l.position + n;
+        self.position = self.position + n;
     };
 
     let n = find_exact_pattern(current, "(");
     if (n > 0) {
-        l.position = l.position + n;
+        self.position = self.position + n;
 
         return Token {
             type: "LPAREN",
@@ -110,7 +110,7 @@ func (l: Lexer) next_token(): Token {
 
     let n = find_exact_pattern(current, ")");
     if (n > 0) {
-        l.position = l.position + n;
+        self.position = self.position + n;
 
         return Token {
             type: "RPAREN",
@@ -121,7 +121,7 @@ func (l: Lexer) next_token(): Token {
 
     let n = find_numbers(current);
     if (n > 0) {
-        l.position = l.position + n;
+        self.position = self.position + n;
 
         return Token {
             type: "NUMBER",
@@ -132,7 +132,7 @@ func (l: Lexer) next_token(): Token {
 
     let n = find_identifier(current);
     if (n > 0) {
-        l.position = l.position + n;
+        self.position = self.position + n;
 
         return Token {
             type: "IDENT",
@@ -143,7 +143,7 @@ func (l: Lexer) next_token(): Token {
 
     let n = find_variable_letters(current);
     if (n > 0) {
-        l.position = l.position + n;
+        self.position = self.position + n;
 
         return Token {
             type: "VARIABLE",

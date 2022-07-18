@@ -491,12 +491,14 @@ impl Parser {
         self.expect_lexeme(Lexeme::RBrace)?;
 
         // type for self
-        if args[0].0 == "self" {
-            args[0].1 = typ.clone();
-        }
-        for (s, _) in &args[1..] {
-            if s == "self" {
-                bail!("`self` must be placed first in method arguments.");
+        if !args.is_empty() {
+            if args[0].0 == "self" {
+                args[0].1 = typ.clone();
+            }
+            for (s, _) in &args[1..] {
+                if s == "self" {
+                    bail!("`self` must be placed first in method arguments.");
+                }
             }
         }
 

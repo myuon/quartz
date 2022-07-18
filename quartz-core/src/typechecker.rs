@@ -220,7 +220,9 @@ impl<'s> TypeChecker<'s> {
     pub fn expr(&mut self, expr: &mut Source<Expr>) -> Result<Type> {
         match &mut expr.data {
             Expr::Var(v, t) => {
-                let vtype = self.load(v)?;
+                let vtype = self
+                    .load(v)
+                    .context(self.error_context(expr.start, expr.end, "var"))?;
                 *t = vtype.clone();
                 Ok(vtype)
             }
@@ -320,7 +322,11 @@ impl<'s> TypeChecker<'s> {
                     self.call_graph
                         .entry(self.current_function.clone().unwrap())
                         .or_insert(HashMap::new())
-                        .insert(format!("{}::{}", name, field), ());
+                        .insert(
+                            // FIXME: use name_path for Func
+                            format!("{}::{}", name, field),
+                            (),
+                        );
 
                     // deref the receiver if necessary
                     // FIXME: nested derefernces
@@ -583,7 +589,9 @@ impl<'s> TypeChecker<'s> {
                     }
                 }
                 Declaration::Method(typ, func) => {
-                    self.current_function = Some(func.name_path());
+                    // FIXME: path for func
+                    self.current_function =
+                        Some(format!("{}::{}", typ.method_selector_name(), func.name));
 
                     let variables = self.variables.clone();
                     let mut arg_types = vec![];
@@ -665,6 +673,15 @@ impl<'s> TypeChecker<'s> {
                 // TODO: support structs
                 Declaration::Function(func) => {
                     if reachables.contains(func.name_path().as_str()) {
+                        continue;
+                    }
+
+                    func.dead_code = true;
+                }
+                Declaration::Method(typ, func) => {
+                    if reachables
+                        .contains(format!("{}::{}", typ.method_selector_name(), func.name).as_str())
+                    {
                         continue;
                     }
 

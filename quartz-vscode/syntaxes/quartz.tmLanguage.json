@@ -97,6 +97,50 @@
           ]
         },
         {
+          "name": "meta.method.definition.quartz",
+          "begin": "\\b(method)\\s+(\\w+)\\s+(\\w+)(\\()",
+          "beginCaptures": {
+            "1": {
+              "name": "keyword.other.method.quartz"
+            },
+            "2": {
+              "name": "variable.other.quartz"
+            },
+            "3": {
+              "name": "entity.name.function.quartz"
+            },
+            "4": {
+              "name": "punctuation.arguments.begin.quartz"
+            }
+          },
+          "end": "\\{",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.blocks.end.quartz"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#comments"
+            },
+            {
+              "include": "#literals"
+            },
+            {
+              "include": "#types"
+            },
+            {
+              "include": "#keywords"
+            },
+            {
+              "include": "#punctuations"
+            },
+            {
+              "include": "#variables"
+            }
+          ]
+        },
+        {
           "name": "meta.function.call.quartz",
           "begin": "([a-zA-Z_]\\w*)(\\()",
           "beginCaptures": {
