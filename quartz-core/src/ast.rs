@@ -141,6 +141,7 @@ pub enum Type {
     Ref(Box<Type>),
     Array(Box<Type>),
     Optional(Box<Type>),
+    Self_,
 }
 
 impl Type {
@@ -193,6 +194,7 @@ impl Type {
             Type::Array(t) => t.has_infer(index),
             Type::Optional(t) => t.has_infer(index),
             Type::Nil => false,
+            Type::Self_ => false,
         }
     }
 
@@ -227,6 +229,7 @@ impl Type {
             Type::Array(t) => t.subst(index, typ),
             Type::Optional(t) => t.subst(index, typ),
             Type::Nil => {}
+            Type::Self_ => {}
         }
     }
 

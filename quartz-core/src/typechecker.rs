@@ -134,6 +134,7 @@ impl Constraints {
             Type::Optional(t) => {
                 self.apply(t);
             }
+            Type::Self_ => {}
         }
     }
 }
@@ -572,7 +573,7 @@ impl<'s> TypeChecker<'s> {
                     let mut arg_types = vec![];
                     for arg in &mut func.args {
                         // NOTE: infer self type
-                        if arg.0 == "self" {
+                        if arg.1 == Type::Self_ {
                             // FIXME: use Ref
                             // arg.1 = Type::Ref(Box::new(typ.clone()));
                             arg.1 = typ.clone();
@@ -879,16 +880,21 @@ func main(): byte {
 
         for c in cases {
             let mut compiler = Compiler::new();
-            compiler.typechecker.method_types.insert(
-                ("string".to_string(), "len".to_string()),
-                (vec![], Type::Int),
-            );
-            compiler.typechecker.method_types.insert(
-                ("int".to_string(), "eq".to_string()),
-                (vec![Type::Int], Type::Bool),
-            );
+            let mut module = compiler
+                .parse(
+                    &(r#"
+method string len(self): int {
+    return 0;
+}
 
-            let mut module = compiler.parse(c.0).unwrap();
+method int eq(self, other: int): bool {
+    return false;
+}
+"#
+                    .to_string()
+                        + c.0),
+                )
+                .unwrap();
             let mut checker = compiler.typecheck(&mut module).expect(&format!("{}", c.0));
 
             for (name, typ) in c.1 {

@@ -476,7 +476,7 @@ impl Parser {
 
         let name = self.ident()?;
         self.expect_lexeme(Lexeme::LParen)?;
-        let args = self.many_arguments()?;
+        let mut args = self.many_arguments()?;
         self.expect_lexeme(Lexeme::RParen)?;
 
         let return_type = if self.expect_lexeme(Lexeme::Colon).is_ok() {
@@ -492,6 +492,10 @@ impl Parser {
         // checking self conditions
         // NOTE: type for self should be treated & inferred in typecheck phase
         if !args.is_empty() {
+            if args[0].0 == "self" {
+                args[0].1 = Type::Self_;
+            }
+
             for (s, _) in &args[1..] {
                 if s == "self" {
                     bail!("`self` must be placed first in method arguments.");
