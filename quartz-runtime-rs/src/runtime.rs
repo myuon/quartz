@@ -1356,6 +1356,28 @@ func main() {
 "#,
             1,
         ),
+        (
+            r#"
+struct Point {
+    x: int,
+    y: int,
+}
+
+method Point sum(self): int {
+    return self.x + self.y;
+}
+
+func main() {
+    let p = Point {
+        x: 10,
+        y: 20,
+    };
+
+    return Point::sum(p);
+}
+"#,
+            30,
+        ),
     ];
 
     for (input, result) in cases {

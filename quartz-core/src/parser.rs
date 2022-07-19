@@ -107,6 +107,15 @@ impl Parser {
         }
     }
 
+    fn variable(&mut self) -> Result<Expr> {
+        let mut qualifiers = vec![self.ident()?];
+        while self.expect_lexeme(Lexeme::DoubleColon).is_ok() {
+            qualifiers.push(self.ident()?);
+        }
+
+        Ok(Expr::Var(qualifiers, Type::Infer(0)))
+    }
+
     fn literal(&mut self) -> Result<Literal> {
         match &self.input[self.position].lexeme {
             Lexeme::Nil => {
@@ -306,7 +315,7 @@ impl Parser {
     }
 
     fn short_callee_expr(&mut self) -> Result<Expr> {
-        (self.ident().map(|v| Expr::Var(v, Type::Infer(0))))
+        self.variable()
             .or_else(|_| -> Result<Expr> { self.literal().map(|lit| Expr::Lit(lit)) })
     }
 
@@ -359,7 +368,10 @@ impl Parser {
                 let fields = self.many_fields_with_exprs()?;
                 self.expect_lexeme(Lexeme::RBrace)?;
 
-                Expr::Struct(v, fields)
+                // FIXME: qualified struct
+                assert_eq!(v.len(), 1);
+
+                Expr::Struct(v[0].clone(), fields)
             }
             expr if self.expect_lexeme(Lexeme::Dot).is_ok() => {
                 // projection
@@ -412,7 +424,10 @@ impl Parser {
                 let right_start = self.position;
                 let right = self.expr()?;
                 result = Expr::Call(
-                    Box::new(Source::unknown(Expr::Var(op.to_string(), Type::Infer(0)))),
+                    Box::new(Source::unknown(Expr::Var(
+                        vec![op.to_string()],
+                        Type::Infer(0),
+                    ))),
                     vec![
                         self.source_from(result, short_expr_start),
                         self.source_from(right, right_start),

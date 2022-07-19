@@ -44,16 +44,21 @@ impl<'s> IrFunctionGenerator<'s> {
     pub fn expr(&mut self, expr: &Source<Expr>) -> Result<IrElement> {
         match &expr.data {
             Expr::Var(v, typ) => {
-                if self.args.contains_key(v) {
-                    Ok(IrElement::Term(IrTerm::Argument(
-                        self.args[v],
-                        size_of(typ, self.structs),
-                    )))
+                if v.len() == 1 {
+                    let v = &v[0];
+                    if self.args.contains_key(v) {
+                        Ok(IrElement::Term(IrTerm::Argument(
+                            self.args[v],
+                            size_of(typ, self.structs),
+                        )))
+                    } else {
+                        Ok(IrElement::Term(IrTerm::Ident(
+                            v.clone(),
+                            size_of(typ, self.structs),
+                        )))
+                    }
                 } else {
-                    Ok(IrElement::Term(IrTerm::Ident(
-                        v.clone(),
-                        size_of(typ, self.structs),
-                    )))
+                    todo!()
                 }
             }
             Expr::Lit(literal) => match literal {
@@ -212,7 +217,6 @@ impl<'s> IrFunctionGenerator<'s> {
             }
             Expr::Deref(e, t) => Ok(IrElement::i_deref(size_of(t, self.structs), self.expr(e)?)),
             Expr::As(e, _) => self.expr(e),
-            Expr::Self_ => todo!(),
         }
     }
 
@@ -273,9 +277,10 @@ impl<'s> IrFunctionGenerator<'s> {
                 match &v.data {
                     Expr::Var(v, typ) => {
                         let v2 = self.expr(e2)?;
+                        assert_eq!(v.len(), 1);
                         self.ir.push(IrElement::i_assign(
                             size_of(typ, self.structs),
-                            IrElement::Term(IrTerm::Ident(v.to_string(), 1)),
+                            IrElement::Term(IrTerm::Ident(v[0].to_string(), 1)),
                             v2,
                         ));
                     }

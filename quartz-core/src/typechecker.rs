@@ -149,6 +149,7 @@ pub struct TypeChecker<'s> {
     call_graph: HashMap<String, HashMap<String, ()>>,
     current_function: Option<String>,
     entrypoint: String,
+    self_object: Option<Box<Source<Expr>>>,
 }
 
 impl<'s> TypeChecker<'s> {
@@ -167,6 +168,7 @@ impl<'s> TypeChecker<'s> {
             call_graph: HashMap::new(),
             current_function: None,
             entrypoint: "main".to_string(),
+            self_object: None,
         }
     }
 
@@ -205,22 +207,43 @@ impl<'s> TypeChecker<'s> {
         t
     }
 
-    fn load(&mut self, v: &String) -> Result<Type> {
-        if self.function_types.contains_key(v) {
-            self.call_graph
-                .entry(self.current_function.clone().unwrap())
-                .or_insert(HashMap::new())
-                .insert(v.clone(), ());
+    fn load(&mut self, v: &Vec<String>) -> Result<Type> {
+        assert!(v.len() <= 2);
+        if v.len() == 1 {
+            let v = &v[0];
 
-            let f = self.function_types[v].clone();
-            Ok(Type::Fn(f.0, Box::new(f.1)))
+            if self.function_types.contains_key(v) {
+                self.call_graph
+                    .entry(self.current_function.clone().unwrap())
+                    .or_insert(HashMap::new())
+                    .insert(v.clone(), ());
+
+                let f = self.function_types[v].clone();
+
+                Ok(Type::Fn(f.0, Box::new(f.1)))
+            } else {
+                let t = self
+                    .variables
+                    .get(v)
+                    .ok_or(anyhow::anyhow!("Variable {} not found", v))?;
+
+                Ok(t.clone())
+            }
         } else {
-            let t = self
-                .variables
-                .get(v)
-                .ok_or(anyhow::anyhow!("Variable {} not found", v))?;
+            if let Some((args, ret)) = self.method_types.get(&(v[0].clone(), v[1].clone())) {
+                self.call_graph
+                    .entry(self.current_function.clone().unwrap())
+                    .or_insert(HashMap::new())
+                    .insert(format!("{}::{}", v[0], v[1]), ());
 
-            Ok(t.clone())
+                Ok(Type::Method(
+                    Box::new(Type::Struct(v[0].clone())),
+                    args.clone(),
+                    Box::new(ret.clone()),
+                ))
+            } else {
+                self.structs.get_projection_type(&v[0], &v[1])
+            }
         }
     }
 
@@ -251,6 +274,11 @@ impl<'s> TypeChecker<'s> {
                 let fn_type = self.expr(f)?;
                 if matches!(fn_type, Type::Any) {
                     return Ok(Type::Any);
+                }
+
+                // restore self_object here
+                if let Some(obj) = self.self_object.take() {
+                    args.insert(0, obj.as_ref().clone());
                 }
 
                 let (expected_arg_types, expected_ret_type) = fn_type.as_fn_type().ok_or(
@@ -364,6 +392,14 @@ impl<'s> TypeChecker<'s> {
                         )));
                     }
 
+                    // DESUGAR: x.f(m) => X::f(x, m)
+                    // x will be stored in self_object
+                    self.self_object = Some(expr.clone());
+                    *expr = Box::new(Source::unknown(Expr::Var(
+                        vec![name.clone(), field.clone()],
+                        Type::Struct(name.clone()),
+                    )));
+
                     Ok(Type::Method(
                         Box::new(typ),
                         arg_types.clone(),
@@ -420,7 +456,6 @@ impl<'s> TypeChecker<'s> {
 
                 Ok(t.clone())
             }
-            Expr::Self_ => todo!(),
         }
     }
 
@@ -536,8 +571,6 @@ impl<'s> TypeChecker<'s> {
                             // FIXME: use Ref
                             // arg.1 = Type::Ref(Box::new(typ.clone()));
                             arg.1 = typ.clone();
-                            // FIXME: remove self for now
-                            continue;
                         }
 
                         let t = if matches!(arg.1, Type::Infer(_)) {
@@ -855,7 +888,7 @@ func main(): byte {
 
             for (name, typ) in c.1 {
                 assert_eq!(
-                    checker.load(&name.to_string()).unwrap(),
+                    checker.load(&vec![name.to_string()]).unwrap(),
                     typ,
                     "{}\n{:?}",
                     c.0,
