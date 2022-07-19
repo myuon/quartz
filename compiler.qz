@@ -1,6 +1,5 @@
 func find_space_pattern(s: substring): int {
     let n = 0;
-    _start_debugger;
     while (n < s.len()) {
         if _not(s.at(n).eq(" ")) {
             return n;
@@ -100,6 +99,7 @@ method Lexer next_token(self): Token {
 
     let n = find_exact_pattern(current, "(");
     if (n > 0) {
+        _start_debugger;
         self.position = self.position + n;
 
         return Token {
@@ -205,6 +205,8 @@ struct IrElement {
 
 method Lexer element(self): IrElement? {
     let token = self.next_token();
+    _println(token.type);
+    _println(show_int(self.position));
 
     // block
     if (token.type.eq("LPAREN")) {

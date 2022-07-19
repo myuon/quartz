@@ -1378,6 +1378,33 @@ func main() {
 "#,
             30,
         ),
+        (
+            r#"
+struct Point {
+    x: int,
+    y: int,
+}
+
+method Point add_x(self) {
+    self.x = self.x + 10;
+}
+
+method Point sum(self): int {
+    self.add_x();
+    return self.x + self.y;
+}
+
+func main() {
+    let p = Point {
+        x: 10,
+        y: 20,
+    };
+
+    return p.sum();
+}
+"#,
+            40,
+        ),
     ];
 
     for (input, result) in cases {
