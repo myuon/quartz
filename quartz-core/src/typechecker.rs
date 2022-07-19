@@ -394,7 +394,7 @@ impl<'s> TypeChecker<'s> {
                         )));
                     }
 
-                    // DESUGAR: x.f(m) => X::f(ref x, m)
+                    // DESUGAR: x.f(m) => X::f(&x, m)
                     // x will be stored in self_object
                     // x is passed by ref
                     self.self_object = Some(Box::new(Source::unknown(Expr::Address(

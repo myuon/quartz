@@ -211,7 +211,23 @@ impl<'s> IrFunctionGenerator<'s> {
             }
             Expr::Deref(e, t) => Ok(IrElement::i_deref(size_of(t, self.structs), self.expr(e)?)),
             Expr::As(e, _) => self.expr(e),
-            Expr::Address(e, _t) => Ok(IrElement::i_address(self.expr(e)?)),
+            // NOTE: Calculate left value correctly
+            // FIXME: Can't we just stop calculating lvalue in IR and CodeGen phase?
+            Expr::Address(e, t) => Ok(match e.data {
+                Expr::Var(_, _) => IrElement::i_address(self.expr(e)?),
+                Expr::Project(_, _, _, _) => IrElement::i_address(self.expr(e)?),
+                _ => {
+                    let v = self.var_fresh();
+                    let value = self.expr(e)?;
+                    self.ir.push(IrElement::i_let(
+                        IrElement::ir_type(t, self.structs)?,
+                        v.clone(),
+                        value,
+                    ));
+
+                    IrElement::i_address(IrElement::ident(v))
+                }
+            }),
         }
     }
 

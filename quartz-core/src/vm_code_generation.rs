@@ -136,26 +136,16 @@ impl<'s> VmFunctionGenerator<'s> {
                 }
                 _ => unreachable!("{}", element.show()),
             },
-            IrElement::Block(block) => match block.name.as_str() {
+            IrElement::Block(mut block) => match block.name.as_str() {
                 "call" => {
+                    self.element(element)?;
+                }
+                // FIXME: is this true?
+                "load" | "deref" => {
                     self.new_source_map(element.show_compact());
-                    let mut callee = None;
-                    let mut first = true;
-                    for elem in block.elements {
-                        if first {
-                            first = false;
-                            callee = Some(elem);
-                            continue;
-                        }
 
-                        self.element(elem)?;
-                    }
-                    self.element(callee.unwrap())?;
-
-                    // If the last instruction is not LabelAddrConst, it will be a builtin operation and no need to run CALL operation
-                    if matches!(self.code.last().unwrap(), QVMInstruction::LabelI32Const(_)) {
-                        self.code.push(QVMInstruction::Call);
-                    }
+                    let (_, element) = unvec!(block.elements, 2);
+                    self.element(element)?;
                 }
                 _ => unreachable!("{}", element.show()),
             },
