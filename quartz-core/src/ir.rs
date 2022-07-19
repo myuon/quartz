@@ -252,6 +252,10 @@ impl IrElement {
     pub fn i_deref(size: usize, element: IrElement) -> IrElement {
         IrElement::block("deref", vec![IrElement::int(size as i32), element])
     }
+
+    pub fn i_address(element: IrElement) -> IrElement {
+        IrElement::block("address", vec![element])
+    }
 }
 
 static SPACE_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"^\s+").unwrap());

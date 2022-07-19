@@ -1,5 +1,6 @@
 func find_space_pattern(s: substring): int {
     let n = 0;
+    _start_debugger;
     while (n < s.len()) {
         if _not(s.at(n).eq(" ")) {
             return n;
@@ -152,7 +153,6 @@ method Lexer next_token(self): Token {
         };
     };
 
-    _panic;
     return Token {
         type: "",
         value_string: nil,

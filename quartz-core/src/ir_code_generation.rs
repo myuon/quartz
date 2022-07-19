@@ -211,6 +211,7 @@ impl<'s> IrFunctionGenerator<'s> {
             }
             Expr::Deref(e, t) => Ok(IrElement::i_deref(size_of(t, self.structs), self.expr(e)?)),
             Expr::As(e, _) => self.expr(e),
+            Expr::Address(e, _t) => Ok(IrElement::i_address(self.expr(e)?)),
         }
     }
 
@@ -631,10 +632,8 @@ func main() {
         ))
     )
     (func $main (args)
-        (let (struct 3) $p(1) (data 3 10 20))
-        (let $ref $fresh_1 (call $_new 3))
-        (assign 3 (call $_padd $fresh_1 0) $p(3))
-        (return 1 (call $Point_sum $fresh_1))
+        (let (struct 3) $p (data 3 10 20))
+        (return 1 (call $Point_sum (address $p(3))))
     )
 )
 "#,

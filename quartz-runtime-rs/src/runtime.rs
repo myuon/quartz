@@ -1113,7 +1113,7 @@ func main() {
     return m.a;
 }
 "#,
-            10, // FIXME: using reference
+            30,
         ),
         (
             r#"

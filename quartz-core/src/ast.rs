@@ -76,9 +76,10 @@ pub enum Expr {
         String,
     ),
     Index(Box<Source<Expr>>, Box<Source<Expr>>),
-    Ref(Box<Source<Expr>>, Type),
     Deref(Box<Source<Expr>>, Type),
     As(Box<Source<Expr>>, Type),
+    Ref(Box<Source<Expr>>, Type),
+    Address(Box<Source<Expr>>, Type), // [compiler only] take the address of expr (same as ref, but no heap allocation)
 }
 
 #[derive(PartialEq, Debug, Clone)]

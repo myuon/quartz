@@ -397,7 +397,7 @@ impl<'s> TypeChecker<'s> {
                     // DESUGAR: x.f(m) => X::f(ref x, m)
                     // x will be stored in self_object
                     // x is passed by ref
-                    self.self_object = Some(Box::new(Source::unknown(Expr::Ref(
+                    self.self_object = Some(Box::new(Source::unknown(Expr::Address(
                         proj.clone(),
                         Type::Ref(Box::new(Type::Struct(name.clone()))),
                     ))));
@@ -469,6 +469,13 @@ impl<'s> TypeChecker<'s> {
                 info!("coercing {:?} -> {:?}", e_type, t);
 
                 Ok(t.clone())
+            }
+            Expr::Address(e, t) => {
+                let e_type = self.expr(e)?;
+                *t = e_type.clone();
+
+                let ty = Type::Ref(Box::new(e_type));
+                Ok(ty)
             }
         }
     }

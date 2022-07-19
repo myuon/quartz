@@ -437,6 +437,12 @@ impl<'s> VmFunctionGenerator<'s> {
                             QVMInstruction::RuntimeInstr("_coerce".to_string()),
                         ]);
                     }
+                    "address" => {
+                        println!("{}", element.show());
+                        self.new_source_map(element.show_compact());
+                        let element = unvec!(block.elements, 1);
+                        self.element_addr(element)?;
+                    }
                     name => todo!("{:?}", name),
                 };
             }
