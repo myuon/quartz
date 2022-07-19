@@ -1373,7 +1373,7 @@ func main() {
         y: 20,
     };
 
-    return Point::sum(p);
+    return Point::sum(ref p);
 }
 "#,
             30,

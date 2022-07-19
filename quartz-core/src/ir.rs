@@ -92,7 +92,7 @@ impl IrElement {
                     if *t > 1 {
                         format!("${}({})", a, t)
                     } else {
-                        format!("{}", a)
+                        format!("${}", a)
                     }
                 }
                 IrTerm::Info(i) => format!("{}", i),

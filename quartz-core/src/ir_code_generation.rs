@@ -623,16 +623,18 @@ func main() {
 "#,
                 r#"
 (module
-    (func $Point_sum (args (struct 3))
+    (func $Point_sum (args $ref)
         (return 1 (call
             $_add
-            (load 1 (call $_padd (unload $0(3)) 1))
-            (load 1 (call $_padd (unload $0(3)) 2))
+            (load 1 (call $_padd (unload (deref 1 $0)) 1))
+            (load 1 (call $_padd (unload (deref 1 $0)) 2))
         ))
     )
     (func $main (args)
         (let (struct 3) $p(1) (data 3 10 20))
-        (return 1 (call $Point_sum $p(3)))
+        (let $ref $fresh_1 (call $_new 3))
+        (assign 3 (call $_padd $fresh_1 0) $p(3))
+        (return 1 (call $Point_sum $fresh_1))
     )
 )
 "#,

@@ -394,9 +394,13 @@ impl<'s> TypeChecker<'s> {
                         )));
                     }
 
-                    // DESUGAR: x.f(m) => X::f(x, m)
+                    // DESUGAR: x.f(m) => X::f(ref x, m)
                     // x will be stored in self_object
-                    self.self_object = Some(proj.clone());
+                    // x is passed by ref
+                    self.self_object = Some(Box::new(Source::unknown(Expr::Ref(
+                        proj.clone(),
+                        Type::Ref(Box::new(Type::Struct(name.clone()))),
+                    ))));
                     *expr = Source::unknown(Expr::Var(
                         vec![name.clone(), field.clone()],
                         Type::Method(
@@ -412,6 +416,10 @@ impl<'s> TypeChecker<'s> {
                         Box::new(return_type.clone()),
                     ))
                 } else {
+                    if typ.is_ref() {
+                        *proj = Box::new(Source::unknown(Expr::Deref(proj.clone(), typ)));
+                    }
+
                     let field_type = self
                         .structs
                         .get_projection_type(&name, &field)
@@ -574,9 +582,7 @@ impl<'s> TypeChecker<'s> {
                     for arg in &mut func.args {
                         // NOTE: infer self type
                         if arg.1 == Type::Self_ {
-                            // FIXME: use Ref
-                            // arg.1 = Type::Ref(Box::new(typ.clone()));
-                            arg.1 = typ.clone();
+                            arg.1 = Type::Ref(Box::new(typ.clone()));
                         }
 
                         let t = if matches!(arg.1, Type::Infer(_)) {
