@@ -14,7 +14,6 @@ struct IrFunctionGenerator<'s> {
     ir: Vec<IrElement>,
     args: &'s HashMap<String, usize>,
     fresh_var_index: usize,
-    self_object: Option<IrElement>,
     structs: &'s Structs,
     strings: &'s mut Vec<String>,
 }
@@ -29,7 +28,6 @@ impl<'s> IrFunctionGenerator<'s> {
             ir: vec![],
             args,
             fresh_var_index: 0,
-            self_object: None,
             structs,
             strings,
         }
@@ -44,6 +42,8 @@ impl<'s> IrFunctionGenerator<'s> {
     pub fn expr(&mut self, expr: &Source<Expr>) -> Result<IrElement> {
         match &expr.data {
             Expr::Var(v, typ) => {
+                assert!(v.len() <= 2);
+
                 if v.len() == 1 {
                     let v = &v[0];
                     if self.args.contains_key(v) {
@@ -58,7 +58,10 @@ impl<'s> IrFunctionGenerator<'s> {
                         )))
                     }
                 } else {
-                    todo!()
+                    Ok(IrElement::Term(IrTerm::Ident(
+                        format!("{}_{}", v[0], v[1]),
+                        size_of(typ, self.structs),
+                    )))
                 }
             }
             Expr::Lit(literal) => match literal {
@@ -119,10 +122,6 @@ impl<'s> IrFunctionGenerator<'s> {
                 let mut elements = vec![];
                 elements.push(self.expr(f.as_ref())?);
 
-                if let Some(self_obj) = self.self_object.take() {
-                    elements.push(self_obj);
-                }
-
                 for arg in args {
                     elements.push(self.expr(&arg)?);
                 }
@@ -161,13 +160,8 @@ impl<'s> IrFunctionGenerator<'s> {
 
                 Ok(IrElement::block("data", data))
             }
-            Expr::Project(method, struct_name, proj, label) if *method => {
-                self.self_object = Some(self.expr(proj)?);
-
-                Ok(IrElement::Term(IrTerm::Ident(
-                    format!("{}_{}", struct_name, label),
-                    1,
-                )))
+            Expr::Project(method, _struct_name, _proj, _label) if *method => {
+                unreachable!()
             }
             Expr::Project(_, struct_name, proj, label) => {
                 let index = self.structs.get_projection_offset(struct_name, label)?;

@@ -230,20 +230,20 @@ impl<'s> TypeChecker<'s> {
                 Ok(t.clone())
             }
         } else {
-            if let Some((args, ret)) = self.method_types.get(&(v[0].clone(), v[1].clone())) {
-                self.call_graph
-                    .entry(self.current_function.clone().unwrap())
-                    .or_insert(HashMap::new())
-                    .insert(format!("{}::{}", v[0], v[1]), ());
+            let (args, ret) = self
+                .method_types
+                .get(&(v[0].clone(), v[1].clone()))
+                .ok_or(anyhow::anyhow!("Method {}::{} not found", v[0], v[1]))?;
+            self.call_graph
+                .entry(self.current_function.clone().unwrap())
+                .or_insert(HashMap::new())
+                .insert(format!("{}::{}", v[0], v[1]), ());
 
-                Ok(Type::Method(
-                    Box::new(Type::Struct(v[0].clone())),
-                    args.clone(),
-                    Box::new(ret.clone()),
-                ))
-            } else {
-                self.structs.get_projection_type(&v[0], &v[1])
-            }
+            Ok(Type::Method(
+                Box::new(Type::Struct(v[0].clone())),
+                args.clone(),
+                Box::new(ret.clone()),
+            ))
         }
     }
 
@@ -295,10 +295,11 @@ impl<'s> TypeChecker<'s> {
                 };
                 if expected_arg_len != actual_arg_len {
                     anyhow::bail!(
-                        "Expected {} arguments but given {}, {}",
+                        "Expected {} arguments but given {}, {} ({:?})",
                         expected_arg_len,
                         actual_arg_len,
-                        self.error_context(f.start, f.end, "")
+                        self.error_context(f.start, f.end, "no source"),
+                        f
                     );
                 }
 
@@ -363,8 +364,8 @@ impl<'s> TypeChecker<'s> {
 
                 Ok(Type::Struct(s.clone()))
             }
-            Expr::Project(is_method, name, expr, field) => {
-                let typ = self.expr(expr)?;
+            Expr::Project(is_method, name, proj, field) => {
+                let typ = self.expr(proj)?;
                 *name = typ.method_selector_name();
 
                 if let Some((arg_types, return_type)) =
@@ -386,19 +387,23 @@ impl<'s> TypeChecker<'s> {
                     // deref the receiver if necessary
                     // FIXME: nested derefernces
                     if let Some(r) = typ.as_ref_type() {
-                        *expr = Box::new(Source::unknown(Expr::Deref(
-                            expr.clone(),
+                        *proj = Box::new(Source::unknown(Expr::Deref(
+                            proj.clone(),
                             r.as_ref().clone(),
                         )));
                     }
 
                     // DESUGAR: x.f(m) => X::f(x, m)
                     // x will be stored in self_object
-                    self.self_object = Some(expr.clone());
-                    *expr = Box::new(Source::unknown(Expr::Var(
+                    self.self_object = Some(proj.clone());
+                    *expr = Source::unknown(Expr::Var(
                         vec![name.clone(), field.clone()],
-                        Type::Struct(name.clone()),
-                    )));
+                        Type::Method(
+                            Box::new(Type::Struct(name.clone())),
+                            arg_types.clone(),
+                            Box::new(return_type.clone()),
+                        ),
+                    ));
 
                     Ok(Type::Method(
                         Box::new(typ),
@@ -409,7 +414,7 @@ impl<'s> TypeChecker<'s> {
                     let field_type = self
                         .structs
                         .get_projection_type(&name, &field)
-                        .context(self.error_context(expr.start, expr.end, "projection"))?;
+                        .context(self.error_context(proj.start, proj.end, "projection"))?;
 
                     *is_method = false;
 

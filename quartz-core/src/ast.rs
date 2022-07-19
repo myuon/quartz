@@ -376,6 +376,7 @@ pub fn size_of_traced(typ: &Type, structs: &Structs, mut trace: Vec<String>) -> 
         Type::Int => 1,
         Type::Byte => 1,
         Type::Fn(_, _) => 1,
+        Type::Method(_, _, _) => 1,
         Type::Struct(st) => {
             if trace.contains(st) {
                 unreachable!("infinite loop detected at {}", st);
