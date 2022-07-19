@@ -134,6 +134,10 @@ impl<'s> VmFunctionGenerator<'s> {
                         unreachable!("{}", element.show());
                     }
                 }
+                IrTerm::Argument(v, _) => {
+                    self.code
+                        .push(QVMInstruction::ArgConst(self.args.arg_position(v)?));
+                }
                 _ => unreachable!("{}", element.show()),
             },
             IrElement::Block(mut block) => match block.name.as_str() {
@@ -428,7 +432,6 @@ impl<'s> VmFunctionGenerator<'s> {
                         ]);
                     }
                     "address" => {
-                        println!("{}", element.show());
                         self.new_source_map(element.show_compact());
                         let element = unvec!(block.elements, 1);
                         self.element_addr(element)?;
