@@ -120,7 +120,8 @@ impl<'s> IrFunctionGenerator<'s> {
                 // in: f(a,b,c)
                 // out: (call f a b c)
                 let mut elements = vec![];
-                elements.push(self.expr(f.as_ref())?);
+                // The callee part should be resolved as an address
+                elements.push(IrElement::i_address(self.expr(f.as_ref())?));
 
                 for arg in args {
                     elements.push(self.expr(&arg)?);
@@ -213,7 +214,7 @@ impl<'s> IrFunctionGenerator<'s> {
             Expr::As(e, _) => self.expr(e),
             // NOTE: Calculate left value correctly
             // FIXME: Can't we just stop calculating lvalue in IR and CodeGen phase?
-            Expr::Address(e, t) => Ok(match e.data {
+            Expr::Address(e, t) => Ok(match &e.data {
                 Expr::Var(_, _) => IrElement::i_address(self.expr(e)?),
                 Expr::Project(_, _, _, _) => IrElement::i_address(self.expr(e)?),
                 _ => {
@@ -607,8 +608,8 @@ func main() {
         (assign 1 (call $_padd $x 2) 4)
 
         (return 1
-            (call $_add
-                (call $_add
+            (call (address $_add)
+                (call (address $_add)
                     (deref 1 (call $_padd $x 1))
                     (deref 1 (call $_padd $x 2)))
                 $0
@@ -616,7 +617,7 @@ func main() {
         )
     )
     (func $main (args)
-        (return 1 (call $f 10))
+        (return 1 (call (address $f) 10))
     )
 )
 "#,
@@ -642,14 +643,14 @@ func main() {
 (module
     (func $Point_sum (args $ref)
         (return 1 (call
-            $_add
+            (address $_add)
             (load 1 (call $_padd (unload (deref 1 $0)) 1))
             (load 1 (call $_padd (unload (deref 1 $0)) 2))
         ))
     )
     (func $main (args)
         (let (struct 3) $p (data 3 10 20))
-        (return 1 (call $Point_sum (address $p(3))))
+        (return 1 (call (address $Point_sum) (address $p(3))))
     )
 )
 "#,
@@ -689,7 +690,7 @@ func main() {
     (func $f (args $int $bool)
         (return 1 $1))
     (func $main (args)
-        (return 1 (call $f 0 true))
+        (return 1 (call (address $f) 0 true))
     )
 )
 "#,
@@ -707,7 +708,7 @@ func main() {
     (text 3 102 111 111)
     (func $main (args)
         (let (struct 1) $s (data 2 (string 0)))
-        (return 1 (call $_println $s))
+        (return 1 (call (address $_println) $s))
     )
 )
 "#,

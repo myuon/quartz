@@ -119,6 +119,37 @@ impl<'s> VmFunctionGenerator<'s> {
             .insert(self.offset + self.code.len(), s.into());
     }
 
+    fn builtin_instructions(&self, v: &str) -> QVMInstruction {
+        match v {
+            "_add" => QVMInstruction::Add,
+            "_sub" => QVMInstruction::Sub,
+            "_mult" => QVMInstruction::Mult,
+            "_eq" => QVMInstruction::Eq,
+            "_neq" => QVMInstruction::Neq,
+            "_new" => QVMInstruction::Alloc,
+            "_padd" => QVMInstruction::PAdd,
+            "_lt" => QVMInstruction::Lt,
+            "_gt" => QVMInstruction::Gt,
+            "_div" => QVMInstruction::Div,
+            "_mod" => QVMInstruction::Mod,
+            "_not" => QVMInstruction::Not,
+            "_or" => QVMInstruction::Or,
+            "_and" => QVMInstruction::And,
+            "_gc" => QVMInstruction::RuntimeInstr("_gc".to_string()),
+            "_panic" => QVMInstruction::RuntimeInstr("_panic".to_string()),
+            "_len" => QVMInstruction::RuntimeInstr("_len".to_string()),
+            "_println" => QVMInstruction::RuntimeInstr("_println".to_string()),
+            "_copy" => QVMInstruction::RuntimeInstr("_copy".to_string()),
+            "_debug" => QVMInstruction::RuntimeInstr("_debug".to_string()),
+            "_int_to_byte" => QVMInstruction::Nop,
+            "_byte_to_int" => QVMInstruction::Nop,
+            "_nil_to_ref" => QVMInstruction::Nop,
+            "_start_debugger" => QVMInstruction::RuntimeInstr("_start_debugger".to_string()),
+            "_check_sp" => QVMInstruction::RuntimeInstr("_check_sp".to_string()),
+            _ => QVMInstruction::LabelI32Const(v.to_string()),
+        }
+    }
+
     // compile to an address (lvar)
     fn element_addr(&mut self, element: IrElement) -> Result<()> {
         match element.clone() {
@@ -131,7 +162,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.code
                             .push(QVMInstruction::AddrConst(*u, Variable::Global));
                     } else {
-                        unreachable!("{}", element.show());
+                        self.code.push(self.builtin_instructions(v.as_str()));
                     }
                 }
                 IrTerm::Argument(v, _) => {
@@ -171,36 +202,7 @@ impl<'s> VmFunctionGenerator<'s> {
                             .push(QVMInstruction::AddrConst(*u, Variable::Global));
                         self.code.push(QVMInstruction::Load(size));
                     } else {
-                        self.code.push(match v.as_str() {
-                            "_add" => QVMInstruction::Add,
-                            "_sub" => QVMInstruction::Sub,
-                            "_mult" => QVMInstruction::Mult,
-                            "_eq" => QVMInstruction::Eq,
-                            "_neq" => QVMInstruction::Neq,
-                            "_new" => QVMInstruction::Alloc,
-                            "_padd" => QVMInstruction::PAdd,
-                            "_lt" => QVMInstruction::Lt,
-                            "_gt" => QVMInstruction::Gt,
-                            "_div" => QVMInstruction::Div,
-                            "_mod" => QVMInstruction::Mod,
-                            "_not" => QVMInstruction::Not,
-                            "_or" => QVMInstruction::Or,
-                            "_and" => QVMInstruction::And,
-                            "_gc" => QVMInstruction::RuntimeInstr("_gc".to_string()),
-                            "_panic" => QVMInstruction::RuntimeInstr("_panic".to_string()),
-                            "_len" => QVMInstruction::RuntimeInstr("_len".to_string()),
-                            "_println" => QVMInstruction::RuntimeInstr("_println".to_string()),
-                            "_copy" => QVMInstruction::RuntimeInstr("_copy".to_string()),
-                            "_debug" => QVMInstruction::RuntimeInstr("_debug".to_string()),
-                            "_int_to_byte" => QVMInstruction::Nop,
-                            "_byte_to_int" => QVMInstruction::Nop,
-                            "_nil_to_ref" => QVMInstruction::Nop,
-                            "_start_debugger" => {
-                                QVMInstruction::RuntimeInstr("_start_debugger".to_string())
-                            }
-                            "_check_sp" => QVMInstruction::RuntimeInstr("_check_sp".to_string()),
-                            _ => QVMInstruction::LabelI32Const(v.clone()),
-                        });
+                        self.code.push(self.builtin_instructions(v.as_str()));
                     }
                 }
                 IrTerm::Nil => {
