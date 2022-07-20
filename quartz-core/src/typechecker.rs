@@ -248,6 +248,30 @@ impl<'s> TypeChecker<'s> {
         }
     }
 
+    // wrap by address if necessary
+    fn coerced_ref_type(
+        &self,
+        expr: Source<Expr>,
+        current_type: &Type,
+        expected_type: &Type,
+    ) -> Source<Expr> {
+        if let Type::Ref(current_type) = current_type {
+            if let Type::Ref(expected_type) = expected_type {
+                return self.coerced_ref_type(expr, current_type, expected_type);
+            }
+        }
+
+        // FIXME: Excluding `Type::Any` is a hack
+        if !current_type.is_ref() && expected_type.is_ref() && expected_type != &Type::Any {
+            return Source::unknown(Expr::Address(
+                Box::new(expr.clone()),
+                Type::Ref(Box::new(current_type.clone())),
+            ));
+        }
+
+        expr
+    }
+
     pub fn expr(&mut self, expr: &mut Source<Expr>) -> Result<Type> {
         match &mut expr.data {
             Expr::Var(v, t) => {
@@ -306,24 +330,11 @@ impl<'s> TypeChecker<'s> {
 
                 for i in 0..actual_arg_len {
                     let expected_arg_type = &expected_arg_types[i];
-                    let mut actual_arg_type = self.expr(&mut args[i])?;
+                    let actual_arg_type = self.expr(&mut args[i])?;
 
-                    // derefernce check
-                    // FIXME: nested derefernces
-                    if actual_arg_type.is_ref()
-                        && !expected_arg_type.is_ref()
-                    // FIXME: this is a hack
-                    && !(expected_arg_type == &Type::Any)
-                    {
-                        args[i] =
-                            Source::unknown(Expr::Deref(Box::new(args[i].clone()), Type::Infer(0)));
-
-                        // try typecheck again
-                        actual_arg_type = self.expr(&mut args[i])?;
-                    }
-
-                    let cs = Constraints::unify(&expected_arg_type, &actual_arg_type)
-                        .context(self.error_context(args[i].start, args[i].end, "unify"))?;
+                    let cs = Constraints::unify(&expected_arg_type, &actual_arg_type).context(
+                        self.error_context(args[i].start, args[i].end, &format!("{:?}", args[i])),
+                    )?;
                     self.apply_constraints(&cs);
                     cs.apply(&mut ret_type);
                 }
@@ -385,22 +396,14 @@ impl<'s> TypeChecker<'s> {
                             (),
                         );
 
-                    // deref the receiver if necessary
-                    // FIXME: nested derefernces
-                    if let Some(r) = typ.as_ref_type() {
-                        *proj = Box::new(Source::unknown(Expr::Deref(
-                            proj.clone(),
-                            r.as_ref().clone(),
-                        )));
-                    }
-
-                    // DESUGAR: x.f(m) => X::f(&x, m)
+                    // DESUGAR: x.f(m) => X::f(x, m)
                     // x will be stored in self_object
                     // x is passed by ref
-                    self.self_object = Some(Box::new(Source::unknown(Expr::Address(
-                        proj.clone(),
-                        Type::Ref(Box::new(Type::Struct(name.clone()))),
-                    ))));
+                    self.self_object = Some(Box::new(self.coerced_ref_type(
+                        proj.as_ref().clone(),
+                        &typ,
+                        &arg_types[0],
+                    )));
                     *expr = Source::unknown(Expr::Var(
                         vec![name.clone(), field.clone()],
                         Type::Method(
