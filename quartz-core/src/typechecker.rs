@@ -320,11 +320,13 @@ impl<'s> TypeChecker<'s> {
                 };
                 if expected_arg_len != actual_arg_len {
                     anyhow::bail!(
-                        "Expected {} arguments but given {}, {} ({:?})",
+                        "Expected {} arguments but given {}, {} (call({:?},{:?}): {:?})",
                         expected_arg_len,
                         actual_arg_len,
                         self.error_context(f.start, f.end, "no source"),
-                        f
+                        f,
+                        args,
+                        fn_type,
                     );
                 }
 
@@ -351,7 +353,7 @@ impl<'s> TypeChecker<'s> {
 
                 let def = self.structs.0[s].clone();
                 for ((k1, v1), (k2, v2, t)) in def.iter().zip(fields.into_iter()) {
-                    assert_eq!(k1, k2);
+                    assert_eq!(k1, k2, "{}", self.error_context(v2.start, v2.end, ""));
 
                     let mut result = self.expr(v2)?;
 
@@ -378,7 +380,9 @@ impl<'s> TypeChecker<'s> {
             }
             Expr::Project(is_method, name, proj, field) => {
                 let typ = self.expr(proj)?;
-                *name = typ.method_selector_name();
+                *name = typ
+                    .method_selector_name()
+                    .context(self.error_context(proj.start, proj.end, ""))?;
 
                 if let Some((arg_types, return_type)) =
                     self.method_types.get(&(name.clone(), field.clone()))
@@ -558,6 +562,18 @@ impl<'s> TypeChecker<'s> {
             }
         }
 
+        assert_eq!(
+            self.self_object,
+            None,
+            "self_object {} in \n{}",
+            self.error_context(
+                self.self_object.clone().unwrap().start,
+                self.self_object.clone().unwrap().end,
+                ""
+            ),
+            self.error_context(statements[0].start, statements.last().unwrap().end, "")
+        );
+
         Ok(ret_type)
     }
 
@@ -610,7 +626,7 @@ impl<'s> TypeChecker<'s> {
                     }
 
                     self.method_types.insert(
-                        (typ.method_selector_name(), func.name.clone()),
+                        (typ.method_selector_name()?, func.name.clone()),
                         (arg_types.clone(), func.return_type.clone()),
                     );
                 }
@@ -679,7 +695,7 @@ impl<'s> TypeChecker<'s> {
                     self.variables = variables;
 
                     self.method_types
-                        .get_mut(&(typ.method_selector_name(), func.name.clone()))
+                        .get_mut(&(typ.method_selector_name()?, func.name.clone()))
                         .unwrap()
                         .1 = t;
                 }

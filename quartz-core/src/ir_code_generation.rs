@@ -436,7 +436,7 @@ impl IrGenerator {
 
     pub fn method(&mut self, typ: &Type, function: &Function) -> Result<IrElement> {
         let mut elements = vec![IrElement::Term(IrTerm::Ident(
-            format!("{}_{}", typ.method_selector_name(), function.name),
+            format!("{}_{}", typ.method_selector_name()?, function.name),
             1,
         ))];
         let mut args = HashMap::new();

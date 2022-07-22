@@ -1,3 +1,15 @@
+method bool to_string(self): string {
+    if (self == true) {
+        return "true";
+    } else {
+        return "false";
+    };
+}
+
+method int to_string(self): string {
+    return show_int(self as int);
+}
+
 struct string {
     data: bytes,
 }

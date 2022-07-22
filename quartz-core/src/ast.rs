@@ -116,9 +116,11 @@ impl Declaration {
     // if the function is a method, [STRUCT_NAME]::[METHOD_NAME]
     pub fn function_path(&self) -> Option<String> {
         match self {
-            Declaration::Method(typ, func) => {
-                Some(format!("{}::{}", typ.method_selector_name(), func.name))
-            }
+            Declaration::Method(typ, func) => Some(format!(
+                "{}::{}",
+                typ.method_selector_name().ok()?,
+                func.name
+            )),
             Declaration::Function(func) => Some(func.name.clone()),
             _ => None,
         }
@@ -249,18 +251,18 @@ impl Type {
         }
     }
 
-    pub fn method_selector_name(&self) -> String {
-        match self {
+    pub fn method_selector_name(&self) -> Result<String> {
+        Ok(match self {
             Type::Any => "any".to_string(),
             Type::Bool => "bool".to_string(),
             Type::Int => "int".to_string(),
             Type::Byte => "byte".to_string(),
             Type::Struct(s) => s.to_string(),
-            Type::Ref(r) => r.method_selector_name(),
+            Type::Ref(r) => r.method_selector_name()?,
             Type::Array(_) => "array".to_string(),
-            Type::Optional(n) => n.method_selector_name(),
-            s => todo!("{:?}", s),
-        }
+            Type::Optional(n) => n.method_selector_name()?,
+            s => bail!("{:?} is not a method selector", s),
+        })
     }
 }
 
