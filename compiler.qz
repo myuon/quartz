@@ -88,8 +88,23 @@ struct Token {
     value_int: int?,
 }
 
+method Lexer current_input(self): substring {
+    return self.input.slice_after(self.position);
+}
+
+method Lexer is_next_rparen(self): bool {
+    let current = self.current_input();
+    let n = find_space_pattern(current);
+    let next = current.slice_after(n);
+    if next.at(0).eq(")") {
+        return true;
+    };
+
+    return false;
+}
+
 method Lexer next_token(self): Token {
-    let current = self.input.slice_after(self.position);
+    let current = self.current_input();
 
     // no return/continue here
     let n = find_space_pattern(current);
@@ -100,7 +115,6 @@ method Lexer next_token(self): Token {
 
     let n = find_exact_pattern(current, "(");
     if (n > 0) {
-        _start_debugger;
         self.position = self.position + n;
 
         return Token {
@@ -273,21 +287,34 @@ method IrElement to_string(self): string {
     return "";
 }
 
+method Lexer expect(self, type: string): Token {
+    let token = self.next_token();
+    if _not(token.type.eq(type)) {
+        _println("expected token: ".concat(type).concat(" got: ").concat(token.type));
+        _panic;
+    };
+
+    return token;
+}
+
 method Lexer element(self): IrElement? {
     let token = self.next_token();
 
     if (token.type.eq("LPAREN")) {
         // block
-        let name = self.next_token();
-        assert_eq(name.type, "KEYWORD");
+        let name = self.expect("KEYWORD");
         let name_string = name.value_string as string;
 
-        let next = self.element();
+        let next = nil as IrElement?;
         let elements = IrElementList_nil();
-        while _not(next == nil) {
-            elements = elements.cons(next as IrElement);
+
+        let b = _not(self.is_next_rparen());
+        _start_debugger;
+        while b {
             next = self.element();
+            elements = elements.cons(next as IrElement);
         };
+        self.expect("RPAREN");
 
         return IrElement {
             type: "BLOCK",
@@ -329,7 +356,8 @@ method Lexer element(self): IrElement? {
             };
         };
 
-        _println(term.type);
+        _println("unreachable term: ".concat(term.type));
+        _println(self.current_input().to_string());
         _panic;
         return IrElement {
             type: "",

@@ -179,6 +179,19 @@ method substring parse_int(self): int {
     return result;
 }
 
+method substring starts_with(self, prefix: string): bool {
+    let n = 0;
+    while (n < prefix.len()) {
+        if _not(self.at(n).eq(prefix.at(n))) {
+            return false;
+        };
+
+        n = n + 1;
+    };
+
+    return true;
+}
+
 // int cannot have any methods then we need to define as a global function... X(
 func show_bool(b: bool): string {
     if b {

@@ -292,6 +292,7 @@ impl Runtime {
                 .heap
                 .debug_objects()
                 .iter()
+                .skip(self.heap.debug_objects().len() - 5)
                 .map(|c| format!("{:?}", c))
                 .collect::<Vec<_>>()
                 .join("\n"),
