@@ -6,11 +6,13 @@ use crate::{
     ast::{
         size_of, Declaration, Expr, Function, Literal, Module, Source, Statement, Structs, Type,
     },
+    compiler::specify_source_in_input,
     ir::{IrBlock, IrElement, IrTerm},
 };
 
 #[derive(Debug)]
 struct IrFunctionGenerator<'s> {
+    source_code: &'s str,
     ir: Vec<IrElement>,
     args: &'s HashMap<String, usize>,
     fresh_var_index: usize,
@@ -20,11 +22,13 @@ struct IrFunctionGenerator<'s> {
 
 impl<'s> IrFunctionGenerator<'s> {
     pub fn new(
+        source_code: &'s str,
         args: &'s HashMap<String, usize>,
         structs: &'s Structs,
         strings: &'s mut Vec<String>,
     ) -> IrFunctionGenerator<'s> {
         IrFunctionGenerator {
+            source_code,
             ir: vec![],
             args,
             fresh_var_index: 0,
@@ -52,6 +56,25 @@ impl<'s> IrFunctionGenerator<'s> {
                             size_of(typ, self.structs),
                         )))
                     } else {
+                        // special treatment for panic instruction
+                        // FIXME: implement function meta attributes
+                        if v == "_panic" {
+                            let meta = self.expr(&Source::unknown(
+                                Expr::Call(Box::new(Source::unknown(
+                                    Expr::Var(vec!["_println".to_string()], Type::Fn(vec![Type::Ref(Box::new(Type::Byte))], Box::new(Type::Nil))),
+                                )), vec![
+                                    Source::unknown(Expr::Lit(Literal::String(
+                                        specify_source_in_input(
+                                            self.source_code,
+                                            expr.start.unwrap(),
+                                            expr.end.unwrap(),
+                                        )
+                                    ), Type::Infer(0)))
+                                ])
+                            ))?;
+                            self.ir.push(meta);
+                        }
+
                         Ok(IrElement::Term(IrTerm::Ident(
                             v.clone(),
                             size_of(typ, self.structs),
@@ -224,8 +247,9 @@ impl<'s> IrFunctionGenerator<'s> {
 
                 let value = self.expr(e)?;
                 Ok(if current_size < expected_size {
-                    IrElement::i_coerce(current_size, expected_size, value) 
+                    IrElement::i_coerce(current_size,expected_size, value)
                 } else {
+
                     value
                 })
             }
@@ -281,14 +305,22 @@ impl<'s> IrFunctionGenerator<'s> {
             Statement::If(b, s1, s2) => {
                 let v = self.expr(b)?;
                 let gen1 = {
-                    let mut generator =
-                        IrFunctionGenerator::new(self.args, &self.structs, &mut self.strings);
+                    let mut generator = IrFunctionGenerator::new(
+                        self.source_code,
+                        self.args,
+                        &self.structs,
+                        &mut self.strings,
+                    );
                     generator.statements(&s1)?;
                     generator.ir
                 };
                 let gen2 = {
-                    let mut generator =
-                        IrFunctionGenerator::new(self.args, &self.structs, &mut self.strings);
+                    let mut generator = IrFunctionGenerator::new(
+                        self.source_code,
+                        self.args,
+                        &self.structs,
+                        &mut self.strings,
+                    );
                     generator.statements(&s2)?;
                     generator.ir
                 };
@@ -351,8 +383,12 @@ impl<'s> IrFunctionGenerator<'s> {
             Statement::While(cond, body) => {
                 let vcond = self.expr(cond)?;
                 let gen = {
-                    let mut generator =
-                        IrFunctionGenerator::new(self.args, &self.structs, &mut self.strings);
+                    let mut generator = IrFunctionGenerator::new(
+                        self.source_code,
+                        self.args,
+                        &self.structs,
+                        &mut self.strings,
+                    );
                     generator.statements(&body)?;
                     generator.ir
                 };
@@ -405,17 +441,23 @@ impl<'s> IrFunctionGenerator<'s> {
 }
 
 #[derive(Debug)]
-pub struct IrGenerator {
+pub struct IrGenerator<'s> {
+    source_code: &'s str,
     structs: Structs,
     strings: Vec<String>,
 }
 
-impl IrGenerator {
-    pub fn new() -> IrGenerator {
+impl<'s> IrGenerator<'s> {
+    pub fn new(source_code: &'s str) -> IrGenerator<'s> {
         IrGenerator {
+            source_code,
             structs: Structs(HashMap::new()),
             strings: vec![],
         }
+    }
+
+    pub fn set_source_code(&'s mut self, source_code: &'s str) {
+        self.source_code = source_code;
     }
 
     pub fn context(&mut self, structs: Structs) {
@@ -440,7 +482,8 @@ impl IrGenerator {
             arg_types_in_ir.into_iter().rev().collect(),
         ));
 
-        let mut generator = IrFunctionGenerator::new(&args, &self.structs, &mut self.strings);
+        let mut generator =
+            IrFunctionGenerator::new(self.source_code, &args, &self.structs, &mut self.strings);
 
         generator.function(&function.body)?;
 
@@ -476,7 +519,8 @@ impl IrGenerator {
             arg_types_in_ir.into_iter().rev().collect(),
         ));
 
-        let mut generator = IrFunctionGenerator::new(&args, &self.structs, &mut self.strings);
+        let mut generator =
+            IrFunctionGenerator::new(self.source_code, &args, &self.structs, &mut self.strings);
 
         generator.function(&function.body)?;
 
@@ -500,7 +544,8 @@ impl IrGenerator {
             IrElement::int(size_of(typ, &self.structs) as i32),
             IrElement::Term(IrTerm::Ident(name.clone(), 1)),
         ];
-        let mut generator = IrFunctionGenerator::new(&empty, &self.structs, &mut self.strings);
+        let mut generator =
+            IrFunctionGenerator::new(self.source_code, &empty, &self.structs, &mut self.strings);
         elements.push(generator.expr(expr)?);
 
         Ok(IrElement::Block(IrBlock {
@@ -566,8 +611,8 @@ impl IrGenerator {
     }
 }
 
-pub fn generate(module: &Module) -> Result<IrElement> {
-    let mut g = IrGenerator::new();
+pub fn generate(source_code: &str, module: &Module) -> Result<IrElement> {
+    let mut g = IrGenerator::new(source_code);
     let code = g.generate(module)?;
 
     Ok(code)

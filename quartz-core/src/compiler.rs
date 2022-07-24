@@ -109,7 +109,6 @@ pub fn specify_source_in_input(input: &str, start: usize, end: usize) -> String 
 
 pub struct Compiler<'s> {
     pub typechecker: TypeChecker<'s>,
-    pub ir_code_generation: IrGenerator,
     pub vm_code_generation: VmGenerator,
     pub ir_result: Option<IrElement>,
     pub ir_source_map: HashMap<usize, String>,
@@ -119,7 +118,6 @@ impl Compiler<'_> {
     pub fn new() -> Compiler<'static> {
         Compiler {
             typechecker: TypeChecker::new(builtin(), Structs(HashMap::new()), ""),
-            ir_code_generation: IrGenerator::new(),
             vm_code_generation: VmGenerator::new(),
             ir_result: None,
             ir_source_map: HashMap::new(),
@@ -178,7 +176,7 @@ impl Compiler<'_> {
     }
 
     pub fn compile_ir_nostd<'s>(
-        &mut self,
+        &'s mut self,
         input: &'s str,
         entrypoint: String,
     ) -> Result<IrElement> {
@@ -195,9 +193,10 @@ impl Compiler<'_> {
         typechecker.module(&mut module).context("typecheck phase")?;
         info!("typecheck");
 
-        self.ir_code_generation.context(typechecker.structs.clone());
+        let mut ir_code_generation = IrGenerator::new(&input);
+        ir_code_generation.context(typechecker.structs.clone());
 
-        let code = self.ir_code_generation.generate(&module)?;
+        let code = ir_code_generation.generate(&module)?;
         info!("ir generated");
 
         self.typechecker = TypeChecker::new(
