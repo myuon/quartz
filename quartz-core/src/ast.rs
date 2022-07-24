@@ -66,7 +66,7 @@ pub enum Statement {
 #[derive(PartialEq, Debug, Clone)]
 pub enum Expr {
     Var(Vec<String>, Type), // qualifier in vector
-    Lit(Literal),
+    Lit(Literal, Type),
     Call(Box<Source<Expr>>, Vec<Source<Expr>>),
     Struct(String, Vec<(String, Source<Expr>, Type)>),
     Project(
@@ -77,7 +77,7 @@ pub enum Expr {
     ),
     Index(Box<Source<Expr>>, Box<Source<Expr>>),
     Deref(Box<Source<Expr>>, Type),
-    As(Box<Source<Expr>>, Type),
+    As(Box<Source<Expr>>, Type, Type),
     Ref(Box<Source<Expr>>, Type),
     Address(Box<Source<Expr>>, Type), // [compiler only] take the address of expr (same as ref, but no heap allocation)
 }

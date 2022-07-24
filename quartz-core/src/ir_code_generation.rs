@@ -64,8 +64,15 @@ impl<'s> IrFunctionGenerator<'s> {
                     )))
                 }
             }
-            Expr::Lit(literal) => match literal {
-                Literal::Nil => Ok(IrElement::Term(IrTerm::Nil)),
+            Expr::Lit(literal, typ) => match literal {
+                Literal::Nil => {
+                    let s = size_of(typ, &self.structs);
+                    Ok(if s > 1 {
+                        IrElement::i_coerce(1, s, IrElement::Term(IrTerm::Nil))
+                    } else {
+                        IrElement::Term(IrTerm::Nil)
+                    })
+                }
                 Literal::Bool(b) => Ok(IrElement::Term(IrTerm::Bool(*b))),
                 Literal::Int(n) => Ok(IrElement::Term(IrTerm::Int(*n))),
                 Literal::String(s) => {
@@ -211,7 +218,18 @@ impl<'s> IrFunctionGenerator<'s> {
                 Ok(IrElement::Term(IrTerm::Ident(v, 1)))
             }
             Expr::Deref(e, t) => Ok(IrElement::i_deref(size_of(t, self.structs), self.expr(e)?)),
-            Expr::As(e, _) => self.expr(e),
+            Expr::As(e, current, expected) => {
+                let current_size = size_of(current, self.structs);
+                let expected_size = size_of(expected, self.structs);
+
+                let value = self.expr(e)?;
+                Ok(if current_size < expected_size {
+                    IrElement::i_coerce(current_size, expected_size, value) 
+                } else {
+                    value
+                })
+            }
+                ,
             // NOTE: Calculate left value correctly
             // FIXME: Can't we just stop calculating lvalue in IR and CodeGen phase?
             Expr::Address(e, t) => Ok(match &e.data {
@@ -377,7 +395,7 @@ impl<'s> IrFunctionGenerator<'s> {
 
         if need_return_nil_insert {
             self.statement(&Statement::Return(
-                Source::unknown(Expr::Lit(Literal::Nil)),
+                Source::unknown(Expr::Lit(Literal::Nil, Type::Nil)),
                 Type::Nil,
             ))?;
         }

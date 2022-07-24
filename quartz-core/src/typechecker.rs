@@ -281,20 +281,25 @@ impl<'s> TypeChecker<'s> {
                 *t = vtype.clone();
                 Ok(vtype)
             }
-            Expr::Lit(lit) => match lit {
-                Literal::Bool(_) => Ok(Type::Bool),
-                Literal::Int(_) => Ok(Type::Int),
-                Literal::String(_) => Ok(Type::Struct("string".to_string())),
-                Literal::Nil => Ok(Type::Nil),
-                Literal::Array(arr, t) => {
-                    for e in arr {
-                        let etype = self.expr(e)?;
-                        *t = etype.clone();
-                    }
+            Expr::Lit(lit, typ) => {
+                let t = match lit {
+                    Literal::Bool(_) => Type::Bool,
+                    Literal::Int(_) => Type::Int,
+                    Literal::String(_) => Type::Struct("string".to_string()),
+                    Literal::Nil => Type::Nil,
+                    Literal::Array(arr, t) => {
+                        for e in arr {
+                            let etype = self.expr(e)?;
+                            *t = etype.clone();
+                        }
 
-                    Ok(Type::Array(Box::new(t.clone())))
-                }
-            },
+                        Type::Array(Box::new(t.clone()))
+                    }
+                };
+                *typ = t.clone();
+
+                Ok(t)
+            }
             Expr::Call(f, args) => {
                 let fn_type = self.expr(f)?;
                 if matches!(fn_type, Type::Any) {
@@ -471,9 +476,10 @@ impl<'s> TypeChecker<'s> {
                     bail!("Cannot deref non-ref type: {:?}", typ);
                 }
             }
-            Expr::As(e, t) => {
+            Expr::As(e, current_type, t) => {
                 let e_type = self.expr(e)?;
                 info!("coercing {:?} -> {:?}", e_type, t);
+                *current_type = e_type;
 
                 Ok(t.clone())
             }

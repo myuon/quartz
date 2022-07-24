@@ -315,8 +315,9 @@ impl Parser {
     }
 
     fn short_callee_expr(&mut self) -> Result<Expr> {
-        self.variable()
-            .or_else(|_| -> Result<Expr> { self.literal().map(|lit| Expr::Lit(lit)) })
+        self.variable().or_else(|_| -> Result<Expr> {
+            self.literal().map(|lit| Expr::Lit(lit, Type::Infer(0)))
+        })
     }
 
     fn short_expr(&mut self) -> Result<Expr> {
@@ -397,7 +398,11 @@ impl Parser {
             }
             expr if self.expect_lexeme(Lexeme::As).is_ok() => {
                 let typ = self.atype()?;
-                Expr::As(Box::new(self.source_from(expr, short_expr_start)), typ)
+                Expr::As(
+                    Box::new(self.source_from(expr, short_expr_start)),
+                    Type::Infer(0),
+                    typ,
+                )
             }
             _ => short_expr,
         };
