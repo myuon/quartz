@@ -408,11 +408,13 @@ impl<'s> TypeChecker<'s> {
                     // DESUGAR: x.f(m) => X::f(x, m)
                     // x will be stored in self_object
                     // x is passed by ref
-                    self.self_object = Some(Box::new(self.coerced_ref_type(
-                        proj.as_ref().clone(),
-                        &typ,
-                        &arg_types[0],
-                    )));
+                    if !arg_types.is_empty() {
+                        self.self_object = Some(Box::new(self.coerced_ref_type(
+                            proj.as_ref().clone(),
+                            &typ,
+                            &arg_types[0],
+                        )));
+                    }
                     *expr = Source::unknown(Expr::Var(
                         vec![name.clone(), field.clone()],
                         Type::Method(

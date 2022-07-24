@@ -77,33 +77,45 @@ func find_variable_letters(s: substring): int {
     return n;
 }
 
-struct Lexer {
+struct IrLexer {
     input: string,
     position: int,
 }
 
 struct Token {
-    type: string,
+    type: string, // IDENT, KEYWORD, ARGUMENT, NUMBER, LPAREN, RPAREN
     value_string: string?,
     value_int: int?,
 }
 
-method Lexer current_input(self): substring {
+method IrLexer current_input(self): substring {
     return self.input.slice_after(self.position);
 }
 
-method Lexer is_next_rparen(self): bool {
-    let current = self.current_input();
-    let n = find_space_pattern(current);
-    let next = current.slice_after(n);
-    if next.at(0).eq(")") {
-        return true;
-    };
-
-    return false;
+struct TokenListNode {
+    node: Token,
+    next: TokenList,
+}
+struct TokenList {
+    next: ref TokenListNode,
 }
 
-method Lexer next_token(self): Token {
+method TokenList new_nil() {
+    return TokenList {
+        next: nil as ref TokenListNode,
+    };
+}
+
+method TokenList cons(self, node: Token) {
+    return TokenList {
+        next: ref TokenListNode {
+            node: node,
+            next: self,
+        },
+    };
+}
+
+method IrLexer next_token(self): Token {
     let current = self.current_input();
 
     // no return/continue here
@@ -175,6 +187,19 @@ method Lexer next_token(self): Token {
         value_string: nil,
         value_int: nil,
     };
+}
+
+method IrLexer run(self): TokenList {
+    let n = 0;
+    let len = self.input.len();
+    let result = TokenList::new_nil();
+    while (n < len) {
+        let token = self.next_token();
+        n = n + 1;
+        result = result.cons(token);
+    };
+
+    return result;
 }
 
 struct IrTerm {
@@ -287,18 +312,118 @@ method IrElement to_string(self): string {
     return "";
 }
 
-method Lexer expect(self, type: string): Token {
-    let token = self.next_token();
-    if _not(token.type.eq(type)) {
-        _println("expected token: ".concat(type).concat(" got: ").concat(token.type));
+struct IrParser {
+    tokens: TokenList,
+}
+
+method IrParser new(tokens: TokenList): IrParser {
+    return IrParser {
+        tokens: tokens,
+    };
+}
+
+method IrParser expect(self, token_type: string): Token {
+    let token = self.next();
+    if _not(token.type.eq(token_type)) {
         _panic;
     };
 
     return token;
 }
 
-method Lexer element(self): IrElement? {
-    let token = self.next_token();
+method IrParser next(self): Token {
+    if (self.tokens.next == nil) {
+        _panic;
+        return Token {
+            type: "",
+            value_string: nil,
+            value_int: nil,
+        };
+    } else {
+        let node = self.tokens.next as TokenListNode;
+        self.tokens = node.next;
+        return node.node;
+    };
+}
+
+method IrParser term(self): IrTerm {
+    let token = self.next();
+
+    if (token.type.eq("IDENT")) {
+        return IrTerm {
+            type: "IDENT",
+            value_bool: nil,
+            value_int: nil,
+            value_ident: token.value_string,
+            value_argument: nil,
+            value_info: nil,
+        };
+    };
+    if (token.type.eq("NUMBER")) {
+        return IrTerm {
+            type: "INT",
+            value_bool: nil,
+            value_int: token.value_int,
+            value_ident: nil,
+            value_argument: nil,
+            value_info: nil,
+        };
+    };
+    if (token.type.eq("ARGUMENT")) {
+        return IrTerm {
+            type: "ARGUMENT",
+            value_bool: nil,
+            value_int: token.value_int,
+            value_ident: nil,
+            value_argument: nil,
+            value_info: nil,
+        };
+    };
+    if (token.type.eq("KEYWORD")) {
+        let keyword = token.value_string as string;
+        if (keyword == nil) {
+            _panic;
+        };
+
+        if (keyword.eq("nil")) {
+            return IrTerm {
+                type: "NIL",
+                value_bool: nil,
+                value_int: nil,
+                value_ident: nil,
+                value_argument: nil,
+                value_info: nil,
+            };
+        };
+        if (keyword.eq("true")) {
+            return IrTerm {
+                type: "BOOL",
+                value_bool: true,
+                value_int: nil,
+                value_ident: nil,
+                value_argument: nil,
+                value_info: nil,
+            };
+        };
+        if (keyword.eq("false")) {
+            return IrTerm {
+                type: "BOOL",
+                value_bool: false,
+                value_int: nil,
+                value_ident: nil,
+                value_argument: nil,
+                value_info: nil,
+            };
+        };
+
+        return _panic as IrTerm;
+    };
+
+    return _panic as IrTerm;
+}
+
+method IrParser element(self): IrElement? {
+    let token = self.next();
 
     if (token.type.eq("LPAREN")) {
         // block
@@ -308,13 +433,10 @@ method Lexer element(self): IrElement? {
         let next = nil as IrElement?;
         let elements = IrElementList_nil();
 
-        let b = _not(self.is_next_rparen());
-        _start_debugger;
-        while b {
+        while _not(self.next().type.eq("RPAREN")) {
             next = self.element();
             elements = elements.cons(next as IrElement);
         };
-        self.expect("RPAREN");
 
         return IrElement {
             type: "BLOCK",
@@ -325,43 +447,9 @@ method Lexer element(self): IrElement? {
             },
         };
     } else {
-        // term
-        let term = self.next_token();
-        if (term.type.eq("NUMBER")) {
-            return IrElement {
-                type: "TERM",
-                term: IrTerm {
-                    type: "NUMBER",
-                    value_bool: nil,
-                    value_int: term.value_int,
-                    value_ident: nil,
-                    value_argument: nil,
-                    value_info: nil,
-                },
-                block: nil,
-            };
-        };
-        if (term.type.eq("IDENT")) {
-            return IrElement {
-                type: "TERM",
-                term: IrTerm {
-                    type: "IDENT",
-                    value_bool: nil,
-                    value_int: nil,
-                    value_ident: term.value_string,
-                    value_argument: nil,
-                    value_info: nil,
-                },
-                block: nil,
-            };
-        };
-
-        _println("unreachable term: ".concat(term.type));
-        _println(self.current_input().to_string());
-        _panic;
         return IrElement {
-            type: "",
-            term: nil,
+            type: "TERM",
+            term: self.term(),
             block: nil,
         };
     };
@@ -371,16 +459,15 @@ method Lexer element(self): IrElement? {
 
 func main() {
     let input = "(module (func $main 0 (return 10)))";
-    let lexer = Lexer {
+    let IrLexer = IrLexer {
         input: input, 
         position: 0,
     };
-    let element = lexer.element() as IrElement;
-    if (element == nil) {
-        _println("nil");
-    } else {
-        _println(element.to_string());
-    };
+    let tokenList = IrLexer.run();
+
+    let parser = IrParser::new(tokenList);
+    let element = parser.element() as IrElement;
+    _println(element.to_string());
 
     _println("== COMPILE FINISHED");
 }
