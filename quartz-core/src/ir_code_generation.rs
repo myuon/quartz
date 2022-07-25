@@ -220,11 +220,6 @@ impl<'s> IrFunctionGenerator<'s> {
                     index,
                 ))
             }
-            Expr::Index(arr, i) => Ok(IrElement::i_offset(
-                1, // FIXME: correct value
-                self.expr(arr.as_ref())?,
-                self.expr(i.as_ref())?,
-            )),
             Expr::Ref(e, t) => {
                 let v = self.var_fresh();
                 let size = size_of(t, self.structs);
@@ -613,10 +608,13 @@ func main() {
             (
                 r#"
 func f(c: int): int {
-    let x = [1,2,3];
-    x[2] = 4;
+    let x = make[array[int,4]](3);
+    x(0) = 1;
+    x(1) = 2;
+    x(2) = 3;
+    x(2) = 4;
 
-    return _add(_add(x[1], x[2]), c);
+    return _add(_add(x(1), x(2)), c);
 }
 
 func main() {
@@ -626,19 +624,18 @@ func main() {
                 r#"
 (module
     (func $f (args $int)
-        (let $int $fresh_1 (call $_new 3))
-        (assign 1 (offset 1 $fresh_1 0) 1)
-        (assign 1 (offset 1 $fresh_1 1) 2)
-        (assign 1 (offset 1 $fresh_1 2) 3)
-        (let $array $x $fresh_1)
+        (let (sizedarray $int 4) $x (data 4 3 3 3 3))
+        (assign 1 (offset 1 $x(4) 0) 1)
+        (assign 1 (offset 1 $x(4) 1) 2)
+        (assign 1 (offset 1 $x(4) 2) 3)
 
-        (assign 1 (offset 1 $x 2) 4)
+        (assign 1 (offset 1 $x(4) 2) 4)
 
         (return 1
             (call $_add
                 (call $_add
-                    (offset 1 $x 1)
-                    (offset 1 $x 2))
+                    (offset 1 $x(4) 1)
+                    (offset 1 $x(4) 2))
                 $0
             )
         )

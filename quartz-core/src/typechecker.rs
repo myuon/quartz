@@ -469,24 +469,6 @@ impl<'s> TypeChecker<'s> {
                     Ok(field_type.clone())
                 }
             }
-            Expr::Index(e, i) => {
-                let mut r = self.next_infer();
-
-                let typ = self.expr(e)?;
-                let cs = Constraints::unify(&typ, &Type::Array(Box::new(r.clone())))
-                    .context(self.error_context(e.start, e.end, "index"))?;
-                self.apply_constraints(&cs);
-                cs.apply(&mut r);
-
-                let index_type = self.expr(i)?;
-                let cs = Constraints::unify(&index_type, &Type::Int)
-                    .context(self.error_context(i.start, i.end, "index"))?;
-                self.apply_constraints(&cs);
-
-                cs.apply(&mut r);
-
-                Ok(r)
-            }
             Expr::Ref(e, t) => {
                 let e_type = self.expr(e)?;
                 *t = e_type.clone();
@@ -945,16 +927,16 @@ func f(n: int): int {
             ),
             (
                 r#"
-func main(): byte {
-    let x = _new(5);
-    x[0] = _int_to_byte(1);
-    x[1] = _int_to_byte(2);
-    x[2] = _int_to_byte(_add(_byte_to_int(x[0]), _byte_to_int(x[1])));
+func main(): int {
+    let x = make[array[int,4]](0);
+    x(0) = 1;
+    x(1) = 2;
+    x(2) = x(0) + x(1);
 
-    return x[2];
+    return x(2);
 }
             "#,
-                vec![("main", Type::Fn(vec![], Box::new(Type::Byte)))],
+                vec![("main", Type::Fn(vec![], Box::new(Type::Int)))],
             ),
         ];
 

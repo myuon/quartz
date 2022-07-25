@@ -83,7 +83,6 @@ pub enum Expr {
         Box<Source<Expr>>,
         String,
     ),
-    Index(Box<Source<Expr>>, Box<Source<Expr>>),
     Deref(Box<Source<Expr>>, Type),
     As(Box<Source<Expr>>, Type, Type),
     Ref(Box<Source<Expr>>, Type),

@@ -434,17 +434,6 @@ impl Parser {
                     i,
                 )
             }
-            expr if self.expect_lexeme(Lexeme::LBracket).is_ok() => {
-                // indexing
-                let index_start = self.position;
-                let index = self.expr()?;
-                self.expect_lexeme(Lexeme::RBracket)?;
-
-                Expr::Index(
-                    Box::new(self.source_from(expr, short_expr_start)),
-                    Box::new(self.source_from(index, index_start)),
-                )
-            }
             expr if self.expect_lexeme(Lexeme::As).is_ok() => {
                 let typ = self.type_()?;
                 Expr::As(
@@ -723,7 +712,7 @@ mod tests {
             r#"
                     obj.call(a1);
                 "#,
-            r#"if (s.data[i] != t.data[i]) {
+            r#"if (s.data(i) != t.data(i)) {
                     return false;
                 };"#,
         ];

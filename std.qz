@@ -25,7 +25,7 @@ method string eq(self, t: string): bool {
 
     let n = 0;
     while (n < self.len()) {
-        if (_byte_to_int(self.data[n]) != _byte_to_int(t.data[n])) {
+        if (_byte_to_int(self.data(n)) != _byte_to_int(t.data(n))) {
             return false;
         };
 
@@ -38,7 +38,7 @@ method string eq(self, t: string): bool {
 method string starts_with(self, prefix: string): bool {
     let n = 0;
     while (n < prefix.len()) {
-        if (_byte_to_int(self.data[n]) != _byte_to_int(prefix.data[n])) {
+        if (_byte_to_int(self.data(n)) != _byte_to_int(prefix.data(n))) {
             return false;
         };
 
@@ -66,7 +66,7 @@ method string reverse(self): string {
     while (n < self.len()) {
         // FIXME: multiple operators
         // s.len() - n - 1
-        buffer[n] = self.data[_sub(self.len(), n + 1)];
+        buffer(n) = self.data(_sub(self.len(), n + 1));
         n = n + 1;
     };
 
