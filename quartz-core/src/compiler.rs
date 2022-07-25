@@ -26,11 +26,10 @@ pub fn specify_source_in_input(input: &str, start: usize, end: usize) -> String 
 
     let mut lines = input.lines();
     let current_line_number = input[..position].lines().count();
-    let prev_line = lines.nth(current_line_number - 2).unwrap();
 
     let mut current_line_position = position;
-    while &input[current_line_position - 1..current_line_position] != "\n"
-        && current_line_position > 0
+    while current_line_position > 0
+        && &input[current_line_position - 1..current_line_position] != "\n"
     {
         current_line_position -= 1;
     }
@@ -45,7 +44,10 @@ pub fn specify_source_in_input(input: &str, start: usize, end: usize) -> String 
     }
 
     let mut code_lines = vec![];
-    code_lines.push(format!("{}\t| {}", current_line_number - 1, prev_line));
+    if current_line_number >= 2 {
+        let prev_line = lines.nth(current_line_number - 2).unwrap();
+        code_lines.push(format!("{}\t| {}", current_line_number - 1, prev_line));
+    }
 
     let range_lines_count = {
         let mut result = 0;

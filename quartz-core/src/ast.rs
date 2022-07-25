@@ -144,6 +144,7 @@ pub enum Type {
     Struct(String),
     Ref(Box<Type>),
     Array(Box<Type>),
+    SizedArray(Box<Type>, Option<usize>), // None for sized marker
     Optional(Box<Type>),
     Self_,
 }
@@ -196,6 +197,7 @@ impl Type {
             Type::Ref(_) => todo!(),
             Type::Byte => false,
             Type::Array(t) => t.has_infer(index),
+            Type::SizedArray(t, _n) => t.has_infer(index),
             Type::Optional(t) => t.has_infer(index),
             Type::Nil => false,
             Type::Self_ => false,
@@ -231,6 +233,7 @@ impl Type {
             Type::Ref(_) => todo!(),
             Type::Byte => {}
             Type::Array(t) => t.subst(index, typ),
+            Type::SizedArray(t, _n) => t.subst(index, typ),
             Type::Optional(t) => t.subst(index, typ),
             Type::Nil => {}
             Type::Self_ => {}
@@ -261,6 +264,7 @@ impl Type {
             Type::Struct(s) => s.to_string(),
             Type::Ref(r) => r.method_selector_name()?,
             Type::Array(_) => "array".to_string(),
+            Type::SizedArray(_, _) => "sized_array".to_string(),
             Type::Optional(n) => n.method_selector_name()?,
             s => bail!("{:?} is not a method selector", s),
         })

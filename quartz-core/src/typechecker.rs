@@ -131,6 +131,9 @@ impl Constraints {
             Type::Array(arr) => {
                 self.apply(arr);
             }
+            Type::SizedArray(arr, _) => {
+                self.apply(arr);
+            }
             Type::Optional(t) => {
                 self.apply(t);
             }

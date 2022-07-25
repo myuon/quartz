@@ -63,6 +63,17 @@ impl Parser {
         Ok(current)
     }
 
+    fn next(&mut self) -> Result<Token> {
+        if self.is_end() {
+            return Err(self.parse_error("", "EOS"));
+        }
+
+        let current = self.input[self.position].clone();
+        self.position += 1;
+
+        Ok(current)
+    }
+
     fn type_(&mut self) -> Result<Type> {
         let mut is_ref = false;
         if self.expect_lexeme(Lexeme::Ref).is_ok() {
@@ -80,9 +91,30 @@ impl Parser {
             "array" => {
                 self.expect_lexeme(Lexeme::LBracket)?;
                 let type_ = self.type_()?;
+
+                let t = if self.expect_lexeme(Lexeme::Comma).is_ok() {
+                    // sized array
+                    let mut size = None;
+
+                    let token = self.next()?;
+                    match token.lexeme {
+                        Lexeme::Int(u) => {
+                            size = Some(u as usize);
+                        }
+                        Lexeme::Sized => {}
+                        _ => {
+                            return Err(self.parse_error("int or 'sized'", &format!("{:?}", token)));
+                        }
+                    }
+
+                    Type::SizedArray(Box::new(type_), size)
+                } else {
+                    Type::Array(Box::new(type_))
+                };
+
                 self.expect_lexeme(Lexeme::RBracket)?;
 
-                Type::Array(Box::new(type_))
+                t
             }
             _ => Type::Struct(ident),
         };
@@ -108,6 +140,11 @@ impl Parser {
                 self.position += 1;
 
                 Ok("self".to_string())
+            }
+            Lexeme::Sized => {
+                self.position += 1;
+
+                Ok("sized".to_string())
             }
             t => Err(self.parse_error("ident", &format!("{:?}", t))),
         }
