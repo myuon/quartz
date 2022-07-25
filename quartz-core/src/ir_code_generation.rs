@@ -237,7 +237,11 @@ impl<'s> IrFunctionGenerator<'s> {
                 let e_value = self.expr(e)?;
                 self.ir.push(IrElement::i_assign(
                     size,
-                    IrElement::i_offset_im(1, IrElement::Term(IrTerm::Ident(v.clone(), 1)), 0),
+                    IrElement::i_offset_im(
+                        1,
+                        IrElement::i_deref(1, IrElement::Term(IrTerm::Ident(v.clone(), 1))),
+                        0,
+                    ),
                     e_value,
                 ));
 
