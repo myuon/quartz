@@ -63,7 +63,7 @@ impl Parser {
         Ok(current)
     }
 
-    fn atype(&mut self) -> Result<Type> {
+    fn type_(&mut self) -> Result<Type> {
         let mut is_ref = false;
         if self.expect_lexeme(Lexeme::Ref).is_ok() {
             is_ref = true;
@@ -77,7 +77,13 @@ impl Parser {
             "any" => Type::Any,
             "bytes" => Type::Array(Box::new(Type::Byte)),
             "byte" => Type::Byte,
-            "ints" => Type::Array(Box::new(Type::Int)),
+            "array" => {
+                self.expect_lexeme(Lexeme::LBracket)?;
+                let type_ = self.type_()?;
+                self.expect_lexeme(Lexeme::RBracket)?;
+
+                Type::Array(Box::new(type_))
+            }
             _ => Type::Struct(ident),
         };
         if self.expect_lexeme(Lexeme::Question).is_ok() {
@@ -269,7 +275,7 @@ impl Parser {
             let mut typ = Type::Infer(0);
 
             if self.expect_lexeme(Lexeme::Colon).is_ok() {
-                typ = self.atype()?;
+                typ = self.type_()?;
             }
 
             arguments.push((name, typ));
@@ -398,7 +404,7 @@ impl Parser {
                 )
             }
             expr if self.expect_lexeme(Lexeme::As).is_ok() => {
-                let typ = self.atype()?;
+                let typ = self.type_()?;
                 Expr::As(
                     Box::new(self.source_from(expr, short_expr_start)),
                     Type::Infer(0),
@@ -452,7 +458,7 @@ impl Parser {
         self.expect_lexeme(Lexeme::RParen)?;
 
         let return_type = if self.expect_lexeme(Lexeme::Colon).is_ok() {
-            self.atype()?
+            self.type_()?
         } else {
             Type::Infer(0)
         };
@@ -478,7 +484,7 @@ impl Parser {
     }
 
     fn declaration_method(&mut self) -> Result<Declaration> {
-        let typ = self.atype()?;
+        let typ = self.type_()?;
 
         let name = self.ident()?;
         self.expect_lexeme(Lexeme::LParen)?;
@@ -486,7 +492,7 @@ impl Parser {
         self.expect_lexeme(Lexeme::RParen)?;
 
         let return_type = if self.expect_lexeme(Lexeme::Colon).is_ok() {
-            self.atype()?
+            self.type_()?
         } else {
             Type::Infer(0)
         };
@@ -527,7 +533,7 @@ impl Parser {
         while self.peek().lexeme != Lexeme::RBrace {
             let name = self.ident()?;
             self.expect_lexeme(Lexeme::Colon)?;
-            let ty = self.atype()?;
+            let ty = self.type_()?;
             fields.push((name, ty));
 
             // allow trailing comma
