@@ -405,6 +405,7 @@ pub fn size_of_traced(typ: &Type, structs: &Structs, mut trace: Vec<String>) -> 
             structs.size_of_struct(st, trace)
         }
         Type::Array(_) => 1, // array itself must be allocated on heap
+        Type::SizedArray(t, n) => size_of(&t, structs) * n,
         Type::Ref(_) => 1,
         Type::Optional(t) => {
             // optional<T> is a union of T and nil

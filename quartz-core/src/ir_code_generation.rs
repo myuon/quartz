@@ -247,7 +247,16 @@ impl<'s> IrFunctionGenerator<'s> {
                 })
             }
             Expr::Address(e, _t) => Ok(IrElement::i_address(self.expr(e)?)),
-            Expr::New(_, _) => todo!(),
+            Expr::New(t, args) => match t {
+                Type::SizedArray(arr, len) => {
+                    let value = self.expr(&args[0])?;
+                    let mut data = vec![IrElement::int((len * size_of(&arr, self.structs)) as i32)];
+                    data.extend(std::iter::repeat(value).take(*len));
+
+                    Ok(IrElement::block("data", data))
+                }
+                _ => unreachable!(),
+            },
         }
     }
 

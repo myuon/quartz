@@ -155,6 +155,10 @@ impl IrElement {
                 )],
             ),
             Type::Array(_) => IrElement::ident("array"),
+            Type::SizedArray(t, n) => IrElement::block(
+                "sizedarray",
+                vec![IrElement::ir_type(t, structs)?, IrElement::int(*n as i32)],
+            ),
             Type::Ref(_) => IrElement::ident("ref"),
             Type::Optional(t) => {
                 IrElement::block("optional", vec![IrElement::ir_type(t, structs)?])
@@ -171,8 +175,10 @@ impl IrElement {
                     Ok(block.elements[0].clone().into_term()?.into_int()? as usize)
                 } else if &block.name == "optional" {
                     IrElement::size_of_as_ir_type(&block.elements[0])
+                } else if &block.name == "sizedarray" {
+                    Ok(block.elements[1].clone().into_term()?.into_int()? as usize)
                 } else {
-                    unreachable!()
+                    unreachable!("{:?}", block)
                 }
             }
             _ => unreachable!(),

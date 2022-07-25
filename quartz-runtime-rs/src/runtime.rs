@@ -969,7 +969,7 @@ func main() {
         ),
         (
             r#"
-func main(): byte {
+func main(): int {
     let x = new[array[int,5]](0);
     x(0) = 1;
     x(1) = 2;

@@ -321,42 +321,55 @@ impl<'s> TypeChecker<'s> {
                     args.insert(0, obj.as_ref().clone());
                 }
 
-                let (expected_arg_types, expected_ret_type) = fn_type.as_fn_type().ok_or(
-                    anyhow::anyhow!("Cannot call non-function type {:?}", fn_type),
-                )?;
-                let mut ret_type = expected_ret_type.as_ref().clone();
+                if let Some((t, _)) = fn_type.as_sized_array() {
+                    // array indexing
+                    assert_eq!(args.len(), 1);
+                    let arg_type = self.expr(&mut args[0])?;
+                    assert_eq!(arg_type, Type::Int);
 
-                let actual_arg_len = args.len();
-                let expected_arg_len = if fn_type.is_method_type() {
-                    // FIXME: -1
-                    expected_arg_types.len()
+                    Ok(t.as_ref().clone())
                 } else {
-                    expected_arg_types.len()
-                };
-                if expected_arg_len != actual_arg_len {
-                    anyhow::bail!(
-                        "Expected {} arguments but given {}, {} (call({:?},{:?}): {:?})",
-                        expected_arg_len,
-                        actual_arg_len,
-                        self.error_context(f.start, f.end, "no source"),
-                        f,
-                        args,
-                        fn_type,
-                    );
-                }
-
-                for i in 0..actual_arg_len {
-                    let expected_arg_type = &expected_arg_types[i];
-                    let actual_arg_type = self.expr(&mut args[i])?;
-
-                    let cs = Constraints::unify(&expected_arg_type, &actual_arg_type).context(
-                        self.error_context(args[i].start, args[i].end, &format!("{:?}", args[i])),
+                    let (expected_arg_types, expected_ret_type) = fn_type.as_fn_type().ok_or(
+                        anyhow::anyhow!("Cannot call non-function type {:?}", fn_type),
                     )?;
-                    self.apply_constraints(&cs);
-                    cs.apply(&mut ret_type);
-                }
+                    let mut ret_type = expected_ret_type.as_ref().clone();
 
-                Ok(ret_type)
+                    let actual_arg_len = args.len();
+                    let expected_arg_len = if fn_type.is_method_type() {
+                        // FIXME: -1
+                        expected_arg_types.len()
+                    } else {
+                        expected_arg_types.len()
+                    };
+                    if expected_arg_len != actual_arg_len {
+                        anyhow::bail!(
+                            "Expected {} arguments but given {}, {} (call({:?},{:?}): {:?})",
+                            expected_arg_len,
+                            actual_arg_len,
+                            self.error_context(f.start, f.end, "no source"),
+                            f,
+                            args,
+                            fn_type,
+                        );
+                    }
+
+                    for i in 0..actual_arg_len {
+                        let expected_arg_type = &expected_arg_types[i];
+                        let actual_arg_type = self.expr(&mut args[i])?;
+
+                        let cs = Constraints::unify(&expected_arg_type, &actual_arg_type).context(
+                            self.error_context(
+                                args[i].start,
+                                args[i].end,
+                                &format!("{:?}", args[i]),
+                            ),
+                        )?;
+                        self.apply_constraints(&cs);
+                        cs.apply(&mut ret_type);
+                    }
+
+                    Ok(ret_type)
+                }
             }
             Expr::Struct(s, fields) => {
                 assert_eq!(
