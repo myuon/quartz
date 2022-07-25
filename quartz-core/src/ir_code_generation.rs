@@ -59,19 +59,23 @@ impl<'s> IrFunctionGenerator<'s> {
                         // special treatment for panic instruction
                         // FIXME: implement function meta attributes
                         if v == "_panic" {
-                            let meta = self.expr(&Source::unknown(
-                                Expr::Call(Box::new(Source::unknown(
-                                    Expr::Var(vec!["_println".to_string()], Type::Fn(vec![Type::Ref(Box::new(Type::Byte))], Box::new(Type::Nil))),
-                                )), vec![
-                                    Source::unknown(Expr::Lit(Literal::String(
-                                        specify_source_in_input(
-                                            self.source_code,
-                                            expr.start.unwrap(),
-                                            expr.end.unwrap(),
-                                        )
-                                    ), Type::Infer(0)))
-                                ])
-                            ))?;
+                            let meta = self.expr(&Source::unknown(Expr::Call(
+                                Box::new(Source::unknown(Expr::Var(
+                                    vec!["_println".to_string()],
+                                    Type::Fn(
+                                        vec![Type::Ref(Box::new(Type::Byte))],
+                                        Box::new(Type::Nil),
+                                    ),
+                                ))),
+                                vec![Source::unknown(Expr::Lit(
+                                    Literal::String(specify_source_in_input(
+                                        self.source_code,
+                                        expr.start.unwrap(),
+                                        expr.end.unwrap(),
+                                    )),
+                                    Type::Infer(0),
+                                ))],
+                            )))?;
                             self.ir.push(meta);
                         }
 
@@ -247,13 +251,11 @@ impl<'s> IrFunctionGenerator<'s> {
 
                 let value = self.expr(e)?;
                 Ok(if current_size < expected_size {
-                    IrElement::i_coerce(current_size,expected_size, value)
+                    IrElement::i_coerce(current_size, expected_size, value)
                 } else {
-
                     value
                 })
             }
-                ,
             // NOTE: Calculate left value correctly
             // FIXME: Can't we just stop calculating lvalue in IR and CodeGen phase?
             Expr::Address(e, t) => Ok(match &e.data {

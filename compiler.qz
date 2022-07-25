@@ -190,12 +190,12 @@ method IrLexer next_token(self): Token {
 }
 
 method IrLexer run(self): TokenList {
-    let n = 0;
     let len = self.input.len();
     let result = TokenList::new_nil();
-    while (n < len) {
+    while (self.position < len) {
+        _start_debugger;
+        _println(self.position.to_string());
         let token = self.next_token();
-        n = n + 1;
         result = result.cons(token);
     };
 
@@ -322,6 +322,10 @@ method IrParser new(tokens: TokenList): IrParser {
     };
 }
 
+method IrParser is_eof(self): bool {
+    return self.tokens == nil;
+}
+
 method IrParser expect(self, token_type: string): Token {
     let token = self.next();
     if _not(token.type.eq(token_type)) {
@@ -423,6 +427,9 @@ method IrParser term(self): IrTerm {
 }
 
 method IrParser element(self): IrElement? {
+    if self.is_eof() {
+        return nil;
+    };
     let token = self.next();
 
     if (token.type.eq("LPAREN")) {
