@@ -179,6 +179,13 @@ impl Type {
         }
     }
 
+    pub fn as_sized_array(&self) -> Option<(&Box<Type>, &Option<usize>)> {
+        match self {
+            Type::SizedArray(t, size) => Some((t, size)),
+            _ => None,
+        }
+    }
+
     pub fn has_infer(&self, index: usize) -> bool {
         match self {
             Type::Infer(t) => *t == index,

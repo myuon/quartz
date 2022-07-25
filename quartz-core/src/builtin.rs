@@ -97,6 +97,13 @@ pub fn builtin() -> HashMap<String, Type> {
                 Box::new(Type::Nil),
             ),
         ),
+        (
+            "_array",
+            Type::Fn(
+                vec![Type::Int, Type::Any],
+                Box::new(Type::SizedArray(Box::new(Type::Any), None)),
+            ),
+        ),
     ]
     .into_iter()
     .map(|(k, v)| (k.to_string(), v))

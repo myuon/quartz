@@ -700,6 +700,10 @@ impl<'s> TypeChecker<'s> {
                         self.variables.insert(arg.0.clone(), t);
                     }
 
+                    if let Some(_) = typ.clone().as_sized_array() {
+                        self.variables.insert("sized".to_string(), Type::Int);
+                    }
+
                     let mut t = self.statements(&mut func.body)?;
                     let cs =
                         Constraints::coerce(&t, &func.return_type).context(self.error_context(
