@@ -192,6 +192,13 @@ impl Type {
         }
     }
 
+    pub fn as_array(&self) -> Option<&Box<Type>> {
+        match self {
+            Type::Array(t) => Some(t),
+            _ => None,
+        }
+    }
+
     pub fn has_infer(&self, index: usize) -> bool {
         match self {
             Type::Infer(t) => *t == index,

@@ -1036,7 +1036,7 @@ func main() {
 func main() {
     let p = "Hello, World!";
 
-    return p.bytes()[7];
+    return p.bytes()(7);
 }
 "#,
             'W' as i32,
@@ -1181,14 +1181,14 @@ struct Child {
     n: int,
 }
 
-func make(k: int): Child {
+func new(k: int): Child {
     return Child {
         n: k,
     };
 }
 
 func main(): int {
-    let child = make(10);
+    let child = new(10);
 
     return child.n;
 }
@@ -1469,17 +1469,24 @@ fn runtime_run_gc() -> Result<()> {
     let cases = vec![
         (
             r#"
-            func f(arr: ints): int {
-                return arr[0];
+            func f(arr: array[int]): int {
+                return arr(0);
             }
 
             func g(): int {
-                let arr = [1,2,3,4];
+                let arr = make[array[int]](0);
+                arr(0) = 1;
+                arr(1) = 2;
+                arr(2) = 3;
+                arr(3) = 4;
                 return f(arr);
             }
 
             func main() {
-                let preserved = [5,6,7];
+                let preserved = make[array[int]](0);
+                preserved(0) = 5;
+                preserved(1) = 6;
+                preserved(2) = 7;
                 let p = g();
 
                 _gc;

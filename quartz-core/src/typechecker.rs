@@ -330,6 +330,15 @@ impl<'s> TypeChecker<'s> {
                     assert_eq!(arg_type, Type::Int);
 
                     Ok(t.as_ref().clone())
+                } else if let Some(t) = fn_type.as_array() {
+                    // array indexing
+                    *mode = CallMode::Array;
+
+                    assert_eq!(args.len(), 1);
+                    let arg_type = self.expr(&mut args[0])?;
+                    assert_eq!(arg_type, Type::Int);
+
+                    Ok(t.as_ref().clone())
                 } else {
                     let (expected_arg_types, expected_ret_type) = fn_type.as_fn_type().ok_or(
                         anyhow::anyhow!("Cannot call non-function type {:?}", fn_type),
@@ -504,6 +513,17 @@ impl<'s> TypeChecker<'s> {
                     assert_eq!(args.len(), 1);
                     let arg = self.expr(&mut args[0])?;
                     assert_eq!(arg, Type::Int);
+
+                    Ok(t.clone())
+                }
+                Type::Array(arr) => {
+                    assert_eq!(args.len(), 2);
+                    let len = self.expr(&mut args[0])?;
+                    let value = self.expr(&mut args[1])?;
+                    assert_eq!(len, Type::Int);
+                    let cs = Constraints::unify(&arr, &value)?;
+                    cs.apply(arr);
+                    cs.apply(t);
 
                     Ok(t.clone())
                 }
