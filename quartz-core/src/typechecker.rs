@@ -517,7 +517,7 @@ impl<'s> TypeChecker<'s> {
                 let ty = Type::Ref(Box::new(e_type));
                 Ok(ty)
             }
-            Expr::New(t, args) => match t {
+            Expr::Make(t, args) => match t {
                 Type::SizedArray(_, _) => {
                     assert_eq!(args.len(), 1);
                     let arg = self.expr(&mut args[0])?;

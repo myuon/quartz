@@ -249,8 +249,8 @@
           "name": "variable.language.self.quartz"
         },
         {
-          "match": "\\b(sized)\\b",
-          "name": "variable.language.sized.quartz"
+          "match": "\\b(make)\\b",
+          "name": "variable.language.make.quartz"
         },
         {
           "match": "\\b[a-zA-Z0-9_]\\w*\\b",

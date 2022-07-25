@@ -16,7 +16,7 @@ pub enum Lexeme {
     While,
     Continue,
     Struct,
-    New,
+    Make,
     LParen,
     RParen,
     LBrace,
@@ -172,7 +172,7 @@ impl TokenReader {
                     ("ref", Lexeme::Ref),
                     ("as", Lexeme::As),
                     ("self", Lexeme::Self_),
-                    ("new", Lexeme::New),
+                    ("make", Lexeme::Make),
                 ],
             ) {
                 continue;

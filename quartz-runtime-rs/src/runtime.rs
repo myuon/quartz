@@ -970,7 +970,7 @@ func main() {
         (
             r#"
 func main(): int {
-    let x = new[array[int,5]](0);
+    let x = make[array[int,5]](0);
     x(0) = 1;
     x(1) = 2;
     x(2) = x(0) + x(1);

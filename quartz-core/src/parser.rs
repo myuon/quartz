@@ -350,14 +350,14 @@ impl Parser {
         Ok(statements)
     }
 
-    fn new_expr(&mut self) -> Result<Expr> {
-        self.expect_lexeme(Lexeme::New)?;
+    fn make_expr(&mut self) -> Result<Expr> {
+        self.expect_lexeme(Lexeme::Make)?;
         self.expect_lexeme(Lexeme::LBracket)?;
         let typ = self.type_()?;
         self.expect_lexeme(Lexeme::RBracket)?;
         let args = self.many_exprs()?;
 
-        Ok(Expr::New(typ, args))
+        Ok(Expr::Make(typ, args))
     }
 
     fn short_callee_expr(&mut self) -> Result<Expr> {
@@ -365,7 +365,7 @@ impl Parser {
             .or_else(|_| -> Result<Expr> {
                 self.literal().map(|lit| Expr::Lit(lit, Type::Infer(0)))
             })
-            .or_else(|_| -> Result<Expr> { self.new_expr() })
+            .or_else(|_| -> Result<Expr> { self.make_expr() })
     }
 
     fn short_expr(&mut self) -> Result<Expr> {
