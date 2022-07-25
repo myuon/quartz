@@ -355,7 +355,9 @@ impl Parser {
         self.expect_lexeme(Lexeme::LBracket)?;
         let typ = self.type_()?;
         self.expect_lexeme(Lexeme::RBracket)?;
+        self.expect_lexeme(Lexeme::LParen)?;
         let args = self.many_exprs()?;
+        self.expect_lexeme(Lexeme::RParen)?;
 
         Ok(Expr::Make(typ, args))
     }

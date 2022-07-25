@@ -53,7 +53,7 @@ method string bytes(self): bytes {
 }
 
 method string concat(self, t: string): string {
-    let buffer = _new(self.len() + t.len());
+    let buffer = make[array[byte]](self.len() + t.len(), nil as byte);
     _copy(0, self.len(), self.data, buffer);
     _copy(self.len(), t.len(), t.data, buffer);
 
@@ -61,7 +61,7 @@ method string concat(self, t: string): string {
 }
 
 method string reverse(self): string {
-    let buffer = _new(self.len());
+    let buffer = make[array[byte]](self.len(), nil as byte);
     let n = 0;
     while (n < self.len()) {
         // FIXME: multiple operators
@@ -100,7 +100,7 @@ method string slice_after(self, start: int): substring {
 }
 
 method substring to_string(self): string {
-    let buffer = _new(self.end - self.start);
+    let buffer = make[array[byte]](self.end - self.start, nil as byte);
     _copy(0, self.end - self.start, _padd(self.str.data, self.start), buffer);
 
     return string {

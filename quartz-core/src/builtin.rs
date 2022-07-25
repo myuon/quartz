@@ -42,10 +42,6 @@ pub fn builtin() -> HashMap<String, Type> {
         ),
         ("_free", Type::Fn(vec![Type::Any], Box::new(Type::Nil))),
         (
-            "_new",
-            Type::Fn(vec![Type::Int], Box::new(Type::Array(Box::new(Type::Byte)))),
-        ),
-        (
             "_len",
             Type::Fn(vec![Type::Array(Box::new(Type::Byte))], Box::new(Type::Int)),
         ),
