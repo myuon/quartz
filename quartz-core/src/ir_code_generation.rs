@@ -154,8 +154,7 @@ impl<'s> IrFunctionGenerator<'s> {
                 // in: f(a,b,c)
                 // out: (call f a b c)
                 let mut elements = vec![];
-                // The callee part should be resolved as an address
-                elements.push(IrElement::i_address(self.expr(f.as_ref())?));
+                elements.push(self.expr(f.as_ref())?);
 
                 for arg in args {
                     elements.push(self.expr(&arg)?);
@@ -200,25 +199,13 @@ impl<'s> IrFunctionGenerator<'s> {
             }
             Expr::Project(_, struct_name, proj, label) => {
                 let index = self.structs.get_projection_offset(struct_name, label)?;
-                let value_type = self.structs.get_projection_type(struct_name, label)?;
                 let value = self.expr(proj)?;
 
-                let block = IrElement::i_call(
-                    "_padd",
-                    vec![
-                        IrElement::i_unload(value),
-                        IrElement::Term(IrTerm::Int(index as i32)), // back to the first work of the struct
-                    ],
-                );
-
-                Ok(IrElement::i_load(size_of(&value_type, self.structs), block))
+                Ok(IrElement::i_offset_im(value, index))
             }
-            Expr::Index(arr, i) => Ok(IrElement::i_deref(
-                1, // FIXME: calculate size
-                IrElement::i_call(
-                    "_padd",
-                    vec![self.expr(arr.as_ref())?, self.expr(i.as_ref())?],
-                ),
+            Expr::Index(arr, i) => Ok(IrElement::i_offset(
+                self.expr(arr.as_ref())?,
+                self.expr(i.as_ref())?,
             )),
             Expr::Ref(e, t) => {
                 let v = self.var_fresh();
@@ -256,23 +243,7 @@ impl<'s> IrFunctionGenerator<'s> {
                     value
                 })
             }
-            // NOTE: Calculate left value correctly
-            // FIXME: Can't we just stop calculating lvalue in IR and CodeGen phase?
-            Expr::Address(e, t) => Ok(match &e.data {
-                Expr::Var(_, _) => IrElement::i_address(self.expr(e)?),
-                Expr::Project(_, _, _, _) => IrElement::i_address(self.expr(e)?),
-                _ => {
-                    let v = self.var_fresh();
-                    let value = self.expr(e)?;
-                    self.ir.push(IrElement::i_let(
-                        IrElement::ir_type(t, self.structs)?,
-                        v.clone(),
-                        value,
-                    ));
-
-                    IrElement::i_address(IrElement::ident(v))
-                }
-            }),
+            Expr::Address(e, _t) => Ok(IrElement::i_address(self.expr(e)?)),
         }
     }
 
@@ -673,16 +644,16 @@ func main() {
         (assign 1 (call $_padd $x 2) 4)
 
         (return 1
-            (call (address $_add)
-                (call (address $_add)
-                    (deref 1 (call $_padd $x 1))
-                    (deref 1 (call $_padd $x 2)))
+            (call $_add
+                (call $_add
+                    (offset $x 1)
+                    (offset $x 2))
                 $0
             )
         )
     )
     (func $main (args)
-        (return 1 (call (address $f) 10))
+        (return 1 (call $f 10))
     )
 )
 "#,
@@ -708,14 +679,14 @@ func main() {
 (module
     (func $Point_sum (args $ref)
         (return 1 (call
-            (address $_add)
-            (load 1 (call $_padd (unload (deref 1 $0)) 1))
-            (load 1 (call $_padd (unload (deref 1 $0)) 2))
+            $_add
+            (offset (deref 1 $0) 1)
+            (offset (deref 1 $0) 2)
         ))
     )
     (func $main (args)
         (let (struct 3) $p (data 3 10 20))
-        (return 1 (call (address $Point_sum) (address $p(3))))
+        (return 1 (call $Point_sum (address $p(3))))
     )
 )
 "#,
@@ -755,7 +726,7 @@ func main() {
     (func $f (args $int $bool)
         (return 1 $1))
     (func $main (args)
-        (return 1 (call (address $f) 0 true))
+        (return 1 (call $f 0 true))
     )
 )
 "#,
@@ -773,7 +744,7 @@ func main() {
     (text 3 102 111 111)
     (func $main (args)
         (let (struct 1) $s (data 2 (string 0)))
-        (return 1 (call (address $_println) $s))
+        (return 1 (call $_println $s))
     )
 )
 "#,

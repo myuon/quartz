@@ -256,6 +256,14 @@ impl IrElement {
     pub fn i_address(element: IrElement) -> IrElement {
         IrElement::block("address", vec![element])
     }
+
+    pub fn i_offset(element: IrElement, offset: IrElement) -> IrElement {
+        IrElement::block("offset", vec![element, offset])
+    }
+
+    pub fn i_offset_im(element: IrElement, offset: usize) -> IrElement {
+        IrElement::i_offset(element, IrElement::int(offset as i32))
+    }
 }
 
 static SPACE_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"^\s+").unwrap());
