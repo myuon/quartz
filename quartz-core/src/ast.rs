@@ -59,7 +59,7 @@ pub enum Statement {
         Vec<Source<Statement>>,
     ),
     Continue,
-    Assignment(Source<Expr>, Source<Expr>),
+    Assignment(Type, Source<Expr>, Source<Expr>),
     While(Source<Expr>, Vec<Source<Statement>>),
 }
 

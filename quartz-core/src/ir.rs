@@ -257,12 +257,12 @@ impl IrElement {
         IrElement::block("address", vec![element])
     }
 
-    pub fn i_offset(element: IrElement, offset: IrElement) -> IrElement {
-        IrElement::block("offset", vec![element, offset])
+    pub fn i_offset(size: usize, element: IrElement, offset: IrElement) -> IrElement {
+        IrElement::block("offset", vec![IrElement::int(size as i32), element, offset])
     }
 
-    pub fn i_offset_im(element: IrElement, offset: usize) -> IrElement {
-        IrElement::i_offset(element, IrElement::int(offset as i32))
+    pub fn i_offset_im(size: usize, element: IrElement, offset: usize) -> IrElement {
+        IrElement::i_offset(size, element, IrElement::int(offset as i32))
     }
 }
 

@@ -118,12 +118,13 @@ impl<'s> IrFunctionGenerator<'s> {
                     let size = size_of(&Type::Array(Box::new(t.clone())), self.structs);
                     let v = self.var_fresh();
                     let n = arr.len() as i32;
+                    let element_size = size_of(t, self.structs);
 
                     // in: [1,2]
                     //
                     // out: (let $v (new 2))
-                    //      (assign (padd $v 0) 1)
-                    //      (assign (padd $v 1) 2)
+                    //      (assign (offset $v 0) 1)
+                    //      (assign (offset $v 1) 2)
                     //      $v
                     self.ir.push(IrElement::i_let(
                         IrElement::ir_type(t, self.structs)?,
@@ -135,13 +136,11 @@ impl<'s> IrFunctionGenerator<'s> {
                         let velem = self.expr(&elem)?;
 
                         self.ir.push(IrElement::i_assign(
-                            1,
-                            IrElement::i_call(
-                                "_padd",
-                                vec![
-                                    IrElement::Term(IrTerm::Ident(v.clone(), size)),
-                                    IrElement::int(i as i32),
-                                ],
+                            element_size,
+                            IrElement::i_offset_im(
+                                element_size,
+                                IrElement::Term(IrTerm::Ident(v.clone(), size)),
+                                i,
                             ),
                             velem,
                         ));
@@ -199,11 +198,17 @@ impl<'s> IrFunctionGenerator<'s> {
             }
             Expr::Project(_, struct_name, proj, label) => {
                 let index = self.structs.get_projection_offset(struct_name, label)?;
+                let typ = self.structs.get_projection_type(struct_name, label)?;
                 let value = self.expr(proj)?;
 
-                Ok(IrElement::i_offset_im(value, index))
+                Ok(IrElement::i_offset_im(
+                    size_of(&typ, self.structs),
+                    value,
+                    index,
+                ))
             }
             Expr::Index(arr, i) => Ok(IrElement::i_offset(
+                1, // FIXME: correct value
                 self.expr(arr.as_ref())?,
                 self.expr(i.as_ref())?,
             )),
@@ -219,13 +224,7 @@ impl<'s> IrFunctionGenerator<'s> {
                 let e_value = self.expr(e)?;
                 self.ir.push(IrElement::i_assign(
                     size,
-                    IrElement::i_call(
-                        "_padd",
-                        vec![
-                            IrElement::Term(IrTerm::Ident(v.clone(), 1)),
-                            IrElement::int(0 as i32),
-                        ],
-                    ),
+                    IrElement::i_offset_im(1, IrElement::Term(IrTerm::Ident(v.clone(), 1)), 0),
                     e_value,
                 ));
 
@@ -308,50 +307,15 @@ impl<'s> IrFunctionGenerator<'s> {
                 ));
             }
             Statement::Continue => self.ir.push(IrElement::block("continue", vec![])),
-            Statement::Assignment(v, e2) => {
-                match &v.data {
-                    Expr::Var(v, typ) => {
-                        let v2 = self.expr(e2)?;
-                        assert_eq!(v.len(), 1);
-                        self.ir.push(IrElement::i_assign(
-                            size_of(typ, self.structs),
-                            IrElement::Term(IrTerm::Ident(v[0].to_string(), 1)),
-                            v2,
-                        ));
-                    }
-                    Expr::Index(arr, i) => {
-                        // in: arr[i] = e2;
-                        // out: (assign (padd arr i) e2)
+            Statement::Assignment(typ, lhs, rhs) => {
+                let lhs_value = self.expr(lhs)?;
+                let rhs_value = self.expr(rhs)?;
 
-                        let v2 = self.expr(e2)?;
-                        let varr = self.expr(arr)?;
-                        let vi = self.expr(i)?;
-                        self.ir.push(IrElement::i_assign(
-                            1, // FIXME: calculate the size of the array element
-                            IrElement::i_call("_padd", vec![varr, vi]),
-                            v2,
-                        ))
-                    }
-                    Expr::Project(false, struct_name, proj, label) => {
-                        let index = self.structs.get_projection_offset(struct_name, label)?;
-                        let v = self.expr(proj)?;
-                        let v2 = self.expr(e2)?;
-                        let value_type = self.structs.get_projection_type(&struct_name, label)?;
-
-                        self.ir.push(IrElement::i_assign(
-                            size_of(&value_type, self.structs),
-                            IrElement::i_call(
-                                "_padd",
-                                vec![
-                                    IrElement::i_unload(v),
-                                    IrElement::Term(IrTerm::Int(index as i32)), // back to the first work of the struct
-                                ],
-                            ),
-                            v2,
-                        ));
-                    }
-                    _ => todo!(),
-                }
+                self.ir.push(IrElement::i_assign(
+                    size_of(typ, self.structs),
+                    lhs_value,
+                    rhs_value,
+                ))
             }
             Statement::While(cond, body) => {
                 let vcond = self.expr(cond)?;
@@ -636,18 +600,18 @@ func main() {
 (module
     (func $f (args $int)
         (let $int $fresh_1 (call $_new 3))
-        (assign 1 (call $_padd $fresh_1 0) 1)
-        (assign 1 (call $_padd $fresh_1 1) 2)
-        (assign 1 (call $_padd $fresh_1 2) 3)
+        (assign 1 (offset 1 $fresh_1 0) 1)
+        (assign 1 (offset 1 $fresh_1 1) 2)
+        (assign 1 (offset 1 $fresh_1 2) 3)
         (let $array $x $fresh_1)
 
-        (assign 1 (call $_padd $x 2) 4)
+        (assign 1 (offset 1 $x 2) 4)
 
         (return 1
             (call $_add
                 (call $_add
-                    (offset $x 1)
-                    (offset $x 2))
+                    (offset 1 $x 1)
+                    (offset 1 $x 2))
                 $0
             )
         )
@@ -680,8 +644,8 @@ func main() {
     (func $Point_sum (args $ref)
         (return 1 (call
             $_add
-            (offset (deref 1 $0) 1)
-            (offset (deref 1 $0) 2)
+            (offset 1 (deref 1 $0) 1)
+            (offset 1 (deref 1 $0) 2)
         ))
     )
     (func $main (args)

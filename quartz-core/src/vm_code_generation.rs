@@ -182,6 +182,14 @@ impl<'s> VmFunctionGenerator<'s> {
                     let (_, element) = unvec!(block.elements, 2);
                     self.element(element)?;
                 }
+                "offset" => {
+                    self.new_source_map(element.show_compact());
+
+                    let (_, element, offset) = unvec!(block.elements, 3);
+                    self.element_addr(element)?;
+                    self.element(offset)?;
+                    self.code.push(QVMInstruction::PAdd);
+                }
                 _ => unreachable!("{}", element.show()),
             },
         }
@@ -437,6 +445,15 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.new_source_map(element.show_compact());
                         let element = unvec!(block.elements, 1);
                         self.element_addr(element)?;
+                    }
+                    "offset" => {
+                        self.new_source_map(element.show_compact());
+                        let (size, element, offset) = unvec!(block.elements, 3);
+                        self.element_addr(element)?;
+                        self.element(offset)?;
+                        self.code.push(QVMInstruction::PAdd);
+                        self.code
+                            .push(QVMInstruction::Load(size.into_term()?.into_int()? as usize));
                     }
                     name => todo!("{:?}", name),
                 };

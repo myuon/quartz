@@ -242,6 +242,7 @@ impl Parser {
                 let rhs = self.expr()?;
                 Ok(self.source(
                     Statement::Assignment(
+                        Type::Infer(0),
                         self.source_from(e, e_start),
                         self.source_from(rhs, rhs_start),
                     ),

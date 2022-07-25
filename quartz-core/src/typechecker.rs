@@ -542,12 +542,13 @@ impl<'s> TypeChecker<'s> {
                     ret_type = then_type;
                 }
                 Statement::Continue => {}
-                Statement::Assignment(lhs, rhs) => {
+                Statement::Assignment(t, lhs, rhs) => {
                     let typ = self.expr(lhs)?;
                     let cs = Constraints::unify(&typ, &self.expr(rhs)?).context(
                         self.error_context(statement.start, statement.end, "assignment"),
                     )?;
                     self.apply_constraints(&cs);
+                    *t = typ;
 
                     ret_type = Type::Nil;
                 }
