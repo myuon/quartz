@@ -247,6 +247,7 @@ impl<'s> IrFunctionGenerator<'s> {
                 })
             }
             Expr::Address(e, _t) => Ok(IrElement::i_address(self.expr(e)?)),
+            Expr::New(_, _) => todo!(),
         }
     }
 

@@ -93,21 +93,12 @@ impl Parser {
                 let type_ = self.type_()?;
 
                 let t = if self.expect_lexeme(Lexeme::Comma).is_ok() {
-                    // sized array
-                    let mut size = None;
-
                     let token = self.next()?;
-                    match token.lexeme {
-                        Lexeme::Int(u) => {
-                            size = Some(u as usize);
-                        }
-                        Lexeme::Sized => {}
-                        _ => {
-                            return Err(self.parse_error("int or 'sized'", &format!("{:?}", token)));
-                        }
+                    if let Lexeme::Int(u) = token.lexeme {
+                        Type::SizedArray(Box::new(type_), u as usize)
+                    } else {
+                        return Err(self.parse_error("int or 'sized'", &format!("{:?}", token)));
                     }
-
-                    Type::SizedArray(Box::new(type_), size)
                 } else {
                     Type::Array(Box::new(type_))
                 };
@@ -140,11 +131,6 @@ impl Parser {
                 self.position += 1;
 
                 Ok("self".to_string())
-            }
-            Lexeme::Sized => {
-                self.position += 1;
-
-                Ok("sized".to_string())
             }
             t => Err(self.parse_error("ident", &format!("{:?}", t))),
         }
@@ -362,10 +348,22 @@ impl Parser {
         Ok(statements)
     }
 
+    fn new_expr(&mut self) -> Result<Expr> {
+        self.expect_lexeme(Lexeme::New)?;
+        self.expect_lexeme(Lexeme::LBracket)?;
+        let typ = self.type_()?;
+        self.expect_lexeme(Lexeme::RBracket)?;
+        let args = self.many_exprs()?;
+
+        Ok(Expr::New(typ, args))
+    }
+
     fn short_callee_expr(&mut self) -> Result<Expr> {
-        self.variable().or_else(|_| -> Result<Expr> {
-            self.literal().map(|lit| Expr::Lit(lit, Type::Infer(0)))
-        })
+        self.variable()
+            .or_else(|_| -> Result<Expr> {
+                self.literal().map(|lit| Expr::Lit(lit, Type::Infer(0)))
+            })
+            .or_else(|_| -> Result<Expr> { self.new_expr() })
     }
 
     fn short_expr(&mut self) -> Result<Expr> {

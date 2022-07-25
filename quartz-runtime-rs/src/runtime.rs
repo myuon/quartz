@@ -970,7 +970,7 @@ func main() {
         (
             r#"
 func main(): byte {
-    let x = array[int, 5]::new(0);
+    let x = new[array[int,5]](0);
     x(0) = 1;
     x(1) = 2;
     x(2) = x(0) + x(1);

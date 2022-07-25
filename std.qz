@@ -1,7 +1,3 @@
-method array[int, sized] new(default: int) {
-    return _array(sized, default);
-}
-
 method bool to_string(self): string {
     if (self == true) {
         return "true";

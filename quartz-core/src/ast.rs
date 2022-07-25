@@ -67,6 +67,7 @@ pub enum Statement {
 pub enum Expr {
     Var(Vec<String>, Type), // qualifier in vector
     Method(Type, String, Type),
+    New(Type, Vec<Source<Expr>>),
     Lit(Literal, Type),
     Call(Box<Source<Expr>>, Vec<Source<Expr>>),
     Struct(String, Vec<(String, Source<Expr>, Type)>),
@@ -144,7 +145,7 @@ pub enum Type {
     Struct(String),
     Ref(Box<Type>),
     Array(Box<Type>),
-    SizedArray(Box<Type>, Option<usize>), // None for sized marker
+    SizedArray(Box<Type>, usize),
     Optional(Box<Type>),
     Self_,
 }
@@ -179,7 +180,7 @@ impl Type {
         }
     }
 
-    pub fn as_sized_array(&self) -> Option<(&Box<Type>, &Option<usize>)> {
+    pub fn as_sized_array(&self) -> Option<(&Box<Type>, &usize)> {
         match self {
             Type::SizedArray(t, size) => Some((t, size)),
             _ => None,
