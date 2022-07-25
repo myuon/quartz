@@ -66,6 +66,7 @@ pub enum Statement {
 #[derive(PartialEq, Debug, Clone)]
 pub enum Expr {
     Var(Vec<String>, Type), // qualifier in vector
+    Method(Type, String, Type),
     Lit(Literal, Type),
     Call(Box<Source<Expr>>, Vec<Source<Expr>>),
     Struct(String, Vec<(String, Source<Expr>, Type)>),

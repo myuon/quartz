@@ -281,6 +281,13 @@ impl<'s> TypeChecker<'s> {
                 *t = vtype.clone();
                 Ok(vtype)
             }
+            Expr::Method(subj, v, t) => {
+                let vtype = self
+                    .load(&vec![subj.method_selector_name()?, v.clone()])
+                    .context(self.error_context(expr.start, expr.end, "var"))?;
+                *t = vtype.clone();
+                Ok(vtype)
+            }
             Expr::Lit(lit, typ) => {
                 let t = match lit {
                     Literal::Bool(_) => Type::Bool,

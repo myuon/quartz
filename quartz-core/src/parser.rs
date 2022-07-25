@@ -114,12 +114,16 @@ impl Parser {
     }
 
     fn variable(&mut self) -> Result<Expr> {
-        let mut qualifiers = vec![self.ident()?];
-        while self.expect_lexeme(Lexeme::DoubleColon).is_ok() {
-            qualifiers.push(self.ident()?);
+        let subject = self.type_()?;
+        if self.expect_lexeme(Lexeme::DoubleColon).is_ok() {
+            let label = self.ident()?;
+            Ok(Expr::Method(subject, label, Type::Infer(0)))
+        } else {
+            Ok(Expr::Var(
+                vec![subject.method_selector_name()?],
+                Type::Infer(0),
+            ))
         }
-
-        Ok(Expr::Var(qualifiers, Type::Infer(0)))
     }
 
     fn literal(&mut self) -> Result<Literal> {

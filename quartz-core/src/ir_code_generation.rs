@@ -91,6 +91,10 @@ impl<'s> IrFunctionGenerator<'s> {
                     )))
                 }
             }
+            Expr::Method(subj, v, typ) => Ok(IrElement::Term(IrTerm::Ident(
+                format!("{}_{}", subj.method_selector_name()?, v),
+                size_of(typ, self.structs),
+            ))),
             Expr::Lit(literal, typ) => match literal {
                 Literal::Nil => {
                     let s = size_of(typ, &self.structs);

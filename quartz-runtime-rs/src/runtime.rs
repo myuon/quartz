@@ -970,12 +970,12 @@ func main() {
         (
             r#"
 func main(): byte {
-    let x = _new(5);
-    x[0] = _int_to_byte(1);
-    x[1] = _int_to_byte(2);
-    x[2] = _int_to_byte(_add(_byte_to_int(x[0]), _byte_to_int(x[1])));
+    let x = array[int]::new(5);
+    x(0) = 1;
+    x(1) = 2;
+    x(2) = x(0) + x(1);
 
-    return x[2];
+    return x(2);
 }
 "#,
             3,
