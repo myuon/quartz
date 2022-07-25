@@ -4,7 +4,8 @@ use anyhow::{Context, Result};
 
 use crate::{
     ast::{
-        size_of, Declaration, Expr, Function, Literal, Module, Source, Statement, Structs, Type,
+        size_of, CallMode, Declaration, Expr, Function, Literal, Module, Source, Statement,
+        Structs, Type,
     },
     compiler::specify_source_in_input,
     ir::{IrBlock, IrElement, IrTerm},
@@ -60,6 +61,7 @@ impl<'s> IrFunctionGenerator<'s> {
                         // FIXME: implement function meta attributes
                         if v == "_panic" {
                             let meta = self.expr(&Source::unknown(Expr::Call(
+                                CallMode::Function,
                                 Box::new(Source::unknown(Expr::Var(
                                     vec!["_println".to_string()],
                                     Type::Fn(
@@ -153,7 +155,7 @@ impl<'s> IrFunctionGenerator<'s> {
                     Ok(IrElement::Term(IrTerm::Ident(v, size)))
                 }
             },
-            Expr::Call(f, args) => {
+            Expr::Call(CallMode::Function, f, args) => {
                 // in: f(a,b,c)
                 // out: (call f a b c)
                 let mut elements = vec![];
@@ -164,6 +166,13 @@ impl<'s> IrFunctionGenerator<'s> {
                 }
 
                 Ok(IrElement::i_call_raw(elements))
+            }
+            Expr::Call(CallMode::Array, f, args) => {
+                Ok(IrElement::i_offset(
+                    1, // FIXME: correct value
+                    self.expr(f.as_ref())?,
+                    self.expr(&args[0])?,
+                ))
             }
             Expr::Struct(struct_name, exprs) => {
                 // in: A { a: 1, b: 2 }

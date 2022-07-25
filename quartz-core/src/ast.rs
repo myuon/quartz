@@ -64,12 +64,18 @@ pub enum Statement {
 }
 
 #[derive(PartialEq, Debug, Clone)]
+pub enum CallMode {
+    Function,
+    Array,
+}
+
+#[derive(PartialEq, Debug, Clone)]
 pub enum Expr {
     Var(Vec<String>, Type), // qualifier in vector
     Method(Type, String, Type),
     New(Type, Vec<Source<Expr>>),
     Lit(Literal, Type),
-    Call(Box<Source<Expr>>, Vec<Source<Expr>>),
+    Call(CallMode, Box<Source<Expr>>, Vec<Source<Expr>>),
     Struct(String, Vec<(String, Source<Expr>, Type)>),
     Project(
         bool,   // is_method

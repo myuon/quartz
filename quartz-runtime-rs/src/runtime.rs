@@ -1033,16 +1033,6 @@ func main() {
         ),
         (
             r#"
-func main(): int {
-    let p = [1,2,3,4];
-
-    return p[2];
-}
-"#,
-            3,
-        ),
-        (
-            r#"
 func main() {
     let p = "Hello, World!";
 

@@ -1,5 +1,7 @@
 use crate::{
-    ast::{Declaration, Expr, Function, Literal, Module, Source, Statement, Struct, Type},
+    ast::{
+        CallMode, Declaration, Expr, Function, Literal, Module, Source, Statement, Struct, Type,
+    },
     compiler::CompileError,
     lexer::{run_lexer, Lexeme, Token},
 };
@@ -392,6 +394,7 @@ impl Parser {
                     self.expect_lexeme(Lexeme::RParen)?;
 
                     result = Expr::Call(
+                        CallMode::Function,
                         Box::new(self.source(result, result_start, result_end)),
                         args,
                     );
@@ -475,6 +478,7 @@ impl Parser {
                 let right_start = self.position;
                 let right = self.expr()?;
                 result = Expr::Call(
+                    CallMode::Function,
                     Box::new(Source::unknown(Expr::Var(
                         vec![op.to_string()],
                         Type::Infer(0),

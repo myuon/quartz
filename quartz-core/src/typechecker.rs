@@ -5,7 +5,7 @@ use log::info;
 use pretty_assertions::assert_eq;
 
 use crate::{
-    ast::{Declaration, Expr, Literal, Module, Source, Statement, Structs, Type},
+    ast::{CallMode, Declaration, Expr, Literal, Module, Source, Statement, Structs, Type},
     compiler::specify_source_in_input,
 };
 
@@ -310,7 +310,7 @@ impl<'s> TypeChecker<'s> {
 
                 Ok(t)
             }
-            Expr::Call(f, args) => {
+            Expr::Call(mode, f, args) => {
                 let fn_type = self.expr(f)?;
                 if matches!(fn_type, Type::Any) {
                     return Ok(Type::Any);
@@ -323,6 +323,8 @@ impl<'s> TypeChecker<'s> {
 
                 if let Some((t, _)) = fn_type.as_sized_array() {
                     // array indexing
+                    *mode = CallMode::Array;
+
                     assert_eq!(args.len(), 1);
                     let arg_type = self.expr(&mut args[0])?;
                     assert_eq!(arg_type, Type::Int);
