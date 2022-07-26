@@ -232,11 +232,7 @@ impl<'s> IrFunctionGenerator<'s> {
                 let e_value = self.expr(e)?;
                 self.ir.push(IrElement::i_assign(
                     size,
-                    IrElement::i_offset_im(
-                        1,
-                        IrElement::i_deref(1, IrElement::Term(IrTerm::Ident(v.clone(), 1))),
-                        0,
-                    ),
+                    IrElement::i_offset_im(1, IrElement::Term(IrTerm::Ident(v.clone(), 1)), 0),
                     e_value,
                 ));
 
@@ -254,7 +250,25 @@ impl<'s> IrFunctionGenerator<'s> {
                     value
                 })
             }
-            Expr::Address(e, _t) => Ok(IrElement::i_address(self.expr(e)?)),
+            Expr::Address(e, t) => {
+                // You cannot just take the address of an immidiate value, so declare as a variable
+                let next = match e.data {
+                    Expr::Lit(_, _) | Expr::Struct(_, _) | Expr::Call(_, _, _) => {
+                        let v = self.var_fresh();
+                        let value = self.expr(e)?;
+                        self.ir.push(IrElement::i_let(
+                            IrElement::ir_type(t, self.structs)?,
+                            v.clone(),
+                            value,
+                        ));
+
+                        IrElement::ident(v)
+                    }
+                    _ => self.expr(e)?,
+                };
+
+                Ok(IrElement::i_address(next))
+            }
             Expr::Make(t, args) => match t {
                 Type::SizedArray(arr, len) => {
                     let value = self.expr(&args[0])?;
