@@ -272,6 +272,46 @@ impl IrElement {
     }
 }
 
+pub enum IrSingleType {
+    Nil,
+    Bool,
+    Int,
+    Address(Box<IrType>),
+}
+
+impl IrSingleType {
+    pub fn to_element(&self) -> IrElement {
+        match self {
+            IrSingleType::Nil => IrElement::ident("nil"),
+            IrSingleType::Bool => IrElement::ident("bool"),
+            IrSingleType::Int => IrElement::ident("int"),
+            IrSingleType::Address(t) => IrElement::block("address", vec![t.to_element()]),
+        }
+    }
+}
+
+pub enum IrType {
+    Single(IrSingleType),
+    Tuple(usize, Vec<IrType>),
+}
+
+impl IrType {
+    pub fn to_element(&self) -> IrElement {
+        match self {
+            IrType::Single(s) => s.to_element(),
+            IrType::Tuple(u, ts) => {
+                let mut elements = vec![];
+                elements.push(IrElement::int(*u as i32));
+                for t in ts {
+                    elements.push(t.to_element());
+                }
+
+                IrElement::block("tuple", elements)
+            }
+        }
+    }
+}
+
 static SPACE_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"^\s+").unwrap());
 static IDENT_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[a-zA-Z_][a-zA-Z0-9_]*").unwrap());
 static NUMBER_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[0-9]+").unwrap());

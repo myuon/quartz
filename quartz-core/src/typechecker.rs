@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use anyhow::{bail, Context, Result};
-use log::info;
+use log::{info, warn};
 use pretty_assertions::assert_eq;
 
 use crate::{
@@ -272,6 +272,10 @@ impl<'s> TypeChecker<'s> {
             ));
         }
 
+        if let Err(err) = Constraints::unify(current_type, expected_type) {
+            warn!("{:?}", err);
+        }
+
         expr
     }
 
@@ -464,10 +468,6 @@ impl<'s> TypeChecker<'s> {
                         Box::new(return_type.clone()),
                     ))
                 } else {
-                    if typ.is_ref() {
-                        *proj = Box::new(Source::unknown(Expr::Deref(proj.clone(), typ)));
-                    }
-
                     let field_type = self
                         .structs
                         .get_projection_type(&name, &field)
