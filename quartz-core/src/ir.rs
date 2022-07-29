@@ -272,11 +272,13 @@ impl IrElement {
     }
 }
 
+#[derive(Debug, Clone)]
 pub enum IrSingleType {
     Nil,
     Bool,
     Int,
-    Address(Box<IrType>),
+    Address,
+    Fn(Vec<IrType>, Box<IrType>),
 }
 
 impl IrSingleType {
@@ -285,19 +287,84 @@ impl IrSingleType {
             IrSingleType::Nil => IrElement::ident("nil"),
             IrSingleType::Bool => IrElement::ident("bool"),
             IrSingleType::Int => IrElement::ident("int"),
-            IrSingleType::Address(t) => IrElement::block("address", vec![t.to_element()]),
+            IrSingleType::Address => IrElement::ident("address"),
+            IrSingleType::Fn(args, ret) => IrElement::block(
+                "fn",
+                vec![
+                    IrElement::block("args", args.iter().map(|t| t.to_element()).collect()),
+                    ret.to_element(),
+                ],
+            ),
         }
     }
 }
 
+#[derive(Debug, Clone)]
 pub enum IrType {
+    Unknown,
     Single(IrSingleType),
     Tuple(usize, Vec<IrType>),
 }
 
 impl IrType {
+    pub fn unknown() -> IrType {
+        IrType::Unknown
+    }
+
+    pub fn nil() -> IrType {
+        IrType::Single(IrSingleType::Nil)
+    }
+
+    pub fn bool() -> IrType {
+        IrType::Single(IrSingleType::Bool)
+    }
+
+    pub fn int() -> IrType {
+        IrType::Single(IrSingleType::Int)
+    }
+
+    pub fn addr() -> IrType {
+        IrType::Single(IrSingleType::Address)
+    }
+
+    pub fn func(args: Vec<IrType>, ret: Box<IrType>) -> IrType {
+        IrType::Single(IrSingleType::Fn(args, ret))
+    }
+
+    pub fn tuple(size: usize, args: Vec<IrType>) -> IrType {
+        IrType::Tuple(size, args)
+    }
+
+    pub fn from_element(element: &IrElement) -> Result<IrType> {
+        Ok(match element {
+            IrElement::Term(t) => match t {
+                IrTerm::Ident(ident, _) => match ident.as_str() {
+                    "nil" => IrType::nil(),
+                    "bool" => IrType::bool(),
+                    "int" => IrType::int(),
+                    "address" => IrType::addr(),
+                    _ => unreachable!(),
+                },
+                _ => unreachable!(),
+            },
+            IrElement::Block(block) => match block.name.as_str() {
+                "tuple" => {
+                    let mut types = Vec::new();
+                    let size = block.elements[0].clone().into_term()?.into_int()? as usize;
+
+                    for element in block.elements.iter().skip(1) {
+                        types.push(IrType::from_element(element)?);
+                    }
+                    IrType::tuple(size, types)
+                }
+                _ => unreachable!(),
+            },
+        })
+    }
+
     pub fn to_element(&self) -> IrElement {
         match self {
+            IrType::Unknown => todo!(),
             IrType::Single(s) => s.to_element(),
             IrType::Tuple(u, ts) => {
                 let mut elements = vec![];
@@ -308,6 +375,14 @@ impl IrType {
 
                 IrElement::block("tuple", elements)
             }
+        }
+    }
+
+    pub fn size_of(&self) -> usize {
+        match self {
+            IrType::Unknown => todo!(),
+            IrType::Single(_) => 1,
+            IrType::Tuple(_t, vs) => vs.into_iter().map(|v| v.size_of()).sum(),
         }
     }
 }
