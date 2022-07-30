@@ -147,7 +147,7 @@ impl<'s> IrFunctionGenerator<'s> {
 
                         self.ir.push(IrElement::i_assign(
                             element_size,
-                            IrElement::i_offset_im(
+                            IrElement::i_offset(
                                 element_size,
                                 IrElement::Term(IrTerm::Ident(v.clone(), size)),
                                 i,
@@ -172,7 +172,7 @@ impl<'s> IrFunctionGenerator<'s> {
                 Ok(IrElement::i_call_raw(elements))
             }
             Expr::Call(CallMode::Array, f, args) => {
-                Ok(IrElement::i_offset(
+                Ok(IrElement::i_index(
                     1, // FIXME: correct value
                     self.expr(f.as_ref())?,
                     self.expr(&args[0])?,
@@ -218,7 +218,7 @@ impl<'s> IrFunctionGenerator<'s> {
                 let typ = self.structs.get_projection_type(struct_name, label)?;
                 let value = self.expr(proj)?;
 
-                Ok(IrElement::i_offset_im(
+                Ok(IrElement::i_offset(
                     size_of(&typ, self.structs),
                     value,
                     index,
@@ -236,7 +236,7 @@ impl<'s> IrFunctionGenerator<'s> {
                 let e_value = self.expr(e)?;
                 self.ir.push(IrElement::i_assign(
                     size,
-                    IrElement::i_offset_im(1, IrElement::Term(IrTerm::Ident(v.clone(), 1)), 0),
+                    IrElement::i_offset(1, IrElement::Term(IrTerm::Ident(v.clone(), 1)), 0),
                     e_value,
                 ));
 
@@ -604,17 +604,17 @@ func main() {
 (module
     (func $f (args $int) (return $int)
         (let (slice 4 $int) $x (data 4 3 3 3 3))
-        (assign 1 (offset 1 $x(4) 0) 1)
-        (assign 1 (offset 1 $x(4) 1) 2)
-        (assign 1 (offset 1 $x(4) 2) 3)
+        (assign 1 (index 1 $x(4) 0) 1)
+        (assign 1 (index 1 $x(4) 1) 2)
+        (assign 1 (index 1 $x(4) 2) 3)
 
-        (assign 1 (offset 1 $x(4) 2) 4)
+        (assign 1 (index 1 $x(4) 2) 4)
 
         (return 1
             (call $_add
                 (call $_add
-                    (offset 1 $x(4) 1)
-                    (offset 1 $x(4) 2))
+                    (index 1 $x(4) 1)
+                    (index 1 $x(4) 2))
                 $0
             )
         )

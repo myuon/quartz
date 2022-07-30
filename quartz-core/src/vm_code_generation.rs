@@ -307,9 +307,21 @@ impl<'s> VmFunctionGenerator<'s> {
                 "offset" => {
                     self.new_source_map(element.show_compact());
 
+                    let (_, element, offset_element) = unvec!(block.elements, 3);
+                    let offset = offset_element.into_term()?.into_int()?;
+                    let typ = self.element_addr(element, IrType::unknown())?;
+                    self.writer.push(QVMInstruction::I32Const(offset));
+                    self.writer.push(QVMInstruction::PAdd);
+                    Ok(IrType::addr_of(typ))
+                }
+                "index" => {
+                    self.new_source_map(element.show_compact());
+
                     let (_, element, offset) = unvec!(block.elements, 3);
                     let typ = self.element_addr(element, IrType::unknown())?;
                     self.element(offset, IrType::int())?;
+                    self.writer.push(QVMInstruction::I32Const(1)); // +1 for a pointer to info table
+                    self.writer.push(QVMInstruction::Add);
                     self.writer.push(QVMInstruction::PAdd);
                     Ok(IrType::addr_of(typ))
                 }
@@ -632,9 +644,24 @@ impl<'s> VmFunctionGenerator<'s> {
                     }
                     "offset" => {
                         self.new_source_map(element.show_compact());
+                        let (size, element, offset_element) = unvec!(block.elements, 3);
+                        let typ = self.element_addr(element, IrType::addr_unknown())?;
+
+                        let offset = offset_element.into_term()?.into_int()? as usize;
+                        self.writer.push(QVMInstruction::I32Const(offset as i32));
+                        self.writer.push(QVMInstruction::PAdd);
+                        self.writer
+                            .push(QVMInstruction::Load(size.into_term()?.into_int()? as usize));
+
+                        Ok(expected_type.unify(typ.offset(offset)?)?)
+                    }
+                    "index" => {
+                        self.new_source_map(element.show_compact());
                         let (size, element, offset) = unvec!(block.elements, 3);
                         self.element_addr(element, IrType::addr_unknown())?;
                         self.element(offset, IrType::int())?;
+                        self.writer.push(QVMInstruction::I32Const(1));
+                        self.writer.push(QVMInstruction::Add);
                         self.writer.push(QVMInstruction::PAdd);
                         self.writer
                             .push(QVMInstruction::Load(size.into_term()?.into_int()? as usize));

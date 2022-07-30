@@ -201,12 +201,19 @@ impl IrElement {
         IrElement::block("address", vec![element])
     }
 
-    pub fn i_offset(size: usize, element: IrElement, offset: IrElement) -> IrElement {
-        IrElement::block("offset", vec![IrElement::int(size as i32), element, offset])
+    pub fn i_index(size: usize, element: IrElement, offset: IrElement) -> IrElement {
+        IrElement::block("index", vec![IrElement::int(size as i32), element, offset])
     }
 
-    pub fn i_offset_im(size: usize, element: IrElement, offset: usize) -> IrElement {
-        IrElement::i_offset(size, element, IrElement::int(offset as i32))
+    pub fn i_offset(size: usize, element: IrElement, offset: usize) -> IrElement {
+        IrElement::block(
+            "offset",
+            vec![
+                IrElement::int(size as i32),
+                element,
+                IrElement::int(offset as i32),
+            ],
+        )
     }
 
     pub fn d_var(name: impl Into<String>, typ: IrType, expr: IrElement) -> IrElement {
@@ -491,15 +498,16 @@ impl IrType {
                     bail!("Out of offset, {} in {:?}", index, self)
                 }
             }
+            // NOTE: don't forget about the first word, which is a pointer to info table
             IrType::Slice(r, t) => {
-                if index < r {
+                if 0 < index && index <= r {
                     Ok(t.as_ref().clone())
                 } else {
                     bail!("Out of offset, {} in {:?}", index, IrType::Slice(r, t))
                 }
             }
             IrType::Tuple(ts) => {
-                if index < ts.len() {
+                if 0 < index && index <= ts.len() {
                     Ok(ts[index].clone())
                 } else {
                     bail!("Out of offset, {} in {:?}", index, IrType::Tuple(ts))
