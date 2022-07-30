@@ -168,10 +168,6 @@ impl IrElement {
         IrElement::block("unload", vec![element])
     }
 
-    pub fn i_load(size: usize, element: IrElement) -> IrElement {
-        IrElement::block("load", vec![IrElement::int(size as i32), element])
-    }
-
     pub fn i_copy(size: usize, source: IrElement) -> IrElement {
         IrElement::block("copy", vec![IrElement::int(size as i32), source])
     }

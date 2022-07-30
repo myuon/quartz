@@ -300,7 +300,7 @@ impl<'s> VmFunctionGenerator<'s> {
                     Ok(IrType::addr())
                 }
                 // FIXME: is this true?
-                "load" | "deref" => {
+                "deref" => {
                     self.new_source_map(element.show_compact());
 
                     let (_, element) = unvec!(block.elements, 2);
@@ -552,15 +552,12 @@ impl<'s> VmFunctionGenerator<'s> {
                     "data" => {
                         self.new_source_map(IrElement::block("data", vec![]).show_compact());
 
-                        let mut types = vec![];
-                        for (i, elem) in block.elements.into_iter().enumerate() {
-                            if i == 0 {
-                                let size = elem.into_term()?.into_int()? as usize;
+                        let size = block.elements[0].clone().into_term()?.into_int()? as usize;
+                        self.writer.push(QVMInstruction::InfoConst(size));
 
-                                self.writer.push(QVMInstruction::InfoConst(size));
-                            } else {
-                                types.push(self.element(elem)?);
-                            }
+                        let mut types = vec![];
+                        for elem in block.elements.into_iter().skip(1) {
+                            types.push(self.element(elem)?);
                         }
 
                         Ok(IrType::tuple(types))
@@ -571,15 +568,6 @@ impl<'s> VmFunctionGenerator<'s> {
                         let (size, elem) = unvec!(block.elements, 2);
 
                         self.element(elem)?;
-                        self.writer
-                            .push(QVMInstruction::Load(size.into_term()?.into_int()? as usize));
-
-                        Ok(IrType::unknown())
-                    }
-                    "load" => {
-                        self.new_source_map(element.show_compact());
-                        let (size, element) = unvec!(block.elements, 2);
-                        self.element(element.clone())?;
                         self.writer
                             .push(QVMInstruction::Load(size.into_term()?.into_int()? as usize));
 
@@ -608,16 +596,22 @@ impl<'s> VmFunctionGenerator<'s> {
                             Variable::StackAbsolute,
                         ));
 
-                        Ok(IrType::unknown())
+                        Ok(IrType::addr_of(Box::new(IrType::tuple(vec![
+                            IrType::addr(),
+                        ]))))
                     }
                     "deref" => {
                         self.new_source_map(element.show_compact());
                         let (size, element) = unvec!(block.elements, 2);
-                        self.element(element)?;
+                        let typ = self.element(element)?;
                         self.writer
                             .push(QVMInstruction::Load(size.into_term()?.into_int()? as usize));
 
-                        Ok(IrType::unknown())
+                        Ok(typ
+                            .as_addr()
+                            .unwrap()
+                            .map(|t| t.as_ref().clone())
+                            .unwrap_or(IrType::unknown()))
                     }
                     "coerce" => {
                         self.new_source_map(element.show_compact());
@@ -625,7 +619,8 @@ impl<'s> VmFunctionGenerator<'s> {
                         let actual_size = actual_size.into_term()?.into_int()? as usize;
                         let expected_size = expected_size.into_term()?.into_int()? as usize;
 
-                        self.element(element)?;
+                        let typ = self.element(element)?;
+                        assert_eq!(typ.size_of(), actual_size);
                         self.writer.extend(vec![
                             QVMInstruction::I32Const(expected_size as i32),
                             QVMInstruction::I32Const(actual_size as i32),
@@ -637,9 +632,9 @@ impl<'s> VmFunctionGenerator<'s> {
                     "address" => {
                         self.new_source_map(element.show_compact());
                         let element = unvec!(block.elements, 1);
-                        self.element_addr(element)?;
+                        let typ = self.element_addr(element)?;
 
-                        Ok(IrType::unknown())
+                        Ok(IrType::addr_of(Box::new(typ)))
                     }
                     "offset" => {
                         self.new_source_map(element.show_compact());
