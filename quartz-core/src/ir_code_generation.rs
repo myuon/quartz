@@ -389,22 +389,8 @@ impl<'s> IrFunctionGenerator<'s> {
 
     // for functions
     pub fn function(&mut self, statements: &Vec<Source<Statement>>) -> Result<()> {
-        // if last statement was not a return statement, insert it
-        // FIXME: typecheck
-        let need_return_nil_insert = !statements
-            .last()
-            .map(|s| matches!(s.data, Statement::Return(_, _)))
-            .unwrap_or(false);
-
         for statement in statements {
             self.statement(&statement.data)?;
-        }
-
-        if need_return_nil_insert {
-            self.statement(&Statement::Return(
-                Source::unknown(Expr::Lit(Literal::Nil, Type::Nil)),
-                Type::Nil,
-            ))?;
         }
 
         Ok(())
