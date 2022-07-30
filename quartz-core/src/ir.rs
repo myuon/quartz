@@ -506,8 +506,7 @@ impl IrType {
                 }
             }
             IrType::Tuple(ts) => {
-                // FIXME: offset positioning starts from 1
-                if 0 < index && index <= ts.len() {
+                if index < ts.len() {
                     Ok(ts[index].clone())
                 } else {
                     bail!("Out of offset, {} in {:?}", index, IrType::Tuple(ts))

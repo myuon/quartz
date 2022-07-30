@@ -308,11 +308,11 @@ impl<'s> VmFunctionGenerator<'s> {
                     self.new_source_map(element.show_compact());
 
                     let (_, element, offset_element) = unvec!(block.elements, 3);
-                    let offset = offset_element.into_term()?.into_int()?;
+                    let offset = offset_element.into_term()?.into_int()? as usize;
                     let typ = self.element_addr(element, IrType::unknown())?;
-                    self.writer.push(QVMInstruction::I32Const(offset));
+                    self.writer.push(QVMInstruction::I32Const(offset as i32));
                     self.writer.push(QVMInstruction::PAdd);
-                    Ok(IrType::addr_of(typ))
+                    Ok(IrType::addr_of(typ.offset(offset - 1)?))
                 }
                 "index" => {
                     self.new_source_map(element.show_compact());
@@ -653,7 +653,9 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.writer
                             .push(QVMInstruction::Load(size.into_term()?.into_int()? as usize));
 
-                        Ok(expected_type.unify(typ.offset(offset)?)?)
+                        // FIXME: Currently, offset positioning starts from 1
+                        Ok(expected_type
+                            .unify(IrType::addr_of(typ.as_addr().unwrap().offset(offset - 1)?))?)
                     }
                     "index" => {
                         self.new_source_map(element.show_compact());
