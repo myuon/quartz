@@ -314,7 +314,6 @@ impl IrType {
                     "nil" => IrType::nil(),
                     "bool" => IrType::bool(),
                     "int" => IrType::int(),
-                    "address" => IrType::addr(),
                     _ => unreachable!("{:?}", t),
                 },
                 _ => unreachable!(),
@@ -331,6 +330,13 @@ impl IrType {
                     block.elements[0].clone().into_term()?.into_int()? as usize,
                     Box::new(IrType::from_element(&block.elements[1])?),
                 ),
+                "address" => {
+                    if block.elements.len() == 0 {
+                        IrType::addr()
+                    } else {
+                        IrType::addr_of(Box::new(IrType::from_element(&block.elements[0])?))
+                    }
+                }
                 t => unreachable!("{:?}", t),
             },
         })
@@ -369,7 +375,7 @@ impl IrType {
 
     pub fn to_element(&self) -> IrElement {
         match self {
-            IrType::Unknown => todo!(),
+            IrType::Unknown => IrElement::ident("unknown"),
             IrType::Single(s) => s.to_element(),
             IrType::Tuple(ts) => {
                 let mut elements = vec![];
@@ -417,7 +423,11 @@ impl IrType {
             (s, IrType::Unknown) => Ok(s),
             (s, t) if s == t => Ok(s),
             (s, t) => {
-                bail!("Type want {:?} but got {:?}", s, t)
+                bail!(
+                    "Type want {} but got {}",
+                    s.to_element().show_compact(),
+                    t.to_element().show_compact()
+                )
             }
         }
     }

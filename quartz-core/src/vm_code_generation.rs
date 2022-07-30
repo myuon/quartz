@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use log::info;
 
 use crate::{
@@ -329,7 +329,9 @@ impl<'s> VmFunctionGenerator<'s> {
                         let typ_want = IrType::from_element(&typ)?;
 
                         let typ_got = self.element(expr)?;
-                        let result_type = typ_want.unify(typ_got)?;
+                        let result_type = typ_want
+                            .unify(typ_got)
+                            .context(format!("{}", element.show()))?;
 
                         self.push_local(var_name, result_type);
                         Ok(IrType::nil())
@@ -352,9 +354,12 @@ impl<'s> VmFunctionGenerator<'s> {
                         }
                         let callee_typ = self.element(callee)?;
 
-                        let typ_unified = callee_typ.unify(IrType::addr_of(Box::new(
-                            IrType::func(arg_types_got, Box::new(IrType::unknown())),
-                        )))?;
+                        let typ_unified = callee_typ
+                            .unify(IrType::addr_of(Box::new(IrType::func(
+                                arg_types_got,
+                                Box::new(IrType::unknown()),
+                            ))))
+                            .context(format!("{}", element.show()))?;
 
                         // If the last instruction is not LabelAddrConst, it will be a builtin operation and no need to run CALL operation
                         if matches!(self.code.last().unwrap(), QVMInstruction::LabelI32Const(_)) {
