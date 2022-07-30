@@ -211,10 +211,14 @@ impl IrElement {
         IrElement::Term(IrTerm::Int(num))
     }
 
-    pub fn i_let(typ: IrElement, ident: String, element: IrElement) -> IrElement {
+    pub fn i_let(typ: IrType, ident: String, element: IrElement) -> IrElement {
         IrElement::block(
             "let",
-            vec![typ, IrElement::Term(IrTerm::Ident(ident, 1)), element],
+            vec![
+                typ.to_element(),
+                IrElement::Term(IrTerm::Ident(ident, 1)),
+                element,
+            ],
         )
     }
 
@@ -303,7 +307,8 @@ impl IrSingleType {
 pub enum IrType {
     Unknown,
     Single(IrSingleType),
-    Tuple(usize, Vec<IrType>),
+    Tuple(Vec<IrType>),
+    Slice(usize, Box<IrType>),
 }
 
 impl IrType {
@@ -331,8 +336,12 @@ impl IrType {
         IrType::Single(IrSingleType::Fn(args, ret))
     }
 
-    pub fn tuple(size: usize, args: Vec<IrType>) -> IrType {
-        IrType::Tuple(size, args)
+    pub fn tuple(args: Vec<IrType>) -> IrType {
+        IrType::Tuple(args)
+    }
+
+    pub fn array(size: usize, typ: Box<IrType>) -> IrType {
+        IrType::Slice(size, typ)
     }
 
     pub fn from_element(element: &IrElement) -> Result<IrType> {
@@ -350,15 +359,45 @@ impl IrType {
             IrElement::Block(block) => match block.name.as_str() {
                 "tuple" => {
                     let mut types = Vec::new();
-                    let size = block.elements[0].clone().into_term()?.into_int()? as usize;
 
                     for element in block.elements.iter().skip(1) {
                         types.push(IrType::from_element(element)?);
                     }
-                    IrType::tuple(size, types)
+                    IrType::tuple(types)
                 }
                 _ => unreachable!(),
             },
+        })
+    }
+
+    pub fn from_type_ast(typ: &Type, structs: &Structs) -> Result<IrType> {
+        Ok(match typ {
+            Type::Nil => IrType::nil(),
+            Type::Bool => IrType::bool(),
+            Type::Int => IrType::int(),
+            Type::Byte => todo!(),
+            Type::Fn(_, _) => todo!(),
+            Type::Method(_, _, _) => todo!(),
+            Type::Struct(t) => {
+                let fields = structs.0.get(t).ok_or(anyhow::anyhow!(
+                    "struct {} not found, {:?}",
+                    t,
+                    structs
+                ))?;
+                let mut types = Vec::new();
+                for (_label, typ) in fields {
+                    types.push(IrType::from_type_ast(typ, structs)?);
+                }
+                IrType::tuple(types)
+            }
+            Type::Ref(_) => todo!(),
+            Type::Array(_) => IrType::tuple(vec![IrType::int(), IrType::addr()]),
+            Type::SizedArray(t, u) => {
+                IrType::array(*u, Box::new(IrType::from_type_ast(t.as_ref(), structs)?))
+            }
+            Type::Optional(_) => todo!(),
+            Type::Self_ => todo!(),
+            _ => unreachable!(),
         })
     }
 
@@ -366,14 +405,19 @@ impl IrType {
         match self {
             IrType::Unknown => todo!(),
             IrType::Single(s) => s.to_element(),
-            IrType::Tuple(u, ts) => {
+            IrType::Tuple(ts) => {
                 let mut elements = vec![];
-                elements.push(IrElement::int(*u as i32));
                 for t in ts {
                     elements.push(t.to_element());
                 }
 
                 IrElement::block("tuple", elements)
+            }
+            IrType::Slice(u, t) => {
+                let mut elements = vec![];
+                elements.push(IrElement::int(*u as i32));
+                elements.push(t.to_element());
+                IrElement::block("slice", elements)
             }
         }
     }
@@ -382,7 +426,8 @@ impl IrType {
         match self {
             IrType::Unknown => todo!(),
             IrType::Single(_) => 1,
-            IrType::Tuple(_t, vs) => vs.into_iter().map(|v| v.size_of()).sum(),
+            IrType::Tuple(vs) => vs.into_iter().map(|v| v.size_of()).sum(),
+            IrType::Slice(_, _) => todo!(),
         }
     }
 }

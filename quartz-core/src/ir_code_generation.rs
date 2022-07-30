@@ -8,7 +8,7 @@ use crate::{
         Structs, Type,
     },
     compiler::specify_source_in_input,
-    ir::{IrBlock, IrElement, IrTerm},
+    ir::{IrBlock, IrElement, IrTerm, IrType},
 };
 
 #[derive(Debug)]
@@ -36,6 +36,10 @@ impl<'s> IrFunctionGenerator<'s> {
             structs,
             strings,
         }
+    }
+
+    pub fn ir_type(&self, typ: &Type) -> Result<IrType> {
+        IrType::from_type_ast(typ, self.structs)
     }
 
     pub fn var_fresh(&mut self) -> String {
@@ -133,7 +137,7 @@ impl<'s> IrFunctionGenerator<'s> {
                     //      (assign (offset $v 1) 2)
                     //      $v
                     self.ir.push(IrElement::i_let(
-                        IrElement::ir_type(t, self.structs)?,
+                        self.ir_type(t)?,
                         v.clone(),
                         IrElement::i_call("_new", vec![IrElement::int(n)]),
                     ));
@@ -224,7 +228,7 @@ impl<'s> IrFunctionGenerator<'s> {
                 let v = self.var_fresh();
                 let size = size_of(t, self.structs);
                 self.ir.push(IrElement::i_let(
-                    IrElement::ir_type(&Type::Ref(Box::new(t.clone())), self.structs)?,
+                    self.ir_type(&Type::Ref(Box::new(t.clone())))?,
                     v.clone(),
                     IrElement::i_call("_new", vec![IrElement::int(size as i32)]),
                 ));
@@ -256,11 +260,8 @@ impl<'s> IrFunctionGenerator<'s> {
                     Expr::Lit(_, _) | Expr::Struct(_, _) | Expr::Call(_, _, _) => {
                         let v = self.var_fresh();
                         let value = self.expr(e)?;
-                        self.ir.push(IrElement::i_let(
-                            IrElement::ir_type(t, self.structs)?,
-                            v.clone(),
-                            value,
-                        ));
+                        self.ir
+                            .push(IrElement::i_let(self.ir_type(t)?, v.clone(), value));
 
                         IrElement::ident(v)
                     }
@@ -286,11 +287,8 @@ impl<'s> IrFunctionGenerator<'s> {
         match statement {
             Statement::Let(x, e, t) => {
                 let v = self.expr(e)?;
-                self.ir.push(IrElement::i_let(
-                    IrElement::ir_type(t, self.structs)?,
-                    x.to_string(),
-                    v,
-                ));
+                self.ir
+                    .push(IrElement::i_let(self.ir_type(t)?, x.to_string(), v));
             }
             Statement::Expr(e, t) => {
                 let v = self.expr(e)?;
@@ -646,7 +644,7 @@ func main() {
                 r#"
 (module
     (func $f (args $int) (return $int)
-        (let (sizedarray $int 4) $x (data 4 3 3 3 3))
+        (let (slice 4 $int) $x (data 4 3 3 3 3))
         (assign 1 (offset 1 $x(4) 0) 1)
         (assign 1 (offset 1 $x(4) 1) 2)
         (assign 1 (offset 1 $x(4) 2) 3)
@@ -695,7 +693,7 @@ func main() {
         ))
     )
     (func $main (args) (return $int)
-        (let (struct 3) $p (data 3 10 20))
+        (let (tuple $int $int) $p (data 3 10 20))
         (return 1 (call $Point_sum (address $p(3))))
     )
 )
@@ -753,8 +751,8 @@ func main() {
 (module
     (text 3 102 111 111)
     (func $main (args) (return $nil)
-        (let (struct 1) $s (data 2 (string 0)))
-        (return 1 (call $_println $s))
+        (let (tuple (tuple $int $address)) $s (data 2 (string 0)))
+        (return 1 (call $_println $s(2)))
     )
 )
 "#,
@@ -763,7 +761,13 @@ func main() {
 
         for (code, ir_code) in cases {
             let mut compiler = Compiler::new();
-            let generated = compiler.compile_ir_nostd(code, "main".to_string()).unwrap();
+            let generated = compiler
+                .compile_ir_nostd(
+                    // FIXME: define string for now
+                    &format!("struct string {{ data: bytes }}\n{}", code),
+                    "main".to_string(),
+                )
+                .unwrap();
             info!("{}", generated.show());
 
             let element = parse_ir(ir_code).unwrap();

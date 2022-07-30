@@ -494,7 +494,7 @@ impl<'s> VmFunctionGenerator<'s> {
                             }
                         }
 
-                        Ok(IrType::tuple(size, vec![]))
+                        Ok(IrType::tuple(vec![]))
                     }
                     // FIXME: integrate with _copy and load and _deref?
                     "copy" => {
