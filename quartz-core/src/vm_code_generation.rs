@@ -716,16 +716,19 @@ impl VmGenerator {
                     }
                 }
                 "func" => {
-                    let type_block = block.elements[1].clone().into_block()?;
-                    assert_eq!(type_block.name, "args");
+                    let args_block = block.elements[1].clone().into_block()?;
+                    assert_eq!(args_block.name, "args");
+                    let return_block = block.elements[2].clone().into_block()?;
+                    assert_eq!(return_block.name, "return");
 
                     functions.push((
                         block.elements[0].clone().into_term()?.into_ident()?, // name
-                        type_block
+                        args_block
                             .elements
                             .into_iter()
                             .map(|b| IrType::from_element(&b))
                             .collect::<Result<_, _>>()?, // arg types
+                        IrType::from_element(&return_block.elements[0])?,
                         block.elements,
                     ));
                 }
@@ -756,7 +759,7 @@ impl VmGenerator {
         labels.insert(self.entrypoint.to_string(), code.len());
         code.extend(self.call_main(&mut labels, code.len(), &string_pointers)?);
 
-        for (name, args, function) in functions {
+        for (name, args, _ret, function) in functions {
             labels.insert(name, code.len());
 
             let (code_generated, source_map_generated) =

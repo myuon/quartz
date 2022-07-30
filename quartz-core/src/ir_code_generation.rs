@@ -454,6 +454,10 @@ impl<'s> IrGenerator<'s> {
             "args",
             arg_types_in_ir.into_iter().rev().collect(),
         ));
+        elements.push(IrElement::block(
+            "return",
+            vec![IrElement::ir_type(&function.return_type, &self.structs)?],
+        ));
 
         let mut generator =
             IrFunctionGenerator::new(self.source_code, &args, &self.structs, &mut self.strings);
@@ -490,6 +494,10 @@ impl<'s> IrGenerator<'s> {
         elements.push(IrElement::block(
             "args",
             arg_types_in_ir.into_iter().rev().collect(),
+        ));
+        elements.push(IrElement::block(
+            "return",
+            vec![IrElement::ir_type(&function.return_type, &self.structs)?],
         ));
 
         let mut generator =
@@ -611,7 +619,7 @@ func main() {
 "#,
                 r#"
 (module
-    (func $main (args)
+    (func $main (args) (return $int)
         (let $int $x 10)
         (assign 1 $x 20)
         (return 1 $x)
@@ -637,7 +645,7 @@ func main() {
 "#,
                 r#"
 (module
-    (func $f (args $int)
+    (func $f (args $int) (return $int)
         (let (sizedarray $int 4) $x (data 4 3 3 3 3))
         (assign 1 (offset 1 $x(4) 0) 1)
         (assign 1 (offset 1 $x(4) 1) 2)
@@ -654,7 +662,7 @@ func main() {
             )
         )
     )
-    (func $main (args)
+    (func $main (args) (return $int)
         (return 1 (call $f 10))
     )
 )
@@ -679,14 +687,14 @@ func main() {
 "#,
                 r#"
 (module
-    (func $Point_sum (args $ref)
+    (func $Point_sum (args $ref) (return $int)
         (return 1 (call
             $_add
-            (offset 1 (deref 1 $0) 1)
-            (offset 1 (deref 1 $0) 2)
+            (offset 1 $0 1)
+            (offset 1 $0 2)
         ))
     )
-    (func $main (args)
+    (func $main (args) (return $int)
         (let (struct 3) $p (data 3 10 20))
         (return 1 (call $Point_sum (address $p(3))))
     )
@@ -706,7 +714,7 @@ func main() {
 "#,
                 r#"
 (module
-    (func $main (args)
+    (func $main (args) (return $nil)
         (return 1 nil)
     )
 )
@@ -725,9 +733,9 @@ func main() {
 "#,
                 r#"
 (module
-    (func $f (args $int $bool)
+    (func $f (args $int $bool) (return $int)
         (return 1 $1))
-    (func $main (args)
+    (func $main (args) (return $int)
         (return 1 (call $f 0 true))
     )
 )
@@ -744,7 +752,7 @@ func main() {
                 r#"
 (module
     (text 3 102 111 111)
-    (func $main (args)
+    (func $main (args) (return $nil)
         (let (struct 1) $s (data 2 (string 0)))
         (return 1 (call $_println $s))
     )

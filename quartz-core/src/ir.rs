@@ -343,7 +343,7 @@ impl IrType {
                     "bool" => IrType::bool(),
                     "int" => IrType::int(),
                     "address" => IrType::addr(),
-                    _ => unreachable!(),
+                    _ => unreachable!("{:?}", t),
                 },
                 _ => unreachable!(),
             },
