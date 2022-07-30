@@ -162,62 +162,59 @@ impl<'s> VmFunctionGenerator<'s> {
         match v {
             "_add" => (
                 QVMInstruction::Add,
-                IrType::func(vec![IrType::int(), IrType::int()], Box::new(IrType::int())),
+                IrType::func(vec![IrType::int(), IrType::int()], IrType::int()),
             ),
             "_sub" => (
                 QVMInstruction::Sub,
-                IrType::func(vec![IrType::int(), IrType::int()], Box::new(IrType::int())),
+                IrType::func(vec![IrType::int(), IrType::int()], IrType::int()),
             ),
             "_mult" => (
                 QVMInstruction::Mult,
-                IrType::func(vec![IrType::int(), IrType::int()], Box::new(IrType::int())),
+                IrType::func(vec![IrType::int(), IrType::int()], IrType::int()),
             ),
             "_eq" => (
                 QVMInstruction::Eq,
-                IrType::func(vec![IrType::int(), IrType::int()], Box::new(IrType::bool())),
+                IrType::func(vec![IrType::int(), IrType::int()], IrType::bool()),
             ),
             "_neq" => (
                 QVMInstruction::Neq,
-                IrType::func(vec![IrType::int(), IrType::int()], Box::new(IrType::bool())),
+                IrType::func(vec![IrType::int(), IrType::int()], IrType::bool()),
             ),
             "_new" => (QVMInstruction::Alloc, todo!()),
             "_padd" => (
                 QVMInstruction::PAdd,
-                IrType::func(vec![IrType::addr(), IrType::int()], Box::new(IrType::int())),
+                IrType::func(
+                    vec![IrType::addr_of(IrType::unknown()), IrType::int()],
+                    IrType::int(),
+                ),
             ),
             "_lt" => (
                 QVMInstruction::Lt,
-                IrType::func(vec![IrType::int(), IrType::int()], Box::new(IrType::bool())),
+                IrType::func(vec![IrType::int(), IrType::int()], IrType::bool()),
             ),
             "_gt" => (
                 QVMInstruction::Gt,
-                IrType::func(vec![IrType::int(), IrType::int()], Box::new(IrType::bool())),
+                IrType::func(vec![IrType::int(), IrType::int()], IrType::bool()),
             ),
             "_div" => (
                 QVMInstruction::Div,
-                IrType::func(vec![IrType::int(), IrType::int()], Box::new(IrType::int())),
+                IrType::func(vec![IrType::int(), IrType::int()], IrType::int()),
             ),
             "_mod" => (
                 QVMInstruction::Mod,
-                IrType::func(vec![IrType::int(), IrType::int()], Box::new(IrType::int())),
+                IrType::func(vec![IrType::int(), IrType::int()], IrType::int()),
             ),
             "_not" => (
                 QVMInstruction::Not,
-                IrType::func(vec![IrType::bool()], Box::new(IrType::bool())),
+                IrType::func(vec![IrType::bool()], IrType::bool()),
             ),
             "_or" => (
                 QVMInstruction::Or,
-                IrType::func(
-                    vec![IrType::bool(), IrType::bool()],
-                    Box::new(IrType::bool()),
-                ),
+                IrType::func(vec![IrType::bool(), IrType::bool()], IrType::bool()),
             ),
             "_and" => (
                 QVMInstruction::And,
-                IrType::func(
-                    vec![IrType::bool(), IrType::bool()],
-                    Box::new(IrType::bool()),
-                ),
+                IrType::func(vec![IrType::bool(), IrType::bool()], IrType::bool()),
             ),
             "_gc" => (
                 QVMInstruction::RuntimeInstr("_gc".to_string()),
@@ -229,17 +226,20 @@ impl<'s> VmFunctionGenerator<'s> {
             ),
             "_len" => (
                 QVMInstruction::RuntimeInstr("_len".to_string()),
-                IrType::func(vec![IrType::addr()], Box::new(IrType::int())),
+                IrType::func(vec![IrType::addr_of(IrType::unknown())], IrType::int()),
             ),
             "_println" => (
                 QVMInstruction::RuntimeInstr("_println".to_string()),
-                IrType::func(vec![IrType::int()], Box::new(IrType::nil())),
+                IrType::func(vec![IrType::int()], IrType::nil()),
             ),
             "_copy" => (
                 QVMInstruction::RuntimeInstr("_copy".to_string()),
                 IrType::func(
-                    vec![IrType::addr(), IrType::addr()],
-                    Box::new(IrType::nil()),
+                    vec![
+                        IrType::addr_of(IrType::unknown()),
+                        IrType::addr_of(IrType::unknown()),
+                    ],
+                    IrType::nil(),
                 ),
             ),
             "_debug" => (
@@ -273,48 +273,45 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.writer
                             .push(QVMInstruction::AddrConst(*u, Variable::Local));
 
-                        Ok(IrType::addr_of(Box::new(t.clone())))
+                        Ok(IrType::addr_of(t.clone()))
                     } else if let Some((u, t)) = self.globals.get(&v) {
                         self.writer
                             .push(QVMInstruction::AddrConst(*u, Variable::Global));
 
-                        Ok(IrType::addr_of(Box::new(t.clone())))
+                        Ok(IrType::addr_of(t.clone()))
                     } else {
                         let (code, typ) = self.resolve_symbol(v.as_str());
                         self.writer.push(code);
 
-                        Ok(IrType::addr_of(Box::new(typ)))
+                        Ok(IrType::addr_of(typ))
                     }
                 }
                 IrTerm::Argument(v, _) => {
                     let (position, t) = self.args.arg_position(v)?;
                     self.writer.push(QVMInstruction::ArgConst(position));
 
-                    Ok(IrType::addr_of(Box::new(t.clone())))
+                    Ok(IrType::addr_of(t.clone()))
                 }
                 _ => unreachable!("{}", element.show()),
             },
             IrElement::Block(mut block) => match block.name.as_str() {
-                "call" => {
-                    self.element(element, IrType::unknown())?;
-                    Ok(IrType::addr())
-                }
+                "call" => Ok(IrType::addr_of(self.element(element, IrType::unknown())?)),
                 // FIXME: is this true?
                 "deref" => {
                     self.new_source_map(element.show_compact());
 
                     let (_, element) = unvec!(block.elements, 2);
-                    self.element(element, IrType::unknown())?;
-                    Ok(IrType::addr())
+                    let typ = self.element(element, IrType::unknown())?;
+                    Ok(typ.as_addr().unwrap().as_ref().clone())
                 }
                 "offset" => {
                     self.new_source_map(element.show_compact());
 
                     let (_, element, offset) = unvec!(block.elements, 3);
-                    self.element_addr(element, IrType::unknown())?;
+                    let typ = self.element_addr(element, IrType::unknown())?;
                     self.element(offset, IrType::int())?;
                     self.writer.push(QVMInstruction::PAdd);
-                    Ok(IrType::addr())
+                    Ok(IrType::addr_of(typ))
                 }
                 _ => unreachable!("{}", element.show()),
             },
@@ -395,8 +392,9 @@ impl<'s> VmFunctionGenerator<'s> {
                         let mut arg_types_got = vec![];
                         let callee = block.elements[0].clone();
 
-                        let callee_typ = self.element_addr(callee, IrType::addr())?;
-                        let (arg_types, ret_type) = callee_typ.as_func().unwrap();
+                        let callee_typ = self.element_addr(callee, IrType::addr_unknown())?;
+                        let (arg_types, ret_type) =
+                            callee_typ.as_addr().unwrap().as_func().unwrap();
 
                         for (i, elem) in block.elements.into_iter().skip(1).enumerate() {
                             arg_types_got.push(self.element(elem, arg_types[i].clone())?);
@@ -415,11 +413,10 @@ impl<'s> VmFunctionGenerator<'s> {
                     "assign" => {
                         self.new_source_map(element.show_compact());
                         let (size, lhs, rhs) = unvec!(block.elements, 3);
-                        let typ = self.element_addr(lhs, IrType::addr())?;
+                        let typ = self.element_addr(lhs, IrType::addr_unknown())?;
                         self.element(
                             rhs,
                             typ.as_addr()
-                                .unwrap()
                                 .map(|t| t.as_ref().clone())
                                 .unwrap_or(IrType::unknown()),
                         )?;
@@ -584,7 +581,7 @@ impl<'s> VmFunctionGenerator<'s> {
                     "unload" => {
                         self.new_source_map(element.show_compact());
                         let element = unvec!(block.elements, 1);
-                        self.element(element.clone(), IrType::addr())?;
+                        self.element(element.clone(), IrType::addr_unknown())?;
                         let code = self.writer.pop();
                         assert!(
                             matches!(code, Some(QVMInstruction::Load(_))),
@@ -604,20 +601,17 @@ impl<'s> VmFunctionGenerator<'s> {
                             Variable::StackAbsolute,
                         ));
 
-                        Ok(IrType::addr_of(Box::new(IrType::tuple(vec![
-                            IrType::addr(),
-                        ]))))
+                        Ok(IrType::addr_of(IrType::tuple(vec![IrType::addr_unknown()])))
                     }
                     "deref" => {
                         self.new_source_map(element.show_compact());
                         let (size, element) = unvec!(block.elements, 2);
-                        let typ = self.element(element, IrType::addr())?;
+                        let typ = self.element(element, IrType::addr_unknown())?;
                         self.writer
                             .push(QVMInstruction::Load(size.into_term()?.into_int()? as usize));
 
                         Ok(typ
                             .as_addr()
-                            .unwrap()
                             .map(|t| t.as_ref().clone())
                             .unwrap_or(IrType::unknown()))
                     }
@@ -640,14 +634,14 @@ impl<'s> VmFunctionGenerator<'s> {
                     "address" => {
                         self.new_source_map(element.show_compact());
                         let element = unvec!(block.elements, 1);
-                        let typ = self.element_addr(element, IrType::addr())?;
+                        let typ = self.element_addr(element, IrType::addr_unknown())?;
 
-                        Ok(IrType::addr_of(Box::new(typ)))
+                        Ok(IrType::addr_of(typ))
                     }
                     "offset" => {
                         self.new_source_map(element.show_compact());
                         let (size, element, offset) = unvec!(block.elements, 3);
-                        self.element_addr(element, IrType::addr())?;
+                        self.element_addr(element, IrType::addr_unknown())?;
                         self.element(offset, IrType::int())?;
                         self.writer.push(QVMInstruction::PAdd);
                         self.writer
@@ -854,7 +848,7 @@ impl VmGenerator {
                                 .into_iter()
                                 .map(|b| IrType::from_element(&b))
                                 .collect::<Result<_, _>>()?,
-                            Box::new(IrType::from_element(&return_block.elements[0])?),
+                            IrType::from_element(&return_block.elements[0])?,
                         ),
                     );
                     functions.push((

@@ -245,7 +245,7 @@ pub enum IrSingleType {
     Nil,
     Bool,
     Int,
-    Address(Option<Box<IrType>>),
+    Address(Box<IrType>),
     Fn(Vec<IrType>, Box<IrType>),
 }
 
@@ -255,9 +255,7 @@ impl IrSingleType {
             IrSingleType::Nil => IrElement::ident("nil"),
             IrSingleType::Bool => IrElement::ident("bool"),
             IrSingleType::Int => IrElement::ident("int"),
-            IrSingleType::Address(t) => {
-                IrElement::block("address", t.iter().map(|t| t.to_element()).collect())
-            }
+            IrSingleType::Address(t) => IrElement::block("address", vec![t.to_element()]),
             IrSingleType::Fn(args, ret) => IrElement::block(
                 "fn",
                 vec![
@@ -273,13 +271,10 @@ impl IrSingleType {
             (IrSingleType::Nil, IrSingleType::Nil) => Ok(IrSingleType::Nil),
             (IrSingleType::Bool, IrSingleType::Bool) => Ok(IrSingleType::Bool),
             (IrSingleType::Int, IrSingleType::Int) => Ok(IrSingleType::Int),
-            (IrSingleType::Address(None), IrSingleType::Address(None)) => {
-                Ok(IrSingleType::Address(None))
-            }
-            (IrSingleType::Address(Some(t)), IrSingleType::Address(Some(u))) => {
+            (IrSingleType::Address(t), IrSingleType::Address(u)) => {
                 let unified = t.unify(u.as_ref().clone())?;
 
-                Ok(IrSingleType::Address(Some(Box::new(unified))))
+                Ok(IrSingleType::Address(Box::new(unified)))
             }
             (IrSingleType::Fn(args1, ret1), IrSingleType::Fn(args2, ret2)) => {
                 if args1.len() != args2.len() {
@@ -337,16 +332,16 @@ impl IrType {
         IrType::Single(IrSingleType::Int)
     }
 
-    pub fn addr() -> IrType {
-        IrType::Single(IrSingleType::Address(None))
+    pub fn addr_of(t: IrType) -> IrType {
+        IrType::Single(IrSingleType::Address(Box::new(t)))
     }
 
-    pub fn addr_of(t: Box<IrType>) -> IrType {
-        IrType::Single(IrSingleType::Address(Some(t)))
+    pub fn addr_unknown() -> IrType {
+        IrType::Single(IrSingleType::Address(Box::new(IrType::unknown())))
     }
 
-    pub fn func(args: Vec<IrType>, ret: Box<IrType>) -> IrType {
-        IrType::Single(IrSingleType::Fn(args, ret))
+    pub fn func(args: Vec<IrType>, ret: IrType) -> IrType {
+        IrType::Single(IrSingleType::Fn(args, Box::new(ret)))
     }
 
     pub fn tuple(args: Vec<IrType>) -> IrType {
@@ -380,13 +375,7 @@ impl IrType {
                     block.elements[0].clone().into_term()?.into_int()? as usize,
                     Box::new(IrType::from_element(&block.elements[1])?),
                 ),
-                "address" => {
-                    if block.elements.len() == 0 {
-                        IrType::addr()
-                    } else {
-                        IrType::addr_of(Box::new(IrType::from_element(&block.elements[0])?))
-                    }
-                }
+                "address" => IrType::addr_of(IrType::from_element(&block.elements[0])?),
                 t => unreachable!("{:?}", t),
             },
         })
@@ -412,8 +401,11 @@ impl IrType {
                 }
                 IrType::tuple(types)
             }
-            Type::Ref(t) => IrType::addr_of(Box::new(IrType::from_type_ast(t, structs)?)),
-            Type::Array(_) => IrType::tuple(vec![IrType::int(), IrType::addr()]),
+            Type::Ref(t) => IrType::addr_of(IrType::from_type_ast(t, structs)?),
+            Type::Array(t) => IrType::tuple(vec![
+                IrType::int(),
+                IrType::addr_of(IrType::from_type_ast(t, structs)?),
+            ]),
             Type::SizedArray(t, u) => {
                 IrType::array(*u, Box::new(IrType::from_type_ast(t.as_ref(), structs)?))
             }
@@ -453,7 +445,7 @@ impl IrType {
         }
     }
 
-    pub fn as_addr(&self) -> Option<Option<Box<IrType>>> {
+    pub fn as_addr(&self) -> Option<Box<IrType>> {
         match self {
             IrType::Single(IrSingleType::Address(t)) => Some(t.clone()),
             _ => None,
