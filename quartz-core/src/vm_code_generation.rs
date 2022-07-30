@@ -629,13 +629,7 @@ impl VmGenerator {
         let mut generator =
             VmFunctionGenerator::new(args, &self.globals, labels, offset, string_pointers);
 
-        let mut skip = 2;
         for statement in body {
-            if skip > 0 {
-                skip -= 1;
-                continue;
-            }
-
             generator.element(statement)?;
         }
 
@@ -729,7 +723,7 @@ impl VmGenerator {
                             .map(|b| IrType::from_element(&b))
                             .collect::<Result<_, _>>()?, // arg types
                         IrType::from_element(&return_block.elements[0])?,
-                        block.elements,
+                        block.elements.into_iter().skip(3).collect::<Vec<_>>(), // body
                     ));
                 }
                 "var" => {
@@ -759,11 +753,11 @@ impl VmGenerator {
         labels.insert(self.entrypoint.to_string(), code.len());
         code.extend(self.call_main(&mut labels, code.len(), &string_pointers)?);
 
-        for (name, args, _ret, function) in functions {
+        for (name, args, _ret, body) in functions {
             labels.insert(name, code.len());
 
             let (code_generated, source_map_generated) =
-                self.function(function, args, &mut labels, code.len(), &string_pointers)?;
+                self.function(body, args, &mut labels, code.len(), &string_pointers)?;
             code.extend(code_generated);
             source_map.extend(source_map_generated);
         }

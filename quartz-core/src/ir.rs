@@ -300,7 +300,7 @@ pub enum IrSingleType {
     Nil,
     Bool,
     Int,
-    Address,
+    Address(Option<Box<IrType>>),
     Fn(Vec<IrType>, Box<IrType>),
 }
 
@@ -310,7 +310,9 @@ impl IrSingleType {
             IrSingleType::Nil => IrElement::ident("nil"),
             IrSingleType::Bool => IrElement::ident("bool"),
             IrSingleType::Int => IrElement::ident("int"),
-            IrSingleType::Address => IrElement::ident("address"),
+            IrSingleType::Address(t) => {
+                IrElement::block("address", t.iter().map(|t| t.to_element()).collect())
+            }
             IrSingleType::Fn(args, ret) => IrElement::block(
                 "fn",
                 vec![
@@ -348,7 +350,11 @@ impl IrType {
     }
 
     pub fn addr() -> IrType {
-        IrType::Single(IrSingleType::Address)
+        IrType::Single(IrSingleType::Address(None))
+    }
+
+    pub fn addr_of(t: Box<IrType>) -> IrType {
+        IrType::Single(IrSingleType::Address(Some(t)))
     }
 
     pub fn func(args: Vec<IrType>, ret: Box<IrType>) -> IrType {
@@ -378,12 +384,15 @@ impl IrType {
             IrElement::Block(block) => match block.name.as_str() {
                 "tuple" => {
                     let mut types = Vec::new();
-
-                    for element in block.elements.iter().skip(1) {
+                    for element in block.elements.iter() {
                         types.push(IrType::from_element(element)?);
                     }
                     IrType::tuple(types)
                 }
+                "slice" => IrType::array(
+                    block.elements[0].clone().into_term()?.into_int()? as usize,
+                    Box::new(IrType::from_element(&block.elements[1])?),
+                ),
                 _ => unreachable!(),
             },
         })
@@ -409,7 +418,7 @@ impl IrType {
                 }
                 IrType::tuple(types)
             }
-            Type::Ref(_) => todo!(),
+            Type::Ref(t) => IrType::addr_of(Box::new(IrType::from_type_ast(t, structs)?)),
             Type::Array(_) => IrType::tuple(vec![IrType::int(), IrType::addr()]),
             Type::SizedArray(t, u) => {
                 IrType::array(*u, Box::new(IrType::from_type_ast(t.as_ref(), structs)?))
