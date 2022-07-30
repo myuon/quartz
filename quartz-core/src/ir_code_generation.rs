@@ -436,7 +436,6 @@ impl<'s> IrGenerator<'s> {
     }
 
     pub fn function(&mut self, function: &Function) -> Result<IrElement> {
-        let mut elements = vec![IrElement::Term(IrTerm::Ident(function.name.clone(), 1))];
         let mut args = HashMap::new();
         let mut arg_index = 0;
         let mut arg_types_in_ir = vec![];
@@ -445,36 +444,23 @@ impl<'s> IrGenerator<'s> {
         for (name, typ) in function.args.iter().rev() {
             arg_index += 1; // self.stack_size_of(typ)?;
             args.insert(name.clone(), arg_index - 1);
-            arg_types_in_ir.push(IrElement::ir_type(typ, &self.structs)?);
+            arg_types_in_ir.push(IrType::from_type_ast(typ, &self.structs)?);
         }
-
-        elements.push(IrElement::block(
-            "args",
-            arg_types_in_ir.into_iter().rev().collect(),
-        ));
-        elements.push(IrElement::block(
-            "return",
-            vec![IrElement::ir_type(&function.return_type, &self.structs)?],
-        ));
 
         let mut generator =
             IrFunctionGenerator::new(self.source_code, &args, &self.structs, &mut self.strings);
 
         generator.function(&function.body)?;
 
-        elements.extend(generator.ir);
-
-        Ok(IrElement::Block(IrBlock {
-            name: "func".to_string(),
-            elements,
-        }))
+        Ok(IrElement::d_func(
+            &function.name,
+            arg_types_in_ir,
+            Box::new(IrType::from_type_ast(&function.return_type, &self.structs)?),
+            generator.ir,
+        ))
     }
 
     pub fn method(&mut self, typ: &Type, function: &Function) -> Result<IrElement> {
-        let mut elements = vec![IrElement::Term(IrTerm::Ident(
-            format!("{}_{}", typ.method_selector_name()?, function.name),
-            1,
-        ))];
         let mut args = HashMap::new();
         let mut arg_index = 0;
         let mut arg_types_in_ir = vec![];
@@ -484,32 +470,23 @@ impl<'s> IrGenerator<'s> {
             arg_index += 1; // self.stack_size_of(typ)?;
             args.insert(name.clone(), arg_index - 1);
             arg_types_in_ir.push(
-                IrElement::ir_type(typ, &self.structs)
+                IrType::from_type_ast(typ, &self.structs)
                     .context(format!("at method: {:?}::{}", typ, function.name))?,
             );
         }
-
-        elements.push(IrElement::block(
-            "args",
-            arg_types_in_ir.into_iter().rev().collect(),
-        ));
-        elements.push(IrElement::block(
-            "return",
-            vec![IrElement::ir_type(&function.return_type, &self.structs)?],
-        ));
 
         let mut generator =
             IrFunctionGenerator::new(self.source_code, &args, &self.structs, &mut self.strings);
 
         generator.function(&function.body)?;
 
-        elements.extend(generator.ir);
-
         // FIXME: method block for ITable
-        Ok(IrElement::Block(IrBlock {
-            name: "func".to_string(),
-            elements,
-        }))
+        Ok(IrElement::d_func(
+            format!("{}_{}", typ.method_selector_name()?, function.name),
+            arg_types_in_ir,
+            Box::new(IrType::from_type_ast(&function.return_type, &self.structs)?),
+            generator.ir,
+        ))
     }
 
     pub fn variable(

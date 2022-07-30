@@ -483,18 +483,18 @@ impl<'s> VmFunctionGenerator<'s> {
                     "data" => {
                         self.new_source_map(IrElement::block("data", vec![]).show_compact());
 
-                        let mut size = 0;
+                        let mut types = vec![];
                         for (i, elem) in block.elements.into_iter().enumerate() {
                             if i == 0 {
-                                size = elem.into_term()?.into_int()? as usize;
+                                let size = elem.into_term()?.into_int()? as usize;
 
                                 self.code.push(QVMInstruction::InfoConst(size));
                             } else {
-                                self.element(elem)?;
+                                types.push(self.element(elem)?);
                             }
                         }
 
-                        Ok(IrType::tuple(vec![]))
+                        Ok(IrType::tuple(types))
                     }
                     // FIXME: integrate with _copy and load and _deref?
                     "copy" => {

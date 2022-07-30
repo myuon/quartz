@@ -274,6 +274,25 @@ impl IrElement {
     pub fn i_offset_im(size: usize, element: IrElement, offset: usize) -> IrElement {
         IrElement::i_offset(size, element, IrElement::int(offset as i32))
     }
+
+    pub fn d_func(
+        name: impl Into<String>,
+        args: Vec<IrType>,
+        ret: Box<IrType>,
+        body: Vec<IrElement>,
+    ) -> IrElement {
+        let mut elements = vec![
+            IrElement::Term(IrTerm::Ident(name.into(), 1)),
+            IrElement::block(
+                "args",
+                args.into_iter().rev().map(|t| t.to_element()).collect(),
+            ),
+            IrElement::block("return", vec![ret.to_element()]),
+        ];
+        elements.extend(body);
+
+        IrElement::block("func", elements)
+    }
 }
 
 #[derive(Debug, Clone)]
