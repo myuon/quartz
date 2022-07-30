@@ -331,7 +331,7 @@ impl IrType {
                     block.elements[0].clone().into_term()?.into_int()? as usize,
                     Box::new(IrType::from_element(&block.elements[1])?),
                 ),
-                _ => unreachable!(),
+                t => unreachable!("{:?}", t),
             },
         })
     }
@@ -394,6 +394,31 @@ impl IrType {
             IrType::Single(_) => 1,
             IrType::Tuple(vs) => vs.into_iter().map(|v| v.size_of()).sum(),
             IrType::Slice(_, _) => todo!(),
+        }
+    }
+
+    pub fn as_addr(&self) -> Option<Option<Box<IrType>>> {
+        match self {
+            IrType::Single(IrSingleType::Address(t)) => Some(t.clone()),
+            _ => None,
+        }
+    }
+
+    pub fn as_func(&self) -> Option<(Vec<IrType>, Box<IrType>)> {
+        match self {
+            IrType::Single(IrSingleType::Fn(args, ret)) => Some((args.clone(), ret.clone())),
+            _ => None,
+        }
+    }
+
+    pub fn unify(self, to: IrType) -> Result<IrType> {
+        match (self, to) {
+            (IrType::Unknown, t) => Ok(t),
+            (s, IrType::Unknown) => Ok(s),
+            (s, t) if s == t => Ok(s),
+            (s, t) => {
+                bail!("Type want {:?} but got {:?}", s, t)
+            }
         }
     }
 }

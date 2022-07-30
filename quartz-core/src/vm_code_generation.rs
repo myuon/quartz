@@ -4,7 +4,7 @@ use anyhow::Result;
 use log::info;
 
 use crate::{
-    ir::{IrElement, IrTerm, IrType},
+    ir::{IrElement, IrSingleType, IrTerm, IrType},
     vm::{QVMInstruction, Variable},
     vm_optimizer::VmOptimizer,
 };
@@ -329,9 +329,9 @@ impl<'s> VmFunctionGenerator<'s> {
                         let typ_want = IrType::from_element(&typ)?;
 
                         let typ_got = self.element(expr)?;
-                        assert_eq!(typ_want, typ_got);
+                        let result_type = typ_want.unify(typ_got)?;
 
-                        self.push_local(var_name, typ_got);
+                        self.push_local(var_name, result_type);
                         Ok(IrType::nil())
                     }
                     "return" => {
@@ -345,25 +345,31 @@ impl<'s> VmFunctionGenerator<'s> {
                     }
                     "call" => {
                         self.new_source_map(element.show_compact());
-                        let mut callee = None;
-                        let mut first = true;
-                        for elem in block.elements {
-                            if first {
-                                first = false;
-                                callee = Some(elem);
-                                continue;
-                            }
-
-                            self.element(elem)?;
+                        let mut arg_types_got = vec![];
+                        let callee = block.elements[0].clone();
+                        for elem in block.elements.into_iter().skip(1) {
+                            arg_types_got.push(self.element(elem)?);
                         }
-                        self.element(callee.unwrap())?;
+                        let callee_typ = self.element(callee)?;
+
+                        let typ_unified = callee_typ.unify(IrType::addr_of(Box::new(
+                            IrType::func(arg_types_got, Box::new(IrType::unknown())),
+                        )))?;
 
                         // If the last instruction is not LabelAddrConst, it will be a builtin operation and no need to run CALL operation
                         if matches!(self.code.last().unwrap(), QVMInstruction::LabelI32Const(_)) {
                             self.code.push(QVMInstruction::Call);
                         }
 
-                        Ok(IrType::unknown())
+                        Ok(typ_unified
+                            .as_addr()
+                            .unwrap()
+                            .unwrap()
+                            .as_func()
+                            .unwrap()
+                            .1
+                            .as_ref()
+                            .clone())
                     }
                     "assign" => {
                         self.new_source_map(element.show_compact());
