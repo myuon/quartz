@@ -386,7 +386,8 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.new_source_map(element.show_compact());
                         let (size, expr) = unvec!(block.elements, 2);
                         let size = size.into_term()?.into_int()? as usize;
-                        self.element(expr)?;
+                        self.expected_type =
+                            self.element(expr)?.unify(self.expected_type.clone())?;
                         self.writer
                             .push(QVMInstruction::Return(self.args.total_word()?, size));
 
@@ -471,12 +472,13 @@ impl<'s> VmFunctionGenerator<'s> {
                         Ok(IrType::unknown())
                     }
                     "seq" => {
+                        let mut ret = IrType::unknown();
                         self.new_source_map(IrElement::block("seq", vec![]).show_compact());
                         for elem in block.elements {
-                            self.element(elem)?;
+                            ret = self.element(elem)?;
                         }
 
-                        Ok(IrType::unknown())
+                        Ok(ret)
                     }
                     "while" => {
                         self.current_continue_scope = Some(self.local_pointer);
