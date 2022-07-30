@@ -496,18 +496,14 @@ impl<'s> IrGenerator<'s> {
         typ: &Type,
     ) -> Result<IrElement> {
         let empty = HashMap::new();
-        let mut elements = vec![
-            IrElement::int(size_of(typ, &self.structs) as i32),
-            IrElement::Term(IrTerm::Ident(name.clone(), 1)),
-        ];
         let mut generator =
             IrFunctionGenerator::new(self.source_code, &empty, &self.structs, &mut self.strings);
-        elements.push(generator.expr(expr)?);
 
-        Ok(IrElement::Block(IrBlock {
-            name: "var".to_string(),
-            elements,
-        }))
+        Ok(IrElement::d_var(
+            name,
+            IrType::from_type_ast(typ, &self.structs)?,
+            generator.expr(expr)?,
+        ))
     }
 
     pub fn module(&mut self, module: &Module) -> Result<IrElement> {

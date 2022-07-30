@@ -213,6 +213,17 @@ impl IrElement {
         IrElement::i_offset(size, element, IrElement::int(offset as i32))
     }
 
+    pub fn d_var(name: impl Into<String>, typ: IrType, expr: IrElement) -> IrElement {
+        IrElement::block(
+            "func",
+            vec![
+                IrElement::Term(IrTerm::Ident(name.into(), 1)),
+                typ.to_element(),
+                expr,
+            ],
+        )
+    }
+
     pub fn d_func(
         name: impl Into<String>,
         args: Vec<IrType>,
