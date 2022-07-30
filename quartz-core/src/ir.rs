@@ -211,7 +211,7 @@ impl IrElement {
 
     pub fn d_var(name: impl Into<String>, typ: IrType, expr: IrElement) -> IrElement {
         IrElement::block(
-            "func",
+            "var",
             vec![
                 IrElement::Term(IrTerm::Ident(name.into(), 1)),
                 typ.to_element(),

@@ -386,8 +386,9 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.new_source_map(element.show_compact());
                         let (size, expr) = unvec!(block.elements, 2);
                         let size = size.into_term()?.into_int()? as usize;
-                        self.expected_type =
-                            self.element(expr)?.unify(self.expected_type.clone())?;
+                        self.expected_type = (self.expected_type.clone())
+                            .unify(self.element(expr)?)
+                            .context(format!("{}", element.show()))?;
                         self.writer
                             .push(QVMInstruction::Return(self.args.total_word()?, size));
 
@@ -722,8 +723,16 @@ impl VmGenerator {
         labels: &mut HashMap<String, usize>,
         string_pointers: &Vec<usize>,
     ) -> Result<Vec<QVMInstruction>> {
-        let (g, t) = self.globals[&name].clone();
-        self.push_global(name.clone(), t);
+        self.push_global(name.clone(), typ.clone());
+        let (g, _) = self
+            .globals
+            .get(&name)
+            .ok_or(anyhow::anyhow!(
+                "{} is not found in global, {:?}",
+                name,
+                self.globals
+            ))?
+            .clone();
 
         let size = typ.size_of();
         let mut code = vec![QVMInstruction::AddrConst(g, Variable::Global)];
@@ -808,7 +817,10 @@ impl VmGenerator {
                     }
                 }
                 "func" => {
-                    let args_block = block.elements[1].clone().into_block()?;
+                    let args_block = block.elements[1]
+                        .clone()
+                        .into_block()
+                        .context(format!("{}", IrElement::Block(block.clone()).show()))?;
                     assert_eq!(args_block.name, "args");
                     let return_block = block.elements[2].clone().into_block()?;
                     assert_eq!(return_block.name, "return");
