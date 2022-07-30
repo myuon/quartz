@@ -389,16 +389,18 @@ impl<'s> VmFunctionGenerator<'s> {
                     }
                     "call" => {
                         self.new_source_map(element.show_compact());
-                        let mut arg_types_got = vec![];
                         let callee = block.elements[0].clone();
 
-                        let callee_typ = self.element_addr(callee, IrType::addr_unknown())?;
-                        let (arg_types, ret_type) =
-                            callee_typ.as_addr().unwrap().as_func().unwrap();
-
-                        for (i, elem) in block.elements.into_iter().skip(1).enumerate() {
-                            arg_types_got.push(self.element(elem, arg_types[i].clone())?);
+                        let mut arg_types = vec![];
+                        for elem in block.elements.into_iter().skip(1) {
+                            arg_types.push(self.element(elem, IrType::unknown())?);
                         }
+
+                        let callee_typ = self.element_addr(
+                            callee,
+                            IrType::addr_of(IrType::func(arg_types, IrType::unknown())),
+                        )?;
+                        let (_, ret_type) = callee_typ.as_addr().unwrap().as_func().unwrap();
 
                         // If the last instruction is not LabelAddrConst, it will be a builtin operation and no need to run CALL operation
                         if matches!(
@@ -553,7 +555,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         let get_nth_type = |i: usize| match expected_type.clone() {
                             IrType::Tuple(t) => t[i].clone(),
                             IrType::Slice(j, typ) => {
-                                assert!(j <= i);
+                                assert!(i <= j);
 
                                 typ.as_ref().clone()
                             }
