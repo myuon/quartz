@@ -125,7 +125,7 @@ impl<'s> VmFunctionGenerator<'s> {
             .insert(self.offset + self.code.len(), s.into());
     }
 
-    fn builtin_instructions(&self, v: &str) -> (QVMInstruction, IrType) {
+    fn resolve_symbol(&self, v: &str) -> (QVMInstruction, IrType) {
         match v {
             "_add" => (
                 QVMInstruction::Add,
@@ -247,7 +247,7 @@ impl<'s> VmFunctionGenerator<'s> {
 
                         Ok(IrType::addr_of(Box::new(t.clone())))
                     } else {
-                        let (code, typ) = self.builtin_instructions(v.as_str());
+                        let (code, typ) = self.resolve_symbol(v.as_str());
                         self.code.push(code);
 
                         Ok(IrType::addr_of(Box::new(typ)))
@@ -305,10 +305,7 @@ impl<'s> VmFunctionGenerator<'s> {
 
                         Ok(t.clone())
                     } else {
-                        let (code, t) = self.builtin_instructions(v.as_str());
-
-                        self.code.push(code);
-                        Ok(t)
+                        unreachable!();
                     }
                 }
                 IrTerm::Nil => {
