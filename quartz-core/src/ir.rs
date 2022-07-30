@@ -260,6 +260,49 @@ impl IrSingleType {
             ),
         }
     }
+
+    pub fn unify(self, to: IrSingleType) -> Result<IrSingleType> {
+        match (self, to) {
+            (IrSingleType::Nil, IrSingleType::Nil) => Ok(IrSingleType::Nil),
+            (IrSingleType::Bool, IrSingleType::Bool) => Ok(IrSingleType::Bool),
+            (IrSingleType::Int, IrSingleType::Int) => Ok(IrSingleType::Int),
+            (IrSingleType::Address(None), IrSingleType::Address(None)) => {
+                Ok(IrSingleType::Address(None))
+            }
+            (IrSingleType::Address(Some(t)), IrSingleType::Address(Some(u))) => {
+                let unified = t.unify(u.as_ref().clone())?;
+
+                Ok(IrSingleType::Address(Some(Box::new(unified))))
+            }
+            (IrSingleType::Fn(args1, ret1), IrSingleType::Fn(args2, ret2)) => {
+                if args1.len() != args2.len() {
+                    bail!(
+                        "function arity mismatch, {} vs {}",
+                        args1.len(),
+                        args2.len()
+                    );
+                }
+
+                let mut args = Vec::new();
+                for (t, u) in args1.iter().zip(args2.iter()) {
+                    let unified = t.clone().unify(u.clone())?;
+
+                    args.push(unified);
+                }
+
+                let unified = ret1.unify(ret2.as_ref().clone())?;
+
+                Ok(IrSingleType::Fn(args, Box::new(unified)))
+            }
+            (s, t) => {
+                bail!(
+                    "Type want {} but got {}",
+                    s.to_element().show_compact(),
+                    t.to_element().show_compact()
+                )
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -421,6 +464,7 @@ impl IrType {
         match (self, to) {
             (IrType::Unknown, t) => Ok(t),
             (s, IrType::Unknown) => Ok(s),
+            (IrType::Single(s), IrType::Single(t)) => Ok(IrType::Single(s.unify(t)?)),
             (s, t) if s == t => Ok(s),
             (s, t) => {
                 bail!(
