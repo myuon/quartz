@@ -552,19 +552,9 @@ impl<'s> VmFunctionGenerator<'s> {
                         let size = block.elements[0].clone().into_term()?.into_int()? as usize;
                         self.writer.push(QVMInstruction::InfoConst(size));
 
-                        let get_nth_type = |i: usize| match expected_type.clone() {
-                            IrType::Tuple(t) => t[i].clone(),
-                            IrType::Slice(j, typ) => {
-                                assert!(i <= j);
-
-                                typ.as_ref().clone()
-                            }
-                            _ => unreachable!(),
-                        };
-
                         let mut types = vec![];
                         for (i, elem) in block.elements.into_iter().skip(1).enumerate() {
-                            types.push(self.element(elem, get_nth_type(i))?);
+                            types.push(self.element(elem, expected_type.clone().offset(i)?)?);
                         }
 
                         Ok(IrType::tuple(types))
@@ -649,7 +639,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.writer
                             .push(QVMInstruction::Load(size.into_term()?.into_int()? as usize));
 
-                        Ok(IrType::unknown())
+                        Ok(expected_type)
                     }
                     name => todo!("{:?}", name),
                 }

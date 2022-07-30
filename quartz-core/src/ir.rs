@@ -481,6 +481,33 @@ impl IrType {
             }
         }
     }
+
+    pub fn offset(self, index: usize) -> Result<IrType> {
+        match self {
+            IrType::Single(_) => {
+                if index == 0 {
+                    Ok(self)
+                } else {
+                    bail!("Out of offset, {} in {:?}", index, self)
+                }
+            }
+            IrType::Slice(r, t) => {
+                if index < r {
+                    Ok(t.as_ref().clone())
+                } else {
+                    bail!("Out of offset, {} in {:?}", index, IrType::Slice(r, t))
+                }
+            }
+            IrType::Tuple(ts) => {
+                if index < ts.len() {
+                    Ok(ts[index].clone())
+                } else {
+                    bail!("Out of offset, {} in {:?}", index, IrType::Tuple(ts))
+                }
+            }
+            _ => bail!("Type is not address"),
+        }
+    }
 }
 
 static SPACE_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"^\s+").unwrap());
