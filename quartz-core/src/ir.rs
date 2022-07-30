@@ -498,15 +498,15 @@ impl IrType {
                     bail!("Out of offset, {} in {:?}", index, self)
                 }
             }
-            // NOTE: don't forget about the first word, which is a pointer to info table
             IrType::Slice(r, t) => {
-                if 0 < index && index <= r {
+                if index < r {
                     Ok(t.as_ref().clone())
                 } else {
                     bail!("Out of offset, {} in {:?}", index, IrType::Slice(r, t))
                 }
             }
             IrType::Tuple(ts) => {
+                // FIXME: offset positioning starts from 1
                 if 0 < index && index <= ts.len() {
                     Ok(ts[index].clone())
                 } else {

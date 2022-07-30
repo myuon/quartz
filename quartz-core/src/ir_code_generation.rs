@@ -156,7 +156,8 @@ impl<'s> IrFunctionGenerator<'s> {
                         ));
                     }
 
-                    Ok(IrElement::Term(IrTerm::Ident(v, size)))
+                    todo!()
+                    // Ok(IrElement::Term(IrTerm::Ident(v, size)))
                 }
             },
             Expr::Call(CallMode::Function, f, args) => {
