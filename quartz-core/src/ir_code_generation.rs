@@ -710,7 +710,7 @@ func main() {
 (module
     (text 3 102 111 111)
     (func $main (args) (return $nil)
-        (let (tuple (tuple $int (address))) $s (data 2 (string 0)))
+        (let (tuple (tuple $int (address $byte))) $s (data 2 (string 0)))
         (return 1 (call $_println $s(2)))
     )
 )

@@ -247,6 +247,7 @@ pub enum IrSingleType {
     Int,
     Address(Box<IrType>),
     Fn(Vec<IrType>, Box<IrType>),
+    Byte,
 }
 
 impl IrSingleType {
@@ -263,6 +264,7 @@ impl IrSingleType {
                     ret.to_element(),
                 ],
             ),
+            IrSingleType::Byte => IrElement::ident("byte"),
         }
     }
 
@@ -332,6 +334,10 @@ impl IrType {
         IrType::Single(IrSingleType::Int)
     }
 
+    pub fn byte() -> IrType {
+        IrType::Single(IrSingleType::Byte)
+    }
+
     pub fn addr_of(t: IrType) -> IrType {
         IrType::Single(IrSingleType::Address(Box::new(t)))
     }
@@ -359,6 +365,7 @@ impl IrType {
                     "nil" => IrType::nil(),
                     "bool" => IrType::bool(),
                     "int" => IrType::int(),
+                    "byte" => IrType::byte(),
                     _ => unreachable!("{:?}", t),
                 },
                 _ => unreachable!(),
@@ -386,7 +393,7 @@ impl IrType {
             Type::Nil => IrType::nil(),
             Type::Bool => IrType::bool(),
             Type::Int => IrType::int(),
-            Type::Byte => todo!(),
+            Type::Byte => IrType::byte(),
             Type::Fn(_, _) => todo!(),
             Type::Method(_, _, _) => todo!(),
             Type::Struct(t) => {
