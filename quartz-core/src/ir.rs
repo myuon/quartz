@@ -2,7 +2,7 @@ use anyhow::{bail, Result};
 use once_cell::sync::Lazy;
 use regex::Regex;
 
-use crate::ast::{size_of, Structs, Type};
+use crate::ast::{Structs, Type};
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum IrTerm {
@@ -139,68 +139,6 @@ impl IrElement {
         self.show_recur(0, true)
     }
 
-    // = Types
-
-    pub fn ir_type(typ: &Type, structs: &Structs) -> Result<IrElement> {
-        Ok(match typ {
-            Type::Bool => IrElement::ident("bool"),
-            Type::Int => IrElement::ident("int"),
-            Type::Byte => IrElement::ident("byte"),
-            Type::Nil => IrElement::ident("nil"),
-            Type::Fn(_, _) => IrElement::ident("addr"),
-            Type::Struct(t) => IrElement::block(
-                "struct",
-                vec![IrElement::int(
-                    size_of(&Type::Struct(t.clone()), structs) as i32
-                )],
-            ),
-            Type::Array(_) => IrElement::ident("array"),
-            Type::SizedArray(t, n) => IrElement::block(
-                "sizedarray",
-                vec![IrElement::ir_type(t, structs)?, IrElement::int(*n as i32)],
-            ),
-            Type::Ref(_) => IrElement::ident("ref"),
-            Type::Optional(t) => {
-                IrElement::block("optional", vec![IrElement::ir_type(t, structs)?])
-            }
-            t => bail!("Unsupported type: {:?}", t),
-        })
-    }
-
-    pub fn size_of_as_ir_type(typ: &IrElement) -> Result<usize> {
-        match typ {
-            IrElement::Term(IrTerm::Ident(_, _)) => Ok(1),
-            IrElement::Block(block) => {
-                if &block.name == "struct" {
-                    Ok(block.elements[0].clone().into_term()?.into_int()? as usize)
-                } else if &block.name == "optional" {
-                    IrElement::size_of_as_ir_type(&block.elements[0])
-                } else if &block.name == "sizedarray" {
-                    Ok(block.elements[1].clone().into_term()?.into_int()? as usize)
-                } else {
-                    unreachable!("{:?}", block)
-                }
-            }
-            _ => unreachable!(),
-        }
-    }
-
-    pub fn is_ir_type_addr(typ: &IrElement) -> bool {
-        match typ {
-            IrElement::Term(term) => match term {
-                IrTerm::Ident(ident, _) => {
-                    if ident == "addr" {
-                        return true;
-                    }
-
-                    return false;
-                }
-                _ => unreachable!(),
-            },
-            _ => unreachable!(),
-        }
-    }
-
     // = IR instructions
 
     pub fn nil() -> IrElement {
@@ -295,7 +233,7 @@ impl IrElement {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum IrSingleType {
     Nil,
     Bool,
@@ -324,7 +262,7 @@ impl IrSingleType {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum IrType {
     Unknown,
     Single(IrSingleType),

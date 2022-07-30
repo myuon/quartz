@@ -107,7 +107,8 @@ impl<'s> VmFunctionGenerator<'s> {
         }
     }
 
-    fn push_local(&mut self, name: String, size: usize, typ: IrType) {
+    fn push_local(&mut self, name: String, typ: IrType) {
+        let size = typ.size_of();
         self.locals.insert(name, (self.local_pointer, typ));
         self.local_pointer += size;
     }
@@ -325,10 +326,12 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.new_source_map(element.show_compact());
                         let (typ, name, expr) = unvec!(block.elements, 3);
                         let var_name = name.into_term()?.into_ident()?;
-                        let size = IrElement::size_of_as_ir_type(&typ)?;
+                        let typ_want = IrType::from_element(&typ)?;
 
-                        self.element(expr)?;
-                        self.push_local(var_name, size, IrType::from_element(&typ)?);
+                        let typ_got = self.element(expr)?;
+                        assert_eq!(typ_want, typ_got);
+
+                        self.push_local(var_name, typ_got);
                         Ok(IrType::nil())
                     }
                     "return" => {
