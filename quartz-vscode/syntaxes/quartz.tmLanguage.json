@@ -177,7 +177,7 @@
     "types": {
       "patterns": [
         {
-          "match": "\\b(int|bool|float|string|byte|array)",
+          "match": "\\b(int|bool|float|string|byte|array)\\b",
           "name": "entity.name.type.primitive.quartz"
         }
       ]
@@ -207,6 +207,10 @@
         {
           "match": "\\?",
           "name": "keyword.operator.question.quartz"
+        },
+        {
+          "match": "\\!",
+          "name": "keyword.operator.exclamation.quartz"
         },
         {
           "match": "\\b(ref|as)\\b",

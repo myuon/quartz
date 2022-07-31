@@ -10,12 +10,20 @@ method int to_string(self): string {
     return show_int(self as int);
 }
 
-struct string {
-    data: bytes,
+method string len(self): int {
+    return _len(self!);
 }
 
-method string len(self): int {
-    return _len(self.data);
+method string bytes(self): array[byte] {
+    return self!;
+}
+
+method string at(self, index: int): byte {
+    return self!(index);
+}
+
+method string from_bytes(bytes: array[byte]): string {
+    return bytes;
 }
 
 method string eq(self, t: string): bool {
@@ -25,7 +33,7 @@ method string eq(self, t: string): bool {
 
     let n = 0;
     while (n < self.len()) {
-        if (_byte_to_int(self.data(n)) != _byte_to_int(t.data(n))) {
+        if (_byte_to_int(self.at(n)) != _byte_to_int(t.at(n))) {
             return false;
         };
 
@@ -38,7 +46,7 @@ method string eq(self, t: string): bool {
 method string starts_with(self, prefix: string): bool {
     let n = 0;
     while (n < prefix.len()) {
-        if (_byte_to_int(self.data(n)) != _byte_to_int(prefix.data(n))) {
+        if (_byte_to_int(self.at(n)) != _byte_to_int(prefix.at(n))) {
             return false;
         };
 
@@ -48,14 +56,10 @@ method string starts_with(self, prefix: string): bool {
     return true;
 }
 
-method string bytes(self): bytes {
-    return self.data;
-}
-
 method string concat(self, t: string): string {
     let buffer = make[array[byte]](self.len() + t.len(), nil as byte);
-    _copy(0, self.len(), self.data, buffer);
-    _copy(self.len(), t.len(), t.data, buffer);
+    _copy(0, self.len(), self.bytes(), buffer);
+    _copy(self.len(), t.len(), t.bytes(), buffer);
 
     return string { data: buffer };
 }

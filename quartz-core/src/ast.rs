@@ -36,18 +36,6 @@ pub enum Literal {
     Array(Vec<Source<Expr>>, Type),
 }
 
-impl Literal {
-    pub fn into_datatype(self) -> DataValue {
-        match self {
-            Literal::Nil => DataValue::Nil,
-            Literal::Bool(b) => DataValue::Bool(b),
-            Literal::Int(i) => DataValue::Int(i),
-            Literal::String(s) => DataValue::String(s),
-            Literal::Array(_, _) => todo!(),
-        }
-    }
-}
-
 #[derive(PartialEq, Debug, Clone)]
 pub enum Statement {
     Let(String, Source<Expr>, Type),
@@ -87,6 +75,7 @@ pub enum Expr {
     As(Box<Source<Expr>>, Type, Type),
     Ref(Box<Source<Expr>>, Type),
     Address(Box<Source<Expr>>, Type), // [compiler only] take the address of expr (same as ref, but no heap allocation)
+    Unwrap(Box<Source<Expr>>, Type),
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -288,57 +277,6 @@ impl Type {
             Type::Optional(n) => n.method_selector_name()?,
             s => bail!("{:?} is not a method selector", s),
         })
-    }
-}
-
-#[derive(PartialEq, Debug, Clone)]
-#[allow(dead_code)]
-pub enum DataValue {
-    Nil,
-    Bool(bool),
-    Int(i32),
-    String(String),
-    Tuple(Vec<DataValue>),
-    NativeFunction(String),
-    Function(String),
-    Method(String, String, Box<DataValue>),
-    Ref(String),
-}
-
-impl DataValue {
-    pub fn as_bool(self) -> Result<bool> {
-        match self {
-            DataValue::Bool(i) => Ok(i),
-            d => bail!("expected a bool, but found {:?}", d),
-        }
-    }
-
-    pub fn as_int(self) -> Result<i32> {
-        match self {
-            DataValue::Int(i) => Ok(i),
-            d => bail!("expected a int, but found {:?}", d),
-        }
-    }
-
-    pub fn as_string(self) -> Result<String> {
-        match self {
-            DataValue::String(i) => Ok(i),
-            d => bail!("expected a string, but found {:?}", d),
-        }
-    }
-
-    pub fn as_tuple(self) -> Result<Vec<DataValue>> {
-        match self {
-            DataValue::Tuple(t) => Ok(t),
-            d => bail!("Expected a tuple, but found {:?}", d),
-        }
-    }
-
-    pub fn as_ref(self) -> Result<String> {
-        match self {
-            DataValue::Ref(s) => Ok(s),
-            d => bail!("Expected a ref, but found {:?}", d),
-        }
     }
 }
 

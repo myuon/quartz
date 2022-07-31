@@ -55,6 +55,12 @@ impl Constraints {
                 let cs = Constraints::unify(t1, t2)?;
                 Ok(cs)
             }
+            (Type::Array(t), Type::Struct(s)) if t.as_ref() == &Type::Byte && s == "string" => {
+                Ok(Constraints::new())
+            }
+            (Type::Struct(s), Type::Array(t)) if t.as_ref() == &Type::Byte && s == "string" => {
+                Ok(Constraints::new())
+            }
             (t1, t2) => bail!("Type error, want {:?} but found {:?}", t1, t2),
         }
     }
@@ -343,6 +349,15 @@ impl<'s> TypeChecker<'s> {
                     assert_eq!(arg_type, Type::Int);
 
                     Ok(t.as_ref().clone())
+                } else if let Some("string") = fn_type.as_struct_type().map(|s| s.as_str()) {
+                    // string indexing
+                    *mode = CallMode::Array;
+
+                    assert_eq!(args.len(), 1);
+                    let arg_type = self.expr(&mut args[0])?;
+                    assert_eq!(arg_type, Type::Int);
+
+                    Ok(Type::Byte)
                 } else {
                     let (expected_arg_types, expected_ret_type) = fn_type.as_fn_type().ok_or(
                         anyhow::anyhow!("Cannot call non-function type {:?}", fn_type),
@@ -358,11 +373,11 @@ impl<'s> TypeChecker<'s> {
                     };
                     if expected_arg_len != actual_arg_len {
                         anyhow::bail!(
-                            "Expected {} arguments but given {}, {} (call({:?},{:?}): {:?})",
+                            "Expected {} arguments but given {} for {:?}, {} (args: {:?}): {:?})",
                             expected_arg_len,
                             actual_arg_len,
-                            self.error_context(f.start, f.end, "no source"),
                             f,
+                            self.error_context(f.start, f.end, "no source"),
                             args,
                             fn_type,
                         );
@@ -528,6 +543,11 @@ impl<'s> TypeChecker<'s> {
                 }
                 _ => unreachable!("new {:?} {:?}", t, args),
             },
+            Expr::Unwrap(expr, typ) => {
+                let e_type = self.expr(expr)?.as_ref_type().unwrap().as_ref().clone();
+                *typ = e_type.clone();
+                Ok(e_type)
+            }
         }
     }
 

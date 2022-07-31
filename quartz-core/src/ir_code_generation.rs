@@ -283,6 +283,10 @@ impl<'s> IrFunctionGenerator<'s> {
                 }
                 _ => unreachable!(),
             },
+            Expr::Unwrap(expr, typ) => Ok(IrElement::i_deref(
+                size_of(typ, self.structs),
+                self.expr(expr)?,
+            )),
         }
     }
 

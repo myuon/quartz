@@ -43,6 +43,7 @@ pub enum Lexeme {
     Ref,
     As,
     Self_,
+    Exclamation,
     Ident(String),
     Int(i32),
     String(String),
@@ -204,6 +205,7 @@ impl TokenReader {
                     ("-", Lexeme::Minus),
                     ("+", Lexeme::Plus),
                     ("?", Lexeme::Question),
+                    ("!", Lexeme::Exclamation),
                 ],
             ) {
                 continue;

@@ -400,6 +400,11 @@ impl Parser {
                         Box::new(self.source(result, result_start, result_end)),
                         args,
                     );
+                } else if self.expect_lexeme(Lexeme::Exclamation).is_ok() {
+                    result = Expr::Unwrap(
+                        Box::new(self.source(result, result_start, self.position)),
+                        Type::Infer(0),
+                    );
                 } else {
                     break;
                 }
