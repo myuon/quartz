@@ -4,10 +4,11 @@ use anyhow::{Context, Result};
 
 use crate::{
     ast::{
-        size_of, Declaration, Expr, Function, Literal, Module, Source, Statement, Structs, Type,
+        size_of, CallMode, Declaration, Expr, Function, Literal, Module, Source, Statement,
+        Structs, Type,
     },
     compiler::specify_source_in_input,
-    ir::{IrBlock, IrElement, IrTerm},
+    ir::{IrBlock, IrElement, IrTerm, IrType},
 };
 
 #[derive(Debug)]
@@ -37,6 +38,10 @@ impl<'s> IrFunctionGenerator<'s> {
         }
     }
 
+    pub fn ir_type(&self, typ: &Type) -> Result<IrType> {
+        IrType::from_type_ast(typ, self.structs)
+    }
+
     pub fn var_fresh(&mut self) -> String {
         self.fresh_var_index += 1;
 
@@ -60,6 +65,7 @@ impl<'s> IrFunctionGenerator<'s> {
                         // FIXME: implement function meta attributes
                         if v == "_panic" {
                             let meta = self.expr(&Source::unknown(Expr::Call(
+                                CallMode::Function,
                                 Box::new(Source::unknown(Expr::Var(
                                     vec!["_println".to_string()],
                                     Type::Fn(
@@ -91,6 +97,10 @@ impl<'s> IrFunctionGenerator<'s> {
                     )))
                 }
             }
+            Expr::Method(subj, v, typ) => Ok(IrElement::Term(IrTerm::Ident(
+                format!("{}_{}", subj.method_selector_name()?, v),
+                size_of(typ, self.structs),
+            ))),
             Expr::Lit(literal, typ) => match literal {
                 Literal::Nil => {
                     let s = size_of(typ, &self.structs);
@@ -106,13 +116,7 @@ impl<'s> IrFunctionGenerator<'s> {
                     let t = self.strings.len();
                     self.strings.push(s.clone());
 
-                    Ok(IrElement::block(
-                        "data",
-                        vec![
-                            IrElement::int(2),
-                            IrElement::block("string", vec![IrElement::int(t as i32)]),
-                        ],
-                    ))
+                    Ok(IrElement::block("string", vec![IrElement::int(t as i32)]))
                 }
                 Literal::Array(arr, t) => {
                     let size = size_of(&Type::Array(Box::new(t.clone())), self.structs);
@@ -127,7 +131,7 @@ impl<'s> IrFunctionGenerator<'s> {
                     //      (assign (offset $v 1) 2)
                     //      $v
                     self.ir.push(IrElement::i_let(
-                        IrElement::ir_type(t, self.structs)?,
+                        self.ir_type(t)?,
                         v.clone(),
                         IrElement::i_call("_new", vec![IrElement::int(n)]),
                     ));
@@ -137,7 +141,7 @@ impl<'s> IrFunctionGenerator<'s> {
 
                         self.ir.push(IrElement::i_assign(
                             element_size,
-                            IrElement::i_offset_im(
+                            IrElement::i_offset(
                                 element_size,
                                 IrElement::Term(IrTerm::Ident(v.clone(), size)),
                                 i,
@@ -146,10 +150,11 @@ impl<'s> IrFunctionGenerator<'s> {
                         ));
                     }
 
-                    Ok(IrElement::Term(IrTerm::Ident(v, size)))
+                    todo!()
+                    // Ok(IrElement::Term(IrTerm::Ident(v, size)))
                 }
             },
-            Expr::Call(f, args) => {
+            Expr::Call(CallMode::Function, f, args) => {
                 // in: f(a,b,c)
                 // out: (call f a b c)
                 let mut elements = vec![];
@@ -160,6 +165,13 @@ impl<'s> IrFunctionGenerator<'s> {
                 }
 
                 Ok(IrElement::i_call_raw(elements))
+            }
+            Expr::Call(CallMode::Array, f, args) => {
+                Ok(IrElement::i_index(
+                    1, // FIXME: correct value
+                    self.expr(f.as_ref())?,
+                    self.expr(&args[0])?,
+                ))
             }
             Expr::Struct(struct_name, exprs) => {
                 // in: A { a: 1, b: 2 }
@@ -193,30 +205,27 @@ impl<'s> IrFunctionGenerator<'s> {
 
                 Ok(IrElement::block("data", data))
             }
-            Expr::Project(method, _struct_name, _proj, _label) if *method => {
+            Expr::Project(method, _, _proj, _label) if *method => {
                 unreachable!()
             }
-            Expr::Project(_, struct_name, proj, label) => {
+            Expr::Project(_, proj_typ, proj, label) => {
+                let struct_name = &proj_typ.method_selector_name()?;
                 let index = self.structs.get_projection_offset(struct_name, label)?;
                 let typ = self.structs.get_projection_type(struct_name, label)?;
                 let value = self.expr(proj)?;
 
-                Ok(IrElement::i_offset_im(
-                    size_of(&typ, self.structs),
-                    value,
-                    index,
-                ))
+                Ok(if let Some(_t) = proj_typ.as_ref_type() {
+                    // if p is a pointer in p.l, it should be compiled to p->l
+                    IrElement::i_addr_offset(size_of(&typ, self.structs), value, index)
+                } else {
+                    IrElement::i_offset(size_of(&typ, self.structs), value, index)
+                })
             }
-            Expr::Index(arr, i) => Ok(IrElement::i_offset(
-                1, // FIXME: correct value
-                self.expr(arr.as_ref())?,
-                self.expr(i.as_ref())?,
-            )),
             Expr::Ref(e, t) => {
                 let v = self.var_fresh();
                 let size = size_of(t, self.structs);
                 self.ir.push(IrElement::i_let(
-                    IrElement::ir_type(&Type::Ref(Box::new(t.clone())), self.structs)?,
+                    self.ir_type(&Type::Ref(Box::new(t.clone())))?,
                     v.clone(),
                     IrElement::i_call("_new", vec![IrElement::int(size as i32)]),
                 ));
@@ -224,7 +233,7 @@ impl<'s> IrFunctionGenerator<'s> {
                 let e_value = self.expr(e)?;
                 self.ir.push(IrElement::i_assign(
                     size,
-                    IrElement::i_offset_im(1, IrElement::Term(IrTerm::Ident(v.clone(), 1)), 0),
+                    IrElement::i_offset(1, IrElement::Term(IrTerm::Ident(v.clone(), 1)), 0),
                     e_value,
                 ));
 
@@ -242,7 +251,36 @@ impl<'s> IrFunctionGenerator<'s> {
                     value
                 })
             }
-            Expr::Address(e, _t) => Ok(IrElement::i_address(self.expr(e)?)),
+            Expr::Address(e, t) => {
+                // You cannot just take the address of an immidiate value, so declare as a variable
+                let next = match e.data {
+                    Expr::Lit(_, _) | Expr::Struct(_, _) | Expr::Call(_, _, _) => {
+                        let v = self.var_fresh();
+                        let value = self.expr(e)?;
+                        self.ir
+                            .push(IrElement::i_let(self.ir_type(t)?, v.clone(), value));
+
+                        IrElement::ident(v)
+                    }
+                    _ => self.expr(e)?,
+                };
+
+                Ok(IrElement::i_address(next))
+            }
+            Expr::Make(t, args) => match t {
+                Type::SizedArray(arr, len) => {
+                    let value = self.expr(&args[0])?;
+                    let mut data = vec![IrElement::int((len * size_of(&arr, self.structs)) as i32)];
+                    data.extend(std::iter::repeat(value).take(*len));
+
+                    Ok(IrElement::block("data", data))
+                }
+                _ => unreachable!(),
+            },
+            Expr::Unwrap(expr, typ) => Ok(IrElement::i_deref(
+                size_of(typ, self.structs),
+                self.expr(expr)?,
+            )),
         }
     }
 
@@ -250,11 +288,8 @@ impl<'s> IrFunctionGenerator<'s> {
         match statement {
             Statement::Let(x, e, t) => {
                 let v = self.expr(e)?;
-                self.ir.push(IrElement::i_let(
-                    IrElement::ir_type(t, self.structs)?,
-                    x.to_string(),
-                    v,
-                ));
+                self.ir
+                    .push(IrElement::i_let(self.ir_type(t)?, x.to_string(), v));
             }
             Statement::Expr(e, t) => {
                 let v = self.expr(e)?;
@@ -355,22 +390,8 @@ impl<'s> IrFunctionGenerator<'s> {
 
     // for functions
     pub fn function(&mut self, statements: &Vec<Source<Statement>>) -> Result<()> {
-        // if last statement was not a return statement, insert it
-        // FIXME: typecheck
-        let need_return_nil_insert = !statements
-            .last()
-            .map(|s| matches!(s.data, Statement::Return(_, _)))
-            .unwrap_or(false);
-
         for statement in statements {
             self.statement(&statement.data)?;
-        }
-
-        if need_return_nil_insert {
-            self.statement(&Statement::Return(
-                Source::unknown(Expr::Lit(Literal::Nil, Type::Nil)),
-                Type::Nil,
-            ))?;
         }
 
         Ok(())
@@ -402,7 +423,6 @@ impl<'s> IrGenerator<'s> {
     }
 
     pub fn function(&mut self, function: &Function) -> Result<IrElement> {
-        let mut elements = vec![IrElement::Term(IrTerm::Ident(function.name.clone(), 1))];
         let mut args = HashMap::new();
         let mut arg_index = 0;
         let mut arg_types_in_ir = vec![];
@@ -411,32 +431,23 @@ impl<'s> IrGenerator<'s> {
         for (name, typ) in function.args.iter().rev() {
             arg_index += 1; // self.stack_size_of(typ)?;
             args.insert(name.clone(), arg_index - 1);
-            arg_types_in_ir.push(IrElement::ir_type(typ, &self.structs)?);
+            arg_types_in_ir.push(IrType::from_type_ast(typ, &self.structs)?);
         }
-
-        elements.push(IrElement::block(
-            "args",
-            arg_types_in_ir.into_iter().rev().collect(),
-        ));
 
         let mut generator =
             IrFunctionGenerator::new(self.source_code, &args, &self.structs, &mut self.strings);
 
         generator.function(&function.body)?;
 
-        elements.extend(generator.ir);
-
-        Ok(IrElement::Block(IrBlock {
-            name: "func".to_string(),
-            elements,
-        }))
+        Ok(IrElement::d_func(
+            &function.name,
+            arg_types_in_ir,
+            Box::new(IrType::from_type_ast(&function.return_type, &self.structs)?),
+            generator.ir,
+        ))
     }
 
     pub fn method(&mut self, typ: &Type, function: &Function) -> Result<IrElement> {
-        let mut elements = vec![IrElement::Term(IrTerm::Ident(
-            format!("{}_{}", typ.method_selector_name()?, function.name),
-            1,
-        ))];
         let mut args = HashMap::new();
         let mut arg_index = 0;
         let mut arg_types_in_ir = vec![];
@@ -446,28 +457,23 @@ impl<'s> IrGenerator<'s> {
             arg_index += 1; // self.stack_size_of(typ)?;
             args.insert(name.clone(), arg_index - 1);
             arg_types_in_ir.push(
-                IrElement::ir_type(typ, &self.structs)
+                IrType::from_type_ast(typ, &self.structs)
                     .context(format!("at method: {:?}::{}", typ, function.name))?,
             );
         }
-
-        elements.push(IrElement::block(
-            "args",
-            arg_types_in_ir.into_iter().rev().collect(),
-        ));
 
         let mut generator =
             IrFunctionGenerator::new(self.source_code, &args, &self.structs, &mut self.strings);
 
         generator.function(&function.body)?;
 
-        elements.extend(generator.ir);
-
         // FIXME: method block for ITable
-        Ok(IrElement::Block(IrBlock {
-            name: "func".to_string(),
-            elements,
-        }))
+        Ok(IrElement::d_func(
+            format!("{}_{}", typ.method_selector_name()?, function.name),
+            arg_types_in_ir,
+            Box::new(IrType::from_type_ast(&function.return_type, &self.structs)?),
+            generator.ir,
+        ))
     }
 
     pub fn variable(
@@ -477,18 +483,14 @@ impl<'s> IrGenerator<'s> {
         typ: &Type,
     ) -> Result<IrElement> {
         let empty = HashMap::new();
-        let mut elements = vec![
-            IrElement::int(size_of(typ, &self.structs) as i32),
-            IrElement::Term(IrTerm::Ident(name.clone(), 1)),
-        ];
         let mut generator =
             IrFunctionGenerator::new(self.source_code, &empty, &self.structs, &mut self.strings);
-        elements.push(generator.expr(expr)?);
 
-        Ok(IrElement::Block(IrBlock {
-            name: "var".to_string(),
-            elements,
-        }))
+        Ok(IrElement::d_var(
+            name,
+            IrType::from_type_ast(typ, &self.structs)?,
+            generator.expr(expr)?,
+        ))
     }
 
     pub fn module(&mut self, module: &Module) -> Result<IrElement> {
@@ -575,7 +577,7 @@ func main() {
 "#,
                 r#"
 (module
-    (func $main (args)
+    (func $main (args) (return $int)
         (let $int $x 10)
         (assign 1 $x 20)
         (return 1 $x)
@@ -586,10 +588,13 @@ func main() {
             (
                 r#"
 func f(c: int): int {
-    let x = [1,2,3];
-    x[2] = 4;
+    let x = make[array[int,4]](3);
+    x(0) = 1;
+    x(1) = 2;
+    x(2) = 3;
+    x(2) = 4;
 
-    return _add(_add(x[1], x[2]), c);
+    return _add(_add(x(1), x(2)), c);
 }
 
 func main() {
@@ -598,25 +603,24 @@ func main() {
 "#,
                 r#"
 (module
-    (func $f (args $int)
-        (let $int $fresh_1 (call $_new 3))
-        (assign 1 (offset 1 $fresh_1 0) 1)
-        (assign 1 (offset 1 $fresh_1 1) 2)
-        (assign 1 (offset 1 $fresh_1 2) 3)
-        (let $array $x $fresh_1)
+    (func $f (args $int) (return $int)
+        (let (slice 4 $int) $x (data 4 3 3 3 3))
+        (assign 1 (index 1 $x(4) 0) 1)
+        (assign 1 (index 1 $x(4) 1) 2)
+        (assign 1 (index 1 $x(4) 2) 3)
 
-        (assign 1 (offset 1 $x 2) 4)
+        (assign 1 (index 1 $x(4) 2) 4)
 
         (return 1
             (call $_add
                 (call $_add
-                    (offset 1 $x 1)
-                    (offset 1 $x 2))
+                    (index 1 $x(4) 1)
+                    (index 1 $x(4) 2))
                 $0
             )
         )
     )
-    (func $main (args)
+    (func $main (args) (return $int)
         (return 1 (call $f 10))
     )
 )
@@ -641,15 +645,15 @@ func main() {
 "#,
                 r#"
 (module
-    (func $Point_sum (args $ref)
+    (func $Point_sum (args (address (tuple $int $int))) (return $int)
         (return 1 (call
             $_add
-            (offset 1 (deref 1 $0) 1)
-            (offset 1 (deref 1 $0) 2)
+            (addr_offset 1 $0 1)
+            (addr_offset 1 $0 2)
         ))
     )
-    (func $main (args)
-        (let (struct 3) $p (data 3 10 20))
+    (func $main (args) (return $int)
+        (let (tuple $int $int) $p (data 3 10 20))
         (return 1 (call $Point_sum (address $p(3))))
     )
 )
@@ -668,7 +672,7 @@ func main() {
 "#,
                 r#"
 (module
-    (func $main (args)
+    (func $main (args) (return $nil)
         (return 1 nil)
     )
 )
@@ -687,9 +691,9 @@ func main() {
 "#,
                 r#"
 (module
-    (func $f (args $int $bool)
+    (func $f (args $int $bool) (return $int)
         (return 1 $1))
-    (func $main (args)
+    (func $main (args) (return $int)
         (return 1 (call $f 0 true))
     )
 )
@@ -706,9 +710,9 @@ func main() {
                 r#"
 (module
     (text 3 102 111 111)
-    (func $main (args)
-        (let (struct 1) $s (data 2 (string 0)))
-        (return 1 (call $_println $s))
+    (func $main (args) (return $nil)
+        (let (tuple (address $byte)) $s (string 0))
+        (return 1 (call $_println $s(2)))
     )
 )
 "#,
@@ -717,7 +721,13 @@ func main() {
 
         for (code, ir_code) in cases {
             let mut compiler = Compiler::new();
-            let generated = compiler.compile_ir_nostd(code, "main".to_string()).unwrap();
+            let generated = compiler
+                .compile_ir_nostd(
+                    // FIXME: define string for now
+                    &format!("struct string {{ data: bytes }}\n{}", code),
+                    "main".to_string(),
+                )
+                .unwrap();
             info!("{}", generated.show());
 
             let element = parse_ir(ir_code).unwrap();

@@ -332,7 +332,7 @@ impl Runtime {
                 Ok(header.len())
             }
             Value::Addr(addr, AddrPlace::Stack, _) => {
-                let len = self.stack[addr - 1].clone().as_int().unwrap() as usize;
+                let len = self.stack[addr].clone().as_int().unwrap() as usize;
 
                 Ok(len)
             }
@@ -969,13 +969,13 @@ func main() {
         ),
         (
             r#"
-func main(): byte {
-    let x = _new(5);
-    x[0] = _int_to_byte(1);
-    x[1] = _int_to_byte(2);
-    x[2] = _int_to_byte(_add(_byte_to_int(x[0]), _byte_to_int(x[1])));
+func main(): int {
+    let x = make[array[int,5]](0);
+    x(0) = 1;
+    x(1) = 2;
+    x(2) = x(0) + x(1);
 
-    return x[2];
+    return x(2);
 }
 "#,
             3,
@@ -1033,20 +1033,10 @@ func main() {
         ),
         (
             r#"
-func main(): int {
-    let p = [1,2,3,4];
-
-    return p[2];
-}
-"#,
-            3,
-        ),
-        (
-            r#"
 func main() {
     let p = "Hello, World!";
 
-    return p.bytes()[7];
+    return p.bytes()(7);
 }
 "#,
             'W' as i32,
@@ -1191,14 +1181,14 @@ struct Child {
     n: int,
 }
 
-func make(k: int): Child {
+func new(k: int): Child {
     return Child {
         n: k,
     };
 }
 
 func main(): int {
-    let child = make(10);
+    let child = new(10);
 
     return child.n;
 }
@@ -1479,17 +1469,24 @@ fn runtime_run_gc() -> Result<()> {
     let cases = vec![
         (
             r#"
-            func f(arr: ints): int {
-                return arr[0];
+            func f(arr: array[int]): int {
+                return arr(0);
             }
 
             func g(): int {
-                let arr = [1,2,3,4];
+                let arr = make[array[int]](0);
+                arr(0) = 1;
+                arr(1) = 2;
+                arr(2) = 3;
+                arr(3) = 4;
                 return f(arr);
             }
 
             func main() {
-                let preserved = [5,6,7];
+                let preserved = make[array[int]](0);
+                preserved(0) = 5;
+                preserved(1) = 6;
+                preserved(2) = 7;
                 let p = g();
 
                 _gc;

@@ -1,5 +1,7 @@
 use crate::{
-    ast::{Declaration, Expr, Function, Literal, Module, Source, Statement, Struct, Type},
+    ast::{
+        CallMode, Declaration, Expr, Function, Literal, Module, Source, Statement, Struct, Type,
+    },
     compiler::CompileError,
     lexer::{run_lexer, Lexeme, Token},
 };
@@ -63,7 +65,18 @@ impl Parser {
         Ok(current)
     }
 
-    fn atype(&mut self) -> Result<Type> {
+    fn next(&mut self) -> Result<Token> {
+        if self.is_end() {
+            return Err(self.parse_error("", "EOS"));
+        }
+
+        let current = self.input[self.position].clone();
+        self.position += 1;
+
+        Ok(current)
+    }
+
+    fn type_(&mut self) -> Result<Type> {
         let mut is_ref = false;
         if self.expect_lexeme(Lexeme::Ref).is_ok() {
             is_ref = true;
@@ -77,7 +90,25 @@ impl Parser {
             "any" => Type::Any,
             "bytes" => Type::Array(Box::new(Type::Byte)),
             "byte" => Type::Byte,
-            "ints" => Type::Array(Box::new(Type::Int)),
+            "array" => {
+                self.expect_lexeme(Lexeme::LBracket)?;
+                let type_ = self.type_()?;
+
+                let t = if self.expect_lexeme(Lexeme::Comma).is_ok() {
+                    let token = self.next()?;
+                    if let Lexeme::Int(u) = token.lexeme {
+                        Type::SizedArray(Box::new(type_), u as usize)
+                    } else {
+                        return Err(self.parse_error("int or 'sized'", &format!("{:?}", token)));
+                    }
+                } else {
+                    Type::Array(Box::new(type_))
+                };
+
+                self.expect_lexeme(Lexeme::RBracket)?;
+
+                t
+            }
             _ => Type::Struct(ident),
         };
         if self.expect_lexeme(Lexeme::Question).is_ok() {
@@ -108,12 +139,16 @@ impl Parser {
     }
 
     fn variable(&mut self) -> Result<Expr> {
-        let mut qualifiers = vec![self.ident()?];
-        while self.expect_lexeme(Lexeme::DoubleColon).is_ok() {
-            qualifiers.push(self.ident()?);
+        let subject = self.type_()?;
+        if self.expect_lexeme(Lexeme::DoubleColon).is_ok() {
+            let label = self.ident()?;
+            Ok(Expr::Method(subject, label, Type::Infer(0)))
+        } else {
+            Ok(Expr::Var(
+                vec![subject.method_selector_name()?],
+                Type::Infer(0),
+            ))
         }
-
-        Ok(Expr::Var(qualifiers, Type::Infer(0)))
     }
 
     fn literal(&mut self) -> Result<Literal> {
@@ -269,7 +304,7 @@ impl Parser {
             let mut typ = Type::Infer(0);
 
             if self.expect_lexeme(Lexeme::Colon).is_ok() {
-                typ = self.atype()?;
+                typ = self.type_()?;
             }
 
             arguments.push((name, typ));
@@ -315,10 +350,24 @@ impl Parser {
         Ok(statements)
     }
 
+    fn make_expr(&mut self) -> Result<Expr> {
+        self.expect_lexeme(Lexeme::Make)?;
+        self.expect_lexeme(Lexeme::LBracket)?;
+        let typ = self.type_()?;
+        self.expect_lexeme(Lexeme::RBracket)?;
+        self.expect_lexeme(Lexeme::LParen)?;
+        let args = self.many_exprs()?;
+        self.expect_lexeme(Lexeme::RParen)?;
+
+        Ok(Expr::Make(typ, args))
+    }
+
     fn short_callee_expr(&mut self) -> Result<Expr> {
-        self.variable().or_else(|_| -> Result<Expr> {
-            self.literal().map(|lit| Expr::Lit(lit, Type::Infer(0)))
-        })
+        self.variable()
+            .or_else(|_| -> Result<Expr> {
+                self.literal().map(|lit| Expr::Lit(lit, Type::Infer(0)))
+            })
+            .or_else(|_| -> Result<Expr> { self.make_expr() })
     }
 
     fn short_expr(&mut self) -> Result<Expr> {
@@ -337,7 +386,7 @@ impl Parser {
 
                     result = Expr::Project(
                         false,
-                        "<infer>".to_string(),
+                        Type::Infer(0),
                         Box::new(self.source_from(result, result_start)),
                         i,
                     );
@@ -347,8 +396,14 @@ impl Parser {
                     self.expect_lexeme(Lexeme::RParen)?;
 
                     result = Expr::Call(
+                        CallMode::Function,
                         Box::new(self.source(result, result_start, result_end)),
                         args,
+                    );
+                } else if self.expect_lexeme(Lexeme::Exclamation).is_ok() {
+                    result = Expr::Unwrap(
+                        Box::new(self.source(result, result_start, self.position)),
+                        Type::Infer(0),
                     );
                 } else {
                     break;
@@ -381,24 +436,13 @@ impl Parser {
 
                 Expr::Project(
                     false,
-                    "<infer>".to_string(),
+                    Type::Infer(0),
                     Box::new(self.source_from(expr, short_expr_start)),
                     i,
                 )
             }
-            expr if self.expect_lexeme(Lexeme::LBracket).is_ok() => {
-                // indexing
-                let index_start = self.position;
-                let index = self.expr()?;
-                self.expect_lexeme(Lexeme::RBracket)?;
-
-                Expr::Index(
-                    Box::new(self.source_from(expr, short_expr_start)),
-                    Box::new(self.source_from(index, index_start)),
-                )
-            }
             expr if self.expect_lexeme(Lexeme::As).is_ok() => {
-                let typ = self.atype()?;
+                let typ = self.type_()?;
                 Expr::As(
                     Box::new(self.source_from(expr, short_expr_start)),
                     Type::Infer(0),
@@ -430,6 +474,7 @@ impl Parser {
                 let right_start = self.position;
                 let right = self.expr()?;
                 result = Expr::Call(
+                    CallMode::Function,
                     Box::new(Source::unknown(Expr::Var(
                         vec![op.to_string()],
                         Type::Infer(0),
@@ -452,7 +497,7 @@ impl Parser {
         self.expect_lexeme(Lexeme::RParen)?;
 
         let return_type = if self.expect_lexeme(Lexeme::Colon).is_ok() {
-            self.atype()?
+            self.type_()?
         } else {
             Type::Infer(0)
         };
@@ -478,7 +523,7 @@ impl Parser {
     }
 
     fn declaration_method(&mut self) -> Result<Declaration> {
-        let typ = self.atype()?;
+        let typ = self.type_()?;
 
         let name = self.ident()?;
         self.expect_lexeme(Lexeme::LParen)?;
@@ -486,7 +531,7 @@ impl Parser {
         self.expect_lexeme(Lexeme::RParen)?;
 
         let return_type = if self.expect_lexeme(Lexeme::Colon).is_ok() {
-            self.atype()?
+            self.type_()?
         } else {
             Type::Infer(0)
         };
@@ -527,7 +572,7 @@ impl Parser {
         while self.peek().lexeme != Lexeme::RBrace {
             let name = self.ident()?;
             self.expect_lexeme(Lexeme::Colon)?;
-            let ty = self.atype()?;
+            let ty = self.type_()?;
             fields.push((name, ty));
 
             // allow trailing comma
@@ -674,7 +719,7 @@ mod tests {
             r#"
                     obj.call(a1);
                 "#,
-            r#"if (s.data[i] != t.data[i]) {
+            r#"if (s.data(i) != t.data(i)) {
                     return false;
                 };"#,
         ];

@@ -2,7 +2,7 @@ use anyhow::{bail, Result};
 use once_cell::sync::Lazy;
 use regex::Regex;
 
-use crate::ast::{size_of, Structs, Type};
+use crate::ast::{Structs, Type};
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum IrTerm {
@@ -139,62 +139,6 @@ impl IrElement {
         self.show_recur(0, true)
     }
 
-    // = Types
-
-    pub fn ir_type(typ: &Type, structs: &Structs) -> Result<IrElement> {
-        Ok(match typ {
-            Type::Bool => IrElement::ident("bool"),
-            Type::Int => IrElement::ident("int"),
-            Type::Byte => IrElement::ident("byte"),
-            Type::Nil => IrElement::ident("nil"),
-            Type::Fn(_, _) => IrElement::ident("addr"),
-            Type::Struct(t) => IrElement::block(
-                "struct",
-                vec![IrElement::int(
-                    size_of(&Type::Struct(t.clone()), structs) as i32
-                )],
-            ),
-            Type::Array(_) => IrElement::ident("array"),
-            Type::Ref(_) => IrElement::ident("ref"),
-            Type::Optional(t) => {
-                IrElement::block("optional", vec![IrElement::ir_type(t, structs)?])
-            }
-            t => bail!("Unsupported type: {:?}", t),
-        })
-    }
-
-    pub fn size_of_as_ir_type(typ: &IrElement) -> Result<usize> {
-        match typ {
-            IrElement::Term(IrTerm::Ident(_, _)) => Ok(1),
-            IrElement::Block(block) => {
-                if &block.name == "struct" {
-                    Ok(block.elements[0].clone().into_term()?.into_int()? as usize)
-                } else if &block.name == "optional" {
-                    IrElement::size_of_as_ir_type(&block.elements[0])
-                } else {
-                    unreachable!()
-                }
-            }
-            _ => unreachable!(),
-        }
-    }
-
-    pub fn is_ir_type_addr(typ: &IrElement) -> bool {
-        match typ {
-            IrElement::Term(term) => match term {
-                IrTerm::Ident(ident, _) => {
-                    if ident == "addr" {
-                        return true;
-                    }
-
-                    return false;
-                }
-                _ => unreachable!(),
-            },
-            _ => unreachable!(),
-        }
-    }
-
     // = IR instructions
 
     pub fn nil() -> IrElement {
@@ -205,10 +149,14 @@ impl IrElement {
         IrElement::Term(IrTerm::Int(num))
     }
 
-    pub fn i_let(typ: IrElement, ident: String, element: IrElement) -> IrElement {
+    pub fn i_let(typ: IrType, ident: String, element: IrElement) -> IrElement {
         IrElement::block(
             "let",
-            vec![typ, IrElement::Term(IrTerm::Ident(ident, 1)), element],
+            vec![
+                typ.to_element(),
+                IrElement::Term(IrTerm::Ident(ident, 1)),
+                element,
+            ],
         )
     }
 
@@ -218,10 +166,6 @@ impl IrElement {
 
     pub fn i_unload(element: IrElement) -> IrElement {
         IrElement::block("unload", vec![element])
-    }
-
-    pub fn i_load(size: usize, element: IrElement) -> IrElement {
-        IrElement::block("load", vec![IrElement::int(size as i32), element])
     }
 
     pub fn i_copy(size: usize, source: IrElement) -> IrElement {
@@ -257,12 +201,336 @@ impl IrElement {
         IrElement::block("address", vec![element])
     }
 
-    pub fn i_offset(size: usize, element: IrElement, offset: IrElement) -> IrElement {
-        IrElement::block("offset", vec![IrElement::int(size as i32), element, offset])
+    pub fn i_index(size: usize, element: IrElement, offset: IrElement) -> IrElement {
+        IrElement::block("index", vec![IrElement::int(size as i32), element, offset])
     }
 
-    pub fn i_offset_im(size: usize, element: IrElement, offset: usize) -> IrElement {
-        IrElement::i_offset(size, element, IrElement::int(offset as i32))
+    pub fn i_offset(size: usize, element: IrElement, offset: usize) -> IrElement {
+        IrElement::block(
+            "offset",
+            vec![
+                IrElement::int(size as i32),
+                element,
+                IrElement::int(offset as i32),
+            ],
+        )
+    }
+
+    pub fn i_addr_offset(size: usize, element: IrElement, offset: usize) -> IrElement {
+        IrElement::block(
+            "addr_offset",
+            vec![
+                IrElement::int(size as i32),
+                element,
+                IrElement::int(offset as i32),
+            ],
+        )
+    }
+
+    pub fn d_var(name: impl Into<String>, typ: IrType, expr: IrElement) -> IrElement {
+        IrElement::block(
+            "var",
+            vec![
+                IrElement::Term(IrTerm::Ident(name.into(), 1)),
+                typ.to_element(),
+                expr,
+            ],
+        )
+    }
+
+    pub fn d_func(
+        name: impl Into<String>,
+        args: Vec<IrType>,
+        ret: Box<IrType>,
+        body: Vec<IrElement>,
+    ) -> IrElement {
+        let mut elements = vec![
+            IrElement::Term(IrTerm::Ident(name.into(), 1)),
+            IrElement::block(
+                "args",
+                args.into_iter().rev().map(|t| t.to_element()).collect(),
+            ),
+            IrElement::block("return", vec![ret.to_element()]),
+        ];
+        elements.extend(body);
+
+        IrElement::block("func", elements)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum IrSingleType {
+    Nil,
+    Bool,
+    Int,
+    Address(Box<IrType>),
+    Fn(Vec<IrType>, Box<IrType>),
+    Byte,
+}
+
+impl IrSingleType {
+    pub fn to_element(&self) -> IrElement {
+        match self {
+            IrSingleType::Nil => IrElement::ident("nil"),
+            IrSingleType::Bool => IrElement::ident("bool"),
+            IrSingleType::Int => IrElement::ident("int"),
+            IrSingleType::Address(t) => IrElement::block("address", vec![t.to_element()]),
+            IrSingleType::Fn(args, ret) => IrElement::block(
+                "fn",
+                vec![
+                    IrElement::block("args", args.iter().map(|t| t.to_element()).collect()),
+                    ret.to_element(),
+                ],
+            ),
+            IrSingleType::Byte => IrElement::ident("byte"),
+        }
+    }
+
+    pub fn unify(self, to: IrSingleType) -> Result<IrSingleType> {
+        match (self, to) {
+            (IrSingleType::Nil, IrSingleType::Nil) => Ok(IrSingleType::Nil),
+            (IrSingleType::Bool, IrSingleType::Bool) => Ok(IrSingleType::Bool),
+            (IrSingleType::Int, IrSingleType::Int) => Ok(IrSingleType::Int),
+            (IrSingleType::Byte, IrSingleType::Byte) => Ok(IrSingleType::Byte),
+            (IrSingleType::Address(t), IrSingleType::Address(u)) => {
+                let unified = t.unify(u.as_ref().clone())?;
+
+                Ok(IrSingleType::Address(Box::new(unified)))
+            }
+            (IrSingleType::Fn(args1, ret1), IrSingleType::Fn(args2, ret2)) => {
+                if args1.len() != args2.len() {
+                    bail!(
+                        "function arity mismatch, {} vs {}",
+                        args1.len(),
+                        args2.len()
+                    );
+                }
+
+                let mut args = Vec::new();
+                for (t, u) in args1.iter().zip(args2.iter()) {
+                    let unified = t.clone().unify(u.clone())?;
+
+                    args.push(unified);
+                }
+
+                let unified = ret1.unify(ret2.as_ref().clone())?;
+
+                Ok(IrSingleType::Fn(args, Box::new(unified)))
+            }
+            (s, t) => {
+                bail!(
+                    "Type want {} but got {}",
+                    s.to_element().show_compact(),
+                    t.to_element().show_compact()
+                )
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum IrType {
+    Unknown,
+    Single(IrSingleType),
+    Tuple(Vec<IrType>),
+    Slice(usize, Box<IrType>),
+}
+
+impl IrType {
+    pub fn unknown() -> IrType {
+        IrType::Unknown
+    }
+
+    pub fn nil() -> IrType {
+        IrType::Single(IrSingleType::Nil)
+    }
+
+    pub fn bool() -> IrType {
+        IrType::Single(IrSingleType::Bool)
+    }
+
+    pub fn int() -> IrType {
+        IrType::Single(IrSingleType::Int)
+    }
+
+    pub fn byte() -> IrType {
+        IrType::Single(IrSingleType::Byte)
+    }
+
+    pub fn addr_of(t: IrType) -> IrType {
+        IrType::Single(IrSingleType::Address(Box::new(t)))
+    }
+
+    pub fn addr_unknown() -> IrType {
+        IrType::Single(IrSingleType::Address(Box::new(IrType::unknown())))
+    }
+
+    pub fn func(args: Vec<IrType>, ret: IrType) -> IrType {
+        IrType::Single(IrSingleType::Fn(args, Box::new(ret)))
+    }
+
+    pub fn tuple(args: Vec<IrType>) -> IrType {
+        IrType::Tuple(args)
+    }
+
+    pub fn slice(size: usize, typ: Box<IrType>) -> IrType {
+        IrType::Slice(size, typ)
+    }
+
+    pub fn from_element(element: &IrElement) -> Result<IrType> {
+        Ok(match element {
+            IrElement::Term(t) => match t {
+                IrTerm::Ident(ident, _) => match ident.as_str() {
+                    "nil" => IrType::nil(),
+                    "bool" => IrType::bool(),
+                    "int" => IrType::int(),
+                    "byte" => IrType::byte(),
+                    _ => unreachable!("{:?}", t),
+                },
+                _ => unreachable!(),
+            },
+            IrElement::Block(block) => match block.name.as_str() {
+                "tuple" => {
+                    let mut types = Vec::new();
+                    for element in block.elements.iter() {
+                        types.push(IrType::from_element(element)?);
+                    }
+                    IrType::tuple(types)
+                }
+                "slice" => IrType::slice(
+                    block.elements[0].clone().into_term()?.into_int()? as usize,
+                    Box::new(IrType::from_element(&block.elements[1])?),
+                ),
+                "address" => IrType::addr_of(IrType::from_element(&block.elements[0])?),
+                t => unreachable!("{:?}", t),
+            },
+        })
+    }
+
+    pub fn from_type_ast(typ: &Type, structs: &Structs) -> Result<IrType> {
+        Ok(match typ {
+            Type::Nil => IrType::nil(),
+            Type::Bool => IrType::bool(),
+            Type::Int => IrType::int(),
+            Type::Byte => IrType::byte(),
+            Type::Fn(_, _) => todo!(),
+            Type::Method(_, _, _) => todo!(),
+            Type::Struct(s) if s == "string" => {
+                // string = array[byte]
+                IrType::tuple(vec![IrType::addr_of(IrType::byte())])
+            }
+            Type::Struct(t) => {
+                let fields = structs.0.get(t).ok_or(anyhow::anyhow!(
+                    "struct {} not found, {:?}",
+                    t,
+                    structs
+                ))?;
+                let mut types = Vec::new();
+                for (_label, typ) in fields {
+                    types.push(IrType::from_type_ast(typ, structs)?);
+                }
+                IrType::tuple(types)
+            }
+            Type::Ref(t) => IrType::addr_of(IrType::from_type_ast(t, structs)?),
+            Type::Array(t) => {
+                // array[t] = [length, elements...]
+                // This is same as { array: *element }
+                IrType::tuple(vec![IrType::addr_of(IrType::from_type_ast(t, structs)?)])
+            }
+            Type::SizedArray(t, u) => {
+                IrType::slice(*u, Box::new(IrType::from_type_ast(t.as_ref(), structs)?))
+            }
+            Type::Optional(_) => todo!(),
+            Type::Self_ => todo!(),
+            _ => unreachable!(),
+        })
+    }
+
+    pub fn to_element(&self) -> IrElement {
+        match self {
+            IrType::Unknown => IrElement::ident("unknown"),
+            IrType::Single(s) => s.to_element(),
+            IrType::Tuple(ts) => {
+                let mut elements = vec![];
+                for t in ts {
+                    elements.push(t.to_element());
+                }
+
+                IrElement::block("tuple", elements)
+            }
+            IrType::Slice(u, t) => {
+                let mut elements = vec![];
+                elements.push(IrElement::int(*u as i32));
+                elements.push(t.to_element());
+                IrElement::block("slice", elements)
+            }
+        }
+    }
+
+    pub fn size_of(&self) -> usize {
+        match self {
+            IrType::Unknown => todo!(),
+            IrType::Single(_) => 1,
+            IrType::Tuple(vs) => vs.into_iter().map(|v| v.size_of()).sum::<usize>() + 1, // +1 for a pointer to info table
+            IrType::Slice(_, _) => todo!(),
+        }
+    }
+
+    pub fn as_addr(&self) -> Result<Box<IrType>> {
+        match self {
+            IrType::Single(IrSingleType::Address(t)) => Ok(t.clone()),
+            _ => bail!("{:?} is not address", self),
+        }
+    }
+
+    pub fn as_func(&self) -> Option<(Vec<IrType>, Box<IrType>)> {
+        match self {
+            IrType::Single(IrSingleType::Fn(args, ret)) => Some((args.clone(), ret.clone())),
+            _ => None,
+        }
+    }
+
+    pub fn unify(self, to: IrType) -> Result<IrType> {
+        match (self, to) {
+            (IrType::Unknown, t) => Ok(t),
+            (s, IrType::Unknown) => Ok(s),
+            (IrType::Single(s), IrType::Single(t)) => Ok(IrType::Single(s.unify(t)?)),
+            (s, t) if s == t => Ok(s),
+            (s, t) => {
+                bail!(
+                    "Type want {} but got {}",
+                    s.to_element().show_compact(),
+                    t.to_element().show_compact()
+                )
+            }
+        }
+    }
+
+    pub fn offset(self, index: usize) -> Result<IrType> {
+        match self {
+            IrType::Single(_) => {
+                if index == 0 {
+                    Ok(self)
+                } else {
+                    bail!("Out of offset, {} in {:?}", index, self)
+                }
+            }
+            IrType::Slice(r, t) => {
+                if index < r {
+                    Ok(t.as_ref().clone())
+                } else {
+                    bail!("Out of offset, {} in {:?}", index, IrType::Slice(r, t))
+                }
+            }
+            IrType::Tuple(ts) => {
+                if index < ts.len() {
+                    Ok(ts[index].clone())
+                } else {
+                    bail!("Out of offset, {} in {:?}", index, IrType::Tuple(ts))
+                }
+            }
+            _ => bail!("Type is not address"),
+        }
     }
 }
 

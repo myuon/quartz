@@ -36,18 +36,6 @@ pub enum Literal {
     Array(Vec<Source<Expr>>, Type),
 }
 
-impl Literal {
-    pub fn into_datatype(self) -> DataValue {
-        match self {
-            Literal::Nil => DataValue::Nil,
-            Literal::Bool(b) => DataValue::Bool(b),
-            Literal::Int(i) => DataValue::Int(i),
-            Literal::String(s) => DataValue::String(s),
-            Literal::Array(_, _) => todo!(),
-        }
-    }
-}
-
 #[derive(PartialEq, Debug, Clone)]
 pub enum Statement {
     Let(String, Source<Expr>, Type),
@@ -64,22 +52,30 @@ pub enum Statement {
 }
 
 #[derive(PartialEq, Debug, Clone)]
+pub enum CallMode {
+    Function,
+    Array,
+}
+
+#[derive(PartialEq, Debug, Clone)]
 pub enum Expr {
     Var(Vec<String>, Type), // qualifier in vector
+    Method(Type, String, Type),
+    Make(Type, Vec<Source<Expr>>),
     Lit(Literal, Type),
-    Call(Box<Source<Expr>>, Vec<Source<Expr>>),
+    Call(CallMode, Box<Source<Expr>>, Vec<Source<Expr>>),
     Struct(String, Vec<(String, Source<Expr>, Type)>),
     Project(
-        bool,   // is_method
-        String, // name of the struct (will be filled in typecheck phase)
+        bool, // is_method
+        Type,
         Box<Source<Expr>>,
         String,
     ),
-    Index(Box<Source<Expr>>, Box<Source<Expr>>),
     Deref(Box<Source<Expr>>, Type),
     As(Box<Source<Expr>>, Type, Type),
     Ref(Box<Source<Expr>>, Type),
     Address(Box<Source<Expr>>, Type), // [compiler only] take the address of expr (same as ref, but no heap allocation)
+    Unwrap(Box<Source<Expr>>, Type),
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -143,6 +139,7 @@ pub enum Type {
     Struct(String),
     Ref(Box<Type>),
     Array(Box<Type>),
+    SizedArray(Box<Type>, usize),
     Optional(Box<Type>),
     Self_,
 }
@@ -177,6 +174,20 @@ impl Type {
         }
     }
 
+    pub fn as_sized_array(&self) -> Option<(&Box<Type>, &usize)> {
+        match self {
+            Type::SizedArray(t, size) => Some((t, size)),
+            _ => None,
+        }
+    }
+
+    pub fn as_array(&self) -> Option<&Box<Type>> {
+        match self {
+            Type::Array(t) => Some(t),
+            _ => None,
+        }
+    }
+
     pub fn has_infer(&self, index: usize) -> bool {
         match self {
             Type::Infer(t) => *t == index,
@@ -195,6 +206,7 @@ impl Type {
             Type::Ref(_) => todo!(),
             Type::Byte => false,
             Type::Array(t) => t.has_infer(index),
+            Type::SizedArray(t, _n) => t.has_infer(index),
             Type::Optional(t) => t.has_infer(index),
             Type::Nil => false,
             Type::Self_ => false,
@@ -230,6 +242,7 @@ impl Type {
             Type::Ref(_) => todo!(),
             Type::Byte => {}
             Type::Array(t) => t.subst(index, typ),
+            Type::SizedArray(t, _n) => t.subst(index, typ),
             Type::Optional(t) => t.subst(index, typ),
             Type::Nil => {}
             Type::Self_ => {}
@@ -260,60 +273,10 @@ impl Type {
             Type::Struct(s) => s.to_string(),
             Type::Ref(r) => r.method_selector_name()?,
             Type::Array(_) => "array".to_string(),
+            Type::SizedArray(_, _) => "sized_array".to_string(),
             Type::Optional(n) => n.method_selector_name()?,
             s => bail!("{:?} is not a method selector", s),
         })
-    }
-}
-
-#[derive(PartialEq, Debug, Clone)]
-#[allow(dead_code)]
-pub enum DataValue {
-    Nil,
-    Bool(bool),
-    Int(i32),
-    String(String),
-    Tuple(Vec<DataValue>),
-    NativeFunction(String),
-    Function(String),
-    Method(String, String, Box<DataValue>),
-    Ref(String),
-}
-
-impl DataValue {
-    pub fn as_bool(self) -> Result<bool> {
-        match self {
-            DataValue::Bool(i) => Ok(i),
-            d => bail!("expected a bool, but found {:?}", d),
-        }
-    }
-
-    pub fn as_int(self) -> Result<i32> {
-        match self {
-            DataValue::Int(i) => Ok(i),
-            d => bail!("expected a int, but found {:?}", d),
-        }
-    }
-
-    pub fn as_string(self) -> Result<String> {
-        match self {
-            DataValue::String(i) => Ok(i),
-            d => bail!("expected a string, but found {:?}", d),
-        }
-    }
-
-    pub fn as_tuple(self) -> Result<Vec<DataValue>> {
-        match self {
-            DataValue::Tuple(t) => Ok(t),
-            d => bail!("Expected a tuple, but found {:?}", d),
-        }
-    }
-
-    pub fn as_ref(self) -> Result<String> {
-        match self {
-            DataValue::Ref(s) => Ok(s),
-            d => bail!("Expected a ref, but found {:?}", d),
-        }
     }
 }
 
@@ -392,6 +355,7 @@ pub fn size_of_traced(typ: &Type, structs: &Structs, mut trace: Vec<String>) -> 
             structs.size_of_struct(st, trace)
         }
         Type::Array(_) => 1, // array itself must be allocated on heap
+        Type::SizedArray(t, n) => size_of(&t, structs) * n,
         Type::Ref(_) => 1,
         Type::Optional(t) => {
             // optional<T> is a union of T and nil

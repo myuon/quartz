@@ -1,11 +1,11 @@
 use std::collections::{HashMap, HashSet};
 
 use anyhow::{bail, Context, Result};
-use log::info;
+use log::{info, warn};
 use pretty_assertions::assert_eq;
 
 use crate::{
-    ast::{Declaration, Expr, Literal, Module, Source, Statement, Structs, Type},
+    ast::{CallMode, Declaration, Expr, Literal, Module, Source, Statement, Structs, Type},
     compiler::specify_source_in_input,
 };
 
@@ -129,6 +129,9 @@ impl Constraints {
             }
             Type::Byte => {}
             Type::Array(arr) => {
+                self.apply(arr);
+            }
+            Type::SizedArray(arr, _) => {
                 self.apply(arr);
             }
             Type::Optional(t) => {
@@ -269,6 +272,10 @@ impl<'s> TypeChecker<'s> {
             ));
         }
 
+        if let Err(err) = Constraints::unify(current_type, expected_type) {
+            warn!("{:?}", err);
+        }
+
         expr
     }
 
@@ -277,6 +284,13 @@ impl<'s> TypeChecker<'s> {
             Expr::Var(v, t) => {
                 let vtype = self
                     .load(v)
+                    .context(self.error_context(expr.start, expr.end, "var"))?;
+                *t = vtype.clone();
+                Ok(vtype)
+            }
+            Expr::Method(subj, v, t) => {
+                let vtype = self
+                    .load(&vec![subj.method_selector_name()?, v.clone()])
                     .context(self.error_context(expr.start, expr.end, "var"))?;
                 *t = vtype.clone();
                 Ok(vtype)
@@ -300,7 +314,7 @@ impl<'s> TypeChecker<'s> {
 
                 Ok(t)
             }
-            Expr::Call(f, args) => {
+            Expr::Call(mode, f, args) => {
                 let fn_type = self.expr(f)?;
                 if matches!(fn_type, Type::Any) {
                     return Ok(Type::Any);
@@ -311,42 +325,75 @@ impl<'s> TypeChecker<'s> {
                     args.insert(0, obj.as_ref().clone());
                 }
 
-                let (expected_arg_types, expected_ret_type) = fn_type.as_fn_type().ok_or(
-                    anyhow::anyhow!("Cannot call non-function type {:?}", fn_type),
-                )?;
-                let mut ret_type = expected_ret_type.as_ref().clone();
+                if let Some((t, _)) = fn_type.as_sized_array() {
+                    // array indexing
+                    *mode = CallMode::Array;
 
-                let actual_arg_len = args.len();
-                let expected_arg_len = if fn_type.is_method_type() {
-                    // FIXME: -1
-                    expected_arg_types.len()
+                    assert_eq!(args.len(), 1);
+                    let arg_type = self.expr(&mut args[0])?;
+                    assert_eq!(arg_type, Type::Int);
+
+                    Ok(t.as_ref().clone())
+                } else if let Some(t) = fn_type.as_array() {
+                    // array indexing
+                    *mode = CallMode::Array;
+
+                    assert_eq!(args.len(), 1);
+                    let arg_type = self.expr(&mut args[0])?;
+                    assert_eq!(arg_type, Type::Int);
+
+                    Ok(t.as_ref().clone())
+                } else if let Some("string") = fn_type.as_struct_type().map(|s| s.as_str()) {
+                    // string indexing
+                    *mode = CallMode::Array;
+
+                    assert_eq!(args.len(), 1);
+                    let arg_type = self.expr(&mut args[0])?;
+                    assert_eq!(arg_type, Type::Int);
+
+                    Ok(Type::Byte)
                 } else {
-                    expected_arg_types.len()
-                };
-                if expected_arg_len != actual_arg_len {
-                    anyhow::bail!(
-                        "Expected {} arguments but given {}, {} (call({:?},{:?}): {:?})",
-                        expected_arg_len,
-                        actual_arg_len,
-                        self.error_context(f.start, f.end, "no source"),
-                        f,
-                        args,
-                        fn_type,
-                    );
-                }
-
-                for i in 0..actual_arg_len {
-                    let expected_arg_type = &expected_arg_types[i];
-                    let actual_arg_type = self.expr(&mut args[i])?;
-
-                    let cs = Constraints::unify(&expected_arg_type, &actual_arg_type).context(
-                        self.error_context(args[i].start, args[i].end, &format!("{:?}", args[i])),
+                    let (expected_arg_types, expected_ret_type) = fn_type.as_fn_type().ok_or(
+                        anyhow::anyhow!("Cannot call non-function type {:?}", fn_type),
                     )?;
-                    self.apply_constraints(&cs);
-                    cs.apply(&mut ret_type);
-                }
+                    let mut ret_type = expected_ret_type.as_ref().clone();
 
-                Ok(ret_type)
+                    let actual_arg_len = args.len();
+                    let expected_arg_len = if fn_type.is_method_type() {
+                        // FIXME: -1
+                        expected_arg_types.len()
+                    } else {
+                        expected_arg_types.len()
+                    };
+                    if expected_arg_len != actual_arg_len {
+                        anyhow::bail!(
+                            "Expected {} arguments but given {} for {:?}, {} (args: {:?}): {:?})",
+                            expected_arg_len,
+                            actual_arg_len,
+                            f,
+                            self.error_context(f.start, f.end, "no source"),
+                            args,
+                            fn_type,
+                        );
+                    }
+
+                    for i in 0..actual_arg_len {
+                        let expected_arg_type = &expected_arg_types[i];
+                        let actual_arg_type = self.expr(&mut args[i])?;
+
+                        let cs = Constraints::unify(&expected_arg_type, &actual_arg_type).context(
+                            self.error_context(
+                                args[i].start,
+                                args[i].end,
+                                &format!("{:?}", args[i]),
+                            ),
+                        )?;
+                        self.apply_constraints(&cs);
+                        cs.apply(&mut ret_type);
+                    }
+
+                    Ok(ret_type)
+                }
             }
             Expr::Struct(s, fields) => {
                 assert_eq!(
@@ -383,11 +430,10 @@ impl<'s> TypeChecker<'s> {
 
                 Ok(Type::Struct(s.clone()))
             }
-            Expr::Project(is_method, name, proj, field) => {
+            Expr::Project(is_method, proj_typ, proj, field) => {
                 let typ = self.expr(proj)?;
-                *name = typ
-                    .method_selector_name()
-                    .context(self.error_context(proj.start, proj.end, ""))?;
+                *proj_typ = typ.clone();
+                let name = typ.method_selector_name()?;
 
                 if let Some((arg_types, return_type)) =
                     self.method_types.get(&(name.clone(), field.clone()))
@@ -430,10 +476,6 @@ impl<'s> TypeChecker<'s> {
                         Box::new(return_type.clone()),
                     ))
                 } else {
-                    if typ.is_ref() {
-                        *proj = Box::new(Source::unknown(Expr::Deref(proj.clone(), typ)));
-                    }
-
                     let field_type = self
                         .structs
                         .get_projection_type(&name, &field)
@@ -443,24 +485,6 @@ impl<'s> TypeChecker<'s> {
 
                     Ok(field_type.clone())
                 }
-            }
-            Expr::Index(e, i) => {
-                let mut r = self.next_infer();
-
-                let typ = self.expr(e)?;
-                let cs = Constraints::unify(&typ, &Type::Array(Box::new(r.clone())))
-                    .context(self.error_context(e.start, e.end, "index"))?;
-                self.apply_constraints(&cs);
-                cs.apply(&mut r);
-
-                let index_type = self.expr(i)?;
-                let cs = Constraints::unify(&index_type, &Type::Int)
-                    .context(self.error_context(i.start, i.end, "index"))?;
-                self.apply_constraints(&cs);
-
-                cs.apply(&mut r);
-
-                Ok(r)
             }
             Expr::Ref(e, t) => {
                 let e_type = self.expr(e)?;
@@ -491,6 +515,32 @@ impl<'s> TypeChecker<'s> {
 
                 let ty = Type::Ref(Box::new(e_type));
                 Ok(ty)
+            }
+            Expr::Make(t, args) => match t {
+                Type::SizedArray(_, _) => {
+                    assert_eq!(args.len(), 1);
+                    let arg = self.expr(&mut args[0])?;
+                    assert_eq!(arg, Type::Int);
+
+                    Ok(t.clone())
+                }
+                Type::Array(arr) => {
+                    assert_eq!(args.len(), 2);
+                    let len = self.expr(&mut args[0])?;
+                    let value = self.expr(&mut args[1])?;
+                    assert_eq!(len, Type::Int);
+                    let cs = Constraints::unify(&arr, &value)?;
+                    cs.apply(arr);
+                    cs.apply(t);
+
+                    Ok(t.clone())
+                }
+                _ => unreachable!("new {:?} {:?}", t, args),
+            },
+            Expr::Unwrap(expr, typ) => {
+                let e_type = self.expr(expr)?.as_ref_type().unwrap().as_ref().clone();
+                *typ = e_type.clone();
+                Ok(e_type)
             }
         }
     }
@@ -688,6 +738,10 @@ impl<'s> TypeChecker<'s> {
 
                         arg_types.push(t.clone());
                         self.variables.insert(arg.0.clone(), t);
+                    }
+
+                    if let Some(_) = typ.clone().as_sized_array() {
+                        self.variables.insert("sized".to_string(), Type::Int);
                     }
 
                     let mut t = self.statements(&mut func.body)?;
@@ -906,16 +960,16 @@ func f(n: int): int {
             ),
             (
                 r#"
-func main(): byte {
-    let x = _new(5);
-    x[0] = _int_to_byte(1);
-    x[1] = _int_to_byte(2);
-    x[2] = _int_to_byte(_add(_byte_to_int(x[0]), _byte_to_int(x[1])));
+func main(): int {
+    let x = make[array[int,4]](0);
+    x(0) = 1;
+    x(1) = 2;
+    x(2) = x(0) + x(1);
 
-    return x[2];
+    return x(2);
 }
             "#,
-                vec![("main", Type::Fn(vec![], Box::new(Type::Byte)))],
+                vec![("main", Type::Fn(vec![], Box::new(Type::Int)))],
             ),
         ];
 
