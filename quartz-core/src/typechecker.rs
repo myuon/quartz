@@ -202,6 +202,12 @@ impl<'s> TypeChecker<'s> {
         t
     }
 
+    fn normalize_type(&mut self, typ: &mut Type) {
+        if let Type::Infer(0) = typ {
+            *typ = self.next_infer();
+        }
+    }
+
     fn load(&mut self, v: &Vec<String>, typ: &mut Type) -> Result<()> {
         assert!(v.len() <= 2);
         if v.len() == 1 {
@@ -281,10 +287,12 @@ impl<'s> TypeChecker<'s> {
             Expr::Var(v, t) => {
                 self.load(v, t)
                     .context(self.error_context(expr.start, expr.end, "var"))?;
+                self.unify(t, typ)?;
             }
             Expr::Method(subj, v, t) => {
                 self.load(&vec![subj.method_selector_name()?, v.clone()], t)
                     .context(self.error_context(expr.start, expr.end, "var"))?;
+                self.unify(t, typ)?;
             }
             Expr::Lit(lit, lit_typ) => {
                 let t = match lit {
@@ -384,6 +392,8 @@ impl<'s> TypeChecker<'s> {
                     self.expr(expr, typ)?;
                     self.unify(&defined[label], typ)?;
                 }
+
+                self.unify(&Type::Struct(s.clone()), typ)?;
             }
             Expr::Project(is_method, proj_typ, proj, field) => {
                 self.expr(proj, proj_typ)?;
@@ -463,32 +473,30 @@ impl<'s> TypeChecker<'s> {
             }
             Expr::As(e, current_type, t) => {
                 self.expr(e, current_type)?;
-                *typ = current_type.clone();
+                self.unify(current_type, typ)?;
                 self.unify(current_type, t)?;
             }
             Expr::Address(e, t) => {
                 self.expr(e, t)?;
-                *typ = Type::Ref(Box::new(t.clone()));
+                self.unify(&Type::Ref(Box::new(t.clone())), typ)?;
             }
             Expr::Make(t, args) => match t {
                 Type::SizedArray(_, _) => {
                     assert_eq!(args.len(), 1);
                     self.expr(&mut args[0], &mut Type::Int)?;
-
-                    *typ = t.clone();
+                    self.unify(t, typ)?;
                 }
                 Type::Array(arr) => {
                     assert_eq!(args.len(), 2);
                     self.expr(&mut args[0], &mut Type::Int)?;
                     self.expr(&mut args[1], arr)?;
-
-                    *typ = t.clone();
+                    self.unify(t, typ)?;
                 }
                 _ => unreachable!("new {:?} {:?}", t, args),
             },
             Expr::Unwrap(expr, t) => {
                 self.expr(expr, t)?;
-                *typ = t.as_ref_type().unwrap().as_ref().clone();
+                self.unify(t.as_ref_type().unwrap().as_ref(), typ)?;
             }
         };
 
@@ -510,12 +518,12 @@ impl<'s> TypeChecker<'s> {
                     .context(self.error_context(e.start, e.end, "expression"))?;
             }
             Statement::Return(e, t) => {
-                self.expr(e, return_type).context(self.error_context(
+                self.expr(e, t).context(self.error_context(
                     statement.start,
                     statement.end,
                     "return",
                 ))?;
-                *t = return_type.clone();
+                self.unify(t, return_type)?;
             }
             Statement::If(cond, then_statements, else_statements) => {
                 self.expr(cond.as_mut(), &mut Type::Bool)?;
@@ -546,6 +554,11 @@ impl<'s> TypeChecker<'s> {
             let statement = &mut statements[i];
 
             self.statement(statement, typ)?;
+        }
+
+        // force return type to be nil if there is no return
+        if let Type::Infer(_) = typ {
+            self.unify(&Type::Nil, typ)?;
         }
 
         assert_eq!(
@@ -579,10 +592,7 @@ impl<'s> TypeChecker<'s> {
                         arg_types.push(t.clone());
                         self.variables.insert(arg.0.clone(), t);
                     }
-
-                    if let Type::Infer(0) = func.return_type {
-                        func.return_type = self.next_infer();
-                    }
+                    self.normalize_type(&mut func.return_type);
 
                     self.function_types.insert(
                         func.name.clone(),
@@ -606,10 +616,7 @@ impl<'s> TypeChecker<'s> {
                         arg_types.push(t.clone());
                         self.variables.insert(arg.0.clone(), t);
                     }
-
-                    if let Type::Infer(0) = func.return_type {
-                        func.return_type = self.next_infer();
-                    }
+                    self.normalize_type(&mut func.return_type);
 
                     self.method_types.insert(
                         (typ.method_selector_name()?, func.name.clone()),
