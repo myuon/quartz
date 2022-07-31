@@ -711,7 +711,7 @@ func main() {
 (module
     (text 3 102 111 111)
     (func $main (args) (return $nil)
-        (let (address $byte) $s (string 0))
+        (let (tuple (address $byte)) $s (string 0))
         (return 1 (call $_println $s(2)))
     )
 )
