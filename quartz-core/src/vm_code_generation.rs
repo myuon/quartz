@@ -644,8 +644,8 @@ impl<'s> VmFunctionGenerator<'s> {
                     }
                     "offset" => {
                         self.new_source_map(element.show_compact());
-                        let (size, element, offset_element) = unvec!(block.elements, 3);
-                        let typ = self.element_addr(element, IrType::addr_unknown())?;
+                        let (size, expr, offset_element) = unvec!(block.elements, 3);
+                        let typ = self.element_addr(expr, IrType::addr_unknown())?;
 
                         let offset = offset_element.into_term()?.into_int()? as usize;
                         self.writer.push(QVMInstruction::I32Const(offset as i32));
@@ -653,9 +653,12 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.writer
                             .push(QVMInstruction::Load(size.into_term()?.into_int()? as usize));
 
-                        // FIXME: Currently, offset positioning starts from 1
                         Ok(expected_type
-                            .unify(IrType::addr_of(typ.as_addr().unwrap().offset(offset - 1)?))?)
+                            .unify(typ.as_addr().unwrap().offset(
+                                // FIXME: Currently, offset positioning starts from 1
+                                offset - 1,
+                            )?)
+                            .context(format!("{}", element.show()))?)
                     }
                     "index" => {
                         self.new_source_map(element.show_compact());
@@ -825,6 +828,7 @@ impl VmGenerator {
         &mut self,
         element: IrElement,
     ) -> Result<(Vec<QVMInstruction>, HashMap<usize, String>)> {
+        println!("{}", element.show());
         let mut code = vec![];
         let mut labels = HashMap::new();
 
