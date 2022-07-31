@@ -676,7 +676,7 @@ impl<'s> VmFunctionGenerator<'s> {
                             )
                             .context(format!("{}", element.show()))?)
                     }
-                    "ref_offset" => {
+                    "addr_offset" => {
                         self.new_source_map(element.show_compact());
                         let (size, expr, offset_element) = unvec!(block.elements, 3);
                         let typ = self.element(expr, IrType::addr_unknown())?;

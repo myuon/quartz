@@ -216,9 +216,9 @@ impl IrElement {
         )
     }
 
-    pub fn i_ref_offset(size: usize, element: IrElement, offset: usize) -> IrElement {
+    pub fn i_addr_offset(size: usize, element: IrElement, offset: usize) -> IrElement {
         IrElement::block(
-            "ref_offset",
+            "addr_offset",
             vec![
                 IrElement::int(size as i32),
                 element,
