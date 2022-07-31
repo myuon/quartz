@@ -291,6 +291,7 @@ impl IrSingleType {
             (IrSingleType::Nil, IrSingleType::Nil) => Ok(IrSingleType::Nil),
             (IrSingleType::Bool, IrSingleType::Bool) => Ok(IrSingleType::Bool),
             (IrSingleType::Int, IrSingleType::Int) => Ok(IrSingleType::Int),
+            (IrSingleType::Byte, IrSingleType::Byte) => Ok(IrSingleType::Byte),
             (IrSingleType::Address(t), IrSingleType::Address(u)) => {
                 let unified = t.unify(u.as_ref().clone())?;
 

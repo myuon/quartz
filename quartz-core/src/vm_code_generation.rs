@@ -888,9 +888,7 @@ impl VmGenerator {
             let mut block = element.into_block()?;
             match block.name.as_str() {
                 "text" => {
-                    // text segment must be processed at first
-                    // +1 for skipping the size value
-                    string_pointers.push(code.len() + 1);
+                    string_pointers.push(code.len());
                     for i in block.elements {
                         code.push(QVMInstruction::I32Const(i.into_term()?.into_int()?));
                     }

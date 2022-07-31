@@ -332,7 +332,7 @@ impl Runtime {
                 Ok(header.len())
             }
             Value::Addr(addr, AddrPlace::Stack, _) => {
-                let len = self.stack[addr - 1].clone().as_int().unwrap() as usize;
+                let len = self.stack[addr].clone().as_int().unwrap() as usize;
 
                 Ok(len)
             }
