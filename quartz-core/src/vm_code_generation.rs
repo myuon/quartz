@@ -327,9 +327,11 @@ impl<'s> VmFunctionGenerator<'s> {
                     let typ = self.element(elem, IrType::unknown())?;
                     self.writer.push(QVMInstruction::I32Const(offset as i32));
                     self.writer.push(QVMInstruction::PAdd);
-                    Ok((typ.as_addr()?)
-                        .offset(offset - 1)
-                        .context(format!("{}", element.show()))?)
+                    Ok(IrType::addr_of(
+                        (typ.as_addr()?)
+                            .offset(offset - 1)
+                            .context(format!("{}", element.show()))?,
+                    ))
                 }
                 "index" => {
                     self.new_source_map(element.show_compact());
@@ -696,16 +698,14 @@ impl<'s> VmFunctionGenerator<'s> {
                     }
                     "addr_offset" => {
                         self.new_source_map(element.show_compact());
-                        let (size, expr, offset_element) = unvec!(block.elements, 3);
+                        let (_, expr, offset_element) = unvec!(block.elements, 3);
                         let typ = self.element(expr, IrType::addr_unknown())?;
 
                         let offset = offset_element.into_term()?.into_int()? as usize;
                         self.writer.push(QVMInstruction::I32Const(offset as i32));
                         self.writer.push(QVMInstruction::PAdd);
-                        self.writer
-                            .push(QVMInstruction::Load(size.into_term()?.into_int()? as usize));
 
-                        Ok(expected_type
+                        let result_typ = expected_type
                             .unify(
                                 typ.as_addr()
                                     .unwrap()
@@ -715,7 +715,10 @@ impl<'s> VmFunctionGenerator<'s> {
                                     )
                                     .context(format!("{}", element.show()))?,
                             )
-                            .context(format!("{}", element.show()))?)
+                            .context(format!("{}", element.show()))?;
+                        self.writer.push(QVMInstruction::Load(result_typ.size_of()));
+
+                        Ok(result_typ)
                     }
                     "index" => {
                         self.new_source_map(element.show_compact());

@@ -466,7 +466,7 @@ impl IrType {
         match self {
             IrType::Unknown => todo!(),
             IrType::Single(_) => 1,
-            IrType::Tuple(vs) => vs.into_iter().map(|v| v.size_of()).sum(),
+            IrType::Tuple(vs) => vs.into_iter().map(|v| v.size_of()).sum::<usize>() + 1, // +1 for a pointer to info table
             IrType::Slice(_, _) => todo!(),
         }
     }
