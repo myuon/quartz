@@ -471,10 +471,10 @@ impl IrType {
         }
     }
 
-    pub fn as_addr(&self) -> Option<Box<IrType>> {
+    pub fn as_addr(&self) -> Result<Box<IrType>> {
         match self {
-            IrType::Single(IrSingleType::Address(t)) => Some(t.clone()),
-            _ => None,
+            IrType::Single(IrSingleType::Address(t)) => Ok(t.clone()),
+            _ => bail!("{:?} is not address", self),
         }
     }
 

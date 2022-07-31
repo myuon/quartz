@@ -314,10 +314,22 @@ impl<'s> VmFunctionGenerator<'s> {
                     self.writer.push(QVMInstruction::I32Const(offset as i32));
                     self.writer.push(QVMInstruction::PAdd);
                     Ok(IrType::addr_of(
-                        (typ.as_addr().unwrap())
+                        (typ.as_addr().context(format!("{}", element.show()))?)
                             .offset(offset - 1)
                             .context(format!("{}", element.show()))?,
                     ))
+                }
+                "addr_offset" => {
+                    self.new_source_map(element.show_compact());
+
+                    let (_, elem, offset_element) = unvec!(block.elements, 3);
+                    let offset = offset_element.into_term()?.into_int()? as usize;
+                    let typ = self.element(elem, IrType::unknown())?;
+                    self.writer.push(QVMInstruction::I32Const(offset as i32));
+                    self.writer.push(QVMInstruction::PAdd);
+                    Ok((typ.as_addr()?)
+                        .offset(offset - 1)
+                        .context(format!("{}", element.show()))?)
                 }
                 "index" => {
                     self.new_source_map(element.show_compact());
