@@ -255,7 +255,7 @@ impl<'s> VmFunctionGenerator<'s> {
             ),
             "_check_sp" => (
                 QVMInstruction::RuntimeInstr("_check_sp".to_string()),
-                todo!(),
+                IrType::nil(),
             ),
             _ => (
                 QVMInstruction::LabelI32Const(v.to_string()),
@@ -280,6 +280,7 @@ impl<'s> VmFunctionGenerator<'s> {
 
                         Ok(IrType::addr_of(t.clone()))
                     } else {
+                        // resolve a function
                         let (code, typ) = self.resolve_symbol(v.as_str());
                         self.writer.push(code);
 
@@ -313,7 +314,8 @@ impl<'s> VmFunctionGenerator<'s> {
                     self.writer.push(QVMInstruction::I32Const(offset as i32));
                     self.writer.push(QVMInstruction::PAdd);
                     Ok(IrType::addr_of(
-                        typ.offset(offset - 1)
+                        (typ.as_addr().unwrap())
+                            .offset(offset - 1)
                             .context(format!("{}", element.show()))?,
                     ))
                 }
@@ -350,7 +352,11 @@ impl<'s> VmFunctionGenerator<'s> {
 
                         Ok(t.clone())
                     } else {
-                        unreachable!();
+                        // resolve an embedded instruction
+                        let (code, typ) = self.resolve_symbol(v.as_str());
+                        self.writer.push(code);
+
+                        Ok(IrType::addr_of(typ))
                     }
                 }
                 IrTerm::Nil => {
