@@ -9,6 +9,7 @@ use crate::{
     compiler::specify_source_in_input,
 };
 
+#[derive(Debug)]
 struct Constraints(Vec<(usize, Type)>);
 
 impl Constraints {
@@ -56,18 +57,6 @@ impl Constraints {
                 Ok(cs)
             }
             (t1, t2) => bail!("Type error, want {:?} but found {:?}", t1, t2),
-        }
-    }
-
-    fn coerce(t1: &Type, t2: &Type) -> Result<Constraints> {
-        if let Ok(c) = Constraints::unify(t1, t2) {
-            return Ok(c);
-        }
-
-        match (t1, t2) {
-            (Type::Nil, Type::Optional(_)) => Ok(Constraints::new()),
-            (t, Type::Optional(s)) => Constraints::unify(t, s),
-            (t1, t2) => bail!("[coerce] Type error, want {:?} but found {:?}", t1, t2),
         }
     }
 
@@ -297,7 +286,7 @@ impl<'s> TypeChecker<'s> {
                 self.load(&vec![subj.method_selector_name()?, v.clone()], t)
                     .context(self.error_context(expr.start, expr.end, "var"))?;
             }
-            Expr::Lit(lit, typ) => {
+            Expr::Lit(lit, lit_typ) => {
                 let t = match lit {
                     Literal::Bool(_) => Type::Bool,
                     Literal::Int(_) => Type::Int,
@@ -311,7 +300,9 @@ impl<'s> TypeChecker<'s> {
                         Type::Array(Box::new(t.clone()))
                     }
                 };
+
                 self.unify(&t, typ)?;
+                *lit_typ = typ.clone();
             }
             Expr::Call(mode, f, args) => {
                 let mut fn_type = self.next_infer();
@@ -396,7 +387,11 @@ impl<'s> TypeChecker<'s> {
             }
             Expr::Project(is_method, proj_typ, proj, field) => {
                 self.expr(proj, proj_typ)?;
-                let name = proj_typ.method_selector_name()?;
+                let name = proj_typ.method_selector_name().context(self.error_context(
+                    proj.start,
+                    proj.end,
+                    &format!("[proj] {:?}", proj),
+                ))?;
 
                 if let Some((arg_types, return_type)) = self
                     .method_types

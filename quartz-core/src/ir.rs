@@ -442,7 +442,7 @@ impl IrType {
             }
             Type::Optional(_) => todo!(),
             Type::Self_ => todo!(),
-            _ => unreachable!(),
+            t => unreachable!("{:?}", t),
         })
     }
 
