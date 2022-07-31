@@ -55,12 +55,6 @@ impl Constraints {
                 let cs = Constraints::unify(t1, t2)?;
                 Ok(cs)
             }
-            (Type::Array(t), Type::Struct(s)) if t.as_ref() == &Type::Byte && s == "string" => {
-                Ok(Constraints::new())
-            }
-            (Type::Struct(s), Type::Array(t)) if t.as_ref() == &Type::Byte && s == "string" => {
-                Ok(Constraints::new())
-            }
             (t1, t2) => bail!("Type error, want {:?} but found {:?}", t1, t2),
         }
     }

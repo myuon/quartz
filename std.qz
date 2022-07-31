@@ -11,19 +11,19 @@ method int to_string(self): string {
 }
 
 method string len(self): int {
-    return _len(self!);
+    return _len(self.bytes());
 }
 
 method string bytes(self): array[byte] {
-    return self!;
+    return self! as array[byte];
 }
 
 method string at(self, index: int): byte {
     return self!(index);
 }
 
-method string from_bytes(bytes: array[byte]): string {
-    return bytes;
+method string from_bytes(bs: array[byte]): string {
+    return bs as string;
 }
 
 method string eq(self, t: string): bool {
@@ -61,7 +61,7 @@ method string concat(self, t: string): string {
     _copy(0, self.len(), self.bytes(), buffer);
     _copy(self.len(), t.len(), t.bytes(), buffer);
 
-    return string { data: buffer };
+    return string::from_bytes(buffer);
 }
 
 method string reverse(self): string {
@@ -70,11 +70,11 @@ method string reverse(self): string {
     while (n < self.len()) {
         // FIXME: multiple operators
         // s.len() - n - 1
-        buffer(n) = self.data(_sub(self.len(), n + 1));
+        buffer(n) = self.at(_sub(self.len(), n + 1));
         n = n + 1;
     };
 
-    return string { data: buffer };
+    return string::from_bytes(buffer);
 }
 
 struct substring {
@@ -105,11 +105,9 @@ method string slice_after(self, start: int): substring {
 
 method substring to_string(self): string {
     let buffer = make[array[byte]](self.end - self.start, nil as byte);
-    _copy(0, self.end - self.start, _padd(self.str.data, self.start), buffer);
+    _copy(0, self.end - self.start, _padd(self.str, self.start), buffer);
 
-    return string {
-        data: buffer,
-    };
+    return string::from_bytes(buffer);
 }
 
 // FIXME: faster implementation
