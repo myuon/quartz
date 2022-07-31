@@ -373,7 +373,7 @@ impl IrType {
         IrType::Tuple(args)
     }
 
-    pub fn array(size: usize, typ: Box<IrType>) -> IrType {
+    pub fn slice(size: usize, typ: Box<IrType>) -> IrType {
         IrType::Slice(size, typ)
     }
 
@@ -397,7 +397,7 @@ impl IrType {
                     }
                     IrType::tuple(types)
                 }
-                "slice" => IrType::array(
+                "slice" => IrType::slice(
                     block.elements[0].clone().into_term()?.into_int()? as usize,
                     Box::new(IrType::from_element(&block.elements[1])?),
                 ),
@@ -415,6 +415,10 @@ impl IrType {
             Type::Byte => IrType::byte(),
             Type::Fn(_, _) => todo!(),
             Type::Method(_, _, _) => todo!(),
+            Type::Struct(s) if s == "string" => {
+                // FIXME: Really?
+                IrType::from_type_ast(&Type::Array(Box::new(Type::Byte)), structs)?
+            }
             Type::Struct(t) => {
                 let fields = structs.0.get(t).ok_or(anyhow::anyhow!(
                     "struct {} not found, {:?}",
@@ -428,12 +432,9 @@ impl IrType {
                 IrType::tuple(types)
             }
             Type::Ref(t) => IrType::addr_of(IrType::from_type_ast(t, structs)?),
-            Type::Array(t) => IrType::tuple(vec![
-                IrType::int(),
-                IrType::addr_of(IrType::from_type_ast(t, structs)?),
-            ]),
+            Type::Array(t) => IrType::addr_of(IrType::from_type_ast(t, structs)?),
             Type::SizedArray(t, u) => {
-                IrType::array(*u, Box::new(IrType::from_type_ast(t.as_ref(), structs)?))
+                IrType::slice(*u, Box::new(IrType::from_type_ast(t.as_ref(), structs)?))
             }
             Type::Optional(_) => todo!(),
             Type::Self_ => todo!(),
