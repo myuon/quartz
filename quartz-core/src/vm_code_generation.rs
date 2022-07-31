@@ -307,12 +307,15 @@ impl<'s> VmFunctionGenerator<'s> {
                 "offset" => {
                     self.new_source_map(element.show_compact());
 
-                    let (_, element, offset_element) = unvec!(block.elements, 3);
+                    let (_, elem, offset_element) = unvec!(block.elements, 3);
                     let offset = offset_element.into_term()?.into_int()? as usize;
-                    let typ = self.element_addr(element, IrType::unknown())?;
+                    let typ = self.element_addr(elem, IrType::unknown())?;
                     self.writer.push(QVMInstruction::I32Const(offset as i32));
                     self.writer.push(QVMInstruction::PAdd);
-                    Ok(IrType::addr_of(typ.offset(offset - 1)?))
+                    Ok(IrType::addr_of(
+                        typ.offset(offset - 1)
+                            .context(format!("{}", element.show()))?,
+                    ))
                 }
                 "index" => {
                     self.new_source_map(element.show_compact());
@@ -566,7 +569,15 @@ impl<'s> VmFunctionGenerator<'s> {
 
                         let mut types = vec![];
                         for (i, elem) in block.elements.into_iter().skip(1).enumerate() {
-                            types.push(self.element(elem, expected_type.clone().offset(i)?)?);
+                            types.push(
+                                self.element(
+                                    elem,
+                                    expected_type
+                                        .clone()
+                                        .offset(i)
+                                        .context(format!("{}", element.show()))?,
+                                )?,
+                            );
                         }
 
                         Ok(IrType::tuple(types))
@@ -654,10 +665,38 @@ impl<'s> VmFunctionGenerator<'s> {
                             .push(QVMInstruction::Load(size.into_term()?.into_int()? as usize));
 
                         Ok(expected_type
-                            .unify(typ.as_addr().unwrap().offset(
-                                // FIXME: Currently, offset positioning starts from 1
-                                offset - 1,
-                            )?)
+                            .unify(
+                                typ.as_addr()
+                                    .unwrap()
+                                    .offset(
+                                        // FIXME: Currently, offset positioning starts from 1
+                                        offset - 1,
+                                    )
+                                    .context(format!("{}", element.show()))?,
+                            )
+                            .context(format!("{}", element.show()))?)
+                    }
+                    "ref_offset" => {
+                        self.new_source_map(element.show_compact());
+                        let (size, expr, offset_element) = unvec!(block.elements, 3);
+                        let typ = self.element(expr, IrType::addr_unknown())?;
+
+                        let offset = offset_element.into_term()?.into_int()? as usize;
+                        self.writer.push(QVMInstruction::I32Const(offset as i32));
+                        self.writer.push(QVMInstruction::PAdd);
+                        self.writer
+                            .push(QVMInstruction::Load(size.into_term()?.into_int()? as usize));
+
+                        Ok(expected_type
+                            .unify(
+                                typ.as_addr()
+                                    .unwrap()
+                                    .offset(
+                                        // FIXME: Currently, offset positioning starts from 1
+                                        offset - 1,
+                                    )
+                                    .context(format!("{}", element.show()))?,
+                            )
                             .context(format!("{}", element.show()))?)
                     }
                     "index" => {

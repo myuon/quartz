@@ -216,6 +216,17 @@ impl IrElement {
         )
     }
 
+    pub fn i_ref_offset(size: usize, element: IrElement, offset: usize) -> IrElement {
+        IrElement::block(
+            "ref_offset",
+            vec![
+                IrElement::int(size as i32),
+                element,
+                IrElement::int(offset as i32),
+            ],
+        )
+    }
+
     pub fn d_var(name: impl Into<String>, typ: IrType, expr: IrElement) -> IrElement {
         IrElement::block(
             "var",

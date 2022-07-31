@@ -78,8 +78,8 @@ pub enum Expr {
     Call(CallMode, Box<Source<Expr>>, Vec<Source<Expr>>),
     Struct(String, Vec<(String, Source<Expr>, Type)>),
     Project(
-        bool,   // is_method
-        String, // name of the struct (will be filled in typecheck phase)
+        bool, // is_method
+        Type,
         Box<Source<Expr>>,
         String,
     ),

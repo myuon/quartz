@@ -386,7 +386,7 @@ impl Parser {
 
                     result = Expr::Project(
                         false,
-                        "<infer>".to_string(),
+                        Type::Infer(0),
                         Box::new(self.source_from(result, result_start)),
                         i,
                     );
@@ -431,7 +431,7 @@ impl Parser {
 
                 Expr::Project(
                     false,
-                    "<infer>".to_string(),
+                    Type::Infer(0),
                     Box::new(self.source_from(expr, short_expr_start)),
                     i,
                 )

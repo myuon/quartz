@@ -421,11 +421,10 @@ impl<'s> TypeChecker<'s> {
 
                 Ok(Type::Struct(s.clone()))
             }
-            Expr::Project(is_method, name, proj, field) => {
+            Expr::Project(is_method, proj_typ, proj, field) => {
                 let typ = self.expr(proj)?;
-                *name = typ
-                    .method_selector_name()
-                    .context(self.error_context(proj.start, proj.end, ""))?;
+                *proj_typ = typ.clone();
+                let name = typ.method_selector_name()?;
 
                 if let Some((arg_types, return_type)) =
                     self.method_types.get(&(name.clone(), field.clone()))
