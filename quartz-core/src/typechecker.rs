@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use anyhow::{bail, Context, Result};
-use log::{info, warn};
+use log::warn;
 use pretty_assertions::assert_eq;
 
 use crate::{
@@ -368,10 +368,8 @@ impl<'s> TypeChecker<'s> {
                     }
 
                     for i in 0..actual_arg_len {
-                        let mut t = self.next_infer();
-                        self.expr(&mut args[i], &mut t)
+                        self.expr_coerce(&mut args[i], &arg_types[i])
                             .context(format!("{}th argument", i))?;
-                        args[i] = self.transform_refs(args[i].clone(), &t, &arg_types[i]);
                     }
 
                     self.unify(&ret_type, typ)?;
@@ -468,12 +466,11 @@ impl<'s> TypeChecker<'s> {
                 )?;
             }
             Expr::As(e, current_type, t) => {
-                self.expr(e, current_type)?;
+                self.expr_coerce(e, current_type)?;
                 self.unify(current_type, typ)?;
                 self.unify(current_type, t)?;
             }
             Expr::Address(e, t) => {
-                println!("{:?} :: {:?}", e, t);
                 self.expr(e, t)?;
                 self.unify(&Type::Ref(Box::new(t.clone())), typ)?;
             }
@@ -496,6 +493,14 @@ impl<'s> TypeChecker<'s> {
                 self.unify(t.as_ref_type().unwrap().as_ref(), typ)?;
             }
         };
+
+        Ok(())
+    }
+
+    fn expr_coerce(&mut self, expr: &mut Source<Expr>, typ: &Type) -> Result<()> {
+        let mut t = self.next_infer();
+        self.expr(expr, &mut t)?;
+        *expr = self.transform_refs(expr.clone(), &t, &typ);
 
         Ok(())
     }
