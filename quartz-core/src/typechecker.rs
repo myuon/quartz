@@ -255,7 +255,7 @@ impl<'s> TypeChecker<'s> {
     }
 
     // wrap by address if necessary
-    fn coerced_ref_type(
+    fn transform_self_object(
         &self,
         expr: Source<Expr>,
         current_type: &Type,
@@ -263,7 +263,7 @@ impl<'s> TypeChecker<'s> {
     ) -> Source<Expr> {
         if let Type::Ref(current_type) = current_type {
             if let Type::Ref(expected_type) = expected_type {
-                return self.coerced_ref_type(expr, current_type, expected_type);
+                return self.transform_self_object(expr, current_type, expected_type);
             }
         }
 
@@ -273,6 +273,9 @@ impl<'s> TypeChecker<'s> {
                 Box::new(expr.clone()),
                 Type::Ref(Box::new(current_type.clone())),
             ));
+        }
+        if current_type.is_ref() && !expected_type.is_ref() {
+            return Source::unknown(Expr::Deref(Box::new(expr.clone()), expected_type.clone()));
         }
 
         if let Err(err) = Constraints::unify(current_type, expected_type) {
@@ -316,11 +319,6 @@ impl<'s> TypeChecker<'s> {
                 let mut fn_type = self.next_infer();
                 self.expr(f, &mut fn_type)?;
 
-                // restore self_object here
-                if let Some(obj) = self.self_object.take() {
-                    args.insert(0, obj.as_ref().clone());
-                }
-
                 if let Some((t, _)) = fn_type.as_sized_array() {
                     // array indexing
                     *mode = CallMode::Array;
@@ -342,6 +340,11 @@ impl<'s> TypeChecker<'s> {
                     self.expr(&mut args[0], &mut Type::Int)?;
                     self.unify(&Type::Byte, typ)?;
                 } else {
+                    // restore self_object here
+                    if let Some(obj) = self.self_object.take() {
+                        args.insert(0, obj.as_ref().clone());
+                    }
+
                     let (arg_types, ret_type) = fn_type.as_fn_type().ok_or(anyhow::anyhow!(
                         "Cannot call non-function type {:?}",
                         fn_type
@@ -368,7 +371,8 @@ impl<'s> TypeChecker<'s> {
                     }
 
                     for i in 0..actual_arg_len {
-                        self.expr(&mut args[i], &mut arg_types[i])?;
+                        self.expr(&mut args[i], &mut arg_types[i])
+                            .context(format!("{}th argument", i))?;
                     }
 
                     self.unify(&ret_type, typ)?;
@@ -412,15 +416,6 @@ impl<'s> TypeChecker<'s> {
 
                     *is_method = true;
 
-                    self.unify(
-                        &Type::Method(
-                            Box::new(proj_typ.clone()),
-                            arg_types.clone(),
-                            Box::new(return_type.clone()),
-                        ),
-                        typ,
-                    )?;
-
                     self.call_graph
                         .entry(self.current_function.clone().unwrap())
                         .or_insert(HashMap::new())
@@ -434,20 +429,24 @@ impl<'s> TypeChecker<'s> {
                     // x will be stored in self_object
                     // x is passed by ref
                     if !arg_types.is_empty() {
-                        self.self_object = Some(Box::new(self.coerced_ref_type(
+                        self.self_object = Some(Box::new(self.transform_self_object(
                             proj.as_ref().clone(),
-                            &typ,
+                            &proj_typ,
                             &arg_types[0],
                         )));
                     }
+                    let method_type = Type::Method(
+                        Box::new(Type::Struct(name.clone())),
+                        arg_types.clone(),
+                        Box::new(return_type.clone()),
+                    );
                     *expr = Source::unknown(Expr::Var(
                         vec![name.clone(), field.clone()],
-                        Type::Method(
-                            Box::new(Type::Struct(name.clone())),
-                            arg_types.clone(),
-                            Box::new(return_type.clone()),
-                        ),
+                        method_type.clone(),
                     ));
+
+                    self.unify(&method_type, typ)
+                        .context(format!("[project] {:?}", expr))?;
                 } else {
                     let field_type = self
                         .structs
