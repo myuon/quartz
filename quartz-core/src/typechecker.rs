@@ -255,7 +255,7 @@ impl<'s> TypeChecker<'s> {
     }
 
     // wrap by address if necessary
-    fn transform_self_object(
+    fn transform_refs(
         &self,
         expr: Source<Expr>,
         current_type: &Type,
@@ -263,7 +263,7 @@ impl<'s> TypeChecker<'s> {
     ) -> Source<Expr> {
         if let Type::Ref(current_type) = current_type {
             if let Type::Ref(expected_type) = expected_type {
-                return self.transform_self_object(expr, current_type, expected_type);
+                return self.transform_refs(expr, current_type, expected_type);
             }
         }
 
@@ -346,7 +346,7 @@ impl<'s> TypeChecker<'s> {
                         "Cannot call non-function type {:?}",
                         fn_type
                     ))?;
-                    let mut arg_types = arg_types.clone();
+                    let arg_types = arg_types.clone();
 
                     let actual_arg_len = args.len();
                     let expected_arg_len = if fn_type.is_method_type() {
@@ -368,8 +368,10 @@ impl<'s> TypeChecker<'s> {
                     }
 
                     for i in 0..actual_arg_len {
-                        self.expr(&mut args[i], &mut arg_types[i])
+                        let mut t = self.next_infer();
+                        self.expr(&mut args[i], &mut t)
                             .context(format!("{}th argument", i))?;
+                        args[i] = self.transform_refs(args[i].clone(), &t, &arg_types[i]);
                     }
 
                     self.unify(&ret_type, typ)?;
@@ -426,11 +428,8 @@ impl<'s> TypeChecker<'s> {
                     // x will be stored in self_object
                     // x is passed by ref
                     if !arg_types.is_empty() {
-                        let transformed = self.transform_self_object(
-                            proj.as_ref().clone(),
-                            &proj_typ,
-                            &arg_types[0],
-                        );
+                        let transformed =
+                            self.transform_refs(proj.as_ref().clone(), &proj_typ, &arg_types[0]);
                         self.self_object = Some(Box::new(transformed));
                     }
                     let method_type = Type::Method(
