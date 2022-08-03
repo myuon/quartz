@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use anyhow::{bail, Context, Result};
-use log::warn;
+use log::{info, warn};
 use pretty_assertions::assert_eq;
 
 use crate::{
@@ -269,10 +269,7 @@ impl<'s> TypeChecker<'s> {
 
         // FIXME: Excluding `Type::Any` is a hack
         if !current_type.is_ref() && expected_type.is_ref() && expected_type != &Type::Any {
-            return Source::unknown(Expr::Address(
-                Box::new(expr.clone()),
-                Type::Ref(Box::new(current_type.clone())),
-            ));
+            return Source::unknown(Expr::Address(Box::new(expr.clone()), current_type.clone()));
         }
         if current_type.is_ref() && !expected_type.is_ref() {
             return Source::unknown(Expr::Deref(Box::new(expr.clone()), expected_type.clone()));
@@ -429,11 +426,12 @@ impl<'s> TypeChecker<'s> {
                     // x will be stored in self_object
                     // x is passed by ref
                     if !arg_types.is_empty() {
-                        self.self_object = Some(Box::new(self.transform_self_object(
+                        let transformed = self.transform_self_object(
                             proj.as_ref().clone(),
                             &proj_typ,
                             &arg_types[0],
-                        )));
+                        );
+                        self.self_object = Some(Box::new(transformed));
                     }
                     let method_type = Type::Method(
                         Box::new(Type::Struct(name.clone())),
@@ -476,6 +474,7 @@ impl<'s> TypeChecker<'s> {
                 self.unify(current_type, t)?;
             }
             Expr::Address(e, t) => {
+                println!("{:?} :: {:?}", e, t);
                 self.expr(e, t)?;
                 self.unify(&Type::Ref(Box::new(t.clone())), typ)?;
             }
