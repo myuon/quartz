@@ -724,16 +724,24 @@ impl<'s> VmFunctionGenerator<'s> {
                     }
                     "index" => {
                         self.new_source_map(element.show_compact());
-                        let (size, element, offset) = unvec!(block.elements, 3);
-                        let typ = self.element_addr(element)?.unify(IrType::addr_unknown())?;
+                        let (element, offset) = unvec!(block.elements, 2);
+                        let typ = self.element_addr(element)?;
+                        let elem_typ = typ
+                            .as_addr()
+                            .unwrap()
+                            .as_slice()
+                            .unwrap()
+                            .1
+                            .as_ref()
+                            .clone();
                         self.element(offset)?.unify(IrType::int())?;
                         self.writer.push(QVMInstruction::I32Const(1));
                         self.writer.push(QVMInstruction::Add);
                         self.writer.push(QVMInstruction::PAdd);
-                        self.writer
-                            .push(QVMInstruction::Load(size.into_term()?.into_int()? as usize));
 
-                        Ok(IrType::unknown()) // FIXME: Is this true?
+                        self.writer.push(QVMInstruction::Load(elem_typ.size_of()));
+
+                        Ok(elem_typ)
                     }
                     "size_of" => {
                         self.new_source_map(element.show_compact());

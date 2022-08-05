@@ -143,13 +143,10 @@ impl<'s> IrFunctionGenerator<'s> {
 
                 Ok(IrElement::i_call_raw(elements))
             }
-            Expr::Call(CallMode::Array, f, args) => {
-                Ok(IrElement::i_index(
-                    1, // FIXME: correct value
-                    self.expr(f.as_ref())?,
-                    self.expr(&args[0])?,
-                ))
-            }
+            Expr::Call(CallMode::Array, f, args) => Ok(IrElement::i_index(
+                self.expr(f.as_ref())?,
+                self.expr(&args[0])?,
+            )),
             Expr::Struct(struct_name, exprs) => {
                 // in: A { a: 1, b: 2 }
                 // out: (let (data TYPE 1 2))
