@@ -632,21 +632,6 @@ impl<'s> VmFunctionGenerator<'s> {
 
                         Ok(IrType::unknown())
                     }
-                    "unload" => {
-                        self.new_source_map(element.show_compact());
-                        let element = unvec!(block.elements, 1);
-                        self.element(element.clone())?
-                            .unify(IrType::addr_unknown())?;
-                        let code = self.writer.pop();
-                        assert!(
-                            matches!(code, Some(QVMInstruction::Load(_))),
-                            "{:?} {}",
-                            code,
-                            element.show()
-                        );
-
-                        Ok(IrType::unknown())
-                    }
                     "string" => {
                         self.new_source_map(element.show_compact());
                         let string = unvec!(block.elements, 1);
