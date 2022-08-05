@@ -193,15 +193,8 @@ impl IrElement {
         IrElement::block("index", vec![IrElement::int(size as i32), element, offset])
     }
 
-    pub fn i_offset(size: usize, element: IrElement, offset: usize) -> IrElement {
-        IrElement::block(
-            "offset",
-            vec![
-                IrElement::int(size as i32),
-                element,
-                IrElement::int(offset as i32),
-            ],
-        )
+    pub fn i_offset(element: IrElement, offset: usize) -> IrElement {
+        IrElement::block("offset", vec![element, IrElement::int(offset as i32)])
     }
 
     pub fn i_addr_offset(size: usize, element: IrElement, offset: usize) -> IrElement {

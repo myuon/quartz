@@ -308,7 +308,7 @@ impl<'s> VmFunctionGenerator<'s> {
                 "offset" => {
                     self.new_source_map(element.show_compact());
 
-                    let (_, elem, offset_element) = unvec!(block.elements, 3);
+                    let (elem, offset_element) = unvec!(block.elements, 2);
                     let offset = offset_element.into_term()?.into_int()? as usize;
                     let typ = self.element_addr(elem, IrType::unknown())?;
                     self.writer.push(QVMInstruction::I32Const(offset as i32));
@@ -693,14 +693,14 @@ impl<'s> VmFunctionGenerator<'s> {
                     }
                     "offset" => {
                         self.new_source_map(element.show_compact());
-                        let (size, expr, offset_element) = unvec!(block.elements, 3);
+                        let (expr, offset_element) = unvec!(block.elements, 2);
                         let typ = self.element_addr(expr, IrType::addr_unknown())?;
 
                         let offset = offset_element.into_term()?.into_int()? as usize;
                         self.writer.push(QVMInstruction::I32Const(offset as i32));
                         self.writer.push(QVMInstruction::PAdd);
-                        self.writer
-                            .push(QVMInstruction::Load(size.into_term()?.into_int()? as usize));
+
+                        self.writer.push(QVMInstruction::Load(typ.size_of()));
 
                         Ok(expected_type
                             .unify(

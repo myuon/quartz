@@ -125,11 +125,7 @@ impl<'s> IrFunctionGenerator<'s> {
 
                         self.ir.push(IrElement::i_assign(
                             element_size,
-                            IrElement::i_offset(
-                                element_size,
-                                IrElement::Term(IrTerm::Ident(v.clone())),
-                                i,
-                            ),
+                            IrElement::i_offset(IrElement::Term(IrTerm::Ident(v.clone())), i),
                             velem,
                         ));
                     }
@@ -200,7 +196,7 @@ impl<'s> IrFunctionGenerator<'s> {
                     // if p is a pointer in p.l, it should be compiled to p->l
                     IrElement::i_addr_offset(size_of(&typ, self.structs), value, index)
                 } else {
-                    IrElement::i_offset(size_of(&typ, self.structs), value, index)
+                    IrElement::i_offset(value, index)
                 })
             }
             Expr::Ref(e, t) => {
@@ -215,7 +211,7 @@ impl<'s> IrFunctionGenerator<'s> {
                 let e_value = self.expr(e)?;
                 self.ir.push(IrElement::i_assign(
                     size,
-                    IrElement::i_offset(1, IrElement::Term(IrTerm::Ident(v.clone())), 0),
+                    IrElement::i_offset(IrElement::Term(IrTerm::Ident(v.clone())), 0),
                     e_value,
                 ));
 
