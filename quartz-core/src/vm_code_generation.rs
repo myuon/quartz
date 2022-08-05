@@ -352,17 +352,17 @@ impl<'s> VmFunctionGenerator<'s> {
     fn element(&mut self, element: IrElement, expected_type: IrType) -> Result<IrType> {
         match element.clone() {
             IrElement::Term(term) => match term {
-                IrTerm::Ident(v, size) => {
+                IrTerm::Ident(v, _) => {
                     if let Some((u, t)) = self.locals.get(&v) {
                         self.writer
                             .push(QVMInstruction::AddrConst(*u, Variable::Local));
-                        self.writer.push(QVMInstruction::Load(size));
+                        self.writer.push(QVMInstruction::Load(t.size_of()));
 
                         Ok(t.clone())
                     } else if let Some((u, t)) = self.globals.get(&v) {
                         self.writer
                             .push(QVMInstruction::AddrConst(*u, Variable::Global));
-                        self.writer.push(QVMInstruction::Load(size));
+                        self.writer.push(QVMInstruction::Load(t.size_of()));
 
                         Ok(t.clone())
                     } else {
