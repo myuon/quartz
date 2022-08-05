@@ -439,9 +439,10 @@ impl<'s> VmFunctionGenerator<'s> {
                             arg_types.push(self.element(elem)?);
                         }
 
-                        let callee_typ = self
-                            .element_addr(callee)?
-                            .unify(IrType::addr_of(IrType::func(arg_types, IrType::unknown())))?;
+                        let callee_type = self.element_addr(callee.clone())?;
+                        let callee_typ = callee_type
+                            .unify(IrType::addr_of(IrType::func(arg_types, IrType::unknown())))
+                            .context(format!("{}", callee.show()))?;
                         let (_, ret_type) = callee_typ.as_addr().unwrap().as_func().unwrap();
 
                         // If the last instruction is not LabelAddrConst, it will be a builtin operation and no need to run CALL operation
@@ -590,11 +591,13 @@ impl<'s> VmFunctionGenerator<'s> {
                         let mut types = vec![];
                         for (i, elem) in block.elements.into_iter().skip(1).enumerate() {
                             types.push(
-                                self.element(elem)?.unify(
-                                    typ.clone()
-                                        .offset(i)
-                                        .context(format!("{}", element.show()))?,
-                                )?,
+                                self.element(elem.clone())?
+                                    .unify(
+                                        typ.clone()
+                                            .offset(i)
+                                            .context(format!("{}", element.show()))?,
+                                    )
+                                    .context(format!("{}", elem.show()))?,
                             );
                         }
 
@@ -685,9 +688,12 @@ impl<'s> VmFunctionGenerator<'s> {
                     "address" => {
                         self.new_source_map(element.show_compact());
                         let element = unvec!(block.elements, 1);
-                        let typ = self.element_addr(element)?.unify(IrType::addr_unknown())?;
+                        let typ = self
+                            .element_addr(element.clone())?
+                            .unify(IrType::addr_unknown())
+                            .context(format!("{}", element.show()))?;
 
-                        Ok(IrType::addr_of(typ))
+                        Ok(typ)
                     }
                     "offset" => {
                         self.new_source_map(element.show_compact());
@@ -712,7 +718,10 @@ impl<'s> VmFunctionGenerator<'s> {
                     "addr_offset" => {
                         self.new_source_map(element.show_compact());
                         let (expr, offset_element) = unvec!(block.elements, 2);
-                        let typ = self.element(expr)?.unify(IrType::addr_unknown())?;
+                        let typ = self
+                            .element(expr)?
+                            .unify(IrType::addr_unknown())
+                            .context(format!("{}", element.show()))?;
 
                         let offset = offset_element.into_term()?.into_int()? as usize;
                         self.writer.push(QVMInstruction::I32Const(offset as i32));

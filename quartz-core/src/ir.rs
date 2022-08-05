@@ -489,8 +489,8 @@ impl IrType {
         }
     }
 
-    pub fn unify(self, to: IrType) -> Result<IrType> {
-        match (self, to) {
+    pub fn unify(self, from: IrType) -> Result<IrType> {
+        match (self, from) {
             (IrType::Unknown, t) => Ok(t),
             (s, IrType::Unknown) => Ok(s),
             (IrType::Single(s), IrType::Single(t)) => Ok(IrType::Single(s.unify(t)?)),
@@ -498,8 +498,8 @@ impl IrType {
             (s, t) => {
                 bail!(
                     "Type want {} but got {}",
+                    t.to_element().show_compact(),
                     s.to_element().show_compact(),
-                    t.to_element().show_compact()
                 )
             }
         }
