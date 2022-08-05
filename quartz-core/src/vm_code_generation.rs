@@ -265,7 +265,7 @@ impl<'s> VmFunctionGenerator<'s> {
     }
 
     // compile to an address (lvar)
-    fn element_addr(&mut self, element: IrElement, expected_type: IrType) -> Result<IrType> {
+    fn element_addr(&mut self, element: IrElement) -> Result<IrType> {
         match element.clone() {
             IrElement::Term(term) => match term {
                 IrTerm::Ident(v) => {
@@ -296,13 +296,13 @@ impl<'s> VmFunctionGenerator<'s> {
                 _ => unreachable!("{}", element.show()),
             },
             IrElement::Block(mut block) => match block.name.as_str() {
-                "call" => Ok(IrType::addr_of(self.element(element, IrType::unknown())?)),
+                "call" => Ok(IrType::addr_of(self.element(element)?)),
                 // FIXME: is this true?
                 "deref" => {
                     self.new_source_map(element.show_compact());
 
                     let element = unvec!(block.elements, 1);
-                    let typ = self.element(element, IrType::unknown())?;
+                    let typ = self.element(element)?;
                     Ok(typ.as_addr().unwrap().as_ref().clone())
                 }
                 "offset" => {
@@ -310,7 +310,7 @@ impl<'s> VmFunctionGenerator<'s> {
 
                     let (elem, offset_element) = unvec!(block.elements, 2);
                     let offset = offset_element.into_term()?.into_int()? as usize;
-                    let typ = self.element_addr(elem, IrType::unknown())?;
+                    let typ = self.element_addr(elem)?;
                     self.writer.push(QVMInstruction::I32Const(offset as i32));
                     self.writer.push(QVMInstruction::PAdd);
                     Ok(IrType::addr_of(
@@ -324,7 +324,7 @@ impl<'s> VmFunctionGenerator<'s> {
 
                     let (elem, offset_element) = unvec!(block.elements, 2);
                     let offset = offset_element.into_term()?.into_int()? as usize;
-                    let typ = self.element(elem, IrType::unknown())?;
+                    let typ = self.element(elem)?;
                     self.writer.push(QVMInstruction::I32Const(offset as i32));
                     self.writer.push(QVMInstruction::PAdd);
                     Ok(IrType::addr_of(
@@ -337,8 +337,8 @@ impl<'s> VmFunctionGenerator<'s> {
                     self.new_source_map(element.show_compact());
 
                     let (_, element, offset) = unvec!(block.elements, 3);
-                    let typ = self.element_addr(element, IrType::unknown())?;
-                    self.element(offset, IrType::int())?;
+                    let typ = self.element_addr(element)?;
+                    IrType::int().unify(self.element(offset)?)?;
                     self.writer.push(QVMInstruction::I32Const(1)); // +1 for a pointer to info table
                     self.writer.push(QVMInstruction::Add);
                     self.writer.push(QVMInstruction::PAdd);
@@ -349,7 +349,7 @@ impl<'s> VmFunctionGenerator<'s> {
         }
     }
 
-    fn element(&mut self, element: IrElement, expected_type: IrType) -> Result<IrType> {
+    fn element(&mut self, element: IrElement) -> Result<IrType> {
         match element.clone() {
             IrElement::Term(term) => match term {
                 IrTerm::Ident(v) => {
@@ -405,14 +405,14 @@ impl<'s> VmFunctionGenerator<'s> {
                         let (name, expr) = unvec!(block.elements, 2);
                         let var_name = name.into_term()?.into_ident()?;
 
-                        let typ = self.element(expr, IrType::unknown())?;
+                        let typ = self.element(expr)?;
                         self.push_local(var_name, typ);
                         Ok(IrType::nil())
                     }
                     "return" => {
                         self.new_source_map(element.show_compact());
                         let expr = unvec!(block.elements, 1);
-                        let typ = self.element(expr, self.expected_type.clone())?;
+                        let typ = self.element(expr)?;
                         self.writer.push(QVMInstruction::Return(
                             self.args.total_word()?,
                             typ.size_of(),
@@ -426,13 +426,12 @@ impl<'s> VmFunctionGenerator<'s> {
 
                         let mut arg_types = vec![];
                         for elem in block.elements.into_iter().skip(1) {
-                            arg_types.push(self.element(elem, IrType::unknown())?);
+                            arg_types.push(self.element(elem)?);
                         }
 
-                        let callee_typ = self.element_addr(
-                            callee,
-                            IrType::addr_of(IrType::func(arg_types, IrType::unknown())),
-                        )?;
+                        let callee_typ = self
+                            .element_addr(callee)?
+                            .unify(IrType::addr_of(IrType::func(arg_types, IrType::unknown())))?;
                         let (_, ret_type) = callee_typ.as_addr().unwrap().as_func().unwrap();
 
                         // If the last instruction is not LabelAddrConst, it will be a builtin operation and no need to run CALL operation
@@ -448,9 +447,8 @@ impl<'s> VmFunctionGenerator<'s> {
                     "assign" => {
                         self.new_source_map(element.show_compact());
                         let (lhs, rhs) = unvec!(block.elements, 2);
-                        let typ = self.element_addr(lhs, IrType::addr_unknown())?;
-                        let rhs_type = self.element(
-                            rhs,
+                        let typ = self.element_addr(lhs)?.unify(IrType::addr_unknown())?;
+                        let rhs_type = self.element(rhs)?.unify(
                             typ.as_addr()
                                 .map(|t| t.as_ref().clone())
                                 .unwrap_or(IrType::unknown()),
@@ -472,20 +470,20 @@ impl<'s> VmFunctionGenerator<'s> {
                         // condition
                         self.register_label(label.clone());
                         self.new_source_map(IrElement::block("if:cond", vec![]).show_compact());
-                        self.element(cond, IrType::bool())?;
+                        self.element(cond)?.unify(IrType::bool())?;
                         self.writer
                             .push(QVMInstruction::LabelJumpIfFalse(label_else.clone()));
 
                         // then block
                         self.new_source_map(IrElement::block("if:then", vec![]).show_compact());
-                        let typ = self.element(left, IrType::unknown())?;
+                        let typ = self.element(left)?;
                         self.writer
                             .push(QVMInstruction::LabelJump(label_end.clone()));
 
                         // else block
                         self.new_source_map(IrElement::block("if:else", vec![]).show_compact());
                         self.register_label(label_else.clone());
-                        self.element(right, typ)?;
+                        self.element(right)?.unify(typ)?;
 
                         // endif
                         self.register_label(label_end.clone());
@@ -497,10 +495,10 @@ impl<'s> VmFunctionGenerator<'s> {
                         let mut ret = IrType::unknown();
                         self.new_source_map(IrElement::block("seq", vec![]).show_compact());
                         for elem in block.elements {
-                            ret = self.element(elem, IrType::unknown())?;
+                            ret = self.element(elem)?;
                         }
 
-                        Ok(expected_type.unify(ret)?)
+                        Ok(ret)
                     }
                     "while" => {
                         self.current_continue_scope = Some(self.local_pointer);
@@ -520,20 +518,16 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.register_label(label.clone());
 
                         // additional check
-                        self.element(
-                            IrElement::Term(IrTerm::Int(self.local_pointer as i32)),
-                            IrType::int(),
-                        )?;
-                        self.element(
-                            IrElement::Term(IrTerm::Ident("_check_sp".to_string())),
-                            IrType::nil(),
-                        )?;
+                        self.element(IrElement::Term(IrTerm::Int(self.local_pointer as i32)))?
+                            .unify(IrType::int())?;
+                        self.element(IrElement::Term(IrTerm::Ident("_check_sp".to_string())))?
+                            .unify(IrType::nil())?;
 
-                        self.element(body, IrType::nil())?;
+                        self.element(body)?.unify(IrType::nil());
 
                         self.register_label(label_cond.clone());
                         self.new_source_map(IrElement::block("while:cond", vec![]).show_compact());
-                        self.element(cond, IrType::bool())?;
+                        self.element(cond)?.unify(IrType::bool())?;
 
                         self.writer.push(QVMInstruction::LabelJumpIf(label.clone()));
                         self.label_continue = None;
@@ -586,8 +580,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         let mut types = vec![];
                         for (i, elem) in block.elements.into_iter().skip(1).enumerate() {
                             types.push(
-                                self.element(
-                                    elem,
+                                self.element(elem)?.unify(
                                     typ.clone()
                                         .offset(i)
                                         .context(format!("{}", element.show()))?,
@@ -610,7 +603,7 @@ impl<'s> VmFunctionGenerator<'s> {
                             .push(QVMInstruction::InfoConst(slice_typ.size_of()));
 
                         for _ in 0..len {
-                            self.element(value.clone(), typ.clone())?;
+                            self.element(value.clone())?.unify(typ.clone())?;
                         }
 
                         Ok(slice_typ)
@@ -620,7 +613,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.new_source_map(element.show_compact());
                         let (size, elem) = unvec!(block.elements, 2);
 
-                        self.element(elem, IrType::unknown())?; // FIXME: use proper type
+                        self.element(elem)?;
                         self.writer
                             .push(QVMInstruction::Load(size.into_term()?.into_int()? as usize));
 
@@ -629,7 +622,8 @@ impl<'s> VmFunctionGenerator<'s> {
                     "unload" => {
                         self.new_source_map(element.show_compact());
                         let element = unvec!(block.elements, 1);
-                        self.element(element.clone(), IrType::addr_unknown())?;
+                        self.element(element.clone())?
+                            .unify(IrType::addr_unknown())?;
                         let code = self.writer.pop();
                         assert!(
                             matches!(code, Some(QVMInstruction::Load(_))),
@@ -654,7 +648,7 @@ impl<'s> VmFunctionGenerator<'s> {
                     "deref" => {
                         self.new_source_map(element.show_compact());
                         let element = unvec!(block.elements, 1);
-                        let typ = self.element(element, IrType::addr_unknown())?;
+                        let typ = self.element(element)?.unify(IrType::addr_unknown())?;
                         self.writer.push(QVMInstruction::Load(typ.size_of()));
 
                         Ok(typ
@@ -668,7 +662,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         let actual_size = actual_size.into_term()?.into_int()? as usize;
                         let expected_size = expected_size.into_term()?.into_int()? as usize;
 
-                        let typ = self.element(element, IrType::unknown())?; // FIXME: use proper type
+                        let typ = self.element(element)?;
                         assert_eq!(typ.size_of(), actual_size);
                         self.writer.extend(vec![
                             QVMInstruction::I32Const(expected_size as i32),
@@ -681,14 +675,14 @@ impl<'s> VmFunctionGenerator<'s> {
                     "address" => {
                         self.new_source_map(element.show_compact());
                         let element = unvec!(block.elements, 1);
-                        let typ = self.element_addr(element, IrType::addr_unknown())?;
+                        let typ = self.element_addr(element)?.unify(IrType::addr_unknown())?;
 
                         Ok(IrType::addr_of(typ))
                     }
                     "offset" => {
                         self.new_source_map(element.show_compact());
                         let (expr, offset_element) = unvec!(block.elements, 2);
-                        let typ = self.element_addr(expr, IrType::addr_unknown())?;
+                        let typ = self.element_addr(expr)?.unify(IrType::addr_unknown())?;
 
                         let offset = offset_element.into_term()?.into_int()? as usize;
                         self.writer.push(QVMInstruction::I32Const(offset as i32));
@@ -696,36 +690,30 @@ impl<'s> VmFunctionGenerator<'s> {
 
                         self.writer.push(QVMInstruction::Load(typ.size_of()));
 
-                        Ok(expected_type
-                            .unify(
-                                typ.as_addr()
-                                    .unwrap()
-                                    .offset(
-                                        // FIXME: Currently, offset positioning starts from 1
-                                        offset - 1,
-                                    )
-                                    .context(format!("{}", element.show()))?,
+                        Ok(typ
+                            .as_addr()
+                            .unwrap()
+                            .offset(
+                                // FIXME: Currently, offset positioning starts from 1
+                                offset - 1,
                             )
                             .context(format!("{}", element.show()))?)
                     }
                     "addr_offset" => {
                         self.new_source_map(element.show_compact());
                         let (expr, offset_element) = unvec!(block.elements, 2);
-                        let typ = self.element(expr, IrType::addr_unknown())?;
+                        let typ = self.element(expr)?.unify(IrType::addr_unknown())?;
 
                         let offset = offset_element.into_term()?.into_int()? as usize;
                         self.writer.push(QVMInstruction::I32Const(offset as i32));
                         self.writer.push(QVMInstruction::PAdd);
 
-                        let result_typ = expected_type
-                            .unify(
-                                typ.as_addr()
-                                    .unwrap()
-                                    .offset(
-                                        // FIXME: Currently, offset positioning starts from 1
-                                        offset - 1,
-                                    )
-                                    .context(format!("{}", element.show()))?,
+                        let result_typ = typ
+                            .as_addr()
+                            .unwrap()
+                            .offset(
+                                // FIXME: Currently, offset positioning starts from 1
+                                offset - 1,
                             )
                             .context(format!("{}", element.show()))?;
                         self.writer.push(QVMInstruction::Load(result_typ.size_of()));
@@ -735,15 +723,15 @@ impl<'s> VmFunctionGenerator<'s> {
                     "index" => {
                         self.new_source_map(element.show_compact());
                         let (size, element, offset) = unvec!(block.elements, 3);
-                        self.element_addr(element, IrType::addr_unknown())?;
-                        self.element(offset, IrType::int())?;
+                        let typ = self.element_addr(element)?.unify(IrType::addr_unknown())?;
+                        self.element(offset)?.unify(IrType::int())?;
                         self.writer.push(QVMInstruction::I32Const(1));
                         self.writer.push(QVMInstruction::Add);
                         self.writer.push(QVMInstruction::PAdd);
                         self.writer
                             .push(QVMInstruction::Load(size.into_term()?.into_int()? as usize));
 
-                        Ok(expected_type)
+                        Ok(IrType::unknown()) // FIXME: Is this true?
                     }
                     "size_of" => {
                         self.new_source_map(element.show_compact());
@@ -814,7 +802,7 @@ impl VmGenerator {
         );
 
         for statement in body {
-            generator.element(statement, ret.clone())?;
+            generator.element(statement)?.unify(ret.clone())?;
         }
 
         // if the last statement was not return, insert a new "return nil" statement
@@ -862,7 +850,7 @@ impl VmGenerator {
             string_pointers,
             typ.clone(),
         );
-        generator.element(expr, typ)?;
+        generator.element(expr)?.unify(typ)?;
         code.extend(generator.writer.into_code());
         code.push(QVMInstruction::Store(size));
 
@@ -888,16 +876,15 @@ impl VmGenerator {
             &string_pointers,
             ret.clone(),
         );
-        generator.element(
-            IrElement::block(
+        generator
+            .element(IrElement::block(
                 "return",
                 vec![IrElement::instruction(
                     "call",
                     vec![IrTerm::Ident(self.entrypoint.to_string())],
                 )],
-            ),
-            ret,
-        )?;
+            ))?
+            .unify(ret)?;
 
         Ok(generator.writer.into_code())
     }
