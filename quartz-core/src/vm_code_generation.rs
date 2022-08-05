@@ -287,7 +287,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         Ok(IrType::addr_of(typ))
                     }
                 }
-                IrTerm::Argument(v, _) => {
+                IrTerm::Argument(v) => {
                     let (position, t) = self.args.arg_position(v)?;
                     self.writer.push(QVMInstruction::ArgConst(position));
 
@@ -385,11 +385,11 @@ impl<'s> VmFunctionGenerator<'s> {
                     self.writer.push(QVMInstruction::I32Const(n));
                     Ok(IrType::int())
                 }
-                IrTerm::Argument(u, size) => {
+                IrTerm::Argument(u) => {
                     let (index, t) = self.args.arg_position(u)?;
 
                     self.writer.push(QVMInstruction::ArgConst(index));
-                    self.writer.push(QVMInstruction::Load(size));
+                    self.writer.push(QVMInstruction::Load(t.size_of()));
                     Ok(t)
                 }
                 IrTerm::Info(u) => {

@@ -56,10 +56,7 @@ impl<'s> IrFunctionGenerator<'s> {
                 if v.len() == 1 {
                     let v = &v[0];
                     if self.args.contains_key(v) {
-                        Ok(IrElement::Term(IrTerm::Argument(
-                            self.args[v],
-                            size_of(typ, self.structs),
-                        )))
+                        Ok(IrElement::Term(IrTerm::Argument(self.args[v])))
                     } else {
                         // special treatment for panic instruction
                         // FIXME: implement function meta attributes

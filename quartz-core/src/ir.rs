@@ -9,8 +9,8 @@ pub enum IrTerm {
     Nil,
     Bool(bool),
     Int(i32),
-    Ident(String, usize),   // name, size
-    Argument(usize, usize), // index, size
+    Ident(String, usize), // name, size
+    Argument(usize),      // index
     Info(usize),
 }
 
@@ -88,12 +88,8 @@ impl IrElement {
                         format!("${}", i)
                     }
                 }
-                IrTerm::Argument(a, t) => {
-                    if *t > 1 {
-                        format!("${}({})", a, t)
-                    } else {
-                        format!("${}", a)
-                    }
+                IrTerm::Argument(a) => {
+                    format!("${}", a)
                 }
                 IrTerm::Info(i) => format!("{}", i),
             },
@@ -542,7 +538,7 @@ static NUMBER_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[0-9]+").unwrap(
 enum IrLexeme {
     Ident(String, usize), // $ident
     Keyword(String),
-    Argument(usize, usize),
+    Argument(usize),
     Number(String),
     LParen,
     RParen,
@@ -580,20 +576,8 @@ fn run_lexer(input: &str) -> Vec<IrLexeme> {
         if &input[position..position + 1] == "$" {
             if let Some(m) = NUMBER_PATTERN.find(&input[position + 1..]) {
                 let index = m.as_str().parse::<usize>().unwrap();
-                let mut token = IrLexeme::Argument(index, 1);
+                let token = IrLexeme::Argument(index);
                 position += m.end() + 1;
-
-                if &input[position..position + 1] == "(" {
-                    position += 1;
-
-                    if let Some(m) = NUMBER_PATTERN.find(&input[position..]) {
-                        let size = m.as_str().parse::<usize>().unwrap();
-                        token = IrLexeme::Argument(index, size);
-                        position += m.end();
-                    }
-                    assert_eq!(&input[position..position + 1], ")");
-                    position += 1;
-                }
 
                 tokens.push(token);
 
@@ -670,7 +654,7 @@ impl IrParser<'_> {
 
         Ok(match token {
             IrLexeme::Ident(ident, i) => IrTerm::Ident(ident.to_string(), *i), // FIXME: support multiple words
-            IrLexeme::Argument(arg, i) => IrTerm::Argument(*arg, *i), // FIXME: support multiple words
+            IrLexeme::Argument(arg) => IrTerm::Argument(*arg), // FIXME: support multiple words
             IrLexeme::Keyword(ident) => {
                 if ident == "nil" {
                     IrTerm::Nil
