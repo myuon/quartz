@@ -189,12 +189,11 @@ impl<'s> IrFunctionGenerator<'s> {
             Expr::Project(_, proj_typ, proj, label) => {
                 let struct_name = &proj_typ.method_selector_name()?;
                 let index = self.structs.get_projection_offset(struct_name, label)?;
-                let typ = self.structs.get_projection_type(struct_name, label)?;
                 let value = self.expr(proj)?;
 
                 Ok(if let Some(_t) = proj_typ.as_ref_type() {
                     // if p is a pointer in p.l, it should be compiled to p->l
-                    IrElement::i_addr_offset(size_of(&typ, self.structs), value, index)
+                    IrElement::i_addr_offset(value, index)
                 } else {
                     IrElement::i_offset(value, index)
                 })
@@ -623,8 +622,8 @@ func main() {
     (func $Point_sum (args (address (tuple $int $int))) (return $int)
         (return 1 (call
             $_add
-            (addr_offset 1 $0 1)
-            (addr_offset 1 $0 2)
+            (addr_offset $0 1)
+            (addr_offset $0 2)
         ))
     )
     (func $main (args) (return $int)

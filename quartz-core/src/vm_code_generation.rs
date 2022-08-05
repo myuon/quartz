@@ -322,7 +322,7 @@ impl<'s> VmFunctionGenerator<'s> {
                 "addr_offset" => {
                     self.new_source_map(element.show_compact());
 
-                    let (_, elem, offset_element) = unvec!(block.elements, 3);
+                    let (elem, offset_element) = unvec!(block.elements, 2);
                     let offset = offset_element.into_term()?.into_int()? as usize;
                     let typ = self.element(elem, IrType::unknown())?;
                     self.writer.push(QVMInstruction::I32Const(offset as i32));
@@ -716,7 +716,7 @@ impl<'s> VmFunctionGenerator<'s> {
                     }
                     "addr_offset" => {
                         self.new_source_map(element.show_compact());
-                        let (_, expr, offset_element) = unvec!(block.elements, 3);
+                        let (expr, offset_element) = unvec!(block.elements, 2);
                         let typ = self.element(expr, IrType::addr_unknown())?;
 
                         let offset = offset_element.into_term()?.into_int()? as usize;
