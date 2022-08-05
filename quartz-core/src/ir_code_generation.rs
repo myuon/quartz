@@ -103,7 +103,7 @@ impl<'s> IrFunctionGenerator<'s> {
 
                     Ok(IrElement::block("string", vec![IrElement::int(t as i32)]))
                 }
-                Literal::Array(arr, t) => {
+                Literal::Array(arr, _) => {
                     let v = self.var_fresh();
                     let n = arr.len() as i32;
 
@@ -114,7 +114,6 @@ impl<'s> IrFunctionGenerator<'s> {
                     //      (assign (offset $v 1) 2)
                     //      $v
                     self.ir.push(IrElement::i_let(
-                        self.ir_type(t)?,
                         v.clone(),
                         IrElement::i_call("_new", vec![IrElement::int(n)]),
                     ));
@@ -200,7 +199,6 @@ impl<'s> IrFunctionGenerator<'s> {
                 let v = self.var_fresh();
                 let size = size_of(t, self.structs);
                 self.ir.push(IrElement::i_let(
-                    self.ir_type(&Type::Ref(Box::new(t.clone())))?,
                     v.clone(),
                     IrElement::i_call("_new", vec![IrElement::int(size as i32)]),
                 ));
@@ -225,14 +223,13 @@ impl<'s> IrFunctionGenerator<'s> {
                     value
                 })
             }
-            Expr::Address(e, t) => {
+            Expr::Address(e, _) => {
                 // You cannot just take the address of an immidiate value, so declare as a variable
                 let next = match e.data {
                     Expr::Lit(_, _) | Expr::Struct(_, _) | Expr::Call(_, _, _) => {
                         let v = self.var_fresh();
                         let value = self.expr(e)?;
-                        self.ir
-                            .push(IrElement::i_let(self.ir_type(t)?, v.clone(), value));
+                        self.ir.push(IrElement::i_let(v.clone(), value));
 
                         IrElement::ident(v)
                     }
@@ -254,10 +251,9 @@ impl<'s> IrFunctionGenerator<'s> {
 
     fn statement(&mut self, statement: &Statement) -> Result<()> {
         match statement {
-            Statement::Let(x, e, t) => {
+            Statement::Let(x, e, _) => {
                 let v = self.expr(e)?;
-                self.ir
-                    .push(IrElement::i_let(self.ir_type(t)?, x.to_string(), v));
+                self.ir.push(IrElement::i_let(x.to_string(), v));
             }
             Statement::Expr(e, t) => {
                 let v = self.expr(e)?;
@@ -542,7 +538,7 @@ func main() {
                 r#"
 (module
     (func $main (args) (return $int)
-        (let $int $x 10)
+        (let $x 10)
         (assign $x 20)
         (return 1 $x)
     )
@@ -568,7 +564,7 @@ func main() {
                 r#"
 (module
     (func $f (args $int) (return $int)
-        (let (slice 4 $int) $x (slice 4 $int 3))
+        (let $x (slice 4 $int 3))
         (assign (index 1 $x 0) 1)
         (assign (index 1 $x 1) 2)
         (assign (index 1 $x 2) 3)
@@ -617,7 +613,7 @@ func main() {
         ))
     )
     (func $main (args) (return $int)
-        (let (tuple $int $int) $p (tuple (tuple $int $int) 10 20))
+        (let $p (tuple (tuple $int $int) 10 20))
         (return 1 (call $Point_sum (address $p)))
     )
 )
@@ -675,7 +671,7 @@ func main() {
 (module
     (text 3 102 111 111)
     (func $main (args) (return $nil)
-        (let (tuple (address $byte)) $s (string 0))
+        (let $s (string 0))
         (return 1 (call $_println $s))
     )
 )

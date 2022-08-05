@@ -402,11 +402,10 @@ impl<'s> VmFunctionGenerator<'s> {
                 match block.name.as_str() {
                     "let" => {
                         self.new_source_map(element.show_compact());
-                        let (typ, name, expr) = unvec!(block.elements, 3);
+                        let (name, expr) = unvec!(block.elements, 2);
                         let var_name = name.into_term()?.into_ident()?;
-                        let typ = IrType::from_element(&typ)?;
 
-                        let typ = self.element(expr, typ)?;
+                        let typ = self.element(expr, IrType::unknown())?;
                         self.push_local(var_name, typ);
                         Ok(IrType::nil())
                     }
@@ -590,8 +589,7 @@ impl<'s> VmFunctionGenerator<'s> {
                             types.push(
                                 self.element(
                                     elem,
-                                    expected_type
-                                        .clone()
+                                    typ.clone()
                                         .offset(i)
                                         .context(format!("{}", element.show()))?,
                                 )?,

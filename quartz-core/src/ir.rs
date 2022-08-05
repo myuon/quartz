@@ -137,15 +137,8 @@ impl IrElement {
         IrElement::Term(IrTerm::Int(num))
     }
 
-    pub fn i_let(typ: IrType, ident: String, element: IrElement) -> IrElement {
-        IrElement::block(
-            "let",
-            vec![
-                typ.to_element(),
-                IrElement::Term(IrTerm::Ident(ident)),
-                element,
-            ],
-        )
+    pub fn i_let(ident: String, element: IrElement) -> IrElement {
+        IrElement::block("let", vec![IrElement::Term(IrTerm::Ident(ident)), element])
     }
 
     pub fn i_assign(lhs: IrElement, rhs: IrElement) -> IrElement {
