@@ -301,7 +301,7 @@ impl<'s> VmFunctionGenerator<'s> {
                 "deref" => {
                     self.new_source_map(element.show_compact());
 
-                    let (_, element) = unvec!(block.elements, 2);
+                    let element = unvec!(block.elements, 1);
                     let typ = self.element(element, IrType::unknown())?;
                     Ok(typ.as_addr().unwrap().as_ref().clone())
                 }
@@ -656,10 +656,9 @@ impl<'s> VmFunctionGenerator<'s> {
                     }
                     "deref" => {
                         self.new_source_map(element.show_compact());
-                        let (size, element) = unvec!(block.elements, 2);
+                        let element = unvec!(block.elements, 1);
                         let typ = self.element(element, IrType::addr_unknown())?;
-                        self.writer
-                            .push(QVMInstruction::Load(size.into_term()?.into_int()? as usize));
+                        self.writer.push(QVMInstruction::Load(typ.size_of()));
 
                         Ok(typ
                             .as_addr()

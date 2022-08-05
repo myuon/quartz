@@ -181,8 +181,8 @@ impl IrElement {
         )
     }
 
-    pub fn i_deref(size: usize, element: IrElement) -> IrElement {
-        IrElement::block("deref", vec![IrElement::int(size as i32), element])
+    pub fn i_deref(element: IrElement) -> IrElement {
+        IrElement::block("deref", vec![element])
     }
 
     pub fn i_address(element: IrElement) -> IrElement {

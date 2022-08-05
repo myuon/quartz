@@ -213,7 +213,7 @@ impl<'s> IrFunctionGenerator<'s> {
 
                 Ok(IrElement::Term(IrTerm::Ident(v)))
             }
-            Expr::Deref(e, t) => Ok(IrElement::i_deref(size_of(t, self.structs), self.expr(e)?)),
+            Expr::Deref(e, _) => Ok(IrElement::i_deref(self.expr(e)?)),
             Expr::As(e, current, expected) => {
                 let current_size = size_of(current, self.structs);
                 let expected_size = size_of(expected, self.structs);
@@ -248,10 +248,7 @@ impl<'s> IrFunctionGenerator<'s> {
                 }
                 _ => unreachable!(),
             },
-            Expr::Unwrap(expr, typ) => Ok(IrElement::i_deref(
-                size_of(typ, self.structs),
-                self.expr(expr)?,
-            )),
+            Expr::Unwrap(expr, _) => Ok(IrElement::i_deref(self.expr(expr)?)),
         }
     }
 
