@@ -487,10 +487,22 @@ impl IrType {
 
     pub fn unify(self, from: IrType) -> Result<IrType> {
         match (self, from) {
+            (s, t) if s == t => Ok(s),
             (IrType::Unknown, t) => Ok(t),
             (s, IrType::Unknown) => Ok(s),
             (IrType::Single(s), IrType::Single(t)) => Ok(IrType::Single(s.unify(t)?)),
-            (s, t) if s == t => Ok(s),
+            (IrType::Tuple(ts), Self::Tuple(vs)) => {
+                if ts.len() != vs.len() {
+                    bail!("{:?} and {:?} are not unifiable", ts, vs);
+                }
+
+                let mut result = vec![];
+                for (t, s) in ts.into_iter().zip(vs) {
+                    result.push(t.unify(s)?);
+                }
+
+                Ok(IrType::Tuple(result))
+            }
             (s, t) => {
                 bail!(
                     "Type want {} but got {}",

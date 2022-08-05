@@ -93,10 +93,6 @@ impl InstructionWriter {
     pub fn last(&self) -> Option<&QVMInstruction> {
         self.code.last()
     }
-
-    pub fn pop(&mut self) -> Option<QVMInstruction> {
-        self.code.pop()
-    }
 }
 
 #[derive(Debug)]
@@ -641,7 +637,7 @@ impl<'s> VmFunctionGenerator<'s> {
                             Variable::StackAbsolute,
                         ));
 
-                        Ok(IrType::addr_of(IrType::tuple(vec![IrType::addr_unknown()])))
+                        Ok(IrType::tuple(vec![IrType::addr_unknown()]))
                     }
                     "deref" => {
                         self.new_source_map(element.show_compact());
