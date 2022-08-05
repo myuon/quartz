@@ -113,7 +113,6 @@ struct VmFunctionGenerator<'s> {
     scope_local_pointers: Vec<usize>,
     current_continue_scope: Option<usize>,
     string_pointers: &'s Vec<usize>,
-    expected_type: IrType,
 }
 
 impl<'s> VmFunctionGenerator<'s> {
@@ -124,7 +123,6 @@ impl<'s> VmFunctionGenerator<'s> {
         labels: &'s mut HashMap<String, usize>,
         functions: &'s HashMap<String, IrType>,
         string_pointers: &'s Vec<usize>,
-        expected_type: IrType,
     ) -> VmFunctionGenerator<'s> {
         VmFunctionGenerator {
             writer,
@@ -139,7 +137,6 @@ impl<'s> VmFunctionGenerator<'s> {
             scope_local_pointers: Vec::new(),
             current_continue_scope: None,
             string_pointers,
-            expected_type,
         }
     }
 
@@ -338,7 +335,7 @@ impl<'s> VmFunctionGenerator<'s> {
 
                     let (_, element, offset) = unvec!(block.elements, 3);
                     let typ = self.element_addr(element)?;
-                    IrType::int().unify(self.element(offset)?)?;
+                    self.element(offset)?.unify(IrType::int())?;
                     self.writer.push(QVMInstruction::I32Const(1)); // +1 for a pointer to info table
                     self.writer.push(QVMInstruction::Add);
                     self.writer.push(QVMInstruction::PAdd);
@@ -518,12 +515,11 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.register_label(label.clone());
 
                         // additional check
-                        self.element(IrElement::Term(IrTerm::Int(self.local_pointer as i32)))?
-                            .unify(IrType::int())?;
+                        self.element(IrElement::Term(IrTerm::Int(self.local_pointer as i32)))?;
                         self.element(IrElement::Term(IrTerm::Ident("_check_sp".to_string())))?
                             .unify(IrType::nil())?;
 
-                        self.element(body)?.unify(IrType::nil());
+                        self.element(body)?.unify(IrType::nil())?;
 
                         self.register_label(label_cond.clone());
                         self.new_source_map(IrElement::block("while:cond", vec![]).show_compact());
@@ -723,7 +719,7 @@ impl<'s> VmFunctionGenerator<'s> {
                     "index" => {
                         self.new_source_map(element.show_compact());
                         let (size, element, offset) = unvec!(block.elements, 3);
-                        let typ = self.element_addr(element)?.unify(IrType::addr_unknown())?;
+                        self.element_addr(element)?.unify(IrType::addr_unknown())?;
                         self.element(offset)?.unify(IrType::int())?;
                         self.writer.push(QVMInstruction::I32Const(1));
                         self.writer.push(QVMInstruction::Add);
@@ -731,7 +727,9 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.writer
                             .push(QVMInstruction::Load(size.into_term()?.into_int()? as usize));
 
-                        Ok(IrType::unknown()) // FIXME: Is this true?
+                        // NOTE: "index" can be a dynamic indexing so we can't infer the type here
+                        // Or maybe we should treat slice-like type as a special case and try to infer the type as possible as we can?
+                        Ok(IrType::unknown())
                     }
                     "size_of" => {
                         self.new_source_map(element.show_compact());
@@ -798,7 +796,6 @@ impl VmGenerator {
             labels,
             &self.function_types,
             string_pointers,
-            ret.clone(),
         );
 
         for statement in body {
@@ -848,7 +845,6 @@ impl VmGenerator {
             labels,
             &self.function_types,
             string_pointers,
-            typ.clone(),
         );
         generator.element(expr)?.unify(typ)?;
         code.extend(generator.writer.into_code());
@@ -874,7 +870,6 @@ impl VmGenerator {
             labels,
             &self.function_types,
             &string_pointers,
-            ret.clone(),
         );
         generator
             .element(IrElement::block(
