@@ -746,6 +746,15 @@ impl<'s> VmFunctionGenerator<'s> {
 
                         Ok(expected_type)
                     }
+                    "size_of" => {
+                        self.new_source_map(element.show_compact());
+                        let typ = unvec!(block.elements, 1);
+                        let typ = IrType::from_element(&typ)?;
+                        self.writer
+                            .push(QVMInstruction::I32Const(typ.size_of() as i32));
+
+                        Ok(IrType::int())
+                    }
                     name => todo!("{:?}", name),
                 }
             }

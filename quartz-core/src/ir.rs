@@ -207,6 +207,10 @@ impl IrElement {
         )
     }
 
+    pub fn i_size_of(typ: IrType) -> IrElement {
+        IrElement::block("size_of", vec![typ.to_element()])
+    }
+
     pub fn d_var(name: impl Into<String>, typ: IrType, expr: IrElement) -> IrElement {
         IrElement::block(
             "var",

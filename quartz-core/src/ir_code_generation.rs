@@ -197,10 +197,9 @@ impl<'s> IrFunctionGenerator<'s> {
             }
             Expr::Ref(e, t) => {
                 let v = self.var_fresh();
-                let size = size_of(t, self.structs);
                 self.ir.push(IrElement::i_let(
                     v.clone(),
-                    IrElement::i_call("_new", vec![IrElement::int(size as i32)]),
+                    IrElement::i_call("_new", vec![IrElement::i_size_of(self.ir_type(t)?)]),
                 ));
 
                 let e_value = self.expr(e)?;
