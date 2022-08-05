@@ -212,15 +212,13 @@ impl<'s> IrFunctionGenerator<'s> {
             }
             Expr::Deref(e, _) => Ok(IrElement::i_deref(self.expr(e)?)),
             Expr::As(e, current, expected) => {
-                let current_size = size_of(current, self.structs);
-                let expected_size = size_of(expected, self.structs);
+                let current = self.ir_type(current)?;
+                let expected = self.ir_type(expected)?;
+                if current.size_of() != expected.size_of() {
+                    unreachable!();
+                }
 
-                let value = self.expr(e)?;
-                Ok(if current_size < expected_size {
-                    IrElement::i_coerce(current_size, expected_size, value)
-                } else {
-                    value
-                })
+                self.expr(e)
             }
             Expr::Address(e, _) => {
                 // You cannot just take the address of an immidiate value, so declare as a variable
@@ -257,20 +255,11 @@ impl<'s> IrFunctionGenerator<'s> {
             Statement::Expr(e, t) => {
                 let v = self.expr(e)?;
                 self.ir.push(v);
-                self.ir.push(IrElement::instruction(
-                    "pop",
-                    vec![IrTerm::Int(size_of(t, self.structs) as i32)],
-                ));
+                self.ir.push(IrElement::i_pop(self.ir_type(t)?));
             }
-            Statement::Return(e, t) => {
+            Statement::Return(e, _) => {
                 let v = self.expr(e)?;
-                self.ir.push(IrElement::block(
-                    "return",
-                    vec![
-                        IrElement::Term(IrTerm::Int(size_of(t, self.structs) as i32)),
-                        v,
-                    ],
-                ));
+                self.ir.push(IrElement::i_return(v));
             }
             Statement::If(b, s1, s2) => {
                 let v = self.expr(b)?;
@@ -539,7 +528,7 @@ func main() {
     (func $main (args) (return $int)
         (let $x 10)
         (assign $x 20)
-        (return 1 $x)
+        (return $x)
     )
 )
 "#,
@@ -570,7 +559,7 @@ func main() {
 
         (assign (index 1 $x 2) 4)
 
-        (return 1
+        (return
             (call $_add
                 (call $_add
                     (index 1 $x 1)
@@ -580,7 +569,7 @@ func main() {
         )
     )
     (func $main (args) (return $int)
-        (return 1 (call $f 10))
+        (return (call $f 10))
     )
 )
 "#,
@@ -605,7 +594,7 @@ func main() {
                 r#"
 (module
     (func $Point_sum (args (address (tuple $int $int))) (return $int)
-        (return 1 (call
+        (return (call
             $_add
             (addr_offset $0 1)
             (addr_offset $0 2)
@@ -613,7 +602,7 @@ func main() {
     )
     (func $main (args) (return $int)
         (let $p (tuple (tuple $int $int) 10 20))
-        (return 1 (call $Point_sum (address $p)))
+        (return (call $Point_sum (address $p)))
     )
 )
 "#,
@@ -632,7 +621,7 @@ func main() {
                 r#"
 (module
     (func $main (args) (return $nil)
-        (return 1 nil)
+        (return nil)
     )
 )
 "#,
@@ -651,9 +640,9 @@ func main() {
                 r#"
 (module
     (func $f (args $int $bool) (return $int)
-        (return 1 $1))
+        (return $1))
     (func $main (args) (return $int)
-        (return 1 (call $f 0 true))
+        (return (call $f 0 true))
     )
 )
 "#,
@@ -671,7 +660,7 @@ func main() {
     (text 3 102 111 111)
     (func $main (args) (return $nil)
         (let $s (string 0))
-        (return 1 (call $_println $s))
+        (return (call $_println $s))
     )
 )
 "#,

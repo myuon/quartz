@@ -411,13 +411,12 @@ impl<'s> VmFunctionGenerator<'s> {
                     }
                     "return" => {
                         self.new_source_map(element.show_compact());
-                        let (size, expr) = unvec!(block.elements, 2);
-                        let size = size.into_term()?.into_int()? as usize;
-                        self.expected_type = (self.expected_type.clone())
-                            .unify(self.element(expr, self.expected_type.clone())?)
-                            .context(format!("{}", element.show()))?;
-                        self.writer
-                            .push(QVMInstruction::Return(self.args.total_word()?, size));
+                        let expr = unvec!(block.elements, 1);
+                        let typ = self.element(expr, self.expected_type.clone())?;
+                        self.writer.push(QVMInstruction::Return(
+                            self.args.total_word()?,
+                            typ.size_of(),
+                        ));
 
                         Ok(IrType::unknown())
                     }
@@ -892,13 +891,10 @@ impl VmGenerator {
         generator.element(
             IrElement::block(
                 "return",
-                vec![
-                    IrElement::Term(IrTerm::Int(1)),
-                    IrElement::instruction(
-                        "call",
-                        vec![IrTerm::Ident(self.entrypoint.to_string())],
-                    ),
-                ],
+                vec![IrElement::instruction(
+                    "call",
+                    vec![IrTerm::Ident(self.entrypoint.to_string())],
+                )],
             ),
             ret,
         )?;
