@@ -4,8 +4,7 @@ use anyhow::{Context, Result};
 
 use crate::{
     ast::{
-        size_of, CallMode, Declaration, Expr, Function, Literal, Module, Source, Statement,
-        Structs, Type,
+        CallMode, Declaration, Expr, Function, Literal, Module, Source, Statement, Structs, Type,
     },
     compiler::specify_source_in_input,
     ir::{IrBlock, IrElement, IrTerm, IrType},
@@ -157,11 +156,10 @@ impl<'s> IrFunctionGenerator<'s> {
                     let mut result = self.expr(expr)?;
 
                     // coerce check
-                    let actual_size = size_of(typ, self.structs);
-                    let expected_size = size_of(
-                        &self.structs.get_projection_type(&struct_name, label)?,
-                        self.structs,
-                    );
+                    let actual_size = self.ir_type(typ)?.size_of();
+                    let expected_size = self
+                        .ir_type(&self.structs.get_projection_type(&struct_name, label)?)?
+                        .size_of();
                     if expected_size != actual_size {
                         assert!(actual_size <= expected_size);
                         assert!(expected_size >= 2);
@@ -550,17 +548,17 @@ func main() {
 (module
     (func $f (args $int) (return $int)
         (let $x (slice 4 $int 3))
-        (assign (index 1 $x 0) 1)
-        (assign (index 1 $x 1) 2)
-        (assign (index 1 $x 2) 3)
+        (assign (index $x 0) 1)
+        (assign (index $x 1) 2)
+        (assign (index $x 2) 3)
 
-        (assign (index 1 $x 2) 4)
+        (assign (index $x 2) 4)
 
         (return
             (call $_add
                 (call $_add
-                    (index 1 $x 1)
-                    (index 1 $x 2))
+                    (index $x 1)
+                    (index $x 2))
                 $0
             )
         )

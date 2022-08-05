@@ -336,13 +336,21 @@ impl<'s> VmFunctionGenerator<'s> {
                 "index" => {
                     self.new_source_map(element.show_compact());
 
-                    let (_, element, offset) = unvec!(block.elements, 3);
+                    let (element, offset) = unvec!(block.elements, 2);
                     let typ = self.element_addr(element)?;
                     IrType::int().unify(self.element(offset)?)?;
                     self.writer.push(QVMInstruction::I32Const(1)); // +1 for a pointer to info table
                     self.writer.push(QVMInstruction::Add);
                     self.writer.push(QVMInstruction::PAdd);
-                    Ok(IrType::addr_of(typ))
+                    Ok(IrType::addr_of(
+                        typ.as_addr()
+                            .unwrap()
+                            .as_slice()
+                            .unwrap()
+                            .1
+                            .as_ref()
+                            .clone(),
+                    ))
                 }
                 _ => unreachable!("{}", element.show()),
             },

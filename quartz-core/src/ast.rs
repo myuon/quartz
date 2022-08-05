@@ -284,20 +284,6 @@ impl Type {
 pub struct Structs(pub HashMap<String, Vec<(String, Type)>>);
 
 impl Structs {
-    fn size_of_struct(&self, st: &str, trace: Vec<String>) -> usize {
-        // pointer to info table + number of fields
-        self.0
-            .get(st)
-            .map(|fields| {
-                fields
-                    .iter()
-                    .map(|t| size_of_traced(&t.1, &self, trace.clone()))
-                    .sum()
-            })
-            .unwrap_or(0)
-            + 1
-    }
-
     pub fn get_projection_type(&self, val: &str, label: &str) -> Result<Type> {
         let struct_fields = self.0.get(val).ok_or(anyhow::anyhow!(
             "project type: {} not found in {}",
@@ -330,43 +316,11 @@ impl Structs {
                 break;
             }
 
-            index += size_of(t, &self);
+            index += 1;
         }
 
         Ok(index)
     }
-}
-
-// size ON STACK
-pub fn size_of_traced(typ: &Type, structs: &Structs, mut trace: Vec<String>) -> usize {
-    match typ {
-        Type::Bool => 1,
-        Type::Nil => 1,
-        Type::Int => 1,
-        Type::Byte => 1,
-        Type::Fn(_, _) => 1,
-        Type::Method(_, _, _) => 1,
-        Type::Struct(st) => {
-            if trace.contains(st) {
-                unreachable!("infinite loop detected at {}", st);
-            }
-
-            trace.push(st.clone());
-            structs.size_of_struct(st, trace)
-        }
-        Type::Array(_) => 1, // array itself must be allocated on heap
-        Type::SizedArray(t, n) => size_of(&t, structs) * n,
-        Type::Ref(_) => 1,
-        Type::Optional(t) => {
-            // optional<T> is a union of T and nil
-            size_of_traced(t, structs, trace)
-        }
-        _ => unreachable!("{:?}", typ),
-    }
-}
-
-pub fn size_of(typ: &Type, structs: &Structs) -> usize {
-    size_of_traced(typ, structs, vec![])
 }
 
 #[derive(Debug, Clone)]
