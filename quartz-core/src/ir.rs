@@ -375,7 +375,7 @@ impl IrType {
                     "byte" => IrType::byte(),
                     _ => unreachable!("{:?}", t),
                 },
-                _ => unreachable!(),
+                t => unreachable!("{:?}", t),
             },
             IrElement::Block(block) => match block.name.as_str() {
                 "tuple" => {

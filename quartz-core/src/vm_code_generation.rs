@@ -584,8 +584,8 @@ impl<'s> VmFunctionGenerator<'s> {
                     "data" => {
                         self.new_source_map(IrElement::block("data", vec![]).show_compact());
 
-                        let size = block.elements[0].clone().into_term()?.into_int()? as usize;
-                        self.writer.push(QVMInstruction::InfoConst(size));
+                        let typ = IrType::from_element(&block.elements[0])?;
+                        self.writer.push(QVMInstruction::InfoConst(typ.size_of()));
 
                         let mut types = vec![];
                         for (i, elem) in block.elements.into_iter().skip(1).enumerate() {

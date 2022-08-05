@@ -159,13 +159,12 @@ impl<'s> IrFunctionGenerator<'s> {
             }
             Expr::Struct(struct_name, exprs) => {
                 // in: A { a: 1, b: 2 }
-                // out: (let (data POINTER_TO_INFO_TABLE 1 2))
+                // out: (let (data TYPE 1 2))
                 let mut data = vec![];
-                // FIXME: POINTER_TO_INFO_TABLE
-                data.push(IrElement::Term(IrTerm::Int(size_of(
-                    &Type::Struct(struct_name.clone()),
-                    &self.structs,
-                ) as i32)));
+                data.push(
+                    self.ir_type(&Type::Struct(struct_name.clone()))?
+                        .to_element(),
+                );
 
                 // FIXME: field order
                 for (label, expr, typ) in exprs {
@@ -637,7 +636,7 @@ func main() {
         ))
     )
     (func $main (args) (return $int)
-        (let (tuple $int $int) $p (data 3 10 20))
+        (let (tuple $int $int) $p (data (tuple $int $int) 10 20))
         (return 1 (call $Point_sum (address $p)))
     )
 )
