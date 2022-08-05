@@ -418,6 +418,8 @@ impl<'s> VmFunctionGenerator<'s> {
                             typ.size_of(),
                         ));
 
+                        self.expected_type.clone().unify(typ)?;
+
                         Ok(IrType::unknown())
                     }
                     "call" => {
@@ -523,7 +525,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.element(IrElement::Term(IrTerm::Ident("_check_sp".to_string())))?
                             .unify(IrType::nil())?;
 
-                        self.element(body)?.unify(IrType::nil());
+                        self.element(body)?.unify(IrType::nil())?;
 
                         self.register_label(label_cond.clone());
                         self.new_source_map(IrElement::block("while:cond", vec![]).show_compact());
@@ -565,9 +567,9 @@ impl<'s> VmFunctionGenerator<'s> {
                     }
                     "pop" => {
                         self.new_source_map(element.show_compact());
-                        let n = unvec!(block.elements, 1);
-                        self.writer
-                            .push(QVMInstruction::Pop(n.into_term()?.into_int()? as usize));
+                        let typ = unvec!(block.elements, 1);
+                        let typ = IrType::from_element(&typ)?;
+                        self.writer.push(QVMInstruction::Pop(typ.size_of()));
 
                         Ok(IrType::nil())
                     }
@@ -802,7 +804,7 @@ impl VmGenerator {
         );
 
         for statement in body {
-            generator.element(statement)?.unify(ret.clone())?;
+            generator.element(statement)?;
         }
 
         // if the last statement was not return, insert a new "return nil" statement
