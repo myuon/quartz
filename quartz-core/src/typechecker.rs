@@ -282,6 +282,22 @@ impl<'s> TypeChecker<'s> {
         expr
     }
 
+    fn reduce_to_callable(&self, expr: &mut Source<Expr>, typ: &mut Type) -> Result<()> {
+        match typ {
+            Type::Ref(t) => {
+                *expr = Source::unknown(Expr::Deref(Box::new((*expr).clone()), t.as_ref().clone()));
+                self.reduce_to_callable(expr, t)?;
+
+                *typ = t.as_ref().clone();
+            }
+            Type::Method(_, _, _) | Type::Fn(_, _) | Type::Array(_) | Type::SizedArray(_, _) => {}
+            Type::Struct(s) if s == "string" => {}
+            t => bail!("Cannot call non-function type {:?}", t),
+        };
+
+        Ok(())
+    }
+
     pub fn expr(&mut self, expr: &mut Source<Expr>, typ: &mut Type) -> Result<()> {
         match &mut expr.data {
             Expr::Var(v, t) => {
@@ -315,6 +331,7 @@ impl<'s> TypeChecker<'s> {
             Expr::Call(mode, f, args) => {
                 let mut fn_type = self.next_infer();
                 self.expr(f, &mut fn_type)?;
+                self.reduce_to_callable(f, &mut fn_type)?;
 
                 if let Some((t, _)) = fn_type.as_sized_array() {
                     // array indexing
@@ -390,7 +407,7 @@ impl<'s> TypeChecker<'s> {
                 assert_eq!(defined.len(), fields.len());
 
                 for (label, expr, typ) in fields {
-                    self.expr(expr, typ)?;
+                    self.expr_coerce(expr, typ)?;
                     self.unify(&defined[label], typ)?;
                 }
 
