@@ -268,7 +268,7 @@ impl<'s> VmFunctionGenerator<'s> {
     fn element_addr(&mut self, element: IrElement, expected_type: IrType) -> Result<IrType> {
         match element.clone() {
             IrElement::Term(term) => match term {
-                IrTerm::Ident(v, _) => {
+                IrTerm::Ident(v) => {
                     if let Some((u, t)) = self.locals.get(&v) {
                         self.writer
                             .push(QVMInstruction::AddrConst(*u, Variable::Local));
@@ -352,7 +352,7 @@ impl<'s> VmFunctionGenerator<'s> {
     fn element(&mut self, element: IrElement, expected_type: IrType) -> Result<IrType> {
         match element.clone() {
             IrElement::Term(term) => match term {
-                IrTerm::Ident(v, _) => {
+                IrTerm::Ident(v) => {
                     if let Some((u, t)) = self.locals.get(&v) {
                         self.writer
                             .push(QVMInstruction::AddrConst(*u, Variable::Local));
@@ -529,7 +529,7 @@ impl<'s> VmFunctionGenerator<'s> {
                             IrType::int(),
                         )?;
                         self.element(
-                            IrElement::Term(IrTerm::Ident("_check_sp".to_string(), 1)),
+                            IrElement::Term(IrTerm::Ident("_check_sp".to_string())),
                             IrType::nil(),
                         )?;
 
@@ -874,7 +874,7 @@ impl VmGenerator {
                     IrElement::Term(IrTerm::Int(1)),
                     IrElement::instruction(
                         "call",
-                        vec![IrTerm::Ident(self.entrypoint.to_string(), 1)],
+                        vec![IrTerm::Ident(self.entrypoint.to_string())],
                     ),
                 ],
             ),

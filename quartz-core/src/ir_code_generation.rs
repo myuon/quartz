@@ -50,7 +50,7 @@ impl<'s> IrFunctionGenerator<'s> {
 
     pub fn expr(&mut self, expr: &Source<Expr>) -> Result<IrElement> {
         match &expr.data {
-            Expr::Var(v, typ) => {
+            Expr::Var(v, _typ) => {
                 assert!(v.len() <= 2);
 
                 if v.len() == 1 {
@@ -82,22 +82,17 @@ impl<'s> IrFunctionGenerator<'s> {
                             self.ir.push(meta);
                         }
 
-                        Ok(IrElement::Term(IrTerm::Ident(
-                            v.clone(),
-                            size_of(typ, self.structs),
-                        )))
+                        Ok(IrElement::Term(IrTerm::Ident(v.clone())))
                     }
                 } else {
-                    Ok(IrElement::Term(IrTerm::Ident(
-                        format!("{}_{}", v[0], v[1]),
-                        size_of(typ, self.structs),
-                    )))
+                    Ok(IrElement::Term(IrTerm::Ident(format!("{}_{}", v[0], v[1]))))
                 }
             }
-            Expr::Method(subj, v, typ) => Ok(IrElement::Term(IrTerm::Ident(
-                format!("{}_{}", subj.method_selector_name()?, v),
-                size_of(typ, self.structs),
-            ))),
+            Expr::Method(subj, v, _typ) => Ok(IrElement::Term(IrTerm::Ident(format!(
+                "{}_{}",
+                subj.method_selector_name()?,
+                v
+            )))),
             Expr::Lit(literal, typ) => match literal {
                 Literal::Nil => {
                     let s = size_of(typ, &self.structs);
@@ -140,7 +135,7 @@ impl<'s> IrFunctionGenerator<'s> {
                             element_size,
                             IrElement::i_offset(
                                 element_size,
-                                IrElement::Term(IrTerm::Ident(v.clone(), size)),
+                                IrElement::Term(IrTerm::Ident(v.clone())),
                                 i,
                             ),
                             velem,
@@ -230,11 +225,11 @@ impl<'s> IrFunctionGenerator<'s> {
                 let e_value = self.expr(e)?;
                 self.ir.push(IrElement::i_assign(
                     size,
-                    IrElement::i_offset(1, IrElement::Term(IrTerm::Ident(v.clone(), 1)), 0),
+                    IrElement::i_offset(1, IrElement::Term(IrTerm::Ident(v.clone())), 0),
                     e_value,
                 ));
 
-                Ok(IrElement::Term(IrTerm::Ident(v, 1)))
+                Ok(IrElement::Term(IrTerm::Ident(v)))
             }
             Expr::Deref(e, t) => Ok(IrElement::i_deref(size_of(t, self.structs), self.expr(e)?)),
             Expr::As(e, current, expected) => {
@@ -602,17 +597,17 @@ func main() {
 (module
     (func $f (args $int) (return $int)
         (let (slice 4 $int) $x (data 4 3 3 3 3))
-        (assign 1 (index 1 $x(4) 0) 1)
-        (assign 1 (index 1 $x(4) 1) 2)
-        (assign 1 (index 1 $x(4) 2) 3)
+        (assign 1 (index 1 $x 0) 1)
+        (assign 1 (index 1 $x 1) 2)
+        (assign 1 (index 1 $x 2) 3)
 
-        (assign 1 (index 1 $x(4) 2) 4)
+        (assign 1 (index 1 $x 2) 4)
 
         (return 1
             (call $_add
                 (call $_add
-                    (index 1 $x(4) 1)
-                    (index 1 $x(4) 2))
+                    (index 1 $x 1)
+                    (index 1 $x 2))
                 $0
             )
         )
@@ -651,7 +646,7 @@ func main() {
     )
     (func $main (args) (return $int)
         (let (tuple $int $int) $p (data 3 10 20))
-        (return 1 (call $Point_sum (address $p(3))))
+        (return 1 (call $Point_sum (address $p)))
     )
 )
 "#,
@@ -709,7 +704,7 @@ func main() {
     (text 3 102 111 111)
     (func $main (args) (return $nil)
         (let (tuple (address $byte)) $s (string 0))
-        (return 1 (call $_println $s(2)))
+        (return 1 (call $_println $s))
     )
 )
 "#,
