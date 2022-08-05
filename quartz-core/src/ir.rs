@@ -148,8 +148,8 @@ impl IrElement {
         )
     }
 
-    pub fn i_assign(size: usize, lhs: IrElement, rhs: IrElement) -> IrElement {
-        IrElement::block("assign", vec![IrElement::int(size as i32), lhs, rhs])
+    pub fn i_assign(lhs: IrElement, rhs: IrElement) -> IrElement {
+        IrElement::block("assign", vec![lhs, rhs])
     }
 
     pub fn i_unload(element: IrElement) -> IrElement {

@@ -106,7 +106,6 @@ impl<'s> IrFunctionGenerator<'s> {
                 Literal::Array(arr, t) => {
                     let v = self.var_fresh();
                     let n = arr.len() as i32;
-                    let element_size = size_of(t, self.structs);
 
                     // in: [1,2]
                     //
@@ -124,7 +123,6 @@ impl<'s> IrFunctionGenerator<'s> {
                         let velem = self.expr(&elem)?;
 
                         self.ir.push(IrElement::i_assign(
-                            element_size,
                             IrElement::i_offset(IrElement::Term(IrTerm::Ident(v.clone())), i),
                             velem,
                         ));
@@ -209,7 +207,6 @@ impl<'s> IrFunctionGenerator<'s> {
 
                 let e_value = self.expr(e)?;
                 self.ir.push(IrElement::i_assign(
-                    size,
                     IrElement::i_offset(IrElement::Term(IrTerm::Ident(v.clone())), 0),
                     e_value,
                 ));
@@ -316,15 +313,11 @@ impl<'s> IrFunctionGenerator<'s> {
                 ));
             }
             Statement::Continue => self.ir.push(IrElement::block("continue", vec![])),
-            Statement::Assignment(typ, lhs, rhs) => {
+            Statement::Assignment(_typ, lhs, rhs) => {
                 let lhs_value = self.expr(lhs)?;
                 let rhs_value = self.expr(rhs)?;
 
-                self.ir.push(IrElement::i_assign(
-                    size_of(typ, self.structs),
-                    lhs_value,
-                    rhs_value,
-                ))
+                self.ir.push(IrElement::i_assign(lhs_value, rhs_value))
             }
             Statement::While(cond, body) => {
                 let vcond = self.expr(cond)?;
@@ -553,7 +546,7 @@ func main() {
 (module
     (func $main (args) (return $int)
         (let $int $x 10)
-        (assign 1 $x 20)
+        (assign $x 20)
         (return 1 $x)
     )
 )
@@ -579,11 +572,11 @@ func main() {
 (module
     (func $f (args $int) (return $int)
         (let (slice 4 $int) $x (slice 4 $int 3))
-        (assign 1 (index 1 $x 0) 1)
-        (assign 1 (index 1 $x 1) 2)
-        (assign 1 (index 1 $x 2) 3)
+        (assign (index 1 $x 0) 1)
+        (assign (index 1 $x 1) 2)
+        (assign (index 1 $x 2) 3)
 
-        (assign 1 (index 1 $x 2) 4)
+        (assign (index 1 $x 2) 4)
 
         (return 1
             (call $_add

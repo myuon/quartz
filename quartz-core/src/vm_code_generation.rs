@@ -449,17 +449,15 @@ impl<'s> VmFunctionGenerator<'s> {
                     }
                     "assign" => {
                         self.new_source_map(element.show_compact());
-                        let (size, lhs, rhs) = unvec!(block.elements, 3);
+                        let (lhs, rhs) = unvec!(block.elements, 2);
                         let typ = self.element_addr(lhs, IrType::addr_unknown())?;
-                        self.element(
+                        let rhs_type = self.element(
                             rhs,
                             typ.as_addr()
                                 .map(|t| t.as_ref().clone())
                                 .unwrap_or(IrType::unknown()),
                         )?;
-
-                        self.writer
-                            .push(QVMInstruction::Store(size.into_term()?.into_int()? as usize));
+                        self.writer.push(QVMInstruction::Store(rhs_type.size_of()));
 
                         Ok(IrType::nil())
                     }
