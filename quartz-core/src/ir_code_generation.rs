@@ -161,10 +161,6 @@ impl<'s> IrFunctionGenerator<'s> {
                 // in: A { a: 1, b: 2 }
                 // out: (let (data TYPE 1 2))
                 let mut data = vec![];
-                data.push(
-                    self.ir_type(&Type::Struct(struct_name.clone()))?
-                        .to_element(),
-                );
 
                 // FIXME: field order
                 for (label, expr, typ) in exprs {
@@ -186,7 +182,10 @@ impl<'s> IrFunctionGenerator<'s> {
                     data.push(result);
                 }
 
-                Ok(IrElement::block("data", data))
+                Ok(IrElement::i_tuple(
+                    self.ir_type(&Type::Struct(struct_name.clone()))?,
+                    data,
+                ))
             }
             Expr::Project(method, _, _proj, _label) if *method => {
                 unreachable!()
@@ -253,10 +252,7 @@ impl<'s> IrFunctionGenerator<'s> {
             Expr::Make(t, args) => match t {
                 Type::SizedArray(arr, len) => {
                     let value = self.expr(&args[0])?;
-                    let mut data = vec![IrElement::int((len * size_of(&arr, self.structs)) as i32)];
-                    data.extend(std::iter::repeat(value).take(*len));
-
-                    Ok(IrElement::block("data", data))
+                    Ok(IrElement::i_slice(*len, self.ir_type(arr)?, value))
                 }
                 _ => unreachable!(),
             },
@@ -587,7 +583,7 @@ func main() {
                 r#"
 (module
     (func $f (args $int) (return $int)
-        (let (slice 4 $int) $x (data 4 3 3 3 3))
+        (let (slice 4 $int) $x (slice 4 $int 3))
         (assign 1 (index 1 $x 0) 1)
         (assign 1 (index 1 $x 1) 2)
         (assign 1 (index 1 $x 2) 3)
@@ -636,7 +632,7 @@ func main() {
         ))
     )
     (func $main (args) (return $int)
-        (let (tuple $int $int) $p (data (tuple $int $int) 10 20))
+        (let (tuple $int $int) $p (tuple (tuple $int $int) 10 20))
         (return 1 (call $Point_sum (address $p)))
     )
 )

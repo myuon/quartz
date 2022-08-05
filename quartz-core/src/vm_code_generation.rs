@@ -581,7 +581,7 @@ impl<'s> VmFunctionGenerator<'s> {
 
                         Ok(IrType::nil())
                     }
-                    "data" => {
+                    "tuple" => {
                         self.new_source_map(IrElement::block("data", vec![]).show_compact());
 
                         let typ = IrType::from_element(&block.elements[0])?;
@@ -601,6 +601,24 @@ impl<'s> VmFunctionGenerator<'s> {
                         }
 
                         Ok(IrType::tuple(types))
+                    }
+                    "slice" => {
+                        self.new_source_map(IrElement::block("slice", vec![]).show_compact());
+
+                        let (len, typ, value) = unvec!(block.elements, 3);
+
+                        let len = len.into_term()?.into_int()? as usize;
+                        let typ = IrType::from_element(&typ)?;
+                        let slice_typ = IrType::slice(len, Box::new(typ.clone()));
+
+                        self.writer
+                            .push(QVMInstruction::InfoConst(slice_typ.size_of()));
+
+                        for _ in 0..len {
+                            self.element(value.clone(), typ.clone())?;
+                        }
+
+                        Ok(slice_typ)
                     }
                     // FIXME: integrate with _copy and load and _deref?
                     "copy" => {

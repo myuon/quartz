@@ -215,6 +215,19 @@ impl IrElement {
         )
     }
 
+    pub fn i_tuple(typ: IrType, mut element: Vec<IrElement>) -> IrElement {
+        element.insert(0, typ.to_element());
+
+        IrElement::block("tuple", element)
+    }
+
+    pub fn i_slice(len: usize, typ: IrType, element: IrElement) -> IrElement {
+        IrElement::block(
+            "slice",
+            vec![IrElement::int(len as i32), typ.to_element(), element],
+        )
+    }
+
     pub fn d_var(name: impl Into<String>, typ: IrType, expr: IrElement) -> IrElement {
         IrElement::block(
             "var",
@@ -460,7 +473,7 @@ impl IrType {
             IrType::Unknown => todo!(),
             IrType::Single(_) => 1,
             IrType::Tuple(vs) => vs.into_iter().map(|v| v.size_of()).sum::<usize>() + 1, // +1 for a pointer to info table
-            IrType::Slice(_, _) => todo!(),
+            IrType::Slice(len, t) => len * t.size_of(),
         }
     }
 
