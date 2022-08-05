@@ -93,15 +93,8 @@ impl<'s> IrFunctionGenerator<'s> {
                 subj.method_selector_name()?,
                 v
             )))),
-            Expr::Lit(literal, typ) => match literal {
-                Literal::Nil => {
-                    let s = size_of(typ, &self.structs);
-                    Ok(if s > 1 {
-                        IrElement::i_coerce(1, s, IrElement::Term(IrTerm::Nil))
-                    } else {
-                        IrElement::Term(IrTerm::Nil)
-                    })
-                }
+            Expr::Lit(literal, _typ) => match literal {
+                Literal::Nil => Ok(IrElement::Term(IrTerm::Nil)),
                 Literal::Bool(b) => Ok(IrElement::Term(IrTerm::Bool(*b))),
                 Literal::Int(n) => Ok(IrElement::Term(IrTerm::Int(*n))),
                 Literal::String(s) => {
@@ -111,7 +104,6 @@ impl<'s> IrFunctionGenerator<'s> {
                     Ok(IrElement::block("string", vec![IrElement::int(t as i32)]))
                 }
                 Literal::Array(arr, t) => {
-                    let size = size_of(&Type::Array(Box::new(t.clone())), self.structs);
                     let v = self.var_fresh();
                     let n = arr.len() as i32;
                     let element_size = size_of(t, self.structs);
