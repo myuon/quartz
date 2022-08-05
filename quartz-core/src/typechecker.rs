@@ -331,7 +331,8 @@ impl<'s> TypeChecker<'s> {
                     }
                 };
 
-                self.unify(&t, typ)?;
+                self.unify(&t, typ)
+                    .context(self.error_context(expr.start, expr.end, "literal"))?;
                 *lit_typ = typ.clone();
             }
             Expr::Call(mode, f, args) => {
@@ -412,12 +413,15 @@ impl<'s> TypeChecker<'s> {
                     .collect::<HashMap<String, Type>>();
                 assert_eq!(defined.len(), fields.len());
 
+                let first_fields = fields[0].clone().1;
                 for (label, expr, typ) in fields {
                     self.expr_coerce(expr, typ)?;
-                    self.unify(&defined[label], typ)?;
+                    self.unify(&defined[label], typ)
+                        .context(self.error_context(expr.start, expr.end, "struct field"))?;
                 }
 
-                self.unify(&Type::Struct(s.clone()), typ)?;
+                self.unify(&Type::Struct(s.clone()), typ)
+                    .context(self.error_context(first_fields.start, first_fields.end, "struct"))?;
             }
             Expr::Project(is_method, proj_typ, proj, field) => {
                 self.expr(proj, proj_typ)?;
@@ -473,12 +477,17 @@ impl<'s> TypeChecker<'s> {
 
                     *is_method = false;
 
-                    self.unify(&field_type, typ)?;
+                    self.unify(&field_type, typ).context(self.error_context(
+                        proj.start,
+                        proj.end,
+                        "projection",
+                    ))?;
                 }
             }
             Expr::Ref(e, t) => {
                 self.expr(e, t)?;
-                self.unify(&Type::Ref(Box::new(t.clone())), typ)?;
+                self.unify(&Type::Ref(Box::new(t.clone())), typ)
+                    .context(self.error_context(e.start, e.end, "ref"))?;
             }
             Expr::Deref(d, t) => {
                 self.expr(d, t)?;
@@ -486,13 +495,16 @@ impl<'s> TypeChecker<'s> {
                     t.as_ref_type()
                         .ok_or(anyhow::anyhow!("Cannot deref non-reference type {:?}", t))?,
                     typ,
-                )?;
+                )
+                .context(self.error_context(d.start, d.end, "deref"))?;
             }
             Expr::As(e, current_type, t) => {
                 self.expr_coerce(e, current_type)?;
                 self.expr(e, current_type)?;
-                self.unify(current_type, typ)?;
-                self.unify(current_type, t)?;
+                self.unify(current_type, typ)
+                    .context(self.error_context(e.start, e.end, "as"))?;
+                self.unify(current_type, t)
+                    .context(self.error_context(e.start, e.end, "as"))?;
             }
             Expr::Address(e, t) => {
                 self.expr(e, t)?;
