@@ -471,15 +471,22 @@ impl<'s> VmFunctionGenerator<'s> {
                         let typ = self
                             .element_addr(lhs.clone())?
                             .unify(IrType::addr_unknown())
-                            .context(format!("assign {}", lhs.show()))?;
-                        let rhs_type = self
-                            .element(rhs.clone())?
-                            .unify(
-                                typ.as_addr()
-                                    .map(|t| t.as_ref().clone())
-                                    .unwrap_or(IrType::unknown()),
-                            )
-                            .context(format!("{}", element.show()))?;
+                            .context(format!("[assign] {}", lhs.show()))?;
+                        let addr_inner_typ = typ
+                            .as_addr()
+                            .map(|t| t.as_ref().clone())
+                            .unwrap_or(IrType::unknown());
+                        let mut rhs_type = self.element(rhs.clone())?;
+
+                        // NOTE: `byte` type can be used like anytype, so just skip unification
+                        // FIXME: Is this true?
+                        if addr_inner_typ != IrType::byte() {
+                            rhs_type = rhs_type.unify(addr_inner_typ).context(format!(
+                                "[assign rhs] {}\n{}",
+                                typ.to_element().show(),
+                                element.show()
+                            ))?;
+                        }
                         self.writer.push(QVMInstruction::Store(rhs_type.size_of()));
 
                         Ok(IrType::nil())

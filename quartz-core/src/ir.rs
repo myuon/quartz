@@ -313,8 +313,10 @@ impl IrSingleType {
 
                 Ok(IrSingleType::Fn(args, Box::new(unified)))
             }
-            // nil can be an address type
+            // nil can be an address
             (IrSingleType::Nil, IrSingleType::Address(t)) => Ok(IrSingleType::Address(t)),
+            // byte can be an address
+            (IrSingleType::Byte, IrSingleType::Address(t)) => Ok(IrSingleType::Address(t)),
             (s, t) => {
                 bail!(
                     "Type want {} but got {}",
