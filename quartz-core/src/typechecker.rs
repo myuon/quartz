@@ -263,32 +263,39 @@ impl<'s> TypeChecker<'s> {
         Ok(())
     }
 
-    // wrap by address if necessary
-    fn transform_refs(
+    fn transform(
         &self,
-        expr: Source<Expr>,
-        current_type: &Type,
+        expr: &mut Source<Expr>,
+        current_type: &mut Type,
         expected_type: &Type,
-    ) -> Source<Expr> {
+    ) -> Result<()> {
         if let Type::Ref(current_type) = current_type {
             if let Type::Ref(expected_type) = expected_type {
-                return self.transform_refs(expr, current_type, expected_type);
+                return self.transform(expr, current_type, expected_type);
             }
         }
 
-        // FIXME: Excluding `Type::Any` is a hack
-        if !current_type.is_ref() && expected_type.is_ref() && expected_type != &Type::Any {
-            return Source::unknown(Expr::Address(Box::new(expr.clone()), current_type.clone()));
+        // reference
+        if !current_type.is_ref() && expected_type.is_ref() {
+            *expr = Source::unknown(Expr::Address(Box::new(expr.clone()), current_type.clone()));
+            *current_type = Type::Ref(Box::new(current_type.clone()));
         }
+        // dereference
         if current_type.is_ref() && !expected_type.is_ref() {
-            return Source::unknown(Expr::Deref(Box::new(expr.clone()), expected_type.clone()));
+            *expr = Source::unknown(Expr::Deref(Box::new(expr.clone()), expected_type.clone()));
+            *current_type = current_type.clone().as_ref_type().unwrap().as_ref().clone();
+        }
+        // optional
+        if !current_type.is_optional() && expected_type.is_optional() {
+            *expr = Source::unknown(Expr::Optional(Box::new(expr.clone())));
+            *current_type = Type::Optional(Box::new(current_type.clone()));
         }
 
         if let Err(err) = Constraints::unify(current_type, expected_type) {
             warn!("{:?}", err);
         }
 
-        expr
+        Ok(())
     }
 
     fn reduce_to_callable(&self, expr: &mut Source<Expr>, typ: &mut Type) -> Result<()> {
@@ -374,7 +381,7 @@ impl<'s> TypeChecker<'s> {
                         "Cannot call non-function type {:?}",
                         fn_type
                     ))?;
-                    let arg_types = arg_types.clone();
+                    let mut arg_types = arg_types.clone();
 
                     let actual_arg_len = args.len();
                     let expected_arg_len = if fn_type.is_method_type() {
@@ -396,7 +403,7 @@ impl<'s> TypeChecker<'s> {
                     }
 
                     for i in 0..actual_arg_len {
-                        self.expr_coerce(&mut args[i], &arg_types[i])
+                        self.expr_coerce(&mut args[i], &mut arg_types[i])
                             .context(format!("{}th argument", i))?;
                     }
 
@@ -457,9 +464,11 @@ impl<'s> TypeChecker<'s> {
                     // x will be stored in self_object
                     // x is passed by ref
                     if !arg_types.is_empty() {
-                        let transformed =
-                            self.transform_refs(proj.as_ref().clone(), &proj_typ, &arg_types[0]);
-                        self.self_object = Some(Box::new(transformed));
+                        let mut self_object = proj.clone();
+                        let mut current_type = proj_typ.clone();
+
+                        self.transform(&mut self_object, &mut current_type, &arg_types[0])?;
+                        self.self_object = Some(self_object);
                     }
                     let method_type = Type::Method(
                         Box::new(Type::Struct(name.clone())),
@@ -503,11 +512,9 @@ impl<'s> TypeChecker<'s> {
                 .context(self.error_context(d.start, d.end, "deref"))?;
             }
             Expr::As(e, current_type, t) => {
-                self.expr_coerce(e, current_type)?;
                 self.expr(e, current_type)?;
-                self.unify(current_type, typ)
-                    .context(self.error_context(e.start, e.end, "as"))?;
-                self.unify(current_type, t)
+                self.transform(e, current_type, &t)?;
+                self.unify(t, typ)
                     .context(self.error_context(e.start, e.end, "as"))?;
             }
             Expr::Address(e, t) => {
@@ -528,6 +535,9 @@ impl<'s> TypeChecker<'s> {
                 }
                 _ => unreachable!("new {:?} {:?}", t, args),
             },
+            Expr::Optional(_) => {
+                todo!()
+            }
             Expr::Unwrap(expr, t) => {
                 self.expr(expr, t)?;
                 self.unify(t.as_ref_type().unwrap().as_ref(), typ)?;
@@ -537,10 +547,10 @@ impl<'s> TypeChecker<'s> {
         Ok(())
     }
 
-    fn expr_coerce(&mut self, expr: &mut Source<Expr>, typ: &Type) -> Result<()> {
+    fn expr_coerce(&mut self, expr: &mut Source<Expr>, typ: &mut Type) -> Result<()> {
         let mut t = self.next_infer();
         self.expr(expr, &mut t)?;
-        *expr = self.transform_refs(expr.clone(), &t, &typ);
+        self.transform(expr, typ, &t)?;
 
         Ok(())
     }

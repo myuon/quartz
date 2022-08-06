@@ -432,7 +432,10 @@ impl IrType {
             Type::SizedArray(t, u) => {
                 IrType::slice(*u, Box::new(IrType::from_type_ast(t.as_ref(), structs)?))
             }
-            Type::Optional(_) => todo!(),
+            Type::Optional(t) => IrType::tuple(vec![
+                IrType::bool(),
+                IrType::addr_of(IrType::from_type_ast(t, structs)?),
+            ]),
             Type::Self_ => todo!(),
             t => unreachable!("{:?}", t),
         })

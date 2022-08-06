@@ -76,6 +76,7 @@ pub enum Expr {
     As(Box<Source<Expr>>, Type, Type),
     Ref(Box<Source<Expr>>, Type),
     Address(Box<Source<Expr>>, Type), // [compiler only] take the address of expr (same as ref, but no heap allocation)
+    Optional(Box<Source<Expr>>),
     Unwrap(Box<Source<Expr>>, Type),
 }
 
@@ -261,6 +262,13 @@ impl Type {
     pub fn is_ref(&self) -> bool {
         match self {
             Type::Ref(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_optional(&self) -> bool {
+        match self {
+            Type::Optional(_) => true,
             _ => false,
         }
     }
