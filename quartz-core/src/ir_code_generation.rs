@@ -4,7 +4,8 @@ use anyhow::{Context, Result};
 
 use crate::{
     ast::{
-        CallMode, Declaration, Expr, Function, Literal, Module, Source, Statement, Structs, Type,
+        CallMode, Declaration, Expr, Function, Literal, Module, OptionalMode, Source, Statement,
+        Structs, Type,
     },
     compiler::specify_source_in_input,
     ir::{IrBlock, IrElement, IrTerm, IrType},
@@ -252,8 +253,15 @@ impl<'s> IrFunctionGenerator<'s> {
                 _ => unreachable!(),
             },
             Expr::Unwrap(expr, _) => Ok(IrElement::i_deref(self.expr(expr)?)),
-            Expr::Optional(expr) => {
-                todo!()
+            Expr::Optional(mode, _, expr) => {
+                let value = self.expr(expr)?;
+                let result = self.var_fresh();
+                self.ir.push(IrElement::i_let(result.clone(), value));
+
+                Ok(match mode {
+                    OptionalMode::Nil => IrElement::nil(),
+                    OptionalMode::Some => IrElement::i_address(IrElement::ident(result)),
+                })
             }
         }
     }

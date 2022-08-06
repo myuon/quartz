@@ -1266,7 +1266,7 @@ func main() {
         value: nil,
     };
 
-    if (bar.value == nil) {
+    if _is_nil(bar.value) {
         return 10;
     } else {
         return 20;

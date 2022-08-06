@@ -1,11 +1,13 @@
 use std::collections::{HashMap, HashSet};
 
 use anyhow::{bail, Context, Result};
-use log::warn;
 use pretty_assertions::assert_eq;
 
 use crate::{
-    ast::{CallMode, Declaration, Expr, Literal, Module, Source, Statement, Structs, Type},
+    ast::{
+        CallMode, Declaration, Expr, Literal, Module, OptionalMode, Source, Statement, Structs,
+        Type,
+    },
     compiler::specify_source_in_input,
 };
 
@@ -287,12 +289,25 @@ impl<'s> TypeChecker<'s> {
         }
         // optional
         if !current_type.is_optional() && expected_type.is_optional() {
-            *expr = Source::unknown(Expr::Optional(Box::new(expr.clone())));
-            *current_type = Type::Optional(Box::new(current_type.clone()));
+            if current_type.is_nil() {
+                *expr = Source::unknown(Expr::Optional(
+                    OptionalMode::Nil,
+                    expected_type.clone(),
+                    Box::new(expr.clone()),
+                ));
+                *current_type = expected_type.clone();
+            } else {
+                *expr = Source::unknown(Expr::Optional(
+                    OptionalMode::Some,
+                    expected_type.clone(),
+                    Box::new(expr.clone()),
+                ));
+                *current_type = Type::Optional(Box::new(current_type.clone()));
+            }
         }
 
         if let Err(err) = Constraints::unify(current_type, expected_type) {
-            warn!("{:?}", err);
+            bail!("{:?}", err);
         }
 
         Ok(())
@@ -535,7 +550,7 @@ impl<'s> TypeChecker<'s> {
                 }
                 _ => unreachable!("new {:?} {:?}", t, args),
             },
-            Expr::Optional(_) => {
+            Expr::Optional(_, _, _) => {
                 todo!()
             }
             Expr::Unwrap(expr, t) => {

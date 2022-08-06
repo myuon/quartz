@@ -133,6 +133,10 @@ impl IrElement {
         IrElement::Term(IrTerm::Nil)
     }
 
+    pub fn bool(b: bool) -> IrElement {
+        IrElement::Term(IrTerm::Bool(b))
+    }
+
     pub fn int(num: i32) -> IrElement {
         IrElement::Term(IrTerm::Int(num))
     }
@@ -309,6 +313,8 @@ impl IrSingleType {
 
                 Ok(IrSingleType::Fn(args, Box::new(unified)))
             }
+            // nil can be an address type
+            (IrSingleType::Nil, IrSingleType::Address(t)) => Ok(IrSingleType::Address(t)),
             (s, t) => {
                 bail!(
                     "Type want {} but got {}",
@@ -432,10 +438,7 @@ impl IrType {
             Type::SizedArray(t, u) => {
                 IrType::slice(*u, Box::new(IrType::from_type_ast(t.as_ref(), structs)?))
             }
-            Type::Optional(t) => IrType::tuple(vec![
-                IrType::bool(),
-                IrType::addr_of(IrType::from_type_ast(t, structs)?),
-            ]),
+            Type::Optional(t) => IrType::addr_of(IrType::from_type_ast(t, structs)?),
             Type::Self_ => todo!(),
             t => unreachable!("{:?}", t),
         })
