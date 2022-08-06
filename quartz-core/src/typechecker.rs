@@ -345,21 +345,21 @@ impl<'s> TypeChecker<'s> {
 
                 if let Some((t, _)) = fn_type.as_sized_array() {
                     // array indexing
-                    *mode = CallMode::Array;
+                    *mode = CallMode::SizedArray;
 
                     assert_eq!(args.len(), 1);
                     self.expr(&mut args[0], &mut Type::Int)?;
                     self.unify(t, typ)?;
                 } else if let Some(t) = fn_type.as_array() {
                     // array indexing
-                    *mode = CallMode::Array;
+                    *mode = CallMode::Array(t.as_ref().clone());
 
                     assert_eq!(args.len(), 1);
                     self.expr(&mut args[0], &mut Type::Int)?;
                     self.unify(t, typ)?;
                 } else if let Some("string") = fn_type.as_struct_type().map(|s| s.as_str()) {
                     // string indexing
-                    *mode = CallMode::Array;
+                    *mode = CallMode::Array(Type::Byte);
 
                     self.expr(&mut args[0], &mut Type::Int)?;
                     self.unify(&Type::Byte, typ)?;

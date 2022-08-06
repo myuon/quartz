@@ -54,7 +54,8 @@ pub enum Statement {
 #[derive(PartialEq, Debug, Clone)]
 pub enum CallMode {
     Function,
-    Array,
+    SizedArray,
+    Array(Type), // return type
 }
 
 #[derive(PartialEq, Debug, Clone)]

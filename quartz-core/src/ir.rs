@@ -178,8 +178,12 @@ impl IrElement {
         IrElement::block("address", vec![element])
     }
 
-    pub fn i_index(element: IrElement, offset: IrElement) -> IrElement {
-        IrElement::block("index", vec![element, offset])
+    pub fn i_index(typ: IrType, element: IrElement, offset: IrElement) -> IrElement {
+        IrElement::block("index", vec![typ.to_element(), element, offset])
+    }
+
+    pub fn i_index_sized(element: IrElement, offset: IrElement) -> IrElement {
+        IrElement::block("index_sized", vec![element, offset])
     }
 
     pub fn i_offset(element: IrElement, offset: usize) -> IrElement {
@@ -481,6 +485,20 @@ impl IrType {
     pub fn as_slice(&self) -> Option<(usize, Box<IrType>)> {
         match self {
             IrType::Slice(len, t) => Some((*len, t.clone())),
+            _ => None,
+        }
+    }
+
+    pub fn as_element(&self) -> Option<IrType> {
+        match self {
+            IrType::Tuple(ts) if ts.len() == 1 => Some(ts[0].as_addr().unwrap().as_ref().clone()),
+            _ => None,
+        }
+    }
+
+    pub fn as_element_sized(&self) -> Option<IrType> {
+        match self {
+            IrType::Slice(_, t) => Some(t.as_ref().clone()),
             _ => None,
         }
     }
