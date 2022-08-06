@@ -144,9 +144,9 @@ impl<'s> IrFunctionGenerator<'s> {
             }
             Expr::Call(CallMode::Array(_), f, args) => {
                 // array[T] = tuple[addr[T]]
-                // (index arr i) = (index_sized (addr_offset arr 1) i)
-                Ok(IrElement::i_index(
-                    IrElement::i_addr_offset(self.expr(f.as_ref())?, 1),
+                // arr(i)= (*arr[1])[i]
+                Ok(IrElement::i_addr_index(
+                    IrElement::i_offset(self.expr(f.as_ref())?, 1),
                     self.expr(&args[0])?,
                 ))
             }

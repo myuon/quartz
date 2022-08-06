@@ -732,6 +732,23 @@ impl<'s> VmFunctionGenerator<'s> {
 
                         Ok(elem_typ)
                     }
+                    "addr_index" => {
+                        self.new_source_map(element.show_compact());
+                        let (element, offset) = unvec!(block.elements, 2);
+
+                        let typ = self.element(element)?;
+
+                        self.element(offset)?.unify(IrType::int())?;
+                        self.writer.push(QVMInstruction::I32Const(1));
+                        self.writer.push(QVMInstruction::Add);
+                        self.writer.push(QVMInstruction::PAdd);
+
+                        let elem_typ = typ.as_addr().unwrap().as_ref().clone();
+
+                        self.writer.push(QVMInstruction::Load(elem_typ.size_of()));
+
+                        Ok(elem_typ)
+                    }
                     "size_of" => {
                         self.new_source_map(element.show_compact());
                         let typ = unvec!(block.elements, 1);
