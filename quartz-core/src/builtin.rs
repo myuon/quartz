@@ -70,16 +70,8 @@ pub fn builtin() -> HashMap<String, Type> {
         ),
         ("_not", Type::Fn(vec![Type::Bool], Box::new(Type::Bool))),
         (
-            "_int_to_byte",
-            Type::Fn(vec![Type::Int], Box::new(Type::Byte)),
-        ),
-        (
             "_byte_to_int",
             Type::Fn(vec![Type::Byte], Box::new(Type::Int)),
-        ),
-        (
-            "_nil_to_ref",
-            Type::Fn(vec![Type::Nil], Box::new(Type::Ref(Box::new(Type::Any)))),
         ),
         (
             "_copy",
@@ -93,6 +85,7 @@ pub fn builtin() -> HashMap<String, Type> {
                 Box::new(Type::Nil),
             ),
         ),
+        ("_is_nil", Type::Fn(vec![Type::Any], Box::new(Type::Bool))),
     ]
     .into_iter()
     .map(|(k, v)| (k.to_string(), v))

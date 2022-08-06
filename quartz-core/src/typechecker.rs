@@ -67,6 +67,8 @@ impl Constraints {
             }
             // nil in byte
             (Type::Nil, Type::Byte) => Ok(Constraints::new()),
+            // nil in ref type
+            (Type::Nil, Type::Ref(_)) => Ok(Constraints::new()),
             (t1, t2) => bail!("Type error, want {:?} but found {:?}", t1, t2),
         }
     }
@@ -277,6 +279,11 @@ impl<'s> TypeChecker<'s> {
             }
         }
 
+        // return immediately if the types are already equal
+        if Constraints::unify(current_type, expected_type).is_ok() {
+            return Ok(());
+        }
+
         // reference
         if !current_type.is_ref() && expected_type.is_ref() {
             *expr = Source::unknown(Expr::Address(Box::new(expr.clone()), current_type.clone()));
@@ -306,9 +313,7 @@ impl<'s> TypeChecker<'s> {
             }
         }
 
-        if let Err(err) = Constraints::unify(current_type, expected_type) {
-            bail!("{:?}", err);
-        }
+        Constraints::unify(current_type, expected_type)?;
 
         Ok(())
     }

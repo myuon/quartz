@@ -245,9 +245,7 @@ impl<'s> VmFunctionGenerator<'s> {
                 QVMInstruction::RuntimeInstr("_debug".to_string()),
                 IrType::nil(),
             ),
-            "_int_to_byte" => (QVMInstruction::Nop, todo!()),
-            "_byte_to_int" => (QVMInstruction::Nop, todo!()),
-            "_nil_to_ref" => (QVMInstruction::Nop, todo!()),
+            "_byte_to_int" => (QVMInstruction::Nop, IrType::nil()),
             "_start_debugger" => (
                 QVMInstruction::RuntimeInstr("_start_debugger".to_string()),
                 IrType::nil(),
@@ -255,6 +253,10 @@ impl<'s> VmFunctionGenerator<'s> {
             "_check_sp" => (
                 QVMInstruction::RuntimeInstr("_check_sp".to_string()),
                 IrType::nil(),
+            ),
+            "_is_nil" => (
+                QVMInstruction::RuntimeInstr("_is_nil".to_string()),
+                IrType::func(vec![IrType::addr_of(IrType::unknown())], IrType::bool()),
             ),
             _ => (
                 QVMInstruction::LabelI32Const(v.to_string()),

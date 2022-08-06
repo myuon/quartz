@@ -800,6 +800,15 @@ impl Runtime {
                         }
                     }
                 }
+                "_is_nil" => {
+                    let value = self.pop();
+                    if value.is_nil() {
+                        self.push(Value::bool(true));
+                    } else {
+                        assert!(value.as_addr().is_some());
+                        self.push(Value::bool(false));
+                    }
+                }
                 _ => {
                     unreachable!();
                 }
@@ -1282,7 +1291,7 @@ struct Nat {
 }
 
 method Nat add(self, m: Nat): Nat {
-    if (self.succ == nil) {
+    if _is_nil(self.succ) {
         return m;
     } else {
         return Nat {
@@ -1292,7 +1301,7 @@ method Nat add(self, m: Nat): Nat {
 }
 
 method Nat to_int(self): int {
-    if (self.succ == nil) {
+    if _is_nil(self.succ) {
         return 0;
     } else {
         return self.succ.to_int() + 1;
@@ -1301,7 +1310,7 @@ method Nat to_int(self): int {
 
 func main() {
     let zero = Nat {
-        succ: _nil_to_ref(nil),
+        succ: nil,
     };
     let two = Nat {
         succ: ref Nat {
