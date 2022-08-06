@@ -176,7 +176,10 @@ impl<'s> VmFunctionGenerator<'s> {
                 QVMInstruction::Neq,
                 IrType::func(vec![IrType::int(), IrType::int()], IrType::bool()),
             ),
-            "_new" => (QVMInstruction::Alloc, todo!()),
+            "_new" => (
+                QVMInstruction::Alloc,
+                IrType::func(vec![IrType::int()], IrType::byte()),
+            ),
             "_padd" => (
                 QVMInstruction::PAdd,
                 IrType::func(
@@ -344,8 +347,10 @@ impl<'s> VmFunctionGenerator<'s> {
                     self.new_source_map(element.show_compact());
 
                     let (element, offset) = unvec!(block.elements, 2);
-                    let typ = self.element_addr(element)?;
-                    IrType::int().unify(self.element(offset)?)?;
+                    let typ = self.element_addr(element.clone())?;
+                    IrType::int()
+                        .unify(self.element(offset)?)
+                        .context(format!("{}", element.show()))?;
                     self.writer.push(QVMInstruction::I32Const(1)); // +1 for a pointer to info table
                     self.writer.push(QVMInstruction::Add);
                     self.writer.push(QVMInstruction::PAdd);
@@ -428,7 +433,10 @@ impl<'s> VmFunctionGenerator<'s> {
                             typ.size_of(),
                         ));
 
-                        self.expected_type.clone().unify(typ)?;
+                        self.expected_type
+                            .clone()
+                            .unify(typ)
+                            .context(format!("{}", element.show()))?;
 
                         Ok(IrType::unknown())
                     }
@@ -460,12 +468,18 @@ impl<'s> VmFunctionGenerator<'s> {
                     "assign" => {
                         self.new_source_map(element.show_compact());
                         let (lhs, rhs) = unvec!(block.elements, 2);
-                        let typ = self.element_addr(lhs)?.unify(IrType::addr_unknown())?;
-                        let rhs_type = self.element(rhs)?.unify(
-                            typ.as_addr()
-                                .map(|t| t.as_ref().clone())
-                                .unwrap_or(IrType::unknown()),
-                        )?;
+                        let typ = self
+                            .element_addr(lhs.clone())?
+                            .unify(IrType::addr_unknown())
+                            .context(format!("assign {}", lhs.show()))?;
+                        let rhs_type = self
+                            .element(rhs.clone())?
+                            .unify(
+                                typ.as_addr()
+                                    .map(|t| t.as_ref().clone())
+                                    .unwrap_or(IrType::unknown()),
+                            )
+                            .context(format!("{}", element.show()))?;
                         self.writer.push(QVMInstruction::Store(rhs_type.size_of()));
 
                         Ok(IrType::nil())
@@ -483,7 +497,9 @@ impl<'s> VmFunctionGenerator<'s> {
                         // condition
                         self.register_label(label.clone());
                         self.new_source_map(IrElement::block("if:cond", vec![]).show_compact());
-                        self.element(cond)?.unify(IrType::bool())?;
+                        self.element(cond.clone())?
+                            .unify(IrType::bool())
+                            .context(format!("{}", cond.show()))?;
                         self.writer
                             .push(QVMInstruction::LabelJumpIfFalse(label_else.clone()));
 
@@ -496,7 +512,9 @@ impl<'s> VmFunctionGenerator<'s> {
                         // else block
                         self.new_source_map(IrElement::block("if:else", vec![]).show_compact());
                         self.register_label(label_else.clone());
-                        self.element(right)?.unify(typ)?;
+                        self.element(right.clone())?
+                            .unify(typ)
+                            .context(format!("{}", right.show()))?;
 
                         // endif
                         self.register_label(label_end.clone());
@@ -617,7 +635,9 @@ impl<'s> VmFunctionGenerator<'s> {
                             .push(QVMInstruction::InfoConst(slice_typ.size_of()));
 
                         for _ in 0..len {
-                            self.element(value.clone())?.unify(typ.clone())?;
+                            self.element(value.clone())?
+                                .unify(typ.clone())
+                                .context(format!("{}", value.show()))?;
                         }
 
                         Ok(slice_typ)
@@ -650,7 +670,10 @@ impl<'s> VmFunctionGenerator<'s> {
                     "deref" => {
                         self.new_source_map(element.show_compact());
                         let element = unvec!(block.elements, 1);
-                        let typ = self.element(element)?.unify(IrType::addr_unknown())?;
+                        let typ = self
+                            .element(element.clone())?
+                            .unify(IrType::addr_unknown())
+                            .context(format!("{}", element.show()))?;
                         self.writer
                             .push(QVMInstruction::Load(typ.as_addr().unwrap().size_of()));
 
@@ -688,7 +711,10 @@ impl<'s> VmFunctionGenerator<'s> {
                     "offset" => {
                         self.new_source_map(element.show_compact());
                         let (expr, offset_element) = unvec!(block.elements, 2);
-                        let typ = self.element_addr(expr)?.unify(IrType::addr_unknown())?;
+                        let typ = self
+                            .element_addr(expr)?
+                            .unify(IrType::addr_unknown())
+                            .context(format!("{}", element.show()))?;
 
                         let offset = offset_element.into_term()?.into_int()? as usize;
                         let inner_addr_typ = typ.as_addr().unwrap();
@@ -718,9 +744,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         ));
                         self.writer.push(QVMInstruction::PAdd);
 
-                        let result_typ = inner_addr_typ
-                            .offset(offset)
-                            .context(format!("{}", element.show()))?;
+                        let result_typ = inner_addr_typ.offset(offset)?;
                         self.writer.push(QVMInstruction::Load(result_typ.size_of()));
 
                         Ok(result_typ)
@@ -729,9 +753,10 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.new_source_map(element.show_compact());
                         let (element, offset) = unvec!(block.elements, 2);
 
-                        let typ = self.element_addr(element)?;
-
-                        self.element(offset)?.unify(IrType::int())?;
+                        let typ = self.element_addr(element.clone())?;
+                        self.element(offset)?
+                            .unify(IrType::int())
+                            .context(format!("{}", element.show()))?;
                         self.writer.push(QVMInstruction::I32Const(1));
                         self.writer.push(QVMInstruction::Add);
                         self.writer.push(QVMInstruction::PAdd);
@@ -748,7 +773,9 @@ impl<'s> VmFunctionGenerator<'s> {
 
                         let typ = self.element(element)?;
 
-                        self.element(offset)?.unify(IrType::int())?;
+                        self.element(offset.clone())?
+                            .unify(IrType::int())
+                            .context(format!("{}", offset.show()))?;
                         self.writer.push(QVMInstruction::I32Const(1));
                         self.writer.push(QVMInstruction::Add);
                         self.writer.push(QVMInstruction::PAdd);
@@ -828,7 +855,9 @@ impl VmGenerator {
         );
 
         for statement in body {
-            generator.element(statement)?;
+            generator
+                .element(statement.clone())
+                .context(format!("{}", statement.show()))?;
         }
 
         // if the last statement was not return, insert a new "return nil" statement
