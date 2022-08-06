@@ -142,12 +142,15 @@ impl<'s> IrFunctionGenerator<'s> {
 
                 Ok(IrElement::i_call_raw(elements))
             }
-            Expr::Call(CallMode::Array(t), f, args) => Ok(IrElement::i_index(
-                self.ir_type(t)?,
-                self.expr(f.as_ref())?,
-                self.expr(&args[0])?,
-            )),
-            Expr::Call(CallMode::SizedArray, f, args) => Ok(IrElement::i_index_sized(
+            Expr::Call(CallMode::Array(_), f, args) => {
+                // array[T] = tuple[addr[T]]
+                // (index arr i) = (index_sized (addr_offset arr 1) i)
+                Ok(IrElement::i_index(
+                    IrElement::i_addr_offset(self.expr(f.as_ref())?, 1),
+                    self.expr(&args[0])?,
+                ))
+            }
+            Expr::Call(CallMode::SizedArray, f, args) => Ok(IrElement::i_index(
                 self.expr(f.as_ref())?,
                 self.expr(&args[0])?,
             )),
@@ -553,17 +556,17 @@ func main() {
 (module
     (func $f (args $int) (return $int)
         (let $x (slice 4 $int 3))
-        (assign (index_sized $x 0) 1)
-        (assign (index_sized $x 1) 2)
-        (assign (index_sized $x 2) 3)
+        (assign (index $x 0) 1)
+        (assign (index $x 1) 2)
+        (assign (index $x 2) 3)
 
-        (assign (index_sized $x 2) 4)
+        (assign (index $x 2) 4)
 
         (return
             (call $_add
                 (call $_add
-                    (index_sized $x 1)
-                    (index_sized $x 2))
+                    (index $x 1)
+                    (index $x 2))
                 $0
             )
         )

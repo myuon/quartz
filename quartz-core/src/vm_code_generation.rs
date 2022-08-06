@@ -339,20 +339,6 @@ impl<'s> VmFunctionGenerator<'s> {
                     self.writer.push(QVMInstruction::Add);
                     self.writer.push(QVMInstruction::PAdd);
 
-                    let element_typ = typ.as_element().unwrap();
-
-                    Ok(IrType::addr_of(element_typ))
-                }
-                "index_sized" => {
-                    self.new_source_map(element.show_compact());
-
-                    let (element, offset) = unvec!(block.elements, 2);
-                    let typ = self.element_addr(element)?;
-                    IrType::int().unify(self.element(offset)?)?;
-                    self.writer.push(QVMInstruction::I32Const(1)); // +1 for a pointer to info table
-                    self.writer.push(QVMInstruction::Add);
-                    self.writer.push(QVMInstruction::PAdd);
-
                     let elem_typ = typ.as_addr().unwrap().as_element_sized().unwrap();
 
                     Ok(IrType::addr_of(elem_typ))
@@ -730,25 +716,6 @@ impl<'s> VmFunctionGenerator<'s> {
                         Ok(result_typ)
                     }
                     "index" => {
-                        self.new_source_map(element.show_compact());
-                        let (_, element, offset) = unvec!(block.elements, 3);
-
-                        // array[T] = tuple[addr[T]]
-                        // arr(i) = (arr.data)(i)
-                        let typ = self.element(IrElement::i_offset(element, 1))?;
-
-                        self.element(offset)?.unify(IrType::int())?;
-                        self.writer.push(QVMInstruction::I32Const(1));
-                        self.writer.push(QVMInstruction::Add);
-                        self.writer.push(QVMInstruction::PAdd);
-
-                        let elem_typ = typ.as_addr().unwrap().as_ref().clone();
-
-                        self.writer.push(QVMInstruction::Load(elem_typ.size_of()));
-
-                        Ok(elem_typ)
-                    }
-                    "index_sized" => {
                         self.new_source_map(element.show_compact());
                         let (element, offset) = unvec!(block.elements, 2);
 

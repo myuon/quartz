@@ -178,12 +178,8 @@ impl IrElement {
         IrElement::block("address", vec![element])
     }
 
-    pub fn i_index(typ: IrType, element: IrElement, offset: IrElement) -> IrElement {
-        IrElement::block("index", vec![typ.to_element(), element, offset])
-    }
-
-    pub fn i_index_sized(element: IrElement, offset: IrElement) -> IrElement {
-        IrElement::block("index_sized", vec![element, offset])
+    pub fn i_index(element: IrElement, offset: IrElement) -> IrElement {
+        IrElement::block("index", vec![element, offset])
     }
 
     pub fn i_offset(element: IrElement, offset: usize) -> IrElement {
