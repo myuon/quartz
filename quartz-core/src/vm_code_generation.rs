@@ -625,8 +625,11 @@ impl<'s> VmFunctionGenerator<'s> {
                     }
                     "string" => {
                         self.new_source_map(element.show_compact());
+
                         let string = unvec!(block.elements, 1);
                         let n = string.into_term()?.into_int()? as usize;
+
+                        self.writer.push(QVMInstruction::InfoConst(2));
                         self.writer.push(QVMInstruction::AddrConst(
                             self.string_pointers[n],
                             Variable::StackAbsolute,
@@ -638,7 +641,8 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.new_source_map(element.show_compact());
                         let element = unvec!(block.elements, 1);
                         let typ = self.element(element)?.unify(IrType::addr_unknown())?;
-                        self.writer.push(QVMInstruction::Load(typ.size_of()));
+                        self.writer
+                            .push(QVMInstruction::Load(typ.as_addr().unwrap().size_of()));
 
                         Ok(typ
                             .as_addr()
