@@ -312,7 +312,8 @@ impl<'s> TypeChecker<'s> {
             Expr::Var(v, t) => {
                 self.load(v, t)
                     .context(self.error_context(expr.start, expr.end, "var"))?;
-                self.unify(t, typ)?;
+                self.unify(t, typ)
+                    .context(self.error_context(expr.start, expr.end, "var"))?;
             }
             Expr::Method(subj, v, t) => {
                 self.load(&vec![subj.method_selector_name()?, v.clone()], t)
@@ -564,7 +565,11 @@ impl<'s> TypeChecker<'s> {
                     statement.end,
                     "return",
                 ))?;
-                self.unify(t, return_type)?;
+                self.unify(t, return_type).context(self.error_context(
+                    statement.start,
+                    statement.end,
+                    "return",
+                ))?;
             }
             Statement::If(cond, then_statements, else_statements) => {
                 self.expr(cond.as_mut(), &mut Type::Bool)?;
@@ -595,11 +600,6 @@ impl<'s> TypeChecker<'s> {
             let statement = &mut statements[i];
 
             self.statement(statement, typ)?;
-        }
-
-        // force return type to be nil if there is no return
-        if let Type::Infer(_) = typ {
-            self.unify(&Type::Nil, typ)?;
         }
 
         assert_eq!(

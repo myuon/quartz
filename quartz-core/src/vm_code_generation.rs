@@ -525,8 +525,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         // additional check
                         self.element(IrElement::Term(IrTerm::Int(self.local_pointer as i32)))?
                             .unify(IrType::int())?;
-                        self.element(IrElement::Term(IrTerm::Ident("_check_sp".to_string())))?
-                            .unify(IrType::nil())?;
+                        self.element(IrElement::Term(IrTerm::Ident("_check_sp".to_string())))?;
 
                         self.element(body)?.unify(IrType::nil())?;
 
@@ -538,7 +537,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.label_continue = None;
                         self.new_source_map(IrElement::block("while:end", vec![]).show_compact());
 
-                        Ok(IrType::unknown())
+                        Ok(IrType::nil())
                     }
                     "continue" => {
                         self.new_source_map(element.show_compact());
