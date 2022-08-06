@@ -222,7 +222,10 @@ impl<'s> VmFunctionGenerator<'s> {
             ),
             "_len" => (
                 QVMInstruction::RuntimeInstr("_len".to_string()),
-                IrType::func(vec![IrType::addr_of(IrType::unknown())], IrType::int()),
+                IrType::func(
+                    vec![IrType::tuple(vec![IrType::addr_of(IrType::unknown())])],
+                    IrType::int(),
+                ),
             ),
             "_println" => (
                 QVMInstruction::RuntimeInstr("_println".to_string()),
