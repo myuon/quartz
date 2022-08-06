@@ -310,11 +310,14 @@ impl<'s> VmFunctionGenerator<'s> {
                     let (elem, offset_element) = unvec!(block.elements, 2);
                     let offset = offset_element.into_term()?.into_int()? as usize;
                     let typ = self.element_addr(elem)?;
-                    self.writer.push(QVMInstruction::I32Const(offset as i32));
+                    let inner_addr_typ = typ.as_addr().unwrap();
+                    self.writer.push(QVMInstruction::I32Const(
+                        inner_addr_typ.clone().offset_in_words(offset)? as i32,
+                    ));
                     self.writer.push(QVMInstruction::PAdd);
                     Ok(IrType::addr_of(
-                        (typ.as_addr().context(format!("{}", element.show()))?)
-                            .offset(offset - 1)
+                        inner_addr_typ
+                            .offset(offset)
                             .context(format!("{}", element.show()))?,
                     ))
                 }
@@ -324,11 +327,14 @@ impl<'s> VmFunctionGenerator<'s> {
                     let (elem, offset_element) = unvec!(block.elements, 2);
                     let offset = offset_element.into_term()?.into_int()? as usize;
                     let typ = self.element(elem)?;
-                    self.writer.push(QVMInstruction::I32Const(offset as i32));
+                    let inner_addr_typ = typ.as_addr().unwrap();
+                    self.writer.push(QVMInstruction::I32Const(
+                        inner_addr_typ.clone().offset_in_words(offset)? as i32,
+                    ));
                     self.writer.push(QVMInstruction::PAdd);
                     Ok(IrType::addr_of(
-                        (typ.as_addr()?)
-                            .offset(offset - 1)
+                        inner_addr_typ
+                            .offset(offset)
                             .context(format!("{}", element.show()))?,
                     ))
                 }
@@ -683,20 +689,16 @@ impl<'s> VmFunctionGenerator<'s> {
                         let typ = self.element_addr(expr)?.unify(IrType::addr_unknown())?;
 
                         let offset = offset_element.into_term()?.into_int()? as usize;
+                        let inner_addr_typ = typ.as_addr().unwrap();
                         self.writer.push(QVMInstruction::I32Const(
-                            typ.clone().offset_in_words(offset)? as i32,
+                            inner_addr_typ.clone().offset_in_words(offset)? as i32,
                         ));
                         self.writer.push(QVMInstruction::PAdd);
 
                         self.writer.push(QVMInstruction::Load(typ.size_of()));
 
-                        Ok(typ
-                            .as_addr()
-                            .unwrap()
-                            .offset(
-                                // FIXME: Currently, offset positioning starts from 1
-                                offset - 1,
-                            )
+                        Ok(inner_addr_typ
+                            .offset(offset)
                             .context(format!("{}", element.show()))?)
                     }
                     "addr_offset" => {
@@ -706,18 +708,16 @@ impl<'s> VmFunctionGenerator<'s> {
                             .element(expr)?
                             .unify(IrType::addr_unknown())
                             .context(format!("{}", element.show()))?;
+                        let inner_addr_typ = typ.as_addr().unwrap();
 
                         let offset = offset_element.into_term()?.into_int()? as usize;
-                        self.writer.push(QVMInstruction::I32Const(offset as i32));
+                        self.writer.push(QVMInstruction::I32Const(
+                            inner_addr_typ.clone().offset_in_words(offset)? as i32,
+                        ));
                         self.writer.push(QVMInstruction::PAdd);
 
-                        let result_typ = typ
-                            .as_addr()
-                            .unwrap()
-                            .offset(
-                                // FIXME: Currently, offset positioning starts from 1
-                                offset - 1,
-                            )
+                        let result_typ = inner_addr_typ
+                            .offset(offset)
                             .context(format!("{}", element.show()))?;
                         self.writer.push(QVMInstruction::Load(result_typ.size_of()));
 

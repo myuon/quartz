@@ -152,7 +152,7 @@ impl<'s> IrFunctionGenerator<'s> {
                 self.ir.push(IrElement::i_let(fresh.clone(), f_value));
 
                 Ok(IrElement::i_addr_index(
-                    IrElement::i_offset(IrElement::ident(fresh), 1),
+                    IrElement::i_offset(IrElement::ident(fresh), 0),
                     self.expr(&args[0])?,
                 ))
             }
@@ -605,8 +605,8 @@ func main() {
     (func $Point_sum (args (address (tuple $int $int))) (return $int)
         (return (call
             $_add
+            (addr_offset $0 0)
             (addr_offset $0 1)
-            (addr_offset $0 2)
         ))
     )
     (func $main (args) (return $int)
