@@ -381,7 +381,7 @@ impl<'s> TypeChecker<'s> {
                         "Cannot call non-function type {:?}",
                         fn_type
                     ))?;
-                    let mut arg_types = arg_types.clone();
+                    let arg_types = arg_types.clone();
 
                     let actual_arg_len = args.len();
                     let expected_arg_len = if fn_type.is_method_type() {
@@ -403,7 +403,8 @@ impl<'s> TypeChecker<'s> {
                     }
 
                     for i in 0..actual_arg_len {
-                        self.expr_coerce(&mut args[i], &mut arg_types[i])
+                        let mut current = self.next_infer();
+                        self.expr_coerce(&mut args[i], &mut current, &arg_types[i])
                             .context(format!("{}th argument", i))?;
                     }
 
@@ -426,8 +427,7 @@ impl<'s> TypeChecker<'s> {
 
                 let first_fields = fields[0].clone().1;
                 for (label, expr, typ) in fields {
-                    self.expr_coerce(expr, typ)?;
-                    self.unify(&defined[label], typ)
+                    self.expr_coerce(expr, typ, &defined[label])
                         .context(self.error_context(expr.start, expr.end, "struct field"))?;
                 }
 
@@ -547,10 +547,14 @@ impl<'s> TypeChecker<'s> {
         Ok(())
     }
 
-    fn expr_coerce(&mut self, expr: &mut Source<Expr>, typ: &mut Type) -> Result<()> {
-        let mut t = self.next_infer();
-        self.expr(expr, &mut t)?;
-        self.transform(expr, typ, &t)?;
+    fn expr_coerce(
+        &mut self,
+        expr: &mut Source<Expr>,
+        current_type: &mut Type,
+        expected_typ: &Type,
+    ) -> Result<()> {
+        self.expr(expr, current_type)?;
+        self.transform(expr, current_type, expected_typ)?;
 
         Ok(())
     }

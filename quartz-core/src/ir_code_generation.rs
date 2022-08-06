@@ -252,7 +252,9 @@ impl<'s> IrFunctionGenerator<'s> {
                 _ => unreachable!(),
             },
             Expr::Unwrap(expr, _) => Ok(IrElement::i_deref(self.expr(expr)?)),
-            Expr::Optional(_) => todo!(),
+            Expr::Optional(expr) => {
+                todo!()
+            }
         }
     }
 
