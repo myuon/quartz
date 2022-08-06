@@ -383,6 +383,7 @@ impl IrType {
                     "bool" => IrType::bool(),
                     "int" => IrType::int(),
                     "byte" => IrType::byte(),
+                    "unknown" => IrType::unknown(),
                     _ => unreachable!("{:?}", t),
                 },
                 t => unreachable!("{:?}", t),
@@ -406,6 +407,10 @@ impl IrType {
     }
 
     pub fn from_type_ast(typ: &Type, structs: &Structs) -> Result<IrType> {
+        IrType::from_type_ast_traced(typ, structs, vec![])
+    }
+
+    fn from_type_ast_traced(typ: &Type, structs: &Structs, trace: Vec<String>) -> Result<IrType> {
         Ok(match typ {
             Type::Nil => IrType::nil(),
             Type::Bool => IrType::bool(),
@@ -418,6 +423,10 @@ impl IrType {
                 IrType::tuple(vec![IrType::addr_of(IrType::byte())])
             }
             Type::Struct(t) => {
+                if trace.contains(t) {
+                    return Ok(IrType::unknown());
+                }
+
                 let fields = structs.0.get(t).ok_or(anyhow::anyhow!(
                     "struct {} not found, {:?}",
                     t,
@@ -425,20 +434,26 @@ impl IrType {
                 ))?;
                 let mut types = Vec::new();
                 for (_label, typ) in fields {
-                    types.push(IrType::from_type_ast(typ, structs)?);
+                    let mut current_trace = trace.clone();
+                    current_trace.push(t.to_string());
+
+                    types.push(IrType::from_type_ast_traced(typ, structs, current_trace)?);
                 }
                 IrType::tuple(types)
             }
-            Type::Ref(t) => IrType::addr_of(IrType::from_type_ast(t, structs)?),
+            Type::Ref(t) => IrType::addr_of(IrType::from_type_ast_traced(t, structs, trace)?),
             Type::Array(t) => {
                 // array[t] = [length, elements...]
                 // This is same as { array: *element }
-                IrType::tuple(vec![IrType::addr_of(IrType::from_type_ast(t, structs)?)])
+                IrType::tuple(vec![IrType::addr_of(IrType::from_type_ast_traced(
+                    t, structs, trace,
+                )?)])
             }
-            Type::SizedArray(t, u) => {
-                IrType::slice(*u, Box::new(IrType::from_type_ast(t.as_ref(), structs)?))
-            }
-            Type::Optional(t) => IrType::addr_of(IrType::from_type_ast(t, structs)?),
+            Type::SizedArray(t, u) => IrType::slice(
+                *u,
+                Box::new(IrType::from_type_ast_traced(t.as_ref(), structs, trace)?),
+            ),
+            Type::Optional(t) => IrType::addr_of(IrType::from_type_ast_traced(t, structs, trace)?),
             Type::Self_ => todo!(),
             t => unreachable!("{:?}", t),
         })
