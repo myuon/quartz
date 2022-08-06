@@ -683,7 +683,9 @@ impl<'s> VmFunctionGenerator<'s> {
                         let typ = self.element_addr(expr)?.unify(IrType::addr_unknown())?;
 
                         let offset = offset_element.into_term()?.into_int()? as usize;
-                        self.writer.push(QVMInstruction::I32Const(offset as i32));
+                        self.writer.push(QVMInstruction::I32Const(
+                            typ.clone().offset_in_words(offset)? as i32,
+                        ));
                         self.writer.push(QVMInstruction::PAdd);
 
                         self.writer.push(QVMInstruction::Load(typ.size_of()));

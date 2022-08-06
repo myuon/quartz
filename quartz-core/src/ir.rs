@@ -557,6 +557,23 @@ impl IrType {
             _ => bail!("Type is not address"),
         }
     }
+
+    pub fn offset_in_words(self, index: usize) -> Result<usize> {
+        if index == 0 {
+            return Ok(match &self {
+                IrType::Single(_) => 0,
+                IrType::Tuple(_) | IrType::Slice(_, _) => 1, // 1 for a pointer to info table
+                _ => unreachable!(),
+            });
+        }
+
+        let mut result = 0;
+        for i in 0..index - 1 {
+            result += self.clone().offset(i)?.size_of();
+        }
+
+        Ok(result)
+    }
 }
 
 static SPACE_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"^\s+").unwrap());
