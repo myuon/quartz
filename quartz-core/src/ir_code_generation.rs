@@ -214,7 +214,7 @@ impl<'s> IrFunctionGenerator<'s> {
 
                 let e_value = self.expr(e)?;
                 self.ir.push(IrElement::i_assign(
-                    IrElement::i_offset(IrElement::Term(IrTerm::Ident(v.clone())), 0),
+                    IrElement::i_deref(IrElement::Term(IrTerm::Ident(v.clone()))),
                     e_value,
                 ));
 

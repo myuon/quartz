@@ -178,7 +178,7 @@ impl<'s> VmFunctionGenerator<'s> {
             ),
             "_new" => (
                 QVMInstruction::Alloc,
-                IrType::func(vec![IrType::int()], IrType::byte()),
+                IrType::func(vec![IrType::int()], IrType::addr_unknown()),
             ),
             "_padd" => (
                 QVMInstruction::PAdd,
@@ -315,16 +315,23 @@ impl<'s> VmFunctionGenerator<'s> {
                     let (elem, offset_element) = unvec!(block.elements, 2);
                     let offset = offset_element.into_term()?.into_int()? as usize;
                     let typ = self.element_addr(elem)?;
-                    let inner_addr_typ = typ.as_addr().unwrap();
+                    let inner_addr_typ = if typ.is_unknown() {
+                        IrType::unknown()
+                    } else {
+                        typ.as_addr().unwrap().as_ref().clone()
+                    };
                     self.writer.push(QVMInstruction::I32Const(
                         inner_addr_typ.clone().offset_in_words(offset)? as i32,
                     ));
                     self.writer.push(QVMInstruction::PAdd);
-                    Ok(IrType::addr_of(
+
+                    Ok(IrType::addr_of(if inner_addr_typ.is_unknown() {
+                        IrType::unknown()
+                    } else {
                         inner_addr_typ
                             .offset(offset)
-                            .context(format!("{}", element.show()))?,
-                    ))
+                            .context(format!("{}", element.show()))?
+                    }))
                 }
                 "addr_offset" => {
                     self.new_source_map(element.show_compact());
@@ -478,9 +485,9 @@ impl<'s> VmFunctionGenerator<'s> {
                             .unwrap_or(IrType::unknown());
                         let mut rhs_type = self.element(rhs.clone())?;
 
-                        // NOTE: `byte` type can be used like anytype, so just skip unification
+                        // NOTE: addr type can be used like anytype, so just skip unification
                         // FIXME: Is this true?
-                        if addr_inner_typ != IrType::byte() {
+                        if !addr_inner_typ.as_addr().is_ok() {
                             rhs_type = rhs_type.unify(addr_inner_typ).context(format!(
                                 "[assign rhs] {}\n{}",
                                 typ.to_element().show(),

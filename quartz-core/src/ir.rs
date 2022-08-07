@@ -491,6 +491,13 @@ impl IrType {
         }
     }
 
+    pub fn is_unknown(&self) -> bool {
+        match self {
+            IrType::Unknown => true,
+            _ => false,
+        }
+    }
+
     pub fn as_addr(&self) -> Result<Box<IrType>> {
         match self {
             IrType::Single(IrSingleType::Address(t)) => Ok(t.clone()),
