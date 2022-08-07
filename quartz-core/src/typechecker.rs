@@ -548,10 +548,17 @@ impl<'s> TypeChecker<'s> {
                     self.unify(t, typ)?;
                 }
                 Type::Array(arr) => {
-                    assert_eq!(args.len(), 2);
-                    self.expr(&mut args[0], &mut Type::Int)?;
-                    self.expr(&mut args[1], arr)?;
-                    self.unify(t, typ)?;
+                    if args.len() == 2 {
+                        self.expr(&mut args[0], &mut Type::Int)?;
+                        self.expr(&mut args[1], arr)?;
+                        self.unify(t, typ)?;
+                    } else {
+                        bail!(
+                            "Expected 2 arguments but given {:?}, {}",
+                            args,
+                            self.error_context(args[0].start, args[0].end, "make:array")
+                        );
+                    }
                 }
                 _ => unreachable!("new {:?} {:?}", t, args),
             },

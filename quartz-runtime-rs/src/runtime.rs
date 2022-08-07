@@ -1484,7 +1484,7 @@ fn runtime_run_gc() -> Result<()> {
             }
 
             func g(): int {
-                let arr = make[array[int]](0);
+                let arr = make[array[int]](5, 0);
                 arr(0) = 1;
                 arr(1) = 2;
                 arr(2) = 3;
@@ -1493,7 +1493,7 @@ fn runtime_run_gc() -> Result<()> {
             }
 
             func main() {
-                let preserved = make[array[int]](0);
+                let preserved = make[array[int]](3, 0);
                 preserved(0) = 5;
                 preserved(1) = 6;
                 preserved(2) = 7;

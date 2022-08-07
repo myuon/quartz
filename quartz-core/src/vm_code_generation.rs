@@ -366,6 +366,23 @@ impl<'s> VmFunctionGenerator<'s> {
 
                     Ok(IrType::addr_of(elem_typ))
                 }
+                "addr_index" => {
+                    self.new_source_map(element.show_compact());
+                    let (element, offset) = unvec!(block.elements, 2);
+
+                    let typ = self.element(element)?;
+
+                    self.element(offset.clone())?
+                        .unify(IrType::int())
+                        .context(format!("{}", offset.show()))?;
+                    self.writer.push(QVMInstruction::I32Const(1));
+                    self.writer.push(QVMInstruction::Add);
+                    self.writer.push(QVMInstruction::PAdd);
+
+                    let elem_typ = typ.as_addr().unwrap().as_ref().clone();
+
+                    Ok(elem_typ)
+                }
                 _ => unreachable!("{}", element.show()),
             },
         }
@@ -489,7 +506,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         // FIXME: Is this true?
                         if !addr_inner_typ.as_addr().is_ok() {
                             rhs_type = rhs_type.unify(addr_inner_typ).context(format!(
-                                "[assign rhs] {}\n{}",
+                                "[assign:rhs] {}\n{}",
                                 typ.to_element().show(),
                                 element.show()
                             ))?;

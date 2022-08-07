@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Debug};
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 
 use crate::{
     ast::{
@@ -247,8 +247,21 @@ impl<'s> IrFunctionGenerator<'s> {
             }
             Expr::Make(t, args) => match t {
                 Type::SizedArray(arr, len) => {
+                    assert_eq!(args.len(), 1);
                     let value = self.expr(&args[0])?;
                     Ok(IrElement::i_slice(*len, self.ir_type(arr)?, value))
+                }
+                Type::Array(arr) => {
+                    if args.len() != 2 {
+                        bail!("array constructor takes 2 arguments, found {}", args.len());
+                    }
+
+                    let len = self.expr(&args[0])?;
+                    let value = self.expr(&args[1])?;
+                    Ok(IrElement::i_tuple(
+                        self.ir_type(t)?,
+                        vec![IrElement::i_slice_raw(len, self.ir_type(arr)?, value)],
+                    ))
                 }
                 _ => unreachable!(),
             },

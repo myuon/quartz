@@ -211,6 +211,10 @@ impl IrElement {
         )
     }
 
+    pub fn i_slice_raw(len: IrElement, typ: IrType, element: IrElement) -> IrElement {
+        IrElement::block("slice", vec![len, typ.to_element(), element])
+    }
+
     pub fn i_size_of(typ: IrType) -> IrElement {
         IrElement::block("size_of", vec![typ.to_element()])
     }
@@ -550,6 +554,10 @@ impl IrType {
                 }
 
                 Ok(IrType::Tuple(result))
+            }
+            // slice as an address
+            (IrType::Slice(_, _), IrType::Single(IrSingleType::Address(s))) => {
+                Ok(IrType::Single(IrSingleType::Address(s)))
             }
             (s, t) => {
                 bail!(
