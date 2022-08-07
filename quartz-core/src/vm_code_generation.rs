@@ -381,7 +381,7 @@ impl<'s> VmFunctionGenerator<'s> {
 
                     let elem_typ = typ.as_addr().unwrap().as_ref().clone();
 
-                    Ok(elem_typ)
+                    Ok(IrType::addr_of(elem_typ))
                 }
                 _ => unreachable!("{}", element.show()),
             },

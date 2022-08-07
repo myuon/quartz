@@ -258,9 +258,16 @@ impl<'s> IrFunctionGenerator<'s> {
 
                     let len = self.expr(&args[0])?;
                     let value = self.expr(&args[1])?;
+
+                    let array = self.var_fresh();
+                    self.ir.push(IrElement::i_let(
+                        array.clone(),
+                        IrElement::i_slice_raw(len, self.ir_type(arr)?, value),
+                    ));
+
                     Ok(IrElement::i_tuple(
                         self.ir_type(t)?,
-                        vec![IrElement::i_slice_raw(len, self.ir_type(arr)?, value)],
+                        vec![IrElement::ident(array)],
                     ))
                 }
                 _ => unreachable!(),
