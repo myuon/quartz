@@ -1440,7 +1440,7 @@ fn runtime_run_env() -> Result<()> {
 func main() {
     let p = "ABC";
 
-    return p.data;
+    return p.bytes();
 }
 "#,
     ];
@@ -1456,9 +1456,10 @@ func main() {
         }
         runtime.run()?;
         let bytes = runtime.pop().as_addr().unwrap();
+        let len = runtime.stack[bytes].clone().as_int().unwrap();
         assert_eq!(
             String::from_utf8(
-                runtime.stack[bytes..bytes + 3]
+                runtime.stack[bytes + 1..bytes + 1 + len as usize]
                     .iter()
                     .map(|u| u.clone().as_int().unwrap() as u8)
                     .collect()

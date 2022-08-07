@@ -457,7 +457,7 @@ impl IrType {
             ),
             Type::Optional(t) => IrType::addr_of(IrType::from_type_ast_traced(t, structs, trace)?),
             Type::Self_ => todo!(),
-            t => unreachable!("{:?}", t),
+            t => bail!("Unsupported type: {:?}", t),
         })
     }
 

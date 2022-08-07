@@ -651,6 +651,21 @@ impl<'s> TypeChecker<'s> {
         Ok(())
     }
 
+    pub fn function_statements(
+        &mut self,
+        statements: &mut Vec<Source<Statement>>,
+        return_type: &mut Type,
+    ) -> Result<()> {
+        self.statements(statements, return_type)?;
+
+        // Force nil type if the return_type is not inferred
+        if let Type::Infer(_) = return_type {
+            *return_type = Type::Nil;
+        }
+
+        Ok(())
+    }
+
     pub fn declarations(&mut self, decls: &mut Vec<Declaration>) -> Result<()> {
         // preprocess: register all function types in this module
         for decl in decls.into_iter() {
@@ -720,7 +735,7 @@ impl<'s> TypeChecker<'s> {
                         self.variables.insert(arg.0.clone(), t);
                     }
 
-                    self.statements(&mut func.body, &mut func.return_type)?;
+                    self.function_statements(&mut func.body, &mut func.return_type)?;
                     self.variables = variables;
 
                     self.function_types.get_mut(&func.name).unwrap().1 = func.return_type.clone();
@@ -743,7 +758,7 @@ impl<'s> TypeChecker<'s> {
                         self.variables.insert("sized".to_string(), Type::Int);
                     }
 
-                    self.statements(&mut func.body, &mut func.return_type)?;
+                    self.function_statements(&mut func.body, &mut func.return_type)?;
                     self.variables = variables;
 
                     self.method_types

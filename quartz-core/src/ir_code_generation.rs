@@ -436,7 +436,9 @@ impl<'s> IrGenerator<'s> {
             );
         }
 
-        let return_type = self.ir_type(&function.return_type)?;
+        let return_type = self
+            .ir_type(&function.return_type)
+            .context(format!("[return type] {:?}", function.return_type))?;
 
         let mut generator =
             IrFunctionGenerator::new(self.source_code, &args, &self.structs, &mut self.strings);
@@ -477,7 +479,7 @@ impl<'s> IrGenerator<'s> {
                         continue;
                     }
 
-                    elements.push(self.function(&f)?);
+                    elements.push(self.function(&f).context(format!("function {}", f.name))?);
                 }
                 Declaration::Method(typ, f) => {
                     // skip if this function is not used
@@ -485,10 +487,13 @@ impl<'s> IrGenerator<'s> {
                         continue;
                     }
 
-                    elements.push(self.method(typ, f)?);
+                    elements.push(self.method(typ, f).context(format!("method {}", f.name))?);
                 }
                 Declaration::Variable(v, expr, t) => {
-                    elements.push(self.variable(v, expr, t)?);
+                    elements.push(
+                        self.variable(v, expr, t)
+                            .context(format!("variable {}", v))?,
+                    );
                 }
                 Declaration::Struct(_) => {}
             }
