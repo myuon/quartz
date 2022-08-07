@@ -1346,10 +1346,10 @@ func main() {
         point: nil,
     };
     let c2 = CoerceRef {
-        point: _nil_to_ref(nil),
+        point: nil,
     };
 
-    if (c1.point == nil) {
+    if _is_nil(c1.point) {
         return 1;
     } else {
         return 0;

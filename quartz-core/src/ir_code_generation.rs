@@ -390,6 +390,10 @@ impl<'s> IrGenerator<'s> {
         self.structs = structs;
     }
 
+    pub fn ir_type(&self, typ: &Type) -> Result<IrType> {
+        IrType::from_type_ast(typ, &self.structs)
+    }
+
     pub fn function(&mut self, function: &Function) -> Result<IrElement> {
         let mut args = HashMap::new();
         let mut arg_index = 0;
@@ -399,8 +403,10 @@ impl<'s> IrGenerator<'s> {
         for (name, typ) in function.args.iter().rev() {
             arg_index += 1; // self.stack_size_of(typ)?;
             args.insert(name.clone(), arg_index - 1);
-            arg_types_in_ir.push(IrType::from_type_ast(typ, &self.structs)?);
+            arg_types_in_ir.push(self.ir_type(typ)?);
         }
+
+        let return_type = self.ir_type(&function.return_type)?;
 
         let mut generator =
             IrFunctionGenerator::new(self.source_code, &args, &self.structs, &mut self.strings);
@@ -410,7 +416,7 @@ impl<'s> IrGenerator<'s> {
         Ok(IrElement::d_func(
             &function.name,
             arg_types_in_ir,
-            Box::new(IrType::from_type_ast(&function.return_type, &self.structs)?),
+            Box::new(return_type),
             generator.ir,
         ))
     }
@@ -425,10 +431,12 @@ impl<'s> IrGenerator<'s> {
             arg_index += 1; // self.stack_size_of(typ)?;
             args.insert(name.clone(), arg_index - 1);
             arg_types_in_ir.push(
-                IrType::from_type_ast(typ, &self.structs)
+                self.ir_type(typ)
                     .context(format!("at method: {:?}::{}", typ, function.name))?,
             );
         }
+
+        let return_type = self.ir_type(&function.return_type)?;
 
         let mut generator =
             IrFunctionGenerator::new(self.source_code, &args, &self.structs, &mut self.strings);
@@ -439,7 +447,7 @@ impl<'s> IrGenerator<'s> {
         Ok(IrElement::d_func(
             format!("{}_{}", typ.method_selector_name()?, function.name),
             arg_types_in_ir,
-            Box::new(IrType::from_type_ast(&function.return_type, &self.structs)?),
+            Box::new(return_type),
             generator.ir,
         ))
     }
@@ -451,14 +459,11 @@ impl<'s> IrGenerator<'s> {
         typ: &Type,
     ) -> Result<IrElement> {
         let empty = HashMap::new();
+        let typ = self.ir_type(typ)?;
         let mut generator =
             IrFunctionGenerator::new(self.source_code, &empty, &self.structs, &mut self.strings);
 
-        Ok(IrElement::d_var(
-            name,
-            IrType::from_type_ast(typ, &self.structs)?,
-            generator.expr(expr)?,
-        ))
+        Ok(IrElement::d_var(name, typ, generator.expr(expr)?))
     }
 
     pub fn module(&mut self, module: &Module) -> Result<IrElement> {
