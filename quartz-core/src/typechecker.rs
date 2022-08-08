@@ -69,6 +69,8 @@ impl Constraints {
             (Type::Nil, Type::Byte) => Ok(Constraints::new()),
             // nil in ref type
             (Type::Nil, Type::Ref(_)) => Ok(Constraints::new()),
+            // nil in optional type
+            (Type::Nil, Type::Optional(_)) => Ok(Constraints::new()),
             (t1, t2) => bail!("Type error, want {:?} but found {:?}", t1, t2),
         }
     }

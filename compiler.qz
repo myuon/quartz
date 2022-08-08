@@ -434,30 +434,30 @@ method IrParser element(self): IrElement? {
     if (token.type.eq("LPAREN")) {
         // block
         let name = self.expect("KEYWORD");
-        let name_string = name.value_string as string;
+        let name_string = name.value_string!;
 
         let next = nil as IrElement?;
         let elements = IrElementList_nil();
 
         while _not(self.next().type.eq("RPAREN")) {
             next = self.element();
-            elements = elements.cons(next as IrElement);
+            elements = elements.cons(next!);
         };
 
-        return IrElement {
+        return (IrElement {
             type: "BLOCK",
             term: nil,
             block: IrBlock {
                 name: name_string,
                 elements: elements,
             },
-        };
+        }) as IrElement?;
     } else {
-        return IrElement {
+        return (IrElement {
             type: "TERM",
             term: self.term(),
             block: nil,
-        };
+        }) as IrElement?;
     };
 
     return nil;
@@ -472,7 +472,7 @@ func main() {
     let tokenList = IrLexer.run();
 
     let parser = IrParser::new(tokenList);
-    let element = parser.element() as IrElement;
+    let element = parser.element()!;
     _println(element.to_string());
 
     _println("== COMPILE FINISHED");
