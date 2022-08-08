@@ -1472,6 +1472,7 @@ func main() {
     Ok(())
 }
 
+/* after _new & GC implementation
 #[test]
 fn runtime_run_gc() -> Result<()> {
     use quartz_core::compiler::Compiler;
@@ -1587,3 +1588,4 @@ fn runtime_run_gc() -> Result<()> {
 
     Ok(())
 }
+*/

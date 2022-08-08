@@ -426,7 +426,7 @@ impl IrType {
             Type::Method(_, _, _) => todo!(),
             Type::Struct(s) if s == "string" => {
                 // string = array[byte]
-                IrType::tuple(vec![IrType::addr_of(IrType::byte())])
+                IrType::from_type_ast_traced(&Type::Array(Box::new(Type::Byte)), structs, trace)?
             }
             Type::Struct(t) => {
                 if trace.contains(t) {
@@ -449,11 +449,11 @@ impl IrType {
             }
             Type::Ref(t) => IrType::addr_of(IrType::from_type_ast_traced(t, structs, trace)?),
             Type::Array(t) => {
-                // array[t] = [length, elements...]
-                // This is same as { array: *element }
-                IrType::tuple(vec![IrType::addr_of(IrType::from_type_ast_traced(
-                    t, structs, trace,
-                )?)])
+                // array[T] = (tuple (array[T]) (address (slice _ T)))
+                // but slice is unsized, so we use *T instead
+                IrType::tuple(vec![IrType::addr_of(IrType::addr_of(
+                    IrType::from_type_ast_traced(t, structs, trace)?,
+                ))])
             }
             Type::SizedArray(t, u) => IrType::slice(
                 *u,
@@ -533,6 +533,8 @@ impl IrType {
     pub fn as_element_sized(&self) -> Option<IrType> {
         match self {
             IrType::Slice(_, t) => Some(t.as_ref().clone()),
+            // *T can be used as a slice
+            IrType::Single(IrSingleType::Address(t)) => Some(t.as_ref().clone()),
             _ => None,
         }
     }
@@ -571,13 +573,7 @@ impl IrType {
 
     pub fn offset(self, index: usize) -> Result<IrType> {
         match self {
-            IrType::Single(_) => {
-                if index == 0 {
-                    Ok(self)
-                } else {
-                    bail!("Out of offset, {} in {:?}", index, self)
-                }
-            }
+            IrType::Single(IrSingleType::Address(t)) => Ok(t.as_ref().clone()),
             IrType::Slice(r, t) => {
                 if index < r {
                     Ok(t.as_ref().clone())

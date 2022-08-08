@@ -267,7 +267,7 @@ impl<'s> IrFunctionGenerator<'s> {
 
                     Ok(IrElement::i_tuple(
                         self.ir_type(t)?,
-                        vec![IrElement::ident(array)],
+                        vec![IrElement::i_address(IrElement::ident(array))],
                     ))
                 }
                 _ => unreachable!(),

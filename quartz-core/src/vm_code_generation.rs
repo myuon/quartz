@@ -802,7 +802,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.new_source_map(element.show_compact());
                         let (element, offset) = unvec!(block.elements, 2);
 
-                        let typ = self.element(element)?;
+                        let typ = self.element(element.clone())?;
 
                         self.element(offset.clone())?
                             .unify(IrType::int())
@@ -811,7 +811,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.writer.push(QVMInstruction::Add);
                         self.writer.push(QVMInstruction::PAdd);
 
-                        let elem_typ = typ.as_addr().unwrap().as_ref().clone();
+                        let elem_typ = typ.as_addr().unwrap().as_element_sized().clone().unwrap();
 
                         self.writer.push(QVMInstruction::Load(elem_typ.size_of()));
 
