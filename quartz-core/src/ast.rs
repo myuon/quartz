@@ -153,6 +153,14 @@ pub enum Type {
 }
 
 impl Type {
+    pub fn unwrap_type(&self) -> Option<&Type> {
+        match self {
+            Type::Ref(t) => Some(t.as_ref()),
+            Type::Optional(t) => Some(t.as_ref()),
+            _ => None,
+        }
+    }
+
     pub fn as_fn_type(&self) -> Option<(&Vec<Type>, &Box<Type>)> {
         match self {
             Type::Fn(args, ret) => Some((args, ret)),

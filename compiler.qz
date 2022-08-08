@@ -227,21 +227,21 @@ method IrTerm to_string(self): string {
         return "nil";
     };
     if (self.type.eq("BOOL")) {
-        let b = self.value_bool as bool;
+        let b = self.value_bool!;
         return b.to_string();
     };
     if (self.type.eq("INT")) {
-        let v = self.value_int as int;
+        let v = self.value_int!;
         return v.to_string();
     };
     if (self.type.eq("IDENT")) {
-        return self.value_ident as string;
+        return self.value_ident!;
     };
     if (self.type.eq("ARGUMENT")) {
-        return self.value_argument as string;
+        return self.value_argument!;
     };
     if (self.type.eq("INFO")) {
-        let v = self.value_info as int;
+        let v = self.value_info!;
         return v.to_string();
     };
 
@@ -279,7 +279,7 @@ method IrElementList to_string(self): string {
 
 func IrElementList_nil(): IrElementList {
     return IrElementList {
-        list: _nil_to_ref(nil),
+        list: nil,
     };
 }
 
@@ -300,12 +300,11 @@ struct IrElement {
 
 method IrElement to_string(self): string {
     if (self.type.eq("BLOCK")) {
-        return "(".concat((self.block as IrBlock).name).concat(")");
+        return "(".concat(self.block!.name).concat(")");
     };
     if (self.type.eq("TERM")) {
         // FIXME: (self.term as IrTerm).to_string()
-        let term = self.term as IrTerm;
-        return term.to_string();
+        return self.term!.to_string();
     };
 
     _panic;
@@ -384,7 +383,7 @@ method IrParser term(self): IrTerm {
         };
     };
     if (token.type.eq("KEYWORD")) {
-        let keyword = token.value_string as string;
+        let keyword = token.value_string!;
         if (keyword == nil) {
             _panic;
         };
@@ -420,10 +419,10 @@ method IrParser term(self): IrTerm {
             };
         };
 
-        return _panic as IrTerm;
+        return (_panic as any) as IrTerm;
     };
 
-    return _panic as IrTerm;
+    return (_panic as any) as IrTerm;
 }
 
 method IrParser element(self): IrElement? {
