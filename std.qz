@@ -7,7 +7,7 @@ method bool to_string(self): string {
 }
 
 method int to_string(self): string {
-    return show_int(self as int);
+    return show_int(self);
 }
 
 method string len(self): int {
@@ -15,11 +15,11 @@ method string len(self): int {
 }
 
 method string bytes(self): array[byte] {
-    return self! as array[byte];
+    return self as array[byte];
 }
 
 method string at(self, index: int): byte {
-    return self!(index);
+    return self(index);
 }
 
 method string from_bytes(bs: array[byte]): string {

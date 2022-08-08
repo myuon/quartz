@@ -800,6 +800,15 @@ impl Runtime {
                         }
                     }
                 }
+                "_is_nil" => {
+                    let value = self.pop();
+                    if value.is_nil() {
+                        self.push(Value::bool(true));
+                    } else {
+                        assert!(value.as_addr().is_some());
+                        self.push(Value::bool(false));
+                    }
+                }
                 _ => {
                     unreachable!();
                 }
@@ -1266,7 +1275,7 @@ func main() {
         value: nil,
     };
 
-    if (bar.value == nil) {
+    if _is_nil(bar.value) {
         return 10;
     } else {
         return 20;
@@ -1282,7 +1291,7 @@ struct Nat {
 }
 
 method Nat add(self, m: Nat): Nat {
-    if (self.succ == nil) {
+    if _is_nil(self.succ) {
         return m;
     } else {
         return Nat {
@@ -1292,7 +1301,7 @@ method Nat add(self, m: Nat): Nat {
 }
 
 method Nat to_int(self): int {
-    if (self.succ == nil) {
+    if _is_nil(self.succ) {
         return 0;
     } else {
         return self.succ.to_int() + 1;
@@ -1301,7 +1310,7 @@ method Nat to_int(self): int {
 
 func main() {
     let zero = Nat {
-        succ: _nil_to_ref(nil),
+        succ: nil,
     };
     let two = Nat {
         succ: ref Nat {
@@ -1337,10 +1346,10 @@ func main() {
         point: nil,
     };
     let c2 = CoerceRef {
-        point: _nil_to_ref(nil),
+        point: nil,
     };
 
-    if (c1.point == nil) {
+    if _is_nil(c1.point) {
         return 1;
     } else {
         return 0;
@@ -1431,7 +1440,7 @@ fn runtime_run_env() -> Result<()> {
 func main() {
     let p = "ABC";
 
-    return p.data;
+    return p.bytes();
 }
 "#,
     ];
@@ -1447,9 +1456,10 @@ func main() {
         }
         runtime.run()?;
         let bytes = runtime.pop().as_addr().unwrap();
+        let len = runtime.stack[bytes].clone().as_int().unwrap();
         assert_eq!(
             String::from_utf8(
-                runtime.stack[bytes..bytes + 3]
+                runtime.stack[bytes + 1..bytes + 1 + len as usize]
                     .iter()
                     .map(|u| u.clone().as_int().unwrap() as u8)
                     .collect()
@@ -1462,6 +1472,7 @@ func main() {
     Ok(())
 }
 
+/* after _new & GC implementation
 #[test]
 fn runtime_run_gc() -> Result<()> {
     use quartz_core::compiler::Compiler;
@@ -1474,7 +1485,7 @@ fn runtime_run_gc() -> Result<()> {
             }
 
             func g(): int {
-                let arr = make[array[int]](0);
+                let arr = make[array[int]](5, 0);
                 arr(0) = 1;
                 arr(1) = 2;
                 arr(2) = 3;
@@ -1483,7 +1494,7 @@ fn runtime_run_gc() -> Result<()> {
             }
 
             func main() {
-                let preserved = make[array[int]](0);
+                let preserved = make[array[int]](3, 0);
                 preserved(0) = 5;
                 preserved(1) = 6;
                 preserved(2) = 7;
@@ -1577,3 +1588,4 @@ fn runtime_run_gc() -> Result<()> {
 
     Ok(())
 }
+*/

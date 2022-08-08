@@ -9,15 +9,15 @@ pub enum IrTerm {
     Nil,
     Bool(bool),
     Int(i32),
-    Ident(String, usize),   // name, size
-    Argument(usize, usize), // index, size
+    Ident(String),
+    Argument(usize),
     Info(usize),
 }
 
 impl IrTerm {
     pub fn into_ident(self) -> Result<String> {
         match self {
-            IrTerm::Ident(s, _) => Ok(s),
+            IrTerm::Ident(s) => Ok(s),
             _ => bail!("expected ident"),
         }
     }
@@ -44,7 +44,7 @@ pub enum IrElement {
 
 impl IrElement {
     pub fn ident(name: impl Into<String>) -> IrElement {
-        IrElement::Term(IrTerm::Ident(name.into(), 1))
+        IrElement::Term(IrTerm::Ident(name.into()))
     }
 
     pub fn block(name: &str, elements: Vec<IrElement>) -> IrElement {
@@ -81,20 +81,8 @@ impl IrElement {
                 IrTerm::Nil => "nil".to_string(),
                 IrTerm::Bool(b) => format!("{}", b),
                 IrTerm::Int(n) => format!("{}", n),
-                IrTerm::Ident(i, t) => {
-                    if *t > 1 {
-                        format!("${}({})", i, t)
-                    } else {
-                        format!("${}", i)
-                    }
-                }
-                IrTerm::Argument(a, t) => {
-                    if *t > 1 {
-                        format!("${}({})", a, t)
-                    } else {
-                        format!("${}", a)
-                    }
-                }
+                IrTerm::Ident(i) => format!("${}", i),
+                IrTerm::Argument(a) => format!("${}", a),
                 IrTerm::Info(i) => format!("{}", i),
             },
             IrElement::Block(b) => {
@@ -145,27 +133,20 @@ impl IrElement {
         IrElement::Term(IrTerm::Nil)
     }
 
+    pub fn bool(b: bool) -> IrElement {
+        IrElement::Term(IrTerm::Bool(b))
+    }
+
     pub fn int(num: i32) -> IrElement {
         IrElement::Term(IrTerm::Int(num))
     }
 
-    pub fn i_let(typ: IrType, ident: String, element: IrElement) -> IrElement {
-        IrElement::block(
-            "let",
-            vec![
-                typ.to_element(),
-                IrElement::Term(IrTerm::Ident(ident, 1)),
-                element,
-            ],
-        )
+    pub fn i_let(ident: String, element: IrElement) -> IrElement {
+        IrElement::block("let", vec![IrElement::Term(IrTerm::Ident(ident)), element])
     }
 
-    pub fn i_assign(size: usize, lhs: IrElement, rhs: IrElement) -> IrElement {
-        IrElement::block("assign", vec![IrElement::int(size as i32), lhs, rhs])
-    }
-
-    pub fn i_unload(element: IrElement) -> IrElement {
-        IrElement::block("unload", vec![element])
+    pub fn i_assign(lhs: IrElement, rhs: IrElement) -> IrElement {
+        IrElement::block("assign", vec![lhs, rhs])
     }
 
     pub fn i_copy(size: usize, source: IrElement) -> IrElement {
@@ -173,7 +154,7 @@ impl IrElement {
     }
 
     pub fn i_call(name: impl Into<String>, mut args: Vec<IrElement>) -> IrElement {
-        args.insert(0, IrElement::Term(IrTerm::Ident(name.into(), 1)));
+        args.insert(0, IrElement::Term(IrTerm::Ident(name.into())));
 
         IrElement::i_call_raw(args)
     }
@@ -193,45 +174,64 @@ impl IrElement {
         )
     }
 
-    pub fn i_deref(size: usize, element: IrElement) -> IrElement {
-        IrElement::block("deref", vec![IrElement::int(size as i32), element])
+    pub fn i_deref(element: IrElement) -> IrElement {
+        IrElement::block("deref", vec![element])
     }
 
     pub fn i_address(element: IrElement) -> IrElement {
         IrElement::block("address", vec![element])
     }
 
-    pub fn i_index(size: usize, element: IrElement, offset: IrElement) -> IrElement {
-        IrElement::block("index", vec![IrElement::int(size as i32), element, offset])
+    pub fn i_index(element: IrElement, offset: IrElement) -> IrElement {
+        IrElement::block("index", vec![element, offset])
     }
 
-    pub fn i_offset(size: usize, element: IrElement, offset: usize) -> IrElement {
+    pub fn i_addr_index(element: IrElement, offset: IrElement) -> IrElement {
+        IrElement::block("addr_index", vec![element, offset])
+    }
+
+    pub fn i_offset(element: IrElement, offset: usize) -> IrElement {
+        IrElement::block("offset", vec![element, IrElement::int(offset as i32)])
+    }
+
+    pub fn i_addr_offset(element: IrElement, offset: usize) -> IrElement {
+        IrElement::block("addr_offset", vec![element, IrElement::int(offset as i32)])
+    }
+
+    pub fn i_tuple(typ: IrType, mut element: Vec<IrElement>) -> IrElement {
+        element.insert(0, typ.to_element());
+
+        IrElement::block("tuple", element)
+    }
+
+    pub fn i_slice(len: usize, typ: IrType, element: IrElement) -> IrElement {
         IrElement::block(
-            "offset",
-            vec![
-                IrElement::int(size as i32),
-                element,
-                IrElement::int(offset as i32),
-            ],
+            "slice",
+            vec![IrElement::int(len as i32), typ.to_element(), element],
         )
     }
 
-    pub fn i_addr_offset(size: usize, element: IrElement, offset: usize) -> IrElement {
-        IrElement::block(
-            "addr_offset",
-            vec![
-                IrElement::int(size as i32),
-                element,
-                IrElement::int(offset as i32),
-            ],
-        )
+    pub fn i_slice_raw(len: IrElement, typ: IrType, element: IrElement) -> IrElement {
+        IrElement::block("slice", vec![len, typ.to_element(), element])
+    }
+
+    pub fn i_size_of(typ: IrType) -> IrElement {
+        IrElement::block("size_of", vec![typ.to_element()])
+    }
+
+    pub fn i_pop(typ: IrType) -> IrElement {
+        IrElement::block("pop", vec![typ.to_element()])
+    }
+
+    pub fn i_return(element: IrElement) -> IrElement {
+        IrElement::block("return", vec![element])
     }
 
     pub fn d_var(name: impl Into<String>, typ: IrType, expr: IrElement) -> IrElement {
         IrElement::block(
             "var",
             vec![
-                IrElement::Term(IrTerm::Ident(name.into(), 1)),
+                IrElement::Term(IrTerm::Ident(name.into())),
                 typ.to_element(),
                 expr,
             ],
@@ -245,7 +245,7 @@ impl IrElement {
         body: Vec<IrElement>,
     ) -> IrElement {
         let mut elements = vec![
-            IrElement::Term(IrTerm::Ident(name.into(), 1)),
+            IrElement::Term(IrTerm::Ident(name.into())),
             IrElement::block(
                 "args",
                 args.into_iter().rev().map(|t| t.to_element()).collect(),
@@ -317,6 +317,10 @@ impl IrSingleType {
 
                 Ok(IrSingleType::Fn(args, Box::new(unified)))
             }
+            // nil can be an address
+            (IrSingleType::Nil, IrSingleType::Address(t)) => Ok(IrSingleType::Address(t)),
+            // byte can be an address
+            (IrSingleType::Byte, IrSingleType::Address(t)) => Ok(IrSingleType::Address(t)),
             (s, t) => {
                 bail!(
                     "Type want {} but got {}",
@@ -380,14 +384,15 @@ impl IrType {
     pub fn from_element(element: &IrElement) -> Result<IrType> {
         Ok(match element {
             IrElement::Term(t) => match t {
-                IrTerm::Ident(ident, _) => match ident.as_str() {
+                IrTerm::Ident(ident) => match ident.as_str() {
                     "nil" => IrType::nil(),
                     "bool" => IrType::bool(),
                     "int" => IrType::int(),
                     "byte" => IrType::byte(),
+                    "unknown" => IrType::unknown(),
                     _ => unreachable!("{:?}", t),
                 },
-                _ => unreachable!(),
+                t => unreachable!("{:?}", t),
             },
             IrElement::Block(block) => match block.name.as_str() {
                 "tuple" => {
@@ -408,6 +413,10 @@ impl IrType {
     }
 
     pub fn from_type_ast(typ: &Type, structs: &Structs) -> Result<IrType> {
+        IrType::from_type_ast_traced(typ, structs, vec![])
+    }
+
+    fn from_type_ast_traced(typ: &Type, structs: &Structs, trace: Vec<String>) -> Result<IrType> {
         Ok(match typ {
             Type::Nil => IrType::nil(),
             Type::Bool => IrType::bool(),
@@ -417,9 +426,13 @@ impl IrType {
             Type::Method(_, _, _) => todo!(),
             Type::Struct(s) if s == "string" => {
                 // string = array[byte]
-                IrType::tuple(vec![IrType::addr_of(IrType::byte())])
+                IrType::from_type_ast_traced(&Type::Array(Box::new(Type::Byte)), structs, trace)?
             }
             Type::Struct(t) => {
+                if trace.contains(t) {
+                    return Ok(IrType::unknown());
+                }
+
                 let fields = structs.0.get(t).ok_or(anyhow::anyhow!(
                     "struct {} not found, {:?}",
                     t,
@@ -427,22 +440,28 @@ impl IrType {
                 ))?;
                 let mut types = Vec::new();
                 for (_label, typ) in fields {
-                    types.push(IrType::from_type_ast(typ, structs)?);
+                    let mut current_trace = trace.clone();
+                    current_trace.push(t.to_string());
+
+                    types.push(IrType::from_type_ast_traced(typ, structs, current_trace)?);
                 }
                 IrType::tuple(types)
             }
-            Type::Ref(t) => IrType::addr_of(IrType::from_type_ast(t, structs)?),
+            Type::Ref(t) => IrType::addr_of(IrType::from_type_ast_traced(t, structs, trace)?),
             Type::Array(t) => {
-                // array[t] = [length, elements...]
-                // This is same as { array: *element }
-                IrType::tuple(vec![IrType::addr_of(IrType::from_type_ast(t, structs)?)])
+                // array[T] = (tuple (array[T]) (address (slice _ T)))
+                // but slice is unsized, so we use *T instead
+                IrType::tuple(vec![IrType::addr_of(IrType::addr_of(
+                    IrType::from_type_ast_traced(t, structs, trace)?,
+                ))])
             }
-            Type::SizedArray(t, u) => {
-                IrType::slice(*u, Box::new(IrType::from_type_ast(t.as_ref(), structs)?))
-            }
-            Type::Optional(_) => todo!(),
+            Type::SizedArray(t, u) => IrType::slice(
+                *u,
+                Box::new(IrType::from_type_ast_traced(t.as_ref(), structs, trace)?),
+            ),
+            Type::Optional(t) => IrType::addr_of(IrType::from_type_ast_traced(t, structs, trace)?),
             Type::Self_ => todo!(),
-            _ => unreachable!(),
+            t => bail!("Unsupported type: {:?}", t),
         })
     }
 
@@ -472,7 +491,14 @@ impl IrType {
             IrType::Unknown => todo!(),
             IrType::Single(_) => 1,
             IrType::Tuple(vs) => vs.into_iter().map(|v| v.size_of()).sum::<usize>() + 1, // +1 for a pointer to info table
-            IrType::Slice(_, _) => todo!(),
+            IrType::Slice(len, t) => len * t.size_of() + 1,
+        }
+    }
+
+    pub fn is_unknown(&self) -> bool {
+        match self {
+            IrType::Unknown => true,
+            _ => false,
         }
     }
 
@@ -490,17 +516,56 @@ impl IrType {
         }
     }
 
-    pub fn unify(self, to: IrType) -> Result<IrType> {
-        match (self, to) {
+    pub fn as_slice(&self) -> Option<(usize, Box<IrType>)> {
+        match self {
+            IrType::Slice(len, t) => Some((*len, t.clone())),
+            _ => None,
+        }
+    }
+
+    pub fn as_element(&self) -> Option<IrType> {
+        match self {
+            IrType::Tuple(ts) if ts.len() == 1 => Some(ts[0].as_addr().unwrap().as_ref().clone()),
+            _ => None,
+        }
+    }
+
+    pub fn as_element_sized(&self) -> Option<IrType> {
+        match self {
+            IrType::Slice(_, t) => Some(t.as_ref().clone()),
+            // *T can be used as a slice
+            IrType::Single(IrSingleType::Address(t)) => Some(t.as_ref().clone()),
+            _ => None,
+        }
+    }
+
+    pub fn unify(self, from: IrType) -> Result<IrType> {
+        match (self, from) {
+            (s, t) if s == t => Ok(s),
             (IrType::Unknown, t) => Ok(t),
             (s, IrType::Unknown) => Ok(s),
             (IrType::Single(s), IrType::Single(t)) => Ok(IrType::Single(s.unify(t)?)),
-            (s, t) if s == t => Ok(s),
+            (IrType::Tuple(ts), Self::Tuple(vs)) => {
+                if ts.len() != vs.len() {
+                    bail!("{:?} and {:?} are not unifiable", ts, vs);
+                }
+
+                let mut result = vec![];
+                for (t, s) in ts.into_iter().zip(vs) {
+                    result.push(t.unify(s)?);
+                }
+
+                Ok(IrType::Tuple(result))
+            }
+            // slice as an address
+            (IrType::Slice(_, _), IrType::Single(IrSingleType::Address(s))) => {
+                Ok(IrType::Single(IrSingleType::Address(s)))
+            }
             (s, t) => {
                 bail!(
                     "Type want {} but got {}",
+                    t.to_element().show_compact(),
                     s.to_element().show_compact(),
-                    t.to_element().show_compact()
                 )
             }
         }
@@ -508,13 +573,7 @@ impl IrType {
 
     pub fn offset(self, index: usize) -> Result<IrType> {
         match self {
-            IrType::Single(_) => {
-                if index == 0 {
-                    Ok(self)
-                } else {
-                    bail!("Out of offset, {} in {:?}", index, self)
-                }
-            }
+            IrType::Single(IrSingleType::Address(t)) => Ok(t.as_ref().clone()),
             IrType::Slice(r, t) => {
                 if index < r {
                     Ok(t.as_ref().clone())
@@ -532,6 +591,15 @@ impl IrType {
             _ => bail!("Type is not address"),
         }
     }
+
+    pub fn offset_in_words(self, index: usize) -> Result<usize> {
+        let mut result = 1;
+        for i in 0..index {
+            result += self.clone().offset(i)?.size_of();
+        }
+
+        Ok(result)
+    }
 }
 
 static SPACE_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"^\s+").unwrap());
@@ -540,9 +608,9 @@ static NUMBER_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[0-9]+").unwrap(
 
 #[derive(PartialEq, Debug, Clone)]
 enum IrLexeme {
-    Ident(String, usize), // $ident
+    Ident(String), // $ident
     Keyword(String),
-    Argument(usize, usize),
+    Argument(usize),
     Number(String),
     LParen,
     RParen,
@@ -580,20 +648,8 @@ fn run_lexer(input: &str) -> Vec<IrLexeme> {
         if &input[position..position + 1] == "$" {
             if let Some(m) = NUMBER_PATTERN.find(&input[position + 1..]) {
                 let index = m.as_str().parse::<usize>().unwrap();
-                let mut token = IrLexeme::Argument(index, 1);
+                let token = IrLexeme::Argument(index);
                 position += m.end() + 1;
-
-                if &input[position..position + 1] == "(" {
-                    position += 1;
-
-                    if let Some(m) = NUMBER_PATTERN.find(&input[position..]) {
-                        let size = m.as_str().parse::<usize>().unwrap();
-                        token = IrLexeme::Argument(index, size);
-                        position += m.end();
-                    }
-                    assert_eq!(&input[position..position + 1], ")");
-                    position += 1;
-                }
 
                 tokens.push(token);
 
@@ -602,20 +658,8 @@ fn run_lexer(input: &str) -> Vec<IrLexeme> {
 
             if let Some(m) = IDENT_PATTERN.find(&input[position + 1..]) {
                 let ident = m.as_str().to_string();
-                let mut token = IrLexeme::Ident(ident.clone(), 1);
+                let token = IrLexeme::Ident(ident.clone());
                 position += m.end() + 1;
-
-                if &input[position..position + 1] == "(" {
-                    position += 1;
-
-                    if let Some(m) = NUMBER_PATTERN.find(&input[position..]) {
-                        let size = m.as_str().parse::<usize>().unwrap();
-                        token = IrLexeme::Ident(ident, size);
-                        position += m.end();
-                    }
-                    assert_eq!(&input[position..position + 1], ")");
-                    position += 1;
-                }
 
                 tokens.push(token);
 
@@ -669,8 +713,8 @@ impl IrParser<'_> {
         let token = self.next();
 
         Ok(match token {
-            IrLexeme::Ident(ident, i) => IrTerm::Ident(ident.to_string(), *i), // FIXME: support multiple words
-            IrLexeme::Argument(arg, i) => IrTerm::Argument(*arg, *i), // FIXME: support multiple words
+            IrLexeme::Ident(ident) => IrTerm::Ident(ident.to_string()),
+            IrLexeme::Argument(arg) => IrTerm::Argument(*arg),
             IrLexeme::Keyword(ident) => {
                 if ident == "nil" {
                     IrTerm::Nil
@@ -749,21 +793,21 @@ mod tests {
                 IrLexeme::Keyword("module".to_string()),
                 IrLexeme::LParen,
                 IrLexeme::Keyword("func".to_string()),
-                IrLexeme::Ident("main".to_string(), 1),
+                IrLexeme::Ident("main".to_string()),
                 IrLexeme::LParen,
                 IrLexeme::LParen,
                 IrLexeme::Keyword("let".to_string()),
-                IrLexeme::Ident("x".to_string(), 1),
+                IrLexeme::Ident("x".to_string()),
                 IrLexeme::Number("10".to_string()),
                 IrLexeme::RParen,
                 IrLexeme::LParen,
                 IrLexeme::Keyword("assign".to_string()),
-                IrLexeme::Ident("x".to_string(), 1),
+                IrLexeme::Ident("x".to_string()),
                 IrLexeme::Number("20".to_string()),
                 IrLexeme::RParen,
                 IrLexeme::LParen,
                 IrLexeme::Keyword("return".to_string()),
-                IrLexeme::Ident("x".to_string(), 1),
+                IrLexeme::Ident("x".to_string()),
                 IrLexeme::RParen,
                 IrLexeme::RParen,
                 IrLexeme::RParen,
@@ -793,24 +837,24 @@ mod tests {
                 elements: vec![IrElement::Block(IrBlock {
                     name: "func".to_string(),
                     elements: vec![
-                        IrElement::Term(IrTerm::Ident("main".to_string(), 1)),
+                        IrElement::Term(IrTerm::Ident("main".to_string())),
                         IrElement::Block(IrBlock {
                             name: "let".to_string(),
                             elements: vec![
-                                IrElement::Term(IrTerm::Ident("x".to_string(), 1)),
+                                IrElement::Term(IrTerm::Ident("x".to_string())),
                                 IrElement::Term(IrTerm::Int(10)),
                             ],
                         }),
                         IrElement::Block(IrBlock {
                             name: "assign".to_string(),
                             elements: vec![
-                                IrElement::Term(IrTerm::Ident("x".to_string(), 1)),
+                                IrElement::Term(IrTerm::Ident("x".to_string())),
                                 IrElement::Term(IrTerm::Int(20)),
                             ],
                         }),
                         IrElement::Block(IrBlock {
                             name: "return".to_string(),
-                            elements: vec![IrElement::Term(IrTerm::Ident("x".to_string(), 1))],
+                            elements: vec![IrElement::Term(IrTerm::Ident("x".to_string()))],
                         }),
                     ],
                 })],

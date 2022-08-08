@@ -32,3 +32,7 @@ debug:
 debugger:
 	@echo "quartz debugger"
 	cargo run -- debugger quartz-debugger.json
+
+try_debug:
+	@echo "quartz try_debug"
+	cargo run -- debug start
