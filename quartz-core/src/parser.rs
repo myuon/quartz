@@ -142,12 +142,9 @@ impl Parser {
         let subject = self.type_()?;
         if self.expect_lexeme(Lexeme::DoubleColon).is_ok() {
             let label = self.ident()?;
-            Ok(Expr::Method(subject, label, Type::Infer(0)))
+            Ok(Expr::Method(subject, label))
         } else {
-            Ok(Expr::Var(
-                vec![subject.method_selector_name()?],
-                Type::Infer(0),
-            ))
+            Ok(Expr::Var(vec![subject.method_selector_name()?]))
         }
     }
 
@@ -420,7 +417,7 @@ impl Parser {
         let short_expr = self.short_expr()?;
 
         let mut result = match short_expr {
-            Expr::Var(v, _) if self.expect_lexeme(Lexeme::LBrace).is_ok() => {
+            Expr::Var(v) if self.expect_lexeme(Lexeme::LBrace).is_ok() => {
                 // struct initialization
                 let fields = self.many_fields_with_exprs()?;
                 self.expect_lexeme(Lexeme::RBrace)?;
@@ -475,10 +472,7 @@ impl Parser {
                 let right = self.expr()?;
                 result = Expr::Call(
                     CallMode::Function,
-                    Box::new(Source::unknown(Expr::Var(
-                        vec![op.to_string()],
-                        Type::Infer(0),
-                    ))),
+                    Box::new(Source::unknown(Expr::Var(vec![op.to_string()]))),
                     vec![
                         self.source_from(result, short_expr_start),
                         self.source_from(right, right_start),

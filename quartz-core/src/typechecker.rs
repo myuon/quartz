@@ -342,16 +342,12 @@ impl<'s> TypeChecker<'s> {
 
     pub fn expr(&mut self, expr: &mut Source<Expr>, typ: &mut Type) -> Result<()> {
         match &mut expr.data {
-            Expr::Var(v, t) => {
-                self.load(v, t)
-                    .context(self.error_context(expr.start, expr.end, "var"))?;
-                self.unify(t, typ)
+            Expr::Var(v) => {
+                self.load(v, typ)
                     .context(self.error_context(expr.start, expr.end, "var"))?;
             }
-            Expr::Method(subj, v, t) => {
-                self.load(&vec![subj.method_selector_name()?, v.clone()], t)
-                    .context(self.error_context(expr.start, expr.end, "var"))?;
-                self.unify(t, typ)
+            Expr::Method(subj, v) => {
+                self.load(&vec![subj.method_selector_name()?, v.clone()], typ)
                     .context(self.error_context(expr.start, expr.end, "var"))?;
             }
             Expr::Lit(lit, lit_typ) => {
@@ -391,7 +387,7 @@ impl<'s> TypeChecker<'s> {
                     ))?;
                 } else if let Some(t) = fn_type.as_array() {
                     // array indexing
-                    *mode = CallMode::Array(t.as_ref().clone());
+                    *mode = CallMode::Array;
 
                     assert_eq!(args.len(), 1);
                     self.expr(&mut args[0], &mut Type::Int)?;
@@ -402,7 +398,7 @@ impl<'s> TypeChecker<'s> {
                     ))?;
                 } else if let Some("string") = fn_type.as_struct_type().map(|s| s.as_str()) {
                     // string indexing
-                    *mode = CallMode::Array(Type::Byte);
+                    *mode = CallMode::Array;
 
                     self.expr(&mut args[0], &mut Type::Int)?;
                     self.unify(&Type::Byte, typ).context(self.error_context(
@@ -515,10 +511,7 @@ impl<'s> TypeChecker<'s> {
                         arg_types.clone(),
                         Box::new(return_type.clone()),
                     );
-                    *expr = Source::unknown(Expr::Var(
-                        vec![name.clone(), field.clone()],
-                        method_type.clone(),
-                    ));
+                    *expr = Source::unknown(Expr::Var(vec![name.clone(), field.clone()]));
 
                     self.unify(&method_type, typ)
                         .context(format!("[project] {:?}", expr))?;

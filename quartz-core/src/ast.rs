@@ -55,7 +55,7 @@ pub enum Statement {
 pub enum CallMode {
     Function,
     SizedArray,
-    Array(Type), // return type
+    Array,
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -66,8 +66,8 @@ pub enum OptionalMode {
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Expr {
-    Var(Vec<String>, Type), // qualifier in vector
-    Method(Type, String, Type),
+    Var(Vec<String>), // qualifier in vector
+    Method(Type, String),
     Make(Type, Vec<Source<Expr>>),
     Lit(Literal, Type),
     Call(CallMode, Box<Source<Expr>>, Vec<Source<Expr>>),

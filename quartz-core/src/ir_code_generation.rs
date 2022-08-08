@@ -50,7 +50,7 @@ impl<'s> IrFunctionGenerator<'s> {
 
     pub fn expr(&mut self, expr: &Source<Expr>) -> Result<IrElement> {
         match &expr.data {
-            Expr::Var(v, _typ) => {
+            Expr::Var(v) => {
                 assert!(v.len() <= 2);
 
                 if v.len() == 1 {
@@ -63,13 +63,7 @@ impl<'s> IrFunctionGenerator<'s> {
                         if v == "_panic" {
                             let meta = self.expr(&Source::unknown(Expr::Call(
                                 CallMode::Function,
-                                Box::new(Source::unknown(Expr::Var(
-                                    vec!["_println".to_string()],
-                                    Type::Fn(
-                                        vec![Type::Ref(Box::new(Type::Byte))],
-                                        Box::new(Type::Nil),
-                                    ),
-                                ))),
+                                Box::new(Source::unknown(Expr::Var(vec!["_println".to_string()]))),
                                 vec![Source::unknown(Expr::Lit(
                                     Literal::String(specify_source_in_input(
                                         self.source_code,
@@ -88,7 +82,7 @@ impl<'s> IrFunctionGenerator<'s> {
                     Ok(IrElement::Term(IrTerm::Ident(format!("{}_{}", v[0], v[1]))))
                 }
             }
-            Expr::Method(subj, v, _typ) => Ok(IrElement::Term(IrTerm::Ident(format!(
+            Expr::Method(subj, v) => Ok(IrElement::Term(IrTerm::Ident(format!(
                 "{}_{}",
                 subj.method_selector_name()?,
                 v
@@ -143,7 +137,7 @@ impl<'s> IrFunctionGenerator<'s> {
 
                 Ok(IrElement::i_call_raw(elements))
             }
-            Expr::Call(CallMode::Array(_), f, args) => {
+            Expr::Call(CallMode::Array, f, args) => {
                 // array[T] = tuple[addr[T]]
                 // arr(i)= arr->1->i
                 let fresh = self.var_fresh();
