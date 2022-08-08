@@ -313,7 +313,11 @@ impl<'s> TypeChecker<'s> {
             }
         }
 
-        Constraints::unify(current_type, expected_type)?;
+        Constraints::unify(current_type, expected_type).context(self.error_context(
+            expr.start,
+            expr.end,
+            "transform",
+        ))?;
 
         Ok(())
     }
@@ -345,7 +349,8 @@ impl<'s> TypeChecker<'s> {
             Expr::Method(subj, v, t) => {
                 self.load(&vec![subj.method_selector_name()?, v.clone()], t)
                     .context(self.error_context(expr.start, expr.end, "var"))?;
-                self.unify(t, typ)?;
+                self.unify(t, typ)
+                    .context(self.error_context(expr.start, expr.end, "var"))?;
             }
             Expr::Lit(lit, lit_typ) => {
                 let t = match lit {
@@ -377,20 +382,32 @@ impl<'s> TypeChecker<'s> {
 
                     assert_eq!(args.len(), 1);
                     self.expr(&mut args[0], &mut Type::Int)?;
-                    self.unify(t, typ)?;
+                    self.unify(t, typ).context(self.error_context(
+                        expr.start,
+                        expr.end,
+                        "array indexing",
+                    ))?;
                 } else if let Some(t) = fn_type.as_array() {
                     // array indexing
                     *mode = CallMode::Array(t.as_ref().clone());
 
                     assert_eq!(args.len(), 1);
                     self.expr(&mut args[0], &mut Type::Int)?;
-                    self.unify(t, typ)?;
+                    self.unify(t, typ).context(self.error_context(
+                        expr.start,
+                        expr.end,
+                        "array indexing",
+                    ))?;
                 } else if let Some("string") = fn_type.as_struct_type().map(|s| s.as_str()) {
                     // string indexing
                     *mode = CallMode::Array(Type::Byte);
 
                     self.expr(&mut args[0], &mut Type::Int)?;
-                    self.unify(&Type::Byte, typ)?;
+                    self.unify(&Type::Byte, typ).context(self.error_context(
+                        expr.start,
+                        expr.end,
+                        "string indexing",
+                    ))?;
                 } else {
                     // restore self_object here
                     if let Some(obj) = self.self_object.take() {
@@ -428,7 +445,8 @@ impl<'s> TypeChecker<'s> {
                             .context(format!("{}th argument", i))?;
                     }
 
-                    self.unify(&ret_type, typ)?;
+                    self.unify(&ret_type, typ)
+                        .context(self.error_context(expr.start, expr.end, "call"))?;
                 }
             }
             Expr::Struct(s, fields) => {
@@ -539,19 +557,22 @@ impl<'s> TypeChecker<'s> {
             }
             Expr::Address(e, t) => {
                 self.expr(e, t)?;
-                self.unify(&Type::Ref(Box::new(t.clone())), typ)?;
+                self.unify(&Type::Ref(Box::new(t.clone())), typ)
+                    .context(self.error_context(e.start, e.end, "address"))?;
             }
             Expr::Make(t, args) => match t {
                 Type::SizedArray(_, _) => {
                     assert_eq!(args.len(), 1);
                     self.expr(&mut args[0], &mut Type::Int)?;
-                    self.unify(t, typ)?;
+                    self.unify(t, typ)
+                        .context(self.error_context(expr.start, expr.end, "make"))?;
                 }
                 Type::Array(arr) => {
                     if args.len() == 2 {
                         self.expr(&mut args[0], &mut Type::Int)?;
                         self.expr(&mut args[1], arr)?;
-                        self.unify(t, typ)?;
+                        self.unify(t, typ)
+                            .context(self.error_context(expr.start, expr.end, "make"))?;
                     } else {
                         bail!(
                             "Expected 2 arguments but given {:?}, {}",
@@ -567,7 +588,8 @@ impl<'s> TypeChecker<'s> {
             }
             Expr::Unwrap(expr, t) => {
                 self.expr(expr, t)?;
-                self.unify(t.as_ref_type().unwrap().as_ref(), typ)?;
+                self.unify(t.as_ref_type().unwrap().as_ref(), typ)
+                    .context(self.error_context(expr.start, expr.end, "unwrap"))?;
             }
         };
 
