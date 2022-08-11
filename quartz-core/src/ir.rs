@@ -274,6 +274,7 @@ pub enum IrSingleType {
     Address(Box<IrType>),
     Fn(Vec<IrType>, Box<IrType>),
     Byte,
+    BoxedArray(Box<IrType>), // can be treated as (address T)
 }
 
 impl IrSingleType {
@@ -291,6 +292,7 @@ impl IrSingleType {
                 ],
             ),
             IrSingleType::Byte => IrElement::ident("byte"),
+            IrSingleType::BoxedArray(t) => IrElement::block("array", vec![t.to_element()]),
         }
     }
 
@@ -324,6 +326,11 @@ impl IrSingleType {
                 let unified = ret1.unify(ret2.as_ref().clone())?;
 
                 Ok(IrSingleType::Fn(args, Box::new(unified)))
+            }
+            (IrSingleType::BoxedArray(t), IrSingleType::BoxedArray(u)) => {
+                let unified = t.unify(u.as_ref().clone())?;
+
+                Ok(IrSingleType::BoxedArray(Box::new(unified)))
             }
             // nil can be an address
             (IrSingleType::Nil, IrSingleType::Address(t)) => Ok(IrSingleType::Address(t)),
