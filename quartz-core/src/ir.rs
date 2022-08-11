@@ -633,7 +633,7 @@ enum IrLexeme {
     RParen,
 }
 
-fn run_lexer(input: &str) -> Vec<IrLexeme> {
+fn run_lexer(input: &str) -> Vec<Source<IrLexeme>> {
     let mut tokens = vec![];
     let mut position = 0;
 
@@ -644,19 +644,23 @@ fn run_lexer(input: &str) -> Vec<IrLexeme> {
         }
 
         if &input[position..position + 1] == "(" {
-            tokens.push(IrLexeme::LParen);
+            tokens.push(Source::new(IrLexeme::LParen, position, position + 1));
             position += 1;
             continue;
         }
 
         if &input[position..position + 1] == ")" {
-            tokens.push(IrLexeme::RParen);
+            tokens.push(Source::new(IrLexeme::RParen, position, position + 1));
             position += 1;
             continue;
         }
 
         if let Some(m) = NUMBER_PATTERN.find(&input[position..]) {
-            tokens.push(IrLexeme::Number(m.as_str().to_string()));
+            tokens.push(Source::new(
+                IrLexeme::Number(m.as_str().to_string()),
+                position,
+                position + m.end(),
+            ));
 
             position += m.end();
             continue;
@@ -665,7 +669,8 @@ fn run_lexer(input: &str) -> Vec<IrLexeme> {
         if &input[position..position + 1] == "$" {
             if let Some(m) = NUMBER_PATTERN.find(&input[position + 1..]) {
                 let index = m.as_str().parse::<usize>().unwrap();
-                let token = IrLexeme::Argument(index);
+                let token =
+                    Source::new(IrLexeme::Argument(index), position, position + m.end() + 1);
                 position += m.end() + 1;
 
                 tokens.push(token);
@@ -675,7 +680,11 @@ fn run_lexer(input: &str) -> Vec<IrLexeme> {
 
             if let Some(m) = IDENT_PATTERN.find(&input[position + 1..]) {
                 let ident = m.as_str().to_string();
-                let token = IrLexeme::Ident(ident.clone());
+                let token = Source::new(
+                    IrLexeme::Ident(ident.clone()),
+                    position,
+                    position + m.end() + 1,
+                );
                 position += m.end() + 1;
 
                 tokens.push(token);
@@ -688,7 +697,11 @@ fn run_lexer(input: &str) -> Vec<IrLexeme> {
 
         if let Some(m) = IDENT_PATTERN.find(&input[position..]) {
             let name = m.as_str();
-            tokens.push(IrLexeme::Keyword(name.to_string()));
+            tokens.push(Source::new(
+                IrLexeme::Keyword(name.to_string()),
+                position,
+                position + m.end(),
+            ));
 
             position += m.end();
             continue;
@@ -702,11 +715,11 @@ fn run_lexer(input: &str) -> Vec<IrLexeme> {
 
 struct IrParser<'s> {
     position: usize,
-    tokens: &'s [IrLexeme],
+    tokens: &'s [Source<IrLexeme>],
 }
 
 impl IrParser<'_> {
-    fn next(&mut self) -> &IrLexeme {
+    fn next(&mut self) -> &Source<IrLexeme> {
         let token = &self.tokens[self.position];
         self.position += 1;
 
@@ -714,7 +727,7 @@ impl IrParser<'_> {
     }
 
     fn expect(&mut self, lexeme: IrLexeme) -> Result<()> {
-        if self.tokens[self.position] == lexeme {
+        if self.tokens[self.position].data == lexeme {
             self.position += 1;
             return Ok(());
         } else {
@@ -729,7 +742,7 @@ impl IrParser<'_> {
     fn term(&mut self) -> Result<IrTerm> {
         let token = self.next();
 
-        Ok(match token {
+        Ok(match &token.data {
             IrLexeme::Ident(ident) => IrTerm::Ident(ident.to_string()),
             IrLexeme::Argument(arg) => IrTerm::Argument(*arg),
             IrLexeme::Keyword(ident) => {
@@ -756,13 +769,13 @@ impl IrParser<'_> {
 
     fn element(&mut self) -> Result<IrElement> {
         if self.expect(IrLexeme::LParen).is_ok() {
-            let name = match self.next() {
+            let name = match &self.next().data {
                 IrLexeme::Keyword(i) => i.to_string(),
                 _ => unreachable!(),
             };
             let mut elements = vec![];
 
-            while self.tokens[self.position] != IrLexeme::RParen {
+            while self.tokens[self.position].data != IrLexeme::RParen {
                 elements.push(self.element()?);
             }
 
@@ -836,7 +849,13 @@ mod tests {
         )];
 
         for (input, result) in cases {
-            assert_eq!(result, run_lexer(input));
+            assert_eq!(
+                result,
+                run_lexer(input)
+                    .into_iter()
+                    .map(|t| t.data)
+                    .collect::<Vec<_>>()
+            );
         }
     }
 
