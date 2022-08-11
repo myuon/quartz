@@ -4,7 +4,6 @@ use anyhow::{Context, Result};
 use log::info;
 
 use crate::{
-    ast::Source,
     ir::{IrElement, IrTerm, IrType},
     vm::{QVMInstruction, Variable},
     vm_optimizer::VmOptimizer,
@@ -272,7 +271,7 @@ impl<'s> VmFunctionGenerator<'s> {
     // compile to an address (lvar)
     fn element_addr(&mut self, element: IrElement) -> Result<IrType> {
         match element.clone() {
-            IrElement::Term(term) => match term.data {
+            IrElement::Term(term) => match term {
                 IrTerm::Ident(v) => {
                     if let Some((u, t)) = self.locals.get(&v) {
                         self.writer
@@ -300,102 +299,98 @@ impl<'s> VmFunctionGenerator<'s> {
                 }
                 _ => unreachable!("{}", element.show()),
             },
-            IrElement::Block(block) => {
-                let mut block = block.data;
+            IrElement::Block(mut block) => match block.name.as_str() {
+                "call" => Ok(IrType::addr_of(self.element(element)?)),
+                // FIXME: is this true?
+                "deref" => {
+                    self.new_source_map(element.show_compact());
 
-                match block.name.as_str() {
-                    "call" => Ok(IrType::addr_of(self.element(element)?)),
-                    // FIXME: is this true?
-                    "deref" => {
-                        self.new_source_map(element.show_compact());
-
-                        let element = unvec!(block.elements, 1);
-                        let typ = self.element(element)?;
-                        Ok(typ.as_addr().unwrap().as_ref().clone())
-                    }
-                    "offset" => {
-                        self.new_source_map(element.show_compact());
-
-                        let (elem, offset_element) = unvec!(block.elements, 2);
-                        let offset = offset_element.into_term()?.into_int()? as usize;
-                        let typ = self.element_addr(elem)?;
-                        let inner_addr_typ = if typ.is_unknown() {
-                            IrType::unknown()
-                        } else {
-                            typ.as_addr().unwrap().as_ref().clone()
-                        };
-                        self.writer.push(QVMInstruction::I32Const(
-                            inner_addr_typ.clone().offset_in_words(offset)? as i32,
-                        ));
-                        self.writer.push(QVMInstruction::PAdd);
-
-                        Ok(IrType::addr_of(if inner_addr_typ.is_unknown() {
-                            IrType::unknown()
-                        } else {
-                            inner_addr_typ
-                                .offset(offset)
-                                .context(format!("{}", element.show()))?
-                        }))
-                    }
-                    "addr_offset" => {
-                        self.new_source_map(element.show_compact());
-
-                        let (elem, offset_element) = unvec!(block.elements, 2);
-                        let offset = offset_element.into_term()?.into_int()? as usize;
-                        let typ = self.element(elem)?;
-                        let inner_addr_typ = typ.as_addr().unwrap();
-                        self.writer.push(QVMInstruction::I32Const(
-                            inner_addr_typ.clone().offset_in_words(offset)? as i32,
-                        ));
-                        self.writer.push(QVMInstruction::PAdd);
-                        Ok(IrType::addr_of(
-                            inner_addr_typ
-                                .offset(offset)
-                                .context(format!("{}", element.show()))?,
-                        ))
-                    }
-                    "index" => {
-                        self.new_source_map(element.show_compact());
-
-                        let (element, offset) = unvec!(block.elements, 2);
-                        let typ = self.element_addr(element.clone())?;
-                        IrType::int()
-                            .unify(self.element(offset)?)
-                            .context(format!("{}", element.show()))?;
-                        self.writer.push(QVMInstruction::I32Const(1)); // +1 for a pointer to info table
-                        self.writer.push(QVMInstruction::Add);
-                        self.writer.push(QVMInstruction::PAdd);
-
-                        let elem_typ = typ.as_addr().unwrap().as_element_sized().unwrap();
-
-                        Ok(IrType::addr_of(elem_typ))
-                    }
-                    "addr_index" => {
-                        self.new_source_map(element.show_compact());
-                        let (element, offset) = unvec!(block.elements, 2);
-
-                        let typ = self.element(element)?;
-
-                        self.element(offset.clone())?
-                            .unify(IrType::int())
-                            .context(format!("{}", offset.show()))?;
-                        self.writer.push(QVMInstruction::I32Const(1));
-                        self.writer.push(QVMInstruction::Add);
-                        self.writer.push(QVMInstruction::PAdd);
-
-                        let elem_typ = typ.as_addr().unwrap().as_ref().clone();
-
-                        Ok(IrType::addr_of(elem_typ))
-                    }
-                    _ => unreachable!("{}", element.show()),
+                    let element = unvec!(block.elements, 1);
+                    let typ = self.element(element)?;
+                    Ok(typ.as_addr().unwrap().as_ref().clone())
                 }
-            }
+                "offset" => {
+                    self.new_source_map(element.show_compact());
+
+                    let (elem, offset_element) = unvec!(block.elements, 2);
+                    let offset = offset_element.into_term()?.into_int()? as usize;
+                    let typ = self.element_addr(elem)?;
+                    let inner_addr_typ = if typ.is_unknown() {
+                        IrType::unknown()
+                    } else {
+                        typ.as_addr().unwrap().as_ref().clone()
+                    };
+                    self.writer.push(QVMInstruction::I32Const(
+                        inner_addr_typ.clone().offset_in_words(offset)? as i32,
+                    ));
+                    self.writer.push(QVMInstruction::PAdd);
+
+                    Ok(IrType::addr_of(if inner_addr_typ.is_unknown() {
+                        IrType::unknown()
+                    } else {
+                        inner_addr_typ
+                            .offset(offset)
+                            .context(format!("{}", element.show()))?
+                    }))
+                }
+                "addr_offset" => {
+                    self.new_source_map(element.show_compact());
+
+                    let (elem, offset_element) = unvec!(block.elements, 2);
+                    let offset = offset_element.into_term()?.into_int()? as usize;
+                    let typ = self.element(elem)?;
+                    let inner_addr_typ = typ.as_addr().unwrap();
+                    self.writer.push(QVMInstruction::I32Const(
+                        inner_addr_typ.clone().offset_in_words(offset)? as i32,
+                    ));
+                    self.writer.push(QVMInstruction::PAdd);
+                    Ok(IrType::addr_of(
+                        inner_addr_typ
+                            .offset(offset)
+                            .context(format!("{}", element.show()))?,
+                    ))
+                }
+                "index" => {
+                    self.new_source_map(element.show_compact());
+
+                    let (element, offset) = unvec!(block.elements, 2);
+                    let typ = self.element_addr(element.clone())?;
+                    IrType::int()
+                        .unify(self.element(offset)?)
+                        .context(format!("{}", element.show()))?;
+                    self.writer.push(QVMInstruction::I32Const(1)); // +1 for a pointer to info table
+                    self.writer.push(QVMInstruction::Add);
+                    self.writer.push(QVMInstruction::PAdd);
+
+                    let elem_typ = typ.as_addr().unwrap().as_element_sized().unwrap();
+
+                    Ok(IrType::addr_of(elem_typ))
+                }
+                "addr_index" => {
+                    self.new_source_map(element.show_compact());
+                    let (element, offset) = unvec!(block.elements, 2);
+
+                    let typ = self.element(element)?;
+
+                    self.element(offset.clone())?
+                        .unify(IrType::int())
+                        .context(format!("{}", offset.show()))?;
+                    self.writer.push(QVMInstruction::I32Const(1));
+                    self.writer.push(QVMInstruction::Add);
+                    self.writer.push(QVMInstruction::PAdd);
+
+                    let elem_typ = typ.as_addr().unwrap().as_ref().clone();
+
+                    Ok(IrType::addr_of(elem_typ))
+                }
+                _ => unreachable!("{}", element.show()),
+            },
         }
     }
 
     fn element(&mut self, element: IrElement) -> Result<IrType> {
         match element.clone() {
-            IrElement::Term(term) => match term.data {
+            IrElement::Term(term) => match term {
                 IrTerm::Ident(v) => {
                     if let Some((u, t)) = self.locals.get(&v) {
                         self.writer
@@ -442,9 +437,7 @@ impl<'s> VmFunctionGenerator<'s> {
                     Ok(IrType::unknown())
                 }
             },
-            IrElement::Block(block) => {
-                let mut block = block.data;
-
+            IrElement::Block(mut block) => {
                 match block.name.as_str() {
                     "let" => {
                         self.new_source_map(element.show_compact());
@@ -587,9 +580,9 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.register_label(label.clone());
 
                         // additional check
-                        self.element(IrElement::term(IrTerm::Int(self.local_pointer as i32)))?
+                        self.element(IrElement::Term(IrTerm::Int(self.local_pointer as i32)))?
                             .unify(IrType::int())?;
-                        self.element(IrElement::term(IrTerm::Ident("_check_sp".to_string())))?;
+                        self.element(IrElement::Term(IrTerm::Ident("_check_sp".to_string())))?;
 
                         self.element(body)?.unify(IrType::nil())?;
 
@@ -1013,10 +1006,10 @@ impl VmGenerator {
                     }
                 }
                 "func" => {
-                    let args_block = block.elements[1].clone().into_block().context(format!(
-                        "{}",
-                        IrElement::Block(Source::unknown(block.clone())).show()
-                    ))?;
+                    let args_block = block.elements[1]
+                        .clone()
+                        .into_block()
+                        .context(format!("{}", IrElement::Block(block.clone()).show()))?;
                     assert_eq!(args_block.name, "args");
                     let return_block = block.elements[2].clone().into_block()?;
                     assert_eq!(return_block.name, "return");

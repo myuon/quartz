@@ -8,7 +8,7 @@ use crate::{
         Structs, Type,
     },
     compiler::specify_source_in_input,
-    ir::{IrElement, IrTerm, IrType},
+    ir::{IrBlock, IrElement, IrTerm, IrType},
 };
 
 #[derive(Debug)]
@@ -56,7 +56,7 @@ impl<'s> IrFunctionGenerator<'s> {
                 if v.len() == 1 {
                     let v = &v[0];
                     if self.args.contains_key(v) {
-                        Ok(IrElement::term(IrTerm::Argument(self.args[v])))
+                        Ok(IrElement::Term(IrTerm::Argument(self.args[v])))
                     } else {
                         // special treatment for panic instruction
                         // FIXME: implement function meta attributes
@@ -76,21 +76,21 @@ impl<'s> IrFunctionGenerator<'s> {
                             self.ir.push(meta);
                         }
 
-                        Ok(IrElement::term(IrTerm::Ident(v.clone())))
+                        Ok(IrElement::Term(IrTerm::Ident(v.clone())))
                     }
                 } else {
-                    Ok(IrElement::term(IrTerm::Ident(format!("{}_{}", v[0], v[1]))))
+                    Ok(IrElement::Term(IrTerm::Ident(format!("{}_{}", v[0], v[1]))))
                 }
             }
-            Expr::Method(subj, v) => Ok(IrElement::term(IrTerm::Ident(format!(
+            Expr::Method(subj, v) => Ok(IrElement::Term(IrTerm::Ident(format!(
                 "{}_{}",
                 subj.method_selector_name()?,
                 v
             )))),
-            Expr::Lit(literal, _) => match literal {
-                Literal::Nil => Ok(IrElement::term(IrTerm::Nil)),
-                Literal::Bool(b) => Ok(IrElement::term(IrTerm::Bool(*b))),
-                Literal::Int(n) => Ok(IrElement::term(IrTerm::Int(*n))),
+            Expr::Lit(literal, _typ) => match literal {
+                Literal::Nil => Ok(IrElement::Term(IrTerm::Nil)),
+                Literal::Bool(b) => Ok(IrElement::Term(IrTerm::Bool(*b))),
+                Literal::Int(n) => Ok(IrElement::Term(IrTerm::Int(*n))),
                 Literal::String(s) => {
                     let t = self.strings.len();
                     self.strings.push(s.clone());
@@ -116,7 +116,7 @@ impl<'s> IrFunctionGenerator<'s> {
                         let velem = self.expr(&elem)?;
 
                         self.ir.push(IrElement::i_assign(
-                            IrElement::i_offset(IrElement::term(IrTerm::Ident(v.clone())), i),
+                            IrElement::i_offset(IrElement::Term(IrTerm::Ident(v.clone())), i),
                             velem,
                         ));
                     }
@@ -208,11 +208,11 @@ impl<'s> IrFunctionGenerator<'s> {
 
                 let e_value = self.expr(e)?;
                 self.ir.push(IrElement::i_assign(
-                    IrElement::i_deref(IrElement::term(IrTerm::Ident(v.clone()))),
+                    IrElement::i_deref(IrElement::Term(IrTerm::Ident(v.clone()))),
                     e_value,
                 ));
 
-                Ok(IrElement::term(IrTerm::Ident(v)))
+                Ok(IrElement::Term(IrTerm::Ident(v)))
             }
             Expr::Deref(e, _) => Ok(IrElement::i_deref(self.expr(e)?)),
             Expr::As(e, current, expected) => {
@@ -531,7 +531,10 @@ impl<'s> IrGenerator<'s> {
             .collect::<Vec<_>>();
         strings.extend(elements);
 
-        Ok(IrElement::block("module", strings))
+        Ok(IrElement::Block(IrBlock {
+            name: "module".to_string(),
+            elements: strings,
+        }))
     }
 
     pub fn generate(&mut self, module: &Module) -> Result<IrElement> {

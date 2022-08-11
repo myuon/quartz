@@ -2,7 +2,7 @@ use anyhow::{bail, Result};
 use once_cell::sync::Lazy;
 use regex::Regex;
 
-use crate::ast::{Source, Structs, Type};
+use crate::ast::{Structs, Type};
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum IrTerm {
@@ -38,53 +38,46 @@ pub struct IrBlock {
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum IrElement {
-    Term(Source<IrTerm>),
-    Block(Source<IrBlock>),
+    Term(IrTerm),
+    Block(IrBlock),
 }
 
 impl IrElement {
     pub fn ident(name: impl Into<String>) -> IrElement {
-        IrElement::Term(Source::unknown(IrTerm::Ident(name.into())))
-    }
-
-    pub fn term(term: IrTerm) -> IrElement {
-        IrElement::Term(Source::unknown(term))
+        IrElement::Term(IrTerm::Ident(name.into()))
     }
 
     pub fn block(name: &str, elements: Vec<IrElement>) -> IrElement {
-        IrElement::Block(Source::unknown(IrBlock {
+        IrElement::Block(IrBlock {
             name: name.to_string(),
             elements,
-        }))
+        })
     }
 
     pub fn instruction(name: &str, elements: Vec<IrTerm>) -> IrElement {
-        IrElement::Block(Source::unknown(IrBlock {
+        IrElement::Block(IrBlock {
             name: name.to_string(),
-            elements: elements
-                .into_iter()
-                .map(|e| IrElement::Term(Source::unknown(e)))
-                .collect(),
-        }))
+            elements: elements.into_iter().map(|e| IrElement::Term(e)).collect(),
+        })
     }
 
     pub fn into_term(self) -> Result<IrTerm> {
         match self {
-            IrElement::Term(t) => Ok(t.data),
+            IrElement::Term(t) => Ok(t),
             _ => bail!("Expected a term, but found {:?}", self),
         }
     }
 
     pub fn into_block(self) -> Result<IrBlock> {
         match self {
-            IrElement::Block(b) => Ok(b.data),
+            IrElement::Block(b) => Ok(b),
             _ => bail!("Expected a block, but found {:?}", self),
         }
     }
 
     fn show_recur(&self, depth: i32, compact: bool) -> String {
         match self {
-            IrElement::Term(t) => match &t.data {
+            IrElement::Term(t) => match t {
                 IrTerm::Nil => "nil".to_string(),
                 IrTerm::Bool(b) => format!("{}", b),
                 IrTerm::Int(n) => format!("{}", n),
@@ -104,8 +97,8 @@ impl IrElement {
                     "  ".repeat(depth as usize)
                 };
 
-                buffer.push_str(&format!("{}({}", indent, b.data.name));
-                for e in &b.data.elements {
+                buffer.push_str(&format!("{}({}", indent, b.name));
+                for e in &b.elements {
                     match e {
                         IrElement::Term(_) => {
                             buffer.push_str(&format!(" {}", e.show_recur(depth, compact)));
@@ -137,25 +130,19 @@ impl IrElement {
     // = IR instructions
 
     pub fn nil() -> IrElement {
-        IrElement::Term(Source::unknown(IrTerm::Nil))
+        IrElement::Term(IrTerm::Nil)
     }
 
     pub fn bool(b: bool) -> IrElement {
-        IrElement::Term(Source::unknown(IrTerm::Bool(b)))
+        IrElement::Term(IrTerm::Bool(b))
     }
 
     pub fn int(num: i32) -> IrElement {
-        IrElement::Term(Source::unknown(IrTerm::Int(num)))
+        IrElement::Term(IrTerm::Int(num))
     }
 
     pub fn i_let(ident: String, element: IrElement) -> IrElement {
-        IrElement::block(
-            "let",
-            vec![
-                IrElement::Term(Source::unknown(IrTerm::Ident(ident))),
-                element,
-            ],
-        )
+        IrElement::block("let", vec![IrElement::Term(IrTerm::Ident(ident)), element])
     }
 
     pub fn i_assign(lhs: IrElement, rhs: IrElement) -> IrElement {
@@ -167,10 +154,7 @@ impl IrElement {
     }
 
     pub fn i_call(name: impl Into<String>, mut args: Vec<IrElement>) -> IrElement {
-        args.insert(
-            0,
-            IrElement::Term(Source::unknown(IrTerm::Ident(name.into()))),
-        );
+        args.insert(0, IrElement::Term(IrTerm::Ident(name.into())));
 
         IrElement::i_call_raw(args)
     }
@@ -247,7 +231,7 @@ impl IrElement {
         IrElement::block(
             "var",
             vec![
-                IrElement::Term(Source::unknown(IrTerm::Ident(name.into()))),
+                IrElement::Term(IrTerm::Ident(name.into())),
                 typ.to_element(),
                 expr,
             ],
@@ -261,7 +245,7 @@ impl IrElement {
         body: Vec<IrElement>,
     ) -> IrElement {
         let mut elements = vec![
-            IrElement::Term(Source::unknown(IrTerm::Ident(name.into()))),
+            IrElement::Term(IrTerm::Ident(name.into())),
             IrElement::block(
                 "args",
                 args.into_iter().rev().map(|t| t.to_element()).collect(),
@@ -399,7 +383,7 @@ impl IrType {
 
     pub fn from_element(element: &IrElement) -> Result<IrType> {
         Ok(match element {
-            IrElement::Term(t) => match &t.data {
+            IrElement::Term(t) => match t {
                 IrTerm::Ident(ident) => match ident.as_str() {
                     "nil" => IrType::nil(),
                     "bool" => IrType::bool(),
@@ -410,19 +394,19 @@ impl IrType {
                 },
                 t => unreachable!("{:?}", t),
             },
-            IrElement::Block(block) => match block.data.name.as_str() {
+            IrElement::Block(block) => match block.name.as_str() {
                 "tuple" => {
                     let mut types = Vec::new();
-                    for element in block.data.elements.iter() {
+                    for element in block.elements.iter() {
                         types.push(IrType::from_element(element)?);
                     }
                     IrType::tuple(types)
                 }
                 "slice" => IrType::slice(
-                    block.data.elements[0].clone().into_term()?.into_int()? as usize,
-                    Box::new(IrType::from_element(&block.data.elements[1])?),
+                    block.elements[0].clone().into_term()?.into_int()? as usize,
+                    Box::new(IrType::from_element(&block.elements[1])?),
                 ),
-                "address" => IrType::addr_of(IrType::from_element(&block.data.elements[0])?),
+                "address" => IrType::addr_of(IrType::from_element(&block.elements[0])?),
                 t => unreachable!("{:?}", t),
             },
         })
@@ -768,14 +752,11 @@ impl IrParser<'_> {
 
             self.expect(IrLexeme::RParen)?;
 
-            Ok(IrElement::Block(Source::unknown(IrBlock {
-                name,
-                elements,
-            })))
+            Ok(IrElement::Block(IrBlock { name, elements }))
         } else {
             let term = self.term()?;
 
-            Ok(IrElement::Term(Source::unknown(term)))
+            Ok(IrElement::Term(term))
         }
     }
 }
@@ -852,33 +833,33 @@ mod tests {
     )
 )
 "#,
-            IrElement::Block(Source::unknown(IrBlock {
+            IrElement::Block(IrBlock {
                 name: "module".to_string(),
-                elements: vec![IrElement::block(
-                    "func",
-                    vec![
-                        IrElement::term(IrTerm::Ident("main".to_string())),
-                        IrElement::block(
-                            "let",
-                            vec![
-                                IrElement::term(IrTerm::Ident("x".to_string())),
-                                IrElement::term(IrTerm::Int(10)),
+                elements: vec![IrElement::Block(IrBlock {
+                    name: "func".to_string(),
+                    elements: vec![
+                        IrElement::Term(IrTerm::Ident("main".to_string())),
+                        IrElement::Block(IrBlock {
+                            name: "let".to_string(),
+                            elements: vec![
+                                IrElement::Term(IrTerm::Ident("x".to_string())),
+                                IrElement::Term(IrTerm::Int(10)),
                             ],
-                        ),
-                        IrElement::block(
-                            "assign",
-                            vec![
-                                IrElement::term(IrTerm::Ident("x".to_string())),
-                                IrElement::term(IrTerm::Int(20)),
+                        }),
+                        IrElement::Block(IrBlock {
+                            name: "assign".to_string(),
+                            elements: vec![
+                                IrElement::Term(IrTerm::Ident("x".to_string())),
+                                IrElement::Term(IrTerm::Int(20)),
                             ],
-                        ),
-                        IrElement::block(
-                            "return",
-                            vec![IrElement::term(IrTerm::Ident("x".to_string()))],
-                        ),
+                        }),
+                        IrElement::Block(IrBlock {
+                            name: "return".to_string(),
+                            elements: vec![IrElement::Term(IrTerm::Ident("x".to_string()))],
+                        }),
                     ],
-                )],
-            })),
+                })],
+            }),
         )];
 
         for (input, result) in cases {
