@@ -266,7 +266,11 @@ impl<'s> VmFunctionGenerator<'s> {
             ),
             _ => (
                 QVMInstruction::LabelI32Const(v.to_string()),
-                self.functions[v].clone(),
+                self.functions
+                    .get(v)
+                    .ok_or(anyhow::anyhow!("Unknown symbol {}", v))
+                    .unwrap()
+                    .clone(),
             ),
         }
     }
@@ -828,6 +832,21 @@ impl<'s> VmFunctionGenerator<'s> {
                             .push(QVMInstruction::I32Const(typ.size_of() as i32));
 
                         Ok(IrType::int())
+                    }
+                    "alloc" => {
+                        self.new_source_map(element.show_compact());
+                        let (typ, len) = unvec!(block.elements, 2);
+                        let typ = IrType::from_element(&typ)?;
+
+                        self.writer
+                            .push(QVMInstruction::I32Const(typ.size_of() as i32));
+                        self.element(IrElement::i_call(
+                            "_mult",
+                            vec![IrElement::int(typ.size_of() as i32), len],
+                        ))?;
+                        self.writer.push(QVMInstruction::Alloc);
+
+                        Ok(IrType::addr_of(typ))
                     }
                     name => todo!("{:?}", name),
                 }

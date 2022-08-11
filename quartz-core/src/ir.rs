@@ -227,6 +227,14 @@ impl IrElement {
         IrElement::block("return", vec![element])
     }
 
+    pub fn i_alloc(typ: IrType, len: IrElement) -> IrElement {
+        IrElement::block("alloc", vec![typ.to_element(), len])
+    }
+
+    pub fn i_while(cond: IrElement, body: Vec<IrElement>) -> IrElement {
+        IrElement::block("while", vec![cond, IrElement::block("seq", body)])
+    }
+
     pub fn d_var(name: impl Into<String>, typ: IrType, expr: IrElement) -> IrElement {
         IrElement::block(
             "var",

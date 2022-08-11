@@ -253,10 +253,52 @@ impl<'s> IrFunctionGenerator<'s> {
                     let len = self.expr(&args[0])?;
                     let value = self.expr(&args[1])?;
 
+                    /*
+                        (let $array (alloc $type $len))
+                        (let $i 0)
+                        (while (_lt $i $len)
+                            (assign $array->$i $value)
+                            (assign $i (_add $i 1))
+                        )
+                    */
+                    let len_var = self.var_fresh();
+                    self.ir.push(IrElement::i_let(len_var.clone(), len));
+
                     let array = self.var_fresh();
                     self.ir.push(IrElement::i_let(
                         array.clone(),
-                        IrElement::i_slice_raw(len, self.ir_type(arr)?, value),
+                        IrElement::i_alloc(self.ir_type(arr)?, IrElement::ident(len_var.clone())),
+                    ));
+
+                    let i = self.var_fresh();
+                    self.ir.push(IrElement::i_let(i.clone(), IrElement::int(0)));
+                    self.ir.push(IrElement::i_while(
+                        IrElement::i_call(
+                            "_lt",
+                            vec![
+                                IrElement::Term(IrTerm::Ident(i.clone())),
+                                IrElement::ident(len_var),
+                            ],
+                        ),
+                        vec![
+                            IrElement::i_assign(
+                                IrElement::i_addr_index(
+                                    IrElement::Term(IrTerm::Ident(array.clone())),
+                                    IrElement::Term(IrTerm::Ident(i.clone())),
+                                ),
+                                value,
+                            ),
+                            IrElement::i_assign(
+                                IrElement::Term(IrTerm::Ident(i.clone())),
+                                IrElement::i_call(
+                                    "_add",
+                                    vec![
+                                        IrElement::Term(IrTerm::Ident(i.clone())),
+                                        IrElement::int(1),
+                                    ],
+                                ),
+                            ),
+                        ],
                     ));
 
                     Ok(IrElement::i_tuple(
@@ -347,10 +389,7 @@ impl<'s> IrFunctionGenerator<'s> {
                     generator.ir
                 };
 
-                self.ir.push(IrElement::block(
-                    "while",
-                    vec![vcond, IrElement::block("seq", gen)],
-                ));
+                self.ir.push(IrElement::i_while(vcond, gen));
             }
         }
 

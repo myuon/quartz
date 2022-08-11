@@ -809,8 +809,8 @@ impl Runtime {
                         self.push(Value::bool(false));
                     }
                 }
-                _ => {
-                    unreachable!();
+                t => {
+                    unreachable!("{}", t);
                 }
             },
             QVMInstruction::BoolConst(b) => {
@@ -1403,6 +1403,38 @@ func main() {
     };
 
     return p.sum();
+}
+"#,
+            40,
+        ),
+        (
+            r#"
+func concat_array(a: array[int], b: array[int]): array[int] {
+    let p = make[array[int]](_len(a) + _len(b), 0);
+    let i = 0;
+    while (i < _len(a)) {
+        if (i < _len(a)) {
+            p(i) = a(i);
+        } else {
+            p(i) = b(i - _len(a));
+        };
+
+        i = i + 1;
+    };
+
+    return p;
+}
+
+func main() {
+    let p1 = make[array[int]](5, 0);
+    p1(0) = 1;
+    p1(1) = 2;
+
+    let p2 = make[array[int]](5, 0);
+    p2(0) = 3;
+    p2(1) = 4;
+
+    return _len(concat_array(p1, p2));
 }
 "#,
             40,
