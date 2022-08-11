@@ -847,7 +847,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.writer.push(QVMInstruction::Alloc);
                         self.local_pointer += 1;
 
-                        Ok(IrType::addr_of(IrType::addr_of(typ)))
+                        Ok(IrType::boxed_array(typ))
                     }
                     name => todo!("{:?}", name),
                 }
@@ -1203,7 +1203,7 @@ mod tests {
 )
 "#,
                 "$x",
-                "(address (address $int))",
+                "(address (array $int))",
             ),
         ];
 

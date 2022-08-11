@@ -398,15 +398,19 @@ impl IrType {
         IrType::Slice(size, typ)
     }
 
+    pub fn boxed_array(t: IrType) -> IrType {
+        IrType::Single(IrSingleType::BoxedArray(Box::new(t)))
+    }
+
     pub fn from_element(element: &IrElement) -> Result<IrType> {
         Ok(match element {
             IrElement::Term(t) => match t {
                 IrTerm::Ident(ident) => match ident.as_str() {
+                    "unknown" => IrType::unknown(),
                     "nil" => IrType::nil(),
                     "bool" => IrType::bool(),
                     "int" => IrType::int(),
                     "byte" => IrType::byte(),
-                    "unknown" => IrType::unknown(),
                     _ => unreachable!("{:?}", t),
                 },
                 t => unreachable!("{:?}", t),
@@ -424,6 +428,7 @@ impl IrType {
                     Box::new(IrType::from_element(&block.elements[1])?),
                 ),
                 "address" => IrType::addr_of(IrType::from_element(&block.elements[0])?),
+                "array" => IrType::boxed_array(IrType::from_element(&block.elements[0])?),
                 t => unreachable!("{:?}", t),
             },
         })
