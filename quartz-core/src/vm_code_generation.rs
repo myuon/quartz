@@ -1163,3 +1163,76 @@ impl VmGenerator {
         Ok((code, source_map))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::ir::parse_ir;
+
+    use super::*;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn test_element() -> Result<()> {
+        let cases = vec![
+            (
+                r#"
+(seq
+    (let $x (tuple (tuple $int (address $int)) 100 nil))
+    (assign (offset $x 0) 200)
+)
+"#,
+                "(offset $x 1))",
+                "(address $int)",
+            ),
+            (
+                r#"
+(seq
+    (let $x (slice 10 $int 0))
+    (assign (index $x 4) 15)
+    (assign (index $x 5) 20)
+)
+"#,
+                "(index $x 7)",
+                "$int",
+            ),
+            (
+                r#"
+(seq
+    (let $x (alloc $int 10))
+    (assign (addr_index $x 4) 20)
+)
+"#,
+                "$x",
+                "(address (address $int))",
+            ),
+        ];
+
+        for (input, evaluation, typ) in cases {
+            let globals = HashMap::new();
+            let mut labels = HashMap::new();
+            let functions = HashMap::new();
+            let strings = vec![];
+
+            let mut generator = VmFunctionGenerator::new(
+                InstructionWriter {
+                    code: vec![],
+                    offset: 0,
+                },
+                vec![],
+                &globals,
+                &mut labels,
+                &functions,
+                &strings,
+                IrType::unknown(),
+            );
+
+            let ir = parse_ir(input)?;
+            generator.element(ir)?.unify(IrType::nil())?;
+            let eval = parse_ir(evaluation)?;
+            let typ = IrType::from_element(&parse_ir(typ)?)?;
+            assert_eq!(typ, generator.element(eval)?);
+        }
+
+        Ok(())
+    }
+}
