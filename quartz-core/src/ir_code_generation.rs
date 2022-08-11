@@ -428,7 +428,7 @@ impl<'s> IrGenerator<'s> {
         generator.function(&function.body)?;
 
         Ok(IrElement::d_func(
-            &function.name,
+            &function.name.data,
             arg_types_in_ir,
             Box::new(return_type),
             generator.ir,
@@ -446,7 +446,7 @@ impl<'s> IrGenerator<'s> {
             args.insert(name.clone(), arg_index - 1);
             arg_types_in_ir.push(
                 self.ir_type(typ)
-                    .context(format!("at method: {:?}::{}", typ, function.name))?,
+                    .context(format!("at method: {:?}::{}", typ, function.name.data))?,
             );
         }
 
@@ -461,7 +461,7 @@ impl<'s> IrGenerator<'s> {
 
         // FIXME: method block for ITable
         Ok(IrElement::d_func(
-            format!("{}_{}", typ.method_selector_name()?, function.name),
+            format!("{}_{}", typ.method_selector_name()?, function.name.data),
             arg_types_in_ir,
             Box::new(return_type),
             generator.ir,
@@ -493,7 +493,10 @@ impl<'s> IrGenerator<'s> {
                         continue;
                     }
 
-                    elements.push(self.function(&f).context(format!("function {}", f.name))?);
+                    elements.push(
+                        self.function(&f)
+                            .context(format!("function {}", f.name.data))?,
+                    );
                 }
                 Declaration::Method(typ, f) => {
                     // skip if this function is not used
@@ -501,7 +504,10 @@ impl<'s> IrGenerator<'s> {
                         continue;
                     }
 
-                    elements.push(self.method(typ, f).context(format!("method {}", f.name))?);
+                    elements.push(
+                        self.method(typ, f)
+                            .context(format!("method {}", f.name.data))?,
+                    );
                 }
                 Declaration::Variable(v, expr, t) => {
                     elements.push(

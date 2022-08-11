@@ -555,9 +555,9 @@ impl<'s> TypeChecker<'s> {
                     .context(self.error_context(e.start, e.end, "address"))?;
             }
             Expr::Make(t, args) => match t {
-                Type::SizedArray(_, _) => {
+                Type::SizedArray(arr, _) => {
                     assert_eq!(args.len(), 1);
-                    self.expr(&mut args[0], &mut Type::Int)?;
+                    self.expr(&mut args[0], arr)?;
                     self.unify(t, typ)
                         .context(self.error_context(expr.start, expr.end, "make"))?;
                 }
@@ -637,7 +637,9 @@ impl<'s> TypeChecker<'s> {
             Statement::Continue => {}
             Statement::Assignment(t, lhs, rhs) => {
                 self.expr(lhs, t)?;
-                self.expr(rhs, t)?;
+
+                let mut current = self.next_infer();
+                self.expr_coerce(rhs, &mut current, &t)?;
             }
             Statement::While(cond, body) => {
                 self.expr(cond, &mut Type::Bool)?;
@@ -709,7 +711,7 @@ impl<'s> TypeChecker<'s> {
                     self.normalize_type(&mut func.return_type);
 
                     self.function_types.insert(
-                        func.name.clone(),
+                        func.name.data.clone(),
                         (arg_types.clone(), func.return_type.clone()),
                     );
                 }
@@ -732,10 +734,16 @@ impl<'s> TypeChecker<'s> {
                     }
                     self.normalize_type(&mut func.return_type);
 
-                    self.method_types.insert(
-                        (typ.method_selector_name()?, func.name.clone()),
-                        (arg_types.clone(), func.return_type.clone()),
-                    );
+                    let key = (typ.method_selector_name()?, func.name.data.clone());
+                    if self.method_types.contains_key(&key) {
+                        bail!(
+                            "Method {} already defined, {}",
+                            func.name.data,
+                            self.error_context(func.name.start, func.name.end, "function")
+                        );
+                    }
+                    self.method_types
+                        .insert(key, (arg_types.clone(), func.return_type.clone()));
                 }
                 _ => {}
             }
@@ -762,7 +770,8 @@ impl<'s> TypeChecker<'s> {
                     self.function_statements(&mut func.body, &mut func.return_type)?;
                     self.variables = variables;
 
-                    self.function_types.get_mut(&func.name).unwrap().1 = func.return_type.clone();
+                    self.function_types.get_mut(&func.name.data).unwrap().1 =
+                        func.return_type.clone();
                 }
                 Declaration::Method(typ, func) => {
                     let variables = self.variables.clone();
@@ -786,7 +795,7 @@ impl<'s> TypeChecker<'s> {
                     self.variables = variables;
 
                     self.method_types
-                        .get_mut(&(typ.method_selector_name()?, func.name.clone()))
+                        .get_mut(&(typ.method_selector_name()?, func.name.data.clone()))
                         .unwrap()
                         .1 = func.return_type.clone();
                 }

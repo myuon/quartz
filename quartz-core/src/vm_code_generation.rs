@@ -979,7 +979,6 @@ impl VmGenerator {
         &mut self,
         element: IrElement,
     ) -> Result<(Vec<QVMInstruction>, HashMap<usize, String>)> {
-        println!("{}", element.show());
         let mut code = vec![];
         let mut labels = HashMap::new();
 
@@ -1066,16 +1065,18 @@ impl VmGenerator {
 
         for (name, body) in functions {
             let (args, ret) = self.function_types.get(&name).unwrap().as_func().unwrap();
-            labels.insert(name, code.len());
+            labels.insert(name.clone(), code.len());
 
-            let (code_generated, source_map_generated) = self.function(
-                body,
-                args,
-                &mut labels,
-                code.len(),
-                &string_pointers,
-                ret.as_ref().clone(),
-            )?;
+            let (code_generated, source_map_generated) = self
+                .function(
+                    body,
+                    args,
+                    &mut labels,
+                    code.len(),
+                    &string_pointers,
+                    ret.as_ref().clone(),
+                )
+                .context(format!("[function] {}", name))?;
             code.extend(code_generated);
             source_map.extend(source_map_generated);
         }
