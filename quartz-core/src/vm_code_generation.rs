@@ -460,7 +460,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.expected_type
                             .clone()
                             .unify(typ)
-                            .context(format!("{}", element.show()))?;
+                            .context(format!("[return] {}", element.show()))?;
 
                         Ok(IrType::unknown())
                     }
@@ -758,7 +758,7 @@ impl<'s> VmFunctionGenerator<'s> {
 
                         Ok(inner_addr_typ
                             .offset(offset)
-                            .context(format!("{}", element.show()))?)
+                            .context(format!("[offset] {}", element.show()))?)
                     }
                     "addr_offset" => {
                         self.new_source_map(element.show_compact());
@@ -806,7 +806,7 @@ impl<'s> VmFunctionGenerator<'s> {
 
                         self.element(offset.clone())?
                             .unify(IrType::int())
-                            .context(format!("{}", offset.show()))?;
+                            .context(format!("[addr_index] {}", offset.show()))?;
                         self.writer.push(QVMInstruction::I32Const(1));
                         self.writer.push(QVMInstruction::Add);
                         self.writer.push(QVMInstruction::PAdd);

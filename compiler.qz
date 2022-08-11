@@ -419,10 +419,26 @@ method IrParser term(self): IrTerm {
             };
         };
 
-        return (_panic as any) as IrTerm;
+        _panic;
+        return IrTerm {
+            type: "",
+            value_bool: nil,
+            value_int: nil,
+            value_ident: nil,
+            value_argument: nil,
+            value_info: nil,
+        };
     };
 
-    return (_panic as any) as IrTerm;
+    _panic;
+    return IrTerm {
+        type: "",
+        value_bool: nil,
+        value_int: nil,
+        value_ident: nil,
+        value_argument: nil,
+        value_info: nil,
+    };
 }
 
 method IrParser element(self): IrElement? {

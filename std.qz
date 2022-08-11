@@ -1,5 +1,5 @@
 method bool to_string(self): string {
-    if (self == true) {
+    if self {
         return "true";
     } else {
         return "false";

@@ -33,10 +33,10 @@ impl Constraints {
     fn unify(t1: &Type, t2: &Type) -> Result<Constraints> {
         match (t1, t2) {
             (t1, t2) if t1 == t2 => Ok(Constraints::new()),
-            (Type::Any, _) => Ok(Constraints::new()),
-            (_, Type::Any) => Ok(Constraints::new()),
             (Type::Infer(u), t) => Ok(Constraints::singleton(*u, t.clone())),
             (t, Type::Infer(u)) => Ok(Constraints::singleton(*u, t.clone())),
+            (Type::Any, _) => Ok(Constraints::new()),
+            (_, Type::Any) => Ok(Constraints::new()),
             (Type::Ref(s), Type::Ref(t)) => Ok(Constraints::unify(&s, &t)?),
             (Type::Fn(args1, ret1), Type::Fn(args2, ret2)) => {
                 if args1.len() != args2.len() {
@@ -545,8 +545,7 @@ impl<'s> TypeChecker<'s> {
                 .context(self.error_context(d.start, d.end, "deref"))?;
             }
             Expr::As(e, current_type, t) => {
-                self.expr(e, current_type)?;
-                self.transform(e, current_type, &t)?;
+                self.expr_coerce(e, current_type, t)?;
                 self.unify(t, typ)
                     .context(self.error_context(e.start, e.end, "as"))?;
             }
@@ -630,7 +629,8 @@ impl<'s> TypeChecker<'s> {
                 ))?;
             }
             Statement::If(cond, then_statements, else_statements) => {
-                self.expr(cond.as_mut(), &mut Type::Bool)?;
+                let mut cond_typ = self.next_infer();
+                self.expr_coerce(cond.as_mut(), &mut cond_typ, &Type::Bool)?;
                 self.statements(then_statements, return_type)?;
                 self.statements(else_statements, return_type)?;
             }
