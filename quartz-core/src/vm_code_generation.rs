@@ -248,7 +248,10 @@ impl<'s> VmFunctionGenerator<'s> {
                 QVMInstruction::RuntimeInstr("_debug".to_string()),
                 IrType::nil(),
             ),
-            "_byte_to_int" => (QVMInstruction::Nop, IrType::nil()),
+            "_byte_to_int" => (
+                QVMInstruction::Nop,
+                IrType::func(vec![IrType::byte()], IrType::int()),
+            ),
             "_start_debugger" => (
                 QVMInstruction::RuntimeInstr("_start_debugger".to_string()),
                 IrType::nil(),

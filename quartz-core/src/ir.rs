@@ -64,14 +64,14 @@ impl IrElement {
     pub fn into_term(self) -> Result<IrTerm> {
         match self {
             IrElement::Term(t) => Ok(t),
-            _ => bail!("Expected a term, but found {:?}", self),
+            _ => bail!("Expected a term, but found {}", self.show()),
         }
     }
 
     pub fn into_block(self) -> Result<IrBlock> {
         match self {
             IrElement::Block(b) => Ok(b),
-            _ => bail!("Expected a block, but found {:?}", self),
+            _ => bail!("Expected a block, but found {}", self.show()),
         }
     }
 
@@ -319,6 +319,8 @@ impl IrSingleType {
             }
             // nil can be an address
             (IrSingleType::Nil, IrSingleType::Address(t)) => Ok(IrSingleType::Address(t)),
+            // nil can be a byte
+            (IrSingleType::Nil, IrSingleType::Byte) => Ok(IrSingleType::Byte),
             // byte can be an address
             (IrSingleType::Byte, IrSingleType::Address(t)) => Ok(IrSingleType::Address(t)),
             (s, t) => {
