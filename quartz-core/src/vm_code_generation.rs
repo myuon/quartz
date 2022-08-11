@@ -845,8 +845,9 @@ impl<'s> VmFunctionGenerator<'s> {
                             vec![IrElement::int(typ.size_of() as i32), len],
                         ))?;
                         self.writer.push(QVMInstruction::Alloc);
+                        self.local_pointer += 1;
 
-                        Ok(IrType::addr_of(typ))
+                        Ok(IrType::addr_of(IrType::addr_of(typ)))
                     }
                     name => todo!("{:?}", name),
                 }

@@ -676,8 +676,10 @@ impl Runtime {
                 }
             }
             QVMInstruction::Alloc => {
-                let size = self.pop();
-                let addr = self.heap.alloc(size.as_int().unwrap() as usize)?;
+                let size = self.pop().as_int().unwrap() as usize + 1;
+                let addr = self.heap.alloc(size)?;
+                self.heap.data[addr] = Value::Int(size as i32, ValueIntFlag::Len);
+
                 self.push(Value::addr(addr, AddrPlace::Heap));
             }
             QVMInstruction::Free(addr) => {
