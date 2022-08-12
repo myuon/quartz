@@ -369,7 +369,7 @@ impl<'s> VmFunctionGenerator<'s> {
                     self.writer.push(QVMInstruction::Add);
                     self.writer.push(QVMInstruction::PAdd);
 
-                    let elem_typ = typ.as_addr().unwrap().as_element_sized().unwrap();
+                    let elem_typ = typ.as_addr().unwrap().as_array_element().unwrap();
 
                     Ok(IrType::addr_of(elem_typ))
                 }
@@ -799,7 +799,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.writer.push(QVMInstruction::Add);
                         self.writer.push(QVMInstruction::PAdd);
 
-                        let elem_typ = typ.as_addr().unwrap().as_element_sized().unwrap();
+                        let elem_typ = typ.as_addr().unwrap().as_array_element().unwrap();
 
                         self.writer.push(QVMInstruction::Load(elem_typ.size_of()));
 
@@ -818,7 +818,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.writer.push(QVMInstruction::Add);
                         self.writer.push(QVMInstruction::PAdd);
 
-                        let elem_typ = typ.as_addr().unwrap().as_element_sized().clone().unwrap();
+                        let elem_typ = typ.as_addr().unwrap().as_array_element().clone().unwrap();
 
                         self.writer.push(QVMInstruction::Load(elem_typ.size_of()));
 
@@ -1199,11 +1199,11 @@ mod tests {
                 r#"
 (seq
     (let $x (alloc $int 10))
-    (assign (addr_index $x 4) 20)
+    (assign (index $x 4) 20)
 )
 "#,
                 "$x",
-                "(address (array $int))",
+                "(array $int)",
             ),
         ];
 

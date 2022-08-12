@@ -553,11 +553,10 @@ impl IrType {
         }
     }
 
-    pub fn as_element_sized(&self) -> Option<IrType> {
+    pub fn as_array_element(&self) -> Option<IrType> {
         match self {
+            IrType::Single(IrSingleType::BoxedArray(t)) => Some(t.as_ref().clone()),
             IrType::Slice(_, t) => Some(t.as_ref().clone()),
-            // *T can be used as a slice
-            IrType::Single(IrSingleType::Address(t)) => Some(t.as_ref().clone()),
             _ => None,
         }
     }
