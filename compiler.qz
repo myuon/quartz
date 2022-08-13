@@ -300,10 +300,10 @@ struct IrElement {
 
 method IrElement to_string(self): string {
     if (self.type.eq("BLOCK")) {
-        return "(".concat(self.block!.name).concat(")");
+        let block = self.block!;
+        return "(".concat(block.name).concat(")");
     };
     if (self.type.eq("TERM")) {
-        // FIXME: (self.term as IrTerm).to_string()
         return self.term!.to_string();
     };
 

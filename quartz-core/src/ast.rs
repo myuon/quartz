@@ -73,7 +73,7 @@ pub enum Expr {
     Call(CallMode, Box<Source<Expr>>, Vec<Source<Expr>>),
     Struct(String, Vec<(String, Source<Expr>, Type)>),
     Project(
-        bool, // is_method
+        bool, // is_method (be decided in typecheck phase)
         Type,
         Box<Source<Expr>>,
         String,
@@ -84,6 +84,120 @@ pub enum Expr {
     Address(Box<Source<Expr>>, Type), // [compiler only] take the address of expr (same as ref, but no heap allocation)
     Optional(OptionalMode, Type, Box<Source<Expr>>),
     Unwrap(Box<Source<Expr>>, Type),
+}
+
+impl Expr {
+    pub fn function_call(callee: Source<Expr>, args: Vec<Source<Expr>>) -> Expr {
+        Expr::Call(CallMode::Function, Box::new(callee), args)
+    }
+
+    pub fn member(proj: Source<Expr>, field: impl Into<String>) -> Expr {
+        Expr::Project(false, Type::Infer(0), Box::new(proj), field.into())
+    }
+
+    pub fn unwrap(expr: Source<Expr>) -> Expr {
+        Expr::Unwrap(Box::new(expr), Type::Infer(0))
+    }
+
+    pub fn require_same_structure(&self, other: &Expr) -> Result<()> {
+        use Expr::*;
+
+        match (self, other) {
+            (Var(x), Var(y)) => {
+                if x != y {
+                    bail!("[var] {:?} vs {:?}", x, y);
+                }
+            }
+            (Method(t, x), Method(s, y)) => {
+                if t != s {
+                    bail!("[method] {:?} vs {:?}", t, s);
+                }
+                if x != y {
+                    bail!("[method] {:?} vs {:?}", x, y);
+                }
+            }
+            (Make(t, x), Make(s, y)) => {
+                if t != s {
+                    bail!("[make] {:?} vs {:?}", t, s);
+                }
+                if x.len() != y.len() {
+                    bail!("[make] {:?} vs {:?}", x, y);
+                }
+                for (a, b) in x.iter().zip(y.iter()) {
+                    a.data.require_same_structure(&b.data)?;
+                }
+            }
+            (Lit(t, _x), Lit(s, _y)) => {
+                if t != s {
+                    bail!("[lit] {:?} vs {:?}", t, s);
+                }
+            }
+            (Call(t, x, y), Call(s, a, b)) => {
+                if t != s {
+                    bail!("[call] {:?} vs {:?}", t, s);
+                }
+                x.data.require_same_structure(&a.data)?;
+                if y.len() != b.len() {
+                    bail!("[call] {:?} vs {:?}", a, b);
+                }
+                for (a, b) in y.iter().zip(b.iter()) {
+                    a.data.require_same_structure(&b.data)?;
+                }
+            }
+            (Struct(t, x), Struct(s, y)) => {
+                if t != s {
+                    bail!("[struct] {:?} vs {:?}", t, s);
+                }
+                if x.len() != y.len() {
+                    bail!("[struct] {:?} vs {:?}", x, y);
+                }
+                for (a, b) in x.iter().zip(y.iter()) {
+                    if a.0 != b.0 {
+                        bail!("[struct] {:?} vs {:?}", a.0, b.0);
+                    }
+                    a.1.data.require_same_structure(&b.1.data)?;
+                }
+            }
+            (Project(t, _, x, y), Project(s, _, a, b)) => {
+                if t != s {
+                    bail!("[project] {:?} vs {:?}", t, s);
+                }
+                x.data.require_same_structure(&a.data)?;
+                if y != b {
+                    bail!("[project] {:?} vs {:?}", y, b);
+                }
+            }
+            (Deref(x, _), Deref(a, _)) => {
+                x.data.require_same_structure(&a.data)?;
+            }
+            (As(x, _, t), As(a, _, s)) => {
+                x.data.require_same_structure(&a.data)?;
+                if t != s {
+                    bail!("[as] {:?} vs {:?}", t, s);
+                }
+            }
+            (Ref(x, _), Ref(a, _)) => {
+                x.data.require_same_structure(&a.data)?;
+            }
+            (Address(x, _), Address(a, _)) => {
+                x.data.require_same_structure(&a.data)?;
+            }
+            (Optional(t, _, x), Optional(s, _, a)) => {
+                if t != s {
+                    bail!("[optional] {:?} vs {:?}", t, s);
+                }
+                x.data.require_same_structure(&a.data)?;
+            }
+            (Unwrap(x, _), Unwrap(a, _)) => {
+                x.data.require_same_structure(&a.data)?;
+            }
+            (x, y) => {
+                bail!("[expr] {:?} vs {:?}", x, y);
+            }
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(PartialEq, Debug, Clone)]

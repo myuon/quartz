@@ -38,7 +38,11 @@ impl Parser {
 
     fn parse_error(&self, expected: &str, got: &str) -> anyhow::Error {
         anyhow::anyhow!(CompileError::ParseError {
-            position: self.input[self.position].position,
+            position: if self.position >= self.input.len() {
+                self.input.len() - 1
+            } else {
+                self.input[self.position].position
+            },
             source: anyhow::anyhow!("Expected {} but {}", expected, got),
         })
     }
@@ -666,6 +670,13 @@ impl Parser {
         self.many_statements()
     }
 
+    pub fn run_parser_expr(&mut self, tokens: Vec<Token>) -> Result<Expr> {
+        self.position = 0;
+        self.input = tokens;
+
+        self.expr()
+    }
+
     pub fn is_end(&self) -> bool {
         self.input.len() == self.position
     }
@@ -689,6 +700,17 @@ pub fn run_parser(input: &str) -> Result<Module> {
 fn run_parser_statements_from_tokens(tokens: Vec<Token>) -> Result<Vec<Source<Statement>>> {
     let mut parser = Parser::new();
     let result = parser.run_parser_statements(tokens)?;
+
+    if !parser.is_end() {
+        bail!("Unexpected token: {:?}", &parser.input[parser.position..]);
+    }
+
+    Ok(result)
+}
+
+pub fn run_parser_expr(input: &str) -> Result<Expr> {
+    let mut parser = Parser::new();
+    let result = parser.run_parser_expr(run_lexer(input))?;
 
     if !parser.is_end() {
         bail!("Unexpected token: {:?}", &parser.input[parser.position..]);
@@ -731,6 +753,52 @@ mod tests {
         for c in cases {
             let result = run_parser_statements(c);
             assert!(matches!(result, Ok(_)), "{} {:?}", c, result);
+        }
+    }
+
+    #[test]
+    fn test_run_parser_expr() {
+        let cases = vec![
+            (
+                "self.field!.f()",
+                Expr::function_call(
+                    Source::unknown(Expr::member(
+                        Source::unknown(Expr::unwrap(Source::unknown(Expr::member(
+                            Source::unknown(Expr::Var(vec!["self".to_string()])),
+                            "field",
+                        )))),
+                        "f",
+                    )),
+                    vec![],
+                ),
+            ),
+            (
+                r#"a.f(self.k!.name).g(b)"#,
+                Expr::function_call(
+                    Source::unknown(Expr::member(
+                        Source::unknown(Expr::function_call(
+                            Source::unknown(Expr::member(
+                                Source::unknown(Expr::Var(vec!["a".to_string()])),
+                                "f",
+                            )),
+                            vec![Source::unknown(Expr::member(
+                                Source::unknown(Expr::unwrap(Source::unknown(Expr::member(
+                                    Source::unknown(Expr::Var(vec!["self".to_string()])),
+                                    "k",
+                                )))),
+                                "name",
+                            ))],
+                        )),
+                        "g",
+                    )),
+                    vec![Source::unknown(Expr::Var(vec!["b".to_string()]))],
+                ),
+            ),
+        ];
+
+        for (c, expr) in cases {
+            let result = run_parser_expr(c).unwrap();
+            expr.require_same_structure(&result).unwrap();
         }
     }
 
