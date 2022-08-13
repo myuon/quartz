@@ -269,7 +269,6 @@ pub enum Type {
 impl Type {
     pub fn unwrap_type(&self) -> Option<&Type> {
         match self {
-            Type::Ref(t) => Some(t.as_ref()),
             Type::Optional(t) => Some(t.as_ref()),
             _ => None,
         }

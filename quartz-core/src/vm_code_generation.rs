@@ -310,13 +310,12 @@ impl<'s> VmFunctionGenerator<'s> {
             },
             IrElement::Block(mut block) => match block.name.as_str() {
                 "call" => Ok(IrType::addr_of(self.element(element)?)),
-                // FIXME: is this true?
                 "deref" => {
                     self.new_source_map(element.show_compact());
 
                     let element = unvec!(block.elements, 1);
                     let typ = self.element(element)?;
-                    Ok(typ.as_addr().unwrap().as_ref().clone())
+                    Ok(IrType::addr_of(typ.as_addr().unwrap().as_ref().clone()))
                 }
                 "offset" => {
                     self.new_source_map(element.show_compact());
@@ -717,10 +716,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.writer
                             .push(QVMInstruction::Load(typ.as_addr().unwrap().size_of()));
 
-                        Ok(typ
-                            .as_addr()
-                            .map(|t| t.as_ref().clone())
-                            .unwrap_or(IrType::unknown()))
+                        Ok(typ.as_addr().unwrap().as_ref().clone())
                     }
                     "coerce" => {
                         self.new_source_map(element.show_compact());

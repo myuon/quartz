@@ -1448,6 +1448,32 @@ func main() {
 "#,
             10,
         ),
+        (
+            r#"
+struct Q {
+    a: int,
+}
+
+struct P {
+    x: Q?,
+}
+
+method P get_x(self): int {
+    return self.x!.a;
+}
+
+func main() {
+    let p = P {
+        x: Q {
+            a: 10,
+        },
+    };
+
+    return p.get_x();
+}
+"#,
+            10,
+        ),
     ];
 
     for (input, result) in cases {
