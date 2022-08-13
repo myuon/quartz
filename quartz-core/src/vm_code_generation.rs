@@ -225,10 +225,7 @@ impl<'s> VmFunctionGenerator<'s> {
             ),
             "_len" => (
                 QVMInstruction::RuntimeInstr("_len".to_string()),
-                IrType::func(
-                    vec![IrType::tuple(vec![IrType::addr_of(IrType::unknown())])],
-                    IrType::int(),
-                ),
+                IrType::func(vec![IrType::addr_of(IrType::unknown())], IrType::int()),
             ),
             "_println" => (
                 QVMInstruction::RuntimeInstr("_println".to_string()),
@@ -698,7 +695,6 @@ impl<'s> VmFunctionGenerator<'s> {
                         let string = unvec!(block.elements, 1);
                         let n = string.into_term()?.into_int()? as usize;
 
-                        self.writer.push(QVMInstruction::InfoConst(2));
                         self.writer.push(QVMInstruction::AddrConst(
                             self.string_pointers[n],
                             Variable::StackAbsolute,
@@ -1206,6 +1202,24 @@ mod tests {
                 "$x",
                 "(address (array $int))",
             ),
+            (
+                r#"
+(seq
+    (let $x (string 0))
+)
+"#,
+                "(addr_index $x 10)",
+                "$byte",
+            ),
+            (
+                r#"
+(seq
+    (let $x (string 0))
+)
+"#,
+                "(call $_len $x)",
+                "$int",
+            ),
         ];
 
         for (input, evaluation, typ) in cases {
@@ -1213,7 +1227,7 @@ mod tests {
             let globals = HashMap::new();
             let mut labels = HashMap::new();
             let functions = HashMap::new();
-            let strings = vec![];
+            let strings = vec![0];
 
             let mut generator = VmFunctionGenerator::new(
                 InstructionWriter {

@@ -137,20 +137,10 @@ impl<'s> IrFunctionGenerator<'s> {
 
                 Ok(IrElement::i_call_raw(elements))
             }
-            Expr::Call(CallMode::Array, f, args) => {
-                // array[T] = tuple[addr[T]]
-                // arr(i)= arr->1->i
-                let fresh = self.var_fresh();
-
-                // make sure that array value is an address
-                let f_value = self.expr(f.as_ref())?;
-                self.ir.push(IrElement::i_let(fresh.clone(), f_value));
-
-                Ok(IrElement::i_addr_index(
-                    IrElement::i_offset(IrElement::ident(fresh), 0),
-                    self.expr(&args[0])?,
-                ))
-            }
+            Expr::Call(CallMode::Array, f, args) => Ok(IrElement::i_addr_index(
+                self.expr(f.as_ref())?,
+                self.expr(&args[0])?,
+            )),
             Expr::Call(CallMode::SizedArray, f, args) => Ok(IrElement::i_index(
                 self.expr(f.as_ref())?,
                 self.expr(&args[0])?,
@@ -246,6 +236,7 @@ impl<'s> IrFunctionGenerator<'s> {
                     Ok(IrElement::i_slice(*len, self.ir_type(arr)?, value))
                 }
                 Type::Array(arr) => {
+                    todo!();
                     if args.len() != 2 {
                         bail!("array constructor takes 2 arguments, found {}", args.len());
                     }
