@@ -94,7 +94,7 @@ pub struct Struct {
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Function {
-    pub name: String,
+    pub name: Source<String>,
     pub args: Vec<(String, Type)>,
     pub return_type: Type,
     pub body: Vec<Source<Statement>>,
@@ -123,9 +123,9 @@ impl Declaration {
             Declaration::Method(typ, func) => Some(format!(
                 "{}::{}",
                 typ.method_selector_name().ok()?,
-                func.name
+                func.name.data
             )),
-            Declaration::Function(func) => Some(func.name.clone()),
+            Declaration::Function(func) => Some(func.name.data.clone()),
             _ => None,
         }
     }

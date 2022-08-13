@@ -1,7 +1,7 @@
 func find_space_pattern(s: substring): int {
     let n = 0;
     while (n < s.len()) {
-        if _not(s.at(n).eq(" ")) {
+        if _not(s.at(n).to_string().eq(" ")) {
             return n;
         };
 
@@ -14,7 +14,7 @@ func find_space_pattern(s: substring): int {
 func find_exact_pattern(s: substring, pattern: string): int {
     let n = 0;
     while (n < pattern.len()) {
-        if _not(s.at(n).eq(pattern.at(n))) {
+        if _not(s.at(n).to_int() == pattern.at(n).to_int()) {
             return n;
         };
 
@@ -27,7 +27,7 @@ func find_exact_pattern(s: substring, pattern: string): int {
 func matches(s: string, pattern: string): bool {
     let n = 0;
     while (n < pattern.len()) {
-        if s.eq(pattern.at(n)) {
+        if s.eq(pattern.at(n).to_string()) {
             return true;
         };
 
@@ -40,7 +40,7 @@ func matches(s: string, pattern: string): bool {
 func find_numbers(s: substring): int {
     let n = 0;
     while (n < s.len()) {
-        if _not(matches(s.at(n), "012456789")) {
+        if _not(matches(s.at(n).to_string(), "012456789")) {
             return n;
         };
 
@@ -51,7 +51,7 @@ func find_numbers(s: substring): int {
 }
 
 func find_identifier(s: substring): int {
-    if _not(s.at(0).eq("$")) {
+    if _not(s.at(0).to_string().eq("$")) {
         return 0;
     };
 
@@ -67,7 +67,7 @@ func find_identifier(s: substring): int {
 func find_variable_letters(s: substring): int {
     let n = 0;
     while (n < s.len()) {
-        if _not(matches(s.at(n), "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_")) {
+        if _not(matches(s.at(n).to_string(), "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_")) {
             return n;
         };
 
@@ -419,10 +419,26 @@ method IrParser term(self): IrTerm {
             };
         };
 
-        return (_panic as any) as IrTerm;
+        _panic;
+        return IrTerm {
+            type: "",
+            value_bool: nil,
+            value_int: nil,
+            value_ident: nil,
+            value_argument: nil,
+            value_info: nil,
+        };
     };
 
-    return (_panic as any) as IrTerm;
+    _panic;
+    return IrTerm {
+        type: "",
+        value_bool: nil,
+        value_int: nil,
+        value_ident: nil,
+        value_argument: nil,
+        value_info: nil,
+    };
 }
 
 method IrParser element(self): IrElement? {

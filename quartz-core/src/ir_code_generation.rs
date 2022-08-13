@@ -137,20 +137,10 @@ impl<'s> IrFunctionGenerator<'s> {
 
                 Ok(IrElement::i_call_raw(elements))
             }
-            Expr::Call(CallMode::Array, f, args) => {
-                // array[T] = tuple[addr[T]]
-                // arr(i)= arr->1->i
-                let fresh = self.var_fresh();
-
-                // make sure that array value is an address
-                let f_value = self.expr(f.as_ref())?;
-                self.ir.push(IrElement::i_let(fresh.clone(), f_value));
-
-                Ok(IrElement::i_addr_index(
-                    IrElement::i_offset(IrElement::ident(fresh), 0),
-                    self.expr(&args[0])?,
-                ))
-            }
+            Expr::Call(CallMode::Array, f, args) => Ok(IrElement::i_addr_index(
+                self.expr(f.as_ref())?,
+                self.expr(&args[0])?,
+            )),
             Expr::Call(CallMode::SizedArray, f, args) => Ok(IrElement::i_index(
                 self.expr(f.as_ref())?,
                 self.expr(&args[0])?,
@@ -253,16 +243,55 @@ impl<'s> IrFunctionGenerator<'s> {
                     let len = self.expr(&args[0])?;
                     let value = self.expr(&args[1])?;
 
+                    /*
+                        (let $array (alloc $type $len))
+                        (let $i 0)
+                        (while (_lt $i $len)
+                            (assign $array->$i $value)
+                            (assign $i (_add $i 1))
+                        )
+                    */
+                    let len_var = self.var_fresh();
+                    self.ir.push(IrElement::i_let(len_var.clone(), len));
+
                     let array = self.var_fresh();
                     self.ir.push(IrElement::i_let(
                         array.clone(),
-                        IrElement::i_slice_raw(len, self.ir_type(arr)?, value),
+                        IrElement::i_alloc(self.ir_type(arr)?, IrElement::ident(len_var.clone())),
                     ));
 
-                    Ok(IrElement::i_tuple(
-                        self.ir_type(t)?,
-                        vec![IrElement::i_address(IrElement::ident(array))],
-                    ))
+                    let i = self.var_fresh();
+                    self.ir.push(IrElement::i_let(i.clone(), IrElement::int(0)));
+                    self.ir.push(IrElement::i_while(
+                        IrElement::i_call(
+                            "_lt",
+                            vec![
+                                IrElement::Term(IrTerm::Ident(i.clone())),
+                                IrElement::ident(len_var),
+                            ],
+                        ),
+                        vec![
+                            IrElement::i_assign(
+                                IrElement::i_addr_index(
+                                    IrElement::Term(IrTerm::Ident(array.clone())),
+                                    IrElement::Term(IrTerm::Ident(i.clone())),
+                                ),
+                                value,
+                            ),
+                            IrElement::i_assign(
+                                IrElement::Term(IrTerm::Ident(i.clone())),
+                                IrElement::i_call(
+                                    "_add",
+                                    vec![
+                                        IrElement::Term(IrTerm::Ident(i.clone())),
+                                        IrElement::int(1),
+                                    ],
+                                ),
+                            ),
+                        ],
+                    ));
+
+                    Ok(IrElement::ident(array))
                 }
                 _ => unreachable!(),
             },
@@ -347,10 +376,7 @@ impl<'s> IrFunctionGenerator<'s> {
                     generator.ir
                 };
 
-                self.ir.push(IrElement::block(
-                    "while",
-                    vec![vcond, IrElement::block("seq", gen)],
-                ));
+                self.ir.push(IrElement::i_while(vcond, gen));
             }
         }
 
@@ -428,7 +454,7 @@ impl<'s> IrGenerator<'s> {
         generator.function(&function.body)?;
 
         Ok(IrElement::d_func(
-            &function.name,
+            &function.name.data,
             arg_types_in_ir,
             Box::new(return_type),
             generator.ir,
@@ -446,7 +472,7 @@ impl<'s> IrGenerator<'s> {
             args.insert(name.clone(), arg_index - 1);
             arg_types_in_ir.push(
                 self.ir_type(typ)
-                    .context(format!("at method: {:?}::{}", typ, function.name))?,
+                    .context(format!("at method: {:?}::{}", typ, function.name.data))?,
             );
         }
 
@@ -461,7 +487,7 @@ impl<'s> IrGenerator<'s> {
 
         // FIXME: method block for ITable
         Ok(IrElement::d_func(
-            format!("{}_{}", typ.method_selector_name()?, function.name),
+            format!("{}_{}", typ.method_selector_name()?, function.name.data),
             arg_types_in_ir,
             Box::new(return_type),
             generator.ir,
@@ -493,7 +519,10 @@ impl<'s> IrGenerator<'s> {
                         continue;
                     }
 
-                    elements.push(self.function(&f).context(format!("function {}", f.name))?);
+                    elements.push(
+                        self.function(&f)
+                            .context(format!("function {}", f.name.data))?,
+                    );
                 }
                 Declaration::Method(typ, f) => {
                     // skip if this function is not used
@@ -501,7 +530,10 @@ impl<'s> IrGenerator<'s> {
                         continue;
                     }
 
-                    elements.push(self.method(typ, f).context(format!("method {}", f.name))?);
+                    elements.push(
+                        self.method(typ, f)
+                            .context(format!("method {}", f.name.data))?,
+                    );
                 }
                 Declaration::Variable(v, expr, t) => {
                     elements.push(
@@ -518,7 +550,7 @@ impl<'s> IrGenerator<'s> {
             .strings
             .iter()
             .map(|t| {
-                let mut bytes = vec![IrElement::int(t.as_bytes().len() as i32)];
+                let mut bytes = vec![IrElement::int(t.as_bytes().len() as i32 + 1)];
                 bytes.extend(
                     t.as_bytes()
                         .iter()
@@ -701,7 +733,7 @@ func main() {
 "#,
                 r#"
 (module
-    (text 3 102 111 111)
+    (text 4 102 111 111)
     (func $main (args) (return $nil)
         (let $s (string 0))
         (return (call $_println $s))

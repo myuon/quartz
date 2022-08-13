@@ -64,14 +64,14 @@ impl IrElement {
     pub fn into_term(self) -> Result<IrTerm> {
         match self {
             IrElement::Term(t) => Ok(t),
-            _ => bail!("Expected a term, but found {:?}", self),
+            _ => bail!("Expected a term, but found {}", self.show()),
         }
     }
 
     pub fn into_block(self) -> Result<IrBlock> {
         match self {
             IrElement::Block(b) => Ok(b),
-            _ => bail!("Expected a block, but found {:?}", self),
+            _ => bail!("Expected a block, but found {}", self.show()),
         }
     }
 
@@ -227,6 +227,14 @@ impl IrElement {
         IrElement::block("return", vec![element])
     }
 
+    pub fn i_alloc(typ: IrType, len: IrElement) -> IrElement {
+        IrElement::block("alloc", vec![typ.to_element(), len])
+    }
+
+    pub fn i_while(cond: IrElement, body: Vec<IrElement>) -> IrElement {
+        IrElement::block("while", vec![cond, IrElement::block("seq", body)])
+    }
+
     pub fn d_var(name: impl Into<String>, typ: IrType, expr: IrElement) -> IrElement {
         IrElement::block(
             "var",
@@ -266,6 +274,7 @@ pub enum IrSingleType {
     Address(Box<IrType>),
     Fn(Vec<IrType>, Box<IrType>),
     Byte,
+    BoxedArray(Box<IrType>), // can be treated as (address T)
 }
 
 impl IrSingleType {
@@ -283,6 +292,7 @@ impl IrSingleType {
                 ],
             ),
             IrSingleType::Byte => IrElement::ident("byte"),
+            IrSingleType::BoxedArray(t) => IrElement::block("array", vec![t.to_element()]),
         }
     }
 
@@ -317,8 +327,15 @@ impl IrSingleType {
 
                 Ok(IrSingleType::Fn(args, Box::new(unified)))
             }
+            (IrSingleType::BoxedArray(t), IrSingleType::BoxedArray(u)) => {
+                let unified = t.unify(u.as_ref().clone())?;
+
+                Ok(IrSingleType::BoxedArray(Box::new(unified)))
+            }
             // nil can be an address
             (IrSingleType::Nil, IrSingleType::Address(t)) => Ok(IrSingleType::Address(t)),
+            // nil can be a byte
+            (IrSingleType::Nil, IrSingleType::Byte) => Ok(IrSingleType::Byte),
             // byte can be an address
             (IrSingleType::Byte, IrSingleType::Address(t)) => Ok(IrSingleType::Address(t)),
             (s, t) => {
@@ -381,15 +398,19 @@ impl IrType {
         IrType::Slice(size, typ)
     }
 
+    pub fn boxed_array(t: IrType) -> IrType {
+        IrType::Single(IrSingleType::BoxedArray(Box::new(t)))
+    }
+
     pub fn from_element(element: &IrElement) -> Result<IrType> {
         Ok(match element {
             IrElement::Term(t) => match t {
                 IrTerm::Ident(ident) => match ident.as_str() {
+                    "unknown" => IrType::unknown(),
                     "nil" => IrType::nil(),
                     "bool" => IrType::bool(),
                     "int" => IrType::int(),
                     "byte" => IrType::byte(),
-                    "unknown" => IrType::unknown(),
                     _ => unreachable!("{:?}", t),
                 },
                 t => unreachable!("{:?}", t),
@@ -407,6 +428,7 @@ impl IrType {
                     Box::new(IrType::from_element(&block.elements[1])?),
                 ),
                 "address" => IrType::addr_of(IrType::from_element(&block.elements[0])?),
+                "array" => IrType::boxed_array(IrType::from_element(&block.elements[0])?),
                 t => unreachable!("{:?}", t),
             },
         })
@@ -448,19 +470,16 @@ impl IrType {
                 IrType::tuple(types)
             }
             Type::Ref(t) => IrType::addr_of(IrType::from_type_ast_traced(t, structs, trace)?),
-            Type::Array(t) => {
-                // array[T] = (tuple (array[T]) (address (slice _ T)))
-                // but slice is unsized, so we use *T instead
-                IrType::tuple(vec![IrType::addr_of(IrType::addr_of(
-                    IrType::from_type_ast_traced(t, structs, trace)?,
-                ))])
-            }
+            Type::Array(t) => IrType::addr_of(IrType::boxed_array(IrType::from_type_ast_traced(
+                t, structs, trace,
+            )?)),
             Type::SizedArray(t, u) => IrType::slice(
                 *u,
                 Box::new(IrType::from_type_ast_traced(t.as_ref(), structs, trace)?),
             ),
             Type::Optional(t) => IrType::addr_of(IrType::from_type_ast_traced(t, structs, trace)?),
             Type::Self_ => todo!(),
+            Type::Any => IrType::byte(),
             t => bail!("Unsupported type: {:?}", t),
         })
     }
@@ -530,11 +549,10 @@ impl IrType {
         }
     }
 
-    pub fn as_element_sized(&self) -> Option<IrType> {
+    pub fn as_array_element(&self) -> Option<IrType> {
         match self {
+            IrType::Single(IrSingleType::BoxedArray(t)) => Some(t.as_ref().clone()),
             IrType::Slice(_, t) => Some(t.as_ref().clone()),
-            // *T can be used as a slice
-            IrType::Single(IrSingleType::Address(t)) => Some(t.as_ref().clone()),
             _ => None,
         }
     }

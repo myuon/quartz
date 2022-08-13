@@ -1,9 +1,20 @@
 method bool to_string(self): string {
-    if (self == true) {
+    if self {
         return "true";
     } else {
         return "false";
     };
+}
+
+method byte to_int(self): int {
+    return _byte_to_int(self);
+}
+
+method byte to_string(self): string {
+    let buffer = make[array[byte]](1, nil as byte);
+    buffer(0) = self;
+
+    return string::from_bytes(buffer);
 }
 
 method int to_string(self): string {
@@ -119,8 +130,8 @@ method substring len(self): int {
     return self.end - self.start;
 }
 
-method substring at(self, n: int): string {
-    return self.str.slice(self.start + n, self.start + n + 1).to_string();
+method substring at(self, n: int): byte {
+    return self.str.at(self.start + n);
 }
 
 method substring slice(self, start: int, end: int): substring {
@@ -140,15 +151,11 @@ method substring slice_after(self, start: int): substring {
     return self.slice(start, self.len());
 }
 
-method string at(self, p: int): string {
-    return self.slice(p, p+1).to_string();
-}
-
-method string char_to_digit(self): int {
+method byte char_to_digit(self): int {
     let digits = "0123456789";
     let n = 0;
     while (n < digits.len()) {
-        if (self.at(0).eq(digits.at(n))) {
+        if (self.to_int() == digits.at(n).to_int()) {
             return n;
         };
 
@@ -184,7 +191,7 @@ method substring parse_int(self): int {
 method substring starts_with(self, prefix: string): bool {
     let n = 0;
     while (n < prefix.len()) {
-        if _not(self.at(n).eq(prefix.at(n))) {
+        if _not(self.at(n).to_int() == prefix.at(n).to_int()) {
             return false;
         };
 
@@ -236,6 +243,15 @@ func assert_eq(a: string, b: string) {
         return nil;
     } else {
         _println("Assertion failed: ".concat(a).concat(" != ").concat(b));
+        _panic;
+    };
+}
+
+func assert_eq_int(a: int, b: int) {
+    if (a == b) {
+        return nil;
+    } else {
+        _println("Assertion failed: ".concat(show_int(a)).concat(" != ").concat(show_int(b)));
         _panic;
     };
 }

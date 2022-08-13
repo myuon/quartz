@@ -6,7 +6,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use log::{error, info};
-use quartz_core::{compiler::Compiler, vm::QVMSource};
+use quartz_core::{compiler::Compiler, ir::IrElement, vm::QVMSource};
 use runtime::Runtime;
 use std::{
     env,
@@ -38,6 +38,8 @@ enum Command {
     Run {
         #[clap(long, short)]
         profile: bool,
+        #[clap(long, value_parser, value_name = "FILE")]
+        qirv_output: Option<PathBuf>,
     },
     #[clap(name = "test", about = "Run a Quartz test program")]
     Test,
@@ -86,7 +88,10 @@ fn main() -> Result<()> {
 
     let cli = Cli::parse();
     match cli.command {
-        Command::Run { profile } => {
+        Command::Run {
+            profile,
+            qirv_output,
+        } => {
             let entrypoint = env::var("ENTRYPOINT").ok().unwrap_or("main".to_string());
 
             let mut buffer = String::new();
@@ -94,7 +99,17 @@ fn main() -> Result<()> {
             stdin.read_to_string(&mut buffer).unwrap();
 
             let mut compiler = Compiler::new();
-            let code = compiler.compile(&buffer, entrypoint)?;
+            let compiled_result = compiler.compile(&buffer, entrypoint);
+            let ir = compiler
+                .ir_result
+                .clone()
+                .unwrap_or(IrElement::nil())
+                .show();
+
+            let mut file = File::create(qirv_output.unwrap_or("./build/out.qirv".into())).unwrap();
+            file.write_all(ir.as_bytes()).unwrap();
+
+            let code = compiled_result?;
 
             if profile {
                 let guard = pprof::ProfilerGuardBuilder::default()

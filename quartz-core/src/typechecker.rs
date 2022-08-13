@@ -33,10 +33,10 @@ impl Constraints {
     fn unify(t1: &Type, t2: &Type) -> Result<Constraints> {
         match (t1, t2) {
             (t1, t2) if t1 == t2 => Ok(Constraints::new()),
-            (Type::Any, _) => Ok(Constraints::new()),
-            (_, Type::Any) => Ok(Constraints::new()),
             (Type::Infer(u), t) => Ok(Constraints::singleton(*u, t.clone())),
             (t, Type::Infer(u)) => Ok(Constraints::singleton(*u, t.clone())),
+            (Type::Any, _) => Ok(Constraints::new()),
+            (_, Type::Any) => Ok(Constraints::new()),
             (Type::Ref(s), Type::Ref(t)) => Ok(Constraints::unify(&s, &t)?),
             (Type::Fn(args1, ret1), Type::Fn(args2, ret2)) => {
                 if args1.len() != args2.len() {
@@ -545,8 +545,7 @@ impl<'s> TypeChecker<'s> {
                 .context(self.error_context(d.start, d.end, "deref"))?;
             }
             Expr::As(e, current_type, t) => {
-                self.expr(e, current_type)?;
-                self.transform(e, current_type, &t)?;
+                self.expr_coerce(e, current_type, t)?;
                 self.unify(t, typ)
                     .context(self.error_context(e.start, e.end, "as"))?;
             }
@@ -556,9 +555,9 @@ impl<'s> TypeChecker<'s> {
                     .context(self.error_context(e.start, e.end, "address"))?;
             }
             Expr::Make(t, args) => match t {
-                Type::SizedArray(_, _) => {
+                Type::SizedArray(arr, _) => {
                     assert_eq!(args.len(), 1);
-                    self.expr(&mut args[0], &mut Type::Int)?;
+                    self.expr(&mut args[0], arr)?;
                     self.unify(t, typ)
                         .context(self.error_context(expr.start, expr.end, "make"))?;
                 }
@@ -630,14 +629,17 @@ impl<'s> TypeChecker<'s> {
                 ))?;
             }
             Statement::If(cond, then_statements, else_statements) => {
-                self.expr(cond.as_mut(), &mut Type::Bool)?;
+                let mut cond_typ = self.next_infer();
+                self.expr_coerce(cond.as_mut(), &mut cond_typ, &Type::Bool)?;
                 self.statements(then_statements, return_type)?;
                 self.statements(else_statements, return_type)?;
             }
             Statement::Continue => {}
             Statement::Assignment(t, lhs, rhs) => {
                 self.expr(lhs, t)?;
-                self.expr(rhs, t)?;
+
+                let mut current = self.next_infer();
+                self.expr_coerce(rhs, &mut current, &t)?;
             }
             Statement::While(cond, body) => {
                 self.expr(cond, &mut Type::Bool)?;
@@ -709,7 +711,7 @@ impl<'s> TypeChecker<'s> {
                     self.normalize_type(&mut func.return_type);
 
                     self.function_types.insert(
-                        func.name.clone(),
+                        func.name.data.clone(),
                         (arg_types.clone(), func.return_type.clone()),
                     );
                 }
@@ -732,10 +734,16 @@ impl<'s> TypeChecker<'s> {
                     }
                     self.normalize_type(&mut func.return_type);
 
-                    self.method_types.insert(
-                        (typ.method_selector_name()?, func.name.clone()),
-                        (arg_types.clone(), func.return_type.clone()),
-                    );
+                    let key = (typ.method_selector_name()?, func.name.data.clone());
+                    if self.method_types.contains_key(&key) {
+                        bail!(
+                            "Method {} already defined, {}",
+                            func.name.data,
+                            self.error_context(func.name.start, func.name.end, "function")
+                        );
+                    }
+                    self.method_types
+                        .insert(key, (arg_types.clone(), func.return_type.clone()));
                 }
                 _ => {}
             }
@@ -762,7 +770,8 @@ impl<'s> TypeChecker<'s> {
                     self.function_statements(&mut func.body, &mut func.return_type)?;
                     self.variables = variables;
 
-                    self.function_types.get_mut(&func.name).unwrap().1 = func.return_type.clone();
+                    self.function_types.get_mut(&func.name.data).unwrap().1 =
+                        func.return_type.clone();
                 }
                 Declaration::Method(typ, func) => {
                     let variables = self.variables.clone();
@@ -786,7 +795,7 @@ impl<'s> TypeChecker<'s> {
                     self.variables = variables;
 
                     self.method_types
-                        .get_mut(&(typ.method_selector_name()?, func.name.clone()))
+                        .get_mut(&(typ.method_selector_name()?, func.name.data.clone()))
                         .unwrap()
                         .1 = func.return_type.clone();
                 }

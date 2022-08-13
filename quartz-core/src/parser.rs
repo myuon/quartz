@@ -82,7 +82,7 @@ impl Parser {
             is_ref = true;
         }
 
-        let ident = self.ident()?;
+        let ident = self.ident()?.data;
         let mut result = match ident.as_str() {
             "int" => Type::Int,
             "bool" => Type::Bool,
@@ -122,17 +122,27 @@ impl Parser {
         Ok(result)
     }
 
-    fn ident(&mut self) -> Result<String> {
-        match &self.input[self.position].lexeme {
+    fn ident(&mut self) -> Result<Source<String>> {
+        let current = &self.input[self.position];
+
+        match &current.lexeme {
             Lexeme::Ident(t) => {
                 self.position += 1;
 
-                Ok(t.to_string())
+                Ok(Source::new(
+                    t.to_string(),
+                    current.position,
+                    current.position + t.len(),
+                ))
             }
             Lexeme::Self_ => {
                 self.position += 1;
 
-                Ok("self".to_string())
+                Ok(Source::new(
+                    "self".to_string(),
+                    current.position,
+                    current.position + 4,
+                ))
             }
             t => Err(self.parse_error("ident", &format!("{:?}", t))),
         }
@@ -141,7 +151,7 @@ impl Parser {
     fn variable(&mut self) -> Result<Expr> {
         let subject = self.type_()?;
         if self.expect_lexeme(Lexeme::DoubleColon).is_ok() {
-            let label = self.ident()?;
+            let label = self.ident()?.data;
             Ok(Expr::Method(subject, label))
         } else {
             Ok(Expr::Var(vec![subject.method_selector_name()?]))
@@ -204,7 +214,7 @@ impl Parser {
         let start = self.position;
 
         if self.expect_lexeme(Lexeme::Let).is_ok() {
-            let x = self.ident()?;
+            let x = self.ident()?.data;
             self.expect_lexeme(Lexeme::Equal)?;
 
             let e_start = self.position;
@@ -297,7 +307,7 @@ impl Parser {
         let mut arguments = vec![];
 
         while self.peek().lexeme != Lexeme::RParen {
-            let name = self.ident()?;
+            let name = self.ident()?.data;
             let mut typ = Type::Infer(0);
 
             if self.expect_lexeme(Lexeme::Colon).is_ok() {
@@ -379,7 +389,7 @@ impl Parser {
             loop {
                 if self.expect_lexeme(Lexeme::Dot).is_ok() {
                     // projection
-                    let i = self.ident()?;
+                    let i = self.ident()?.data;
 
                     result = Expr::Project(
                         false,
@@ -429,7 +439,7 @@ impl Parser {
             }
             expr if self.expect_lexeme(Lexeme::Dot).is_ok() => {
                 // projection
-                let i = self.ident()?;
+                let i = self.ident()?.data;
 
                 Expr::Project(
                     false,
@@ -564,7 +574,7 @@ impl Parser {
         let mut fields = vec![];
 
         while self.peek().lexeme != Lexeme::RBrace {
-            let name = self.ident()?;
+            let name = self.ident()?.data;
             self.expect_lexeme(Lexeme::Colon)?;
             let ty = self.type_()?;
             fields.push((name, ty));
@@ -583,7 +593,7 @@ impl Parser {
         let mut fields = vec![];
 
         while self.peek().lexeme != Lexeme::RBrace {
-            let name = self.ident()?;
+            let name = self.ident()?.data;
             self.expect_lexeme(Lexeme::Colon)?;
             let e_start = self.position;
             let e = self.expr()?;
@@ -605,7 +615,7 @@ impl Parser {
         } else if self.expect_lexeme(Lexeme::Method).is_ok() {
             self.declaration_method()
         } else if self.expect_lexeme(Lexeme::Let).is_ok() {
-            let x = self.ident()?;
+            let x = self.ident()?.data;
             self.expect_lexeme(Lexeme::Equal)?;
             let e_start = self.position;
             let e = self.expr()?;
@@ -617,7 +627,7 @@ impl Parser {
                 Type::Infer(0),
             ))
         } else if self.expect_lexeme(Lexeme::Struct).is_ok() {
-            let name = self.ident()?;
+            let name = self.ident()?.data;
             self.expect_lexeme(Lexeme::LBrace)?;
             let fields = self.many_fields_with_types()?;
             self.expect_lexeme(Lexeme::RBrace)?;

@@ -676,8 +676,10 @@ impl Runtime {
                 }
             }
             QVMInstruction::Alloc => {
-                let size = self.pop();
-                let addr = self.heap.alloc(size.as_int().unwrap() as usize)?;
+                let size = self.pop().as_int().unwrap() as usize + 1;
+                let addr = self.heap.alloc(size)?;
+                self.heap.data[addr] = Value::Int(size as i32, ValueIntFlag::Len);
+
                 self.push(Value::addr(addr, AddrPlace::Heap));
             }
             QVMInstruction::Free(addr) => {
@@ -732,7 +734,7 @@ impl Runtime {
                     let p = self.pop();
                     let size = self.read_bytes_len(p)?;
 
-                    self.push(Value::int(size as i32));
+                    self.push(Value::int(size as i32 - 1));
                 }
                 "_copy" => {
                     let target = self.pop().as_addr().unwrap();
@@ -809,8 +811,8 @@ impl Runtime {
                         self.push(Value::bool(false));
                     }
                 }
-                _ => {
-                    unreachable!();
+                t => {
+                    unreachable!("{}", t);
                 }
             },
             QVMInstruction::BoolConst(b) => {
@@ -1407,6 +1409,45 @@ func main() {
 "#,
             40,
         ),
+        (
+            r#"
+func concat_array(a: array[int], b: array[int]): array[int] {
+    let p = make[array[int]](_len(a) + _len(b), 0);
+    let i = 0;
+    while (i < _len(a)) {
+        p(i) = a(i);
+        i = i + 1;
+    };
+
+    let i = 0;
+    while (i < _len(b)) {
+        p(_len(a) + i) = b(i);
+        i = i + 1;
+    };
+
+    return p;
+}
+
+func main() {
+    let p1 = make[array[int]](5, 0);
+    p1(0) = 1;
+    p1(1) = 2;
+
+    let p2 = make[array[int]](5, 0);
+    p2(0) = 3;
+    p2(1) = 4;
+
+    let p = concat_array(p1, p2);
+    assert_eq_int(p(0), 1);
+    assert_eq_int(p(1), 2);
+    assert_eq_int(p(5), 3);
+    assert_eq_int(p(6), 4);
+
+    return _len(p);
+}
+"#,
+            10,
+        ),
     ];
 
     for (input, result) in cases {
@@ -1459,7 +1500,7 @@ func main() {
         let len = runtime.stack[bytes].clone().as_int().unwrap();
         assert_eq!(
             String::from_utf8(
-                runtime.stack[bytes + 1..bytes + 1 + len as usize]
+                runtime.stack[bytes + 1..bytes + len as usize]
                     .iter()
                     .map(|u| u.clone().as_int().unwrap() as u8)
                     .collect()
