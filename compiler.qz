@@ -321,7 +321,7 @@ method IrParser new(tokens: TokenList): IrParser {
 }
 
 method IrParser is_eof(self): bool {
-    return self.tokens == nil;
+    return _is_nil(self.tokens.next);
 }
 
 method IrParser expect(self, token_type: string): Token {
@@ -334,7 +334,7 @@ method IrParser expect(self, token_type: string): Token {
 }
 
 method IrParser next(self): Token {
-    if (self.tokens.next == nil) {
+    if _is_nil(self.tokens.next) {
         _panic;
         return Token {
             type: "",
