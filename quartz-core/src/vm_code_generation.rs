@@ -386,7 +386,7 @@ impl<'s> VmFunctionGenerator<'s> {
                     self.writer.push(QVMInstruction::Add);
                     self.writer.push(QVMInstruction::PAdd);
 
-                    let elem_typ = typ.as_addr().unwrap().as_ref().clone();
+                    let elem_typ = typ.as_addr().unwrap().as_array_element().unwrap();
 
                     Ok(IrType::addr_of(elem_typ))
                 }
@@ -512,9 +512,10 @@ impl<'s> VmFunctionGenerator<'s> {
                         // NOTE: addr type can be used like anytype, so just skip unification
                         // FIXME: Is this true?
                         if !addr_inner_typ.as_addr().is_ok() {
-                            rhs_type = rhs_type.unify(addr_inner_typ).context(format!(
-                                "[assign:rhs] {}\n{}",
-                                typ.to_element().show(),
+                            rhs_type = rhs_type.clone().unify(addr_inner_typ).context(format!(
+                                "[assign:rhs] want {}, but got {}\n{}",
+                                typ.to_element().show_compact(),
+                                rhs_type.to_element().show_compact(),
                                 element.show()
                             ))?;
                         }
@@ -703,7 +704,7 @@ impl<'s> VmFunctionGenerator<'s> {
                             Variable::StackAbsolute,
                         ));
 
-                        Ok(IrType::tuple(vec![IrType::addr_unknown()]))
+                        Ok(IrType::addr_of(IrType::boxed_array(IrType::byte())))
                     }
                     "deref" => {
                         self.new_source_map(element.show_compact());
@@ -847,7 +848,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.writer.push(QVMInstruction::Alloc);
                         self.local_pointer += 1;
 
-                        Ok(IrType::boxed_array(typ))
+                        Ok(IrType::addr_of(IrType::boxed_array(typ)))
                     }
                     name => todo!("{:?}", name),
                 }
@@ -1199,15 +1200,16 @@ mod tests {
                 r#"
 (seq
     (let $x (alloc $int 10))
-    (assign (index $x 4) 20)
+    (assign (addr_index $x 4) 20)
 )
 "#,
                 "$x",
-                "(array $int)",
+                "(address (array $int))",
             ),
         ];
 
         for (input, evaluation, typ) in cases {
+            println!("{}", input);
             let globals = HashMap::new();
             let mut labels = HashMap::new();
             let functions = HashMap::new();

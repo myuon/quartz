@@ -470,13 +470,9 @@ impl IrType {
                 IrType::tuple(types)
             }
             Type::Ref(t) => IrType::addr_of(IrType::from_type_ast_traced(t, structs, trace)?),
-            Type::Array(t) => {
-                // array[T] = (tuple (array[T]) (address (slice _ T)))
-                // but slice is unsized, so we use *T instead
-                IrType::tuple(vec![IrType::addr_of(IrType::addr_of(
-                    IrType::from_type_ast_traced(t, structs, trace)?,
-                ))])
-            }
+            Type::Array(t) => IrType::addr_of(IrType::boxed_array(IrType::from_type_ast_traced(
+                t, structs, trace,
+            )?)),
             Type::SizedArray(t, u) => IrType::slice(
                 *u,
                 Box::new(IrType::from_type_ast_traced(t.as_ref(), structs, trace)?),
