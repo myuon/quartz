@@ -1500,7 +1500,7 @@ func main() {
         let len = runtime.stack[bytes].clone().as_int().unwrap();
         assert_eq!(
             String::from_utf8(
-                runtime.stack[bytes + 1..bytes + 1 + len as usize]
+                runtime.stack[bytes + 1..bytes + len as usize]
                     .iter()
                     .map(|u| u.clone().as_int().unwrap() as u8)
                     .collect()
