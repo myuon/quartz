@@ -247,6 +247,15 @@ func assert_eq(a: string, b: string) {
     };
 }
 
+func assert_eq_int(a: int, b: int) {
+    if (a == b) {
+        return nil;
+    } else {
+        _println("Assertion failed: ".concat(show_int(a)).concat(" != ").concat(show_int(b)));
+        _panic;
+    };
+}
+
 func test() {
     assert("foo".eq("foo"));
     assert("foo".concat("bar").eq("foobar"));

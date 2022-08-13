@@ -236,7 +236,6 @@ impl<'s> IrFunctionGenerator<'s> {
                     Ok(IrElement::i_slice(*len, self.ir_type(arr)?, value))
                 }
                 Type::Array(arr) => {
-                    todo!();
                     if args.len() != 2 {
                         bail!("array constructor takes 2 arguments, found {}", args.len());
                     }
@@ -292,10 +291,7 @@ impl<'s> IrFunctionGenerator<'s> {
                         ],
                     ));
 
-                    Ok(IrElement::i_tuple(
-                        self.ir_type(t)?,
-                        vec![IrElement::i_address(IrElement::ident(array))],
-                    ))
+                    Ok(IrElement::ident(array))
                 }
                 _ => unreachable!(),
             },
@@ -554,7 +550,7 @@ impl<'s> IrGenerator<'s> {
             .strings
             .iter()
             .map(|t| {
-                let mut bytes = vec![IrElement::int(t.as_bytes().len() as i32)];
+                let mut bytes = vec![IrElement::int(t.as_bytes().len() as i32 + 1)];
                 bytes.extend(
                     t.as_bytes()
                         .iter()
@@ -737,7 +733,7 @@ func main() {
 "#,
                 r#"
 (module
-    (text 3 102 111 111)
+    (text 4 102 111 111)
     (func $main (args) (return $nil)
         (let $s (string 0))
         (return (call $_println $s))

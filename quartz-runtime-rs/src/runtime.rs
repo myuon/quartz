@@ -734,7 +734,7 @@ impl Runtime {
                     let p = self.pop();
                     let size = self.read_bytes_len(p)?;
 
-                    self.push(Value::int(size as i32));
+                    self.push(Value::int(size as i32 - 1));
                 }
                 "_copy" => {
                     let target = self.pop().as_addr().unwrap();
@@ -1415,12 +1415,13 @@ func concat_array(a: array[int], b: array[int]): array[int] {
     let p = make[array[int]](_len(a) + _len(b), 0);
     let i = 0;
     while (i < _len(a)) {
-        if (i < _len(a)) {
-            p(i) = a(i);
-        } else {
-            p(i) = b(i - _len(a));
-        };
+        p(i) = a(i);
+        i = i + 1;
+    };
 
+    let i = 0;
+    while (i < _len(b)) {
+        p(_len(a) + i) = b(i);
         i = i + 1;
     };
 
@@ -1436,10 +1437,16 @@ func main() {
     p2(0) = 3;
     p2(1) = 4;
 
-    return _len(concat_array(p1, p2));
+    let p = concat_array(p1, p2);
+    assert_eq_int(p(0), 1);
+    assert_eq_int(p(1), 2);
+    assert_eq_int(p(5), 3);
+    assert_eq_int(p(6), 4);
+
+    return _len(p);
 }
 "#,
-            40,
+            10,
         ),
     ];
 

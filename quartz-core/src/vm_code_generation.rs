@@ -229,14 +229,19 @@ impl<'s> VmFunctionGenerator<'s> {
             ),
             "_println" => (
                 QVMInstruction::RuntimeInstr("_println".to_string()),
-                IrType::func(vec![IrType::int()], IrType::nil()),
+                IrType::func(
+                    vec![IrType::addr_of(IrType::boxed_array(IrType::byte()))],
+                    IrType::nil(),
+                ),
             ),
             "_copy" => (
                 QVMInstruction::RuntimeInstr("_copy".to_string()),
                 IrType::func(
                     vec![
-                        IrType::addr_of(IrType::unknown()),
-                        IrType::addr_of(IrType::unknown()),
+                        IrType::unknown(),
+                        IrType::unknown(),
+                        IrType::unknown(),
+                        IrType::unknown(),
                     ],
                     IrType::nil(),
                 ),
