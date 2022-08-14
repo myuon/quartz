@@ -673,7 +673,7 @@ impl<'s> VmFunctionGenerator<'s> {
                             );
                         }
 
-                        Ok(IrType::tuple(types))
+                        Ok(typ)
                     }
                     "slice" => {
                         self.new_source_map(IrElement::block("slice", vec![]).show_compact());
