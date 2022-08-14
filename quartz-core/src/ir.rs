@@ -165,19 +165,12 @@ impl IrElement {
         IrElement::block("call", args)
     }
 
-    pub fn i_coerce(actual_size: usize, expected_size: usize, element: IrElement) -> IrElement {
-        IrElement::block(
-            "coerce",
-            vec![
-                IrElement::int(actual_size as i32),
-                IrElement::int(expected_size as i32),
-                element,
-            ],
-        )
-    }
-
     pub fn i_deref(element: IrElement) -> IrElement {
         IrElement::block("deref", vec![element])
+    }
+
+    pub fn i_coerce(element: IrElement, expected_typ: IrType) -> IrElement {
+        IrElement::block("coerce", vec![element, expected_typ.to_element()])
     }
 
     pub fn i_address(element: IrElement) -> IrElement {

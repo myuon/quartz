@@ -192,7 +192,9 @@ impl<'s> IrFunctionGenerator<'s> {
                 Ok(IrElement::Term(IrTerm::Ident(v)))
             }
             Expr::Deref(e, _) => Ok(IrElement::i_deref(self.expr(e)?)),
-            Expr::As(e, _, _) => self.expr(e),
+            Expr::As(e, _, expected) => {
+                Ok(IrElement::i_coerce(self.expr(e)?, self.ir_type(expected)?))
+            }
             Expr::Address(e, _) => {
                 // You cannot just take the address of an immidiate value, so declare as a variable
                 let next = match e.data {

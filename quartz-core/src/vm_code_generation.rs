@@ -82,10 +82,6 @@ impl InstructionWriter {
         self.code.push(instruction);
     }
 
-    pub fn extend(&mut self, instructions: Vec<QVMInstruction>) {
-        self.code.extend(instructions);
-    }
-
     pub fn get_code_address(&self) -> usize {
         self.offset + self.code.len()
     }
@@ -736,19 +732,11 @@ impl<'s> VmFunctionGenerator<'s> {
                     }
                     "coerce" => {
                         self.new_source_map(element.show_compact());
-                        let (actual_size, expected_size, element) = unvec!(block.elements, 3);
-                        let actual_size = actual_size.into_term()?.into_int()? as usize;
-                        let expected_size = expected_size.into_term()?.into_int()? as usize;
+                        let (element, expected) = unvec!(block.elements, 2);
+                        let expected = IrType::from_element(&expected)?;
+                        self.element(element)?.unify(expected.clone())?;
 
-                        let typ = self.element(element)?;
-                        assert_eq!(self.size_of(&typ)?, actual_size);
-                        self.writer.extend(vec![
-                            QVMInstruction::I32Const(expected_size as i32),
-                            QVMInstruction::I32Const(actual_size as i32),
-                            QVMInstruction::RuntimeInstr("_coerce".to_string()),
-                        ]);
-
-                        Ok(typ)
+                        Ok(expected)
                     }
                     "address" => {
                         self.new_source_map(element.show_compact());
