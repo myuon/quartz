@@ -1094,7 +1094,7 @@ impl VmGenerator {
         // call main
         labels.insert(self.entrypoint.to_string(), code.len());
 
-        let (_, ret) = self.function_types["main"].as_func().unwrap();
+        let (_, ret) = self.function_types[&self.entrypoint].as_func().unwrap();
         code.extend(self.call_main(
             &mut labels,
             code.len(),

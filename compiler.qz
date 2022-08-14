@@ -494,10 +494,10 @@ func main() {
 }
 
 func compiler_test() {
-    assert_eq(show_int(find_space_pattern("fooo".to_substring())), show_int(0));
-    assert_eq(show_int(find_space_pattern("    fooo".to_substring())), show_int(4));
-    assert_eq(show_int(find_space_pattern("    ".to_substring())), show_int(4));
+    assert_eq_int(find_space_pattern("fooo".to_substring()), 0);
+    assert_eq_int(find_space_pattern("    fooo".to_substring()), 4);
+    assert_eq_int(find_space_pattern("    ".to_substring()), 4);
 
-    assert_eq(show_int(find_exact_pattern("abcde_fg".to_substring(), "abc")), show_int(3));
-    assert_eq(show_int(find_exact_pattern("kabcd".to_substring(), "abc")), show_int(0));
+    assert_eq_int(find_exact_pattern("abcde_fg".to_substring(), "abc"), 3);
+    assert_eq_int(find_exact_pattern("kabcd".to_substring(), "abc"), 0);
 }

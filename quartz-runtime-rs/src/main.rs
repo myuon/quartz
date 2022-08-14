@@ -161,12 +161,12 @@ fn main() -> Result<()> {
         Command::Test => {
             let entrypoint = env::var("ENTRYPOINT").ok().unwrap_or("test".to_string());
 
+            let mut buffer = String::new();
+            let mut stdin = std::io::stdin();
+            stdin.read_to_string(&mut buffer).unwrap();
+
             let mut compiler = Compiler::new();
-            let code = compiler.compile("", entrypoint)?;
-            info!("{}", compiler.ir_result.unwrap().show());
-            for (n, inst) in code.iter().enumerate() {
-                info!("{:04} {:?}", n, inst);
-            }
+            let code = compiler.compile(&buffer, entrypoint)?;
 
             Runtime::new(code.clone(), compiler.vm_code_generation.globals()).run()?;
         }
