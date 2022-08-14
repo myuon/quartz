@@ -1474,6 +1474,25 @@ func main() {
 "#,
             10,
         ),
+        (
+            r#"
+func int_or(t: int): int? {
+    return t as int?;
+}
+
+func main() {
+    let p = nil as int?;
+    p = int_or(100);
+
+    if _is_nil(p) {
+        return 0;
+    } else {
+        return p!;
+    };
+}
+"#,
+            0,
+        ),
     ];
 
     for (input, result) in cases {
