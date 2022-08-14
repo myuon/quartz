@@ -334,23 +334,17 @@ impl<'s> VmFunctionGenerator<'s> {
                     let (elem, offset_element) = unvec!(block.elements, 2);
                     let offset = offset_element.into_term()?.into_int()? as usize;
                     let typ = self.element_addr(elem)?;
-                    let inner_addr_typ = if typ.is_unknown() {
-                        IrType::unknown()
-                    } else {
-                        typ.as_addr().unwrap().as_ref().clone()
-                    };
+                    let inner_addr_typ = typ.as_addr().unwrap().as_ref().clone();
                     self.writer.push(QVMInstruction::I32Const(
                         inner_addr_typ.clone().offset_in_words(offset, self.types)? as i32,
                     ));
                     self.writer.push(QVMInstruction::PAdd);
 
-                    Ok(IrType::addr_of(if inner_addr_typ.is_unknown() {
-                        IrType::unknown()
-                    } else {
+                    Ok(IrType::addr_of(
                         inner_addr_typ
                             .offset(offset, self.types)
-                            .context(format!("{}", element.show()))?
-                    }))
+                            .context(format!("{}", element.show()))?,
+                    ))
                 }
                 "addr_offset" => {
                     self.new_source_map(element.show_compact());
@@ -562,7 +556,8 @@ impl<'s> VmFunctionGenerator<'s> {
                         // else block
                         self.new_source_map(IrElement::block("if:else", vec![]).show_compact());
                         self.register_label(label_else.clone());
-                        self.element(right.clone())?
+                        let result_type = self
+                            .element(right.clone())?
                             .unify(typ)
                             .context(format!("{}", right.show()))?;
 
@@ -570,7 +565,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.register_label(label_end.clone());
                         self.new_source_map(IrElement::block("if:end", vec![]).show_compact());
 
-                        Ok(IrType::unknown())
+                        Ok(result_type)
                     }
                     "seq" => {
                         let mut ret = IrType::unknown();
@@ -702,7 +697,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.writer
                             .push(QVMInstruction::Load(size.into_term()?.into_int()? as usize));
 
-                        Ok(IrType::unknown())
+                        Ok(IrType::addr_unknown())
                     }
                     "string" => {
                         self.new_source_map(element.show_compact());
@@ -743,7 +738,7 @@ impl<'s> VmFunctionGenerator<'s> {
                             QVMInstruction::RuntimeInstr("_coerce".to_string()),
                         ]);
 
-                        Ok(IrType::unknown())
+                        Ok(typ)
                     }
                     "address" => {
                         self.new_source_map(element.show_compact());

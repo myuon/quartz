@@ -451,6 +451,7 @@ impl IrType {
         IrType::from_type_ast_traced(typ, structs, vec![])
     }
 
+    // refactor: remove trace
     fn from_type_ast_traced(typ: &Type, structs: &Structs, trace: Vec<String>) -> Result<IrType> {
         Ok(match typ {
             Type::Nil => IrType::nil(),
