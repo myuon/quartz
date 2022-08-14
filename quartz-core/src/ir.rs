@@ -305,8 +305,8 @@ impl IrSingleType {
         }
     }
 
-    pub fn unify(self, to: IrSingleType) -> Result<IrSingleType> {
-        match (self, to) {
+    pub fn unify(self, want: IrSingleType) -> Result<IrSingleType> {
+        match (self, want) {
             (IrSingleType::Nil, IrSingleType::Nil) => Ok(IrSingleType::Nil),
             (IrSingleType::Bool, IrSingleType::Bool) => Ok(IrSingleType::Bool),
             (IrSingleType::Int, IrSingleType::Int) => Ok(IrSingleType::Int),
@@ -343,15 +343,18 @@ impl IrSingleType {
             }
             // nil can be an address
             (IrSingleType::Nil, IrSingleType::Address(t)) => Ok(IrSingleType::Address(t)),
+            (IrSingleType::Address(t), IrSingleType::Nil) => Ok(IrSingleType::Address(t)),
             // nil can be a byte
             (IrSingleType::Nil, IrSingleType::Byte) => Ok(IrSingleType::Byte),
+            (IrSingleType::Byte, IrSingleType::Nil) => Ok(IrSingleType::Byte),
             // byte can be an address
             (IrSingleType::Byte, IrSingleType::Address(t)) => Ok(IrSingleType::Address(t)),
+            (IrSingleType::Address(t), IrSingleType::Byte) => Ok(IrSingleType::Address(t)),
             (s, t) => {
                 bail!(
                     "Type want {} but got {}",
+                    t.to_element().show_compact(),
                     s.to_element().show_compact(),
-                    t.to_element().show_compact()
                 )
             }
         }
@@ -551,8 +554,8 @@ impl IrType {
         }
     }
 
-    pub fn unify(self, from: IrType) -> Result<IrType> {
-        match (self, from) {
+    pub fn unify(self, want: IrType) -> Result<IrType> {
+        match (self, want) {
             (s, t) if s == t => Ok(s),
             (IrType::Unknown, t) => Ok(t),
             (s, IrType::Unknown) => Ok(s),

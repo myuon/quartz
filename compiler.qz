@@ -270,7 +270,7 @@ struct IrElementList {
 method IrElementList to_string(self): string {
     let s = "";
     let n = self.list;
-    while _not(n == nil) {
+    while _not(_is_nil(n)) {
        s = s.concat(" ").concat(n.node.to_string());
        n = n.next.list;
     };
@@ -383,7 +383,7 @@ method IrParser term(self): IrTerm {
     };
     if (token.type.eq("KEYWORD")) {
         let keyword = token.value_string!;
-        if (keyword == nil) {
+        if _is_nil(keyword) {
             _panic;
         };
 

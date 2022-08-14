@@ -374,8 +374,8 @@ impl<'s> VmFunctionGenerator<'s> {
 
                     let (element, offset) = unvec!(block.elements, 2);
                     let typ = self.element_addr(element.clone())?;
-                    IrType::int()
-                        .unify(self.element(offset)?)
+                    self.element(offset)?
+                        .unify(IrType::int())
                         .context(format!("{}", element.show()))?;
                     self.writer.push(QVMInstruction::I32Const(1)); // +1 for a pointer to info table
                     self.writer.push(QVMInstruction::Add);
@@ -476,9 +476,7 @@ impl<'s> VmFunctionGenerator<'s> {
                             self.size_of(&typ),
                         ));
 
-                        self.expected_type
-                            .clone()
-                            .unify(typ)
+                        typ.unify(self.expected_type.clone())
                             .context(format!("[return] {}", element.show()))?;
 
                         Ok(IrType::unknown())
@@ -524,7 +522,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         // NOTE: addr type can be used like anytype, so just skip unification
                         // FIXME: Is this true?
                         if !addr_inner_typ.as_addr().is_ok() {
-                            rhs_type = rhs_type.clone().unify(addr_inner_typ).context(format!(
+                            rhs_type = addr_inner_typ.unify(rhs_type.clone()).context(format!(
                                 "[assign:rhs] want {}, but got {}\n{}",
                                 typ.to_element().show_compact(),
                                 rhs_type.to_element().show_compact(),
@@ -688,8 +686,8 @@ impl<'s> VmFunctionGenerator<'s> {
                             .push(QVMInstruction::InfoConst(self.size_of(&slice_typ)));
 
                         for _ in 0..len {
-                            self.element(value.clone())?
-                                .unify(typ.clone())
+                            typ.clone()
+                                .unify(self.element(value.clone())?)
                                 .context(format!("{}", value.show()))?;
                         }
 
