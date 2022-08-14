@@ -204,6 +204,7 @@ impl Expr {
 pub struct Struct {
     pub name: String,
     pub fields: Vec<(String, Type)>,
+    pub dead_code: bool,
 }
 
 #[derive(PartialEq, Debug, Clone)]

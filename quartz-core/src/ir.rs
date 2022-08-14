@@ -264,6 +264,13 @@ impl IrElement {
 
         IrElement::block("func", elements)
     }
+
+    pub fn d_type(name: impl Into<String>, typ: IrType) -> IrElement {
+        IrElement::block(
+            "type",
+            vec![IrElement::ident(name.into()), typ.to_element()],
+        )
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

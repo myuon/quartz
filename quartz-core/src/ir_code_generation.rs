@@ -5,7 +5,7 @@ use anyhow::{bail, Context, Result};
 use crate::{
     ast::{
         CallMode, Declaration, Expr, Function, Literal, Module, OptionalMode, Source, Statement,
-        Structs, Type,
+        Struct, Structs, Type,
     },
     compiler::specify_source_in_input,
     ir::{IrBlock, IrElement, IrTerm, IrType},
@@ -508,6 +508,13 @@ impl<'s> IrGenerator<'s> {
         Ok(IrElement::d_var(name, typ, generator.expr(expr)?))
     }
 
+    pub fn struct_(&mut self, s: &Struct) -> Result<IrElement> {
+        Ok(IrElement::d_type(
+            s.name.clone(),
+            IrType::from_type_ast(&Type::Struct(s.name.clone()), &self.structs)?,
+        ))
+    }
+
     pub fn module(&mut self, module: &Module) -> Result<IrElement> {
         let mut elements = vec![];
 
@@ -541,7 +548,13 @@ impl<'s> IrGenerator<'s> {
                             .context(format!("variable {}", v))?,
                     );
                 }
-                Declaration::Struct(_) => {}
+                Declaration::Struct(s) => {
+                    if s.dead_code {
+                        continue;
+                    }
+
+                    elements.push(self.struct_(&s)?);
+                }
             }
         }
 
@@ -669,6 +682,7 @@ func main() {
 "#,
                 r#"
 (module
+    (type $Point (tuple $int $int))
     (func $Point_sum (args (address (tuple $int $int))) (return $int)
         (return (call
             $_add

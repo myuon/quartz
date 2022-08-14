@@ -636,7 +636,11 @@ impl Parser {
             let fields = self.many_fields_with_types()?;
             self.expect_lexeme(Lexeme::RBrace)?;
 
-            Ok(Declaration::Struct(Struct { name, fields }))
+            Ok(Declaration::Struct(Struct {
+                name,
+                fields,
+                dead_code: false,
+            }))
         } else {
             bail!("Expected a declaration, but found {:?}", self.peek())
         }

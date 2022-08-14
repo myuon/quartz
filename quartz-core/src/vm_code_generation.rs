@@ -1058,6 +1058,7 @@ impl VmGenerator {
                         expr,
                     ));
                 }
+                "type" => {}
                 _ => unreachable!("{:?}", block),
             }
         }
