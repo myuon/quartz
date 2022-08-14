@@ -180,16 +180,19 @@ impl<'s> IrFunctionGenerator<'s> {
                 let v = self.var_fresh();
                 self.ir.push(IrElement::i_let(
                     v.clone(),
-                    IrElement::i_call("_new", vec![IrElement::i_size_of(self.ir_type(t)?)]),
+                    IrElement::i_alloc(self.ir_type(t)?, IrElement::int(1)),
                 ));
 
                 let e_value = self.expr(e)?;
                 self.ir.push(IrElement::i_assign(
-                    IrElement::i_deref(IrElement::Term(IrTerm::Ident(v.clone()))),
+                    IrElement::i_addr_index(IrElement::ident(v.clone()), IrElement::int(0)),
                     e_value,
                 ));
 
-                Ok(IrElement::Term(IrTerm::Ident(v)))
+                Ok(IrElement::i_address(IrElement::i_addr_index(
+                    IrElement::ident(v),
+                    IrElement::int(0),
+                )))
             }
             Expr::Deref(e, _) => Ok(IrElement::i_deref(self.expr(e)?)),
             Expr::As(e, _, expected) => {

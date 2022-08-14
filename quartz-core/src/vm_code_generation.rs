@@ -185,10 +185,6 @@ impl<'s> VmFunctionGenerator<'s> {
                 QVMInstruction::Neq,
                 IrType::func(vec![IrType::int(), IrType::int()], IrType::bool()),
             ),
-            "_new" => (
-                QVMInstruction::Alloc,
-                IrType::func(vec![IrType::int()], IrType::addr_unknown()),
-            ),
             "_padd" => (
                 QVMInstruction::PAdd,
                 IrType::func(
