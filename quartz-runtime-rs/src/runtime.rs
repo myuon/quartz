@@ -134,6 +134,23 @@ macro_rules! assert_matches {
     };
 }
 
+struct Array {
+    length: usize,
+    data: Vec<Value>,
+}
+
+impl Array {
+    pub fn from_values(values: &[Value]) -> Result<Array> {
+        assert!(!values.is_empty());
+        let length = values[0].clone().as_int()? as usize;
+
+        Ok(Array {
+            length,
+            data: values[1..length].to_vec(),
+        })
+    }
+}
+
 /* StackFrame
     [argument*, return_address, fp, local*]
                                     ^ new fp
@@ -340,30 +357,26 @@ impl Runtime {
         }
     }
 
-    fn read_values(&self, value: Value) -> Result<Vec<Value>> {
+    fn read_array(&self, value: Value) -> Result<Array> {
         match value {
             Value::Addr(addr, AddrPlace::Heap, _) => {
                 let header = self.heap.parse_from_data_pointer(addr)?;
 
-                let mut bytes = vec![];
-                for i in 0..header.len() {
-                    bytes.push(self.heap.data[addr + i].clone());
-                }
-
-                Ok(bytes)
+                Array::from_values(
+                    &self.heap.data[header.get_data_pointer()..header.get_end_pointer()],
+                )
             }
             Value::Addr(addr, AddrPlace::Stack, _) => {
-                let len = self.stack[addr].clone().as_int().unwrap() as usize;
+                let length = self.stack[addr].clone().as_int()? as usize;
 
-                let mut bytes = vec![];
-                for i in 0..len - 1 {
-                    bytes.push(self.stack[addr + i + 1].clone());
-                }
-
-                Ok(bytes)
+                Array::from_values(&self.stack[addr..addr + length])
             }
-            _ => todo!(),
+            t => todo!("{:?}", t),
         }
+    }
+
+    fn read_values(&self, value: Value) -> Result<Vec<Value>> {
+        self.read_array(value).map(|array| array.data.to_vec())
     }
 
     fn read_values_by(&self, value: Value, size: usize) -> Result<Vec<Value>> {
@@ -536,7 +549,7 @@ impl Runtime {
                             .is_some(),
                         "{} at {:?}",
                         self.frame_pointer,
-                        self.stack
+                        &self.stack[self.frame_pointer - 5..self.frame_pointer + 1]
                     );
                     assert!(
                         self.frame_pointer + addr < self.stack_pointer,

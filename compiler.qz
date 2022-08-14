@@ -191,11 +191,12 @@ method IrLexer next_token(self): Token {
 
 method IrLexer run(self): TokenList {
     let len = self.input.len();
+        _start_debugger;
     let result = TokenList::new_nil();
     while (self.position < len) {
-        _start_debugger;
-        _println(self.position.to_string());
+        // _println(self.position.to_string());
         let token = self.next_token();
+        _println(token.type);
         result = result.cons(token);
     };
 
@@ -479,7 +480,6 @@ method IrParser element(self): IrElement? {
 }
 
 func main() {
-    _println("here");
     let input = "(module (func $main 0 (return 10)))";
     let IrLexer = IrLexer {
         input: input, 
