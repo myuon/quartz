@@ -151,21 +151,8 @@ impl<'s> IrFunctionGenerator<'s> {
                 let mut data = vec![];
 
                 // FIXME: field order
-                for (label, expr, typ) in exprs {
-                    let mut result = self.expr(expr)?;
-
-                    // coerce check
-                    let actual_size = self.ir_type(typ)?.size_of();
-                    let expected_size = self
-                        .ir_type(&self.structs.get_projection_type(&struct_name, label)?)?
-                        .size_of();
-                    if expected_size != actual_size {
-                        assert!(actual_size <= expected_size);
-                        assert!(expected_size >= 2);
-
-                        result = IrElement::i_coerce(actual_size, expected_size, result);
-                    }
-
+                for (_, expr, _) in exprs {
+                    let result = self.expr(expr)?;
                     data.push(result);
                 }
 
@@ -205,15 +192,7 @@ impl<'s> IrFunctionGenerator<'s> {
                 Ok(IrElement::Term(IrTerm::Ident(v)))
             }
             Expr::Deref(e, _) => Ok(IrElement::i_deref(self.expr(e)?)),
-            Expr::As(e, current, expected) => {
-                let current = self.ir_type(current)?;
-                let expected = self.ir_type(expected)?;
-                if current.size_of() != expected.size_of() {
-                    unreachable!();
-                }
-
-                self.expr(e)
-            }
+            Expr::As(e, _, _) => self.expr(e),
             Expr::Address(e, _) => {
                 // You cannot just take the address of an immidiate value, so declare as a variable
                 let next = match e.data {
@@ -511,7 +490,14 @@ impl<'s> IrGenerator<'s> {
     pub fn struct_(&mut self, s: &Struct) -> Result<IrElement> {
         Ok(IrElement::d_type(
             s.name.clone(),
-            IrType::from_type_ast(&Type::Struct(s.name.clone()), &self.structs)?,
+            IrType::tuple(
+                s.fields
+                    .iter()
+                    .map(|(_, typ)| -> Result<IrType> {
+                        self.ir_type(typ).context(format!("{:?}", typ))
+                    })
+                    .collect::<Result<_>>()?,
+            ),
         ))
     }
 
@@ -683,7 +669,7 @@ func main() {
                 r#"
 (module
     (type $Point (tuple $int $int))
-    (func $Point_sum (args (address (tuple $int $int))) (return $int)
+    (func $Point_sum (args (address $Point)) (return $int)
         (return (call
             $_add
             (addr_offset $0 0)
@@ -691,7 +677,7 @@ func main() {
         ))
     )
     (func $main (args) (return $int)
-        (let $p (tuple (tuple $int $int) 10 20))
+        (let $p (tuple $Point 10 20))
         (return (call $Point_sum (address $p)))
     )
 )
