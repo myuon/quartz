@@ -479,6 +479,7 @@ method IrParser element(self): IrElement? {
 }
 
 func main() {
+    _println("here");
     let input = "(module (func $main 0 (return 10)))";
     let IrLexer = IrLexer {
         input: input, 

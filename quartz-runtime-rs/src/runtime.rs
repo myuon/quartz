@@ -353,11 +353,11 @@ impl Runtime {
                 Ok(bytes)
             }
             Value::Addr(addr, AddrPlace::Stack, _) => {
-                let len = self.stack[addr - 1].clone().as_int().unwrap() as usize;
+                let len = self.stack[addr].clone().as_int().unwrap() as usize;
 
                 let mut bytes = vec![];
-                for i in 0..len {
-                    bytes.push(self.stack[addr + i].clone());
+                for i in 0..len - 1 {
+                    bytes.push(self.stack[addr + i + 1].clone());
                 }
 
                 Ok(bytes)
