@@ -502,12 +502,18 @@ impl IrType {
         }
     }
 
-    pub fn size_of(&self, types: &HashMap<String, IrType>) -> usize {
+    pub fn size_of(&self, types: &HashMap<String, IrType>) -> Result<usize> {
         match self {
-            IrType::Unknown => todo!(),
-            IrType::Single(_) => 1,
-            IrType::Tuple(vs) => vs.into_iter().map(|v| v.size_of(types)).sum::<usize>() + 1, // +1 for a pointer to info table
-            IrType::Slice(len, t) => len * t.size_of(types) + 1,
+            IrType::Unknown => bail!("Cannot determine size of unknown type",),
+            IrType::Single(_) => Ok(1),
+            IrType::Tuple(vs) => Ok(vs
+                .into_iter()
+                .map(|v| v.size_of(types))
+                .collect::<Result<Vec<_>>>()?
+                .iter()
+                .sum::<usize>()
+                + 1), // +1 for a pointer to info table
+            IrType::Slice(len, t) => Ok(len * t.size_of(types)? + 1),
             IrType::Ident(t) => types[t].size_of(types),
         }
     }
@@ -615,7 +621,7 @@ impl IrType {
     pub fn offset_in_words(self, index: usize, types: &HashMap<String, IrType>) -> Result<usize> {
         let mut result = 1;
         for i in 0..index {
-            result += self.clone().offset(i, types)?.size_of(types);
+            result += self.clone().offset(i, types)?.size_of(types)?;
         }
 
         Ok(result)
