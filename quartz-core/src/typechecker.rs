@@ -156,6 +156,7 @@ pub struct TypeChecker<'s> {
     pub method_types: HashMap<(String, String), (Vec<Type>, Type)>,
     pub source_code: &'s str,
     call_graph: HashMap<String, HashMap<String, ()>>,
+    struct_graph: HashMap<String, HashMap<String, ()>>,
     current_function: Option<String>,
     entrypoint: String,
     self_object: Option<Box<Source<Expr>>>,
@@ -176,6 +177,7 @@ impl<'s> TypeChecker<'s> {
             method_types: HashMap::new(),
             source_code,
             call_graph: HashMap::new(),
+            struct_graph: HashMap::new(),
             current_function: None,
             entrypoint: "main".to_string(),
             self_object: None,
@@ -466,6 +468,11 @@ impl<'s> TypeChecker<'s> {
                     self.expr_coerce(expr, typ, &defined[label])
                         .context(self.error_context(expr.start, expr.end, "struct field"))?;
                 }
+
+                self.struct_graph
+                    .entry(self.current_function.clone().unwrap())
+                    .or_insert(HashMap::new())
+                    .insert(s.clone(), ());
 
                 self.unify(&Type::Struct(s.clone()), typ)
                     .context(self.error_context(first_fields.start, first_fields.end, "struct"))?;
@@ -819,6 +826,7 @@ impl<'s> TypeChecker<'s> {
         // update dead_code fields for functions
         // calculate reachable functions from entrypoint
         let mut reachables = HashSet::new();
+        let mut reachables_structs = HashSet::new();
         let mut stack = vec![self.entrypoint.as_str()];
         while let Some(func) = stack.pop() {
             if reachables.contains(&func) {
@@ -826,6 +834,11 @@ impl<'s> TypeChecker<'s> {
             }
 
             reachables.insert(func);
+
+            if let Some(h) = self.struct_graph.get(func) {
+                reachables_structs.extend(h.keys());
+            }
+
             if let Some(targets) = self.call_graph.get(func) {
                 stack.extend(targets.keys().map(|f| f.as_str()));
             }
@@ -849,6 +862,13 @@ impl<'s> TypeChecker<'s> {
                     }
 
                     func.dead_code = true;
+                }
+                Declaration::Struct(s) => {
+                    if reachables_structs.contains(&s.name) {
+                        continue;
+                    }
+
+                    s.dead_code = true;
                 }
                 _ => {}
             }

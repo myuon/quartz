@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use anyhow::{bail, Result};
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -264,6 +266,13 @@ impl IrElement {
 
         IrElement::block("func", elements)
     }
+
+    pub fn d_type(name: impl Into<String>, typ: IrType) -> IrElement {
+        IrElement::block(
+            "type",
+            vec![IrElement::ident(name.into()), typ.to_element()],
+        )
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -296,8 +305,8 @@ impl IrSingleType {
         }
     }
 
-    pub fn unify(self, to: IrSingleType) -> Result<IrSingleType> {
-        match (self, to) {
+    pub fn unify(self, want: IrSingleType) -> Result<IrSingleType> {
+        match (self, want) {
             (IrSingleType::Nil, IrSingleType::Nil) => Ok(IrSingleType::Nil),
             (IrSingleType::Bool, IrSingleType::Bool) => Ok(IrSingleType::Bool),
             (IrSingleType::Int, IrSingleType::Int) => Ok(IrSingleType::Int),
@@ -334,15 +343,18 @@ impl IrSingleType {
             }
             // nil can be an address
             (IrSingleType::Nil, IrSingleType::Address(t)) => Ok(IrSingleType::Address(t)),
+            (IrSingleType::Address(t), IrSingleType::Nil) => Ok(IrSingleType::Address(t)),
             // nil can be a byte
             (IrSingleType::Nil, IrSingleType::Byte) => Ok(IrSingleType::Byte),
+            (IrSingleType::Byte, IrSingleType::Nil) => Ok(IrSingleType::Byte),
             // byte can be an address
             (IrSingleType::Byte, IrSingleType::Address(t)) => Ok(IrSingleType::Address(t)),
+            (IrSingleType::Address(t), IrSingleType::Byte) => Ok(IrSingleType::Address(t)),
             (s, t) => {
                 bail!(
                     "Type want {} but got {}",
+                    t.to_element().show_compact(),
                     s.to_element().show_compact(),
-                    t.to_element().show_compact()
                 )
             }
         }
@@ -355,6 +367,7 @@ pub enum IrType {
     Single(IrSingleType),
     Tuple(Vec<IrType>),
     Slice(usize, Box<IrType>),
+    Ident(String),
 }
 
 impl IrType {
@@ -411,7 +424,7 @@ impl IrType {
                     "bool" => IrType::bool(),
                     "int" => IrType::int(),
                     "byte" => IrType::byte(),
-                    _ => unreachable!("{:?}", t),
+                    t => IrType::Ident(t.to_string()),
                 },
                 t => unreachable!("{:?}", t),
             },
@@ -438,6 +451,7 @@ impl IrType {
         IrType::from_type_ast_traced(typ, structs, vec![])
     }
 
+    // refactor: remove trace
     fn from_type_ast_traced(typ: &Type, structs: &Structs, trace: Vec<String>) -> Result<IrType> {
         Ok(match typ {
             Type::Nil => IrType::nil(),
@@ -450,25 +464,7 @@ impl IrType {
                 // string = array[byte]
                 IrType::from_type_ast_traced(&Type::Array(Box::new(Type::Byte)), structs, trace)?
             }
-            Type::Struct(t) => {
-                if trace.contains(t) {
-                    return Ok(IrType::unknown());
-                }
-
-                let fields = structs.0.get(t).ok_or(anyhow::anyhow!(
-                    "struct {} not found, {:?}",
-                    t,
-                    structs
-                ))?;
-                let mut types = Vec::new();
-                for (_label, typ) in fields {
-                    let mut current_trace = trace.clone();
-                    current_trace.push(t.to_string());
-
-                    types.push(IrType::from_type_ast_traced(typ, structs, current_trace)?);
-                }
-                IrType::tuple(types)
-            }
+            Type::Struct(t) => IrType::Ident(t.clone()),
             Type::Ref(t) => IrType::addr_of(IrType::from_type_ast_traced(t, structs, trace)?),
             Type::Array(t) => IrType::addr_of(IrType::boxed_array(IrType::from_type_ast_traced(
                 t, structs, trace,
@@ -502,15 +498,23 @@ impl IrType {
                 elements.push(t.to_element());
                 IrElement::block("slice", elements)
             }
+            IrType::Ident(t) => IrElement::ident(t),
         }
     }
 
-    pub fn size_of(&self) -> usize {
+    pub fn size_of(&self, types: &HashMap<String, IrType>) -> Result<usize> {
         match self {
-            IrType::Unknown => todo!(),
-            IrType::Single(_) => 1,
-            IrType::Tuple(vs) => vs.into_iter().map(|v| v.size_of()).sum::<usize>() + 1, // +1 for a pointer to info table
-            IrType::Slice(len, t) => len * t.size_of() + 1,
+            IrType::Unknown => bail!("Cannot determine size of unknown type",),
+            IrType::Single(_) => Ok(1),
+            IrType::Tuple(vs) => Ok(vs
+                .into_iter()
+                .map(|v| v.size_of(types))
+                .collect::<Result<Vec<_>>>()?
+                .iter()
+                .sum::<usize>()
+                + 1), // +1 for a pointer to info table
+            IrType::Slice(len, t) => Ok(len * t.size_of(types)? + 1),
+            IrType::Ident(t) => types[t].size_of(types),
         }
     }
 
@@ -557,8 +561,8 @@ impl IrType {
         }
     }
 
-    pub fn unify(self, from: IrType) -> Result<IrType> {
-        match (self, from) {
+    pub fn unify(self, want: IrType) -> Result<IrType> {
+        match (self, want) {
             (s, t) if s == t => Ok(s),
             (IrType::Unknown, t) => Ok(t),
             (s, IrType::Unknown) => Ok(s),
@@ -589,7 +593,7 @@ impl IrType {
         }
     }
 
-    pub fn offset(self, index: usize) -> Result<IrType> {
+    pub fn offset(self, index: usize, types: &HashMap<String, IrType>) -> Result<IrType> {
         match self {
             IrType::Single(IrSingleType::Address(t)) => Ok(t.as_ref().clone()),
             IrType::Slice(r, t) => {
@@ -606,14 +610,18 @@ impl IrType {
                     bail!("Out of offset, {} in {:?}", index, IrType::Tuple(ts))
                 }
             }
-            _ => bail!("Type is not address"),
+            IrType::Ident(t) => {
+                let ty = types[&t].clone();
+                ty.offset(index, types)
+            }
+            t => bail!("Type {} is not address", t.to_element().show()),
         }
     }
 
-    pub fn offset_in_words(self, index: usize) -> Result<usize> {
+    pub fn offset_in_words(self, index: usize, types: &HashMap<String, IrType>) -> Result<usize> {
         let mut result = 1;
         for i in 0..index {
-            result += self.clone().offset(i)?.size_of();
+            result += self.clone().offset(i, types)?.size_of(types)?;
         }
 
         Ok(result)
