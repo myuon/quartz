@@ -483,13 +483,16 @@ impl<'s> VmFunctionGenerator<'s> {
 
                         let mut arg_types = vec![];
                         for elem in block.elements.into_iter().skip(1) {
-                            arg_types.push(self.element(elem)?);
+                            arg_types.push(
+                                self.element(elem.clone())
+                                    .context(format!("[call:arg] {}", elem.show()))?,
+                            );
                         }
 
                         let callee_type = self.element_addr(callee.clone())?;
                         let callee_typ = callee_type
                             .unify(IrType::addr_of(IrType::func(arg_types, IrType::unknown())))
-                            .context(format!("{}", callee.show()))?;
+                            .context(format!("[call:arg] {}", callee.show()))?;
                         let (_, ret_type) = callee_typ.as_addr().unwrap().as_func().unwrap();
 
                         // If the last instruction is not LabelAddrConst, it will be a builtin operation and no need to run CALL operation
@@ -506,14 +509,17 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.new_source_map(element.show_compact());
                         let (lhs, rhs) = unvec!(block.elements, 2);
                         let typ = self
-                            .element_addr(lhs.clone())?
+                            .element_addr(lhs.clone())
+                            .context(format!("[assign:lhs] {}", lhs.show()))?
                             .unify(IrType::addr_unknown())
                             .context(format!("[assign] {}", lhs.show()))?;
                         let addr_inner_typ = typ
                             .as_addr()
                             .map(|t| t.as_ref().clone())
                             .unwrap_or(IrType::unknown());
-                        let mut rhs_type = self.element(rhs.clone())?;
+                        let mut rhs_type = self
+                            .element(rhs.clone())
+                            .context(format!("[assign:rhs] {}", rhs.show()))?;
 
                         // NOTE: addr type can be used like anytype, so just skip unification
                         // FIXME: Is this true?
@@ -545,7 +551,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.new_source_map(IrElement::block("if:cond", vec![]).show_compact());
                         self.element(cond.clone())?
                             .unify(IrType::bool())
-                            .context(format!("{}", cond.show()))?;
+                            .context(format!("[if:cond] {}", cond.show()))?;
                         self.writer
                             .push(QVMInstruction::LabelJumpIfFalse(label_else.clone()));
 
@@ -561,7 +567,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         let result_type = self
                             .element(right.clone())?
                             .unify(typ)
-                            .context(format!("{}", right.show()))?;
+                            .context(format!("[if:else] {}", right.show()))?;
 
                         // endif
                         self.register_label(label_end.clone());
@@ -573,7 +579,9 @@ impl<'s> VmFunctionGenerator<'s> {
                         let mut ret = IrType::unknown();
                         self.new_source_map(IrElement::block("seq", vec![]).show_compact());
                         for elem in block.elements {
-                            ret = self.element(elem)?;
+                            ret = self
+                                .element(elem.clone())
+                                .context(format!("[seq] {}", elem.show()))?;
                         }
 
                         Ok(ret)
