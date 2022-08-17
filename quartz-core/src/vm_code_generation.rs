@@ -1030,7 +1030,10 @@ impl VmGenerator {
             match block.name.as_str() {
                 "text" => {
                     string_pointers.push(code.len());
-                    for i in block.elements {
+                    code.push(QVMInstruction::I32LenConst(
+                        block.elements[0].clone().into_term()?.into_int()?,
+                    ));
+                    for i in block.elements.into_iter().skip(1) {
                         code.push(QVMInstruction::I32Const(i.into_term()?.into_int()?));
                     }
                 }

@@ -18,6 +18,7 @@ impl LinkObjectHeader {
         4
     }
 
+    #[allow(dead_code)]
     pub fn len(&self) -> usize {
         self.len
     }

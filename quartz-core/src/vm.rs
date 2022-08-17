@@ -48,6 +48,7 @@ pub enum QVMInstruction {
     RuntimeInstr(String),
     // constants
     I32Const(i32),
+    I32LenConst(i32),
     BoolConst(bool), // I32Const can be used instead
     AddrConst(usize, Variable),
     ArgConst(usize), // function arguments
@@ -176,6 +177,9 @@ impl QVMInstruction {
             LabelJumpIfFalse(_) => unreachable!(),
             LabelJumpIf(_) => unreachable!(),
             LabelJump(_) => unreachable!(),
+            I32LenConst(i) => {
+                format!("I32LENCONST {}", i)
+            }
         }
     }
 }

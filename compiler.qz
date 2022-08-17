@@ -191,10 +191,8 @@ method IrLexer next_token(self): Token {
 
 method IrLexer run(self): TokenList {
     let len = self.input.len();
-        _start_debugger;
     let result = TokenList::new_nil();
     while (self.position < len) {
-        // _println(self.position.to_string());
         let token = self.next_token();
         _println(token.type);
         result = result.cons(token);

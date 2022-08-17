@@ -134,6 +134,7 @@ macro_rules! assert_matches {
     };
 }
 
+#[allow(dead_code)]
 struct Array {
     length: usize,
     data: Vec<Value>,
@@ -142,7 +143,11 @@ struct Array {
 impl Array {
     pub fn from_values(values: &[Value]) -> Result<Array> {
         assert!(!values.is_empty());
-        let length = values[0].clone().as_int()? as usize;
+        let length = values[0]
+            .clone()
+            .as_named_int(ValueIntFlag::Len)
+            .ok_or(anyhow::anyhow!("expected length but got {:?}", values[0]))?
+            as usize;
 
         Ok(Array {
             length,
@@ -342,19 +347,7 @@ impl Runtime {
     }
 
     fn read_bytes_len(&self, value: Value) -> Result<usize> {
-        match value {
-            Value::Addr(addr, AddrPlace::Heap, _) => {
-                let header = self.heap.parse_from_data_pointer(addr)?;
-
-                Ok(header.len())
-            }
-            Value::Addr(addr, AddrPlace::Stack, _) => {
-                let len = self.stack[addr].clone().as_int().unwrap() as usize;
-
-                Ok(len)
-            }
-            _ => todo!(),
-        }
+        Ok(self.read_array(value)?.length)
     }
 
     fn read_array(&self, value: Value) -> Result<Array> {
@@ -367,7 +360,13 @@ impl Runtime {
                 )
             }
             Value::Addr(addr, AddrPlace::Stack, _) => {
-                let length = self.stack[addr].clone().as_int()? as usize;
+                let length = self.stack[addr]
+                    .clone()
+                    .as_named_int(ValueIntFlag::Len)
+                    .ok_or(anyhow::anyhow!(
+                        "expected int:len but got {:?}",
+                        self.stack[addr]
+                    ))? as usize;
 
                 Array::from_values(&self.stack[addr..addr + length])
             }
@@ -380,31 +379,10 @@ impl Runtime {
     }
 
     fn read_values_by(&self, value: Value, size: usize) -> Result<Vec<Value>> {
-        match value {
-            Value::Addr(addr, AddrPlace::Heap, _) => {
-                let header = self.heap.parse_from_data_pointer(addr)?;
-                assert!(size <= header.len(), "{} {}", size, header.len());
+        let array = self.read_array(value)?;
+        assert!(size < array.length);
 
-                let mut bytes = vec![];
-                for i in 0..size {
-                    bytes.push(self.heap.data[addr + i].clone());
-                }
-
-                Ok(bytes)
-            }
-            Value::Addr(addr, AddrPlace::Stack, _) => {
-                let len = self.stack[addr - 1].clone().as_int().unwrap() as usize;
-                assert!(size <= len, "{} {}", size, len);
-
-                let mut bytes = vec![];
-                for i in 0..size {
-                    bytes.push(self.stack[addr + i].clone());
-                }
-
-                Ok(bytes)
-            }
-            _ => todo!(),
-        }
+        Ok(array.data[..size].to_vec())
     }
 
     fn read_string_at(&self, value: Value) -> Result<String> {
@@ -539,6 +517,9 @@ impl Runtime {
             }
             QVMInstruction::I32Const(c) => {
                 self.push(Value::int(c));
+            }
+            QVMInstruction::I32LenConst(c) => {
+                self.push(Value::Int(c as i32, ValueIntFlag::Len));
             }
             QVMInstruction::AddrConst(addr, variable) => match variable {
                 Variable::Local => {
@@ -736,7 +717,6 @@ impl Runtime {
                 }
                 "_println" => {
                     let string_data = self.pop();
-                    let _ = self.pop(); // pointer to info table
 
                     let s = self.read_string_at(string_data)?;
                     println!("[quartz] {}", s);
