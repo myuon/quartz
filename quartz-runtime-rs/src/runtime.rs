@@ -5,7 +5,7 @@ use std::{
     path::PathBuf,
 };
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use log::{debug, info};
 use quartz_core::vm::{QVMInstruction, Variable};
 use serde::{Deserialize, Serialize};
@@ -347,7 +347,7 @@ impl Runtime {
     }
 
     fn read_bytes_len(&self, value: Value) -> Result<usize> {
-        Ok(self.read_array(value)?.length)
+        Ok(self.read_array(value).context("read_bytes_len")?.length)
     }
 
     fn read_array(&self, value: Value) -> Result<Array> {
@@ -374,20 +374,37 @@ impl Runtime {
         }
     }
 
-    fn read_values(&self, value: Value) -> Result<Vec<Value>> {
-        self.read_array(value).map(|array| array.data.to_vec())
-    }
-
     fn read_values_by(&self, value: Value, size: usize) -> Result<Vec<Value>> {
-        let array = self.read_array(value)?;
-        assert!(size < array.length);
+        match value {
+            Value::Addr(addr, AddrPlace::Heap, _) => {
+                let header = self.heap.parse_from_data_pointer(addr)?;
+                assert!(size <= header.len(), "{} {}", size, header.len());
 
-        Ok(array.data[..size].to_vec())
+                let mut bytes = vec![];
+                for i in 0..size {
+                    bytes.push(self.heap.data[addr + i].clone());
+                }
+
+                Ok(bytes)
+            }
+            Value::Addr(addr, AddrPlace::Stack, _) => {
+                let len = self.stack[addr].clone().as_int().unwrap() as usize;
+                assert!(size <= len, "{} {}", size, len);
+
+                let mut bytes = vec![];
+                for i in 0..size {
+                    bytes.push(self.stack[addr + i].clone());
+                }
+
+                Ok(bytes)
+            }
+            _ => todo!(),
+        }
     }
 
     fn read_string_at(&self, value: Value) -> Result<String> {
         let mut bytes = vec![];
-        for v in self.read_values(value)? {
+        for v in self.read_array(value)?.data {
             bytes.push(v.as_int().unwrap() as u8);
         }
 
