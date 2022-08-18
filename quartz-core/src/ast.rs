@@ -268,10 +268,11 @@ pub enum Type {
 }
 
 impl Type {
-    pub fn unwrap_type(&self) -> Option<&Type> {
+    pub fn unwrap_type(&self) -> Result<&Type> {
         match self {
-            Type::Optional(t) => Some(t.as_ref()),
-            _ => None,
+            Type::Optional(t) => Ok(t.as_ref()),
+            Type::Ref(t) => Ok(t.as_ref()),
+            _ => bail!("[type] Expected optional type, but found {:?}", self),
         }
     }
 

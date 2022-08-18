@@ -100,18 +100,33 @@ struct TokenList {
     next: ref TokenListNode,
 }
 
-method TokenList new_nil() {
+method TokenList new() {
     return TokenList {
         next: nil as ref TokenListNode,
     };
 }
 
-method TokenList cons(self, node: Token) {
+method TokenList cons(self, node: Token): TokenList {
     return TokenList {
         next: ref TokenListNode {
             node: node,
             next: self,
         },
+    };
+}
+
+method TokenList reverse(self): TokenList {
+    if _is_nil(self.next) {
+        return TokenList {
+            next: nil,
+        };
+    } else {
+        return TokenList {
+            next: ref TokenListNode {
+                node: self.next.node,
+                next: self.next.next.reverse(),
+            },
+        };
     };
 }
 
@@ -191,10 +206,9 @@ method IrLexer next_token(self): Token {
 
 method IrLexer run(self): TokenList {
     let len = self.input.len();
-    let result = TokenList::new_nil();
+    let result = TokenList::new();
     while (self.position < len) {
         let token = self.next_token();
-        _println(token.type);
         result = result.cons(token);
     };
 
@@ -341,7 +355,7 @@ method IrParser next(self): Token {
             value_int: nil,
         };
     } else {
-        let node = self.tokens.next as TokenListNode;
+        let node = self.tokens.next;
         self.tokens = node.next;
         return node.node;
     };
@@ -499,4 +513,20 @@ func compiler_test() {
 
     assert_eq_int(find_exact_pattern("abcde_fg".to_substring(), "abc"), 3);
     assert_eq_int(find_exact_pattern("kabcd".to_substring(), "abc"), 0);
+
+    let l = TokenList::new();
+    let t = l.cons(Token {
+        type: "A",
+        value_string: nil,
+        value_int: nil,
+    }).cons(Token {
+        type: "B",
+        value_string: nil,
+        value_int: nil,
+    }).cons(Token {
+        type: "C",
+        value_string: nil,
+        value_int: nil,
+    });
+    assert_eq(t.reverse().next!.node.type, "C");
 }

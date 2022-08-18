@@ -589,7 +589,7 @@ impl<'s> TypeChecker<'s> {
             }
             Expr::Unwrap(expr, t) => {
                 self.expr(expr, t)?;
-                self.unify(t.unwrap_type().unwrap(), typ)
+                self.unify(t.unwrap_type()?, typ)
                     .context(self.error_context(expr.start, expr.end, "unwrap"))?;
             }
         };
