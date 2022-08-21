@@ -77,10 +77,11 @@ pub fn builtin() -> HashMap<String, Type> {
             "_copy",
             Type::Fn(
                 vec![
-                    Type::Int,
-                    Type::Int,
-                    Type::Any, // bytes or pointer (_padd(bytes, int) can be applied here)
-                    Type::Array(Box::new(Type::Byte)),
+                    Type::Int,                         // size
+                    Type::Array(Box::new(Type::Byte)), // source
+                    Type::Int,                         // source offset
+                    Type::Array(Box::new(Type::Byte)), // target,
+                    Type::Int,                         // target offset
                 ],
                 Box::new(Type::Nil),
             ),

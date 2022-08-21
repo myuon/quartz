@@ -243,10 +243,11 @@ impl<'s> VmFunctionGenerator<'s> {
                 QVMInstruction::RuntimeInstr("_copy".to_string()),
                 IrType::func(
                     vec![
+                        IrType::int(),
                         IrType::unknown(),
+                        IrType::int(),
                         IrType::unknown(),
-                        IrType::unknown(),
-                        IrType::unknown(),
+                        IrType::int(),
                     ],
                     IrType::nil(),
                 ),

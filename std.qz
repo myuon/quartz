@@ -68,9 +68,11 @@ method string starts_with(self, prefix: string): bool {
 }
 
 method string concat(self, t: string): string {
-    let buffer = make[array[byte]](self.len() + t.len(), nil as byte);
-    _copy(0, self.len(), self.bytes(), buffer);
-    _copy(self.len(), t.len(), t.bytes(), buffer);
+    let s_len = self.len();
+    let t_len = t.len();
+    let buffer = make[array[byte]](s_len + t_len, nil as byte);
+    _copy(s_len, self.bytes(), 0, buffer, 0);
+    _copy(t_len, t.bytes(), 0, buffer, s_len);
 
     return string::from_bytes(buffer);
 }
@@ -116,7 +118,7 @@ method string slice_after(self, start: int): substring {
 
 method substring to_string(self): string {
     let buffer = make[array[byte]](self.end - self.start, nil as byte);
-    _copy(0, self.end - self.start, _padd(self.str, self.start), buffer);
+    _copy(self.end - self.start, self.str.bytes(), self.start, buffer, 0);
 
     return string::from_bytes(buffer);
 }

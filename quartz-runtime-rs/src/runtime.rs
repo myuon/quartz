@@ -374,6 +374,7 @@ impl Runtime {
         }
     }
 
+    #[allow(dead_code)]
     fn read_values_by(&self, value: Value, size: usize) -> Result<Vec<Value>> {
         match value {
             Value::Addr(addr, AddrPlace::Heap, _) => {
@@ -759,7 +760,15 @@ impl Runtime {
                     match target {
                         Value::Addr(target_addr, AddrPlace::Heap, _) => {
                             for i in 0..size {
-                                self.heap.data[target_addr + target_offset + i] =
+                                // NOTE: need to handle the pointer to info table
+                                self.heap.data[target_addr + target_offset + i + 1] =
+                                    source_array.data[source_offset + i].clone();
+                            }
+                        }
+                        Value::Addr(target_addr, AddrPlace::Stack, _) => {
+                            for i in 0..size {
+                                // NOTE: need to handle the pointer to info table
+                                self.stack[target_addr + target_offset + i + 1] =
                                     source_array.data[source_offset + i].clone();
                             }
                         }
@@ -1511,6 +1520,20 @@ func main() {
 }
 "#,
             100,
+        ),
+        (
+            r#"
+func main() {
+    let s = "hello";
+    let t = ", world";
+    if s.concat(t).eq("hello, world") {
+        return 1;
+    } else {
+        return 0;
+    };
+}
+"#,
+            1,
         ),
     ];
 
