@@ -6,7 +6,7 @@ test:
 
 test_std:
 	@echo "quartz test_std"
-	cargo run -- test
+	ENTRYPOINT=test cargo run -- test < ./empty.qz
 
 compile:
 	@echo "quartz compile"

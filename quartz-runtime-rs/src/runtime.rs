@@ -747,14 +747,23 @@ impl Runtime {
                     self.push(Value::int(size as i32 - 1));
                 }
                 "_copy" => {
-                    let target = self.pop().as_addr().unwrap();
+                    let target_offset = self.pop().as_int().unwrap() as usize;
+                    let target = self.pop();
+                    let source_offset = self.pop().as_int().unwrap() as usize;
                     let source = self.pop();
                     let size = self.pop().as_int().unwrap() as usize;
-                    let target_offset = self.pop().as_int().unwrap() as usize;
 
-                    let bytes = self.read_values_by(source, size)?;
-                    for (i, byte) in bytes.into_iter().enumerate() {
-                        self.heap.data[target + i + target_offset] = byte;
+                    let source_array = self.read_array(source)?;
+                    self.read_array(target.clone())?;
+
+                    match target {
+                        Value::Addr(target_addr, AddrPlace::Heap, _) => {
+                            for i in 0..size {
+                                self.heap.data[target_addr + target_offset + i] =
+                                    source_array.data[source_offset + i].clone();
+                            }
+                        }
+                        _ => unreachable!(),
                     }
 
                     self.push(Value::nil());

@@ -115,21 +115,6 @@ method TokenList cons(self, node: Token): TokenList {
     };
 }
 
-method TokenList reverse(self): TokenList {
-    if _is_nil(self.next) {
-        return TokenList {
-            next: nil,
-        };
-    } else {
-        return TokenList {
-            next: ref TokenListNode {
-                node: self.next.node,
-                next: self.next.next.reverse(),
-            },
-        };
-    };
-}
-
 method IrLexer next_token(self): Token {
     let current = self.current_input();
 
@@ -212,7 +197,7 @@ method IrLexer run(self): TokenList {
         result = result.cons(token);
     };
 
-    return result;
+    return result.reverse();
 }
 
 struct IrTerm {
@@ -458,6 +443,7 @@ method IrParser element(self): IrElement? {
         return nil;
     };
     let token = self.next();
+    _println(token.type);
 
     if (token.type.eq("LPAREN")) {
         // block
