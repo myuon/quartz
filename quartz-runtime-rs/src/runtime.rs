@@ -1560,11 +1560,12 @@ func main() {
             println!("{:04} {:?}", n, inst);
         }
         runtime.run()?;
-        let bytes = runtime.pop().as_addr().unwrap();
-        let len = runtime.stack[bytes].clone().as_int().unwrap();
+        let addr = runtime.pop();
+        let bytes = runtime.read_array(addr)?;
         assert_eq!(
             String::from_utf8(
-                runtime.stack[bytes + 1..bytes + len as usize]
+                bytes
+                    .data
                     .iter()
                     .map(|u| u.clone().as_int().unwrap() as u8)
                     .collect()
