@@ -33,10 +33,10 @@ impl AddrPlace {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum ValueIntFlag {
-    Int, // default
-    Len, // length in heap
-    Pc,  // program counter
-    Fp,  // frame pointer
+    Int,       // default
+    Len,       // length in heap
+    Pc(usize), // program counter (with calling label offset)
+    Fp,        // frame pointer
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -96,6 +96,13 @@ impl Value {
     pub fn as_named_int(self, flag: ValueIntFlag) -> Option<i32> {
         match self {
             Value::Int(i, n) if n == flag => Some(i),
+            _ => None,
+        }
+    }
+
+    pub fn as_int_pc(self) -> Option<usize> {
+        match self {
+            Value::Int(i, ValueIntFlag::Pc(_)) => Some(i as usize),
             _ => None,
         }
     }
@@ -321,8 +328,8 @@ impl Runtime {
         let mut p = 0;
         for s in &self.stack[0..self.stack_pointer] {
             match s {
-                Value::Int(_, ValueIntFlag::Pc) => {
-                    stack_frames.push((p - current_frame.len(), current_frame));
+                Value::Int(_, ValueIntFlag::Pc(t)) => {
+                    stack_frames.push((p - current_frame.len(), *t, current_frame));
                     current_frame = vec![];
                 }
                 _ => {}
@@ -331,16 +338,17 @@ impl Runtime {
             current_frame.push(s.clone());
             p += 1;
         }
-        stack_frames.push((p - current_frame.len(), current_frame));
+        stack_frames.push((p - current_frame.len(), 0, current_frame));
 
         format!(
             "{}",
             stack_frames
                 .into_iter()
                 .skip(1) // skipping data segment
-                .map(|(p, ds)| format!(
-                    "{} {:?}",
-                    self.labels.get(&p).unwrap_or(&format!("({})", p)),
+                .map(|(p, t, ds)| format!(
+                    "{}({}) {:?}",
+                    p,
+                    self.labels.get(&t).unwrap_or(&format!("{}", t)),
                     ds
                 ))
                 .collect::<Vec<_>>()
@@ -435,8 +443,9 @@ impl Runtime {
                 let r = self.pop();
                 assert_matches!(r, Value::Int(_, _), "{:?}", r);
 
-                self.push(Value::Int(self.pc as i32 + 1, ValueIntFlag::Pc));
-                self.pc = r.as_int().unwrap() as usize;
+                let jump_to = r.as_int().unwrap() as usize;
+                self.push(Value::Int(self.pc as i32 + 1, ValueIntFlag::Pc(jump_to)));
+                self.pc = jump_to;
                 self.push(Value::Int(self.frame_pointer as i32, ValueIntFlag::Fp));
                 self.frame_pointer = self.stack_pointer;
 
@@ -472,7 +481,7 @@ impl Runtime {
                 self.frame_pointer = fp.as_named_int(ValueIntFlag::Fp).unwrap() as usize;
 
                 let pc = self.load(2);
-                self.pc = pc.as_named_int(ValueIntFlag::Pc).unwrap() as usize;
+                self.pc = pc.as_int_pc().unwrap();
 
                 for (i, r) in results.into_iter().rev().enumerate() {
                     self.stack[current_fp - (args + 2) + i] = r;

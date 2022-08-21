@@ -111,21 +111,22 @@ fn main() -> Result<()> {
 
             let code = compiled_result?;
 
+            let mut runtime = Runtime::new(code.clone(), compiler.vm_code_generation.globals());
+            runtime.set_labels(compiler.vm_code_generation.labels);
+
             if profile {
                 let guard = pprof::ProfilerGuardBuilder::default()
                     .frequency(1000)
                     .build()
                     .unwrap();
 
-                Runtime::new(code.clone(), compiler.vm_code_generation.globals()).run()?;
+                runtime.run()?;
 
                 if let Ok(report) = guard.report().build() {
                     let file = File::create("./build/prof-flamegraph.svg").unwrap();
                     report.flamegraph(file).unwrap();
                 };
             } else {
-                let mut runtime = Runtime::new(code.clone(), compiler.vm_code_generation.globals());
-                runtime.set_labels(compiler.vm_code_generation.labels);
                 runtime
                     .run()
                     .context(format!("{}", runtime.debug_stacktrace()))?;
