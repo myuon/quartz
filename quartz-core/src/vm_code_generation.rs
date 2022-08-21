@@ -864,6 +864,8 @@ pub struct VmGenerator {
     entrypoint: String,
     function_types: HashMap<String, IrType>,
     types: HashMap<String, IrType>,
+    pub(crate) source_map: HashMap<usize, String>,
+    pub labels: HashMap<usize, String>,
 }
 
 impl VmGenerator {
@@ -874,6 +876,8 @@ impl VmGenerator {
             entrypoint: "main".to_string(),
             function_types: HashMap::new(),
             types: HashMap::new(),
+            source_map: HashMap::new(),
+            labels: HashMap::new(),
         }
     }
 
@@ -1006,17 +1010,12 @@ impl VmGenerator {
         Ok(generator.writer.into_code())
     }
 
-    pub fn generate(
-        &mut self,
-        element: IrElement,
-    ) -> Result<(Vec<QVMInstruction>, HashMap<usize, String>)> {
+    pub fn generate(&mut self, element: IrElement) -> Result<Vec<QVMInstruction>> {
         let mut code = vec![];
         let mut labels = HashMap::new();
 
         let mut functions = vec![];
         let mut variables = vec![];
-
-        let mut source_map: HashMap<usize, String> = HashMap::new();
 
         // = first path
 
@@ -1117,7 +1116,7 @@ impl VmGenerator {
                 )
                 .context(format!("[function] {}", name))?;
             code.extend(code_generated);
-            source_map.extend(source_map_generated);
+            self.source_map.extend(source_map_generated);
         }
 
         // = second path
@@ -1161,8 +1160,8 @@ impl VmGenerator {
             let (optimized_code, code_map) = optimizer.optimize(code);
 
             let mut new_source_map: HashMap<usize, String> = HashMap::new();
-            for (k, v) in source_map {
-                if let Some(p) = code_map.get(k) {
+            for (k, v) in &self.source_map {
+                if let Some(p) = code_map.get(*k) {
                     new_source_map
                         .entry(*p)
                         .and_modify(|e| {
@@ -1173,10 +1172,12 @@ impl VmGenerator {
             }
 
             code = optimized_code;
-            source_map = new_source_map;
+            self.source_map = new_source_map;
         }
 
-        Ok((code, source_map))
+        self.labels = labels.into_iter().map(|(k, v)| (v, k)).collect();
+
+        Ok(code)
     }
 }
 

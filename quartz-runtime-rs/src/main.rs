@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use crossterm::{
     event::{Event, KeyCode},
@@ -124,7 +124,11 @@ fn main() -> Result<()> {
                     report.flamegraph(file).unwrap();
                 };
             } else {
-                Runtime::new(code.clone(), compiler.vm_code_generation.globals()).run()?;
+                let mut runtime = Runtime::new(code.clone(), compiler.vm_code_generation.globals());
+                runtime.set_labels(compiler.vm_code_generation.labels);
+                runtime
+                    .run()
+                    .context(format!("{}", runtime.debug_stacktrace()))?;
             }
         }
         Command::Compile {

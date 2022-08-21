@@ -218,8 +218,8 @@ impl Compiler<'_> {
         let ir = self.compile_ir(input, entrypoint.clone())?;
         self.ir_result = Some(ir.clone());
         self.vm_code_generation.set_entrypoint(entrypoint);
-        let (code, source_map) = self.vm_code_generation.generate(ir)?;
-        self.ir_source_map = source_map;
+        let code = self.vm_code_generation.generate(ir)?;
+        self.ir_source_map = self.vm_code_generation.source_map.clone();
 
         self.typechecker = TypeChecker::new(
             self.typechecker.variables.clone(),
@@ -238,8 +238,8 @@ impl Compiler<'_> {
         let ir = self.compile_ir(input, entrypoint.clone())?;
         self.ir_result = Some(ir.clone());
         self.vm_code_generation.set_entrypoint(entrypoint);
-        let (code, source_map) = self.vm_code_generation.generate(ir)?;
-        self.ir_source_map = source_map;
+        let code = self.vm_code_generation.generate(ir)?;
+        self.ir_source_map = self.vm_code_generation.source_map.clone();
 
         self.typechecker = TypeChecker::new(
             self.typechecker.variables.clone(),

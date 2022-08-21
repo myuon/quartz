@@ -1,11 +1,11 @@
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     fs::File,
     io::{Read, Write},
     path::PathBuf,
 };
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use log::{debug, info};
 use quartz_core::vm::{QVMInstruction, Variable};
 use serde::{Deserialize, Serialize};
@@ -172,6 +172,7 @@ pub struct Runtime {
     pub(crate) frame_pointer: usize,
     debugger_json_path: PathBuf,
     debug_mode: bool,
+    labels: HashMap<usize, String>,
 }
 
 impl Runtime {
@@ -186,12 +187,17 @@ impl Runtime {
             frame_pointer: 0,
             debugger_json_path: PathBuf::new(),
             debug_mode: false,
+            labels: HashMap::new(),
         }
     }
 
     pub fn set_debug_mode(&mut self, debugger_json: PathBuf) {
         self.debug_mode = true;
         self.debugger_json_path = debugger_json;
+    }
+
+    pub fn set_labels(&mut self, labels: HashMap<usize, String>) {
+        self.labels = labels;
     }
 
     pub fn new_from_debugger_json(path: PathBuf) -> Result<Self> {
@@ -289,6 +295,27 @@ impl Runtime {
     }
 
     pub(crate) fn debug_info(&self) -> String {
+        format!(
+            "sp:{}\n{:?}\n{}\n{}\n{} {:?}\n",
+            self.stack_pointer,
+            self.globals,
+            &self
+                .heap
+                .debug_objects()
+                .iter()
+                .rev()
+                .take(5)
+                .rev()
+                .map(|c| format!("{:?}", c))
+                .collect::<Vec<_>>()
+                .join("\n"),
+            self.debug_stacktrace(),
+            self.pc,
+            &self.code[self.pc]
+        )
+    }
+
+    pub(crate) fn debug_stacktrace(&self) -> String {
         let mut stack_frames = vec![];
         let mut current_frame = vec![];
         let mut p = 0;
@@ -307,27 +334,17 @@ impl Runtime {
         stack_frames.push((p - current_frame.len(), current_frame));
 
         format!(
-            "sp:{}\n{:?}\n{}\n{}\n{} {:?}\n",
-            self.stack_pointer,
-            self.globals,
-            &self
-                .heap
-                .debug_objects()
-                .iter()
-                .rev()
-                .take(5)
-                .rev()
-                .map(|c| format!("{:?}", c))
-                .collect::<Vec<_>>()
-                .join("\n"),
+            "{}",
             stack_frames
                 .into_iter()
                 .skip(1) // skipping data segment
-                .map(|(p, ds)| format!("{} {:?}", p, ds))
+                .map(|(p, ds)| format!(
+                    "{} {:?}",
+                    self.labels.get(&p).unwrap_or(&format!("({})", p)),
+                    ds
+                ))
                 .collect::<Vec<_>>()
                 .join("\n"),
-            self.pc,
-            &self.code[self.pc]
         )
     }
 
@@ -572,7 +589,7 @@ impl Runtime {
                 match addr_value {
                     a if a.is_nil() => {
                         info!("{}", self.debug_info());
-                        panic!("nil pointer exception");
+                        bail!("nil pointer exception");
                     }
                     Value::Addr(i, space, _) => match space {
                         AddrPlace::Stack => {

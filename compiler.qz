@@ -115,6 +115,36 @@ method TokenList cons(self, node: Token): TokenList {
     };
 }
 
+method TokenList concat(self, node: TokenList): TokenList {
+    if _is_nil(self.next) {
+        return node;
+    } else {
+        return TokenList {
+            next: ref TokenListNode {
+                node: self.next!.node,
+                next: self.next!.next.concat(node),
+            },
+        };
+    };
+}
+
+method TokenList reverse(self): TokenList {
+    if _is_nil(self.next) {
+        return TokenList {
+            next: nil,
+        };
+    } else {
+        let current = self.next!;
+
+        return current.next.reverse().concat(TokenList {
+            next: ref TokenListNode {
+                node: current.node,
+                next: nil as ref TokenList,
+            },
+        });
+    };
+}
+
 method IrLexer next_token(self): Token {
     let current = self.current_input();
 
