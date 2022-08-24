@@ -231,6 +231,7 @@ fn main() -> Result<()> {
 
                 let mut runtime = Runtime::new(code.clone(), compiler.vm_code_generation.globals());
                 runtime.set_debug_mode(debugger_json.unwrap_or("./quartz-debugger.json".into()));
+                runtime.set_labels(compiler.vm_code_generation.labels);
                 runtime.run()?;
             }
         },

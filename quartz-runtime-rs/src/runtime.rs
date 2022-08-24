@@ -326,10 +326,12 @@ impl Runtime {
         let mut stack_frames = vec![];
         let mut current_frame = vec![];
         let mut p = 0;
+        let mut pc_prev = 0;
         for s in &self.stack[0..self.stack_pointer] {
             match s {
                 Value::Int(_, ValueIntFlag::Pc(t)) => {
-                    stack_frames.push((p - current_frame.len(), *t, current_frame));
+                    stack_frames.push((p - current_frame.len(), pc_prev, current_frame));
+                    pc_prev = *t;
                     current_frame = vec![];
                 }
                 _ => {}
@@ -338,7 +340,7 @@ impl Runtime {
             current_frame.push(s.clone());
             p += 1;
         }
-        stack_frames.push((p - current_frame.len(), 0, current_frame));
+        stack_frames.push((p - current_frame.len(), pc_prev, current_frame));
 
         format!(
             "{}",

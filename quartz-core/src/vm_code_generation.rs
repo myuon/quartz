@@ -1174,12 +1174,7 @@ impl VmGenerator {
             let mut new_labels: HashMap<usize, String> = HashMap::new();
             for (v, k) in labels {
                 if let Some(p) = code_map.get(k) {
-                    new_labels
-                        .entry(*p)
-                        .and_modify(|e| {
-                            *e += v.as_str();
-                        })
-                        .or_insert(v.to_string());
+                    new_labels.insert(*p, v.to_string());
                 }
             }
 
