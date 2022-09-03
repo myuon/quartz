@@ -119,6 +119,7 @@ method TokenList concat(self, node: TokenList): TokenList {
     if _is_nil(self.next) {
         return node;
     } else {
+    _start_debugger;
         let current = self.next!;
 
         return TokenList {
@@ -510,7 +511,6 @@ method IrParser element(self): IrElement? {
 }
 
 func main() {
-    _start_debugger;
     let l = TokenList::new();
     let t = l.cons(Token {
         type: "A",

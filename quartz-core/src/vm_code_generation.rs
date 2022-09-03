@@ -760,11 +760,13 @@ impl<'s> VmFunctionGenerator<'s> {
                         ));
                         self.writer.push(QVMInstruction::PAdd);
 
-                        self.writer.push(QVMInstruction::Load(self.size_of(&typ)?));
-
-                        Ok(inner_addr_typ
+                        let return_type = inner_addr_typ
                             .offset(offset, self.types)
-                            .context(format!("[offset] {}", element.show()))?)
+                            .context(format!("[offset] {}", element.show()))?;
+                        self.writer
+                            .push(QVMInstruction::Load(self.size_of(&return_type)?));
+
+                        Ok(return_type)
                     }
                     "addr_offset" => {
                         self.new_source_map(element.show_compact());
@@ -1174,7 +1176,12 @@ impl VmGenerator {
             let mut new_labels: HashMap<usize, String> = HashMap::new();
             for (v, k) in labels {
                 if let Some(p) = code_map.get(k) {
-                    new_labels.insert(*p, v.to_string());
+                    new_labels
+                        .entry(*p)
+                        .and_modify(|e| {
+                            *e += v.as_str();
+                        })
+                        .or_insert(v.to_string());
                 }
             }
 
