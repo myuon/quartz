@@ -111,6 +111,8 @@ struct VmFunctionGenerator<'s> {
     string_pointers: &'s Vec<usize>,
     expected_type: IrType,
     types: &'s HashMap<String, IrType>,
+    current_context: &'s String,
+    current_block_number: usize,
 }
 
 impl<'s> VmFunctionGenerator<'s> {
@@ -123,6 +125,7 @@ impl<'s> VmFunctionGenerator<'s> {
         string_pointers: &'s Vec<usize>,
         expected_type: IrType,
         types: &'s HashMap<String, IrType>,
+        current_context: &'s String,
     ) -> VmFunctionGenerator<'s> {
         VmFunctionGenerator {
             writer,
@@ -139,6 +142,8 @@ impl<'s> VmFunctionGenerator<'s> {
             string_pointers,
             expected_type,
             types,
+            current_context,
+            current_block_number: 0,
         }
     }
 
@@ -159,8 +164,15 @@ impl<'s> VmFunctionGenerator<'s> {
     }
 
     fn new_source_map(&mut self, s: impl Into<String>) {
-        self.source_map
-            .insert(self.writer.get_code_address(), s.into());
+        self.source_map.insert(
+            self.writer.get_code_address(),
+            format!(
+                "{}:{}, {}",
+                self.current_context,
+                self.current_block_number,
+                s.into()
+            ),
+        );
     }
 
     fn resolve_symbol(&self, v: &str) -> (QVMInstruction, IrType) {
@@ -904,6 +916,7 @@ impl VmGenerator {
         offset: usize,
         string_pointers: &Vec<usize>,
         ret: IrType,
+        current_context: &String,
     ) -> Result<(Vec<QVMInstruction>, HashMap<usize, String>)> {
         let mut generator = VmFunctionGenerator::new(
             InstructionWriter {
@@ -917,12 +930,15 @@ impl VmGenerator {
             string_pointers,
             ret.clone(),
             &self.types,
+            current_context,
         );
 
+        generator.current_block_number = 0;
         for statement in body {
             generator
                 .element(statement.clone())
                 .context(format!("{}", statement.show()))?;
+            generator.current_block_number += 1;
         }
 
         // if the last statement was not return, insert a new "return nil" statement
@@ -971,6 +987,7 @@ impl VmGenerator {
             string_pointers,
             typ.clone(),
             &self.types,
+            &name,
         );
         generator.element(expr)?.unify(typ)?;
         code.extend(generator.writer.into_code());
@@ -986,6 +1003,7 @@ impl VmGenerator {
         string_pointers: &Vec<usize>,
         ret: IrType,
     ) -> Result<Vec<QVMInstruction>> {
+        let current_context = "main".to_string();
         let mut generator = VmFunctionGenerator::new(
             InstructionWriter {
                 code: vec![],
@@ -998,6 +1016,7 @@ impl VmGenerator {
             &string_pointers,
             ret.clone(),
             &self.types,
+            &current_context,
         );
         generator
             .element(IrElement::block(
@@ -1115,6 +1134,7 @@ impl VmGenerator {
                     code.len(),
                     &string_pointers,
                     ret.as_ref().clone(),
+                    &name,
                 )
                 .context(format!("[function] {}", name))?;
             code.extend(code_generated);
@@ -1262,6 +1282,7 @@ mod tests {
             let functions = HashMap::new();
             let strings = vec![0];
             let types = HashMap::new();
+            let current_context = "main".to_string();
 
             let mut generator = VmFunctionGenerator::new(
                 InstructionWriter {
@@ -1275,6 +1296,7 @@ mod tests {
                 &strings,
                 IrType::unknown(),
                 &types,
+                &current_context,
             );
 
             let ir = parse_ir(input)?;
