@@ -745,13 +745,7 @@ impl Runtime {
                 let (b, v) = match self.pop() {
                     Value::Addr(b, v, ValueAddrFlag::Addr) => (b, v),
                     t => {
-                        unreachable!(
-                            "{}, {:?}, {:?} ({:?})",
-                            self.pc,
-                            t,
-                            &self.stack[0..self.stack_pointer],
-                            a,
-                        );
+                        unreachable!("{}, {:?}, ({:?})", self.pc, t, a);
                     }
                 };
                 self.push(Value::addr(b + a, v));

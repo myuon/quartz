@@ -119,7 +119,6 @@ method TokenList concat(self, node: TokenList): TokenList {
     if _is_nil(self.next) {
         return node;
     } else {
-    _start_debugger;
         let current = self.next!;
 
         return TokenList {
@@ -142,7 +141,9 @@ method TokenList reverse(self): TokenList {
         return current.next.reverse().concat(TokenList {
             next: ref TokenListNode {
                 node: current.node,
-                next: nil as ref TokenList,
+                next: TokenList {
+                    next: nil
+                },
             },
         });
     };
@@ -511,14 +512,6 @@ method IrParser element(self): IrElement? {
 }
 
 func main() {
-    let l = TokenList::new();
-    let t = l.cons(Token {
-        type: "A",
-        value_string: nil,
-        value_int: nil,
-    });
-    t.concat(t);
-
     let input = "(module (func $main 0 (return 10)))";
     let IrLexer = IrLexer {
         input: input, 
@@ -555,7 +548,7 @@ func compiler_test() {
         value_string: nil,
         value_int: nil,
     });
-    t.concat(t);
+    assert_eq(t.concat(t).next!.node.type, "A");
 
     assert_eq(t.reverse().next!.node.type, "C");
 }
