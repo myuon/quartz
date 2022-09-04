@@ -536,7 +536,7 @@ impl<'s> IrGenerator<'s> {
         ))
     }
 
-    fn module(&mut self, module: &Module) -> Result<(Vec<IrElement>, Vec<IrElement>)> {
+    fn module(&mut self, module: &Module) -> Result<Vec<IrElement>> {
         self.module_path = module.module_path.clone();
 
         let mut elements = vec![];
@@ -581,9 +581,18 @@ impl<'s> IrGenerator<'s> {
             }
         }
 
-        // string segment
-        let strings = self
-            .strings
+        Ok(elements)
+    }
+
+    pub fn generate_module(&mut self, module: &Module) -> Result<IrElement> {
+        let mut elements = self.string_segment();
+        elements.extend(self.module(&module)?);
+
+        Ok(IrElement::block("module", elements))
+    }
+
+    fn string_segment(&mut self) -> Vec<IrElement> {
+        self.strings
             .iter()
             .map(|t| {
                 let mut bytes = vec![IrElement::int(t.as_bytes().len() as i32 + 1)];
@@ -596,33 +605,23 @@ impl<'s> IrGenerator<'s> {
 
                 IrElement::block("text", bytes)
             })
-            .collect::<Vec<_>>();
-
-        Ok((strings, elements))
-    }
-
-    pub fn generate_module(&mut self, module: &Module) -> Result<IrElement> {
-        let (mut strings, elements) = self.module(&module)?;
-        strings.extend(elements);
-
-        Ok(IrElement::block("module", strings))
+            .collect::<Vec<_>>()
     }
 
     pub fn generate(&mut self, modules: &Vec<Module>) -> Result<IrElement> {
-        let mut strings = vec![];
         let mut elements = vec![];
 
+        // require link
         for m in modules {
-            let (s, e) = self.module(m)?;
-            strings.extend(s);
-            elements.extend(e);
+            elements.extend(self.module(m)?);
         }
 
-        strings.extend(elements);
+        let mut result = self.string_segment();
+        result.extend(elements);
 
         Ok(IrElement::Block(IrBlock {
             name: "module".to_string(),
-            elements: strings,
+            elements: result,
         }))
     }
 }
