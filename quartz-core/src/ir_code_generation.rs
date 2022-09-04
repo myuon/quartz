@@ -578,10 +578,14 @@ impl<'s> IrGenerator<'s> {
             })
             .collect::<Vec<_>>();
 
-        let mut module_elements = vec![IrElement::block(
-            "source",
-            vec![IrElement::string(module.file_path.clone())],
-        )];
+        // add source path for the module/
+        /*
+            IrElement::block(
+                "source",
+                vec![IrElement::string(module.file_path.clone())],
+            )
+        */
+        let mut module_elements = vec![];
         module_elements.extend(strings);
         module_elements.extend(elements);
 
@@ -596,15 +600,15 @@ impl<'s> IrGenerator<'s> {
     }
 
     pub fn generate(&mut self, modules: &Vec<Module>) -> Result<IrElement> {
-        let mut elements = vec![];
+        let mut result = vec![];
 
         for m in modules {
-            elements.extend(self.module(m)?.into_block()?.elements);
+            result.extend(self.module(m)?.into_block()?.elements);
         }
 
         Ok(IrElement::Block(IrBlock {
             name: "module".to_string(),
-            elements,
+            elements: result,
         }))
     }
 }
