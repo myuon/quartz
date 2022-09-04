@@ -44,8 +44,8 @@ impl SourceLoader {
         }
     }
 
-    pub fn specify_source(&self, path: String, start: usize, end: usize) -> Result<String> {
-        let input = self.load_module(&path)?;
+    pub fn specify_source(&self, path: &str, start: usize, end: usize) -> Result<String> {
+        let input = self.load_module(path)?;
 
         let position = start;
 
@@ -152,7 +152,7 @@ pub struct Compiler<'s> {
 impl Compiler<'_> {
     pub fn new() -> Compiler<'static> {
         Compiler {
-            typechecker: TypeChecker::new(builtin(), Structs(HashMap::new()), None),
+            typechecker: TypeChecker::new(builtin(), Structs(HashMap::new()), None, String::new()),
             vm_code_generation: VmGenerator::new(),
             ir_result: None,
             ir_source_map: HashMap::new(),
@@ -160,7 +160,7 @@ impl Compiler<'_> {
         }
     }
 
-    fn run_parser(&self, input: &str) -> Result<Module> {
+    fn run_parser(&self, module_path: &str, input: &str) -> Result<Module> {
         run_parser(&input).context("Phase: parse").map_err(|err| {
             if let Some(cerr) = err.downcast_ref::<CompileError>() {
                 match cerr {
@@ -169,7 +169,7 @@ impl Compiler<'_> {
                             .source_loader
                             .as_ref()
                             .unwrap()
-                            .specify_source("main".to_string(), *position, *position + 1)
+                            .specify_source(module_path, *position, *position + 1)
                             .unwrap();
                         err.context(message)
                     }
@@ -180,8 +180,8 @@ impl Compiler<'_> {
         })
     }
 
-    pub fn parse(&self, input: &String) -> Result<Module> {
-        self.run_parser(&input)
+    pub fn parse(&self, module_path: &str, input: &String) -> Result<Module> {
+        self.run_parser(module_path, &input)
     }
 
     pub fn typecheck(&mut self, modules: &mut Vec<Module>) -> Result<TypeChecker> {
@@ -207,6 +207,7 @@ impl Compiler<'_> {
             self.typechecker.variables.clone(),
             self.typechecker.structs.clone(),
             Some(self.source_loader.as_ref().unwrap()),
+            "main".to_string(),
         );
 
         let mut modules = vec![];
@@ -220,6 +221,7 @@ impl Compiler<'_> {
         while let Some(path) = stack.pop() {
             let module = self
                 .parse(
+                    &path,
                     &self
                         .source_loader
                         .as_ref()
@@ -254,6 +256,7 @@ impl Compiler<'_> {
             self.typechecker.variables.clone(),
             self.typechecker.structs.clone(),
             None,
+            "unknown".to_string(),
         );
 
         Ok(code)
@@ -274,6 +277,7 @@ impl Compiler<'_> {
             self.typechecker.variables.clone(),
             self.typechecker.structs.clone(),
             None,
+            "unknown".to_string(),
         );
 
         Ok(code)
@@ -294,6 +298,7 @@ impl Compiler<'_> {
             self.typechecker.variables.clone(),
             self.typechecker.structs.clone(),
             None,
+            "unknown".to_string(),
         );
 
         Ok(code)

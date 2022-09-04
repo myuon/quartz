@@ -159,6 +159,7 @@ pub struct TypeChecker<'s> {
     current_function: Option<String>,
     entrypoint: String,
     self_object: Option<Box<Source<Expr>>>,
+    current_module_path: String,
     source_loader: Option<&'s SourceLoader>,
 }
 
@@ -167,6 +168,7 @@ impl<'s> TypeChecker<'s> {
         variables: HashMap<String, Type>,
         structs: Structs,
         source_loader: Option<&'s SourceLoader>,
+        current_path: String,
     ) -> TypeChecker {
         TypeChecker {
             infer_count: 1,
@@ -181,6 +183,7 @@ impl<'s> TypeChecker<'s> {
             entrypoint: "main".to_string(),
             self_object: None,
             source_loader,
+            current_module_path: current_path,
         }
     }
 
@@ -202,13 +205,15 @@ impl<'s> TypeChecker<'s> {
         end: Option<usize>,
         unknown_context: &str,
     ) -> String {
-        match (start, end) {
-            (Some(start), Some(end)) => self
-                .source_loader
-                .unwrap()
-                .specify_source("main".to_string(), start, end)
-                .unwrap(),
-            _ => unknown_context.to_string(),
+        if let Some(source_loader) = self.source_loader {
+            match (start, end) {
+                (Some(start), Some(end)) => source_loader
+                    .specify_source(&self.current_module_path, start, end)
+                    .unwrap(),
+                _ => unknown_context.to_string(),
+            }
+        } else {
+            unknown_context.to_string()
         }
     }
 
@@ -915,7 +920,12 @@ mod tests {
 
         for c in cases {
             let mut module = run_parser_statements(c.0).unwrap();
-            let mut typechecker = TypeChecker::new(HashMap::new(), Structs(HashMap::new()), None);
+            let mut typechecker = TypeChecker::new(
+                HashMap::new(),
+                Structs(HashMap::new()),
+                None,
+                "main".to_string(),
+            );
             let mut result = Type::Infer(1);
             typechecker
                 .statements(&mut module, &mut result)
@@ -959,7 +969,8 @@ mod tests {
 
         for c in cases {
             let mut module = run_parser(c.0).unwrap();
-            let mut typechecker = TypeChecker::new(builtin(), Structs(HashMap::new()), None);
+            let mut typechecker =
+                TypeChecker::new(builtin(), Structs(HashMap::new()), None, "main".to_string());
             let result = typechecker.module(&mut module);
 
             let err = result.unwrap_err();
@@ -1045,6 +1056,7 @@ func main(): int {
             let mut compiler = Compiler::new();
             let module = compiler
                 .parse(
+                    "main",
                     &(r#"
 method string len(self): int {
     return 0;

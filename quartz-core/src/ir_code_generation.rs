@@ -66,7 +66,7 @@ impl<'s> IrFunctionGenerator<'s> {
                                 Box::new(Source::unknown(Expr::Var(vec!["_println".to_string()]))),
                                 vec![Source::unknown(Expr::Lit(
                                     Literal::String(self.source_loader.specify_source(
-                                        "main".to_string(),
+                                        "main",
                                         expr.start.unwrap(),
                                         expr.end.unwrap(),
                                     )?),
