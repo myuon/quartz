@@ -558,6 +558,7 @@ impl<'s> IrGenerator<'s> {
 
                     elements.push(self.struct_(&s)?);
                 }
+                Declaration::Import(_) => {}
             }
         }
 

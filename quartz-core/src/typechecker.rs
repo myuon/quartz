@@ -814,6 +814,7 @@ impl<'s> TypeChecker<'s> {
                     assert!(!self.structs.0.contains_key(&st.name));
                     self.structs.0.insert(st.name.clone(), st.fields.clone());
                 }
+                Declaration::Import(_) => {}
             }
         }
 

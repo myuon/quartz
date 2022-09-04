@@ -17,6 +17,7 @@ pub enum Lexeme {
     Continue,
     Struct,
     Make,
+    Import,
     LParen,
     RParen,
     LBrace,
@@ -174,6 +175,7 @@ impl TokenReader {
                     ("as", Lexeme::As),
                     ("self", Lexeme::Self_),
                     ("make", Lexeme::Make),
+                    ("import", Lexeme::Import),
                 ],
             ) {
                 continue;

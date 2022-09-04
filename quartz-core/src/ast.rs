@@ -222,6 +222,7 @@ pub enum Declaration {
     Function(Function),
     Variable(String, Source<Expr>, Type),
     Struct(Struct),
+    Import(Source<String>),
 }
 
 impl Declaration {

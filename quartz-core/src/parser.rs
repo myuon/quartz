@@ -641,6 +641,11 @@ impl Parser {
                 fields,
                 dead_code: false,
             }))
+        } else if self.expect_lexeme(Lexeme::Import).is_ok() {
+            let path = self.ident()?;
+            self.expect_lexeme(Lexeme::SemiColon)?;
+
+            Ok(Declaration::Import(path))
         } else {
             bail!("Expected a declaration, but found {:?}", self.peek())
         }
