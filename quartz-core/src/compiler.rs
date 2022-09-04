@@ -132,24 +132,6 @@ impl Compiler<'_> {
         }
     }
 
-    fn load_std(&self) -> Result<String> {
-        let mut d = PathBuf::from(env!("CARGO_WORKSPACE_DIR"));
-        d.push("std.qz");
-
-        let mut f = File::open(format!("{}", d.display()))?;
-        let mut buffer = String::new();
-
-        f.read_to_string(&mut buffer)?;
-
-        Ok(buffer)
-    }
-
-    fn with_std(&self, input: &str) -> Result<String> {
-        let mut std = self.load_std()?;
-        std.push_str(input);
-        Ok(std)
-    }
-
     fn run_parser(&self, input: &str) -> Result<Module> {
         run_parser(&input).context("Phase: parse").map_err(|err| {
             if let Some(cerr) = err.downcast_ref::<CompileError>() {
@@ -169,24 +151,23 @@ impl Compiler<'_> {
         self.run_parser(&input)
     }
 
-    pub fn typecheck(&mut self, module: &mut Module) -> Result<TypeChecker> {
+    pub fn typecheck(&mut self, modules: &mut Vec<Module>) -> Result<TypeChecker> {
         self.typechecker
-            .module(module)
+            .modules(modules)
             .context("Phase: typecheck")?;
 
         Ok(self.typechecker.clone())
     }
 
     pub fn compile_ir<'s>(&mut self, input: &'s str, entrypoint: String) -> Result<IrElement> {
-        let input = self.with_std(input)?;
-
-        self.compile_ir_nostd(&input, entrypoint)
+        self.compile_ir_nostd(&input, entrypoint, Some("std".to_string()))
     }
 
     pub fn compile_ir_nostd<'s>(
         &'s mut self,
         input: &'s str,
         entrypoint: String,
+        preload_path: Option<String>,
     ) -> Result<IrElement> {
         let mut typechecker = TypeChecker::new(
             self.typechecker.variables.clone(),
@@ -198,14 +179,21 @@ impl Compiler<'_> {
         let mut visited = HashSet::new();
         let mut stack = vec!["main".to_string()];
         let mut buffer = String::new();
+        if let Some(path) = preload_path {
+            stack.push(path.clone());
+            visited.insert(path);
+        }
+
         while let Some(path) = stack.pop() {
             let current = if path == "main" {
                 input
             } else {
-                let filepath = format!("{}.qz", path);
-                File::open(filepath.clone())
-                    .context(format!("File: {}", filepath))?
-                    .read_to_string(&mut buffer)?;
+                let mut d = PathBuf::from(env!("CARGO_WORKSPACE_DIR"));
+                d.push(format!("{}.qz", path.clone()));
+
+                let mut f = File::open(format!("{}", d.display()))
+                    .context(format!("Load file: {}", d.display()))?;
+                f.read_to_string(&mut buffer)?;
 
                 &buffer
             };

@@ -821,8 +821,16 @@ impl<'s> TypeChecker<'s> {
         Ok(())
     }
 
-    pub fn module(&mut self, module: &mut Module) -> Result<()> {
+    fn module(&mut self, module: &mut Module) -> Result<()> {
         self.declarations(&mut module.decls)?;
+
+        Ok(())
+    }
+
+    pub fn modules(&mut self, modules: &mut Vec<Module>) -> Result<()> {
+        for m in modules.into_iter() {
+            self.module(m)?;
+        }
 
         // update dead_code fields for functions
         // calculate reachable functions from entrypoint
@@ -845,42 +853,36 @@ impl<'s> TypeChecker<'s> {
             }
         }
 
-        for decl in &mut module.decls {
-            let function_path = decl.function_path();
+        for module in modules {
+            for decl in &mut module.decls {
+                let function_path = decl.function_path();
 
-            match decl {
-                // TODO: support structs
-                Declaration::Function(func) => {
-                    if reachables.contains(function_path.unwrap().as_str()) {
-                        continue;
+                match decl {
+                    // TODO: support structs
+                    Declaration::Function(func) => {
+                        if reachables.contains(function_path.unwrap().as_str()) {
+                            continue;
+                        }
+
+                        func.dead_code = true;
                     }
+                    Declaration::Method(_typ, func) => {
+                        if reachables.contains(function_path.unwrap().as_str()) {
+                            continue;
+                        }
 
-                    func.dead_code = true;
-                }
-                Declaration::Method(_typ, func) => {
-                    if reachables.contains(function_path.unwrap().as_str()) {
-                        continue;
+                        func.dead_code = true;
                     }
+                    Declaration::Struct(s) => {
+                        if reachables_structs.contains(&s.name) {
+                            continue;
+                        }
 
-                    func.dead_code = true;
-                }
-                Declaration::Struct(s) => {
-                    if reachables_structs.contains(&s.name) {
-                        continue;
+                        s.dead_code = true;
                     }
-
-                    s.dead_code = true;
+                    _ => {}
                 }
-                _ => {}
             }
-        }
-
-        Ok(())
-    }
-
-    pub fn modules(&mut self, modules: &mut Vec<Module>) -> Result<()> {
-        for m in modules {
-            self.module(m)?;
         }
 
         Ok(())
@@ -1041,7 +1043,7 @@ func main(): int {
 
         for c in cases {
             let mut compiler = Compiler::new();
-            let mut module = compiler
+            let module = compiler
                 .parse(
                     &(r#"
 method string len(self): int {
@@ -1056,7 +1058,9 @@ method int eq(self, other: int): bool {
                         + c.0),
                 )
                 .unwrap();
-            let mut checker = compiler.typecheck(&mut module).expect(&format!("{}", c.0));
+            let mut checker = compiler
+                .typecheck(&mut vec![module])
+                .expect(&format!("{}", c.0));
 
             for (name, mut typ) in c.1 {
                 checker.load(&vec![name.to_string()], &mut typ).unwrap();

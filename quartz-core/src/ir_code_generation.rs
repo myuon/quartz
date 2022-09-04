@@ -781,6 +781,7 @@ func main() {
                     // FIXME: define string for now
                     &format!("struct string {{ data: bytes }}\n{}", code),
                     "main".to_string(),
+                    None,
                 )
                 .unwrap();
             info!("{}", generated.show());
