@@ -1,4 +1,10 @@
-use std::{collections::HashMap, fs::File, io::Read, iter::repeat, path::PathBuf};
+use std::{
+    collections::{HashMap, HashSet},
+    fs::File,
+    io::Read,
+    iter::repeat,
+    path::PathBuf,
+};
 
 use anyhow::{Context, Error, Result};
 use log::info;
@@ -188,17 +194,43 @@ impl Compiler<'_> {
             &input,
         );
 
-        let mut module = self.parse(&input).context("parse phase")?;
-        info!("parsed");
+        let mut modules = vec![];
+        let mut visited = HashSet::new();
+        let mut stack = vec!["main".to_string()];
+        let mut buffer = String::new();
+        while let Some(path) = stack.pop() {
+            let current = if path == "main" {
+                input
+            } else {
+                let filepath = format!("{}.qz", path);
+                File::open(filepath.clone())
+                    .context(format!("File: {}", filepath))?
+                    .read_to_string(&mut buffer)?;
+
+                &buffer
+            };
+            let module = self.parse(&current).context("parse phase")?;
+            for path in module.imports.clone() {
+                if !visited.contains(&path) {
+                    stack.push(path.clone());
+                    visited.insert(path);
+                }
+            }
+
+            modules.push(module);
+            info!("parsed module: {}", path);
+        }
 
         typechecker.set_entrypoint(entrypoint);
-        typechecker.module(&mut module).context("typecheck phase")?;
+        typechecker
+            .modules(&mut modules)
+            .context("typecheck phase")?;
         info!("typecheck");
 
         let mut ir_code_generation = IrGenerator::new(&input);
         ir_code_generation.context(typechecker.structs.clone());
 
-        let code = ir_code_generation.generate(&module)?;
+        let code = ir_code_generation.generate(&modules)?;
         info!("ir generated");
 
         self.typechecker = TypeChecker::new(

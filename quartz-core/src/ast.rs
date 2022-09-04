@@ -248,7 +248,10 @@ impl Declaration {
 }
 
 #[derive(PartialEq, Debug, Clone)]
-pub struct Module(pub Vec<Declaration>);
+pub struct Module {
+    pub imports: Vec<String>,
+    pub decls: Vec<Declaration>,
+}
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Type {

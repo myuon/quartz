@@ -822,7 +822,7 @@ impl<'s> TypeChecker<'s> {
     }
 
     pub fn module(&mut self, module: &mut Module) -> Result<()> {
-        self.declarations(&mut module.0)?;
+        self.declarations(&mut module.decls)?;
 
         // update dead_code fields for functions
         // calculate reachable functions from entrypoint
@@ -845,7 +845,7 @@ impl<'s> TypeChecker<'s> {
             }
         }
 
-        for decl in &mut module.0 {
+        for decl in &mut module.decls {
             let function_path = decl.function_path();
 
             match decl {
@@ -873,6 +873,14 @@ impl<'s> TypeChecker<'s> {
                 }
                 _ => {}
             }
+        }
+
+        Ok(())
+    }
+
+    pub fn modules(&mut self, modules: &mut Vec<Module>) -> Result<()> {
+        for m in modules {
+            self.module(m)?;
         }
 
         Ok(())

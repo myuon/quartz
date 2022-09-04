@@ -662,7 +662,19 @@ impl Parser {
     }
 
     fn parse_module(&mut self) -> Result<Module> {
-        Ok(Module(self.many_declarations()?))
+        let decls = self.many_declarations()?;
+        let mut paths = vec![];
+        for d in &decls {
+            match d {
+                Declaration::Import(path) => paths.push(path.data.clone()),
+                _ => (),
+            }
+        }
+
+        Ok(Module {
+            decls,
+            imports: paths,
+        })
     }
 
     pub fn run_parser(&mut self, tokens: Vec<Token>) -> Result<Module> {

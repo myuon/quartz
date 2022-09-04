@@ -521,7 +521,7 @@ impl<'s> IrGenerator<'s> {
     pub fn module(&mut self, module: &Module) -> Result<IrElement> {
         let mut elements = vec![];
 
-        for decl in &module.0 {
+        for decl in &module.decls {
             match decl {
                 Declaration::Function(f) => {
                     // skip if this function is not used
@@ -586,14 +586,27 @@ impl<'s> IrGenerator<'s> {
         }))
     }
 
-    pub fn generate(&mut self, module: &Module) -> Result<IrElement> {
-        self.module(module)
+    pub fn generate_module(&mut self, module: &Module) -> Result<IrElement> {
+        self.module(&module)
+    }
+
+    pub fn generate(&mut self, modules: &Vec<Module>) -> Result<IrElement> {
+        let mut elements = vec![];
+
+        for m in modules {
+            elements.extend(self.module(m)?.into_block()?.elements);
+        }
+
+        Ok(IrElement::Block(IrBlock {
+            name: "module".to_string(),
+            elements,
+        }))
     }
 }
 
 pub fn generate(source_code: &str, module: &Module) -> Result<IrElement> {
     let mut g = IrGenerator::new(source_code);
-    let code = g.generate(module)?;
+    let code = g.generate_module(module)?;
 
     Ok(code)
 }
