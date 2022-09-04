@@ -19,6 +19,7 @@ struct IrFunctionGenerator<'s> {
     structs: &'s Structs,
     strings: &'s mut Vec<String>,
     source_loader: &'s SourceLoader,
+    module_path: &'s str,
 }
 
 impl<'s> IrFunctionGenerator<'s> {
@@ -27,6 +28,7 @@ impl<'s> IrFunctionGenerator<'s> {
         args: &'s HashMap<String, usize>,
         structs: &'s Structs,
         strings: &'s mut Vec<String>,
+        module_path: &'s str,
     ) -> IrFunctionGenerator<'s> {
         IrFunctionGenerator {
             source_loader,
@@ -35,6 +37,7 @@ impl<'s> IrFunctionGenerator<'s> {
             fresh_var_index: 0,
             structs,
             strings,
+            module_path,
         }
     }
 
@@ -66,7 +69,7 @@ impl<'s> IrFunctionGenerator<'s> {
                                 Box::new(Source::unknown(Expr::Var(vec!["_println".to_string()]))),
                                 vec![Source::unknown(Expr::Lit(
                                     Literal::String(self.source_loader.specify_source(
-                                        "main",
+                                        self.module_path,
                                         expr.start.unwrap(),
                                         expr.end.unwrap(),
                                     )?),
@@ -328,6 +331,7 @@ impl<'s> IrFunctionGenerator<'s> {
                         self.args,
                         &self.structs,
                         &mut self.strings,
+                        self.module_path,
                     );
                     generator.statements(&s1)?;
                     generator.ir
@@ -338,6 +342,7 @@ impl<'s> IrFunctionGenerator<'s> {
                         self.args,
                         &self.structs,
                         &mut self.strings,
+                        self.module_path,
                     );
                     generator.statements(&s2)?;
                     generator.ir
@@ -367,6 +372,7 @@ impl<'s> IrFunctionGenerator<'s> {
                         self.args,
                         &self.structs,
                         &mut self.strings,
+                        self.module_path,
                     );
                     generator.statements(&body)?;
                     generator.ir
@@ -407,6 +413,7 @@ pub struct IrGenerator<'s> {
     source_loader: &'s SourceLoader,
     structs: Structs,
     strings: Vec<String>,
+    module_path: String,
 }
 
 impl<'s> IrGenerator<'s> {
@@ -415,6 +422,7 @@ impl<'s> IrGenerator<'s> {
             source_loader,
             structs: Structs(HashMap::new()),
             strings: vec![],
+            module_path: String::new(),
         }
     }
 
@@ -444,8 +452,13 @@ impl<'s> IrGenerator<'s> {
 
         let return_type = self.ir_type(&function.return_type)?;
 
-        let mut generator =
-            IrFunctionGenerator::new(self.source_loader, &args, &self.structs, &mut self.strings);
+        let mut generator = IrFunctionGenerator::new(
+            self.source_loader,
+            &args,
+            &self.structs,
+            &mut self.strings,
+            &self.module_path,
+        );
 
         generator.function(&function.body)?;
 
@@ -476,8 +489,13 @@ impl<'s> IrGenerator<'s> {
             .ir_type(&function.return_type)
             .context(format!("[return type] {:?}", function.return_type))?;
 
-        let mut generator =
-            IrFunctionGenerator::new(self.source_loader, &args, &self.structs, &mut self.strings);
+        let mut generator = IrFunctionGenerator::new(
+            self.source_loader,
+            &args,
+            &self.structs,
+            &mut self.strings,
+            &self.module_path,
+        );
 
         generator.function(&function.body)?;
 
@@ -498,8 +516,13 @@ impl<'s> IrGenerator<'s> {
     ) -> Result<IrElement> {
         let empty = HashMap::new();
         let typ = self.ir_type(typ)?;
-        let mut generator =
-            IrFunctionGenerator::new(self.source_loader, &empty, &self.structs, &mut self.strings);
+        let mut generator = IrFunctionGenerator::new(
+            self.source_loader,
+            &empty,
+            &self.structs,
+            &mut self.strings,
+            &self.module_path,
+        );
 
         Ok(IrElement::d_var(name, typ, generator.expr(expr)?))
     }
@@ -519,6 +542,8 @@ impl<'s> IrGenerator<'s> {
     }
 
     pub fn module(&mut self, module: &Module) -> Result<IrElement> {
+        self.module_path = module.module_path.clone();
+
         let mut elements = vec![];
         for decl in &module.decls {
             match decl {
@@ -578,13 +603,6 @@ impl<'s> IrGenerator<'s> {
             })
             .collect::<Vec<_>>();
 
-        // add source path for the module/
-        /*
-            IrElement::block(
-                "source",
-                vec![IrElement::string(module.file_path.clone())],
-            )
-        */
         let mut module_elements = vec![];
         module_elements.extend(strings);
         module_elements.extend(elements);
