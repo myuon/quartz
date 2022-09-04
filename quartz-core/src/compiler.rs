@@ -185,25 +185,28 @@ impl Compiler<'_> {
         }
 
         while let Some(path) = stack.pop() {
-            let current = if path == "main" {
-                input
+            let (file_path, current) = if path == "main" {
+                ("<no path>".to_string(), input)
             } else {
                 let mut d = PathBuf::from(env!("CARGO_WORKSPACE_DIR"));
                 d.push(format!("{}.qz", path.clone()));
 
-                let mut f = File::open(format!("{}", d.display()))
-                    .context(format!("Load file: {}", d.display()))?;
+                let file_path = format!("{}", d.display());
+                let mut f =
+                    File::open(file_path.clone()).context(format!("Load file: {}", d.display()))?;
                 f.read_to_string(&mut buffer)?;
 
-                &buffer
+                (file_path, buffer.as_str())
             };
-            let module = self.parse(&current).context("parse phase")?;
+            let mut module = self.parse(&current).context("parse phase")?;
             for path in module.imports.clone() {
                 if !visited.contains(&path) {
                     stack.push(path.clone());
                     visited.insert(path);
                 }
             }
+
+            module.file_path = file_path;
 
             modules.push(module);
             info!("parsed module: {}", path);

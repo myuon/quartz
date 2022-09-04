@@ -672,6 +672,7 @@ impl Parser {
         }
 
         Ok(Module {
+            file_path: String::new(),
             decls,
             imports: paths,
         })

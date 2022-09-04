@@ -249,6 +249,7 @@ impl Declaration {
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Module {
+    pub file_path: String,
     pub imports: Vec<String>,
     pub decls: Vec<Declaration>,
 }
