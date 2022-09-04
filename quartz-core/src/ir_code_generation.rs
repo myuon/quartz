@@ -434,11 +434,11 @@ impl<'s> IrGenerator<'s> {
         self.structs = structs;
     }
 
-    pub fn ir_type(&self, typ: &Type) -> Result<IrType> {
+    fn ir_type(&self, typ: &Type) -> Result<IrType> {
         IrType::from_type_ast(typ, &self.structs)
     }
 
-    pub fn function(&mut self, function: &Function) -> Result<IrElement> {
+    fn function(&mut self, function: &Function) -> Result<IrElement> {
         let mut args = HashMap::new();
         let mut arg_index = 0;
         let mut arg_types_in_ir = vec![];
@@ -470,7 +470,7 @@ impl<'s> IrGenerator<'s> {
         ))
     }
 
-    pub fn method(&mut self, typ: &Type, function: &Function) -> Result<IrElement> {
+    fn method(&mut self, typ: &Type, function: &Function) -> Result<IrElement> {
         let mut args = HashMap::new();
         let mut arg_index = 0;
         let mut arg_types_in_ir = vec![];
@@ -508,12 +508,7 @@ impl<'s> IrGenerator<'s> {
         ))
     }
 
-    pub fn variable(
-        &mut self,
-        name: &String,
-        expr: &Source<Expr>,
-        typ: &Type,
-    ) -> Result<IrElement> {
+    fn variable(&mut self, name: &String, expr: &Source<Expr>, typ: &Type) -> Result<IrElement> {
         let empty = HashMap::new();
         let typ = self.ir_type(typ)?;
         let mut generator = IrFunctionGenerator::new(
@@ -527,7 +522,7 @@ impl<'s> IrGenerator<'s> {
         Ok(IrElement::d_var(name, typ, generator.expr(expr)?))
     }
 
-    pub fn struct_(&mut self, s: &Struct) -> Result<IrElement> {
+    fn struct_(&mut self, s: &Struct) -> Result<IrElement> {
         Ok(IrElement::d_type(
             s.name.clone(),
             IrType::tuple(
@@ -541,7 +536,7 @@ impl<'s> IrGenerator<'s> {
         ))
     }
 
-    pub fn module(&mut self, module: &Module) -> Result<IrElement> {
+    fn module(&mut self, module: &Module) -> Result<(Vec<IrElement>, Vec<IrElement>)> {
         self.module_path = module.module_path.clone();
 
         let mut elements = vec![];
@@ -603,30 +598,31 @@ impl<'s> IrGenerator<'s> {
             })
             .collect::<Vec<_>>();
 
-        let mut module_elements = vec![];
-        module_elements.extend(strings);
-        module_elements.extend(elements);
-
-        Ok(IrElement::Block(IrBlock {
-            name: "module".to_string(),
-            elements: module_elements,
-        }))
+        Ok((strings, elements))
     }
 
     pub fn generate_module(&mut self, module: &Module) -> Result<IrElement> {
-        self.module(&module)
+        let (mut strings, elements) = self.module(&module)?;
+        strings.extend(elements);
+
+        Ok(IrElement::block("module", strings))
     }
 
     pub fn generate(&mut self, modules: &Vec<Module>) -> Result<IrElement> {
-        let mut result = vec![];
+        let mut strings = vec![];
+        let mut elements = vec![];
 
         for m in modules {
-            result.extend(self.module(m)?.into_block()?.elements);
+            let (s, e) = self.module(m)?;
+            strings.extend(s);
+            elements.extend(e);
         }
+
+        strings.extend(elements);
 
         Ok(IrElement::Block(IrBlock {
             name: "module".to_string(),
-            elements: result,
+            elements: strings,
         }))
     }
 }

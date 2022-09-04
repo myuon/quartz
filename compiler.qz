@@ -515,6 +515,7 @@ method IrParser element(self): IrElement? {
 
 func main() {
     let input = "(module (func $main 0 (return 10)))";
+    _println(input);
     let IrLexer = IrLexer {
         input: input, 
         position: 0,
