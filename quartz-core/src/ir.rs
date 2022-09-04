@@ -266,6 +266,22 @@ impl IrElement {
             vec![IrElement::ident(name.into()), typ.to_element()],
         )
     }
+
+    // returns if the expr can be passed to element_addr
+    pub fn is_address_expr(&self) -> bool {
+        match self {
+            IrElement::Term(IrTerm::Ident(_)) => true,
+            IrElement::Term(IrTerm::Argument(_)) => true,
+            IrElement::Block(block) => {
+                block.name == "deref"
+                    || block.name == "offset"
+                    || block.name == "addr_offset"
+                    || block.name == "index"
+                    || block.name == "addr_index"
+            }
+            _ => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

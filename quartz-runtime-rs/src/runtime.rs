@@ -1557,6 +1557,24 @@ func main() {
 "#,
             1,
         ),
+        (
+            r#"
+struct Point {
+    x: int,
+}
+
+func f(): Point {
+    return Point {
+        x: 10,
+    };
+}
+
+func main() {
+    return f().x;
+}
+"#,
+            10,
+        ),
     ];
 
     for (input, result) in cases {

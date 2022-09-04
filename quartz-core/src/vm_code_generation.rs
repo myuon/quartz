@@ -327,7 +327,6 @@ impl<'s> VmFunctionGenerator<'s> {
                 _ => unreachable!("{}", element.show()),
             },
             IrElement::Block(mut block) => match block.name.as_str() {
-                "call" => Ok(IrType::addr_of(self.element(element)?)),
                 "deref" => {
                     self.new_source_map(element.show_compact());
 

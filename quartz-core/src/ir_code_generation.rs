@@ -167,7 +167,19 @@ impl<'s> IrFunctionGenerator<'s> {
             Expr::Project(_, proj_typ, proj, label) => {
                 let struct_name = &proj_typ.method_selector_name()?;
                 let index = self.structs.get_projection_offset(struct_name, label)?;
-                let value = self.expr(proj)?;
+                // `f().x` should be compiled to `((let $v (call $f)) (offset $v 0))`
+                let value = {
+                    let result = self.expr(proj)?;
+
+                    if result.is_address_expr() {
+                        result
+                    } else {
+                        let v = self.var_fresh();
+                        self.ir.push(IrElement::i_let(v.clone(), result));
+
+                        IrElement::ident(v)
+                    }
+                };
 
                 Ok(if let Some(_t) = proj_typ.as_ref_type() {
                     // if p is a pointer in p.l, it should be compiled to p->l
