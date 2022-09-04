@@ -1579,7 +1579,7 @@ func main() {
 
     for (input, result) in cases {
         let mut compiler = Compiler::new();
-        let code = compiler.compile(input, "main".to_string())?;
+        let code = compiler.compile(input.to_string(), "main".to_string())?;
 
         let mut runtime = Runtime::new(code.clone(), compiler.vm_code_generation.globals());
         println!("{}", input);
@@ -1615,7 +1615,7 @@ func main() {
 
     for input in cases {
         let mut compiler = Compiler::new();
-        let code = compiler.compile(input, "main".to_string())?;
+        let code = compiler.compile(input.to_string(), "main".to_string())?;
 
         let mut runtime = Runtime::new(code.clone(), compiler.vm_code_generation.globals());
         println!("{}", input);

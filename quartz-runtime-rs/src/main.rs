@@ -74,6 +74,14 @@ enum DebugSubCommand {
     Show { debugger_json: Option<PathBuf> },
 }
 
+fn read_from_stdin() -> String {
+    let mut buffer = String::new();
+    let mut stdin = std::io::stdin();
+    stdin.read_to_string(&mut buffer).unwrap();
+
+    buffer
+}
+
 fn main() -> Result<()> {
     simplelog::TermLogger::init(
         if env::var("DEBUG") == Ok("true".to_string()) {
@@ -94,12 +102,8 @@ fn main() -> Result<()> {
         } => {
             let entrypoint = env::var("ENTRYPOINT").ok().unwrap_or("main".to_string());
 
-            let mut buffer = String::new();
-            let mut stdin = std::io::stdin();
-            stdin.read_to_string(&mut buffer).unwrap();
-
             let mut compiler = Compiler::new();
-            let compiled_result = compiler.compile(&buffer, entrypoint);
+            let compiled_result = compiler.compile(read_from_stdin(), entrypoint);
             let ir = compiler
                 .ir_result
                 .clone()
@@ -137,12 +141,8 @@ fn main() -> Result<()> {
             qasmv_output,
             qirv_output,
         } => {
-            let mut buffer = String::new();
-            let mut stdin = std::io::stdin();
-            stdin.read_to_string(&mut buffer).unwrap();
-
             let mut compiler = Compiler::new();
-            let code = compiler.compile_result(&buffer, "main".to_string())?;
+            let code = compiler.compile_result(read_from_stdin(), "main".to_string())?;
             let ir = compiler.ir_result.clone().unwrap().show();
 
             let mut file = File::create(qirv_output.unwrap_or("./build/out.qirv".into())).unwrap();
@@ -165,18 +165,14 @@ fn main() -> Result<()> {
         Command::Test => {
             let entrypoint = env::var("ENTRYPOINT").ok().unwrap_or("test".to_string());
 
-            let mut buffer = String::new();
-            let mut stdin = std::io::stdin();
-            stdin.read_to_string(&mut buffer).unwrap();
-
             let mut compiler = Compiler::new();
-            let code = compiler.compile(&buffer, entrypoint)?;
+            let code = compiler.compile(read_from_stdin(), entrypoint)?;
 
             Runtime::new(code.clone(), compiler.vm_code_generation.globals()).run()?;
         }
         Command::TestCompiler => {
             let mut compiler = Compiler::new();
-            let code = compiler.compile("", "test".to_string())?;
+            let code = compiler.compile(String::new(), "test".to_string())?;
             info!("{}", compiler.ir_result.unwrap().show());
             for (n, inst) in code.iter().enumerate() {
                 info!("{:04} {:?}", n, inst);
@@ -205,12 +201,8 @@ fn main() -> Result<()> {
             DebugSubCommand::Start { debugger_json } => {
                 let entrypoint = env::var("ENTRYPOINT").ok().unwrap_or("main".to_string());
 
-                let mut buffer = String::new();
-                let mut stdin = std::io::stdin();
-                stdin.read_to_string(&mut buffer).unwrap();
-
                 let mut compiler = Compiler::new();
-                let code = compiler.compile(&buffer, entrypoint)?;
+                let code = compiler.compile(read_from_stdin(), entrypoint)?;
 
                 let runtime = Runtime::new(code.clone(), compiler.vm_code_generation.globals());
                 let mut file =
@@ -221,12 +213,8 @@ fn main() -> Result<()> {
             DebugSubCommand::Run { debugger_json } => {
                 let entrypoint = env::var("ENTRYPOINT").ok().unwrap_or("main".to_string());
 
-                let mut buffer = String::new();
-                let mut stdin = std::io::stdin();
-                stdin.read_to_string(&mut buffer).unwrap();
-
                 let mut compiler = Compiler::new();
-                let code = compiler.compile(&buffer, entrypoint)?;
+                let code = compiler.compile(read_from_stdin(), entrypoint)?;
 
                 let mut runtime = Runtime::new(code.clone(), compiler.vm_code_generation.globals());
                 runtime.set_debug_mode(debugger_json.unwrap_or("./quartz-debugger.json".into()));

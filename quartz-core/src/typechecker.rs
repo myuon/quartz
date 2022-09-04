@@ -8,7 +8,7 @@ use crate::{
         CallMode, Declaration, Expr, Literal, Module, OptionalMode, Source, Statement, Structs,
         Type,
     },
-    compiler::specify_source_in_input,
+    compiler::SourceLoader,
 };
 
 #[derive(Debug)]
@@ -154,19 +154,19 @@ pub struct TypeChecker<'s> {
     pub structs: Structs,
     pub function_types: HashMap<String, (Vec<Type>, Type)>,
     pub method_types: HashMap<(String, String), (Vec<Type>, Type)>,
-    pub source_code: &'s str,
     call_graph: HashMap<String, HashMap<String, ()>>,
     struct_graph: HashMap<String, HashMap<String, ()>>,
     current_function: Option<String>,
     entrypoint: String,
     self_object: Option<Box<Source<Expr>>>,
+    source_loader: Option<&'s SourceLoader>,
 }
 
 impl<'s> TypeChecker<'s> {
     pub fn new(
         variables: HashMap<String, Type>,
         structs: Structs,
-        source_code: &'s str,
+        source_loader: Option<&'s SourceLoader>,
     ) -> TypeChecker {
         TypeChecker {
             infer_count: 1,
@@ -175,12 +175,12 @@ impl<'s> TypeChecker<'s> {
             structs,
             function_types: HashMap::new(),
             method_types: HashMap::new(),
-            source_code,
             call_graph: HashMap::new(),
             struct_graph: HashMap::new(),
             current_function: None,
             entrypoint: "main".to_string(),
             self_object: None,
+            source_loader,
         }
     }
 
@@ -202,12 +202,12 @@ impl<'s> TypeChecker<'s> {
         end: Option<usize>,
         unknown_context: &str,
     ) -> String {
-        if self.source_code.is_empty() {
-            return unknown_context.to_string();
-        }
-
         match (start, end) {
-            (Some(start), Some(end)) => specify_source_in_input(self.source_code, start, end),
+            (Some(start), Some(end)) => self
+                .source_loader
+                .unwrap()
+                .specify_source("main".to_string(), start, end)
+                .unwrap(),
             _ => unknown_context.to_string(),
         }
     }
@@ -915,7 +915,7 @@ mod tests {
 
         for c in cases {
             let mut module = run_parser_statements(c.0).unwrap();
-            let mut typechecker = TypeChecker::new(HashMap::new(), Structs(HashMap::new()), "");
+            let mut typechecker = TypeChecker::new(HashMap::new(), Structs(HashMap::new()), None);
             let mut result = Type::Infer(1);
             typechecker
                 .statements(&mut module, &mut result)
@@ -959,7 +959,7 @@ mod tests {
 
         for c in cases {
             let mut module = run_parser(c.0).unwrap();
-            let mut typechecker = TypeChecker::new(builtin(), Structs(HashMap::new()), "");
+            let mut typechecker = TypeChecker::new(builtin(), Structs(HashMap::new()), None);
             let result = typechecker.module(&mut module);
 
             let err = result.unwrap_err();
