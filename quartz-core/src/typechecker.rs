@@ -827,6 +827,7 @@ impl<'s> TypeChecker<'s> {
     }
 
     fn module(&mut self, module: &mut Module) -> Result<()> {
+        self.current_module_path = module.module_path.clone();
         self.declarations(&mut module.decls)?;
 
         Ok(())

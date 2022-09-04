@@ -219,7 +219,7 @@ impl Compiler<'_> {
         }
 
         while let Some(path) = stack.pop() {
-            let module = self
+            let mut module = self
                 .parse(
                     &path,
                     &self
@@ -235,6 +235,7 @@ impl Compiler<'_> {
                     visited.insert(path);
                 }
             }
+            module.module_path = path.clone();
 
             modules.push(module);
             info!("parsed module: {}", path);
