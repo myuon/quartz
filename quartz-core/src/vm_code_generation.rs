@@ -284,6 +284,10 @@ impl<'s> VmFunctionGenerator<'s> {
                 QVMInstruction::RuntimeInstr("_is_nil".to_string()),
                 IrType::func(vec![IrType::addr_of(IrType::unknown())], IrType::bool()),
             ),
+            "_println_any" => (
+                QVMInstruction::RuntimeInstr("_println_any".to_string()),
+                IrType::func(vec![IrType::addr_of(IrType::unknown())], IrType::nil()),
+            ),
             _ => (
                 QVMInstruction::LabelI32Const(v.to_string()),
                 self.functions

@@ -72,6 +72,13 @@ impl Value {
         .ok_or_else(|| anyhow::anyhow!("expected int but got {:?}", self))
     }
 
+    pub fn as_info_addr(self) -> Option<usize> {
+        match self {
+            Value::Addr(i, AddrPlace::InfoTable, ValueAddrFlag::Addr) => Some(i),
+            _ => None,
+        }
+    }
+
     pub fn as_addr(self) -> Option<usize> {
         match self {
             Value::Addr(i, _, ValueAddrFlag::Addr) => Some(i),
@@ -439,6 +446,59 @@ impl Runtime {
         String::from_utf8(bytes).map_err(|e| e.into())
     }
 
+    fn show_any_recur(&self, value: Value, depth: usize) -> String {
+        let block_size = 4;
+        let mut result = String::new();
+        let indent = " ".repeat(depth * block_size);
+        let push_compound_value = |data: &[Value], result: &mut String| {
+            for d in data {
+                result.push_str(&self.show_any_recur(d.clone(), depth + 1));
+            }
+        };
+
+        result.push_str(&format!("{}{:?}\n", indent, value));
+
+        match value {
+            Value::Addr(p, AddrPlace::Stack, _) => {
+                if let Some(size) = self.stack[p].clone().as_info_addr() {
+                    let data = &self.stack[p..p + size];
+                    push_compound_value(data, &mut result);
+                } else if let Some(_) = self.stack[p].clone().as_named_int(ValueIntFlag::Len) {
+                    let array = self.read_array(value.clone()).unwrap();
+                    let string = self.read_string_at(value);
+
+                    result.push_str(&format!(
+                        "{}{}len:{} // {}\n",
+                        " ".repeat(block_size),
+                        indent,
+                        array.length,
+                        string.unwrap_or(format!("{:?}", array.data))
+                    ));
+                } else {
+                    result.push_str(&format!(
+                        "{}{}{:?}\n",
+                        " ".repeat(block_size),
+                        indent,
+                        self.stack[p]
+                    ));
+                }
+            }
+            Value::Addr(p, AddrPlace::Heap, _) => {
+                if let Some(size) = self.heap.data[p].clone().as_info_addr() {
+                    let data = &self.heap.data[p..p + size];
+                    push_compound_value(data, &mut result);
+                }
+            }
+            _ => {}
+        }
+
+        result
+    }
+
+    fn show_any(&self, value: Value) -> String {
+        self.show_any_recur(value, 0)
+    }
+
     pub fn step(&mut self) -> Result<()> {
         match self.code[self.pc].clone() {
             QVMInstruction::Call => {
@@ -760,6 +820,13 @@ impl Runtime {
 
                     let s = self.read_string_at(string_data)?;
                     println!("[quartz] {}", s);
+
+                    self.push(Value::nil());
+                }
+                "_println_any" => {
+                    let value = self.pop();
+
+                    println!("[quartz][any] 👇\n{}", self.show_any(value));
 
                     self.push(Value::nil());
                 }

@@ -1,5 +1,3 @@
-import std;
-
 func find_space_pattern(s: substring): int {
     let n = 0;
     while (n < s.len()) {
@@ -382,9 +380,7 @@ method IrParser next(self): Token {
     };
 }
 
-method IrParser term(self): IrTerm {
-    let token = self.next();
-
+method IrParser term(self, token: Token): IrTerm {
     if (token.type.eq("IDENT")) {
         return IrTerm {
             type: "IDENT",
@@ -463,6 +459,8 @@ method IrParser term(self): IrTerm {
         };
     };
 
+    _println("unreachable!");
+    _println(token.type);
     _panic;
     return IrTerm {
         type: "",
@@ -475,6 +473,8 @@ method IrParser term(self): IrTerm {
 }
 
 method IrParser element(self): IrElement? {
+    _println_any(self);
+
     if self.is_eof() {
         return nil;
     };
@@ -505,7 +505,7 @@ method IrParser element(self): IrElement? {
     } else {
         return (IrElement {
             type: "TERM",
-            term: self.term(),
+            term: self.term(token),
             block: nil,
         }) as IrElement?;
     };
@@ -515,7 +515,6 @@ method IrParser element(self): IrElement? {
 
 func main() {
     let input = "(module (func $main 0 (return 10)))";
-    _println(input);
     let IrLexer = IrLexer {
         input: input, 
         position: 0,

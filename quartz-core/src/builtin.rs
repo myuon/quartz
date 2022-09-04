@@ -87,6 +87,10 @@ pub fn builtin() -> HashMap<String, Type> {
             ),
         ),
         ("_is_nil", Type::Fn(vec![Type::Any], Box::new(Type::Bool))),
+        (
+            "_println_any",
+            Type::Fn(vec![Type::Any], Box::new(Type::Nil)),
+        ),
     ]
     .into_iter()
     .map(|(k, v)| (k.to_string(), v))
