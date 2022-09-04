@@ -144,7 +144,6 @@ fn main() -> Result<()> {
             let mut compiler = Compiler::new();
             let code = compiler.compile_result(&buffer, "main".to_string())?;
             let ir = compiler.ir_result.clone().unwrap().show();
-            info!("{}", ir);
 
             let mut file = File::create(qirv_output.unwrap_or("./build/out.qirv".into())).unwrap();
             file.write_all(ir.as_bytes()).unwrap();

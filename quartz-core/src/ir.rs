@@ -14,6 +14,7 @@ pub enum IrTerm {
     Ident(String),
     Argument(usize),
     Info(usize),
+    String(String),
 }
 
 impl IrTerm {
@@ -86,6 +87,7 @@ impl IrElement {
                 IrTerm::Ident(i) => format!("${}", i),
                 IrTerm::Argument(a) => format!("${}", a),
                 IrTerm::Info(i) => format!("{}", i),
+                IrTerm::String(s) => format!("\"{}\"", s),
             },
             IrElement::Block(b) => {
                 let mut buffer = String::new();
@@ -141,6 +143,10 @@ impl IrElement {
 
     pub fn int(num: i32) -> IrElement {
         IrElement::Term(IrTerm::Int(num))
+    }
+
+    pub fn string(s: impl Into<String>) -> IrElement {
+        IrElement::Term(IrTerm::String(s.into()))
     }
 
     pub fn i_let(ident: String, element: IrElement) -> IrElement {

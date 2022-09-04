@@ -520,7 +520,6 @@ impl<'s> IrGenerator<'s> {
 
     pub fn module(&mut self, module: &Module) -> Result<IrElement> {
         let mut elements = vec![];
-
         for decl in &module.decls {
             match decl {
                 Declaration::Function(f) => {
@@ -563,7 +562,7 @@ impl<'s> IrGenerator<'s> {
         }
 
         // string segment
-        let mut strings = self
+        let strings = self
             .strings
             .iter()
             .map(|t| {
@@ -578,11 +577,17 @@ impl<'s> IrGenerator<'s> {
                 IrElement::block("text", bytes)
             })
             .collect::<Vec<_>>();
-        strings.extend(elements);
+
+        let mut module_elements = vec![IrElement::block(
+            "source",
+            vec![IrElement::string(module.file_path.clone())],
+        )];
+        module_elements.extend(strings);
+        module_elements.extend(elements);
 
         Ok(IrElement::Block(IrBlock {
             name: "module".to_string(),
-            elements: strings,
+            elements: module_elements,
         }))
     }
 

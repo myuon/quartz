@@ -455,6 +455,7 @@ impl<'s> VmFunctionGenerator<'s> {
 
                     Ok(IrType::unknown())
                 }
+                IrTerm::String(_) => todo!(),
             },
             IrElement::Block(mut block) => {
                 match block.name.as_str() {
@@ -1095,6 +1096,7 @@ impl VmGenerator {
                     self.types
                         .insert(name.into_term()?.into_ident()?, IrType::from_element(&typ)?);
                 }
+                "source" => {}
                 _ => unreachable!("{:?}", block),
             }
         }
