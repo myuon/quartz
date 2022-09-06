@@ -288,7 +288,7 @@ struct IrBlock {
 }
 
 method IrBlock to_string(self): string {
-    return self.name.concat(" ").concat(self.elements.to_string());
+    return self.name.concat(self.elements.to_string());
 }
 
 struct IrElementListNode {
@@ -367,7 +367,7 @@ struct IrElement {
 
 method IrElement to_string(self): string {
     if (self.type.eq("BLOCK")) {
-        return "(".concat(self.block!.name).concat(")");
+        return "(".concat(self.block!.to_string()).concat(")");
     };
     if (self.type.eq("TERM")) {
         return self.term!.to_string();
