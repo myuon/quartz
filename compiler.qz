@@ -325,6 +325,40 @@ method IrElementList cons(self, node: IrElement): IrElementList {
     };
 }
 
+method IrElementList concat(self, node: IrElementList): IrElementList {
+    if _is_nil(self.list) {
+        return node;
+    } else {
+        let current = self.list!;
+
+        return IrElementList {
+            list: ref IrElementListNode {
+                node: current.node,
+                next: current.next.concat(node),
+            },
+        };
+    };
+}
+
+method IrElementList reverse(self): IrElementList {
+    if _is_nil(self.list) {
+        return IrElementList {
+            list: nil,
+        };
+    } else {
+        let current = self.list!;
+
+        return current.next.reverse().concat(IrElementList {
+            list: ref IrElementListNode {
+                node: current.node,
+                next: IrElementList {
+                    list: nil
+                },
+            },
+        });
+    };
+}
+
 struct IrElement {
     type: string, // BLOCK or TERM
     term: IrTerm?,
@@ -519,7 +553,7 @@ method IrParser element(self): IrElement? {
             term: nil,
             block: IrBlock {
                 name: name_string,
-                elements: elements,
+                elements: elements.reverse(),
             },
         }) as IrElement?;
     } else {
