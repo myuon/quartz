@@ -491,6 +491,17 @@ impl Runtime {
                 if let Some(size) = self.heap.data[p].clone().as_info_addr() {
                     let data = &self.heap.data[p..p + size];
                     push_compound_value(data, &mut result);
+                } else if let Some(_) = self.heap.data[p].clone().as_named_int(ValueIntFlag::Len) {
+                    let array = self.read_array(value.clone()).unwrap();
+                    let string = self.read_string_at(value);
+
+                    result.push_str(&format!(
+                        "{}{}len:{} // {}\n",
+                        " ".repeat(block_size),
+                        indent,
+                        array.length,
+                        string.unwrap_or(format!("{:?}", array.data))
+                    ));
                 } else {
                     result.push_str(&self.show_any_recur(self.heap.data[p].clone(), depth + 1));
                 }
