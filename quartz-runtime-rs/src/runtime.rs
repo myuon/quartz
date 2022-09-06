@@ -491,6 +491,8 @@ impl Runtime {
                 if let Some(size) = self.heap.data[p].clone().as_info_addr() {
                     let data = &self.heap.data[p..p + size];
                     push_compound_value(data, &mut result);
+                } else {
+                    result.push_str(&self.show_any_recur(self.heap.data[p].clone(), depth + 1));
                 }
             }
             _ => {}
