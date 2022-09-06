@@ -6,7 +6,7 @@ use std::{
 };
 
 use anyhow::{bail, Context, Result};
-use log::{debug, info};
+use log::{debug, error, info};
 use quartz_core::vm::{QVMInstruction, Variable};
 use serde::{Deserialize, Serialize};
 
@@ -460,6 +460,10 @@ impl Runtime {
 
         match value {
             Value::Addr(p, AddrPlace::Stack, _) => {
+                if p > self.stack_pointer {
+                    error!("stack pointer is out of bounds, {}", p);
+                }
+
                 if let Some(size) = self.stack[p].clone().as_info_addr() {
                     let data = &self.stack[p..p + size];
                     push_compound_value(data, &mut result);
@@ -1641,6 +1645,30 @@ func main() {
 }
 "#,
             10,
+        ),
+        (
+            r#"
+struct P {
+    x: int?,
+}
+
+func g() {
+    return 20;
+}
+
+func f() {
+    return P {
+        x: g(),
+    };
+}
+
+func main() {
+    let t = f();
+
+    return t.x!;
+}
+"#,
+            20,
         ),
     ];
 

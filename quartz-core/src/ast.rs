@@ -324,6 +324,13 @@ impl Type {
         }
     }
 
+    pub fn as_optional(&self) -> Option<&Box<Type>> {
+        match self {
+            Type::Optional(t) => Some(t),
+            _ => None,
+        }
+    }
+
     pub fn has_infer(&self, index: usize) -> bool {
         match self {
             Type::Infer(t) => *t == index,

@@ -295,14 +295,17 @@ impl<'s> IrFunctionGenerator<'s> {
                 _ => unreachable!(),
             },
             Expr::Unwrap(expr, _) => Ok(IrElement::i_deref(self.expr(expr)?)),
-            Expr::Optional(mode, _, expr) => {
+            Expr::Optional(mode, typ, expr) => {
                 let value = self.expr(expr)?;
                 let result = self.var_fresh();
                 self.ir.push(IrElement::i_let(result.clone(), value));
 
                 Ok(match mode {
                     OptionalMode::Nil => IrElement::nil(),
-                    OptionalMode::Some => IrElement::i_address(IrElement::ident(result)),
+                    OptionalMode::Some => self.expr(&Source::unknown(Expr::Ref(
+                        Box::new(Source::unknown(Expr::Var(vec![result]))),
+                        typ.as_optional().unwrap().as_ref().clone(),
+                    )))?,
                 })
             }
         }
