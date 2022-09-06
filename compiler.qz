@@ -381,6 +381,25 @@ method IrParser next(self): Token {
     };
 }
 
+method IrParser peek(self): Token {
+    if _is_nil(self.tokens.next) {
+        _panic;
+        return Token {
+            type: "",
+            value_string: nil,
+            value_int: nil,
+        };
+    } else {
+        let node = self.tokens.next;
+        return node.node;
+    };
+}
+
+method IrParser expect_peek(self, type: string): bool {
+    let token = self.peek();
+    return token.type.eq(type);
+}
+
 method IrParser term(self, token: Token): IrTerm {
     if (token.type.eq("IDENT")) {
         return IrTerm {
@@ -474,8 +493,6 @@ method IrParser term(self, token: Token): IrTerm {
 }
 
 method IrParser element(self): IrElement? {
-    _println_any(self);
-
     if self.is_eof() {
         return nil;
     };
@@ -486,15 +503,16 @@ method IrParser element(self): IrElement? {
         // block
         let name = self.expect("KEYWORD");
         let name_string = name.value_string!;
-        _println_any(ref name);
 
         let next = nil as IrElement?;
         let elements = IrElementList_nil();
 
-        while _not(self.next().type.eq("RPAREN")) {
+        // while _not(self.peek().type.eq("RPAREN")) {
+        while _not(self.expect_peek("RPAREN")) {
             next = self.element();
             elements = elements.cons(next!);
         };
+        self.expect("RPAREN");
 
         return (IrElement {
             type: "BLOCK",
@@ -525,6 +543,7 @@ func main() {
 
     let parser = IrParser::new(tokenList);
     let element = parser.element()!;
+    _println_any(ref element);
     _println(element.to_string());
 
     _println("== COMPILE FINISHED");
