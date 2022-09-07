@@ -239,7 +239,7 @@ impl Parser {
             ))
         } else if self.expect_lexeme(Lexeme::If).is_ok() {
             let cond_start = self.position;
-            let cond = self.short_expr()?;
+            let cond = self.condition_expr()?;
             self.expect_lexeme(Lexeme::LBrace)?;
             let then = self.many_statements()?;
             self.expect_lexeme(Lexeme::RBrace)?;
@@ -268,7 +268,7 @@ impl Parser {
             Ok(self.source(Statement::Continue, start, self.position))
         } else if self.expect_lexeme(Lexeme::While).is_ok() {
             let e_start = self.position;
-            let cond = self.short_expr()?;
+            let cond = self.condition_expr()?;
 
             self.expect_lexeme(Lexeme::LBrace)?;
             let then = self.many_statements()?;
@@ -423,6 +423,61 @@ impl Parser {
 
             Ok(result)
         }
+    }
+
+    fn condition_expr(&mut self) -> Result<Expr> {
+        let short_expr_start = self.position;
+        let short_expr = self.short_expr()?;
+
+        let mut result = match short_expr {
+            expr if self.expect_lexeme(Lexeme::Dot).is_ok() => {
+                // projection
+                let i = self.ident()?.data;
+
+                Expr::Project(
+                    false,
+                    Type::Infer(0),
+                    Box::new(self.source_from(expr, short_expr_start)),
+                    i,
+                )
+            }
+            expr if self.expect_lexeme(Lexeme::As).is_ok() => {
+                let typ = self.type_()?;
+                Expr::As(
+                    Box::new(self.source_from(expr, short_expr_start)),
+                    Type::Infer(0),
+                    typ,
+                )
+            }
+            _ => short_expr,
+        };
+
+        // handling operators here
+        let operators = vec![
+            (Lexeme::Plus, "_add"),
+            (Lexeme::Gt, "_gt"),
+            (Lexeme::Lt, "_lt"),
+            (Lexeme::DoubleEqual, "_eq"),
+            (Lexeme::NotEqual, "_neq"),
+            (Lexeme::Minus, "_sub"),
+        ];
+        for (lexeme, op) in operators {
+            if self.expect_lexeme(lexeme).is_ok() {
+                // This should be short_expr? idk
+                let right_start = self.position;
+                let right = self.expr()?;
+                result = Expr::Call(
+                    CallMode::Function,
+                    Box::new(Source::unknown(Expr::Var(vec![op.to_string()]))),
+                    vec![
+                        self.source_from(result, short_expr_start),
+                        self.source_from(right, right_start),
+                    ],
+                );
+            }
+        }
+
+        Ok(result)
     }
 
     fn expr(&mut self) -> Result<Expr> {
@@ -767,7 +822,7 @@ mod tests {
             r#"
                     obj.call(a1);
                 "#,
-            r#"if (s.data(i) != t.data(i)) {
+            r#"if s.data(i) != t.data(i) {
                     return false;
                 };"#,
         ];
