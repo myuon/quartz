@@ -425,68 +425,13 @@ impl Parser {
         }
     }
 
-    fn condition_expr(&mut self) -> Result<Expr> {
-        let short_expr_start = self.position;
-        let short_expr = self.short_expr()?;
-
-        let mut result = match short_expr {
-            expr if self.expect_lexeme(Lexeme::Dot).is_ok() => {
-                // projection
-                let i = self.ident()?.data;
-
-                Expr::Project(
-                    false,
-                    Type::Infer(0),
-                    Box::new(self.source_from(expr, short_expr_start)),
-                    i,
-                )
-            }
-            expr if self.expect_lexeme(Lexeme::As).is_ok() => {
-                let typ = self.type_()?;
-                Expr::As(
-                    Box::new(self.source_from(expr, short_expr_start)),
-                    Type::Infer(0),
-                    typ,
-                )
-            }
-            _ => short_expr,
-        };
-
-        // handling operators here
-        let operators = vec![
-            (Lexeme::Plus, "_add"),
-            (Lexeme::Gt, "_gt"),
-            (Lexeme::Lt, "_lt"),
-            (Lexeme::DoubleEqual, "_eq"),
-            (Lexeme::NotEqual, "_neq"),
-            (Lexeme::Minus, "_sub"),
-        ];
-        for (lexeme, op) in operators {
-            if self.expect_lexeme(lexeme).is_ok() {
-                // This should be short_expr? idk
-                let right_start = self.position;
-                let right = self.expr()?;
-                result = Expr::Call(
-                    CallMode::Function,
-                    Box::new(Source::unknown(Expr::Var(vec![op.to_string()]))),
-                    vec![
-                        self.source_from(result, short_expr_start),
-                        self.source_from(right, right_start),
-                    ],
-                );
-            }
-        }
-
-        Ok(result)
-    }
-
-    fn expr(&mut self) -> Result<Expr> {
+    fn expr_with_struct_option(&mut self, allow_struct: bool) -> Result<Expr> {
         let is_ref = self.expect_lexeme(Lexeme::Ref).is_ok();
         let short_expr_start = self.position;
         let short_expr = self.short_expr()?;
 
         let mut result = match short_expr {
-            Expr::Var(v) if self.expect_lexeme(Lexeme::LBrace).is_ok() => {
+            Expr::Var(v) if allow_struct && self.expect_lexeme(Lexeme::LBrace).is_ok() => {
                 // struct initialization
                 let fields = self.many_fields_with_exprs()?;
                 self.expect_lexeme(Lexeme::RBrace)?;
@@ -551,6 +496,14 @@ impl Parser {
         }
 
         Ok(result)
+    }
+
+    fn condition_expr(&mut self) -> Result<Expr> {
+        self.expr_with_struct_option(false)
+    }
+
+    fn expr(&mut self) -> Result<Expr> {
+        self.expr_with_struct_option(true)
     }
 
     fn declaration_function(&mut self) -> Result<Declaration> {
