@@ -24,7 +24,7 @@ impl Parser {
         Source {
             data,
             start: Some(self.input[start].position),
-            end: Some(self.input[end].position),
+            end: Some(self.input[end - 1].position),
         }
     }
 
@@ -34,6 +34,10 @@ impl Parser {
 
     fn peek(&self) -> &Token {
         &self.input[self.position]
+    }
+
+    fn peek_prev(&self) -> &Token {
+        &self.input[self.position - 1]
     }
 
     fn parse_error(&self, expected: &str, got: &str) -> anyhow::Error {
@@ -354,7 +358,12 @@ impl Parser {
         while !self.is_end() && self.peek().lexeme != Lexeme::RBrace {
             let st = self.statement()?;
 
-            self.expect_lexeme(Lexeme::SemiColon)?;
+            if let Err(err) = self.expect_lexeme(Lexeme::SemiColon) {
+                // if, while, etc. can omit semicolon
+                if self.peek_prev().lexeme != Lexeme::RBrace {
+                    return Err(err);
+                }
+            }
             statements.push(st);
         }
 
@@ -778,6 +787,9 @@ mod tests {
             r#"if s.data(i) != t.data(i) {
                     return false;
                 };"#,
+            r#"while true {
+                c = 1;
+            }"#,
         ];
 
         for c in cases {
