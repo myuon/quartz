@@ -203,6 +203,7 @@ impl Expr {
 #[derive(PartialEq, Debug, Clone)]
 pub struct Struct {
     pub name: String,
+    pub type_params: Vec<String>,
     pub fields: Vec<(String, Type)>,
     pub dead_code: bool,
 }
@@ -210,6 +211,7 @@ pub struct Struct {
 #[derive(PartialEq, Debug, Clone)]
 pub struct Function {
     pub name: Source<String>,
+    pub type_params: Vec<String>,
     pub args: Vec<(String, Type)>,
     pub return_type: Type,
     pub body: Vec<Source<Statement>>,
@@ -270,6 +272,7 @@ pub enum Type {
     SizedArray(Box<Type>, usize),
     Optional(Box<Type>),
     Self_,
+    TypeApp(Vec<String>, Box<Type>),
 }
 
 impl Type {
@@ -353,6 +356,7 @@ impl Type {
             Type::Optional(t) => t.has_infer(index),
             Type::Nil => false,
             Type::Self_ => false,
+            Type::TypeApp(_, _) => todo!(),
         }
     }
 
@@ -389,6 +393,7 @@ impl Type {
             Type::Optional(t) => t.subst(index, typ),
             Type::Nil => {}
             Type::Self_ => {}
+            Type::TypeApp(_, _) => todo!(),
         }
     }
 

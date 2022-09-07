@@ -142,6 +142,7 @@ impl Constraints {
                 self.apply(t);
             }
             Type::Self_ => {}
+            Type::TypeApp(_, _) => todo!(),
         }
     }
 }
