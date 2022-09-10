@@ -445,8 +445,15 @@ impl Type {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct StructTypeInfo {
+    pub name: String,
+    pub type_params: Vec<String>,
+    pub fields: Vec<(String, Type)>,
+}
+
 #[derive(Debug, Clone)]
-pub struct Structs(pub HashMap<String, Vec<(String, Type)>>);
+pub struct Structs(pub HashMap<String, StructTypeInfo>);
 
 impl Structs {
     pub fn get_projection_type(&self, val: &str, label: &str) -> Result<Type> {
@@ -456,15 +463,15 @@ impl Structs {
             val
         ))?;
 
-        let (_, t) =
-            struct_fields
-                .iter()
-                .find(|(name, _)| name == label)
-                .ok_or(anyhow::anyhow!(
-                    "project type: {} not found in {}",
-                    label,
-                    val
-                ))?;
+        let (_, t) = struct_fields
+            .fields
+            .iter()
+            .find(|(name, _)| name == label)
+            .ok_or(anyhow::anyhow!(
+                "project type: {} not found in {}",
+                label,
+                val
+            ))?;
 
         Ok(t.clone())
     }
@@ -476,7 +483,7 @@ impl Structs {
                 .ok_or(anyhow::anyhow!("project: {} not found in {}", label, val))?;
 
         let mut index = 0;
-        for (l, _) in struct_fields {
+        for (l, _) in &struct_fields.fields {
             if l == label {
                 break;
             }

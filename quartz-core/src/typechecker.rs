@@ -5,8 +5,8 @@ use pretty_assertions::assert_eq;
 
 use crate::{
     ast::{
-        CallMode, Declaration, Expr, Literal, Module, OptionalMode, Source, Statement, Structs,
-        Type,
+        CallMode, Declaration, Expr, Literal, Module, OptionalMode, Source, Statement,
+        StructTypeInfo, Structs, Type,
     },
     compiler::SourceLoader,
 };
@@ -146,6 +146,12 @@ impl Constraints {
             Type::TypeVar(_) => todo!(),
         }
     }
+
+    fn apply_struct(&self, typ: &mut StructTypeInfo) {
+        for (_, t) in &mut typ.fields {
+            self.apply(t);
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -283,7 +289,7 @@ impl<'s> TypeChecker<'s> {
         expr: &mut Source<Expr>,
         current_type: &mut Type,
         expected_type: &Type,
-    ) -> Result<()> {
+    ) -> Result<Constraints> {
         if let Type::Ref(current_type) = current_type {
             if let Type::Ref(expected_type) = expected_type {
                 return self.transform(expr, current_type, expected_type);
@@ -292,7 +298,7 @@ impl<'s> TypeChecker<'s> {
 
         // return immediately if the types are already equal
         if Constraints::unify(current_type, expected_type).is_ok() {
-            return Ok(());
+            return Ok(Constraints::new());
         }
 
         // reference
@@ -324,13 +330,13 @@ impl<'s> TypeChecker<'s> {
             }
         }
 
-        Constraints::unify(current_type, expected_type).context(self.error_context(
+        let cs = Constraints::unify(current_type, expected_type).context(self.error_context(
             expr.start,
             expr.end,
             "transform",
         ))?;
 
-        Ok(())
+        Ok(cs)
     }
 
     fn reduce_to_callable(&self, expr: &mut Source<Expr>, typ: &mut Type) -> Result<()> {
@@ -464,16 +470,17 @@ impl<'s> TypeChecker<'s> {
                     self.error_context(expr.start, expr.end, "")
                 );
 
-                let defined = self.structs.0[s]
-                    .clone()
-                    .into_iter()
-                    .collect::<HashMap<String, Type>>();
-                assert_eq!(defined.len(), fields.len());
+                let mut defined = self.structs.0[s].clone();
+                assert_eq!(defined.fields.len(), fields.len());
 
                 let first_fields = fields[0].clone().1;
                 for (label, expr, typ) in fields {
-                    self.expr_coerce(expr, typ, &defined[label])
+                    let field = &defined.fields.iter().find(|t| t.0.eq(label)).unwrap().1;
+                    let cs = self
+                        .expr_coerce(expr, typ, &field)
                         .context(self.error_context(expr.start, expr.end, "struct field"))?;
+
+                    cs.apply_struct(&mut defined);
                 }
 
                 self.struct_graph
@@ -609,11 +616,11 @@ impl<'s> TypeChecker<'s> {
         expr: &mut Source<Expr>,
         current_type: &mut Type,
         expected_typ: &Type,
-    ) -> Result<()> {
+    ) -> Result<Constraints> {
         self.expr(expr, current_type)?;
-        self.transform(expr, current_type, expected_typ)?;
+        let cs = self.transform(expr, current_type, expected_typ)?;
 
-        Ok(())
+        Ok(cs)
     }
 
     pub fn statement(
@@ -819,7 +826,15 @@ impl<'s> TypeChecker<'s> {
                 }
                 Declaration::Struct(st) => {
                     assert!(!self.structs.0.contains_key(&st.name));
-                    self.structs.0.insert(st.name.clone(), st.fields.clone());
+                    let name = st.name.clone();
+                    self.structs.0.insert(
+                        name.clone(),
+                        StructTypeInfo {
+                            name: name.clone(),
+                            type_params: st.type_params.clone(),
+                            fields: st.fields.clone(),
+                        },
+                    );
                 }
                 Declaration::Import(_) => {}
             }
