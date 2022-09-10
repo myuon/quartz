@@ -392,7 +392,7 @@ impl Parser {
 
     fn short_callee_expr(&mut self) -> Result<Expr> {
         self.variable()
-            .or_else(|_| -> Result<Expr> { self.literal().map(|lit| Expr::Lit(lit, Type::Omit)) })
+            .or_else(|_| -> Result<Expr> { self.literal().map(|lit| Expr::Lit(lit)) })
             .or_else(|_| -> Result<Expr> { self.make_expr() })
     }
 

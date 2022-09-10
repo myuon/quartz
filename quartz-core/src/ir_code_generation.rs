@@ -67,14 +67,13 @@ impl<'s> IrFunctionGenerator<'s> {
                             let meta = self.expr(&Source::unknown(Expr::Call(
                                 CallMode::Function,
                                 Box::new(Source::unknown(Expr::Var(vec!["_println".to_string()]))),
-                                vec![Source::unknown(Expr::Lit(
-                                    Literal::String(self.source_loader.specify_source(
+                                vec![Source::unknown(Expr::Lit(Literal::String(
+                                    self.source_loader.specify_source(
                                         self.module_path,
                                         expr.start.unwrap(),
                                         expr.end.unwrap(),
-                                    )?),
-                                    Type::Omit,
-                                ))],
+                                    )?,
+                                )))],
                             )))?;
                             self.ir.push(meta);
                         }
@@ -90,7 +89,7 @@ impl<'s> IrFunctionGenerator<'s> {
                 subj.method_selector_name()?,
                 v
             )))),
-            Expr::Lit(literal, _typ) => match literal {
+            Expr::Lit(literal) => match literal {
                 Literal::Nil => Ok(IrElement::Term(IrTerm::Nil)),
                 Literal::Bool(b) => Ok(IrElement::Term(IrTerm::Bool(*b))),
                 Literal::Int(n) => Ok(IrElement::Term(IrTerm::Int(*n))),
@@ -219,7 +218,7 @@ impl<'s> IrFunctionGenerator<'s> {
             Expr::Address(e, _) => {
                 // You cannot just take the address of an immidiate value, so declare as a variable
                 let next = match e.data {
-                    Expr::Lit(_, _) | Expr::Struct(_, _, _) | Expr::Call(_, _, _) => {
+                    Expr::Lit(_) | Expr::Struct(_, _, _) | Expr::Call(_, _, _) => {
                         let v = self.var_fresh();
                         let value = self.expr(e)?;
                         self.ir.push(IrElement::i_let(v.clone(), value));

@@ -353,6 +353,7 @@ impl<'s> TypeChecker<'s> {
     }
 
     pub fn expr(&mut self, expr: &mut Source<Expr>, typ: &mut Type) -> Result<()> {
+        self.replace_omit(typ);
         match &mut expr.data {
             Expr::Var(v) => {
                 self.load(v, typ)
@@ -362,7 +363,7 @@ impl<'s> TypeChecker<'s> {
                 self.load(&vec![subj.method_selector_name()?, v.clone()], typ)
                     .context(self.error_context(expr.start, expr.end, "var"))?;
             }
-            Expr::Lit(lit, lit_typ) => {
+            Expr::Lit(lit) => {
                 let t = match lit {
                     Literal::Bool(_) => Type::Bool,
                     Literal::Int(_) => Type::Int,
@@ -379,7 +380,6 @@ impl<'s> TypeChecker<'s> {
 
                 self.unify(&t, typ)
                     .context(self.error_context(expr.start, expr.end, "literal"))?;
-                *lit_typ = typ.clone();
             }
             Expr::Call(mode, f, args) => {
                 let mut fn_type = self.next_infer();
@@ -520,6 +520,7 @@ impl<'s> TypeChecker<'s> {
                 ))?;
             }
             Expr::Project(is_method, proj_typ, proj, field) => {
+                self.replace_omit(proj_typ);
                 self.expr(proj, proj_typ)?;
                 let name = proj_typ.method_selector_name().context(self.error_context(
                     proj.start,
@@ -748,14 +749,7 @@ impl<'s> TypeChecker<'s> {
 
     fn function(&mut self, func: &mut Function) -> Result<()> {
         let variables = self.variables.clone();
-        let mut arg_types = vec![];
-        for (arg, arg_type) in &mut func.args {
-            self.replace_omit(arg_type);
-
-            arg_types.push(arg_type.clone());
-            self.variables.insert(arg.clone(), arg_type.clone());
-        }
-
+        self.variables.extend(func.args.clone());
         self.function_statements(&mut func.body, &mut func.return_type)?;
         self.variables = variables;
 

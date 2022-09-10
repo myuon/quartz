@@ -69,7 +69,7 @@ pub enum Expr {
     Var(Vec<String>), // qualifier in vector
     Method(Type, String),
     Make(Type, Vec<Source<Expr>>),
-    Lit(Literal, Type),
+    Lit(Literal),
     Call(CallMode, Box<Source<Expr>>, Vec<Source<Expr>>),
     Struct(
         String,
@@ -131,7 +131,7 @@ impl Expr {
                     a.data.require_same_structure(&b.data)?;
                 }
             }
-            (Lit(t, _x), Lit(s, _y)) => {
+            (Lit(t), Lit(s)) => {
                 if t != s {
                     bail!("[lit] {:?} vs {:?}", t, s);
                 }
