@@ -749,15 +749,11 @@ impl<'s> TypeChecker<'s> {
     fn function(&mut self, func: &mut Function) -> Result<()> {
         let variables = self.variables.clone();
         let mut arg_types = vec![];
-        for (arg, arg_type) in &func.args {
-            let t = if matches!(arg_type, Type::Infer(_)) {
-                self.next_infer()
-            } else {
-                arg_type.clone()
-            };
+        for (arg, arg_type) in &mut func.args {
+            self.replace_omit(arg_type);
 
-            arg_types.push(t.clone());
-            self.variables.insert(arg.clone(), t);
+            arg_types.push(arg_type.clone());
+            self.variables.insert(arg.clone(), arg_type.clone());
         }
 
         self.function_statements(&mut func.body, &mut func.return_type)?;
@@ -772,15 +768,11 @@ impl<'s> TypeChecker<'s> {
             match decl {
                 Declaration::Function(func) => {
                     let mut arg_types = vec![];
-                    for arg in &func.args {
-                        let t = if matches!(arg.1, Type::Infer(_)) {
-                            self.next_infer()
-                        } else {
-                            arg.1.clone()
-                        };
+                    for (arg, arg_type) in &mut func.args {
+                        self.replace_omit(arg_type);
 
-                        arg_types.push(t.clone());
-                        self.variables.insert(arg.0.clone(), t);
+                        arg_types.push(arg_type.clone());
+                        self.variables.insert(arg.clone(), arg_type.clone());
                     }
                     self.replace_omit(&mut func.return_type);
 
@@ -791,20 +783,16 @@ impl<'s> TypeChecker<'s> {
                 }
                 Declaration::Method(typ, func) => {
                     let mut arg_types = vec![];
-                    for arg in &mut func.args {
+                    for (arg, arg_type) in &mut func.args {
                         // NOTE: infer self type
-                        if arg.1 == Type::Self_ {
-                            arg.1 = Type::Ref(Box::new(typ.clone()));
+                        if arg_type == &Type::Self_ {
+                            *arg_type = Type::Ref(Box::new(typ.clone()));
                         }
 
-                        let t = if matches!(arg.1, Type::Infer(_)) {
-                            self.next_infer()
-                        } else {
-                            arg.1.clone()
-                        };
+                        self.replace_omit(arg_type);
 
-                        arg_types.push(t.clone());
-                        self.variables.insert(arg.0.clone(), t);
+                        arg_types.push(arg_type.clone());
+                        self.variables.insert(arg.clone(), arg_type.clone());
                     }
                     self.replace_omit(&mut func.return_type);
 
