@@ -487,7 +487,13 @@ impl<'s> TypeChecker<'s> {
                 let mut type_app = vec![];
                 for (u, r) in params {
                     if let Type::Infer(i) = r {
-                        type_app.push((u, self.inferred[&i].clone()));
+                        type_app.push((
+                            u,
+                            self.inferred
+                                .get(&i)
+                                .ok_or(anyhow::anyhow!("Cannot find type for {:?}", i))?
+                                .clone(),
+                        ));
                     } else {
                         unreachable!();
                     }
@@ -605,6 +611,8 @@ impl<'s> TypeChecker<'s> {
                         self.expr(&mut args[1], arr)?;
                         self.unify(t, typ)
                             .context(self.error_context(expr.start, expr.end, "make"))?;
+                    } else if args.len() == 1 {
+                        self.expr(&mut args[0], &mut Type::Int)?;
                     } else {
                         bail!(
                             "Expected 2 arguments but given {:?}, {}",

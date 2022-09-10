@@ -499,6 +499,7 @@ impl Parser {
             (Lexeme::DoubleEqual, "_eq"),
             (Lexeme::NotEqual, "_neq"),
             (Lexeme::Minus, "_sub"),
+            (Lexeme::Star, "_mult"),
         ];
         for (lexeme, op) in operators {
             if self.expect_lexeme(lexeme).is_ok() {

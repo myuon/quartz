@@ -258,6 +258,33 @@ func assert_eq_int(a: int, b: int) {
     };
 }
 
+struct vector[T] {
+    data: array[T],
+    len: int,
+}
+
+method vector[T] new(): vector[T] {
+    return vector {
+        data: make[array[T]](10),
+        len: 0,
+    };
+}
+
+method vector[T] len(): int {
+    return self.len;
+}
+
+method vector[T] push(item: T) {
+    if (self.len == self.data.len()) {
+        let new_data = make[array[T]](self.data.len() * 2);
+        _copy(self.len, self.data, 0, new_data, 0);
+        self.data = new_data;
+    };
+
+    self.data(self.len) = item;
+    self.len = self.len + 1;
+}
+
 func test() {
     assert("foo".eq("foo"));
     assert("foo".concat("bar").eq("foobar"));
