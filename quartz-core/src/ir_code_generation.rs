@@ -73,7 +73,7 @@ impl<'s> IrFunctionGenerator<'s> {
                                         expr.start.unwrap(),
                                         expr.end.unwrap(),
                                     )?),
-                                    Type::Infer(0),
+                                    Type::Omit,
                                 ))],
                             )))?;
                             self.ir.push(meta);

@@ -311,7 +311,7 @@ impl Parser {
                 // それ以外のケースは普通にexpr statement
                 // FIXME: the outer Source should include semicolon at the end?
                 Ok(self.source(
-                    Statement::Expr(self.source(e, start, self.position), Type::Infer(0)),
+                    Statement::Expr(self.source(e, start, self.position), Type::Omit),
                     start,
                     self.position,
                 ))

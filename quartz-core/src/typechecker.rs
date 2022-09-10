@@ -228,7 +228,7 @@ impl<'s> TypeChecker<'s> {
     }
 
     fn normalize_type(&mut self, typ: &mut Type) {
-        if let Type::Infer(0) = typ {
+        if let Type::Omit = typ {
             *typ = self.next_infer();
         }
     }

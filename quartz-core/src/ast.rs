@@ -96,11 +96,11 @@ impl Expr {
     }
 
     pub fn member(proj: Source<Expr>, field: impl Into<String>) -> Expr {
-        Expr::Project(false, Type::Infer(0), Box::new(proj), field.into())
+        Expr::Project(false, Type::Omit, Box::new(proj), field.into())
     }
 
     pub fn unwrap(expr: Source<Expr>) -> Expr {
-        Expr::Unwrap(Box::new(expr), Type::Infer(0))
+        Expr::Unwrap(Box::new(expr), Type::Omit)
     }
 
     pub fn require_same_structure(&self, other: &Expr) -> Result<()> {
