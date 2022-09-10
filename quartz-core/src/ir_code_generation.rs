@@ -316,7 +316,7 @@ impl<'s> IrFunctionGenerator<'s> {
 
     fn statement(&mut self, statement: &Statement) -> Result<()> {
         match statement {
-            Statement::Let(x, e, _) => {
+            Statement::Let(x, e) => {
                 let v = self.expr(e)?;
                 self.ir.push(IrElement::i_let(x.to_string(), v));
             }

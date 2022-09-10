@@ -656,8 +656,9 @@ impl<'s> TypeChecker<'s> {
         return_type: &mut Type,
     ) -> Result<()> {
         match &mut statement.data {
-            Statement::Let(x, body, t) => {
-                self.expr(body, t)?;
+            Statement::Let(x, body) => {
+                let mut t = self.next_infer();
+                self.expr(body, &mut t)?;
                 self.variables.insert(x.clone(), t.clone());
             }
             Statement::Expr(e, t) => {

@@ -38,7 +38,7 @@ pub enum Literal {
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Statement {
-    Let(String, Source<Expr>, Type),
+    Let(String, Source<Expr>),
     Expr(Source<Expr>, Type),
     Return(Source<Expr>, Type),
     If(

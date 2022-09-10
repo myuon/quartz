@@ -238,7 +238,7 @@ impl Parser {
             let e = self.expr()?;
 
             Ok(self.source(
-                Statement::Let(x, self.source_from(e, e_start), Type::Infer(0)),
+                Statement::Let(x, self.source_from(e, e_start)),
                 start,
                 self.position,
             ))
@@ -246,7 +246,7 @@ impl Parser {
             let e_start = self.position;
             let e = self.expr()?;
             Ok(self.source(
-                Statement::Return(self.source_from(e, e_start), Type::Infer(0)),
+                Statement::Return(self.source_from(e, e_start), Type::Omit),
                 start,
                 self.position,
             ))
@@ -324,11 +324,11 @@ impl Parser {
 
         while self.peek().lexeme != Lexeme::RParen {
             let name = self.ident()?.data;
-            let mut typ = Type::Infer(0);
-
-            if self.expect_lexeme(Lexeme::Colon).is_ok() {
-                typ = self.type_(&vec![])?;
-            }
+            let typ = if self.expect_lexeme(Lexeme::Colon).is_ok() {
+                self.type_(&vec![])?
+            } else {
+                Type::Omit
+            };
 
             arguments.push((name, typ));
 
@@ -392,9 +392,7 @@ impl Parser {
 
     fn short_callee_expr(&mut self) -> Result<Expr> {
         self.variable()
-            .or_else(|_| -> Result<Expr> {
-                self.literal().map(|lit| Expr::Lit(lit, Type::Infer(0)))
-            })
+            .or_else(|_| -> Result<Expr> { self.literal().map(|lit| Expr::Lit(lit, Type::Omit)) })
             .or_else(|_| -> Result<Expr> { self.make_expr() })
     }
 
@@ -414,7 +412,7 @@ impl Parser {
 
                     result = Expr::Project(
                         false,
-                        Type::Infer(0),
+                        Type::Omit,
                         Box::new(self.source_from(result, result_start)),
                         i,
                     );
@@ -431,7 +429,7 @@ impl Parser {
                 } else if self.expect_lexeme(Lexeme::Exclamation).is_ok() {
                     result = Expr::Unwrap(
                         Box::new(self.source(result, result_start, self.position)),
-                        Type::Infer(0),
+                        Type::Omit,
                     );
                 } else {
                     break;
@@ -464,7 +462,7 @@ impl Parser {
 
                 Expr::Project(
                     false,
-                    Type::Infer(0),
+                    Type::Omit,
                     Box::new(self.source_from(expr, short_expr_start)),
                     i,
                 )
@@ -473,7 +471,7 @@ impl Parser {
                 let typ = self.type_(&vec![])?;
                 Expr::As(
                     Box::new(self.source_from(expr, short_expr_start)),
-                    Type::Infer(0),
+                    Type::Omit,
                     typ,
                 )
             }
@@ -483,7 +481,7 @@ impl Parser {
         if is_ref {
             result = Expr::Ref(
                 Box::new(self.source(result, short_expr_start, self.position)),
-                Type::Infer(0),
+                Type::Omit,
             );
         }
 
@@ -534,7 +532,7 @@ impl Parser {
         let return_type = if self.expect_lexeme(Lexeme::Colon).is_ok() {
             self.type_(&vec![])?
         } else {
-            Type::Infer(0)
+            Type::Omit
         };
 
         self.expect_lexeme(Lexeme::LBrace)?;
@@ -570,7 +568,7 @@ impl Parser {
         let return_type = if self.expect_lexeme(Lexeme::Colon).is_ok() {
             self.type_(&vec![])?
         } else {
-            Type::Infer(0)
+            Type::Omit
         };
 
         self.expect_lexeme(Lexeme::LBrace)?;
@@ -631,7 +629,7 @@ impl Parser {
             self.expect_lexeme(Lexeme::Colon)?;
             let e_start = self.position;
             let e = self.expr()?;
-            fields.push((name, self.source_from(e, e_start), Type::Infer(0)));
+            fields.push((name, self.source_from(e, e_start), Type::Omit));
 
             // allow trailing comma
             match self.expect_lexeme(Lexeme::Comma) {
@@ -678,7 +676,7 @@ impl Parser {
             Ok(Declaration::Variable(
                 x,
                 self.source_from(e, e_start),
-                Type::Infer(0),
+                Type::Omit,
             ))
         } else if self.expect_lexeme(Lexeme::Struct).is_ok() {
             let name = self.ident()?.data;
