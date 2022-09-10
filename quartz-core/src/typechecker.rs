@@ -746,6 +746,26 @@ impl<'s> TypeChecker<'s> {
         Ok(())
     }
 
+    fn function(&mut self, func: &mut Function) -> Result<()> {
+        let variables = self.variables.clone();
+        let mut arg_types = vec![];
+        for (arg, arg_type) in &func.args {
+            let t = if matches!(arg_type, Type::Infer(_)) {
+                self.next_infer()
+            } else {
+                arg_type.clone()
+            };
+
+            arg_types.push(t.clone());
+            self.variables.insert(arg.clone(), t);
+        }
+
+        self.function_statements(&mut func.body, &mut func.return_type)?;
+        self.variables = variables;
+
+        Ok(())
+    }
+
     pub fn declarations(&mut self, decls: &mut Vec<Declaration>) -> Result<()> {
         // preprocess: register all function types in this module
         for decl in decls.into_iter() {
@@ -808,45 +828,13 @@ impl<'s> TypeChecker<'s> {
 
             match decl {
                 Declaration::Function(func) => {
-                    let variables = self.variables.clone();
-                    let mut arg_types = vec![];
-                    for arg in &func.args {
-                        let t = if matches!(arg.1, Type::Infer(_)) {
-                            self.next_infer()
-                        } else {
-                            arg.1.clone()
-                        };
-
-                        arg_types.push(t.clone());
-                        self.variables.insert(arg.0.clone(), t);
-                    }
-
-                    self.function_statements(&mut func.body, &mut func.return_type)?;
-                    self.variables = variables;
+                    self.function(func)?;
 
                     self.function_types.get_mut(&func.name.data).unwrap().1 =
                         func.return_type.clone();
                 }
                 Declaration::Method(typ, func) => {
-                    let variables = self.variables.clone();
-                    let mut arg_types = vec![];
-                    for arg in &func.args {
-                        let t = if matches!(arg.1, Type::Infer(_)) {
-                            self.next_infer()
-                        } else {
-                            arg.1.clone()
-                        };
-
-                        arg_types.push(t.clone());
-                        self.variables.insert(arg.0.clone(), t);
-                    }
-
-                    if let Some(_) = typ.clone().as_sized_array() {
-                        self.variables.insert("sized".to_string(), Type::Int);
-                    }
-
-                    self.function_statements(&mut func.body, &mut func.return_type)?;
-                    self.variables = variables;
+                    self.function(func)?;
 
                     self.method_types
                         .get_mut(&(typ.method_selector_name()?, func.name.data.clone()))
