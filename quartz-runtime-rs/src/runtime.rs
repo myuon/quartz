@@ -1733,15 +1733,19 @@ func main() {
 
     for (name, input, result) in cases {
         let mut compiler = Compiler::new();
-        let code = compiler
+        println!("[{}] {}", name, input);
+        let compiled_result = compiler
             .compile(input.to_string(), "main".to_string())
-            .context(format!("compiling [{}]", name))?;
+            .context(format!("compiling [{}]", name));
+        if compiler.ir_result.is_some() {
+            println!("{}", compiler.ir_result.clone().unwrap().show());
+        }
+
+        let code = compiled_result?;
 
         let mut runtime = Runtime::new(code.clone(), compiler.vm_code_generation.globals());
-        println!("{}", input);
-        println!("{}", compiler.ir_result.clone().unwrap().show());
         println!("{}", compiler.show_qasmv(&code));
-        runtime.run()?;
+        runtime.run().context(format!("running [{}]", name))?;
         let pop = runtime.pop();
         assert_eq!(
             pop.clone().as_int().unwrap(),

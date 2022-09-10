@@ -491,6 +491,7 @@ impl IrType {
             Type::Optional(t) => IrType::addr_of(IrType::from_type_ast_traced(t, structs, trace)?),
             Type::Self_ => todo!(),
             Type::Any => IrType::byte(),
+            Type::TypeVar(t) => IrType::Ident(t.clone()),
             t => bail!("Unsupported type: {:?}", t),
         })
     }
@@ -529,7 +530,13 @@ impl IrType {
                 .sum::<usize>()
                 + 1), // +1 for a pointer to info table
             IrType::Slice(len, t) => Ok(len * t.size_of(types)? + 1),
-            IrType::Ident(t) => types[t].size_of(types),
+            IrType::Ident(t) => types
+                .get(t)
+                .ok_or(anyhow::anyhow!(
+                    "Cannot determine size of type {}, because it is not defined",
+                    t
+                ))?
+                .size_of(types),
         }
     }
 
