@@ -144,6 +144,7 @@ impl Constraints {
             Type::Self_ => {}
             Type::TypeApp(_, _) => todo!(),
             Type::TypeVar(_) => todo!(),
+            Type::Omit => todo!(),
         }
     }
 }
@@ -682,8 +683,9 @@ impl<'s> TypeChecker<'s> {
                 self.statements(else_statements, return_type)?;
             }
             Statement::Continue => {}
-            Statement::Assignment(t, lhs, rhs) => {
-                self.expr(lhs, t)?;
+            Statement::Assignment(lhs, rhs) => {
+                let mut t = self.next_infer();
+                self.expr(lhs, &mut t)?;
 
                 let mut current = self.next_infer();
                 self.expr_coerce(rhs, &mut current, &t)?;

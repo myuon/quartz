@@ -364,7 +364,7 @@ impl<'s> IrFunctionGenerator<'s> {
                 ));
             }
             Statement::Continue => self.ir.push(IrElement::block("continue", vec![])),
-            Statement::Assignment(_typ, lhs, rhs) => {
+            Statement::Assignment(lhs, rhs) => {
                 let lhs_value = self.expr(lhs)?;
                 let rhs_value = self.expr(rhs)?;
 

@@ -47,7 +47,7 @@ pub enum Statement {
         Vec<Source<Statement>>,
     ),
     Continue,
-    Assignment(Type, Source<Expr>, Source<Expr>),
+    Assignment(Source<Expr>, Source<Expr>),
     While(Source<Expr>, Vec<Source<Statement>>),
 }
 
@@ -278,6 +278,7 @@ pub enum Type {
     Self_,
     TypeApp(Box<Type>, Vec<(String, Type)>),
     TypeVar(String),
+    Omit,
 }
 
 impl Type {
@@ -371,6 +372,7 @@ impl Type {
             Type::Self_ => false,
             Type::TypeApp(_, _) => todo!(),
             Type::TypeVar(_) => todo!(),
+            Type::Omit => todo!(),
         }
     }
 
@@ -409,6 +411,7 @@ impl Type {
             Type::Self_ => {}
             Type::TypeApp(_, _) => todo!(),
             Type::TypeVar(_) => todo!(),
+            Type::Omit => todo!(),
         }
     }
 
@@ -447,6 +450,7 @@ impl Type {
                     *self = typ.clone();
                 }
             }
+            Type::Omit => todo!(),
         }
     }
 
