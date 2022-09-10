@@ -71,7 +71,11 @@ pub enum Expr {
     Make(Type, Vec<Source<Expr>>),
     Lit(Literal, Type),
     Call(CallMode, Box<Source<Expr>>, Vec<Source<Expr>>),
-    Struct(String, Vec<(String, Source<Expr>, Type)>),
+    Struct(
+        String,
+        Vec<(String, Type)>,
+        Vec<(String, Source<Expr>, Type)>,
+    ),
     Project(
         bool, // is_method (be decided in typecheck phase)
         Type,
@@ -144,7 +148,7 @@ impl Expr {
                     a.data.require_same_structure(&b.data)?;
                 }
             }
-            (Struct(t, x), Struct(s, y)) => {
+            (Struct(t, _, x), Struct(s, _, y)) => {
                 if t != s {
                     bail!("[struct] {:?} vs {:?}", t, s);
                 }
@@ -203,6 +207,7 @@ impl Expr {
 #[derive(PartialEq, Debug, Clone)]
 pub struct Struct {
     pub name: String,
+    pub type_params: Vec<String>,
     pub fields: Vec<(String, Type)>,
     pub dead_code: bool,
 }
@@ -210,6 +215,7 @@ pub struct Struct {
 #[derive(PartialEq, Debug, Clone)]
 pub struct Function {
     pub name: Source<String>,
+    pub type_params: Vec<String>,
     pub args: Vec<(String, Type)>,
     pub return_type: Type,
     pub body: Vec<Source<Statement>>,
@@ -270,6 +276,8 @@ pub enum Type {
     SizedArray(Box<Type>, usize),
     Optional(Box<Type>),
     Self_,
+    TypeApp(Box<Type>, Vec<(String, Type)>),
+    TypeVar(String),
 }
 
 impl Type {
@@ -331,6 +339,14 @@ impl Type {
         }
     }
 
+    pub fn type_app_or(typ: Type, params: Vec<(String, Type)>) -> Type {
+        if params.is_empty() {
+            typ
+        } else {
+            Type::TypeApp(Box::new(typ), params)
+        }
+    }
+
     pub fn has_infer(&self, index: usize) -> bool {
         match self {
             Type::Infer(t) => *t == index,
@@ -353,6 +369,8 @@ impl Type {
             Type::Optional(t) => t.has_infer(index),
             Type::Nil => false,
             Type::Self_ => false,
+            Type::TypeApp(_, _) => todo!(),
+            Type::TypeVar(_) => todo!(),
         }
     }
 
@@ -389,6 +407,46 @@ impl Type {
             Type::Optional(t) => t.subst(index, typ),
             Type::Nil => {}
             Type::Self_ => {}
+            Type::TypeApp(_, _) => todo!(),
+            Type::TypeVar(_) => todo!(),
+        }
+    }
+
+    pub fn subst_typevar(&mut self, var_name: &String, typ: &Type) {
+        match self {
+            Type::Infer(_) => {}
+            Type::Any => {}
+            Type::Bool => {}
+            Type::Int => {}
+            Type::Fn(args, ret) => {
+                for arg in args {
+                    arg.subst_typevar(var_name, typ);
+                }
+
+                ret.subst_typevar(var_name, typ);
+            }
+            Type::Method(self_, args, ret) => {
+                self_.subst_typevar(var_name, typ);
+                for arg in args {
+                    arg.subst_typevar(var_name, typ);
+                }
+
+                ret.subst_typevar(var_name, typ);
+            }
+            Type::Struct(_) => {}
+            Type::Ref(_) => todo!(),
+            Type::Byte => {}
+            Type::Array(t) => t.subst_typevar(var_name, typ),
+            Type::SizedArray(t, _n) => t.subst_typevar(var_name, typ),
+            Type::Optional(t) => t.subst_typevar(var_name, typ),
+            Type::Nil => {}
+            Type::Self_ => {}
+            Type::TypeApp(_, _) => todo!(),
+            Type::TypeVar(t) => {
+                if t == var_name {
+                    *self = typ.clone();
+                }
+            }
         }
     }
 
@@ -432,13 +490,53 @@ impl Type {
             Type::Array(_) => "array".to_string(),
             Type::SizedArray(_, _) => "sized_array".to_string(),
             Type::Optional(n) => n.method_selector_name()?,
+            Type::TypeApp(t, _) => t.method_selector_name()?,
             s => bail!("{:?} is not a method selector", s),
         })
+    }
+
+    pub fn get_projection_type(&mut self, label: &String, structs: &Structs) -> Result<Type> {
+        match self {
+            Type::Struct(s) => structs.get_projection_type(s, &label),
+            Type::TypeApp(t, ps) => match t.as_ref() {
+                Type::Struct(s) => {
+                    let mut typ = structs.get_projection_type(s, &label)?;
+                    for (pn, pt) in ps {
+                        typ.subst_typevar(&pn, &pt);
+                    }
+                    Ok(typ)
+                }
+                _ => bail!("Cannot project on {:?}", t),
+            },
+            Type::Ref(r) => r.get_projection_type(label, structs),
+            t => unreachable!("{:?}", t),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct StructTypeInfo {
+    pub name: String,
+    pub type_params: Vec<String>,
+    pub fields: Vec<(String, Type)>,
+}
+
+impl StructTypeInfo {
+    pub fn replace_params_in_fields(&mut self, type_params: &Vec<(String, Type)>) {
+        for (p, pt) in type_params {
+            for (_, t) in &mut self.fields {
+                t.subst_typevar(p, pt);
+            }
+        }
+    }
+
+    pub fn field_labels(&self) -> Vec<&String> {
+        self.fields.iter().map(|(l, _)| l).collect()
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct Structs(pub HashMap<String, Vec<(String, Type)>>);
+pub struct Structs(pub HashMap<String, StructTypeInfo>);
 
 impl Structs {
     pub fn get_projection_type(&self, val: &str, label: &str) -> Result<Type> {
@@ -448,15 +546,15 @@ impl Structs {
             val
         ))?;
 
-        let (_, t) =
-            struct_fields
-                .iter()
-                .find(|(name, _)| name == label)
-                .ok_or(anyhow::anyhow!(
-                    "project type: {} not found in {}",
-                    label,
-                    val
-                ))?;
+        let (_, t) = struct_fields
+            .fields
+            .iter()
+            .find(|(name, _)| name == label)
+            .ok_or(anyhow::anyhow!(
+                "project type: {} not found in {}",
+                label,
+                val
+            ))?;
 
         Ok(t.clone())
     }
@@ -468,7 +566,7 @@ impl Structs {
                 .ok_or(anyhow::anyhow!("project: {} not found in {}", label, val))?;
 
         let mut index = 0;
-        for (l, _) in struct_fields {
+        for (l, _) in &struct_fields.fields {
             if l == label {
                 break;
             }

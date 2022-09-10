@@ -84,7 +84,7 @@ impl Parser {
         Ok(current)
     }
 
-    fn type_(&mut self) -> Result<Type> {
+    fn type_(&mut self, type_params: &Vec<String>) -> Result<Type> {
         let mut is_ref = false;
         if self.expect_lexeme(Lexeme::Ref).is_ok() {
             is_ref = true;
@@ -100,7 +100,7 @@ impl Parser {
             "byte" => Type::Byte,
             "array" => {
                 self.expect_lexeme(Lexeme::LBracket)?;
-                let type_ = self.type_()?;
+                let type_ = self.type_(type_params)?;
 
                 let t = if self.expect_lexeme(Lexeme::Comma).is_ok() {
                     let token = self.next()?;
@@ -117,8 +117,20 @@ impl Parser {
 
                 t
             }
+            t if type_params.contains(&t.to_string()) => Type::TypeVar(ident),
             _ => Type::Struct(ident),
         };
+        let type_params = self.type_parameters()?;
+        if !type_params.is_empty() {
+            result = Type::TypeApp(
+                Box::new(result),
+                type_params
+                    .into_iter()
+                    .map(|t| (t, Type::Infer(0)))
+                    .collect(),
+            );
+        }
+
         if self.expect_lexeme(Lexeme::Question).is_ok() {
             result = Type::Optional(Box::new(result));
         }
@@ -157,7 +169,7 @@ impl Parser {
     }
 
     fn variable(&mut self) -> Result<Expr> {
-        let subject = self.type_()?;
+        let subject = self.type_(&vec![])?;
         if self.expect_lexeme(Lexeme::DoubleColon).is_ok() {
             let label = self.ident()?.data;
             Ok(Expr::Method(subject, label))
@@ -319,7 +331,7 @@ impl Parser {
             let mut typ = Type::Infer(0);
 
             if self.expect_lexeme(Lexeme::Colon).is_ok() {
-                typ = self.type_()?;
+                typ = self.type_(&vec![])?;
             }
 
             arguments.push((name, typ));
@@ -373,7 +385,7 @@ impl Parser {
     fn make_expr(&mut self) -> Result<Expr> {
         self.expect_lexeme(Lexeme::Make)?;
         self.expect_lexeme(Lexeme::LBracket)?;
-        let typ = self.type_()?;
+        let typ = self.type_(&vec![])?;
         self.expect_lexeme(Lexeme::RBracket)?;
         self.expect_lexeme(Lexeme::LParen)?;
         let args = self.many_exprs()?;
@@ -448,7 +460,7 @@ impl Parser {
                 // FIXME: qualified struct
                 assert_eq!(v.len(), 1);
 
-                Expr::Struct(v[0].clone(), fields)
+                Expr::Struct(v[0].clone(), vec![], fields)
             }
             expr if self.expect_lexeme(Lexeme::Dot).is_ok() => {
                 // projection
@@ -462,7 +474,7 @@ impl Parser {
                 )
             }
             expr if self.expect_lexeme(Lexeme::As).is_ok() => {
-                let typ = self.type_()?;
+                let typ = self.type_(&vec![])?;
                 Expr::As(
                     Box::new(self.source_from(expr, short_expr_start)),
                     Type::Infer(0),
@@ -517,12 +529,13 @@ impl Parser {
 
     fn declaration_function(&mut self) -> Result<Declaration> {
         let name = self.ident()?;
+        let type_params = self.type_parameters()?;
         self.expect_lexeme(Lexeme::LParen)?;
         let args = self.many_arguments()?;
         self.expect_lexeme(Lexeme::RParen)?;
 
         let return_type = if self.expect_lexeme(Lexeme::Colon).is_ok() {
-            self.type_()?
+            self.type_(&vec![])?
         } else {
             Type::Infer(0)
         };
@@ -540,6 +553,7 @@ impl Parser {
 
         Ok(Declaration::Function(Function {
             name,
+            type_params,
             args,
             return_type,
             body: statements,
@@ -548,15 +562,16 @@ impl Parser {
     }
 
     fn declaration_method(&mut self) -> Result<Declaration> {
-        let typ = self.type_()?;
+        let typ = self.type_(&vec![])?;
 
         let name = self.ident()?;
+        let type_params = self.type_parameters()?;
         self.expect_lexeme(Lexeme::LParen)?;
         let mut args = self.many_arguments()?;
         self.expect_lexeme(Lexeme::RParen)?;
 
         let return_type = if self.expect_lexeme(Lexeme::Colon).is_ok() {
-            self.type_()?
+            self.type_(&vec![])?
         } else {
             Type::Infer(0)
         };
@@ -583,6 +598,7 @@ impl Parser {
             typ.clone(),
             Function {
                 name,
+                type_params,
                 args,
                 return_type,
                 body: statements,
@@ -591,13 +607,13 @@ impl Parser {
         ))
     }
 
-    fn many_fields_with_types(&mut self) -> Result<Vec<(String, Type)>> {
+    fn many_fields_with_types(&mut self, type_params: &Vec<String>) -> Result<Vec<(String, Type)>> {
         let mut fields = vec![];
 
         while self.peek().lexeme != Lexeme::RBrace {
             let name = self.ident()?.data;
             self.expect_lexeme(Lexeme::Colon)?;
-            let ty = self.type_()?;
+            let ty = self.type_(type_params)?;
             fields.push((name, ty));
 
             // allow trailing comma
@@ -630,6 +646,26 @@ impl Parser {
         Ok(fields)
     }
 
+    fn type_parameters(&mut self) -> Result<Vec<String>> {
+        let mut fields = vec![];
+
+        if !self.expect_lexeme(Lexeme::LBracket).is_ok() {
+            return Ok(fields);
+        }
+        while self.peek().lexeme != Lexeme::RBracket {
+            let name = self.ident()?.data;
+            fields.push(name);
+
+            // allow trailing comma
+            if self.expect_lexeme(Lexeme::Comma).is_err() {
+                break;
+            }
+        }
+        self.expect_lexeme(Lexeme::RBracket)?;
+
+        Ok(fields)
+    }
+
     fn declaration(&mut self) -> Result<Declaration> {
         if self.expect_lexeme(Lexeme::Func).is_ok() {
             self.declaration_function()
@@ -649,12 +685,14 @@ impl Parser {
             ))
         } else if self.expect_lexeme(Lexeme::Struct).is_ok() {
             let name = self.ident()?.data;
+            let type_params = self.type_parameters()?;
             self.expect_lexeme(Lexeme::LBrace)?;
-            let fields = self.many_fields_with_types()?;
+            let fields = self.many_fields_with_types(&type_params)?;
             self.expect_lexeme(Lexeme::RBrace)?;
 
             Ok(Declaration::Struct(Struct {
                 name,
+                type_params,
                 fields,
                 dead_code: false,
             }))
@@ -854,6 +892,36 @@ mod tests {
 
             let err = result.unwrap_err();
             assert!(err.to_string().contains(c.1), "{:?} {}", err, c.0);
+        }
+    }
+
+    #[test]
+    fn test_run_parser_decl() {
+        let cases = vec![
+            r#"
+                struct General[X,Y] {
+                    x: X,
+                    y: Y,
+                }
+            "#,
+            r#"
+                func id[T](x: T): T {
+                    return x;
+                }
+
+                method Container[T] concat(other: Container[T]): Container[T] {
+                    return nil;
+                }
+
+                method Container[T] id[Y](x: Y): Y {
+                    return x;
+                }
+            "#,
+        ];
+
+        for c in cases {
+            let result = run_parser(c);
+            assert!(matches!(result, Ok(_)), "{} {:?}", c, result);
         }
     }
 }

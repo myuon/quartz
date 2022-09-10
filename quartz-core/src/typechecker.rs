@@ -5,8 +5,8 @@ use pretty_assertions::assert_eq;
 
 use crate::{
     ast::{
-        CallMode, Declaration, Expr, Literal, Module, OptionalMode, Source, Statement, Structs,
-        Type,
+        CallMode, Declaration, Expr, Literal, Module, OptionalMode, Source, Statement,
+        StructTypeInfo, Structs, Type,
     },
     compiler::SourceLoader,
 };
@@ -142,6 +142,8 @@ impl Constraints {
                 self.apply(t);
             }
             Type::Self_ => {}
+            Type::TypeApp(_, _) => todo!(),
+            Type::TypeVar(_) => todo!(),
         }
     }
 }
@@ -281,7 +283,7 @@ impl<'s> TypeChecker<'s> {
         expr: &mut Source<Expr>,
         current_type: &mut Type,
         expected_type: &Type,
-    ) -> Result<()> {
+    ) -> Result<Constraints> {
         if let Type::Ref(current_type) = current_type {
             if let Type::Ref(expected_type) = expected_type {
                 return self.transform(expr, current_type, expected_type);
@@ -289,8 +291,8 @@ impl<'s> TypeChecker<'s> {
         }
 
         // return immediately if the types are already equal
-        if Constraints::unify(current_type, expected_type).is_ok() {
-            return Ok(());
+        if let Ok(cs) = Constraints::unify(current_type, expected_type) {
+            return Ok(cs);
         }
 
         // reference
@@ -322,13 +324,13 @@ impl<'s> TypeChecker<'s> {
             }
         }
 
-        Constraints::unify(current_type, expected_type).context(self.error_context(
+        let cs = Constraints::unify(current_type, expected_type).context(self.error_context(
             expr.start,
             expr.end,
             "transform",
         ))?;
 
-        Ok(())
+        Ok(cs)
     }
 
     fn reduce_to_callable(&self, expr: &mut Source<Expr>, typ: &mut Type) -> Result<()> {
@@ -454,7 +456,7 @@ impl<'s> TypeChecker<'s> {
                         .context(self.error_context(expr.start, expr.end, "call"))?;
                 }
             }
-            Expr::Struct(s, fields) => {
+            Expr::Struct(s, type_params, fields) => {
                 assert_eq!(
                     self.structs.0.contains_key(s),
                     true,
@@ -462,25 +464,51 @@ impl<'s> TypeChecker<'s> {
                     self.error_context(expr.start, expr.end, "")
                 );
 
-                let defined = self.structs.0[s]
-                    .clone()
-                    .into_iter()
-                    .collect::<HashMap<String, Type>>();
-                assert_eq!(defined.len(), fields.len());
+                let mut defined = self.structs.0[s].clone();
 
-                let first_fields = fields[0].clone().1;
+                let params = {
+                    let ps = defined.type_params.clone();
+                    let mut result = vec![];
+                    for p in ps {
+                        result.push((p, self.next_infer()));
+                    }
+
+                    result
+                };
+                defined.replace_params_in_fields(&params);
+                let expected_fields = defined.fields.into_iter().collect::<HashMap<_, _>>();
+
+                let first_expr = fields[0].clone().1;
                 for (label, expr, typ) in fields {
-                    self.expr_coerce(expr, typ, &defined[label])
-                        .context(self.error_context(expr.start, expr.end, "struct field"))?;
+                    self.expr_coerce(expr, typ, &expected_fields[label])
+                        .context(format!("field {} of struct {}", label, s))?;
                 }
+
+                let mut type_app = vec![];
+                for (u, r) in params {
+                    if let Type::Infer(i) = r {
+                        type_app.push((u, self.inferred[&i].clone()));
+                    } else {
+                        unreachable!();
+                    }
+                }
+                *type_params = type_app.clone();
 
                 self.struct_graph
                     .entry(self.current_function.clone().unwrap())
                     .or_insert(HashMap::new())
                     .insert(s.clone(), ());
 
-                self.unify(&Type::Struct(s.clone()), typ)
-                    .context(self.error_context(first_fields.start, first_fields.end, "struct"))?;
+                let current_type = if type_app.is_empty() {
+                    Type::Struct(s.clone())
+                } else {
+                    Type::TypeApp(Box::new(Type::Struct(s.clone())), type_app)
+                };
+                self.unify(&current_type, typ).context(self.error_context(
+                    first_expr.start,
+                    first_expr.end,
+                    "struct",
+                ))?;
             }
             Expr::Project(is_method, proj_typ, proj, field) => {
                 self.expr(proj, proj_typ)?;
@@ -528,11 +556,9 @@ impl<'s> TypeChecker<'s> {
                     self.unify(&method_type, typ)
                         .context(format!("[project] {:?}", expr))?;
                 } else {
-                    let field_type = self
-                        .structs
-                        .get_projection_type(&name, &field)
+                    let field_type = proj_typ
+                        .get_projection_type(field, &self.structs)
                         .context(self.error_context(proj.start, proj.end, "projection"))?;
-
                     *is_method = false;
 
                     self.unify(&field_type, typ).context(self.error_context(
@@ -609,7 +635,8 @@ impl<'s> TypeChecker<'s> {
         expected_typ: &Type,
     ) -> Result<()> {
         self.expr(expr, current_type)?;
-        self.transform(expr, current_type, expected_typ)?;
+        let cs = self.transform(expr, current_type, expected_typ)?;
+        self.inferred.extend(cs.0);
 
         Ok(())
     }
@@ -817,7 +844,15 @@ impl<'s> TypeChecker<'s> {
                 }
                 Declaration::Struct(st) => {
                     assert!(!self.structs.0.contains_key(&st.name));
-                    self.structs.0.insert(st.name.clone(), st.fields.clone());
+                    let name = st.name.clone();
+                    self.structs.0.insert(
+                        name.clone(),
+                        StructTypeInfo {
+                            name: name.clone(),
+                            type_params: st.type_params.clone(),
+                            fields: st.fields.clone(),
+                        },
+                    );
                 }
                 Declaration::Import(_) => {}
             }

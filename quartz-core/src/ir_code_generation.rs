@@ -148,7 +148,7 @@ impl<'s> IrFunctionGenerator<'s> {
                 self.expr(f.as_ref())?,
                 self.expr(&args[0])?,
             )),
-            Expr::Struct(struct_name, exprs) => {
+            Expr::Struct(struct_name, params, exprs) => {
                 // in: A { a: 1, b: 2 }
                 // out: (let (data TYPE 1 2))
                 let mut data = vec![];
@@ -160,7 +160,10 @@ impl<'s> IrFunctionGenerator<'s> {
                 }
 
                 Ok(IrElement::i_tuple(
-                    self.ir_type(&Type::Struct(struct_name.clone()))?,
+                    self.ir_type(&Type::type_app_or(
+                        Type::Struct(struct_name.clone()),
+                        params.clone(),
+                    ))?,
                     data,
                 ))
             }
@@ -216,7 +219,7 @@ impl<'s> IrFunctionGenerator<'s> {
             Expr::Address(e, _) => {
                 // You cannot just take the address of an immidiate value, so declare as a variable
                 let next = match e.data {
-                    Expr::Lit(_, _) | Expr::Struct(_, _) | Expr::Call(_, _, _) => {
+                    Expr::Lit(_, _) | Expr::Struct(_, _, _) | Expr::Call(_, _, _) => {
                         let v = self.var_fresh();
                         let value = self.expr(e)?;
                         self.ir.push(IrElement::i_let(v.clone(), value));
@@ -526,16 +529,22 @@ impl<'s> IrGenerator<'s> {
     }
 
     fn struct_(&mut self, s: &Struct) -> Result<IrElement> {
+        let tuple = IrType::tuple(
+            s.fields
+                .iter()
+                .map(|(_, typ)| -> Result<IrType> {
+                    self.ir_type(typ).context(format!("{:?}", typ))
+                })
+                .collect::<Result<_>>()?,
+        );
+
         Ok(IrElement::d_type(
             s.name.clone(),
-            IrType::tuple(
-                s.fields
-                    .iter()
-                    .map(|(_, typ)| -> Result<IrType> {
-                        self.ir_type(typ).context(format!("{:?}", typ))
-                    })
-                    .collect::<Result<_>>()?,
-            ),
+            if s.type_params.is_empty() {
+                tuple
+            } else {
+                IrType::generic(tuple, s.type_params.clone())
+            },
         ))
     }
 

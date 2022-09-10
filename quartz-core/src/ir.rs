@@ -383,6 +383,8 @@ pub enum IrType {
     Tuple(Vec<IrType>),
     Slice(usize, Box<IrType>),
     Ident(String),
+    Generic(Vec<String>, Box<IrType>),
+    TypeApp(Box<IrType>, Vec<IrType>),
 }
 
 impl IrType {
@@ -430,6 +432,14 @@ impl IrType {
         IrType::Single(IrSingleType::BoxedArray(Box::new(t)))
     }
 
+    pub fn generic(typ: IrType, params: Vec<String>) -> IrType {
+        IrType::Generic(params, Box::new(typ))
+    }
+
+    pub fn typeapp(typ: IrType, args: Vec<IrType>) -> IrType {
+        IrType::TypeApp(Box::new(typ), args)
+    }
+
     pub fn from_element(element: &IrElement) -> Result<IrType> {
         Ok(match element {
             IrElement::Term(t) => match t {
@@ -457,6 +467,20 @@ impl IrType {
                 ),
                 "address" => IrType::addr_of(IrType::from_element(&block.elements[0])?),
                 "array" => IrType::boxed_array(IrType::from_element(&block.elements[0])?),
+                "generic" => {
+                    let mut params = Vec::new();
+                    for element in block.elements.iter().skip(1) {
+                        params.push(element.clone().into_term()?.into_ident()?);
+                    }
+                    IrType::generic(IrType::from_element(&block.elements[0])?, params)
+                }
+                "typeapp" => {
+                    let mut args = Vec::new();
+                    for element in block.elements.iter().skip(1) {
+                        args.push(IrType::from_element(element)?);
+                    }
+                    IrType::typeapp(IrType::from_element(&block.elements[0])?, args)
+                }
                 t => unreachable!("{:?}", t),
             },
         })
@@ -491,6 +515,13 @@ impl IrType {
             Type::Optional(t) => IrType::addr_of(IrType::from_type_ast_traced(t, structs, trace)?),
             Type::Self_ => todo!(),
             Type::Any => IrType::byte(),
+            Type::TypeVar(t) => IrType::Ident(t.clone()),
+            Type::TypeApp(t, ps) => IrType::typeapp(
+                IrType::from_type_ast_traced(t, structs, trace.clone())?,
+                ps.into_iter()
+                    .map(|(_, t)| IrType::from_type_ast_traced(t, structs, trace.clone()))
+                    .collect::<Result<Vec<_>, _>>()?,
+            ),
             t => bail!("Unsupported type: {:?}", t),
         })
     }
@@ -514,6 +545,65 @@ impl IrType {
                 IrElement::block("slice", elements)
             }
             IrType::Ident(t) => IrElement::ident(t),
+            IrType::Generic(ps, t) => {
+                let mut params = vec![];
+                params.push(t.to_element());
+                params.extend(
+                    ps.into_iter()
+                        .map(|u| IrElement::ident(u))
+                        .collect::<Vec<_>>(),
+                );
+
+                IrElement::block("generic", params)
+            }
+            IrType::TypeApp(t, ps) => {
+                let mut params = vec![];
+                params.push(t.to_element());
+                params.extend(ps.into_iter().map(|u| u.to_element()).collect::<Vec<_>>());
+
+                IrElement::block("typeapp", params)
+            }
+        }
+    }
+
+    fn subst_typevar(&mut self, var: String, typ: IrType) {
+        match self {
+            IrType::Unknown => {}
+            IrType::Single(t) => match t {
+                IrSingleType::Nil => {}
+                IrSingleType::Bool => {}
+                IrSingleType::Int => {}
+                IrSingleType::Address(t) => {
+                    t.subst_typevar(var, typ);
+                }
+                IrSingleType::BoxedArray(t) => {
+                    t.subst_typevar(var, typ);
+                }
+                _ => unreachable!(),
+            },
+            IrType::Tuple(ts) => {
+                for t in ts {
+                    t.subst_typevar(var.clone(), typ.clone());
+                }
+            }
+            IrType::Slice(_, t) => t.subst_typevar(var, typ),
+            IrType::Ident(ident) => {
+                if ident == &var {
+                    *self = typ;
+                }
+            }
+            IrType::Generic(ps, t) => {
+                if ps.contains(&var) {
+                    return;
+                }
+                t.subst_typevar(var, typ);
+            }
+            IrType::TypeApp(t, ps) => {
+                t.subst_typevar(var.clone(), typ.clone());
+                for p in ps {
+                    p.subst_typevar(var.clone(), typ.clone());
+                }
+            }
         }
     }
 
@@ -529,7 +619,41 @@ impl IrType {
                 .sum::<usize>()
                 + 1), // +1 for a pointer to info table
             IrType::Slice(len, t) => Ok(len * t.size_of(types)? + 1),
-            IrType::Ident(t) => types[t].size_of(types),
+            IrType::Ident(t) => types
+                .get(t)
+                .ok_or(anyhow::anyhow!(
+                    "Cannot determine size of type {}, because it is not defined",
+                    t
+                ))?
+                .size_of(types),
+            IrType::Generic(_, _) => {
+                bail!("Cannot determine size of generic type, because it is not instantiated")
+            }
+            IrType::TypeApp(t, ps) => match t.as_ref() {
+                IrType::Ident(i) => {
+                    let t = types
+                        .get(i)
+                        .ok_or(anyhow::anyhow!(
+                            "Cannot determine size of type {}, because it is not defined",
+                            i
+                        ))?
+                        .clone();
+                    match t {
+                        IrType::Generic(qs, gen) => {
+                            assert_eq!(qs.len(), ps.len());
+
+                            let mut gen = gen.clone();
+                            for (q, p) in qs.into_iter().zip(ps.into_iter()) {
+                                gen.subst_typevar(q, p.clone());
+                            }
+
+                            gen.size_of(types)
+                        }
+                        _ => unreachable!(),
+                    }
+                }
+                _ => unreachable!(),
+            },
         }
     }
 
@@ -629,6 +753,31 @@ impl IrType {
                 let ty = types[&t].clone();
                 ty.offset(index, types)
             }
+            IrType::TypeApp(t, ps) => match t.as_ref() {
+                IrType::Ident(i) => {
+                    let t = types
+                        .get(i)
+                        .ok_or(anyhow::anyhow!(
+                            "Cannot determine size of type {}, because it is not defined",
+                            i
+                        ))?
+                        .clone();
+                    match t {
+                        IrType::Generic(qs, gen) => {
+                            assert_eq!(qs.len(), ps.len());
+
+                            let mut gen = gen.clone();
+                            for (q, p) in qs.into_iter().zip(ps.into_iter()) {
+                                gen.subst_typevar(q, p);
+                            }
+
+                            gen.offset(index, types)
+                        }
+                        _ => unreachable!(),
+                    }
+                }
+                _ => unreachable!(),
+            },
             t => bail!("Type {} is not address", t.to_element().show()),
         }
     }
