@@ -5,7 +5,7 @@ use pretty_assertions::assert_eq;
 
 use crate::{
     ast::{
-        CallMode, Declaration, Expr, Literal, Module, OptionalMode, Source, Statement,
+        CallMode, Declaration, Expr, Function, Literal, Module, OptionalMode, Source, Statement,
         StructTypeInfo, Structs, Type,
     },
     compiler::SourceLoader,
@@ -152,7 +152,8 @@ impl Constraints {
 #[derive(Clone, Debug)]
 pub struct TypeChecker<'s> {
     infer_count: usize,
-    inferred: HashMap<usize, Type>,
+    infer_map: HashMap<usize, Type>,
+    type_parameter_map: HashMap<String, usize>,
     pub variables: HashMap<String, Type>,
     pub structs: Structs,
     pub function_types: HashMap<String, (Vec<Type>, Type)>,
@@ -175,7 +176,8 @@ impl<'s> TypeChecker<'s> {
     ) -> TypeChecker {
         TypeChecker {
             infer_count: 1,
-            inferred: HashMap::new(),
+            infer_map: HashMap::new(),
+            type_parameter_map: HashMap::new(),
             variables,
             structs,
             function_types: HashMap::new(),
@@ -197,7 +199,7 @@ impl<'s> TypeChecker<'s> {
     pub fn unify(&mut self, expected: &Type, actual: &mut Type) -> Result<()> {
         let cs = Constraints::unify(expected, actual)?;
         cs.apply(actual);
-        self.inferred.extend(cs.0);
+        self.infer_map.extend(cs.0);
 
         Ok(())
     }
@@ -227,7 +229,7 @@ impl<'s> TypeChecker<'s> {
         t
     }
 
-    fn normalize_type(&mut self, typ: &mut Type) {
+    fn replace_omit(&mut self, typ: &mut Type) {
         if let Type::Omit = typ {
             *typ = self.next_infer();
         }
@@ -490,7 +492,7 @@ impl<'s> TypeChecker<'s> {
                     if let Type::Infer(i) = r {
                         type_app.push((
                             u,
-                            self.inferred
+                            self.infer_map
                                 .get(&i)
                                 .ok_or(anyhow::anyhow!("Cannot find type for {:?}", i))?
                                 .clone(),
@@ -645,7 +647,7 @@ impl<'s> TypeChecker<'s> {
     ) -> Result<()> {
         self.expr(expr, current_type)?;
         let cs = self.transform(expr, current_type, expected_typ)?;
-        self.inferred.extend(cs.0);
+        self.infer_map.extend(cs.0);
 
         Ok(())
     }
@@ -662,7 +664,7 @@ impl<'s> TypeChecker<'s> {
                 self.variables.insert(x.clone(), t.clone());
             }
             Statement::Expr(e, t) => {
-                self.normalize_type(t);
+                self.replace_omit(t);
                 self.expr(e, t)
                     .context(self.error_context(e.start, e.end, "expression"))?;
             }
@@ -760,7 +762,7 @@ impl<'s> TypeChecker<'s> {
                         arg_types.push(t.clone());
                         self.variables.insert(arg.0.clone(), t);
                     }
-                    self.normalize_type(&mut func.return_type);
+                    self.replace_omit(&mut func.return_type);
 
                     self.function_types.insert(
                         func.name.data.clone(),
@@ -784,7 +786,7 @@ impl<'s> TypeChecker<'s> {
                         arg_types.push(t.clone());
                         self.variables.insert(arg.0.clone(), t);
                     }
-                    self.normalize_type(&mut func.return_type);
+                    self.replace_omit(&mut func.return_type);
 
                     let key = (typ.method_selector_name()?, func.name.data.clone());
                     if self.method_types.contains_key(&key) {
