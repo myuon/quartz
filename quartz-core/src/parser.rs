@@ -557,7 +557,8 @@ impl Parser {
     }
 
     fn declaration_method(&mut self) -> Result<Declaration> {
-        let typ = self.type_(&vec![])?;
+        let struct_name = self.ident()?;
+        let struct_type_params = self.type_parameters()?;
 
         let name = self.ident()?;
         let type_params = self.type_parameters()?;
@@ -590,7 +591,8 @@ impl Parser {
         }
 
         Ok(Declaration::Method(
-            typ.clone(),
+            struct_name,
+            struct_type_params,
             Function {
                 name,
                 type_params,

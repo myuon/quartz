@@ -65,6 +65,13 @@ impl Constraints {
             (Type::Array(t), Type::Struct(s)) if s == "string" && t.as_ref() == &Type::Byte => {
                 Ok(Constraints::new())
             }
+            // FIXME: this is an adhoc solution
+            (Type::Int, Type::Struct(t)) if t == "int" => Ok(Constraints::new()),
+            (Type::Struct(t), Type::Int) if t == "int" => Ok(Constraints::new()),
+            (Type::Bool, Type::Struct(t)) if t == "bool" => Ok(Constraints::new()),
+            (Type::Struct(t), Type::Bool) if t == "bool" => Ok(Constraints::new()),
+            (Type::Byte, Type::Struct(t)) if t == "byte" => Ok(Constraints::new()),
+            (Type::Struct(t), Type::Byte) if t == "byte" => Ok(Constraints::new()),
             // nil in byte
             (Type::Nil, Type::Byte) => Ok(Constraints::new()),
             // nil in ref type
@@ -153,7 +160,6 @@ impl Constraints {
 pub struct TypeChecker<'s> {
     infer_count: usize,
     infer_map: HashMap<usize, Type>,
-    type_parameter_map: HashMap<String, usize>,
     pub variables: HashMap<String, Type>,
     pub structs: Structs,
     pub function_types: HashMap<String, (Vec<Type>, Type)>,
@@ -177,7 +183,6 @@ impl<'s> TypeChecker<'s> {
         TypeChecker {
             infer_count: 1,
             infer_map: HashMap::new(),
-            type_parameter_map: HashMap::new(),
             variables,
             structs,
             function_types: HashMap::new(),
@@ -775,12 +780,12 @@ impl<'s> TypeChecker<'s> {
                         (arg_types.clone(), func.return_type.clone()),
                     );
                 }
-                Declaration::Method(typ, func) => {
+                Declaration::Method(typ, _, func) => {
                     let mut arg_types = vec![];
                     for (arg, arg_type) in &mut func.args {
                         // NOTE: infer self type
                         if arg_type == &Type::Self_ {
-                            *arg_type = Type::Ref(Box::new(typ.clone()));
+                            *arg_type = Type::Ref(Box::new(Type::Struct(typ.data.clone())));
                         }
 
                         self.replace_omit(arg_type);
@@ -790,7 +795,7 @@ impl<'s> TypeChecker<'s> {
                     }
                     self.replace_omit(&mut func.return_type);
 
-                    let key = (typ.method_selector_name()?, func.name.data.clone());
+                    let key = (typ.data.clone(), func.name.data.clone());
                     if self.method_types.contains_key(&key) {
                         bail!(
                             "Method {} already defined, {}",
@@ -815,11 +820,11 @@ impl<'s> TypeChecker<'s> {
                     self.function_types.get_mut(&func.name.data).unwrap().1 =
                         func.return_type.clone();
                 }
-                Declaration::Method(typ, func) => {
+                Declaration::Method(typ, _, func) => {
                     self.function(func)?;
 
                     self.method_types
-                        .get_mut(&(typ.method_selector_name()?, func.name.data.clone()))
+                        .get_mut(&(typ.data.clone(), func.name.data.clone()))
                         .unwrap()
                         .1 = func.return_type.clone();
                 }
@@ -888,7 +893,7 @@ impl<'s> TypeChecker<'s> {
 
                         func.dead_code = true;
                     }
-                    Declaration::Method(_typ, func) => {
+                    Declaration::Method(_, _, func) => {
                         if reachables.contains(function_path.unwrap().as_str()) {
                             continue;
                         }

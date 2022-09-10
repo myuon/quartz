@@ -224,7 +224,7 @@ pub struct Function {
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Declaration {
-    Method(Type, Function),
+    Method(Source<String>, Vec<String>, Function),
     Function(Function),
     Variable(String, Source<Expr>, Type),
     Struct(Struct),
@@ -242,11 +242,7 @@ impl Declaration {
     // if the function is a method, [STRUCT_NAME]::[METHOD_NAME]
     pub fn function_path(&self) -> Option<String> {
         match self {
-            Declaration::Method(typ, func) => Some(format!(
-                "{}::{}",
-                typ.method_selector_name().ok()?,
-                func.name.data
-            )),
+            Declaration::Method(typ, _, func) => Some(format!("{}::{}", typ.data, func.name.data)),
             Declaration::Function(func) => Some(func.name.data.clone()),
             _ => None,
         }

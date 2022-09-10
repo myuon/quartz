@@ -475,7 +475,7 @@ impl<'s> IrGenerator<'s> {
         ))
     }
 
-    fn method(&mut self, typ: &Type, function: &Function) -> Result<IrElement> {
+    fn method(&mut self, typ: &String, function: &Function) -> Result<IrElement> {
         let mut args = HashMap::new();
         let mut arg_index = 0;
         let mut arg_types_in_ir = vec![];
@@ -506,7 +506,7 @@ impl<'s> IrGenerator<'s> {
 
         // FIXME: method block for ITable
         Ok(IrElement::d_func(
-            format!("{}_{}", typ.method_selector_name()?, function.name.data),
+            format!("{}_{}", typ, function.name.data),
             arg_types_in_ir,
             Box::new(return_type),
             generator.ir,
@@ -564,14 +564,14 @@ impl<'s> IrGenerator<'s> {
                             .context(format!("function {}", f.name.data))?,
                     );
                 }
-                Declaration::Method(typ, f) => {
+                Declaration::Method(typ, _, f) => {
                     // skip if this function is not used
                     if f.dead_code {
                         continue;
                     }
 
                     elements.push(
-                        self.method(typ, f)
+                        self.method(&typ.data, f)
                             .context(format!("method {}", f.name.data))?,
                     );
                 }
