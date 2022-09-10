@@ -122,7 +122,13 @@ impl Parser {
         };
         let type_params = self.type_parameters()?;
         if !type_params.is_empty() {
-            result = Type::TypeApp(type_params, Box::new(result));
+            result = Type::TypeApp(
+                Box::new(result),
+                type_params
+                    .into_iter()
+                    .map(|t| (t, Type::Infer(0)))
+                    .collect(),
+            );
         }
 
         if self.expect_lexeme(Lexeme::Question).is_ok() {

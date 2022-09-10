@@ -291,8 +291,8 @@ impl<'s> TypeChecker<'s> {
         }
 
         // return immediately if the types are already equal
-        if Constraints::unify(current_type, expected_type).is_ok() {
-            return Ok(Constraints::new());
+        if let Ok(cs) = Constraints::unify(current_type, expected_type) {
+            return Ok(cs);
         }
 
         // reference
@@ -484,13 +484,30 @@ impl<'s> TypeChecker<'s> {
                         .context(format!("field {} of struct {}", label, s))?;
                 }
 
+                let mut type_app = vec![];
+                for (u, r) in params {
+                    if let Type::Infer(i) = r {
+                        type_app.push((u, self.inferred[&i].clone()));
+                    } else {
+                        unreachable!();
+                    }
+                }
+
                 self.struct_graph
                     .entry(self.current_function.clone().unwrap())
                     .or_insert(HashMap::new())
                     .insert(s.clone(), ());
 
-                self.unify(&Type::Struct(s.clone()), typ)
-                    .context(self.error_context(first_expr.start, first_expr.end, "struct"))?;
+                let current_type = if type_app.is_empty() {
+                    Type::Struct(s.clone())
+                } else {
+                    Type::TypeApp(Box::new(Type::Struct(s.clone())), type_app)
+                };
+                self.unify(&current_type, typ).context(self.error_context(
+                    first_expr.start,
+                    first_expr.end,
+                    "struct",
+                ))?;
             }
             Expr::Project(is_method, proj_typ, proj, field) => {
                 self.expr(proj, proj_typ)?;
@@ -617,11 +634,12 @@ impl<'s> TypeChecker<'s> {
         expr: &mut Source<Expr>,
         current_type: &mut Type,
         expected_typ: &Type,
-    ) -> Result<Constraints> {
+    ) -> Result<()> {
         self.expr(expr, current_type)?;
         let cs = self.transform(expr, current_type, expected_typ)?;
+        self.inferred.extend(cs.0);
 
-        Ok(cs)
+        Ok(())
     }
 
     pub fn statement(

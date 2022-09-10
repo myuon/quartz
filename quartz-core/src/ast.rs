@@ -272,7 +272,7 @@ pub enum Type {
     SizedArray(Box<Type>, usize),
     Optional(Box<Type>),
     Self_,
-    TypeApp(Vec<String>, Box<Type>),
+    TypeApp(Box<Type>, Vec<(String, Type)>),
     TypeVar(String),
 }
 
@@ -478,6 +478,7 @@ impl Type {
             Type::Array(_) => "array".to_string(),
             Type::SizedArray(_, _) => "sized_array".to_string(),
             Type::Optional(n) => n.method_selector_name()?,
+            Type::TypeApp(t, _) => t.method_selector_name()?,
             s => bail!("{:?} is not a method selector", s),
         })
     }
