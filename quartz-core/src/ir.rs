@@ -383,6 +383,7 @@ pub enum IrType {
     Tuple(Vec<IrType>),
     Slice(usize, Box<IrType>),
     Ident(String),
+    Generic(Vec<String>, Box<IrType>),
 }
 
 impl IrType {
@@ -430,6 +431,10 @@ impl IrType {
         IrType::Single(IrSingleType::BoxedArray(Box::new(t)))
     }
 
+    pub fn generic(typ: IrType, params: Vec<String>) -> IrType {
+        IrType::Generic(params, Box::new(typ))
+    }
+
     pub fn from_element(element: &IrElement) -> Result<IrType> {
         Ok(match element {
             IrElement::Term(t) => match t {
@@ -457,6 +462,13 @@ impl IrType {
                 ),
                 "address" => IrType::addr_of(IrType::from_element(&block.elements[0])?),
                 "array" => IrType::boxed_array(IrType::from_element(&block.elements[0])?),
+                "generic" => {
+                    let mut params = Vec::new();
+                    for element in block.elements.iter().skip(1) {
+                        params.push(element.clone().into_term()?.into_ident()?);
+                    }
+                    IrType::generic(IrType::from_element(&block.elements[0])?, params)
+                }
                 t => unreachable!("{:?}", t),
             },
         })
@@ -515,6 +527,17 @@ impl IrType {
                 IrElement::block("slice", elements)
             }
             IrType::Ident(t) => IrElement::ident(t),
+            IrType::Generic(ps, t) => {
+                let mut params = vec![];
+                params.push(t.to_element());
+                params.extend(
+                    ps.into_iter()
+                        .map(|u| IrElement::ident(u))
+                        .collect::<Vec<_>>(),
+                );
+
+                IrElement::block("generic", params)
+            }
         }
     }
 
@@ -537,6 +560,7 @@ impl IrType {
                     t
                 ))?
                 .size_of(types),
+            IrType::Generic(_, _) => todo!(),
         }
     }
 

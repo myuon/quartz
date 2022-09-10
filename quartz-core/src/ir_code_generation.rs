@@ -526,16 +526,22 @@ impl<'s> IrGenerator<'s> {
     }
 
     fn struct_(&mut self, s: &Struct) -> Result<IrElement> {
+        let tuple = IrType::tuple(
+            s.fields
+                .iter()
+                .map(|(_, typ)| -> Result<IrType> {
+                    self.ir_type(typ).context(format!("{:?}", typ))
+                })
+                .collect::<Result<_>>()?,
+        );
+
         Ok(IrElement::d_type(
             s.name.clone(),
-            IrType::tuple(
-                s.fields
-                    .iter()
-                    .map(|(_, typ)| -> Result<IrType> {
-                        self.ir_type(typ).context(format!("{:?}", typ))
-                    })
-                    .collect::<Result<_>>()?,
-            ),
+            if s.type_params.is_empty() {
+                tuple
+            } else {
+                IrType::generic(tuple, s.type_params.clone())
+            },
         ))
     }
 
