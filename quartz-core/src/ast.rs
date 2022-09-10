@@ -273,6 +273,7 @@ pub enum Type {
     Optional(Box<Type>),
     Self_,
     TypeApp(Vec<String>, Box<Type>),
+    TypeVar(String),
 }
 
 impl Type {
@@ -357,6 +358,7 @@ impl Type {
             Type::Nil => false,
             Type::Self_ => false,
             Type::TypeApp(_, _) => todo!(),
+            Type::TypeVar(_) => todo!(),
         }
     }
 
@@ -394,6 +396,7 @@ impl Type {
             Type::Nil => {}
             Type::Self_ => {}
             Type::TypeApp(_, _) => todo!(),
+            Type::TypeVar(_) => todo!(),
         }
     }
 

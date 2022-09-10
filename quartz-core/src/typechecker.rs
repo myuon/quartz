@@ -143,6 +143,7 @@ impl Constraints {
             }
             Type::Self_ => {}
             Type::TypeApp(_, _) => todo!(),
+            Type::TypeVar(_) => todo!(),
         }
     }
 }

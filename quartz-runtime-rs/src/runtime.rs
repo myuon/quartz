@@ -1683,6 +1683,22 @@ func main() {
 "#,
             20,
         ),
+        (
+            r#"
+struct container[T] {
+    arr: array[T],
+}
+
+func main() {
+    let c = container {
+        arr: make[array[int]](10, 5),
+    };
+
+    return c.arr(1);
+}
+"#,
+            20,
+        ),
     ];
 
     for (input, result) in cases {
