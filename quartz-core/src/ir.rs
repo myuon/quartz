@@ -569,7 +569,18 @@ impl IrType {
     fn subst_typevar(&mut self, var: String, typ: IrType) {
         match self {
             IrType::Unknown => {}
-            IrType::Single(_) => {}
+            IrType::Single(t) => match t {
+                IrSingleType::Nil => {}
+                IrSingleType::Bool => {}
+                IrSingleType::Int => {}
+                IrSingleType::Address(t) => {
+                    t.subst_typevar(var, typ);
+                }
+                IrSingleType::BoxedArray(t) => {
+                    t.subst_typevar(var, typ);
+                }
+                _ => unreachable!(),
+            },
             IrType::Tuple(ts) => {
                 for t in ts {
                     t.subst_typevar(var.clone(), typ.clone());
@@ -742,6 +753,31 @@ impl IrType {
                 let ty = types[&t].clone();
                 ty.offset(index, types)
             }
+            IrType::TypeApp(t, ps) => match t.as_ref() {
+                IrType::Ident(i) => {
+                    let t = types
+                        .get(i)
+                        .ok_or(anyhow::anyhow!(
+                            "Cannot determine size of type {}, because it is not defined",
+                            i
+                        ))?
+                        .clone();
+                    match t {
+                        IrType::Generic(qs, gen) => {
+                            assert_eq!(qs.len(), ps.len());
+
+                            let mut gen = gen.clone();
+                            for (q, p) in qs.into_iter().zip(ps.into_iter()) {
+                                gen.subst_typevar(q, p);
+                            }
+
+                            gen.offset(index, types)
+                        }
+                        _ => unreachable!(),
+                    }
+                }
+                _ => unreachable!(),
+            },
             t => bail!("Type {} is not address", t.to_element().show()),
         }
     }

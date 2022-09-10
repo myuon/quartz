@@ -674,8 +674,10 @@ impl<'s> VmFunctionGenerator<'s> {
 
                         let mut types = vec![];
                         for (i, elem) in block.elements.into_iter().skip(1).enumerate() {
+                            let elem_type = self.element(elem.clone())?;
+
                             types.push(
-                                self.element(elem.clone())?
+                                elem_type
                                     .unify(
                                         typ.clone()
                                             .offset(i, self.types)
