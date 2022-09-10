@@ -146,12 +146,6 @@ impl Constraints {
             Type::TypeVar(_) => todo!(),
         }
     }
-
-    fn apply_struct(&self, typ: &mut StructTypeInfo) {
-        for (_, t) in &mut typ.fields {
-            self.apply(t);
-        }
-    }
 }
 
 #[derive(Clone, Debug)]
@@ -471,16 +465,23 @@ impl<'s> TypeChecker<'s> {
                 );
 
                 let mut defined = self.structs.0[s].clone();
-                assert_eq!(defined.fields.len(), fields.len());
 
-                let first_fields = fields[0].clone().1;
+                let params = {
+                    let ps = defined.type_params.clone();
+                    let mut result = vec![];
+                    for p in ps {
+                        result.push((p, self.next_infer()));
+                    }
+
+                    result
+                };
+                defined.replace_params_in_fields(&params);
+                let expected_fields = defined.fields.into_iter().collect::<HashMap<_, _>>();
+
+                let first_expr = fields[0].clone().1;
                 for (label, expr, typ) in fields {
-                    let field = &defined.fields.iter().find(|t| t.0.eq(label)).unwrap().1;
-                    let cs = self
-                        .expr_coerce(expr, typ, &field)
-                        .context(self.error_context(expr.start, expr.end, "struct field"))?;
-
-                    cs.apply_struct(&mut defined);
+                    self.expr_coerce(expr, typ, &expected_fields[label])
+                        .context(format!("field {} of struct {}", label, s))?;
                 }
 
                 self.struct_graph
@@ -489,7 +490,7 @@ impl<'s> TypeChecker<'s> {
                     .insert(s.clone(), ());
 
                 self.unify(&Type::Struct(s.clone()), typ)
-                    .context(self.error_context(first_fields.start, first_fields.end, "struct"))?;
+                    .context(self.error_context(first_expr.start, first_expr.end, "struct"))?;
             }
             Expr::Project(is_method, proj_typ, proj, field) => {
                 self.expr(proj, proj_typ)?;

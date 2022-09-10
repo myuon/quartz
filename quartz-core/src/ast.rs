@@ -400,6 +400,44 @@ impl Type {
         }
     }
 
+    pub fn subst_typevar(&mut self, var_name: &String, typ: &Type) {
+        match self {
+            Type::Infer(_) => {}
+            Type::Any => {}
+            Type::Bool => {}
+            Type::Int => {}
+            Type::Fn(args, ret) => {
+                for arg in args {
+                    arg.subst_typevar(var_name, typ);
+                }
+
+                ret.subst_typevar(var_name, typ);
+            }
+            Type::Method(self_, args, ret) => {
+                self_.subst_typevar(var_name, typ);
+                for arg in args {
+                    arg.subst_typevar(var_name, typ);
+                }
+
+                ret.subst_typevar(var_name, typ);
+            }
+            Type::Struct(_) => {}
+            Type::Ref(_) => todo!(),
+            Type::Byte => {}
+            Type::Array(t) => t.subst_typevar(var_name, typ),
+            Type::SizedArray(t, _n) => t.subst_typevar(var_name, typ),
+            Type::Optional(t) => t.subst_typevar(var_name, typ),
+            Type::Nil => {}
+            Type::Self_ => {}
+            Type::TypeApp(_, _) => todo!(),
+            Type::TypeVar(t) => {
+                if t == var_name {
+                    *self = typ.clone();
+                }
+            }
+        }
+    }
+
     // Whether the representation is an adress or not
     pub fn is_struct(&self) -> bool {
         match self {
@@ -450,6 +488,20 @@ pub struct StructTypeInfo {
     pub name: String,
     pub type_params: Vec<String>,
     pub fields: Vec<(String, Type)>,
+}
+
+impl StructTypeInfo {
+    pub fn replace_params_in_fields(&mut self, type_params: &Vec<(String, Type)>) {
+        for (p, pt) in type_params {
+            for (_, t) in &mut self.fields {
+                t.subst_typevar(p, pt);
+            }
+        }
+    }
+
+    pub fn field_labels(&self) -> Vec<&String> {
+        self.fields.iter().map(|(l, _)| l).collect()
+    }
 }
 
 #[derive(Debug, Clone)]
