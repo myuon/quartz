@@ -160,6 +160,7 @@ impl Constraints {
 pub struct TypeChecker<'s> {
     infer_count: usize,
     infer_map: HashMap<usize, Type>,
+    type_param_map: HashMap<String, Type>,
     pub variables: HashMap<String, Type>,
     pub structs: Structs,
     pub function_types: HashMap<String, (Vec<Type>, Type)>,
@@ -183,6 +184,7 @@ impl<'s> TypeChecker<'s> {
         TypeChecker {
             infer_count: 1,
             infer_map: HashMap::new(),
+            type_param_map: HashMap::new(),
             variables,
             structs,
             function_types: HashMap::new(),
@@ -234,9 +236,15 @@ impl<'s> TypeChecker<'s> {
         t
     }
 
-    fn replace_omit(&mut self, typ: &mut Type) {
+    fn normalize_type(&mut self, typ: &mut Type) {
         if let Type::Omit = typ {
             *typ = self.next_infer();
+        }
+
+        if let Type::TypeVar(name) = typ {
+            if let Some(t) = self.type_param_map.get(name) {
+                *typ = t.clone();
+            }
         }
     }
 
@@ -358,7 +366,7 @@ impl<'s> TypeChecker<'s> {
     }
 
     pub fn expr(&mut self, expr: &mut Source<Expr>, typ: &mut Type) -> Result<()> {
-        self.replace_omit(typ);
+        self.normalize_type(typ);
         match &mut expr.data {
             Expr::Var(v) => {
                 self.load(v, typ)
@@ -525,7 +533,7 @@ impl<'s> TypeChecker<'s> {
                 ))?;
             }
             Expr::Project(is_method, proj_typ, proj, field) => {
-                self.replace_omit(proj_typ);
+                self.normalize_type(proj_typ);
                 self.expr(proj, proj_typ)?;
                 let name = proj_typ.method_selector_name().context(self.error_context(
                     proj.start,
@@ -615,6 +623,8 @@ impl<'s> TypeChecker<'s> {
                         .context(self.error_context(expr.start, expr.end, "make"))?;
                 }
                 Type::Array(arr) => {
+                    self.normalize_type(arr);
+
                     if args.len() == 2 {
                         self.expr(&mut args[0], &mut Type::Int)?;
                         self.expr(&mut args[1], arr)?;
@@ -670,7 +680,7 @@ impl<'s> TypeChecker<'s> {
                 self.variables.insert(x.clone(), t.clone());
             }
             Statement::Expr(e, t) => {
-                self.replace_omit(t);
+                self.normalize_type(t);
                 self.expr(e, t)
                     .context(self.error_context(e.start, e.end, "expression"))?;
             }
@@ -768,19 +778,24 @@ impl<'s> TypeChecker<'s> {
                 Declaration::Function(func) => {
                     let mut arg_types = vec![];
                     for (arg, arg_type) in &mut func.args {
-                        self.replace_omit(arg_type);
+                        self.normalize_type(arg_type);
 
                         arg_types.push(arg_type.clone());
                         self.variables.insert(arg.clone(), arg_type.clone());
                     }
-                    self.replace_omit(&mut func.return_type);
+                    self.normalize_type(&mut func.return_type);
 
                     self.function_types.insert(
                         func.name.data.clone(),
                         (arg_types.clone(), func.return_type.clone()),
                     );
                 }
-                Declaration::Method(typ, _, func) => {
+                Declaration::Method(typ, params, func) => {
+                    for param in params {
+                        let t = self.next_infer();
+                        self.type_param_map.insert(param.clone(), t);
+                    }
+
                     let mut arg_types = vec![];
                     for (arg, arg_type) in &mut func.args {
                         // NOTE: infer self type
@@ -788,12 +803,12 @@ impl<'s> TypeChecker<'s> {
                             *arg_type = Type::Ref(Box::new(Type::Struct(typ.data.clone())));
                         }
 
-                        self.replace_omit(arg_type);
+                        self.normalize_type(arg_type);
 
                         arg_types.push(arg_type.clone());
                         self.variables.insert(arg.clone(), arg_type.clone());
                     }
-                    self.replace_omit(&mut func.return_type);
+                    self.normalize_type(&mut func.return_type);
 
                     let key = (typ.data.clone(), func.name.data.clone());
                     if self.method_types.contains_key(&key) {
