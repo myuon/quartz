@@ -1731,22 +1731,33 @@ func main() {
         ),
     ];
 
-    for (name, input, result) in cases {
+    fn run(name: &str, input: &str, buffer: &mut Vec<u8>) -> Result<Value> {
         let mut compiler = Compiler::new();
-        println!("[{}] {}", name, input);
+        writeln!(buffer, "[{}] {}", name, input)?;
         let compiled_result = compiler
             .compile(input.to_string(), "main".to_string())
             .context(format!("compiling [{}]", name));
         if compiler.ir_result.is_some() {
-            println!("{}", compiler.ir_result.clone().unwrap().show());
+            writeln!(buffer, "{}", compiler.ir_result.clone().unwrap().show())?;
         }
 
         let code = compiled_result?;
 
         let mut runtime = Runtime::new(code.clone(), compiler.vm_code_generation.globals());
-        println!("{}", compiler.show_qasmv(&code));
+        writeln!(buffer, "{}", compiler.show_qasmv(&code))?;
         runtime.run().context(format!("running [{}]", name))?;
         let pop = runtime.pop();
+
+        Ok(pop)
+    }
+
+    for (name, input, result) in cases {
+        let mut buffer = vec![];
+        let pop = run(name, input, &mut buffer).context(format!(
+            "== INFORMATION ==\n\n{}",
+            String::from_utf8(buffer).unwrap()
+        ))?;
+
         assert_eq!(
             pop.clone().as_int().unwrap(),
             result,
