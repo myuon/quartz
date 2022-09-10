@@ -1063,9 +1063,10 @@ fn runtime_run() -> Result<()> {
     use quartz_core::compiler::Compiler;
 
     let cases = vec![
-        (r#"func main() { return 10; }"#, 10),
-        (r#"func main() { return _add(1, 20); }"#, 21),
+        ("simple return", r#"func main() { return 10; }"#, 10),
+        ("call _add", r#"func main() { return _add(1, 20); }"#, 21),
         (
+            "function call",
             r#"
 func calc(b: int): int {
     let a = 1;
@@ -1081,6 +1082,7 @@ func main(): int {
             3,
         ),
         (
+            "global variable",
             r#"
 let a = 5;
 
@@ -1097,6 +1099,7 @@ func main(): int {
             15,
         ),
         (
+            "factorial",
             r#"
 func factorial(n: int) {
     if _eq(n,0) {
@@ -1113,6 +1116,7 @@ func main() {
             120,
         ),
         (
+            "array",
             r#"
 func main(): int {
     let x = make[array[int,5]](0);
@@ -1126,6 +1130,7 @@ func main(): int {
             3,
         ),
         (
+            "expr statement",
             r#"
 func main() {
     1;
@@ -1137,6 +1142,7 @@ func main() {
             0,
         ),
         (
+            "struct",
             r#"
 struct Point {
     x: int,
@@ -1155,6 +1161,7 @@ func main() {
             2,
         ),
         (
+            "method",
             r#"
 struct Point {
     x: int,
@@ -1177,6 +1184,7 @@ func main() {
             3,
         ),
         (
+            "string",
             r#"
 func main() {
     let p = "Hello, World!";
@@ -1187,6 +1195,7 @@ func main() {
             'W' as i32,
         ),
         (
+            "len for string",
             r#"
 func main() {
     let p = "Hello, World!";
@@ -1197,6 +1206,7 @@ func main() {
             13,
         ),
         (
+            "modifying struct",
             r#"
 struct Point {
     x: int,
@@ -1218,6 +1228,7 @@ func main() {
             3,
         ),
         (
+            "while",
             r#"
 func main() {
     let sum = 0;
@@ -1233,6 +1244,7 @@ func main() {
             45,
         ),
         (
+            "modifying struct in a method",
             r#"
 struct Modify {
     a: int,
@@ -1254,6 +1266,7 @@ func main() {
             30,
         ),
         (
+            "useless while",
             r#"
 func main() {
     let result = 1;
@@ -1268,6 +1281,7 @@ func main() {
             1,
         ),
         (
+            "summing up with while",
             r#"
 func main() {
     let n = 0;
@@ -1292,6 +1306,7 @@ func main() {
             46,
         ),
         (
+            "nested struct",
             r#"
 struct Child {
     n: int,
@@ -1321,6 +1336,7 @@ func main(): int {
             31,
         ),
         (
+            "a function returns a struct",
             r#"
 struct Child {
     n: int,
@@ -1341,6 +1357,7 @@ func main(): int {
             10,
         ),
         (
+            "nested struct projection",
             r#"
 struct Child {
     n: int,
@@ -1370,6 +1387,7 @@ func main(): int {
             10,
         ),
         (
+            "calling a method in the nested struct",
             r#"
 struct Child {
     n: int,
@@ -1398,6 +1416,7 @@ func main(): int {
             10,
         ),
         (
+            "optional type",
             r#"
 struct Foo {
     value: int?,
@@ -1421,6 +1440,7 @@ func main() {
             10,
         ),
         (
+            "cyclic struct",
             r#"
 struct Nat {
     succ: ref Nat,
@@ -1463,6 +1483,7 @@ func main() {
             5,
         ),
         (
+            "coerce from nil",
             r#"
 struct Point {
     x: int,
@@ -1495,6 +1516,7 @@ func main() {
             1,
         ),
         (
+            "associated method call",
             r#"
 struct Point {
     x: int,
@@ -1517,6 +1539,7 @@ func main() {
             30,
         ),
         (
+            "nested struct method call",
             r#"
 struct Point {
     x: int,
@@ -1544,6 +1567,7 @@ func main() {
             40,
         ),
         (
+            "concat_array",
             r#"
 func concat_array(a: array[int], b: array[int]): array[int] {
     let p = make[array[int]](_len(a) + _len(b), 0);
@@ -1583,6 +1607,7 @@ func main() {
             10,
         ),
         (
+            "optional type cast",
             r#"
 struct Q {
     a: int,
@@ -1609,6 +1634,7 @@ func main() {
             10,
         ),
         (
+            "_is_nil",
             r#"
 func int_or(t: int): int? {
     return t as int?;
@@ -1628,6 +1654,7 @@ func main() {
             100,
         ),
         (
+            "string concat",
             r#"
 func main() {
     let s = "hello";
@@ -1642,6 +1669,7 @@ func main() {
             1,
         ),
         (
+            "struct projection, again",
             r#"
 struct Point {
     x: int,
@@ -1660,6 +1688,7 @@ func main() {
             10,
         ),
         (
+            "unwrap projected value",
             r#"
 struct P {
     x: int?,
@@ -1684,6 +1713,7 @@ func main() {
             20,
         ),
         (
+            "struct with a type paramter",
             r#"
 struct container[T] {
     arr: array[T],
@@ -1701,9 +1731,11 @@ func main() {
         ),
     ];
 
-    for (input, result) in cases {
+    for (name, input, result) in cases {
         let mut compiler = Compiler::new();
-        let code = compiler.compile(input.to_string(), "main".to_string())?;
+        let code = compiler
+            .compile(input.to_string(), "main".to_string())
+            .context(format!("compiling [{}]", name))?;
 
         let mut runtime = Runtime::new(code.clone(), compiler.vm_code_generation.globals());
         println!("{}", input);
@@ -1714,7 +1746,8 @@ func main() {
         assert_eq!(
             pop.clone().as_int().unwrap(),
             result,
-            "{:?} {:?}",
+            "[{}] {:?} {:?}",
+            name,
             pop,
             result
         );
