@@ -456,7 +456,7 @@ impl<'s> TypeChecker<'s> {
                         .context(self.error_context(expr.start, expr.end, "call"))?;
                 }
             }
-            Expr::Struct(s, fields) => {
+            Expr::Struct(s, type_params, fields) => {
                 assert_eq!(
                     self.structs.0.contains_key(s),
                     true,
@@ -492,6 +492,7 @@ impl<'s> TypeChecker<'s> {
                         unreachable!();
                     }
                 }
+                *type_params = type_app.clone();
 
                 self.struct_graph
                     .entry(self.current_function.clone().unwrap())

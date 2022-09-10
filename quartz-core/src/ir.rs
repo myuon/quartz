@@ -384,6 +384,7 @@ pub enum IrType {
     Slice(usize, Box<IrType>),
     Ident(String),
     Generic(Vec<String>, Box<IrType>),
+    TypeApp(Box<IrType>, Vec<IrType>),
 }
 
 impl IrType {
@@ -433,6 +434,10 @@ impl IrType {
 
     pub fn generic(typ: IrType, params: Vec<String>) -> IrType {
         IrType::Generic(params, Box::new(typ))
+    }
+
+    pub fn app(typ: IrType, args: Vec<IrType>) -> IrType {
+        IrType::TypeApp(Box::new(typ), args)
     }
 
     pub fn from_element(element: &IrElement) -> Result<IrType> {
@@ -504,6 +509,12 @@ impl IrType {
             Type::Self_ => todo!(),
             Type::Any => IrType::byte(),
             Type::TypeVar(t) => IrType::Ident(t.clone()),
+            Type::TypeApp(t, ps) => IrType::app(
+                IrType::from_type_ast_traced(t, structs, trace.clone())?,
+                ps.into_iter()
+                    .map(|(_, t)| IrType::from_type_ast_traced(t, structs, trace.clone()))
+                    .collect::<Result<Vec<_>, _>>()?,
+            ),
             t => bail!("Unsupported type: {:?}", t),
         })
     }
@@ -538,6 +549,13 @@ impl IrType {
 
                 IrElement::block("generic", params)
             }
+            IrType::TypeApp(t, ps) => {
+                let mut params = vec![];
+                params.push(t.to_element());
+                params.extend(ps.into_iter().map(|u| u.to_element()).collect::<Vec<_>>());
+
+                IrElement::block("typeapp", params)
+            }
         }
     }
 
@@ -561,6 +579,7 @@ impl IrType {
                 ))?
                 .size_of(types),
             IrType::Generic(_, _) => todo!(),
+            IrType::TypeApp(t, _) => t.size_of(types),
         }
     }
 

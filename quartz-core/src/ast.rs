@@ -71,7 +71,11 @@ pub enum Expr {
     Make(Type, Vec<Source<Expr>>),
     Lit(Literal, Type),
     Call(CallMode, Box<Source<Expr>>, Vec<Source<Expr>>),
-    Struct(String, Vec<(String, Source<Expr>, Type)>),
+    Struct(
+        String,
+        Vec<(String, Type)>,
+        Vec<(String, Source<Expr>, Type)>,
+    ),
     Project(
         bool, // is_method (be decided in typecheck phase)
         Type,
@@ -144,7 +148,7 @@ impl Expr {
                     a.data.require_same_structure(&b.data)?;
                 }
             }
-            (Struct(t, x), Struct(s, y)) => {
+            (Struct(t, _, x), Struct(s, _, y)) => {
                 if t != s {
                     bail!("[struct] {:?} vs {:?}", t, s);
                 }
@@ -332,6 +336,14 @@ impl Type {
         match self {
             Type::Optional(t) => Some(t),
             _ => None,
+        }
+    }
+
+    pub fn type_app_or(typ: Type, params: Vec<(String, Type)>) -> Type {
+        if params.is_empty() {
+            typ
+        } else {
+            Type::TypeApp(Box::new(typ), params)
         }
     }
 

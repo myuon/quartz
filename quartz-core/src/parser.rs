@@ -460,7 +460,7 @@ impl Parser {
                 // FIXME: qualified struct
                 assert_eq!(v.len(), 1);
 
-                Expr::Struct(v[0].clone(), fields)
+                Expr::Struct(v[0].clone(), vec![], fields)
             }
             expr if self.expect_lexeme(Lexeme::Dot).is_ok() => {
                 // projection
