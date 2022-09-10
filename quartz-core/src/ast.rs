@@ -262,7 +262,12 @@ pub struct Module {
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Type {
-    Infer(usize), // for typecheck
+    // for parse
+    Self_,
+    Omit,
+    TypeVar(String),
+    // for typecheck
+    Infer(usize),
     Any,
     Nil, // literal "nil"
     Bool,
@@ -275,10 +280,7 @@ pub enum Type {
     Array(Box<Type>),
     SizedArray(Box<Type>, usize),
     Optional(Box<Type>),
-    Self_,
     TypeApp(Box<Type>, Vec<(String, Type)>),
-    TypeVar(String),
-    Omit,
 }
 
 impl Type {

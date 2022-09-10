@@ -881,11 +881,7 @@ impl<'s> TypeChecker<'s> {
         Ok(())
     }
 
-    pub fn modules(&mut self, modules: &mut Vec<Module>) -> Result<()> {
-        for m in modules.into_iter() {
-            self.module(m)?;
-        }
-
+    fn flag_dead_code(&mut self, modules: &mut Vec<Module>) {
         // update dead_code fields for functions
         // calculate reachable functions from entrypoint
         let mut reachables = HashSet::new();
@@ -938,6 +934,14 @@ impl<'s> TypeChecker<'s> {
                 }
             }
         }
+    }
+
+    pub fn modules(&mut self, modules: &mut Vec<Module>) -> Result<()> {
+        for m in modules.into_iter() {
+            self.module(m)?;
+        }
+
+        self.flag_dead_code(modules);
 
         Ok(())
     }
