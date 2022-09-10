@@ -556,11 +556,9 @@ impl<'s> TypeChecker<'s> {
                     self.unify(&method_type, typ)
                         .context(format!("[project] {:?}", expr))?;
                 } else {
-                    let field_type = self
-                        .structs
-                        .get_projection_type(&name, &field)
+                    let field_type = proj_typ
+                        .get_projection_type(field, &self.structs)
                         .context(self.error_context(proj.start, proj.end, "projection"))?;
-
                     *is_method = false;
 
                     self.unify(&field_type, typ).context(self.error_context(

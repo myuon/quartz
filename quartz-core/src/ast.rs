@@ -494,6 +494,24 @@ impl Type {
             s => bail!("{:?} is not a method selector", s),
         })
     }
+
+    pub fn get_projection_type(&mut self, label: &String, structs: &Structs) -> Result<Type> {
+        match self {
+            Type::Struct(s) => structs.get_projection_type(s, &label),
+            Type::TypeApp(t, ps) => match t.as_ref() {
+                Type::Struct(s) => {
+                    let mut typ = structs.get_projection_type(s, &label)?;
+                    for (pn, pt) in ps {
+                        typ.subst_typevar(&pn, &pt);
+                    }
+                    Ok(typ)
+                }
+                _ => bail!("Cannot project on {:?}", t),
+            },
+            Type::Ref(r) => r.get_projection_type(label, structs),
+            t => unreachable!("{:?}", t),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
