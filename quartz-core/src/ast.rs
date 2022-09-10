@@ -40,7 +40,7 @@ pub enum Literal {
 pub enum Statement {
     Let(String, Source<Expr>),
     Expr(Source<Expr>, Type),
-    Return(Source<Expr>, Type),
+    Return(Source<Expr>),
     If(
         Box<Source<Expr>>,
         Vec<Source<Statement>>,

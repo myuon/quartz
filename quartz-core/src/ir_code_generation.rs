@@ -325,7 +325,7 @@ impl<'s> IrFunctionGenerator<'s> {
                 self.ir.push(v);
                 self.ir.push(IrElement::i_pop(self.ir_type(t)?));
             }
-            Statement::Return(e, _) => {
+            Statement::Return(e) => {
                 let v = self.expr(e)?;
                 self.ir.push(IrElement::i_return(v));
             }

@@ -662,16 +662,18 @@ impl<'s> TypeChecker<'s> {
                 self.variables.insert(x.clone(), t.clone());
             }
             Statement::Expr(e, t) => {
+                self.normalize_type(t);
                 self.expr(e, t)
                     .context(self.error_context(e.start, e.end, "expression"))?;
             }
-            Statement::Return(e, t) => {
-                self.expr(e, t).context(self.error_context(
+            Statement::Return(e) => {
+                let mut t = self.next_infer();
+                self.expr(e, &mut t).context(self.error_context(
                     statement.start,
                     statement.end,
                     "return",
                 ))?;
-                self.unify(t, return_type).context(self.error_context(
+                self.unify(&t, return_type).context(self.error_context(
                     statement.start,
                     statement.end,
                     "return",
