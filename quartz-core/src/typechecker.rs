@@ -160,7 +160,7 @@ impl Constraints {
 pub struct TypeChecker<'s> {
     infer_count: usize,
     infer_map: HashMap<usize, Type>,
-    type_param_map: HashMap<String, Type>,
+    type_params: HashSet<String>,
     pub variables: HashMap<String, Type>,
     pub structs: Structs,
     pub function_types: HashMap<String, (Vec<Type>, Type)>,
@@ -184,7 +184,7 @@ impl<'s> TypeChecker<'s> {
         TypeChecker {
             infer_count: 1,
             infer_map: HashMap::new(),
-            type_param_map: HashMap::new(),
+            type_params: HashSet::new(),
             variables,
             structs,
             function_types: HashMap::new(),
@@ -241,9 +241,9 @@ impl<'s> TypeChecker<'s> {
             *typ = self.next_infer();
         }
 
-        if let Type::TypeVar(name) = typ {
-            if let Some(t) = self.type_param_map.get(name) {
-                *typ = t.clone();
+        if let Type::Struct(i) = typ {
+            if self.type_params.contains(i) {
+                *typ = Type::TypeVar(i.clone());
             }
         }
     }
@@ -632,6 +632,8 @@ impl<'s> TypeChecker<'s> {
                             .context(self.error_context(expr.start, expr.end, "make"))?;
                     } else if args.len() == 1 {
                         self.expr(&mut args[0], &mut Type::Int)?;
+                        self.unify(t, typ)
+                            .context(self.error_context(expr.start, expr.end, "make"))?;
                     } else {
                         bail!(
                             "Expected 2 arguments but given {:?}, {}",
@@ -774,6 +776,8 @@ impl<'s> TypeChecker<'s> {
     pub fn declarations(&mut self, decls: &mut Vec<Declaration>) -> Result<()> {
         // preprocess: register all function types in this module
         for decl in decls.into_iter() {
+            self.type_params = HashSet::new();
+
             match decl {
                 Declaration::Function(func) => {
                     let mut arg_types = vec![];
@@ -792,8 +796,11 @@ impl<'s> TypeChecker<'s> {
                 }
                 Declaration::Method(typ, params, func) => {
                     for param in params {
-                        let t = self.next_infer();
-                        self.type_param_map.insert(param.clone(), t);
+                        if self.type_params.contains(param) {
+                            bail!("Duplicate type parameter {}", param);
+                        }
+
+                        self.type_params.insert(param.clone());
                     }
 
                     let mut arg_types = vec![];
