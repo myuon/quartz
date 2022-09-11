@@ -275,9 +275,16 @@ method vector[T] len(self): int {
 }
 
 method vector[T] push(self, item: T) {
-    if (self.len == self.data.len()) {
-        let new_data = make[array[T]](self.data.len() * 2);
-        _copy(self.len, self.data, 0, new_data, 0);
+    if (self.len == _len(self.data)) {
+        let new_data = make[array[T]](_len(self.data) * 2);
+
+        let i = 0;
+        while (i < self.len) {
+            let data = self.data;
+            new_data(i) = data(i);
+            i = i + 1;
+        };
+
         self.data = new_data;
     };
 

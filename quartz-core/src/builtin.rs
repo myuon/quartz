@@ -77,11 +77,11 @@ pub fn builtin() -> HashMap<String, Type> {
             "_copy",
             Type::Fn(
                 vec![
-                    Type::Int,                         // size
-                    Type::Array(Box::new(Type::Byte)), // source
-                    Type::Int,                         // source offset
-                    Type::Array(Box::new(Type::Byte)), // target,
-                    Type::Int,                         // target offset
+                    Type::Int,                        // size
+                    Type::Array(Box::new(Type::Any)), // source
+                    Type::Int,                        // source offset
+                    Type::Array(Box::new(Type::Any)), // target,
+                    Type::Int,                        // target offset
                 ],
                 Box::new(Type::Nil),
             ),
@@ -91,6 +91,7 @@ pub fn builtin() -> HashMap<String, Type> {
             "_println_any",
             Type::Fn(vec![Type::Any], Box::new(Type::Nil)),
         ),
+        ("_sizeof", Type::Fn(vec![], Box::new(Type::Int))),
     ]
     .into_iter()
     .map(|(k, v)| (k.to_string(), v))

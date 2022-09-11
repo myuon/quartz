@@ -560,7 +560,12 @@ impl<'s> TypeChecker<'s> {
                     .method_types
                     .get(&(name.clone(), label.clone()))
                     .cloned()
-                    .unwrap();
+                    .context(format!(
+                        "method {} of type {},\n{}",
+                        label,
+                        name,
+                        self.error_context(self_.start, self_.end, &format!("method {}", label))
+                    ))?;
 
                 self.call_graph
                     .entry(self.current_function.clone().unwrap())
