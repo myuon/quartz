@@ -491,7 +491,9 @@ impl Type {
                     *self = typ.clone();
                 }
             }
-            Type::Ref(_) => todo!(),
+            Type::Ref(t) => {
+                t.subst_struct_name(var_name, typ);
+            }
             Type::Byte => {}
             Type::Array(t) => t.subst_struct_name(var_name, typ),
             Type::SizedArray(t, _n) => t.subst_struct_name(var_name, typ),

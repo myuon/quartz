@@ -795,6 +795,8 @@ impl<'s> TypeChecker<'s> {
     pub fn declarations(&mut self, decls: &mut Vec<Declaration>) -> Result<()> {
         // preprocess: register all function types in this module
         for decl in decls.into_iter() {
+            self.type_params = HashSet::new();
+
             match decl {
                 Declaration::Function(func) => {
                     let mut arg_types = vec![];
@@ -812,6 +814,14 @@ impl<'s> TypeChecker<'s> {
                     );
                 }
                 Declaration::Method(typ, params, func) => {
+                    for param in &params.clone() {
+                        if self.type_params.contains(param) {
+                            bail!("Duplicate type parameter {}", param);
+                        }
+
+                        self.type_params.insert(param.clone());
+                    }
+
                     let mut arg_types = vec![];
                     for (arg, arg_type) in &mut func.args {
                         // NOTE: infer self type
