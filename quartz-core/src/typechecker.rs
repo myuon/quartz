@@ -592,6 +592,10 @@ impl<'s> TypeChecker<'s> {
                     &mut args_self,
                 )?;
 
+                // recover modified expressions
+                *self_ = Box::new(args_self[0].clone());
+                *args = args_self[1..].to_vec();
+
                 self.unify(&ret_type, typ)
                     .context(format!("[project] {:?}", expr))?;
             }
