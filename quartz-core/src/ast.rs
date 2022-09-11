@@ -454,7 +454,9 @@ impl Type {
                 ret.subst_typevar(var_name, typ);
             }
             Type::Struct(_) => {}
-            Type::Ref(_) => todo!(),
+            Type::Ref(r) => {
+                r.subst_typevar(var_name, typ);
+            }
             Type::Byte => {}
             Type::Array(t) => t.subst_typevar(var_name, typ),
             Type::SizedArray(t, _n) => t.subst_typevar(var_name, typ),
@@ -583,6 +585,19 @@ impl Type {
             },
             Type::Ref(r) => r.get_projection_type(label, structs),
             t => bail!("[get_projection_type] {:?}", t),
+        }
+    }
+
+    pub fn type_applications(&mut self) -> Result<Vec<Type>> {
+        match self {
+            Type::Struct(_) => Ok(vec![]),
+            Type::TypeApp(t, ps) => {
+                let mut ts = t.type_applications()?;
+                ts.extend(ps.clone());
+                Ok(ts)
+            }
+            Type::Ref(r) => r.type_applications(),
+            _ => Ok(vec![]),
         }
     }
 }

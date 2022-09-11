@@ -487,6 +487,7 @@ impl<'s> TypeChecker<'s> {
                     &format!("[proj] {:?}", self_),
                 ))?;
 
+                let mut is_function = true;
                 let field_type = type_.get_projection_type(label, &self.structs);
                 if let Ok(field_type) = field_type {
                     if let Some(t) = field_type.as_array() {
@@ -500,6 +501,8 @@ impl<'s> TypeChecker<'s> {
                             expr.end,
                             "array indexing",
                         ))?;
+
+                        is_function = false;
                     } else if let Some("string") = field_type.as_struct_type().map(|s| s.as_str()) {
                         // string indexing
                         *mode = CallMode::Array;
@@ -510,18 +513,15 @@ impl<'s> TypeChecker<'s> {
                             expr.end,
                             "string indexing",
                         ))?;
-                    } else {
-                        anyhow::bail!(
-                            "Cannot call method {:?} on {:?} (type: {:?})",
-                            label,
-                            self_,
-                            type_
-                        );
+
+                        is_function = false;
                     }
-                } else {
+                }
+
+                if is_function {
                     *mode = CallMode::Function;
 
-                    let method = self
+                    let mut method = self
                         .method_types
                         .get(&(name.clone(), label.clone()))
                         .cloned()
@@ -535,6 +535,7 @@ impl<'s> TypeChecker<'s> {
                                 &format!("method {}", label)
                             )
                         ))?;
+                    method.apply(&type_.type_applications()?);
 
                     self.call_graph
                         .entry(self.current_function.clone().unwrap())

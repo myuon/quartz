@@ -310,5 +310,5 @@ func test() {
     v.push(10);
     v.push(20);
 
-    assert_eq(v.len(), 10);
+    assert(v.len() == 10);
 }
