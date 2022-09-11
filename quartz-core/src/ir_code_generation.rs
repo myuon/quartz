@@ -310,6 +310,7 @@ impl<'s> IrFunctionGenerator<'s> {
                     )))?,
                 })
             }
+            Expr::MethodCall(_, _, _) => todo!(),
         }
     }
 

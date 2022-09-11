@@ -405,14 +405,26 @@ impl Parser {
             loop {
                 if self.expect_lexeme(Lexeme::Dot).is_ok() {
                     // projection
-                    let i = self.ident()?.data;
+                    let label = self.ident()?.data;
 
-                    result = Expr::Project(
-                        false,
-                        Type::Omit,
-                        Box::new(self.source_from(result, result_start)),
-                        i,
-                    );
+                    // decide method call or field access
+                    if self.expect_lexeme(Lexeme::LParen).is_ok() {
+                        let args = self.many_exprs()?;
+                        self.expect_lexeme(Lexeme::RParen)?;
+
+                        result = Expr::MethodCall(
+                            label,
+                            Box::new(self.source_from(result, result_start)),
+                            args,
+                        );
+                    } else {
+                        result = Expr::Project(
+                            false,
+                            Type::Omit,
+                            Box::new(self.source_from(result, result_start)),
+                            label,
+                        );
+                    }
                 } else if self.expect_lexeme(Lexeme::LParen).is_ok() {
                     let result_end = self.position;
                     let args = self.many_exprs()?;
@@ -846,7 +858,7 @@ mod tests {
 
         for c in cases {
             let result = run_parser_statements(c);
-            assert!(matches!(result, Ok(_)), "{} {:?}", c, result);
+            assert!(matches!(result, Ok(_)), "{} {:#?}", c, result);
         }
     }
 
@@ -855,35 +867,29 @@ mod tests {
         let cases = vec![
             (
                 "self.field!.f()",
-                Expr::function_call(
-                    Source::unknown(Expr::member(
-                        Source::unknown(Expr::unwrap(Source::unknown(Expr::member(
-                            Source::unknown(Expr::Var(vec!["self".to_string()])),
-                            "field",
-                        )))),
-                        "f",
-                    )),
+                Expr::method_call(
+                    "f",
+                    Source::unknown(Expr::unwrap(Source::unknown(Expr::member(
+                        Source::unknown(Expr::Var(vec!["self".to_string()])),
+                        "field",
+                    )))),
                     vec![],
                 ),
             ),
             (
                 r#"a.f(self.k!.name).g(b)"#,
-                Expr::function_call(
-                    Source::unknown(Expr::member(
-                        Source::unknown(Expr::function_call(
-                            Source::unknown(Expr::member(
-                                Source::unknown(Expr::Var(vec!["a".to_string()])),
-                                "f",
-                            )),
-                            vec![Source::unknown(Expr::member(
-                                Source::unknown(Expr::unwrap(Source::unknown(Expr::member(
-                                    Source::unknown(Expr::Var(vec!["self".to_string()])),
-                                    "k",
-                                )))),
-                                "name",
-                            ))],
-                        )),
-                        "g",
+                Expr::method_call(
+                    "g",
+                    Source::unknown(Expr::method_call(
+                        "f",
+                        Source::unknown(Expr::Var(vec!["a".to_string()])),
+                        vec![Source::unknown(Expr::member(
+                            Source::unknown(Expr::unwrap(Source::unknown(Expr::member(
+                                Source::unknown(Expr::Var(vec!["self".to_string()])),
+                                "k",
+                            )))),
+                            "name",
+                        ))],
                     )),
                     vec![Source::unknown(Expr::Var(vec!["b".to_string()]))],
                 ),

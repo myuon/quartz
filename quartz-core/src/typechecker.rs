@@ -656,6 +656,7 @@ impl<'s> TypeChecker<'s> {
                 self.unify(t.unwrap_type()?, typ)
                     .context(self.error_context(expr.start, expr.end, "unwrap"))?;
             }
+            Expr::MethodCall(_, _, _) => todo!(),
         };
 
         Ok(())

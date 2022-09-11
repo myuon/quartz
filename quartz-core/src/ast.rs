@@ -71,6 +71,7 @@ pub enum Expr {
     Make(Type, Vec<Source<Expr>>),
     Lit(Literal),
     Call(CallMode, Box<Source<Expr>>, Vec<Source<Expr>>),
+    MethodCall(String, Box<Source<Expr>>, Vec<Source<Expr>>),
     Struct(String, Vec<Type>, Vec<(String, Source<Expr>, Type)>),
     Project(
         bool, // is_method (be decided in typecheck phase)
@@ -93,6 +94,14 @@ impl Expr {
 
     pub fn member(proj: Source<Expr>, field: impl Into<String>) -> Expr {
         Expr::Project(false, Type::Omit, Box::new(proj), field.into())
+    }
+
+    pub fn method_call(
+        var: impl Into<String>,
+        callee: Source<Expr>,
+        args: Vec<Source<Expr>>,
+    ) -> Expr {
+        Expr::MethodCall(var.into(), Box::new(callee), args)
     }
 
     pub fn unwrap(expr: Source<Expr>) -> Expr {
@@ -139,6 +148,18 @@ impl Expr {
                 x.data.require_same_structure(&a.data)?;
                 if y.len() != b.len() {
                     bail!("[call] {:?} vs {:?}", a, b);
+                }
+                for (a, b) in y.iter().zip(b.iter()) {
+                    a.data.require_same_structure(&b.data)?;
+                }
+            }
+            (MethodCall(t, x, y), MethodCall(s, a, b)) => {
+                if t != s {
+                    bail!("[method call] {:?} vs {:?}", t, s);
+                }
+                x.data.require_same_structure(&a.data)?;
+                if y.len() != b.len() {
+                    bail!("[method call] {:?} vs {:?}", a, b);
                 }
                 for (a, b) in y.iter().zip(b.iter()) {
                     a.data.require_same_structure(&b.data)?;
