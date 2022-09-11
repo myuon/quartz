@@ -413,6 +413,7 @@ impl Parser {
                         self.expect_lexeme(Lexeme::RParen)?;
 
                         result = Expr::MethodCall(
+                            Type::Omit,
                             label,
                             Box::new(self.source_from(result, result_start)),
                             args,
@@ -868,6 +869,7 @@ mod tests {
             (
                 "self.field!.f()",
                 Expr::method_call(
+                    Type::Omit,
                     "f",
                     Source::unknown(Expr::unwrap(Source::unknown(Expr::member(
                         Source::unknown(Expr::Var(vec!["self".to_string()])),
@@ -879,8 +881,10 @@ mod tests {
             (
                 r#"a.f(self.k!.name).g(b)"#,
                 Expr::method_call(
+                    Type::Omit,
                     "g",
                     Source::unknown(Expr::method_call(
+                        Type::Omit,
                         "f",
                         Source::unknown(Expr::Var(vec!["a".to_string()])),
                         vec![Source::unknown(Expr::member(

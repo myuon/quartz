@@ -547,16 +547,14 @@ impl<'s> TypeChecker<'s> {
                     "struct",
                 ))?;
             }
-            Expr::MethodCall(label, proj, args) => {
-                let mut proj_type = self.next_infer();
-                self.expr(proj, &mut proj_type)?;
-                let name = proj_type
-                    .method_selector_name()
-                    .context(self.error_context(
-                        proj.start,
-                        proj.end,
-                        &format!("[proj] {:?}", proj),
-                    ))?;
+            Expr::MethodCall(type_, label, self_, args) => {
+                self.normalize_type(type_);
+                self.expr(self_, type_)?;
+                let name = type_.method_selector_name().context(self.error_context(
+                    self_.start,
+                    self_.end,
+                    &format!("[proj] {:?}", self_),
+                ))?;
 
                 let (arg_types, return_type) = self
                     .method_types
@@ -573,11 +571,13 @@ impl<'s> TypeChecker<'s> {
                         (),
                     );
 
-                let mut args_self = vec![proj.as_ref().clone()];
+                self.transform(self_, type_, &arg_types[0])?;
+
+                let mut args_self = vec![self_.as_ref().clone()];
                 args_self.extend(args.clone());
 
                 let ret_type = self.typecheck_function(
-                    proj,
+                    self_,
                     &Type::Fn(arg_types.clone(), Box::new(return_type)),
                     &mut args_self,
                 )?;
