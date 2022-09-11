@@ -84,7 +84,7 @@ impl<'s> IrFunctionGenerator<'s> {
                     Ok(IrElement::Term(IrTerm::Ident(format!("{}_{}", v[0], v[1]))))
                 }
             }
-            Expr::Method(subj, v) => Ok(IrElement::Term(IrTerm::Ident(format!(
+            Expr::PathVar(subj, v) => Ok(IrElement::Term(IrTerm::Ident(format!(
                 "{}_{}",
                 subj.method_selector_name()?,
                 v

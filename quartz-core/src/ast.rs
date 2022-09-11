@@ -67,7 +67,7 @@ pub enum OptionalMode {
 #[derive(PartialEq, Debug, Clone)]
 pub enum Expr {
     Var(Vec<String>), // qualifier in vector
-    Method(Type, String),
+    PathVar(Type, String),
     Make(Type, Vec<Source<Expr>>),
     Lit(Literal),
     Call(CallMode, Box<Source<Expr>>, Vec<Source<Expr>>),
@@ -108,7 +108,7 @@ impl Expr {
                     bail!("[var] {:?} vs {:?}", x, y);
                 }
             }
-            (Method(t, x), Method(s, y)) => {
+            (PathVar(t, x), PathVar(s, y)) => {
                 if t != s {
                     bail!("[method] {:?} vs {:?}", t, s);
                 }

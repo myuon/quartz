@@ -377,7 +377,7 @@ impl<'s> TypeChecker<'s> {
                 self.load(v, typ)
                     .context(self.error_context(expr.start, expr.end, "var"))?;
             }
-            Expr::Method(subj, v) => {
+            Expr::PathVar(subj, v) => {
                 self.load(&vec![subj.method_selector_name()?, v.clone()], typ)
                     .context(self.error_context(expr.start, expr.end, "var"))?;
             }

@@ -166,7 +166,7 @@ impl Parser {
         let subject = self.type_(&vec![])?;
         if self.expect_lexeme(Lexeme::DoubleColon).is_ok() {
             let label = self.ident()?.data;
-            Ok(Expr::Method(subject, label))
+            Ok(Expr::PathVar(subject, label))
         } else {
             Ok(Expr::Var(vec![subject.method_selector_name()?]))
         }

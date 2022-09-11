@@ -270,11 +270,11 @@ method vector[T] new(): vector[T] {
     };
 }
 
-method vector[T] len(): int {
+method vector[T] len(self): int {
     return self.len;
 }
 
-method vector[T] push(item: T) {
+method vector[T] push(self, item: T) {
     if (self.len == self.data.len()) {
         let new_data = make[array[T]](self.data.len() * 2);
         _copy(self.len, self.data, 0, new_data, 0);
