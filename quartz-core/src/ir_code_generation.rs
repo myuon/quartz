@@ -86,7 +86,8 @@ impl<'s> IrFunctionGenerator<'s> {
             }
             Expr::PathVar(subj, v) => Ok(IrElement::Term(IrTerm::Ident(format!(
                 "{}_{}",
-                subj.method_selector_name()?,
+                subj.method_selector_name()
+                    .context(format!("{:?}::{}", subj, v))?,
                 v
             )))),
             Expr::Lit(literal) => match literal {
@@ -150,7 +151,16 @@ impl<'s> IrFunctionGenerator<'s> {
             Expr::MethodCall(type_, label, self_, args) => {
                 let mut elements = vec![];
                 elements.push(self.expr(&Source::unknown(Expr::Var(vec![
-                    type_.method_selector_name()?,
+                    type_.method_selector_name().context(format!(
+                        "method selector name for {:?}::{}, {}",
+                        type_,
+                        label,
+                        self.source_loader.specify_source(
+                            self.module_path,
+                            expr.start.unwrap(),
+                            expr.end.unwrap(),
+                        )?,
+                    ))?,
                     label.clone(),
                 ])))?);
 
@@ -181,7 +191,9 @@ impl<'s> IrFunctionGenerator<'s> {
                 ))
             }
             Expr::Project(proj_typ, proj, label) => {
-                let struct_name = &proj_typ.method_selector_name()?;
+                let struct_name = &proj_typ
+                    .method_selector_name()
+                    .context(format!("{:?}.{}", proj.data, label))?;
                 let index = self.structs.get_projection_offset(struct_name, label)?;
                 // `f().x` should be compiled to `((let $v (call $f)) (offset $v 0))`
                 let value = {
