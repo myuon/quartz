@@ -461,7 +461,12 @@ impl Type {
             Type::Optional(t) => t.subst_typevar(var_name, typ),
             Type::Nil => {}
             Type::Self_ => {}
-            Type::TypeApp(_, _) => todo!(),
+            Type::TypeApp(t, vs) => {
+                t.subst_typevar(var_name, typ);
+                for v in vs {
+                    v.subst_typevar(var_name, typ);
+                }
+            }
             Type::TypeVar(t) => {
                 if t == var_name {
                     *self = typ.clone();
@@ -675,4 +680,26 @@ pub struct MethodTypeInfo {
     pub type_params: Vec<String>,
     pub args: Vec<Type>,
     pub ret: Type,
+}
+
+impl MethodTypeInfo {
+    pub fn apply(&mut self, type_params: &Vec<Type>) {
+        assert_eq!(self.type_params.len(), type_params.len());
+
+        for (p, pt) in self.type_params.iter().zip(type_params) {
+            for a in &mut self.args {
+                a.subst_typevar(p, pt);
+            }
+            self.ret.subst_typevar(p, pt);
+        }
+
+        self.type_params = vec![];
+    }
+
+    pub fn as_fn_type(&self) -> Type {
+        Type::Fn(
+            self.args.iter().map(|t| t.clone()).collect::<Vec<Type>>(),
+            Box::new(self.ret.clone()),
+        )
+    }
 }

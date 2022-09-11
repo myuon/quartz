@@ -250,47 +250,27 @@ impl<'s> TypeChecker<'s> {
     }
 
     fn load(&mut self, v: &Vec<String>, typ: &mut Type) -> Result<()> {
-        assert!(v.len() <= 2);
-        if v.len() == 1 {
-            let v = &v[0];
+        assert_eq!(v.len(), 1);
+        let v = &v[0];
 
-            if self.function_types.contains_key(v) {
-                self.call_graph
-                    .entry(self.current_function.clone().unwrap())
-                    .or_insert(HashMap::new())
-                    .insert(v.clone(), ());
-
-                let f = self.function_types[v].clone();
-
-                self.unify(&Type::Fn(f.0, Box::new(f.1)), typ)?;
-            } else {
-                let t = self
-                    .variables
-                    .get(v)
-                    .ok_or(anyhow::anyhow!("Variable {} not found", v))?
-                    .clone();
-
-                self.unify(&t, typ)?;
-            }
-        } else {
-            let method = self
-                .method_types
-                .get(&(v[0].clone(), v[1].clone()))
-                .ok_or(anyhow::anyhow!("Method {}::{} not found", v[0], v[1]))?;
+        if self.function_types.contains_key(v) {
             self.call_graph
                 .entry(self.current_function.clone().unwrap())
                 .or_insert(HashMap::new())
-                .insert(format!("{}::{}", v[0], v[1]), ());
+                .insert(v.clone(), ());
 
-            self.unify(
-                &Type::Method(
-                    Box::new(Type::Struct(v[0].clone())),
-                    method.args.clone(),
-                    Box::new(method.ret.clone()),
-                ),
-                typ,
-            )?;
-        };
+            let f = self.function_types[v].clone();
+
+            self.unify(&Type::Fn(f.0, Box::new(f.1)), typ)?;
+        } else {
+            let t = self
+                .variables
+                .get(v)
+                .ok_or(anyhow::anyhow!("Variable {} not found", v))?
+                .clone();
+
+            self.unify(&t, typ)?;
+        }
 
         Ok(())
     }
@@ -414,15 +394,27 @@ impl<'s> TypeChecker<'s> {
                     .context(self.error_context(expr.start, expr.end, "var"))?;
             }
             Expr::PathVar(subj, v) => {
-                self.load(
-                    &vec![
-                        subj.method_selector_name()
-                            .context(self.error_context(expr.start, expr.end, "path var"))?,
-                        v.clone(),
-                    ],
-                    typ,
-                )
-                .context(self.error_context(expr.start, expr.end, "var"))?;
+                let pair = (subj.method_selector_name()?, v.clone());
+
+                let mut method = self
+                    .method_types
+                    .get(&pair)
+                    .ok_or(anyhow::anyhow!(
+                        "Method {}::{} not found",
+                        subj.method_selector_name()?,
+                        v
+                    ))?
+                    .clone();
+                self.call_graph
+                    .entry(self.current_function.clone().unwrap())
+                    .or_insert(HashMap::new())
+                    .insert(format!("{}::{}", pair.0, pair.1), ());
+
+                if let Type::TypeApp(_, vs) = subj {
+                    method.apply(vs);
+                }
+
+                self.unify(&method.as_fn_type(), typ)?;
             }
             Expr::Lit(lit) => {
                 let t = match lit {
