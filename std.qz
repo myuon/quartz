@@ -288,7 +288,8 @@ method vector[T] push(self, item: T) {
         self.data = new_data;
     };
 
-    self.data(self.len) = item;
+    let data = self.data;
+    data(self.len) = item;
     self.len = self.len + 1;
 }
 

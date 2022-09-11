@@ -811,12 +811,23 @@ impl<'s> TypeChecker<'s> {
                         (arg_types.clone(), func.return_type.clone()),
                     );
                 }
-                Declaration::Method(typ, _, func) => {
+                Declaration::Method(typ, params, func) => {
                     let mut arg_types = vec![];
                     for (arg, arg_type) in &mut func.args {
                         // NOTE: infer self type
                         if arg_type == &Type::Self_ {
-                            *arg_type = Type::Ref(Box::new(Type::Struct(typ.data.clone())));
+                            *arg_type = Type::Ref(Box::new(if params.is_empty() {
+                                Type::Struct(typ.data.clone())
+                            } else {
+                                Type::TypeApp(
+                                    Box::new(Type::Struct(typ.data.clone())),
+                                    params
+                                        .clone()
+                                        .into_iter()
+                                        .map(|p| Type::TypeVar(p))
+                                        .collect(),
+                                )
+                            }));
                         }
 
                         self.normalize_type(arg_type);
