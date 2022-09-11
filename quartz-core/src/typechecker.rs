@@ -478,6 +478,34 @@ impl<'s> TypeChecker<'s> {
                         .context(self.error_context(expr.start, expr.end, "call"))?;
                 }
             }
+            Expr::AssociatedCall(mode, type_, label, args) => {
+                let mut method = self
+                    .method_types
+                    .get(&(type_.method_selector_name()?, label.clone()))
+                    .ok_or(anyhow::anyhow!(
+                        "Method {}::{} not found",
+                        type_.method_selector_name()?,
+                        label
+                    ))?
+                    .clone();
+                method.apply(&type_.type_applications()?);
+
+                let ret_type = self.typecheck_function(
+                    &Source::unknown(Expr::Var(vec![label.clone()])),
+                    &method.as_fn_type(),
+                    args,
+                )?;
+
+                self.unify(&ret_type, typ)
+                    .context(format!("[associated_call] {:?}::{}", type_, label))?;
+
+                self.call_graph
+                    .entry(self.current_function.clone().unwrap())
+                    .or_insert(HashMap::new())
+                    .insert(format!("{}::{}", type_.method_selector_name()?, label), ());
+
+                *mode = CallMode::Function;
+            }
             Expr::MethodCall(mode, type_, label, self_, args) => {
                 self.normalize_type(type_);
                 self.expr(self_, type_)?;

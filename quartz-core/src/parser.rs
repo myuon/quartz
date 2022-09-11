@@ -431,11 +431,15 @@ impl Parser {
                     let args = self.many_exprs()?;
                     self.expect_lexeme(Lexeme::RParen)?;
 
-                    result = Expr::Call(
-                        CallMode::Function,
-                        Box::new(self.source(result, result_start, result_end)),
-                        args,
-                    );
+                    if let Expr::PathVar(t, x) = result {
+                        result = Expr::AssociatedCall(CallMode::Function, t, x, args)
+                    } else {
+                        result = Expr::Call(
+                            CallMode::Function,
+                            Box::new(self.source(result, result_start, result_end)),
+                            args,
+                        );
+                    }
                 } else if self.expect_lexeme(Lexeme::Exclamation).is_ok() {
                     result = Expr::Unwrap(
                         Box::new(self.source(result, result_start, self.position)),

@@ -72,6 +72,7 @@ pub enum Expr {
     Lit(Literal),
     Call(CallMode, Box<Source<Expr>>, Vec<Source<Expr>>),
     MethodCall(CallMode, Type, String, Box<Source<Expr>>, Vec<Source<Expr>>),
+    AssociatedCall(CallMode, Type, String, Vec<Source<Expr>>),
     Struct(String, Vec<Type>, Vec<(String, Source<Expr>, Type)>),
     Project(Type, Box<Source<Expr>>, String),
     Deref(Box<Source<Expr>>, Type),
