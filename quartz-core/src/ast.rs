@@ -71,11 +71,7 @@ pub enum Expr {
     Make(Type, Vec<Source<Expr>>),
     Lit(Literal),
     Call(CallMode, Box<Source<Expr>>, Vec<Source<Expr>>),
-    Struct(
-        String,
-        Vec<(String, Type)>,
-        Vec<(String, Source<Expr>, Type)>,
-    ),
+    Struct(String, Vec<Type>, Vec<(String, Source<Expr>, Type)>),
     Project(
         bool, // is_method (be decided in typecheck phase)
         Type,
@@ -276,7 +272,7 @@ pub enum Type {
     Array(Box<Type>),
     SizedArray(Box<Type>, usize),
     Optional(Box<Type>),
-    TypeApp(Box<Type>, Vec<(String, Type)>),
+    TypeApp(Box<Type>, Vec<Type>),
 }
 
 impl Type {
@@ -338,7 +334,7 @@ impl Type {
         }
     }
 
-    pub fn type_app_or(typ: Type, params: Vec<(String, Type)>) -> Type {
+    pub fn type_app_or(typ: Type, params: Vec<Type>) -> Type {
         if params.is_empty() {
             typ
         } else {
@@ -502,8 +498,9 @@ impl Type {
             Type::Struct(s) => structs.get_projection_type(s, &label),
             Type::TypeApp(t, ps) => match t.as_ref() {
                 Type::Struct(s) => {
+                    let struct_ = structs.0[s].clone();
                     let mut typ = structs.get_projection_type(s, &label)?;
-                    for (pn, pt) in ps {
+                    for (pn, pt) in struct_.type_params.into_iter().zip(ps) {
                         typ.subst_typevar(&pn, &pt);
                     }
                     Ok(typ)

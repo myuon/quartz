@@ -120,12 +120,9 @@ impl Parser {
             t if type_params.contains(&t.to_string()) => Type::TypeVar(ident),
             _ => Type::Struct(ident),
         };
-        let type_params = self.type_parameters()?;
+        let type_params = self.type_applications()?;
         if !type_params.is_empty() {
-            result = Type::TypeApp(
-                Box::new(result),
-                type_params.into_iter().map(|t| (t, Type::Omit)).collect(),
-            );
+            result = Type::TypeApp(Box::new(result), type_params);
         }
 
         if self.expect_lexeme(Lexeme::Question).is_ok() {
@@ -639,6 +636,26 @@ impl Parser {
                 r => r,
             }?;
         }
+
+        Ok(fields)
+    }
+
+    fn type_applications(&mut self) -> Result<Vec<Type>> {
+        let mut fields = vec![];
+
+        if !self.expect_lexeme(Lexeme::LBracket).is_ok() {
+            return Ok(fields);
+        }
+        while self.peek().lexeme != Lexeme::RBracket {
+            let name = self.type_(&vec![])?;
+            fields.push(name);
+
+            // allow trailing comma
+            if self.expect_lexeme(Lexeme::Comma).is_err() {
+                break;
+            }
+        }
+        self.expect_lexeme(Lexeme::RBracket)?;
 
         Ok(fields)
     }

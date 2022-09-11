@@ -149,7 +149,12 @@ impl Constraints {
                 self.apply(t);
             }
             Type::Self_ => {}
-            Type::TypeApp(_, _) => todo!(),
+            Type::TypeApp(t, vs) => {
+                self.apply(t);
+                for v in vs {
+                    self.apply(v);
+                }
+            }
             Type::TypeVar(_) => todo!(),
             Type::Omit => todo!(),
         }
@@ -501,15 +506,14 @@ impl<'s> TypeChecker<'s> {
                 }
 
                 let mut type_app = vec![];
-                for (u, r) in params {
+                for (_, r) in params {
                     if let Type::Infer(i) = r {
-                        type_app.push((
-                            u,
+                        type_app.push(
                             self.infer_map
                                 .get(&i)
                                 .ok_or(anyhow::anyhow!("Cannot find type for {:?}", i))?
                                 .clone(),
-                        ));
+                        );
                     } else {
                         unreachable!();
                     }

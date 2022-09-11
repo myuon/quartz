@@ -519,7 +519,7 @@ impl IrType {
             Type::TypeApp(t, ps) => IrType::typeapp(
                 IrType::from_type_ast_traced(t, structs, trace.clone())?,
                 ps.into_iter()
-                    .map(|(_, t)| IrType::from_type_ast_traced(t, structs, trace.clone()))
+                    .map(|t| IrType::from_type_ast_traced(t, structs, trace.clone()))
                     .collect::<Result<Vec<_>, _>>()?,
             ),
             t => bail!("Unsupported type: {:?}", t),
