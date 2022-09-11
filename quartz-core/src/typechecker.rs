@@ -174,7 +174,6 @@ pub struct TypeChecker<'s> {
     struct_graph: HashMap<String, HashMap<String, ()>>,
     current_function: Option<String>,
     entrypoint: String,
-    self_object: Option<Box<Source<Expr>>>,
     current_module_path: String,
     source_loader: Option<&'s SourceLoader>,
 }
@@ -198,7 +197,6 @@ impl<'s> TypeChecker<'s> {
             struct_graph: HashMap::new(),
             current_function: None,
             entrypoint: "main".to_string(),
-            self_object: None,
             source_loader,
             current_module_path: current_path,
         }
@@ -482,11 +480,6 @@ impl<'s> TypeChecker<'s> {
                         "string indexing",
                     ))?;
                 } else {
-                    // restore self_object here
-                    if let Some(obj) = self.self_object.take() {
-                        args.insert(0, obj.as_ref().clone());
-                    }
-
                     let ret_type = self.typecheck_function(&f, &fn_type, args)?;
 
                     self.unify(&ret_type, typ)
@@ -760,18 +753,6 @@ impl<'s> TypeChecker<'s> {
 
             self.statement(statement, typ)?;
         }
-
-        assert_eq!(
-            self.self_object,
-            None,
-            "self_object {} in \n{}",
-            self.error_context(
-                self.self_object.clone().unwrap().start,
-                self.self_object.clone().unwrap().end,
-                ""
-            ),
-            self.error_context(statements[0].start, statements.last().unwrap().end, "")
-        );
 
         Ok(())
     }
