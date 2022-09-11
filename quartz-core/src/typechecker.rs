@@ -5,8 +5,8 @@ use pretty_assertions::assert_eq;
 
 use crate::{
     ast::{
-        CallMode, Declaration, Expr, Function, Literal, Module, OptionalMode, Source, Statement,
-        StructTypeInfo, Structs, Type,
+        CallMode, Declaration, Expr, Function, Literal, MethodTypeInfo, Module, OptionalMode,
+        Source, Statement, StructTypeInfo, Structs, Type,
     },
     compiler::SourceLoader,
 };
@@ -169,7 +169,7 @@ pub struct TypeChecker<'s> {
     pub variables: HashMap<String, Type>,
     pub structs: Structs,
     pub function_types: HashMap<String, (Vec<Type>, Type)>,
-    pub method_types: HashMap<(String, String), (Vec<Type>, Type)>,
+    pub method_types: HashMap<(String, String), MethodTypeInfo>,
     call_graph: HashMap<String, HashMap<String, ()>>,
     struct_graph: HashMap<String, HashMap<String, ()>>,
     current_function: Option<String>,
@@ -273,7 +273,7 @@ impl<'s> TypeChecker<'s> {
                 self.unify(&t, typ)?;
             }
         } else {
-            let (args, ret) = self
+            let method = self
                 .method_types
                 .get(&(v[0].clone(), v[1].clone()))
                 .ok_or(anyhow::anyhow!("Method {}::{} not found", v[0], v[1]))?;
@@ -285,8 +285,8 @@ impl<'s> TypeChecker<'s> {
             self.unify(
                 &Type::Method(
                     Box::new(Type::Struct(v[0].clone())),
-                    args.clone(),
-                    Box::new(ret.clone()),
+                    method.args.clone(),
+                    Box::new(method.ret.clone()),
                 ),
                 typ,
             )?;
@@ -529,7 +529,7 @@ impl<'s> TypeChecker<'s> {
                 } else {
                     *mode = CallMode::Function;
 
-                    let (arg_types, return_type) = self
+                    let method = self
                         .method_types
                         .get(&(name.clone(), label.clone()))
                         .cloned()
@@ -553,14 +553,14 @@ impl<'s> TypeChecker<'s> {
                             (),
                         );
 
-                    self.transform(self_, type_, &arg_types[0])?;
+                    self.transform(self_, type_, &method.args[0])?;
 
                     let mut args_self = vec![self_.as_ref().clone()];
                     args_self.extend(args.clone());
 
                     let ret_type = self.typecheck_function(
                         self_,
-                        &Type::Fn(arg_types.clone(), Box::new(return_type)),
+                        &Type::Fn(method.args.clone(), Box::new(method.ret)),
                         &mut args_self,
                     )?;
 
@@ -887,8 +887,15 @@ impl<'s> TypeChecker<'s> {
                             self.error_context(func.name.start, func.name.end, "function")
                         );
                     }
-                    self.method_types
-                        .insert(key, (arg_types.clone(), func.return_type.clone()));
+                    self.method_types.insert(
+                        key,
+                        MethodTypeInfo {
+                            name: func.name.data.clone(),
+                            type_params: params.clone(),
+                            args: arg_types.clone(),
+                            ret: func.return_type.clone(),
+                        },
+                    );
                 }
                 _ => {}
             }
@@ -920,7 +927,7 @@ impl<'s> TypeChecker<'s> {
                     self.method_types
                         .get_mut(&(typ.data.clone(), func.name.data.clone()))
                         .unwrap()
-                        .1 = func.return_type.clone();
+                        .ret = func.return_type.clone();
                 }
                 Declaration::Variable(x, e, typ) => {
                     self.expr(e, typ)?;

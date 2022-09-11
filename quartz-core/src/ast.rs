@@ -668,3 +668,11 @@ pub struct Functions(
         ),
     >,
 );
+
+#[derive(Debug, Clone)]
+pub struct MethodTypeInfo {
+    pub name: String,
+    pub type_params: Vec<String>,
+    pub args: Vec<Type>,
+    pub ret: Type,
+}
