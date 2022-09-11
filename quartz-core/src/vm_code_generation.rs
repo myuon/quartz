@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use log::info;
 
 use crate::{
@@ -406,7 +406,7 @@ impl<'s> VmFunctionGenerator<'s> {
 
                     Ok(IrType::addr_of(elem_typ))
                 }
-                _ => unreachable!("{}", element.show()),
+                _ => bail!("Unknown block {}", element.show()),
             },
         }
     }

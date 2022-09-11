@@ -227,19 +227,20 @@ impl<'s> IrFunctionGenerator<'s> {
                 Ok(IrElement::i_coerce(self.expr(e)?, self.ir_type(expected)?))
             }
             Expr::Address(e, _) => {
-                // You cannot just take the address of an immidiate value, so declare as a variable
-                let next = match e.data {
-                    Expr::Lit(_) | Expr::Struct(_, _, _) | Expr::Call(_, _, _) => {
+                let value = {
+                    let result = self.expr(e)?;
+
+                    if result.is_address_expr() {
+                        result
+                    } else {
                         let v = self.var_fresh();
-                        let value = self.expr(e)?;
-                        self.ir.push(IrElement::i_let(v.clone(), value));
+                        self.ir.push(IrElement::i_let(v.clone(), result));
 
                         IrElement::ident(v)
                     }
-                    _ => self.expr(e)?,
                 };
 
-                Ok(IrElement::i_address(next))
+                Ok(IrElement::i_address(value))
             }
             Expr::Make(t, args) => match t {
                 Type::SizedArray(arr, len) => {

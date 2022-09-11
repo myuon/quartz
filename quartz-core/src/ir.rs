@@ -284,6 +284,7 @@ impl IrElement {
                     || block.name == "addr_offset"
                     || block.name == "index"
                     || block.name == "addr_index"
+                    || block.name == "address"
             }
             _ => false,
         }
