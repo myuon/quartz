@@ -420,7 +420,6 @@ impl Parser {
                         );
                     } else {
                         result = Expr::Project(
-                            false,
                             Type::Omit,
                             Box::new(self.source_from(result, result_start)),
                             label,
@@ -471,7 +470,6 @@ impl Parser {
                 let i = self.ident()?.data;
 
                 Expr::Project(
-                    false,
                     Type::Omit,
                     Box::new(self.source_from(expr, short_expr_start)),
                     i,

@@ -585,64 +585,19 @@ impl<'s> TypeChecker<'s> {
                 self.unify(&ret_type, typ)
                     .context(format!("[project] {:?}", expr))?;
             }
-            Expr::Project(is_method, proj_typ, proj, field) => {
+            Expr::Project(proj_typ, proj, field) => {
                 self.normalize_type(proj_typ);
                 self.expr(proj, proj_typ)?;
-                let name = proj_typ.method_selector_name().context(self.error_context(
+
+                let field_type = proj_typ
+                    .get_projection_type(field, &self.structs)
+                    .context(self.error_context(proj.start, proj.end, "projection"))?;
+
+                self.unify(&field_type, typ).context(self.error_context(
                     proj.start,
                     proj.end,
-                    &format!("[proj] {:?}", proj),
+                    "projection",
                 ))?;
-
-                if let Some((arg_types, return_type)) = self
-                    .method_types
-                    .get(&(name.clone(), field.clone()))
-                    .cloned()
-                {
-                    // FIXME: if pointer, something could be go wrong
-
-                    *is_method = true;
-
-                    self.call_graph
-                        .entry(self.current_function.clone().unwrap())
-                        .or_insert(HashMap::new())
-                        .insert(
-                            // FIXME: use name_path for Func
-                            format!("{}::{}", name, field),
-                            (),
-                        );
-
-                    // DESUGAR: x.f(m) => X::f(x, m)
-                    // x will be stored in self_object
-                    // x is passed by ref
-                    if !arg_types.is_empty() {
-                        let mut self_object = proj.clone();
-                        let mut current_type = proj_typ.clone();
-
-                        self.transform(&mut self_object, &mut current_type, &arg_types[0])?;
-                        self.self_object = Some(self_object);
-                    }
-                    let method_type = Type::Method(
-                        Box::new(Type::Struct(name.clone())),
-                        arg_types.clone(),
-                        Box::new(return_type.clone()),
-                    );
-                    *expr = Source::unknown(Expr::Var(vec![name.clone(), field.clone()]));
-
-                    self.unify(&method_type, typ)
-                        .context(format!("[project] {:?}", expr))?;
-                } else {
-                    let field_type = proj_typ
-                        .get_projection_type(field, &self.structs)
-                        .context(self.error_context(proj.start, proj.end, "projection"))?;
-                    *is_method = false;
-
-                    self.unify(&field_type, typ).context(self.error_context(
-                        proj.start,
-                        proj.end,
-                        "projection",
-                    ))?;
-                }
             }
             Expr::Ref(e, t) => {
                 self.expr(e, t)?;

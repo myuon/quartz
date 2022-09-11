@@ -180,10 +180,7 @@ impl<'s> IrFunctionGenerator<'s> {
                     data,
                 ))
             }
-            Expr::Project(method, _, _proj, _label) if *method => {
-                unreachable!()
-            }
-            Expr::Project(_, proj_typ, proj, label) => {
+            Expr::Project(proj_typ, proj, label) => {
                 let struct_name = &proj_typ.method_selector_name()?;
                 let index = self.structs.get_projection_offset(struct_name, label)?;
                 // `f().x` should be compiled to `((let $v (call $f)) (offset $v 0))`

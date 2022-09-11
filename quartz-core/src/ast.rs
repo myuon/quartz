@@ -73,12 +73,7 @@ pub enum Expr {
     Call(CallMode, Box<Source<Expr>>, Vec<Source<Expr>>),
     MethodCall(Type, String, Box<Source<Expr>>, Vec<Source<Expr>>),
     Struct(String, Vec<Type>, Vec<(String, Source<Expr>, Type)>),
-    Project(
-        bool, // is_method (be decided in typecheck phase)
-        Type,
-        Box<Source<Expr>>,
-        String,
-    ),
+    Project(Type, Box<Source<Expr>>, String),
     Deref(Box<Source<Expr>>, Type),
     As(Box<Source<Expr>>, Type, Type),
     Ref(Box<Source<Expr>>, Type),
@@ -93,7 +88,7 @@ impl Expr {
     }
 
     pub fn member(proj: Source<Expr>, field: impl Into<String>) -> Expr {
-        Expr::Project(false, Type::Omit, Box::new(proj), field.into())
+        Expr::Project(Type::Omit, Box::new(proj), field.into())
     }
 
     pub fn method_call(
@@ -183,10 +178,7 @@ impl Expr {
                     a.1.data.require_same_structure(&b.1.data)?;
                 }
             }
-            (Project(t, _, x, y), Project(s, _, a, b)) => {
-                if t != s {
-                    bail!("[project] {:?} vs {:?}", t, s);
-                }
+            (Project(_, x, y), Project(_, a, b)) => {
                 x.data.require_same_structure(&a.data)?;
                 if y != b {
                     bail!("[project] {:?} vs {:?}", y, b);
