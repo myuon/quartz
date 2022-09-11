@@ -465,6 +465,50 @@ impl Type {
         }
     }
 
+    pub fn subst_struct_name(&mut self, var_name: &String, typ: &Type) {
+        match self {
+            Type::Infer(_) => {}
+            Type::Any => {}
+            Type::Bool => {}
+            Type::Int => {}
+            Type::Fn(args, ret) => {
+                for arg in args {
+                    arg.subst_struct_name(var_name, typ);
+                }
+
+                ret.subst_struct_name(var_name, typ);
+            }
+            Type::Method(self_, args, ret) => {
+                self_.subst_struct_name(var_name, typ);
+                for arg in args {
+                    arg.subst_struct_name(var_name, typ);
+                }
+
+                ret.subst_struct_name(var_name, typ);
+            }
+            Type::Struct(t) => {
+                if t == var_name {
+                    *self = typ.clone();
+                }
+            }
+            Type::Ref(_) => todo!(),
+            Type::Byte => {}
+            Type::Array(t) => t.subst_struct_name(var_name, typ),
+            Type::SizedArray(t, _n) => t.subst_struct_name(var_name, typ),
+            Type::Optional(t) => t.subst_struct_name(var_name, typ),
+            Type::Nil => {}
+            Type::Self_ => {}
+            Type::TypeApp(t, vs) => {
+                t.subst_struct_name(var_name, typ);
+                for v in vs {
+                    v.subst_struct_name(var_name, typ);
+                }
+            }
+            Type::TypeVar(_) => {}
+            Type::Omit => todo!(),
+        }
+    }
+
     // Whether the representation is an adress or not
     pub fn is_struct(&self) -> bool {
         match self {
@@ -543,6 +587,17 @@ impl StructTypeInfo {
             for (_, t) in &mut self.fields {
                 t.subst_typevar(p, pt);
             }
+        }
+    }
+
+    pub fn normalize_type_params(&mut self) {
+        for p in &mut self.type_params {
+            let new_p = format!("?{}", p);
+            for (_, f) in &mut self.fields {
+                f.subst_typevar(p, &Type::TypeVar(new_p.clone()));
+            }
+
+            *p = new_p;
         }
     }
 

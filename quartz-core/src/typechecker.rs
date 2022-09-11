@@ -155,7 +155,7 @@ impl Constraints {
                     self.apply(v);
                 }
             }
-            Type::TypeVar(_) => todo!(),
+            Type::TypeVar(_) => {}
             Type::Omit => todo!(),
         }
     }
@@ -246,10 +246,8 @@ impl<'s> TypeChecker<'s> {
             *typ = self.next_infer();
         }
 
-        if let Type::Struct(i) = typ {
-            if self.type_params.contains(i) {
-                *typ = Type::TypeVar(i.clone());
-            }
+        for t in &self.type_params {
+            typ.subst_struct_name(&t, &Type::TypeVar(t.clone()));
         }
     }
 
@@ -507,8 +505,15 @@ impl<'s> TypeChecker<'s> {
 
                     result
                 };
+                for (_, t) in &mut defined.fields {
+                    self.normalize_type(t);
+                }
                 defined.replace_params_in_fields(&params);
-                let expected_fields = defined.fields.into_iter().collect::<HashMap<_, _>>();
+                let expected_fields = defined
+                    .fields
+                    .clone()
+                    .into_iter()
+                    .collect::<HashMap<_, _>>();
 
                 let first_expr = fields[0].clone().1;
                 for (label, expr, typ) in fields {
@@ -590,13 +595,14 @@ impl<'s> TypeChecker<'s> {
                 self.unify(&ret_type, typ)
                     .context(format!("[project] {:?}", expr))?;
             }
-            Expr::Project(proj_typ, proj, field) => {
+            Expr::Project(proj_typ, proj, label) => {
                 self.normalize_type(proj_typ);
                 self.expr(proj, proj_typ)?;
 
-                let field_type = proj_typ
-                    .get_projection_type(field, &self.structs)
+                let mut field_type = proj_typ
+                    .get_projection_type(label, &self.structs)
                     .context(self.error_context(proj.start, proj.end, "projection"))?;
+                self.normalize_type(&mut field_type);
 
                 self.unify(&field_type, typ).context(self.error_context(
                     proj.start,
@@ -789,8 +795,6 @@ impl<'s> TypeChecker<'s> {
     pub fn declarations(&mut self, decls: &mut Vec<Declaration>) -> Result<()> {
         // preprocess: register all function types in this module
         for decl in decls.into_iter() {
-            self.type_params = HashSet::new();
-
             match decl {
                 Declaration::Function(func) => {
                     let mut arg_types = vec![];
@@ -807,15 +811,7 @@ impl<'s> TypeChecker<'s> {
                         (arg_types.clone(), func.return_type.clone()),
                     );
                 }
-                Declaration::Method(typ, params, func) => {
-                    for param in params {
-                        if self.type_params.contains(param) {
-                            bail!("Duplicate type parameter {}", param);
-                        }
-
-                        self.type_params.insert(param.clone());
-                    }
-
+                Declaration::Method(typ, _, func) => {
                     let mut arg_types = vec![];
                     for (arg, arg_type) in &mut func.args {
                         // NOTE: infer self type
@@ -847,6 +843,7 @@ impl<'s> TypeChecker<'s> {
 
         for decl in decls {
             self.current_function = decl.function_path();
+            self.type_params = HashSet::new();
 
             match decl {
                 Declaration::Function(func) => {
@@ -855,7 +852,16 @@ impl<'s> TypeChecker<'s> {
                     self.function_types.get_mut(&func.name.data).unwrap().1 =
                         func.return_type.clone();
                 }
-                Declaration::Method(typ, _, func) => {
+                Declaration::Method(typ, params, func) => {
+                    for param in params {
+                        if self.type_params.contains(param) {
+                            bail!("Duplicate type parameter {}", param);
+                        }
+
+                        self.type_params.insert(param.clone());
+                    }
+
+                    self.normalize_type(&mut func.return_type);
                     self.function(func)?;
 
                     self.method_types
@@ -870,14 +876,16 @@ impl<'s> TypeChecker<'s> {
                 Declaration::Struct(st) => {
                     assert!(!self.structs.0.contains_key(&st.name));
                     let name = st.name.clone();
-                    self.structs.0.insert(
-                        name.clone(),
-                        StructTypeInfo {
-                            name: name.clone(),
-                            type_params: st.type_params.clone(),
-                            fields: st.fields.clone(),
-                        },
-                    );
+
+                    let mut type_info = StructTypeInfo {
+                        name: name.clone(),
+                        type_params: st.type_params.clone(),
+                        fields: st.fields.clone(),
+                    };
+                    // rename type paramters to avoid name conflict
+                    type_info.normalize_type_params();
+
+                    self.structs.0.insert(name.clone(), type_info);
                 }
                 Declaration::Import(_) => {}
             }
