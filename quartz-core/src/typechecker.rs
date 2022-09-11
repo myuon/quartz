@@ -370,6 +370,46 @@ impl<'s> TypeChecker<'s> {
         Ok(())
     }
 
+    fn typecheck_function(
+        &mut self,
+        f: &Source<Expr>,
+        fn_type: &Type,
+        args: &mut Vec<Source<Expr>>,
+    ) -> Result<Box<Type>> {
+        let (arg_types, ret_type) = fn_type.as_fn_type().ok_or(anyhow::anyhow!(
+            "Cannot call non-function type {:?}",
+            fn_type
+        ))?;
+        let arg_types = arg_types.clone();
+
+        let actual_arg_len = args.len();
+        let expected_arg_len = if fn_type.is_method_type() {
+            // FIXME: -1
+            arg_types.len()
+        } else {
+            arg_types.len()
+        };
+        if expected_arg_len != actual_arg_len {
+            anyhow::bail!(
+                "Expected {} arguments but given {} for {:?}, {} (args: {:?}): {:?})",
+                expected_arg_len,
+                actual_arg_len,
+                f,
+                self.error_context(f.start, f.end, "no source"),
+                args,
+                fn_type,
+            );
+        }
+
+        for i in 0..actual_arg_len {
+            let mut current = self.next_infer();
+            self.expr_coerce(&mut args[i], &mut current, &arg_types[i])
+                .context(format!("{}th argument", i))?;
+        }
+
+        Ok(ret_type.clone())
+    }
+
     pub fn expr(&mut self, expr: &mut Source<Expr>, typ: &mut Type) -> Result<()> {
         self.normalize_type(typ);
         match &mut expr.data {
@@ -442,36 +482,7 @@ impl<'s> TypeChecker<'s> {
                         args.insert(0, obj.as_ref().clone());
                     }
 
-                    let (arg_types, ret_type) = fn_type.as_fn_type().ok_or(anyhow::anyhow!(
-                        "Cannot call non-function type {:?}",
-                        fn_type
-                    ))?;
-                    let arg_types = arg_types.clone();
-
-                    let actual_arg_len = args.len();
-                    let expected_arg_len = if fn_type.is_method_type() {
-                        // FIXME: -1
-                        arg_types.len()
-                    } else {
-                        arg_types.len()
-                    };
-                    if expected_arg_len != actual_arg_len {
-                        anyhow::bail!(
-                            "Expected {} arguments but given {} for {:?}, {} (args: {:?}): {:?})",
-                            expected_arg_len,
-                            actual_arg_len,
-                            f,
-                            self.error_context(f.start, f.end, "no source"),
-                            args,
-                            fn_type,
-                        );
-                    }
-
-                    for i in 0..actual_arg_len {
-                        let mut current = self.next_infer();
-                        self.expr_coerce(&mut args[i], &mut current, &arg_types[i])
-                            .context(format!("{}th argument", i))?;
-                    }
+                    let ret_type = self.typecheck_function(&f, &fn_type, args)?;
 
                     self.unify(&ret_type, typ)
                         .context(self.error_context(expr.start, expr.end, "call"))?;
@@ -535,6 +546,44 @@ impl<'s> TypeChecker<'s> {
                     first_expr.end,
                     "struct",
                 ))?;
+            }
+            Expr::MethodCall(label, proj, args) => {
+                let mut proj_type = self.next_infer();
+                self.expr(proj, &mut proj_type)?;
+                let name = proj_type
+                    .method_selector_name()
+                    .context(self.error_context(
+                        proj.start,
+                        proj.end,
+                        &format!("[proj] {:?}", proj),
+                    ))?;
+
+                let (arg_types, return_type) = self
+                    .method_types
+                    .get(&(name.clone(), label.clone()))
+                    .cloned()
+                    .unwrap();
+
+                self.call_graph
+                    .entry(self.current_function.clone().unwrap())
+                    .or_insert(HashMap::new())
+                    .insert(
+                        // FIXME: use name_path for Func
+                        format!("{}::{}", name, label),
+                        (),
+                    );
+
+                let mut args_self = vec![proj.as_ref().clone()];
+                args_self.extend(args.clone());
+
+                let ret_type = self.typecheck_function(
+                    proj,
+                    &Type::Fn(arg_types.clone(), Box::new(return_type)),
+                    &mut args_self,
+                )?;
+
+                self.unify(&ret_type, typ)
+                    .context(format!("[project] {:?}", expr))?;
             }
             Expr::Project(is_method, proj_typ, proj, field) => {
                 self.normalize_type(proj_typ);
@@ -656,7 +705,6 @@ impl<'s> TypeChecker<'s> {
                 self.unify(t.unwrap_type()?, typ)
                     .context(self.error_context(expr.start, expr.end, "unwrap"))?;
             }
-            Expr::MethodCall(_, _, _) => todo!(),
         };
 
         Ok(())
