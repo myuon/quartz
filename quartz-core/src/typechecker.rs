@@ -486,7 +486,7 @@ impl<'s> TypeChecker<'s> {
                         .context(self.error_context(expr.start, expr.end, "call"))?;
                 }
             }
-            Expr::MethodCall(type_, label, self_, args) => {
+            Expr::MethodCall(mode, type_, label, self_, args) => {
                 self.normalize_type(type_);
                 self.expr(self_, type_)?;
                 let name = type_.method_selector_name().context(self.error_context(
@@ -495,43 +495,82 @@ impl<'s> TypeChecker<'s> {
                     &format!("[proj] {:?}", self_),
                 ))?;
 
-                let (arg_types, return_type) = self
-                    .method_types
-                    .get(&(name.clone(), label.clone()))
-                    .cloned()
-                    .context(format!(
-                        "method {} of type {},\n{}",
-                        label,
-                        name,
-                        self.error_context(self_.start, self_.end, &format!("method {}", label))
-                    ))?;
+                let field_type = type_.get_projection_type(label, &self.structs);
+                if let Ok(field_type) = field_type {
+                    if let Some(t) = field_type.as_array() {
+                        // array indexing
+                        *mode = CallMode::Array;
 
-                self.call_graph
-                    .entry(self.current_function.clone().unwrap())
-                    .or_insert(HashMap::new())
-                    .insert(
-                        // FIXME: use name_path for Func
-                        format!("{}::{}", name, label),
-                        (),
-                    );
+                        assert_eq!(args.len(), 1);
+                        self.expr(&mut args[0], &mut Type::Int)?;
+                        self.unify(t, typ).context(self.error_context(
+                            expr.start,
+                            expr.end,
+                            "array indexing",
+                        ))?;
+                    } else if let Some("string") = field_type.as_struct_type().map(|s| s.as_str()) {
+                        // string indexing
+                        *mode = CallMode::Array;
 
-                self.transform(self_, type_, &arg_types[0])?;
+                        self.expr(&mut args[0], &mut Type::Int)?;
+                        self.unify(&Type::Byte, typ).context(self.error_context(
+                            expr.start,
+                            expr.end,
+                            "string indexing",
+                        ))?;
+                    } else {
+                        anyhow::bail!(
+                            "Cannot call method {:?} on {:?} (type: {:?})",
+                            label,
+                            self_,
+                            type_
+                        );
+                    }
+                } else {
+                    *mode = CallMode::Function;
 
-                let mut args_self = vec![self_.as_ref().clone()];
-                args_self.extend(args.clone());
+                    let (arg_types, return_type) = self
+                        .method_types
+                        .get(&(name.clone(), label.clone()))
+                        .cloned()
+                        .context(format!(
+                            "method {} of type {},\n{}",
+                            label,
+                            name,
+                            self.error_context(
+                                self_.start,
+                                self_.end,
+                                &format!("method {}", label)
+                            )
+                        ))?;
 
-                let ret_type = self.typecheck_function(
-                    self_,
-                    &Type::Fn(arg_types.clone(), Box::new(return_type)),
-                    &mut args_self,
-                )?;
+                    self.call_graph
+                        .entry(self.current_function.clone().unwrap())
+                        .or_insert(HashMap::new())
+                        .insert(
+                            // FIXME: use name_path for Func
+                            format!("{}::{}", name, label),
+                            (),
+                        );
 
-                // recover modified expressions
-                *self_ = Box::new(args_self[0].clone());
-                *args = args_self[1..].to_vec();
+                    self.transform(self_, type_, &arg_types[0])?;
 
-                self.unify(&ret_type, typ)
-                    .context(format!("[project] {:?}", expr))?;
+                    let mut args_self = vec![self_.as_ref().clone()];
+                    args_self.extend(args.clone());
+
+                    let ret_type = self.typecheck_function(
+                        self_,
+                        &Type::Fn(arg_types.clone(), Box::new(return_type)),
+                        &mut args_self,
+                    )?;
+
+                    // recover modified expressions
+                    *self_ = Box::new(args_self[0].clone());
+                    *args = args_self[1..].to_vec();
+
+                    self.unify(&ret_type, typ)
+                        .context(format!("[project] {:?}", expr))?;
+                }
             }
             Expr::Struct(s, type_params, fields) => {
                 assert_eq!(

@@ -71,7 +71,7 @@ pub enum Expr {
     Make(Type, Vec<Source<Expr>>),
     Lit(Literal),
     Call(CallMode, Box<Source<Expr>>, Vec<Source<Expr>>),
-    MethodCall(Type, String, Box<Source<Expr>>, Vec<Source<Expr>>),
+    MethodCall(CallMode, Type, String, Box<Source<Expr>>, Vec<Source<Expr>>),
     Struct(String, Vec<Type>, Vec<(String, Source<Expr>, Type)>),
     Project(Type, Box<Source<Expr>>, String),
     Deref(Box<Source<Expr>>, Type),
@@ -97,7 +97,13 @@ impl Expr {
         callee: Source<Expr>,
         args: Vec<Source<Expr>>,
     ) -> Expr {
-        Expr::MethodCall(type_, var.into(), Box::new(callee), args)
+        Expr::MethodCall(
+            CallMode::Function,
+            type_,
+            var.into(),
+            Box::new(callee),
+            args,
+        )
     }
 
     pub fn unwrap(expr: Source<Expr>) -> Expr {
@@ -149,7 +155,7 @@ impl Expr {
                     a.data.require_same_structure(&b.data)?;
                 }
             }
-            (MethodCall(u, t, x, y), MethodCall(v, s, a, b)) => {
+            (MethodCall(_, u, t, x, y), MethodCall(_, v, s, a, b)) => {
                 if u != v {
                     bail!("[method] {:?} vs {:?}", a, b);
                 }
@@ -571,7 +577,7 @@ impl Type {
                 _ => bail!("Cannot project on {:?}", t),
             },
             Type::Ref(r) => r.get_projection_type(label, structs),
-            t => unreachable!("{:?}", t),
+            t => bail!("[get_projection_type] {:?}", t),
         }
     }
 }

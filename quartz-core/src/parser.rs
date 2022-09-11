@@ -413,6 +413,7 @@ impl Parser {
                         self.expect_lexeme(Lexeme::RParen)?;
 
                         result = Expr::MethodCall(
+                            CallMode::Function,
                             Type::Omit,
                             label,
                             Box::new(self.source_from(result, result_start)),

@@ -148,7 +148,18 @@ impl<'s> IrFunctionGenerator<'s> {
 
                 Ok(IrElement::i_call_raw(elements))
             }
-            Expr::MethodCall(type_, label, self_, args) => {
+            Expr::MethodCall(CallMode::Array, type_, label, self_, args) => {
+                Ok(IrElement::i_addr_index(
+                    self.expr(&Source::unknown(Expr::Project(
+                        type_.clone(),
+                        self_.clone(),
+                        label.clone(),
+                    )))?,
+                    self.expr(&args[0])?,
+                ))
+            }
+            Expr::MethodCall(CallMode::SizedArray, _, _, _, _) => unreachable!(),
+            Expr::MethodCall(CallMode::Function, type_, label, self_, args) => {
                 let mut elements = vec![];
                 elements.push(self.expr(&Source::unknown(Expr::Var(vec![
                     type_.method_selector_name().context(format!(
