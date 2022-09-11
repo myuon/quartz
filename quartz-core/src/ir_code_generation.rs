@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Debug};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 
 use crate::{
     ast::{
@@ -271,11 +271,20 @@ impl<'s> IrFunctionGenerator<'s> {
                     let value = self.expr(&args[0])?;
                     Ok(IrElement::i_slice(*len, self.ir_type(arr)?, value))
                 }
-                Type::Array(arr) => {
-                    if args.len() != 2 {
-                        bail!("array constructor takes 2 arguments, found {}", args.len());
-                    }
+                Type::Array(arr) if args.len() == 1 => {
+                    let len = self.expr(&args[0])?;
+                    let len_var = self.var_fresh();
+                    self.ir.push(IrElement::i_let(len_var.clone(), len));
 
+                    let array = self.var_fresh();
+                    self.ir.push(IrElement::i_let(
+                        array.clone(),
+                        IrElement::i_alloc(self.ir_type(arr)?, IrElement::ident(len_var.clone())),
+                    ));
+
+                    Ok(IrElement::ident(array))
+                }
+                Type::Array(arr) if args.len() == 2 => {
                     let len = self.expr(&args[0])?;
                     let value = self.expr(&args[1])?;
 
