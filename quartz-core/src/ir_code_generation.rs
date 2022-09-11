@@ -226,7 +226,7 @@ impl<'s> IrFunctionGenerator<'s> {
             Expr::As(e, _, expected) => {
                 Ok(IrElement::i_coerce(self.expr(e)?, self.ir_type(expected)?))
             }
-            Expr::Address(e, _) => {
+            Expr::Address(e) => {
                 let value = {
                     let result = self.expr(e)?;
 

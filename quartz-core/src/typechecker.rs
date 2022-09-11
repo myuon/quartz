@@ -316,7 +316,7 @@ impl<'s> TypeChecker<'s> {
 
         // reference
         if !current_type.is_ref() && expected_type.is_ref() {
-            *expr = Source::unknown(Expr::Address(Box::new(expr.clone()), current_type.clone()));
+            *expr = Source::unknown(Expr::Address(Box::new(expr.clone())));
             *current_type = Type::Ref(Box::new(current_type.clone()));
         }
         // dereference
@@ -629,9 +629,10 @@ impl<'s> TypeChecker<'s> {
                 self.unify(t, typ)
                     .context(self.error_context(e.start, e.end, "as"))?;
             }
-            Expr::Address(e, t) => {
-                self.expr(e, t)?;
-                self.unify(&Type::Ref(Box::new(t.clone())), typ)
+            Expr::Address(e) => {
+                let mut t = self.next_infer();
+                self.expr(e, &mut t)?;
+                self.unify(&Type::Ref(Box::new(t)), typ)
                     .context(self.error_context(e.start, e.end, "address"))?;
             }
             Expr::Make(t, args) => match t {

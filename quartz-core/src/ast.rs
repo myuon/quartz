@@ -77,7 +77,7 @@ pub enum Expr {
     Deref(Box<Source<Expr>>, Type),
     As(Box<Source<Expr>>, Type, Type),
     Ref(Box<Source<Expr>>, Type),
-    Address(Box<Source<Expr>>, Type), // [compiler only] take the address of expr (same as ref, but no heap allocation)
+    Address(Box<Source<Expr>>), // [compiler only] take the address of expr
     Optional(OptionalMode, Type, Box<Source<Expr>>),
     Unwrap(Box<Source<Expr>>, Type),
 }
@@ -196,7 +196,7 @@ impl Expr {
             (Ref(x, _), Ref(a, _)) => {
                 x.data.require_same_structure(&a.data)?;
             }
-            (Address(x, _), Address(a, _)) => {
+            (Address(x), Address(a)) => {
                 x.data.require_same_structure(&a.data)?;
             }
             (Optional(t, _, x), Optional(s, _, a)) => {
