@@ -288,6 +288,10 @@ impl<'s> VmFunctionGenerator<'s> {
                 QVMInstruction::RuntimeInstr("_println_any".to_string()),
                 IrType::func(vec![IrType::addr_of(IrType::unknown())], IrType::nil()),
             ),
+            "_sizeof" => (
+                QVMInstruction::RuntimeInstr("_sizeof".to_string()),
+                IrType::func(vec![IrType::unknown()], IrType::int()),
+            ),
             _ => (
                 QVMInstruction::LabelI32Const(v.to_string()),
                 self.functions

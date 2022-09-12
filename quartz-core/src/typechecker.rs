@@ -38,7 +38,7 @@ impl Constraints {
             (Type::Any, _) => Ok(Constraints::new()),
             (_, Type::Any) => Ok(Constraints::new()),
             (Type::Ref(s), Type::Ref(t)) => Ok(Constraints::unify(&s, &t)?),
-            (Type::Fn(args1, ret1), Type::Fn(args2, ret2)) => {
+            (Type::Fn(_, args1, ret1), Type::Fn(_, args2, ret2)) => {
                 if args1.len() != args2.len() {
                     bail!("Type error: want {:?} but found {:?}", args1, args2);
                 }
@@ -121,7 +121,7 @@ impl Constraints {
             Type::Nil => {}
             Type::Bool => {}
             Type::Int => {}
-            Type::Fn(args, ret) => {
+            Type::Fn(_, args, ret) => {
                 for arg in args {
                     self.apply(arg);
                 }
@@ -261,7 +261,7 @@ impl<'s> TypeChecker<'s> {
 
             let f = self.function_types[v].clone();
 
-            self.unify(&Type::Fn(f.0, Box::new(f.1)), typ)?;
+            self.unify(&Type::Fn(vec![], f.0, Box::new(f.1)), typ)?;
         } else {
             let t = self
                 .variables
@@ -338,7 +338,8 @@ impl<'s> TypeChecker<'s> {
 
                 *typ = t.as_ref().clone();
             }
-            Type::Method(_, _, _) | Type::Fn(_, _) | Type::Array(_) | Type::SizedArray(_, _) => {}
+            Type::Method(_, _, _) | Type::Fn(_, _, _) | Type::Array(_) | Type::SizedArray(_, _) => {
+            }
             Type::Struct(s) if s == "string" => {}
             t => bail!("Cannot call non-function type {:?}", t),
         };
@@ -579,11 +580,8 @@ impl<'s> TypeChecker<'s> {
                     let mut args_self = vec![self_.as_ref().clone()];
                     args_self.extend(args.clone());
 
-                    let ret_type = self.typecheck_function(
-                        self_,
-                        &Type::Fn(method.args.clone(), Box::new(method.ret)),
-                        &mut args_self,
-                    )?;
+                    let ret_type =
+                        self.typecheck_function(self_, &method.as_fn_type(), &mut args_self)?;
 
                     // recover modified expressions
                     *self_ = Box::new(args_self[0].clone());
@@ -1154,6 +1152,7 @@ func main() {
                 vec![(
                     "f",
                     Type::Fn(
+                        vec![],
                         vec![Type::Int, Type::Struct("string".to_string())],
                         Box::new(Type::Bool),
                     ),
@@ -1202,7 +1201,7 @@ func main(): int {
     return x(2);
 }
             "#,
-                vec![("main", Type::Fn(vec![], Box::new(Type::Int)))],
+                vec![("main", Type::Fn(vec![], vec![], Box::new(Type::Int)))],
             ),
         ];
 

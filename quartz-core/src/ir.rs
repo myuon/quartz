@@ -498,7 +498,7 @@ impl IrType {
             Type::Bool => IrType::bool(),
             Type::Int => IrType::int(),
             Type::Byte => IrType::byte(),
-            Type::Fn(_, _) => todo!(),
+            Type::Fn(_, _, _) => todo!(),
             Type::Method(_, _, _) => todo!(),
             Type::Struct(s) if s == "string" => {
                 // string = array[byte]

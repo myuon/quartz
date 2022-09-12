@@ -289,7 +289,7 @@ pub enum Type {
     Bool,
     Int,
     Byte,
-    Fn(Vec<Type>, Box<Type>),
+    Fn(Vec<String>, Vec<Type>, Box<Type>),
     Method(Box<Type>, Vec<Type>, Box<Type>),
     Struct(String),
     Ref(Box<Type>),
@@ -310,7 +310,7 @@ impl Type {
 
     pub fn as_fn_type(&self) -> Option<(&Vec<Type>, &Box<Type>)> {
         match self {
-            Type::Fn(args, ret) => Some((args, ret)),
+            Type::Fn(_, args, ret) => Some((args, ret)),
             Type::Method(_, args, ret) => Some((args, ret)),
             _ => None,
         }
@@ -372,7 +372,7 @@ impl Type {
             Type::Any => false,
             Type::Bool => false,
             Type::Int => false,
-            Type::Fn(args, ret) => {
+            Type::Fn(_, args, ret) => {
                 args.iter().find(move |t| t.has_infer(index)).is_some() || ret.has_infer(index)
             }
             Type::Method(self_, args, ret) => {
@@ -404,7 +404,7 @@ impl Type {
             Type::Any => {}
             Type::Bool => {}
             Type::Int => {}
-            Type::Fn(args, ret) => {
+            Type::Fn(_, args, ret) => {
                 for arg in args {
                     arg.subst(index, typ);
                 }
@@ -439,7 +439,7 @@ impl Type {
             Type::Any => {}
             Type::Bool => {}
             Type::Int => {}
-            Type::Fn(args, ret) => {
+            Type::Fn(_, args, ret) => {
                 for arg in args {
                     arg.subst_typevar(var_name, typ);
                 }
@@ -485,7 +485,7 @@ impl Type {
             Type::Any => {}
             Type::Bool => {}
             Type::Int => {}
-            Type::Fn(args, ret) => {
+            Type::Fn(_, args, ret) => {
                 for arg in args {
                     arg.subst_struct_name(var_name, typ);
                 }
@@ -589,7 +589,7 @@ impl Type {
         }
     }
 
-    pub fn type_applications(&mut self) -> Result<Vec<Type>> {
+    pub fn type_applications(&self) -> Result<Vec<Type>> {
         match self {
             Type::Struct(_) => Ok(vec![]),
             Type::TypeApp(t, ps) => {
@@ -714,6 +714,7 @@ impl MethodTypeInfo {
 
     pub fn as_fn_type(&self) -> Type {
         Type::Fn(
+            self.type_params.clone(),
             self.args.iter().map(|t| t.clone()).collect::<Vec<Type>>(),
             Box::new(self.ret.clone()),
         )

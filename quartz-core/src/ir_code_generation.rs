@@ -158,6 +158,10 @@ impl<'s> IrFunctionGenerator<'s> {
                     label
                 ))));
 
+                for app in type_.type_applications()? {
+                    elements.push(self.ir_type(&app)?.to_element());
+                }
+
                 for arg in args {
                     elements.push(self.expr(&arg)?);
                 }

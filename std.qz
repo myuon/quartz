@@ -306,9 +306,12 @@ func test() {
     assert(_not("prefix-suffix".starts_with("suffix")));
     assert("12345".parse_int() == 12345);
 
-    let v = vector[int]::new();
-    v.push(10);
-    v.push(20);
+    assert(_sizeof[int]() == 1);
+    assert(_sizeof[vector[int]]() == 2);
 
-    assert(v.len() == 10);
+    // let v = vector[int]::new();
+    // v.push(10);
+    // v.push(20);
+
+    // assert(v.len() == 10);
 }
