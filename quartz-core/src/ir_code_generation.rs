@@ -64,9 +64,8 @@ impl<'s> IrFunctionGenerator<'s> {
                         // special treatment for panic instruction
                         // FIXME: implement function meta attributes
                         if v == "_panic" {
-                            let meta = self.expr(&Source::unknown(Expr::Call(
-                                CallMode::Function,
-                                Box::new(Source::unknown(Expr::Var(vec!["_println".to_string()]))),
+                            let meta = self.expr(&Source::unknown(Expr::function_call(
+                                Source::unknown(Expr::Var(vec!["_println".to_string()])),
                                 vec![Source::unknown(Expr::Lit(Literal::String(
                                     self.source_loader.specify_source(
                                         self.module_path,
@@ -128,19 +127,24 @@ impl<'s> IrFunctionGenerator<'s> {
                     // Ok(IrElement::Term(IrTerm::Ident(v, size)))
                 }
             },
-            Expr::Call(CallMode::Array, f, args) => Ok(IrElement::i_addr_index(
+            Expr::Call(CallMode::Array, f, _, args) => Ok(IrElement::i_addr_index(
                 self.expr(f.as_ref())?,
                 self.expr(&args[0])?,
             )),
-            Expr::Call(CallMode::SizedArray, f, args) => Ok(IrElement::i_index(
+            Expr::Call(CallMode::SizedArray, f, _, args) => Ok(IrElement::i_index(
                 self.expr(f.as_ref())?,
                 self.expr(&args[0])?,
             )),
-            Expr::Call(CallMode::Function, f, args) => {
+            Expr::Call(CallMode::Function, f, types, args) => {
+                println!("{:?} {:?} {:?}", f, types, args);
                 // in: f(a,b,c)
                 // out: (call f a b c)
                 let mut elements = vec![];
                 elements.push(self.expr(f.as_ref())?);
+
+                for t in types {
+                    elements.push(self.ir_type(t)?.to_element());
+                }
 
                 for arg in args {
                     elements.push(self.expr(&arg)?);

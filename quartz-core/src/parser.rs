@@ -32,8 +32,12 @@ impl Parser {
         self.source(data, start, self.position)
     }
 
-    fn peek(&self) -> &Token {
-        &self.input[self.position]
+    fn peek(&self) -> Result<&Token> {
+        if self.is_end() {
+            return Err(self.parse_error(&format!("token"), "EOS"));
+        }
+
+        Ok(&self.input[self.position])
     }
 
     fn peek_prev(&self) -> &Token {
@@ -203,11 +207,11 @@ impl Parser {
                 self.position += 1;
 
                 let mut values = vec![];
-                while !self.is_end() && self.peek().lexeme != Lexeme::RBracket {
+                while !self.is_end() && self.peek()?.lexeme != Lexeme::RBracket {
                     let e_start = self.position;
                     let e = self.expr()?;
                     values.push(self.source_from(e, e_start));
-                    if self.peek().lexeme == Lexeme::Comma {
+                    if self.peek()?.lexeme == Lexeme::Comma {
                         self.position += 1;
                     }
                 }
@@ -319,7 +323,7 @@ impl Parser {
     fn many_arguments(&mut self) -> Result<Vec<(String, Type)>> {
         let mut arguments = vec![];
 
-        while self.peek().lexeme != Lexeme::RParen {
+        while self.peek()?.lexeme != Lexeme::RParen {
             let name = self.ident()?.data;
             let typ = if self.expect_lexeme(Lexeme::Colon).is_ok() {
                 self.type_(&vec![])?
@@ -342,7 +346,7 @@ impl Parser {
     fn many_exprs(&mut self) -> Result<Vec<Source<Expr>>> {
         let mut exprs = vec![];
 
-        while self.peek().lexeme != Lexeme::RParen {
+        while self.peek()?.lexeme != Lexeme::RParen {
             let e_start = self.position;
             let e = self.expr()?;
             exprs.push(self.source_from(e, e_start));
@@ -360,7 +364,7 @@ impl Parser {
     fn many_statements(&mut self) -> Result<Vec<Source<Statement>>> {
         let mut statements = vec![];
 
-        while !self.is_end() && self.peek().lexeme != Lexeme::RBrace {
+        while !self.is_end() && self.peek()?.lexeme != Lexeme::RBrace {
             let st = self.statement()?;
 
             if let Err(err) = self.expect_lexeme(Lexeme::SemiColon) {
@@ -403,6 +407,11 @@ impl Parser {
             let result_start = self.position;
             let mut result = self.short_callee_expr()?;
             loop {
+                if self.is_end() {
+                    break;
+                }
+                let next = self.peek()?.clone();
+
                 if self.expect_lexeme(Lexeme::Dot).is_ok() {
                     // projection
                     let label = self.ident()?.data;
@@ -426,7 +435,15 @@ impl Parser {
                             label,
                         );
                     }
-                } else if self.expect_lexeme(Lexeme::LParen).is_ok() {
+                } else if next.lexeme == Lexeme::LBracket || next.lexeme == Lexeme::LParen {
+                    let type_params = if next.lexeme == Lexeme::LBracket {
+                        self.type_applications()?
+                    } else {
+                        vec![]
+                    };
+                    println!("{:?} {:?}", next.lexeme, type_params);
+
+                    self.expect_lexeme(Lexeme::LParen)?;
                     let result_end = self.position;
                     let args = self.many_exprs()?;
                     self.expect_lexeme(Lexeme::RParen)?;
@@ -437,6 +454,7 @@ impl Parser {
                         result = Expr::Call(
                             CallMode::Function,
                             Box::new(self.source(result, result_start, result_end)),
+                            type_params,
                             args,
                         );
                     }
@@ -516,6 +534,7 @@ impl Parser {
                 result = Expr::Call(
                     CallMode::Function,
                     Box::new(Source::unknown(Expr::Var(vec![op.to_string()]))),
+                    vec![],
                     vec![
                         self.source_from(result, short_expr_start),
                         self.source_from(right, right_start),
@@ -620,7 +639,7 @@ impl Parser {
     fn many_fields_with_types(&mut self, type_params: &Vec<String>) -> Result<Vec<(String, Type)>> {
         let mut fields = vec![];
 
-        while self.peek().lexeme != Lexeme::RBrace {
+        while self.peek()?.lexeme != Lexeme::RBrace {
             let name = self.ident()?.data;
             self.expect_lexeme(Lexeme::Colon)?;
             let ty = self.type_(type_params)?;
@@ -639,7 +658,7 @@ impl Parser {
     fn many_fields_with_exprs(&mut self) -> Result<Vec<(String, Source<Expr>, Type)>> {
         let mut fields = vec![];
 
-        while self.peek().lexeme != Lexeme::RBrace {
+        while self.peek()?.lexeme != Lexeme::RBrace {
             let name = self.ident()?.data;
             self.expect_lexeme(Lexeme::Colon)?;
             let e_start = self.position;
@@ -662,7 +681,7 @@ impl Parser {
         if !self.expect_lexeme(Lexeme::LBracket).is_ok() {
             return Ok(fields);
         }
-        while self.peek().lexeme != Lexeme::RBracket {
+        while self.peek()?.lexeme != Lexeme::RBracket {
             let name = self.type_(&vec![])?;
             fields.push(name);
 
@@ -682,7 +701,7 @@ impl Parser {
         if !self.expect_lexeme(Lexeme::LBracket).is_ok() {
             return Ok(fields);
         }
-        while self.peek().lexeme != Lexeme::RBracket {
+        while self.peek()?.lexeme != Lexeme::RBracket {
             let name = self.ident()?.data;
             fields.push(name);
 
@@ -732,7 +751,7 @@ impl Parser {
 
             Ok(Declaration::Import(path))
         } else {
-            bail!("Expected a declaration, but found {:?}", self.peek())
+            bail!("Expected a declaration, but found {:?}", self.peek()?)
         }
     }
 
@@ -832,6 +851,8 @@ pub fn run_parser_statements(input: &str) -> Result<Vec<Source<Statement>>> {
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::assert_eq;
+
     use super::*;
 
     #[test]
@@ -901,11 +922,20 @@ mod tests {
                     vec![Source::unknown(Expr::Var(vec!["b".to_string()]))],
                 ),
             ),
+            (
+                "f[array[int]]()",
+                Expr::Call(
+                    CallMode::Function,
+                    Box::new(Source::unknown(Expr::Var(vec!["f".to_string()]))),
+                    vec![Type::Array(Box::new(Type::Int))],
+                    vec![],
+                ),
+            ),
         ];
 
         for (c, expr) in cases {
             let result = run_parser_expr(c).unwrap();
-            expr.require_same_structure(&result).unwrap();
+            assert_eq!(expr.show(), result.show(), "{}", c);
         }
     }
 

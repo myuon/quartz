@@ -2,6 +2,53 @@ use std::collections::HashMap;
 
 use anyhow::{bail, Result};
 
+pub struct PrettyPrinter {
+    buffer: String,
+    indent: usize,
+    depth: usize,
+}
+
+impl PrettyPrinter {
+    pub fn new() -> Self {
+        Self {
+            buffer: String::new(),
+            indent: 4,
+            depth: 0,
+        }
+    }
+
+    pub fn writeln(&mut self, s: &str) {
+        for line in s.lines() {
+            self.buffer.push_str(&" ".repeat(self.depth * self.indent));
+            self.buffer.push_str(line);
+            self.buffer.push_str("\n");
+        }
+    }
+
+    pub fn indent(&mut self) {
+        self.depth += 1;
+    }
+
+    pub fn dedent(&mut self) {
+        self.depth -= 1;
+    }
+
+    pub fn item(&mut self, key: &str, value: &str) {
+        self.writeln(&format!("{}: {}", key, value));
+    }
+
+    pub fn item_verbose(&mut self, key: &str, value: &str) {
+        self.item(key, "");
+        self.indent();
+        self.writeln(value);
+        self.dedent();
+    }
+
+    pub fn finalize(self) -> String {
+        self.buffer
+    }
+}
+
 #[derive(PartialEq, Debug, Clone)]
 pub struct Source<T> {
     pub data: T,
@@ -70,7 +117,7 @@ pub enum Expr {
     PathVar(Type, String),
     Make(Type, Vec<Source<Expr>>),
     Lit(Literal),
-    Call(CallMode, Box<Source<Expr>>, Vec<Source<Expr>>),
+    Call(CallMode, Box<Source<Expr>>, Vec<Type>, Vec<Source<Expr>>),
     MethodCall(CallMode, Type, String, Box<Source<Expr>>, Vec<Source<Expr>>),
     AssociatedCall(CallMode, Type, String, Vec<Source<Expr>>),
     Struct(String, Vec<Type>, Vec<(String, Source<Expr>, Type)>),
@@ -85,7 +132,7 @@ pub enum Expr {
 
 impl Expr {
     pub fn function_call(callee: Source<Expr>, args: Vec<Source<Expr>>) -> Expr {
-        Expr::Call(CallMode::Function, Box::new(callee), args)
+        Expr::Call(CallMode::Function, Box::new(callee), vec![], args)
     }
 
     pub fn member(proj: Source<Expr>, field: impl Into<String>) -> Expr {
@@ -111,116 +158,129 @@ impl Expr {
         Expr::Unwrap(Box::new(expr), Type::Omit)
     }
 
-    pub fn require_same_structure(&self, other: &Expr) -> Result<()> {
-        use Expr::*;
-
-        match (self, other) {
-            (Var(x), Var(y)) => {
-                if x != y {
-                    bail!("[var] {:?} vs {:?}", x, y);
+    fn show_inner(&self, printer: &mut PrettyPrinter) {
+        match self {
+            Expr::Var(v) => {
+                printer.writeln("<<Var>>");
+                printer.item("name", &v.join("."));
+            }
+            Expr::PathVar(t, v) => {
+                printer.writeln("<<PathVar>>");
+                printer.item_verbose("type", &t.show());
+                printer.item("name", v);
+            }
+            Expr::Make(t, v) => {
+                printer.writeln("<<Make>>");
+                printer.item_verbose("type", &t.show());
+                for (i, e) in v.iter().enumerate() {
+                    printer.item(&format!("{}", i), &e.data.show());
                 }
             }
-            (PathVar(t, x), PathVar(s, y)) => {
-                if t != s {
-                    bail!("[method] {:?} vs {:?}", t, s);
-                }
-                if x != y {
-                    bail!("[method] {:?} vs {:?}", x, y);
-                }
-            }
-            (Make(t, x), Make(s, y)) => {
-                if t != s {
-                    bail!("[make] {:?} vs {:?}", t, s);
-                }
-                if x.len() != y.len() {
-                    bail!("[make] {:?} vs {:?}", x, y);
-                }
-                for (a, b) in x.iter().zip(y.iter()) {
-                    a.data.require_same_structure(&b.data)?;
-                }
-            }
-            (Lit(t), Lit(s)) => {
-                if t != s {
-                    bail!("[lit] {:?} vs {:?}", t, s);
-                }
-            }
-            (Call(t, x, y), Call(s, a, b)) => {
-                if t != s {
-                    bail!("[call] {:?} vs {:?}", t, s);
-                }
-                x.data.require_same_structure(&a.data)?;
-                if y.len() != b.len() {
-                    bail!("[call] {:?} vs {:?}", a, b);
-                }
-                for (a, b) in y.iter().zip(b.iter()) {
-                    a.data.require_same_structure(&b.data)?;
-                }
-            }
-            (MethodCall(_, u, t, x, y), MethodCall(_, v, s, a, b)) => {
-                if u != v {
-                    bail!("[method] {:?} vs {:?}", a, b);
-                }
-                if t != s {
-                    bail!("[method call] {:?} vs {:?}", t, s);
-                }
-                x.data.require_same_structure(&a.data)?;
-                if y.len() != b.len() {
-                    bail!("[method call] {:?} vs {:?}", a, b);
-                }
-                for (a, b) in y.iter().zip(b.iter()) {
-                    a.data.require_same_structure(&b.data)?;
-                }
-            }
-            (Struct(t, _, x), Struct(s, _, y)) => {
-                if t != s {
-                    bail!("[struct] {:?} vs {:?}", t, s);
-                }
-                if x.len() != y.len() {
-                    bail!("[struct] {:?} vs {:?}", x, y);
-                }
-                for (a, b) in x.iter().zip(y.iter()) {
-                    if a.0 != b.0 {
-                        bail!("[struct] {:?} vs {:?}", a.0, b.0);
+            Expr::Lit(l) => {
+                printer.writeln("<<Lit>>");
+                match l {
+                    Literal::Nil => {
+                        printer.item("value", "nil");
                     }
-                    a.1.data.require_same_structure(&b.1.data)?;
+                    Literal::Bool(b) => {
+                        printer.item("value", &format!("{}", b));
+                    }
+                    Literal::Int(i) => {
+                        printer.item("value", &format!("{}", i));
+                    }
+                    Literal::String(s) => {
+                        printer.item("value", &format!("{}", s));
+                    }
+                    Literal::Array(v, t) => {
+                        printer.item_verbose("type", &t.show());
+                        for (i, e) in v.iter().enumerate() {
+                            printer.item(&format!("{}", i), &e.data.show());
+                        }
+                    }
                 }
             }
-            (Project(_, x, y), Project(_, a, b)) => {
-                x.data.require_same_structure(&a.data)?;
-                if y != b {
-                    bail!("[project] {:?} vs {:?}", y, b);
+            Expr::Call(m, c, t, a) => {
+                printer.writeln("<<Call>>");
+                printer.item("mode", &format!("{:?}", m));
+                printer.item_verbose("callee", &c.data.show());
+                printer.item("params", &format!("{:?}", t));
+                for (i, e) in a.iter().enumerate() {
+                    printer.item(&format!("{}", i), &e.data.show());
                 }
             }
-            (Deref(x, _), Deref(a, _)) => {
-                x.data.require_same_structure(&a.data)?;
-            }
-            (As(x, _, t), As(a, _, s)) => {
-                x.data.require_same_structure(&a.data)?;
-                if t != s {
-                    bail!("[as] {:?} vs {:?}", t, s);
+            Expr::MethodCall(m, t, v, c, a) => {
+                printer.writeln("<<MethodCall>>");
+                printer.item("mode", &format!("{:?}", m));
+                printer.item_verbose("type", &t.show());
+                printer.item("name", v);
+                printer.item_verbose("callee", &c.data.show());
+                for (i, e) in a.iter().enumerate() {
+                    printer.item(&format!("{}", i), &e.data.show());
                 }
             }
-            (Ref(x, _), Ref(a, _)) => {
-                x.data.require_same_structure(&a.data)?;
-            }
-            (Address(x), Address(a)) => {
-                x.data.require_same_structure(&a.data)?;
-            }
-            (Optional(t, _, x), Optional(s, _, a)) => {
-                if t != s {
-                    bail!("[optional] {:?} vs {:?}", t, s);
+            Expr::AssociatedCall(m, t, c, a) => {
+                printer.writeln("<<AssociatedCall>>");
+                printer.item("mode", &format!("{:?}", m));
+                printer.item_verbose("type", &t.show());
+                printer.item_verbose("callee", c);
+                for (i, e) in a.iter().enumerate() {
+                    printer.item(&format!("{}", i), &e.data.show());
                 }
-                x.data.require_same_structure(&a.data)?;
             }
-            (Unwrap(x, _), Unwrap(a, _)) => {
-                x.data.require_same_structure(&a.data)?;
+            Expr::Struct(n, t, f) => {
+                printer.writeln("<<Struct>>");
+                printer.item("name", n);
+                printer.item_verbose("params", &format!("{:?}", t));
+                for (i, (n, e, _)) in f.iter().enumerate() {
+                    printer.item(&format!("{}", i), &format!("{}: {}", n, e.data.show()));
+                }
             }
-            (x, y) => {
-                bail!("[expr] {:?} vs {:?}", x, y);
+            Expr::Project(t, e, f) => {
+                printer.writeln("<<Project>>");
+                printer.item_verbose("type", &t.show());
+                printer.item_verbose("expr", &e.data.show());
+                printer.item("field", f);
+            }
+            Expr::Deref(e, t) => {
+                printer.writeln("<<Deref>>");
+                printer.item_verbose("expr", &e.data.show());
+                printer.item_verbose("type", &t.show());
+            }
+            Expr::As(e, t, r) => {
+                printer.writeln("<<As>>");
+                printer.item_verbose("expr", &e.data.show());
+                printer.item_verbose("type", &t.show());
+                printer.item_verbose("result", &r.show());
+            }
+            Expr::Ref(e, t) => {
+                printer.writeln("<<Ref>>");
+                printer.item_verbose("expr", &e.data.show());
+                printer.item_verbose("type", &t.show());
+            }
+            Expr::Address(e) => {
+                printer.writeln("<<Address>>");
+                printer.item_verbose("expr", &e.data.show());
+            }
+            Expr::Optional(m, t, e) => {
+                printer.writeln("<<Optional>>");
+                printer.item("mode", &format!("{:?}", m));
+                printer.item_verbose("type", &t.show());
+                printer.item_verbose("expr", &e.data.show());
+            }
+            Expr::Unwrap(e, t) => {
+                printer.writeln("<<Unwrap>>");
+                printer.item_verbose("expr", &e.data.show());
+                printer.item_verbose("type", &t.show());
             }
         }
+    }
 
-        Ok(())
+    pub fn show(&self) -> String {
+        let mut printer = PrettyPrinter::new();
+
+        self.show_inner(&mut printer);
+
+        printer.finalize()
     }
 }
 
@@ -600,6 +660,129 @@ impl Type {
             Type::Ref(r) => r.type_applications(),
             _ => Ok(vec![]),
         }
+    }
+
+    fn show_inner(&self, printer: &mut PrettyPrinter) {
+        match self {
+            Type::Self_ => {
+                printer.writeln("Self");
+            }
+            Type::Omit => {
+                printer.writeln("Omit");
+            }
+            Type::TypeVar(v) => {
+                printer.writeln("<<TypeVar>>");
+                printer.item("value", v);
+            }
+            Type::Infer(t) => {
+                printer.writeln("<<Infer>>");
+                printer.item("value", &format!("{:?}", t));
+            }
+            Type::Any => {
+                printer.writeln("Any");
+            }
+            Type::Nil => {
+                printer.writeln("Nil");
+            }
+            Type::Bool => {
+                printer.writeln("Bool");
+            }
+            Type::Int => {
+                printer.writeln("Int");
+            }
+            Type::Byte => {
+                printer.writeln("Byte");
+            }
+            Type::Fn(vs, args, ret) => {
+                printer.writeln("<<Fn>>");
+                printer.item("params", &format!("{:?}", vs));
+
+                printer.item("args", "");
+                printer.indent();
+                for arg in args {
+                    arg.show_inner(printer);
+                }
+                printer.dedent();
+
+                printer.item("ret", "");
+                printer.indent();
+                ret.show_inner(printer);
+                printer.dedent();
+            }
+            Type::Method(self_, args, ret) => {
+                printer.writeln("<<Method>>");
+                printer.item("self", "");
+                printer.indent();
+                self_.show_inner(printer);
+                printer.dedent();
+
+                printer.item("args", "");
+                printer.indent();
+                for arg in args {
+                    arg.show_inner(printer);
+                }
+                printer.dedent();
+
+                printer.item("ret", "");
+                printer.indent();
+                ret.show_inner(printer);
+                printer.dedent();
+            }
+            Type::Struct(s) => {
+                printer.writeln("<<Struct>>");
+                printer.item("name", s);
+            }
+            Type::Ref(t) => {
+                printer.writeln("<<Ref>>");
+                printer.item("type", "");
+                printer.indent();
+                t.show_inner(printer);
+                printer.dedent();
+            }
+            Type::Array(t) => {
+                printer.writeln("<<Array>>");
+                printer.item("type", "");
+                printer.indent();
+                t.show_inner(printer);
+                printer.dedent();
+            }
+            Type::SizedArray(t, n) => {
+                printer.writeln("<<SizedArray>>");
+                printer.item("type", "");
+                printer.indent();
+                t.show_inner(printer);
+                printer.dedent();
+                printer.item("size", &format!("{}", n));
+            }
+            Type::Optional(t) => {
+                printer.writeln("<<Optional>>");
+                printer.item("type", "");
+                printer.indent();
+                t.show_inner(printer);
+                printer.dedent();
+            }
+            Type::TypeApp(t, ps) => {
+                printer.writeln("<<TypeApp>>");
+                printer.item("type", "");
+                printer.indent();
+                t.show_inner(printer);
+                printer.dedent();
+                printer.item("params", "");
+                printer.indent();
+                for p in ps {
+                    p.show_inner(printer);
+                }
+                printer.dedent();
+            }
+        }
+    }
+
+    pub fn show(&self) -> String {
+        let mut printer = PrettyPrinter::new();
+
+        self.show_inner(&mut printer);
+
+        printer.finalize()
     }
 }
 
