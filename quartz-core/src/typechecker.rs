@@ -395,28 +395,24 @@ impl<'s> TypeChecker<'s> {
                 self.load(v, typ)
                     .context(self.error_context(expr.start, expr.end, "var"))?;
             }
-            Expr::PathVar(subj, v) => {
-                let pair = (subj.method_selector_name()?, v.clone());
+            Expr::PathVar(expr, label, vs) => {
+                if let Expr::Var(name) = &expr.data {
+                    let pair = (name[0].clone(), label.clone());
 
-                let mut method = self
-                    .method_types
-                    .get(&pair)
-                    .ok_or(anyhow::anyhow!(
-                        "Method {}::{} not found",
-                        subj.method_selector_name()?,
-                        v
-                    ))?
-                    .clone();
-                self.call_graph
-                    .entry(self.current_function.clone().unwrap())
-                    .or_insert(HashMap::new())
-                    .insert(format!("{}::{}", pair.0, pair.1), ());
+                    let mut method = self
+                        .method_types
+                        .get(&pair)
+                        .ok_or(anyhow::anyhow!("Method {}::{} not found", pair.0, pair.1))?
+                        .clone();
+                    self.call_graph
+                        .entry(self.current_function.clone().unwrap())
+                        .or_insert(HashMap::new())
+                        .insert(format!("{}::{}", pair.0, pair.1), ());
 
-                if let Type::TypeApp(_, vs) = subj {
                     method.apply(vs);
-                }
 
-                self.unify(&method.as_fn_type(), typ)?;
+                    self.unify(&method.as_fn_type(), typ)?;
+                }
             }
             Expr::Lit(lit) => {
                 let t = match lit {
@@ -740,6 +736,7 @@ impl<'s> TypeChecker<'s> {
                 self.unify(t.unwrap_type()?, typ)
                     .context(self.error_context(expr.start, expr.end, "unwrap"))?;
             }
+            Expr::TypeApp(_, _) => todo!(),
         };
 
         Ok(())

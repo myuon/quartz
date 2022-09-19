@@ -83,12 +83,16 @@ impl<'s> IrFunctionGenerator<'s> {
                     Ok(IrElement::Term(IrTerm::Ident(format!("{}_{}", v[0], v[1]))))
                 }
             }
-            Expr::PathVar(subj, v) => Ok(IrElement::Term(IrTerm::Ident(format!(
-                "{}_{}",
-                subj.method_selector_name()
-                    .context(format!("{:?}::{}", subj, v))?,
-                v
-            )))),
+            Expr::PathVar(expr, label, vs) => {
+                if let Expr::Var(name) = &expr.data {
+                    Ok(IrElement::Term(IrTerm::Ident(format!(
+                        "{}_{}",
+                        name[0], label
+                    ))))
+                } else {
+                    unreachable!()
+                }
+            }
             Expr::Lit(literal) => match literal {
                 Literal::Nil => Ok(IrElement::Term(IrTerm::Nil)),
                 Literal::Bool(b) => Ok(IrElement::Term(IrTerm::Bool(*b))),
@@ -379,6 +383,7 @@ impl<'s> IrFunctionGenerator<'s> {
                     )))?,
                 })
             }
+            Expr::TypeApp(_, _) => todo!(),
         }
     }
 

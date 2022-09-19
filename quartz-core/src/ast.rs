@@ -114,7 +114,7 @@ pub enum OptionalMode {
 #[derive(PartialEq, Debug, Clone)]
 pub enum Expr {
     Var(Vec<String>), // qualifier in vector
-    PathVar(Type, String),
+    PathVar(Box<Source<Expr>>, String, Vec<Type>),
     Make(Type, Vec<Source<Expr>>),
     Lit(Literal),
     Call(CallMode, Box<Source<Expr>>, Vec<Type>, Vec<Source<Expr>>),
@@ -128,6 +128,7 @@ pub enum Expr {
     Address(Box<Source<Expr>>), // [compiler only] take the address of expr
     Optional(OptionalMode, Type, Box<Source<Expr>>),
     Unwrap(Box<Source<Expr>>, Type),
+    TypeApp(Box<Source<Expr>>, Vec<Type>),
 }
 
 impl Expr {
@@ -164,10 +165,11 @@ impl Expr {
                 printer.writeln("<<Var>>");
                 printer.item("name", &v.join("."));
             }
-            Expr::PathVar(t, v) => {
+            Expr::PathVar(t, v, vs) => {
                 printer.writeln("<<PathVar>>");
-                printer.item_verbose("type", &t.show());
+                printer.item_verbose("expr", &t.data.show());
                 printer.item("name", v);
+                printer.item_verbose("type_args", &format!("{:?}", vs));
             }
             Expr::Make(t, v) => {
                 printer.writeln("<<Make>>");
@@ -204,9 +206,13 @@ impl Expr {
                 printer.item("mode", &format!("{:?}", m));
                 printer.item_verbose("callee", &c.data.show());
                 printer.item("params", &format!("{:?}", t));
+
+                printer.item("args", "");
+                printer.indent();
                 for (i, e) in a.iter().enumerate() {
                     printer.item(&format!("{}", i), &e.data.show());
                 }
+                printer.dedent();
             }
             Expr::MethodCall(m, t, v, c, a) => {
                 printer.writeln("<<MethodCall>>");
@@ -214,26 +220,38 @@ impl Expr {
                 printer.item_verbose("type", &t.show());
                 printer.item("name", v);
                 printer.item_verbose("callee", &c.data.show());
+
+                printer.item("args", "");
+                printer.indent();
                 for (i, e) in a.iter().enumerate() {
-                    printer.item(&format!("{}", i), &e.data.show());
+                    printer.item_verbose(&format!("{}", i), &e.data.show());
                 }
+                printer.dedent();
             }
             Expr::AssociatedCall(m, t, c, a) => {
                 printer.writeln("<<AssociatedCall>>");
                 printer.item("mode", &format!("{:?}", m));
                 printer.item_verbose("type", &t.show());
                 printer.item_verbose("callee", c);
+
+                printer.item("args", "");
+                printer.indent();
                 for (i, e) in a.iter().enumerate() {
-                    printer.item(&format!("{}", i), &e.data.show());
+                    printer.item_verbose(&format!("{}", i), &e.data.show());
                 }
+                printer.dedent();
             }
             Expr::Struct(n, t, f) => {
                 printer.writeln("<<Struct>>");
                 printer.item("name", n);
                 printer.item_verbose("params", &format!("{:?}", t));
-                for (i, (n, e, _)) in f.iter().enumerate() {
-                    printer.item(&format!("{}", i), &format!("{}: {}", n, e.data.show()));
+
+                printer.item("fields", "");
+                printer.indent();
+                for (n, e, _) in f {
+                    printer.item_verbose(&n, &e.data.show());
                 }
+                printer.dedent();
             }
             Expr::Project(t, e, f) => {
                 printer.writeln("<<Project>>");
@@ -271,6 +289,17 @@ impl Expr {
                 printer.writeln("<<Unwrap>>");
                 printer.item_verbose("expr", &e.data.show());
                 printer.item_verbose("type", &t.show());
+            }
+            Expr::TypeApp(e, t) => {
+                printer.writeln("<<TypeApp>>");
+                printer.item_verbose("expr", &e.data.show());
+
+                printer.item("type", "");
+                printer.indent();
+                for (i, t) in t.iter().enumerate() {
+                    printer.item(&format!("{}", i), &t.show());
+                }
+                printer.dedent();
             }
         }
     }

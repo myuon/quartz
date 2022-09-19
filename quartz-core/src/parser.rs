@@ -166,16 +166,6 @@ impl Parser {
         }
     }
 
-    fn variable(&mut self) -> Result<Expr> {
-        let subject = self.type_(&vec![])?;
-        if self.expect_lexeme(Lexeme::DoubleColon).is_ok() {
-            let label = self.ident()?.data;
-            Ok(Expr::PathVar(subject, label))
-        } else {
-            Ok(Expr::Var(vec![subject.method_selector_name()?]))
-        }
-    }
-
     fn literal(&mut self) -> Result<Literal> {
         match &self.input[self.position].lexeme {
             Lexeme::Nil => {
@@ -391,12 +381,6 @@ impl Parser {
         Ok(Expr::Make(typ, args))
     }
 
-    fn short_callee_expr(&mut self) -> Result<Expr> {
-        self.variable()
-            .or_else(|_| -> Result<Expr> { self.literal().map(|lit| Expr::Lit(lit)) })
-            .or_else(|_| -> Result<Expr> { self.make_expr() })
-    }
-
     fn short_expr(&mut self) -> Result<Expr> {
         if self.expect_lexeme(Lexeme::LParen).is_ok() {
             let expr = self.expr()?;
@@ -405,11 +389,11 @@ impl Parser {
             Ok(expr)
         } else {
             let result_start = self.position;
-            let mut result = self.short_callee_expr()?;
-            loop {
-                if self.is_end() {
-                    break;
-                }
+            let mut result = (self.ident().map(|i| Expr::Var(vec![i.data])))
+                .or_else(|_| -> Result<Expr> { self.literal().map(|lit| Expr::Lit(lit)) })
+                .or_else(|_| -> Result<Expr> { self.make_expr() })?;
+
+            while !self.is_end() {
                 let next = self.peek()?.clone();
 
                 if self.expect_lexeme(Lexeme::Dot).is_ok() {
@@ -435,29 +419,30 @@ impl Parser {
                             label,
                         );
                     }
-                } else if next.lexeme == Lexeme::LBracket || next.lexeme == Lexeme::LParen {
+                } else if next.lexeme == Lexeme::LBracket {
                     let type_params = if next.lexeme == Lexeme::LBracket {
                         self.type_applications()?
                     } else {
                         vec![]
                     };
-                    println!("{:?} {:?}", next.lexeme, type_params);
 
-                    self.expect_lexeme(Lexeme::LParen)?;
+                    result = Expr::TypeApp(Box::new(Source::unknown(result)), type_params);
+                } else if self.expect_lexeme(Lexeme::DoubleColon).is_ok() {
+                    let label = self.ident()?;
+                    let types = self.type_applications()?;
+
+                    result = Expr::PathVar(Box::new(Source::unknown(result)), label.data, types);
+                } else if self.expect_lexeme(Lexeme::LParen).is_ok() {
                     let result_end = self.position;
                     let args = self.many_exprs()?;
                     self.expect_lexeme(Lexeme::RParen)?;
 
-                    if let Expr::PathVar(t, x) = result {
-                        result = Expr::AssociatedCall(CallMode::Function, t, x, args)
-                    } else {
-                        result = Expr::Call(
-                            CallMode::Function,
-                            Box::new(self.source(result, result_start, result_end)),
-                            type_params,
-                            args,
-                        );
-                    }
+                    result = Expr::Call(
+                        CallMode::Function,
+                        Box::new(self.source(result, result_start, result_end)),
+                        vec![],
+                        args,
+                    );
                 } else if self.expect_lexeme(Lexeme::Exclamation).is_ok() {
                     result = Expr::Unwrap(
                         Box::new(self.source(result, result_start, self.position)),
