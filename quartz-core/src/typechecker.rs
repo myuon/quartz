@@ -737,6 +737,15 @@ impl<'s> TypeChecker<'s> {
                 let mut expected = Type::TypeApp(Box::new(t), vs.clone());
                 expected.resolve()?;
                 self.unify(&expected, typ)?;
+
+                for v in vs {
+                    for name in v.collect_struct_names() {
+                        self.struct_graph
+                            .entry(self.current_function.clone().unwrap())
+                            .or_insert(HashMap::new())
+                            .insert(name.clone(), ());
+                    }
+                }
             }
         };
 

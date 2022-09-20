@@ -140,11 +140,19 @@ impl<'s> IrFunctionGenerator<'s> {
                 self.expr(&args[0])?,
             )),
             Expr::Call(CallMode::Function, f, types, args) => {
-                println!("{:?} {:?} {:?}", f, types, args);
                 // in: f(a,b,c)
                 // out: (call f a b c)
                 let mut elements = vec![];
-                elements.push(self.expr(f.as_ref())?);
+
+                if let Expr::TypeApp(f, vs) = &f.data {
+                    elements.push(self.expr(f.as_ref())?);
+
+                    for t in vs {
+                        elements.push(IrElement::i_typeinfo(self.ir_type(t)?));
+                    }
+                } else {
+                    elements.push(self.expr(f.as_ref())?);
+                }
 
                 for t in types {
                     elements.push(self.ir_type(t)?.to_element());
@@ -383,7 +391,7 @@ impl<'s> IrFunctionGenerator<'s> {
                     )))?,
                 })
             }
-            Expr::TypeApp(_, _) => todo!(),
+            Expr::TypeApp(t, ts) => todo!(),
         }
     }
 

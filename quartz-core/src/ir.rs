@@ -236,6 +236,10 @@ impl IrElement {
         IrElement::block("while", vec![cond, IrElement::block("seq", body)])
     }
 
+    pub fn i_typeinfo(type_: IrType) -> IrElement {
+        IrElement::block("typeinfo", vec![type_.to_element()])
+    }
+
     pub fn d_var(name: impl Into<String>, typ: IrType, expr: IrElement) -> IrElement {
         IrElement::block(
             "var",

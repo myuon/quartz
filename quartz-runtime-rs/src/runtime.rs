@@ -945,6 +945,11 @@ impl Runtime {
                         self.push(Value::bool(false));
                     }
                 }
+                "_sizeof" => {
+                    let value = self.pop();
+                    let info = value.as_info_addr().unwrap();
+                    self.push(Value::int(info as i32));
+                }
                 t => {
                     unreachable!("{}", t);
                 }

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use anyhow::{bail, Result};
 
@@ -830,6 +830,39 @@ impl Type {
         };
 
         Ok(())
+    }
+
+    fn collect_struct_names_inner(&self, names: &mut HashSet<String>) {
+        match self {
+            Type::Struct(s) => {
+                names.insert(s.clone());
+            }
+            Type::TypeApp(t, ps) => {
+                t.collect_struct_names_inner(names);
+                for p in ps {
+                    p.collect_struct_names_inner(names);
+                }
+            }
+            Type::Ref(r) => {
+                r.collect_struct_names_inner(names);
+            }
+            Type::Array(t) => {
+                t.collect_struct_names_inner(names);
+            }
+            Type::SizedArray(t, _) => {
+                t.collect_struct_names_inner(names);
+            }
+            Type::Optional(t) => {
+                t.collect_struct_names_inner(names);
+            }
+            _ => {}
+        }
+    }
+
+    pub fn collect_struct_names(&self) -> HashSet<String> {
+        let mut names = HashSet::new();
+        self.collect_struct_names_inner(&mut names);
+        names
     }
 }
 
