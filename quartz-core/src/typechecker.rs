@@ -603,15 +603,9 @@ impl<'s> TypeChecker<'s> {
 
                 let mut defined = self.structs.0[s].clone();
 
-                let params = {
-                    let ps = defined.type_params.clone();
-                    let mut result = vec![];
-                    for p in ps {
-                        result.push((p, self.next_infer()));
-                    }
-
-                    result
-                };
+                let params = (0..defined.type_params.len())
+                    .map(|_| self.next_infer())
+                    .collect::<Vec<_>>();
                 for (_, t) in &mut defined.fields {
                     self.normalize_type(t);
                 }
@@ -629,7 +623,7 @@ impl<'s> TypeChecker<'s> {
                 }
 
                 let mut type_app = vec![];
-                for (_, r) in params {
+                for r in params {
                     if let Type::Infer(i) = r {
                         type_app.push(
                             self.infer_map
@@ -736,7 +730,11 @@ impl<'s> TypeChecker<'s> {
                 self.unify(t.unwrap_type()?, typ)
                     .context(self.error_context(expr.start, expr.end, "unwrap"))?;
             }
-            Expr::TypeApp(_, _) => todo!(),
+            Expr::TypeApp(expr, vs) => {
+                let mut t = self.next_infer();
+                self.expr(expr, &mut t)?;
+                self.unify(&Type::TypeApp(Box::new(t), vs.clone()), typ)?;
+            }
         };
 
         Ok(())

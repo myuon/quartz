@@ -823,8 +823,8 @@ pub struct StructTypeInfo {
 }
 
 impl StructTypeInfo {
-    pub fn replace_params_in_fields(&mut self, type_params: &Vec<(String, Type)>) {
-        for (p, pt) in type_params {
+    pub fn replace_params_in_fields(&mut self, type_params: &Vec<Type>) {
+        for (p, pt) in self.type_params.iter().zip(type_params) {
             for (_, t) in &mut self.fields {
                 t.subst_typevar(p, pt);
             }

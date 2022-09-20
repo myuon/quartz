@@ -911,8 +911,11 @@ mod tests {
                 "f[array[int]]()",
                 Expr::Call(
                     CallMode::Function,
-                    Box::new(Source::unknown(Expr::Var(vec!["f".to_string()]))),
-                    vec![Type::Array(Box::new(Type::Int))],
+                    Box::new(Source::unknown(Expr::TypeApp(
+                        Box::new(Source::unknown(Expr::Var(vec!["f".to_string()]))),
+                        vec![Type::Array(Box::new(Type::Int))],
+                    ))),
+                    vec![],
                     vec![],
                 ),
             ),
