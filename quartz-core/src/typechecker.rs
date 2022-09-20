@@ -733,7 +733,10 @@ impl<'s> TypeChecker<'s> {
             Expr::TypeApp(expr, vs) => {
                 let mut t = self.next_infer();
                 self.expr(expr, &mut t)?;
-                self.unify(&Type::TypeApp(Box::new(t), vs.clone()), typ)?;
+
+                let mut expected = Type::TypeApp(Box::new(t), vs.clone());
+                expected.resolve()?;
+                self.unify(&expected, typ)?;
             }
         };
 

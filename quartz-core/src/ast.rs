@@ -813,6 +813,24 @@ impl Type {
 
         printer.finalize()
     }
+
+    pub fn resolve(&mut self) -> Result<()> {
+        match self {
+            Type::TypeApp(t, vs) => match t.as_mut() {
+                Type::Fn(ts, args, f) => {
+                    for (t, v) in ts.iter().zip(vs) {
+                        f.subst_typevar(t, &v);
+                    }
+
+                    *self = Type::Fn(vec![], args.clone(), f.clone());
+                }
+                _ => bail!("Cannot resolve {:?}", self),
+            },
+            _ => {}
+        };
+
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
