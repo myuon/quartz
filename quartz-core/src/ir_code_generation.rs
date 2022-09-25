@@ -20,6 +20,7 @@ struct IrFunctionGenerator<'s> {
     strings: &'s mut Vec<String>,
     source_loader: &'s SourceLoader,
     module_path: &'s str,
+    type_applied: Vec<Type>,
 }
 
 impl<'s> IrFunctionGenerator<'s> {
@@ -38,6 +39,7 @@ impl<'s> IrFunctionGenerator<'s> {
             structs,
             strings,
             module_path,
+            type_applied: vec![],
         }
     }
 
@@ -85,6 +87,8 @@ impl<'s> IrFunctionGenerator<'s> {
             }
             Expr::PathVar(segments) => {
                 assert_eq!(segments.len(), 2);
+                self.type_applied = segments[0].type_args.clone();
+                self.type_applied.extend(segments[1].type_args.clone());
 
                 Ok(IrElement::ident(format!(
                     "{}_{}",
@@ -142,15 +146,13 @@ impl<'s> IrFunctionGenerator<'s> {
                 // out: (call f a b c)
                 let mut elements = vec![];
 
-                if let Expr::TypeApp(f, vs) = &f.data {
-                    elements.push(self.expr(f.as_ref())?);
+                self.type_applied = vec![];
+                elements.push(self.expr(f.as_ref())?);
 
-                    for t in vs {
-                        elements.push(IrElement::i_typeinfo(self.ir_type(t)?));
-                    }
-                } else {
-                    elements.push(self.expr(f.as_ref())?);
+                for t in &self.type_applied {
+                    elements.push(self.ir_type(&t)?.to_element());
                 }
+                self.type_applied = vec![];
 
                 for arg in args {
                     elements.push(self.expr(&arg)?);
@@ -385,7 +387,11 @@ impl<'s> IrFunctionGenerator<'s> {
                     )))?,
                 })
             }
-            Expr::TypeApp(t, ts) => todo!(),
+            Expr::TypeApp(t, ts) => {
+                self.type_applied.extend(ts.clone());
+
+                Ok(self.expr(t)?)
+            }
         }
     }
 
