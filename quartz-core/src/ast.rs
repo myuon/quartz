@@ -940,44 +940,7 @@ pub struct Structs(pub HashMap<String, StructTypeInfo>);
 
 impl Structs {
     pub fn new() -> Self {
-        Structs(
-            vec![
-                (
-                    "byte".to_string(),
-                    StructTypeInfo {
-                        name: "byte".to_string(),
-                        type_params: vec![],
-                        fields: vec![],
-                    },
-                ),
-                (
-                    "int".to_string(),
-                    StructTypeInfo {
-                        name: "int".to_string(),
-                        type_params: vec![],
-                        fields: vec![],
-                    },
-                ),
-                (
-                    "bool".to_string(),
-                    StructTypeInfo {
-                        name: "string".to_string(),
-                        type_params: vec![],
-                        fields: vec![],
-                    },
-                ),
-                (
-                    "string".to_string(),
-                    StructTypeInfo {
-                        name: "string".to_string(),
-                        type_params: vec![],
-                        fields: vec![],
-                    },
-                ),
-            ]
-            .into_iter()
-            .collect(),
-        )
+        Structs(HashMap::new())
     }
 
     pub fn get_projection_type(&self, val: &str, label: &str) -> Result<Type> {

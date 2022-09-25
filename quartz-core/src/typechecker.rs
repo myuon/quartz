@@ -392,11 +392,6 @@ impl<'s> TypeChecker<'s> {
 
         let struct_name = &segments[0].ident;
         let label = &segments[1].ident;
-        let struct_ = self
-            .structs
-            .0
-            .get(struct_name)
-            .ok_or(anyhow::anyhow!("Struct {} not found", struct_name))?;
         let mut method = self
             .method_types
             .get(&(struct_name.clone(), label.clone()))
@@ -407,16 +402,17 @@ impl<'s> TypeChecker<'s> {
             ))?
             .clone();
 
+        self.call_graph
+            .entry(self.current_function.clone().unwrap())
+            .or_insert(HashMap::new())
+            .insert(format!("{}::{}", struct_name, label), ());
+
         if !segments[1].type_args.is_empty() {
             method.apply(&segments[1].type_args);
         }
 
-        let mut type_ = method.as_fn_type();
-        let args = &segments[0].type_args;
-        assert_eq!(args.len(), struct_.type_params.len());
-        for (s, t) in struct_.type_params.iter().zip(args) {
-            type_.subst_typevar(&s, &t);
-        }
+        let mut type_ = Type::TypeApp(Box::new(method.as_fn_type()), segments[0].type_args.clone());
+        type_.resolve()?;
 
         Ok(type_)
     }
