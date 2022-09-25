@@ -351,7 +351,6 @@ impl<'s> TypeChecker<'s> {
         &mut self,
         f: &Source<Expr>,
         fn_type: &Type,
-        _params: &mut Vec<Type>,
         args: &mut Vec<Source<Expr>>,
     ) -> Result<Box<Type>> {
         let (arg_types, ret_type) = fn_type.as_fn_type().ok_or(anyhow::anyhow!(
@@ -432,7 +431,7 @@ impl<'s> TypeChecker<'s> {
                 self.unify(&t, typ)
                     .context(self.error_context(expr.start, expr.end, "literal"))?;
             }
-            Expr::Call(mode, f, params, args) => {
+            Expr::Call(mode, f, args) => {
                 let mut fn_type = self.next_infer();
                 self.expr(f, &mut fn_type)?;
                 self.reduce_to_callable(f, &mut fn_type)?;
@@ -470,7 +469,7 @@ impl<'s> TypeChecker<'s> {
                         "string indexing",
                     ))?;
                 } else {
-                    let ret_type = self.typecheck_function(&f, &fn_type, params, args)?;
+                    let ret_type = self.typecheck_function(&f, &fn_type, args)?;
 
                     self.unify(&ret_type, typ)
                         .context(self.error_context(expr.start, expr.end, "call"))?;
@@ -491,7 +490,6 @@ impl<'s> TypeChecker<'s> {
                 let ret_type = self.typecheck_function(
                     &Source::unknown(Expr::Var(vec![label.clone()])),
                     &method.as_fn_type(),
-                    &mut vec![],
                     args,
                 )?;
 
@@ -578,12 +576,8 @@ impl<'s> TypeChecker<'s> {
                     let mut args_self = vec![self_.as_ref().clone()];
                     args_self.extend(args.clone());
 
-                    let ret_type = self.typecheck_function(
-                        self_,
-                        &method.as_fn_type(),
-                        &mut vec![],
-                        &mut args_self,
-                    )?;
+                    let ret_type =
+                        self.typecheck_function(self_, &method.as_fn_type(), &mut args_self)?;
 
                     // recover modified expressions
                     *self_ = Box::new(args_self[0].clone());

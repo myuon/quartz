@@ -440,7 +440,6 @@ impl Parser {
                     result = Expr::Call(
                         CallMode::Function,
                         Box::new(self.source(result, result_start, result_end)),
-                        vec![],
                         args,
                     );
                 } else if self.expect_lexeme(Lexeme::Exclamation).is_ok() {
@@ -519,7 +518,6 @@ impl Parser {
                 result = Expr::Call(
                     CallMode::Function,
                     Box::new(Source::unknown(Expr::Var(vec![op.to_string()]))),
-                    vec![],
                     vec![
                         self.source_from(result, short_expr_start),
                         self.source_from(right, right_start),
@@ -915,7 +913,6 @@ mod tests {
                         Box::new(Source::unknown(Expr::Var(vec!["f".to_string()]))),
                         vec![Type::Array(Box::new(Type::Int))],
                     ))),
-                    vec![],
                     vec![],
                 ),
             ),

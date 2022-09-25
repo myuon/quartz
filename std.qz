@@ -309,8 +309,8 @@ func test() {
     assert(_sizeof[int]() == 1);
     assert(_sizeof[vector[int]]() == 3);
 
-    // let v = vector[int]::new();
-    // v.push(10);
+    let v = vector[int]::new();
+    v.push(10);
     // v.push(20);
 
     // assert(v.len() == 10);

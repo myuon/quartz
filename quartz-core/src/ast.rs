@@ -117,7 +117,7 @@ pub enum Expr {
     PathVar(Box<Source<Expr>>, String, Vec<Type>),
     Make(Type, Vec<Source<Expr>>),
     Lit(Literal),
-    Call(CallMode, Box<Source<Expr>>, Vec<Type>, Vec<Source<Expr>>),
+    Call(CallMode, Box<Source<Expr>>, Vec<Source<Expr>>),
     MethodCall(CallMode, Type, String, Box<Source<Expr>>, Vec<Source<Expr>>),
     AssociatedCall(CallMode, Type, String, Vec<Source<Expr>>),
     Struct(String, Vec<Type>, Vec<(String, Source<Expr>, Type)>),
@@ -133,7 +133,7 @@ pub enum Expr {
 
 impl Expr {
     pub fn function_call(callee: Source<Expr>, args: Vec<Source<Expr>>) -> Expr {
-        Expr::Call(CallMode::Function, Box::new(callee), vec![], args)
+        Expr::Call(CallMode::Function, Box::new(callee), args)
     }
 
     pub fn member(proj: Source<Expr>, field: impl Into<String>) -> Expr {
@@ -201,11 +201,10 @@ impl Expr {
                     }
                 }
             }
-            Expr::Call(m, c, t, a) => {
+            Expr::Call(m, c, a) => {
                 printer.writeln("<<Call>>");
                 printer.item("mode", &format!("{:?}", m));
                 printer.item_verbose("callee", &c.data.show());
-                printer.item("params", &format!("{:?}", t));
 
                 printer.item("args", "");
                 printer.indent();

@@ -131,15 +131,15 @@ impl<'s> IrFunctionGenerator<'s> {
                     // Ok(IrElement::Term(IrTerm::Ident(v, size)))
                 }
             },
-            Expr::Call(CallMode::Array, f, _, args) => Ok(IrElement::i_addr_index(
+            Expr::Call(CallMode::Array, f, args) => Ok(IrElement::i_addr_index(
                 self.expr(f.as_ref())?,
                 self.expr(&args[0])?,
             )),
-            Expr::Call(CallMode::SizedArray, f, _, args) => Ok(IrElement::i_index(
+            Expr::Call(CallMode::SizedArray, f, args) => Ok(IrElement::i_index(
                 self.expr(f.as_ref())?,
                 self.expr(&args[0])?,
             )),
-            Expr::Call(CallMode::Function, f, types, args) => {
+            Expr::Call(CallMode::Function, f, args) => {
                 // in: f(a,b,c)
                 // out: (call f a b c)
                 let mut elements = vec![];
@@ -152,10 +152,6 @@ impl<'s> IrFunctionGenerator<'s> {
                     }
                 } else {
                     elements.push(self.expr(f.as_ref())?);
-                }
-
-                for t in types {
-                    elements.push(self.ir_type(t)?.to_element());
                 }
 
                 for arg in args {
