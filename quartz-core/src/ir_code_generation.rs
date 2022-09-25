@@ -83,15 +83,13 @@ impl<'s> IrFunctionGenerator<'s> {
                     Ok(IrElement::Term(IrTerm::Ident(format!("{}_{}", v[0], v[1]))))
                 }
             }
-            Expr::PathVar(expr, label, vs) => {
-                if let Expr::Var(name) = &expr.data {
-                    Ok(IrElement::Term(IrTerm::Ident(format!(
-                        "{}_{}",
-                        name[0], label
-                    ))))
-                } else {
-                    unreachable!()
-                }
+            Expr::PathVar(segments) => {
+                assert_eq!(segments.len(), 2);
+
+                Ok(IrElement::ident(format!(
+                    "{}_{}",
+                    segments[0].ident, segments[1].ident
+                )))
             }
             Expr::Lit(literal) => match literal {
                 Literal::Nil => Ok(IrElement::Term(IrTerm::Nil)),

@@ -1,6 +1,7 @@
 use crate::{
     ast::{
-        CallMode, Declaration, Expr, Function, Literal, Module, Source, Statement, Struct, Type,
+        CallMode, Declaration, Expr, Function, Literal, Module, PathSegment, Source, Statement,
+        Struct, Type,
     },
     compiler::CompileError,
     lexer::{run_lexer, Lexeme, Token},
@@ -428,10 +429,17 @@ impl Parser {
 
                     result = Expr::TypeApp(Box::new(Source::unknown(result)), type_params);
                 } else if self.expect_lexeme(Lexeme::DoubleColon).is_ok() {
+                    let segment = result.into_path_segment()?;
                     let label = self.ident()?;
                     let types = self.type_applications()?;
 
-                    result = Expr::PathVar(Box::new(Source::unknown(result)), label.data, types);
+                    result = Expr::PathVar(vec![
+                        segment,
+                        PathSegment {
+                            ident: label.data,
+                            type_args: types,
+                        },
+                    ]);
                 } else if self.expect_lexeme(Lexeme::LParen).is_ok() {
                     let result_end = self.position;
                     let args = self.many_exprs()?;
@@ -913,6 +921,14 @@ mod tests {
                         Box::new(Source::unknown(Expr::Var(vec!["f".to_string()]))),
                         vec![Type::Array(Box::new(Type::Int))],
                     ))),
+                    vec![],
+                ),
+            ),
+            (
+                "vector[int]::new()",
+                Expr::Call(
+                    CallMode::Function,
+                    Box::new(Source::unknown(Expr::PathVar(vec![]))),
                     vec![],
                 ),
             ),

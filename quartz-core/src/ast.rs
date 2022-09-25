@@ -112,9 +112,15 @@ pub enum OptionalMode {
 }
 
 #[derive(PartialEq, Debug, Clone)]
+pub struct PathSegment {
+    pub ident: String,
+    pub type_args: Vec<Type>,
+}
+
+#[derive(PartialEq, Debug, Clone)]
 pub enum Expr {
     Var(Vec<String>), // qualifier in vector
-    PathVar(Box<Source<Expr>>, String, Vec<Type>),
+    PathVar(Vec<PathSegment>),
     Make(Type, Vec<Source<Expr>>),
     Lit(Literal),
     Call(CallMode, Box<Source<Expr>>, Vec<Source<Expr>>),
@@ -132,6 +138,23 @@ pub enum Expr {
 }
 
 impl Expr {
+    pub fn into_path_segment(self) -> Result<PathSegment> {
+        match self {
+            Expr::Var(v) => Ok(PathSegment {
+                ident: v[0].clone(),
+                type_args: vec![],
+            }),
+            Expr::TypeApp(t, vs) => match t.data {
+                Expr::Var(v) => Ok(PathSegment {
+                    ident: v[0].clone(),
+                    type_args: vs,
+                }),
+                _ => bail!("invalid path segment"),
+            },
+            _ => bail!("expected path segment"),
+        }
+    }
+
     pub fn function_call(callee: Source<Expr>, args: Vec<Source<Expr>>) -> Expr {
         Expr::Call(CallMode::Function, Box::new(callee), args)
     }
@@ -165,11 +188,26 @@ impl Expr {
                 printer.writeln("<<Var>>");
                 printer.item("name", &v.join("."));
             }
-            Expr::PathVar(t, v, vs) => {
+            Expr::PathVar(ts) => {
                 printer.writeln("<<PathVar>>");
-                printer.item_verbose("expr", &t.data.show());
-                printer.item("name", v);
-                printer.item_verbose("type_args", &format!("{:?}", vs));
+                printer.item("segments", "");
+                printer.indent();
+                for (i, t) in ts.iter().enumerate() {
+                    printer.item_verbose(
+                        &format!("{}", i),
+                        format!(
+                            "{} [{}]",
+                            t.ident,
+                            t.type_args
+                                .iter()
+                                .map(|t| t.show())
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        )
+                        .as_str(),
+                    );
+                }
+                printer.dedent();
             }
             Expr::Make(t, v) => {
                 printer.writeln("<<Make>>");
@@ -901,6 +939,10 @@ impl StructTypeInfo {
 pub struct Structs(pub HashMap<String, StructTypeInfo>);
 
 impl Structs {
+    pub fn new() -> Self {
+        Structs(HashMap::new())
+    }
+
     pub fn get_projection_type(&self, val: &str, label: &str) -> Result<Type> {
         let struct_fields = self.0.get(val).ok_or(anyhow::anyhow!(
             "project type: {} not found in {}",

@@ -6,7 +6,7 @@ use pretty_assertions::assert_eq;
 use crate::{
     ast::{
         CallMode, Declaration, Expr, Function, Literal, MethodTypeInfo, Module, OptionalMode,
-        Source, Statement, StructTypeInfo, Structs, Type,
+        PathSegment, Source, Statement, StructTypeInfo, Structs, Type,
     },
     compiler::SourceLoader,
 };
@@ -387,6 +387,40 @@ impl<'s> TypeChecker<'s> {
         Ok(ret_type.clone())
     }
 
+    fn resolve_path_segments(&mut self, segments: &[PathSegment]) -> Result<Type> {
+        assert_eq!(segments.len(), 2);
+
+        let struct_name = &segments[0].ident;
+        let label = &segments[1].ident;
+        let struct_ = self
+            .structs
+            .0
+            .get(struct_name)
+            .ok_or(anyhow::anyhow!("Struct {} not found", struct_name))?;
+        let mut method = self
+            .method_types
+            .get(&(struct_name.clone(), label.clone()))
+            .ok_or(anyhow::anyhow!(
+                "Method {} not found in struct {}",
+                label,
+                struct_name
+            ))?
+            .clone();
+
+        if !segments[1].type_args.is_empty() {
+            method.apply(&segments[1].type_args);
+        }
+
+        let mut type_ = method.as_fn_type();
+        let args = &segments[0].type_args;
+        assert_eq!(args.len(), struct_.type_params.len());
+        for (s, t) in struct_.type_params.iter().zip(args) {
+            type_.subst_typevar(&s, &t);
+        }
+
+        Ok(type_)
+    }
+
     pub fn expr(&mut self, expr: &mut Source<Expr>, typ: &mut Type) -> Result<()> {
         self.normalize_type(typ);
         match &mut expr.data {
@@ -394,24 +428,8 @@ impl<'s> TypeChecker<'s> {
                 self.load(v, typ)
                     .context(self.error_context(expr.start, expr.end, "var"))?;
             }
-            Expr::PathVar(expr, label, vs) => {
-                if let Expr::Var(name) = &expr.data {
-                    let pair = (name[0].clone(), label.clone());
-
-                    let mut method = self
-                        .method_types
-                        .get(&pair)
-                        .ok_or(anyhow::anyhow!("Method {}::{} not found", pair.0, pair.1))?
-                        .clone();
-                    self.call_graph
-                        .entry(self.current_function.clone().unwrap())
-                        .or_insert(HashMap::new())
-                        .insert(format!("{}::{}", pair.0, pair.1), ());
-
-                    method.apply(vs);
-
-                    self.unify(&method.as_fn_type(), typ)?;
-                }
+            Expr::PathVar(segments) => {
+                *typ = self.resolve_path_segments(&segments)?;
             }
             Expr::Lit(lit) => {
                 let t = match lit {
