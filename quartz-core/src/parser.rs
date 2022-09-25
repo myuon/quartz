@@ -928,7 +928,16 @@ mod tests {
                 "vector[int]::new()",
                 Expr::Call(
                     CallMode::Function,
-                    Box::new(Source::unknown(Expr::PathVar(vec![]))),
+                    Box::new(Source::unknown(Expr::PathVar(vec![
+                        PathSegment {
+                            ident: "vector".to_string(),
+                            type_args: vec![Type::Int],
+                        },
+                        PathSegment {
+                            ident: "new".to_string(),
+                            type_args: vec![],
+                        },
+                    ]))),
                     vec![],
                 ),
             ),
