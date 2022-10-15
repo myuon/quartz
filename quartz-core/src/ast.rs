@@ -98,6 +98,71 @@ pub enum Statement {
     While(Source<Expr>, Vec<Source<Statement>>),
 }
 
+impl Statement {
+    pub fn show(&self) -> String {
+        let mut printer = PrettyPrinter::new();
+
+        self.show_inner(&mut printer);
+
+        printer.finalize()
+    }
+
+    fn show_inner(&self, printer: &mut PrettyPrinter) {
+        match self {
+            Statement::Let(t, e) => {
+                printer.writeln("<<Let>>");
+                printer.item("variable", t);
+                printer.item_verbose("expr", &e.data.show());
+            }
+            Statement::Expr(e, _) => {
+                printer.writeln("<<Expr>>");
+                printer.item_verbose("expr", &e.data.show());
+            }
+            Statement::Return(e) => {
+                printer.writeln("<<Return>>");
+                printer.item_verbose("expr", &e.data.show());
+            }
+            Statement::If(b, e1, e2) => {
+                printer.writeln("<<If>>");
+                printer.item_verbose("condition", &b.data.show());
+
+                printer.item("then", "");
+                printer.indent();
+                for (i, t) in e1.iter().enumerate() {
+                    printer.item(&format!("{}", i), &t.data.show());
+                }
+                printer.dedent();
+
+                printer.item("else", "");
+                printer.indent();
+                for (i, t) in e2.iter().enumerate() {
+                    printer.item(&format!("{}", i), &t.data.show());
+                }
+                printer.dedent();
+            }
+            Statement::Continue => {
+                printer.writeln("<<Continue>>");
+            }
+            Statement::Assignment(lhs, rhs) => {
+                printer.writeln("<<Assignment>>");
+                printer.item_verbose("lhs", &lhs.data.show());
+                printer.item_verbose("rhs", &rhs.data.show());
+            }
+            Statement::While(b, es) => {
+                printer.writeln("<<While>>");
+                printer.item_verbose("condition", &b.data.show());
+
+                printer.item("body", "");
+                printer.indent();
+                for (i, t) in es.iter().enumerate() {
+                    printer.item(&format!("{}", i), &t.data.show());
+                }
+                printer.dedent();
+            }
+        }
+    }
+}
+
 #[derive(PartialEq, Debug, Clone)]
 pub enum CallMode {
     Function,
