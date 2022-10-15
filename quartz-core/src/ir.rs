@@ -390,6 +390,7 @@ pub enum IrType {
     Ident(String),
     Generic(Vec<String>, Box<IrType>),
     TypeApp(Box<IrType>, Vec<IrType>),
+    TypeTag,
 }
 
 impl IrType {
@@ -443,6 +444,10 @@ impl IrType {
 
     pub fn typeapp(typ: IrType, args: Vec<IrType>) -> IrType {
         IrType::TypeApp(Box::new(typ), args)
+    }
+
+    pub fn typetag() -> IrType {
+        IrType::TypeTag
     }
 
     pub fn from_element(element: &IrElement) -> Result<IrType> {
@@ -568,6 +573,7 @@ impl IrType {
 
                 IrElement::block("typeapp", params)
             }
+            IrType::TypeTag => IrElement::ident("type_tag"),
         }
     }
 
@@ -609,6 +615,7 @@ impl IrType {
                     p.subst_typevar(var.clone(), typ.clone());
                 }
             }
+            IrType::TypeTag => {}
         }
     }
 
@@ -659,6 +666,7 @@ impl IrType {
                 }
                 _ => unreachable!(),
             },
+            IrType::TypeTag => Ok(1),
         }
     }
 

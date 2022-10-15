@@ -531,8 +531,14 @@ impl<'s> IrGenerator<'s> {
         let mut arg_types_in_ir = vec![];
 
         // argument in reverse order
+        for param in function.type_params.iter().rev() {
+            arg_index += 1;
+            args.insert(param.clone(), arg_index - 1);
+            arg_types_in_ir.push(IrType::typetag());
+        }
+
         for (name, typ) in function.args.iter().rev() {
-            arg_index += 1; // self.stack_size_of(typ)?;
+            arg_index += 1;
             args.insert(name.clone(), arg_index - 1);
             arg_types_in_ir.push(self.ir_type(typ)?);
         }
@@ -563,6 +569,12 @@ impl<'s> IrGenerator<'s> {
         let mut arg_types_in_ir = vec![];
 
         // argument in reverse order
+        for param in function.type_params.iter().rev() {
+            arg_index += 1;
+            args.insert(param.clone(), arg_index - 1);
+            arg_types_in_ir.push(IrType::typetag());
+        }
+
         for (name, typ) in function.args.iter().rev() {
             arg_index += 1; // self.stack_size_of(typ)?;
             args.insert(name.clone(), arg_index - 1);

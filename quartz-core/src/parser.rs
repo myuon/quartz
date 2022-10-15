@@ -613,12 +613,15 @@ impl Parser {
             }
         }
 
+        let mut params = struct_type_params.clone();
+        params.extend(type_params);
+
         Ok(Declaration::Method(
             struct_name,
             struct_type_params,
             Function {
                 name,
-                type_params,
+                type_params: params,
                 args,
                 return_type,
                 body: statements,
