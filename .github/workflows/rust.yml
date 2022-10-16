@@ -27,6 +27,7 @@ jobs:
 
       - name: Build
         run: cargo build --verbose
+      - run: mkdir -p ./build
       - name: Run tests
         run: cargo test --verbose
       - name: Run compiler tests
