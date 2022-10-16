@@ -882,7 +882,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.writer
                             .push(QVMInstruction::InfoConst(self.size_of(&type_)?));
 
-                        Ok(IrType::Ident("typetag".to_string()))
+                        Ok(IrType::typetag())
                     }
                     name => todo!("{:?}", name),
                 }

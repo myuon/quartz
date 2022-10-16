@@ -412,7 +412,7 @@ pub enum IrType {
     Tuple(Vec<IrType>),
     Slice(usize, Box<IrType>),
     Ident(String),
-    Generic(Vec<String>, Box<IrType>),
+    Generic(usize, Box<IrType>),
     TypeApp(Box<IrType>, Vec<IrType>),
     TypeArgument(usize),
     TypeTag,
@@ -463,8 +463,8 @@ impl IrType {
         IrType::Single(IrSingleType::BoxedArray(Box::new(t)))
     }
 
-    pub fn generic(typ: IrType, params: Vec<String>) -> IrType {
-        IrType::Generic(params, Box::new(typ))
+    pub fn generic(typ: IrType, len: usize) -> IrType {
+        IrType::Generic(len, Box::new(typ))
     }
 
     pub fn typeapp(typ: IrType, args: Vec<IrType>) -> IrType {
@@ -503,13 +503,10 @@ impl IrType {
                 ),
                 "address" => IrType::addr_of(IrType::from_element(&block.elements[0])?),
                 "array" => IrType::boxed_array(IrType::from_element(&block.elements[0])?),
-                "generic" => {
-                    let mut params = Vec::new();
-                    for element in block.elements.iter().skip(1) {
-                        params.push(element.clone().into_term()?.into_ident()?);
-                    }
-                    IrType::generic(IrType::from_element(&block.elements[0])?, params)
-                }
+                "generic" => IrType::generic(
+                    IrType::from_element(&block.elements[0])?,
+                    block.elements[1].clone().into_term()?.into_int()? as usize,
+                ),
                 "typeapp" => {
                     let mut args = Vec::new();
                     for element in block.elements.iter().skip(1) {
@@ -525,7 +522,7 @@ impl IrType {
     pub fn from_type_ast(
         typ: &Type,
         structs: &Structs,
-        typevar_walker: &impl Fn(&mut String) -> IrType,
+        typevar_walker: &impl Fn(&String) -> IrType,
     ) -> Result<IrType> {
         Ok(match typ {
             Type::Nil => IrType::nil(),
@@ -554,7 +551,7 @@ impl IrType {
             }
             Type::Self_ => todo!(),
             Type::Any => IrType::byte(),
-            Type::TypeVar(t) => IrType::Ident(t.clone()),
+            Type::TypeVar(t) => typevar_walker(t),
             Type::TypeApp(t, ps) => IrType::typeapp(
                 IrType::from_type_ast(t, structs, typevar_walker)?,
                 ps.into_iter()
@@ -584,14 +581,10 @@ impl IrType {
                 IrElement::block("slice", elements)
             }
             IrType::Ident(t) => IrElement::ident(t),
-            IrType::Generic(ps, t) => {
+            IrType::Generic(u, t) => {
                 let mut params = vec![];
                 params.push(t.to_element());
-                params.extend(
-                    ps.into_iter()
-                        .map(|u| IrElement::ident(u))
-                        .collect::<Vec<_>>(),
-                );
+                params.push(IrElement::int(*u as i32));
 
                 IrElement::block("generic", params)
             }
@@ -604,49 +597,6 @@ impl IrType {
             }
             IrType::TypeTag => IrElement::ident("typetag"),
             IrType::TypeArgument(t) => IrElement::Term(IrTerm::Argument(*t)),
-        }
-    }
-
-    fn subst_typevar(&mut self, var: String, typ: IrType) {
-        match self {
-            IrType::Unknown => {}
-            IrType::Single(t) => match t {
-                IrSingleType::Nil => {}
-                IrSingleType::Bool => {}
-                IrSingleType::Int => {}
-                IrSingleType::Address(t) => {
-                    t.subst_typevar(var, typ);
-                }
-                IrSingleType::BoxedArray(t) => {
-                    t.subst_typevar(var, typ);
-                }
-                _ => unreachable!(),
-            },
-            IrType::Tuple(ts) => {
-                for t in ts {
-                    t.subst_typevar(var.clone(), typ.clone());
-                }
-            }
-            IrType::Slice(_, t) => t.subst_typevar(var, typ),
-            IrType::Ident(ident) => {
-                if ident == &var {
-                    *self = typ;
-                }
-            }
-            IrType::Generic(ps, t) => {
-                if ps.contains(&var) {
-                    return;
-                }
-                t.subst_typevar(var, typ);
-            }
-            IrType::TypeApp(t, ps) => {
-                t.subst_typevar(var.clone(), typ.clone());
-                for p in ps {
-                    p.subst_typevar(var.clone(), typ.clone());
-                }
-            }
-            IrType::TypeTag => {}
-            IrType::TypeArgument(_) => {}
         }
     }
 
@@ -723,13 +673,8 @@ impl IrType {
                         ))?
                         .clone();
                     match t {
-                        IrType::Generic(qs, gen) => {
-                            assert_eq!(qs.len(), ps.len());
-
-                            let mut gen = gen.clone();
-                            for (q, p) in qs.into_iter().zip(ps.into_iter()) {
-                                gen.subst_typevar(q, p.clone());
-                            }
+                        IrType::Generic(q, gen) => {
+                            assert_eq!(q, ps.len());
 
                             gen.size_of(types)
                         }
@@ -819,6 +764,8 @@ impl IrType {
             // FIXME: Currently, we don't support type argument
             (IrType::TypeArgument(_), t) => Ok(t),
             (s, IrType::TypeArgument(_)) => Ok(s),
+            (IrType::TypeTag, t) => Ok(t),
+            (s, IrType::TypeTag) => Ok(s),
             (s, t) => {
                 bail!(
                     "Type want {} but got {}",
@@ -860,13 +807,8 @@ impl IrType {
                         ))?
                         .clone();
                     match t {
-                        IrType::Generic(qs, gen) => {
-                            assert_eq!(qs.len(), ps.len());
-
-                            let mut gen = gen.clone();
-                            for (q, p) in qs.into_iter().zip(ps.into_iter()) {
-                                gen.subst_typevar(q, p);
-                            }
+                        IrType::Generic(q, gen) => {
+                            assert_eq!(q, ps.len());
 
                             gen.offset(index, types)
                         }

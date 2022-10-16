@@ -572,14 +572,12 @@ impl<'s> IrGenerator<'s> {
         ))
     }
 
-    fn method(&mut self, typ: &String, ts: &Vec<String>, function: &Function) -> Result<IrElement> {
+    fn method(&mut self, typ: &String, function: &Function) -> Result<IrElement> {
         let mut args = HashMap::new();
         let mut arg_index = 0;
         let mut arg_types_in_ir = vec![];
 
-        let mut type_params = vec![];
-        type_params.extend(ts);
-        type_params.extend(&function.type_params);
+        let type_params = &function.type_params;
 
         // argument in reverse order
         for (name, typ) in function.args.iter().rev() {
@@ -648,7 +646,7 @@ impl<'s> IrGenerator<'s> {
             if s.type_params.is_empty() {
                 tuple
             } else {
-                IrType::generic(tuple, s.type_params.clone())
+                IrType::generic(tuple, s.type_params.len())
             },
         ))
     }
@@ -670,14 +668,14 @@ impl<'s> IrGenerator<'s> {
                             .context(format!("function {}", f.name.data))?,
                     );
                 }
-                Declaration::Method(typ, ts, f) => {
+                Declaration::Method(typ, _ts, f) => {
                     // skip if this function is not used
                     if f.dead_code {
                         continue;
                     }
 
                     elements.push(
-                        self.method(&typ.data, ts, f)
+                        self.method(&typ.data, f)
                             .context(format!("method {}", f.name.data))?,
                     );
                 }
@@ -928,7 +926,7 @@ func main() {
 "#,
                 r#"
 (module
-    (type $container (generic (tuple $typetag) $typetag))
+    (type $container (generic (tuple $typetag) 1))
     (func $container_get (args $typetag (address (typeapp $container $typetag))) (return $typetag)
         (return (addr_offset $0 0))
     )
