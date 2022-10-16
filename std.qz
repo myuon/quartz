@@ -258,6 +258,45 @@ func assert_eq_int(a: int, b: int) {
     };
 }
 
+struct vector[T] {
+    data: array[T],
+    len: int,
+}
+
+method vector[T] new(): vector[T] {
+    return vector {
+        data: make[array[T]](10),
+        len: 0,
+    };
+}
+
+method vector[T] len(self): int {
+    return self.len;
+}
+
+method vector[T] push(self, item: T) {
+    if (self.len == _len(self.data)) {
+        let new_data = make[array[T]](_len(self.data) * 2);
+
+        let i = 0;
+        while (i < self.len) {
+            let data = self.data;
+            new_data(i) = data(i);
+            i = i + 1;
+        };
+
+        self.data = new_data;
+    };
+
+    let data = self.data;
+    data(self.len) = item;
+    self.len = self.len + 1;
+}
+
+method vector[T] at(self, index: int): T {
+    return self.data(index);
+}
+
 func test() {
     assert("foo".eq("foo"));
     assert("foo".concat("bar").eq("foobar"));
@@ -270,4 +309,23 @@ func test() {
     assert("prefix-suffix".starts_with("prefix"));
     assert(_not("prefix-suffix".starts_with("suffix")));
     assert("12345".parse_int() == 12345);
+
+    assert(_sizeof[int]() == 1);
+    assert(_sizeof[vector[int]]() == 3);
+
+    let v = vector[int]::new();
+    v.push(1);
+    v.push(2);
+    v.push(3);
+    v.push(4);
+    v.push(5);
+    v.push(6);
+    v.push(7);
+    v.push(8);
+    v.push(9);
+    v.push(10);
+
+    v.push(11);
+    assert(v.len() == 11);
+    assert(v.at(10) == 11);
 }

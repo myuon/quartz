@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use log::info;
 
 use crate::{
@@ -175,8 +175,8 @@ impl<'s> VmFunctionGenerator<'s> {
         );
     }
 
-    fn resolve_symbol(&self, v: &str) -> (QVMInstruction, IrType) {
-        match v {
+    fn resolve_symbol(&self, v: &str) -> Result<(QVMInstruction, IrType)> {
+        Ok(match v {
             "_add" => (
                 QVMInstruction::Add,
                 IrType::func(vec![IrType::int(), IrType::int()], IrType::int()),
@@ -288,15 +288,18 @@ impl<'s> VmFunctionGenerator<'s> {
                 QVMInstruction::RuntimeInstr("_println_any".to_string()),
                 IrType::func(vec![IrType::addr_of(IrType::unknown())], IrType::nil()),
             ),
+            "_sizeof" => (
+                QVMInstruction::RuntimeInstr("_sizeof".to_string()),
+                IrType::func(vec![IrType::unknown()], IrType::int()),
+            ),
             _ => (
                 QVMInstruction::LabelI32Const(v.to_string()),
                 self.functions
                     .get(v)
-                    .ok_or(anyhow::anyhow!("Unknown symbol {}", v))
-                    .unwrap()
+                    .ok_or(anyhow::anyhow!("Unknown symbol {}", v))?
                     .clone(),
             ),
-        }
+        })
     }
 
     // compile to an address (lvar)
@@ -316,7 +319,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         Ok(IrType::addr_of(t.clone()))
                     } else {
                         // resolve a function
-                        let (code, typ) = self.resolve_symbol(v.as_str());
+                        let (code, typ) = self.resolve_symbol(v.as_str())?;
                         self.writer.push(code);
 
                         Ok(IrType::addr_of(typ))
@@ -406,7 +409,7 @@ impl<'s> VmFunctionGenerator<'s> {
 
                     Ok(IrType::addr_of(elem_typ))
                 }
-                _ => unreachable!("{}", element.show()),
+                _ => bail!("Unknown block {}", element.show()),
             },
         }
     }
@@ -429,7 +432,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         Ok(t.clone())
                     } else {
                         // resolve an embedded instruction
-                        let (code, typ) = self.resolve_symbol(v.as_str());
+                        let (code, typ) = self.resolve_symbol(v.as_str())?;
                         self.writer.push(code);
 
                         Ok(IrType::addr_of(typ))
@@ -870,6 +873,16 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.local_pointer += 1;
 
                         Ok(IrType::addr_of(IrType::boxed_array(typ)))
+                    }
+                    "typetag" => {
+                        self.new_source_map(element.show_compact());
+                        let type_ = unvec!(block.elements, 1);
+                        let type_ = IrType::from_element(&type_)?;
+
+                        self.writer
+                            .push(QVMInstruction::InfoConst(self.size_of(&type_)?));
+
+                        Ok(IrType::typetag())
                     }
                     name => todo!("{:?}", name),
                 }

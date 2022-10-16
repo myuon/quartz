@@ -1,6 +1,53 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use anyhow::{bail, Result};
+
+pub struct PrettyPrinter {
+    buffer: String,
+    indent: usize,
+    depth: usize,
+}
+
+impl PrettyPrinter {
+    pub fn new() -> Self {
+        Self {
+            buffer: String::new(),
+            indent: 4,
+            depth: 0,
+        }
+    }
+
+    pub fn writeln(&mut self, s: &str) {
+        for line in s.lines() {
+            self.buffer.push_str(&" ".repeat(self.depth * self.indent));
+            self.buffer.push_str(line);
+            self.buffer.push_str("\n");
+        }
+    }
+
+    pub fn indent(&mut self) {
+        self.depth += 1;
+    }
+
+    pub fn dedent(&mut self) {
+        self.depth -= 1;
+    }
+
+    pub fn item(&mut self, key: &str, value: &str) {
+        self.writeln(&format!("{}: {}", key, value));
+    }
+
+    pub fn item_verbose(&mut self, key: &str, value: &str) {
+        self.item(key, "");
+        self.indent();
+        self.writeln(value);
+        self.dedent();
+    }
+
+    pub fn finalize(self) -> String {
+        self.buffer
+    }
+}
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Source<T> {
@@ -38,17 +85,82 @@ pub enum Literal {
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Statement {
-    Let(String, Source<Expr>, Type),
+    Let(String, Source<Expr>),
     Expr(Source<Expr>, Type),
-    Return(Source<Expr>, Type),
+    Return(Source<Expr>),
     If(
         Box<Source<Expr>>,
         Vec<Source<Statement>>,
         Vec<Source<Statement>>,
     ),
     Continue,
-    Assignment(Type, Source<Expr>, Source<Expr>),
+    Assignment(Source<Expr>, Source<Expr>),
     While(Source<Expr>, Vec<Source<Statement>>),
+}
+
+impl Statement {
+    pub fn show(&self) -> String {
+        let mut printer = PrettyPrinter::new();
+
+        self.show_inner(&mut printer);
+
+        printer.finalize()
+    }
+
+    fn show_inner(&self, printer: &mut PrettyPrinter) {
+        match self {
+            Statement::Let(t, e) => {
+                printer.writeln("<<Let>>");
+                printer.item("variable", t);
+                printer.item_verbose("expr", &e.data.show());
+            }
+            Statement::Expr(e, _) => {
+                printer.writeln("<<Expr>>");
+                printer.item_verbose("expr", &e.data.show());
+            }
+            Statement::Return(e) => {
+                printer.writeln("<<Return>>");
+                printer.item_verbose("expr", &e.data.show());
+            }
+            Statement::If(b, e1, e2) => {
+                printer.writeln("<<If>>");
+                printer.item_verbose("condition", &b.data.show());
+
+                printer.item("then", "");
+                printer.indent();
+                for (i, t) in e1.iter().enumerate() {
+                    printer.item(&format!("{}", i), &t.data.show());
+                }
+                printer.dedent();
+
+                printer.item("else", "");
+                printer.indent();
+                for (i, t) in e2.iter().enumerate() {
+                    printer.item(&format!("{}", i), &t.data.show());
+                }
+                printer.dedent();
+            }
+            Statement::Continue => {
+                printer.writeln("<<Continue>>");
+            }
+            Statement::Assignment(lhs, rhs) => {
+                printer.writeln("<<Assignment>>");
+                printer.item_verbose("lhs", &lhs.data.show());
+                printer.item_verbose("rhs", &rhs.data.show());
+            }
+            Statement::While(b, es) => {
+                printer.writeln("<<While>>");
+                printer.item_verbose("condition", &b.data.show());
+
+                printer.item("body", "");
+                printer.indent();
+                for (i, t) in es.iter().enumerate() {
+                    printer.item(&format!("{}", i), &t.data.show());
+                }
+                printer.dedent();
+            }
+        }
+    }
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -65,142 +177,253 @@ pub enum OptionalMode {
 }
 
 #[derive(PartialEq, Debug, Clone)]
+pub struct PathSegment {
+    pub ident: String,
+    pub type_args: Vec<Type>,
+}
+
+#[derive(PartialEq, Debug, Clone)]
 pub enum Expr {
     Var(Vec<String>), // qualifier in vector
-    Method(Type, String),
+    PathVar(Vec<PathSegment>),
     Make(Type, Vec<Source<Expr>>),
-    Lit(Literal, Type),
+    Lit(Literal),
     Call(CallMode, Box<Source<Expr>>, Vec<Source<Expr>>),
-    Struct(
-        String,
-        Vec<(String, Type)>,
-        Vec<(String, Source<Expr>, Type)>,
-    ),
-    Project(
-        bool, // is_method (be decided in typecheck phase)
+    MethodCall(
+        CallMode,
         Type,
-        Box<Source<Expr>>,
+        Vec<Type>,
         String,
+        Box<Source<Expr>>,
+        Vec<Source<Expr>>,
     ),
+    AssociatedCall(CallMode, Type, String, Vec<Source<Expr>>),
+    Struct(String, Vec<Type>, Vec<(String, Source<Expr>, Type)>),
+    Project(Type, Box<Source<Expr>>, String),
     Deref(Box<Source<Expr>>, Type),
     As(Box<Source<Expr>>, Type, Type),
     Ref(Box<Source<Expr>>, Type),
-    Address(Box<Source<Expr>>, Type), // [compiler only] take the address of expr (same as ref, but no heap allocation)
+    Address(Box<Source<Expr>>), // [compiler only] take the address of expr
     Optional(OptionalMode, Type, Box<Source<Expr>>),
     Unwrap(Box<Source<Expr>>, Type),
+    TypeApp(Box<Source<Expr>>, Vec<Type>),
 }
 
 impl Expr {
+    pub fn into_path_segment(self) -> Result<PathSegment> {
+        match self {
+            Expr::Var(v) => Ok(PathSegment {
+                ident: v[0].clone(),
+                type_args: vec![],
+            }),
+            Expr::TypeApp(t, vs) => match t.data {
+                Expr::Var(v) => Ok(PathSegment {
+                    ident: v[0].clone(),
+                    type_args: vs,
+                }),
+                _ => bail!("invalid path segment"),
+            },
+            _ => bail!("expected path segment"),
+        }
+    }
+
     pub fn function_call(callee: Source<Expr>, args: Vec<Source<Expr>>) -> Expr {
         Expr::Call(CallMode::Function, Box::new(callee), args)
     }
 
     pub fn member(proj: Source<Expr>, field: impl Into<String>) -> Expr {
-        Expr::Project(false, Type::Infer(0), Box::new(proj), field.into())
+        Expr::Project(Type::Omit, Box::new(proj), field.into())
+    }
+
+    pub fn method_call(
+        type_: Type,
+        var: impl Into<String>,
+        callee: Source<Expr>,
+        args: Vec<Source<Expr>>,
+    ) -> Expr {
+        Expr::MethodCall(
+            CallMode::Function,
+            type_,
+            vec![],
+            var.into(),
+            Box::new(callee),
+            args,
+        )
     }
 
     pub fn unwrap(expr: Source<Expr>) -> Expr {
-        Expr::Unwrap(Box::new(expr), Type::Infer(0))
+        Expr::Unwrap(Box::new(expr), Type::Omit)
     }
 
-    pub fn require_same_structure(&self, other: &Expr) -> Result<()> {
-        use Expr::*;
-
-        match (self, other) {
-            (Var(x), Var(y)) => {
-                if x != y {
-                    bail!("[var] {:?} vs {:?}", x, y);
+    fn show_inner(&self, printer: &mut PrettyPrinter) {
+        match self {
+            Expr::Var(v) => {
+                printer.writeln("<<Var>>");
+                printer.item("name", &v.join("."));
+            }
+            Expr::PathVar(ts) => {
+                printer.writeln("<<PathVar>>");
+                printer.item("segments", "");
+                printer.indent();
+                for (i, t) in ts.iter().enumerate() {
+                    printer.item_verbose(
+                        &format!("{}", i),
+                        format!(
+                            "{} [{}]",
+                            t.ident,
+                            t.type_args
+                                .iter()
+                                .map(|t| t.show())
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        )
+                        .as_str(),
+                    );
+                }
+                printer.dedent();
+            }
+            Expr::Make(t, v) => {
+                printer.writeln("<<Make>>");
+                printer.item_verbose("type", &t.show());
+                for (i, e) in v.iter().enumerate() {
+                    printer.item(&format!("{}", i), &e.data.show());
                 }
             }
-            (Method(t, x), Method(s, y)) => {
-                if t != s {
-                    bail!("[method] {:?} vs {:?}", t, s);
-                }
-                if x != y {
-                    bail!("[method] {:?} vs {:?}", x, y);
-                }
-            }
-            (Make(t, x), Make(s, y)) => {
-                if t != s {
-                    bail!("[make] {:?} vs {:?}", t, s);
-                }
-                if x.len() != y.len() {
-                    bail!("[make] {:?} vs {:?}", x, y);
-                }
-                for (a, b) in x.iter().zip(y.iter()) {
-                    a.data.require_same_structure(&b.data)?;
-                }
-            }
-            (Lit(t, _x), Lit(s, _y)) => {
-                if t != s {
-                    bail!("[lit] {:?} vs {:?}", t, s);
-                }
-            }
-            (Call(t, x, y), Call(s, a, b)) => {
-                if t != s {
-                    bail!("[call] {:?} vs {:?}", t, s);
-                }
-                x.data.require_same_structure(&a.data)?;
-                if y.len() != b.len() {
-                    bail!("[call] {:?} vs {:?}", a, b);
-                }
-                for (a, b) in y.iter().zip(b.iter()) {
-                    a.data.require_same_structure(&b.data)?;
-                }
-            }
-            (Struct(t, _, x), Struct(s, _, y)) => {
-                if t != s {
-                    bail!("[struct] {:?} vs {:?}", t, s);
-                }
-                if x.len() != y.len() {
-                    bail!("[struct] {:?} vs {:?}", x, y);
-                }
-                for (a, b) in x.iter().zip(y.iter()) {
-                    if a.0 != b.0 {
-                        bail!("[struct] {:?} vs {:?}", a.0, b.0);
+            Expr::Lit(l) => {
+                printer.writeln("<<Lit>>");
+                match l {
+                    Literal::Nil => {
+                        printer.item("value", "nil");
                     }
-                    a.1.data.require_same_structure(&b.1.data)?;
+                    Literal::Bool(b) => {
+                        printer.item("value", &format!("{}", b));
+                    }
+                    Literal::Int(i) => {
+                        printer.item("value", &format!("{}", i));
+                    }
+                    Literal::String(s) => {
+                        printer.item("value", &format!("{}", s));
+                    }
+                    Literal::Array(v, t) => {
+                        printer.item_verbose("type", &t.show());
+                        for (i, e) in v.iter().enumerate() {
+                            printer.item(&format!("{}", i), &e.data.show());
+                        }
+                    }
                 }
             }
-            (Project(t, _, x, y), Project(s, _, a, b)) => {
-                if t != s {
-                    bail!("[project] {:?} vs {:?}", t, s);
+            Expr::Call(m, c, a) => {
+                printer.writeln("<<Call>>");
+                printer.item("mode", &format!("{:?}", m));
+                printer.item_verbose("callee", &c.data.show());
+
+                printer.item("args", "");
+                printer.indent();
+                for (i, e) in a.iter().enumerate() {
+                    printer.item(&format!("{}", i), &e.data.show());
                 }
-                x.data.require_same_structure(&a.data)?;
-                if y != b {
-                    bail!("[project] {:?} vs {:?}", y, b);
+                printer.dedent();
+            }
+            Expr::MethodCall(m, t, ts, v, c, a) => {
+                printer.writeln("<<MethodCall>>");
+                printer.item("mode", &format!("{:?}", m));
+                printer.item_verbose("type", &t.show());
+                printer.item_verbose(
+                    "type_args",
+                    &ts.iter().map(|t| t.show()).collect::<Vec<_>>().join(", "),
+                );
+                printer.item("name", v);
+                printer.item_verbose("callee", &c.data.show());
+
+                printer.item("args", "");
+                printer.indent();
+                for (i, e) in a.iter().enumerate() {
+                    printer.item_verbose(&format!("{}", i), &e.data.show());
                 }
+                printer.dedent();
             }
-            (Deref(x, _), Deref(a, _)) => {
-                x.data.require_same_structure(&a.data)?;
-            }
-            (As(x, _, t), As(a, _, s)) => {
-                x.data.require_same_structure(&a.data)?;
-                if t != s {
-                    bail!("[as] {:?} vs {:?}", t, s);
+            Expr::AssociatedCall(m, t, c, a) => {
+                printer.writeln("<<AssociatedCall>>");
+                printer.item("mode", &format!("{:?}", m));
+                printer.item_verbose("type", &t.show());
+                printer.item_verbose("callee", c);
+
+                printer.item("args", "");
+                printer.indent();
+                for (i, e) in a.iter().enumerate() {
+                    printer.item_verbose(&format!("{}", i), &e.data.show());
                 }
+                printer.dedent();
             }
-            (Ref(x, _), Ref(a, _)) => {
-                x.data.require_same_structure(&a.data)?;
-            }
-            (Address(x, _), Address(a, _)) => {
-                x.data.require_same_structure(&a.data)?;
-            }
-            (Optional(t, _, x), Optional(s, _, a)) => {
-                if t != s {
-                    bail!("[optional] {:?} vs {:?}", t, s);
+            Expr::Struct(n, t, f) => {
+                printer.writeln("<<Struct>>");
+                printer.item("name", n);
+                printer.item_verbose("params", &format!("{:?}", t));
+
+                printer.item("fields", "");
+                printer.indent();
+                for (n, e, _) in f {
+                    printer.item_verbose(&n, &e.data.show());
                 }
-                x.data.require_same_structure(&a.data)?;
+                printer.dedent();
             }
-            (Unwrap(x, _), Unwrap(a, _)) => {
-                x.data.require_same_structure(&a.data)?;
+            Expr::Project(t, e, f) => {
+                printer.writeln("<<Project>>");
+                printer.item_verbose("type", &t.show());
+                printer.item_verbose("expr", &e.data.show());
+                printer.item("field", f);
             }
-            (x, y) => {
-                bail!("[expr] {:?} vs {:?}", x, y);
+            Expr::Deref(e, t) => {
+                printer.writeln("<<Deref>>");
+                printer.item_verbose("expr", &e.data.show());
+                printer.item_verbose("type", &t.show());
+            }
+            Expr::As(e, t, r) => {
+                printer.writeln("<<As>>");
+                printer.item_verbose("expr", &e.data.show());
+                printer.item_verbose("type", &t.show());
+                printer.item_verbose("result", &r.show());
+            }
+            Expr::Ref(e, t) => {
+                printer.writeln("<<Ref>>");
+                printer.item_verbose("expr", &e.data.show());
+                printer.item_verbose("type", &t.show());
+            }
+            Expr::Address(e) => {
+                printer.writeln("<<Address>>");
+                printer.item_verbose("expr", &e.data.show());
+            }
+            Expr::Optional(m, t, e) => {
+                printer.writeln("<<Optional>>");
+                printer.item("mode", &format!("{:?}", m));
+                printer.item_verbose("type", &t.show());
+                printer.item_verbose("expr", &e.data.show());
+            }
+            Expr::Unwrap(e, t) => {
+                printer.writeln("<<Unwrap>>");
+                printer.item_verbose("expr", &e.data.show());
+                printer.item_verbose("type", &t.show());
+            }
+            Expr::TypeApp(e, t) => {
+                printer.writeln("<<TypeApp>>");
+                printer.item_verbose("expr", &e.data.show());
+
+                printer.item("type", "");
+                printer.indent();
+                for (i, t) in t.iter().enumerate() {
+                    printer.item(&format!("{}", i), &t.show());
+                }
+                printer.dedent();
             }
         }
+    }
 
-        Ok(())
+    pub fn show(&self) -> String {
+        let mut printer = PrettyPrinter::new();
+
+        self.show_inner(&mut printer);
+
+        printer.finalize()
     }
 }
 
@@ -224,7 +447,7 @@ pub struct Function {
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Declaration {
-    Method(Type, Function),
+    Method(Source<String>, Vec<String>, Function),
     Function(Function),
     Variable(String, Source<Expr>, Type),
     Struct(Struct),
@@ -242,11 +465,7 @@ impl Declaration {
     // if the function is a method, [STRUCT_NAME]::[METHOD_NAME]
     pub fn function_path(&self) -> Option<String> {
         match self {
-            Declaration::Method(typ, func) => Some(format!(
-                "{}::{}",
-                typ.method_selector_name().ok()?,
-                func.name.data
-            )),
+            Declaration::Method(typ, _, func) => Some(format!("{}::{}", typ.data, func.name.data)),
             Declaration::Function(func) => Some(func.name.data.clone()),
             _ => None,
         }
@@ -262,22 +481,25 @@ pub struct Module {
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Type {
-    Infer(usize), // for typecheck
+    // for parse
+    Self_,
+    Omit,
+    TypeVar(String),
+    // for typecheck
+    Infer(usize),
     Any,
     Nil, // literal "nil"
     Bool,
     Int,
     Byte,
-    Fn(Vec<Type>, Box<Type>),
+    Fn(Vec<String>, Vec<Type>, Box<Type>),
     Method(Box<Type>, Vec<Type>, Box<Type>),
     Struct(String),
     Ref(Box<Type>),
     Array(Box<Type>),
     SizedArray(Box<Type>, usize),
     Optional(Box<Type>),
-    Self_,
-    TypeApp(Box<Type>, Vec<(String, Type)>),
-    TypeVar(String),
+    TypeApp(Box<Type>, Vec<Type>),
 }
 
 impl Type {
@@ -291,7 +513,7 @@ impl Type {
 
     pub fn as_fn_type(&self) -> Option<(&Vec<Type>, &Box<Type>)> {
         match self {
-            Type::Fn(args, ret) => Some((args, ret)),
+            Type::Fn(_, args, ret) => Some((args, ret)),
             Type::Method(_, args, ret) => Some((args, ret)),
             _ => None,
         }
@@ -339,7 +561,7 @@ impl Type {
         }
     }
 
-    pub fn type_app_or(typ: Type, params: Vec<(String, Type)>) -> Type {
+    pub fn type_app_or(typ: Type, params: Vec<Type>) -> Type {
         if params.is_empty() {
             typ
         } else {
@@ -353,7 +575,7 @@ impl Type {
             Type::Any => false,
             Type::Bool => false,
             Type::Int => false,
-            Type::Fn(args, ret) => {
+            Type::Fn(_, args, ret) => {
                 args.iter().find(move |t| t.has_infer(index)).is_some() || ret.has_infer(index)
             }
             Type::Method(self_, args, ret) => {
@@ -371,6 +593,7 @@ impl Type {
             Type::Self_ => false,
             Type::TypeApp(_, _) => todo!(),
             Type::TypeVar(_) => todo!(),
+            Type::Omit => todo!(),
         }
     }
 
@@ -384,7 +607,7 @@ impl Type {
             Type::Any => {}
             Type::Bool => {}
             Type::Int => {}
-            Type::Fn(args, ret) => {
+            Type::Fn(_, args, ret) => {
                 for arg in args {
                     arg.subst(index, typ);
                 }
@@ -409,6 +632,7 @@ impl Type {
             Type::Self_ => {}
             Type::TypeApp(_, _) => todo!(),
             Type::TypeVar(_) => todo!(),
+            Type::Omit => todo!(),
         }
     }
 
@@ -418,7 +642,7 @@ impl Type {
             Type::Any => {}
             Type::Bool => {}
             Type::Int => {}
-            Type::Fn(args, ret) => {
+            Type::Fn(_, args, ret) => {
                 for arg in args {
                     arg.subst_typevar(var_name, typ);
                 }
@@ -434,19 +658,117 @@ impl Type {
                 ret.subst_typevar(var_name, typ);
             }
             Type::Struct(_) => {}
-            Type::Ref(_) => todo!(),
+            Type::Ref(r) => {
+                r.subst_typevar(var_name, typ);
+            }
             Type::Byte => {}
             Type::Array(t) => t.subst_typevar(var_name, typ),
             Type::SizedArray(t, _n) => t.subst_typevar(var_name, typ),
             Type::Optional(t) => t.subst_typevar(var_name, typ),
             Type::Nil => {}
             Type::Self_ => {}
-            Type::TypeApp(_, _) => todo!(),
+            Type::TypeApp(t, vs) => {
+                t.subst_typevar(var_name, typ);
+                for v in vs {
+                    v.subst_typevar(var_name, typ);
+                }
+            }
             Type::TypeVar(t) => {
                 if t == var_name {
                     *self = typ.clone();
                 }
             }
+            Type::Omit => todo!(),
+        }
+    }
+
+    pub fn walk_typevar(&mut self, walker: impl Fn(&mut String) -> Type) {
+        match self {
+            Type::Infer(_) => {}
+            Type::Any => {}
+            Type::Bool => {}
+            Type::Int => {}
+            Type::Fn(_, args, ret) => {
+                for arg in args {
+                    arg.walk_typevar(&walker);
+                }
+
+                ret.walk_typevar(&walker);
+            }
+            Type::Method(self_, args, ret) => {
+                self_.walk_typevar(&walker);
+                for arg in args {
+                    arg.walk_typevar(&walker);
+                }
+
+                ret.walk_typevar(&walker);
+            }
+            Type::Struct(_) => {}
+            Type::Ref(r) => {
+                r.walk_typevar(&walker);
+            }
+            Type::Byte => {}
+            Type::Array(t) => t.walk_typevar(&walker),
+            Type::SizedArray(t, _n) => t.walk_typevar(&walker),
+            Type::Optional(t) => t.walk_typevar(&walker),
+            Type::Nil => {}
+            Type::Self_ => {}
+            Type::TypeApp(t, vs) => {
+                t.walk_typevar(&walker);
+                for v in vs {
+                    v.walk_typevar(&walker);
+                }
+            }
+            Type::TypeVar(t) => {
+                *self = walker(t);
+            }
+            Type::Omit => todo!(),
+        }
+    }
+
+    pub fn subst_struct_name(&mut self, var_name: &String, typ: &Type) {
+        match self {
+            Type::Infer(_) => {}
+            Type::Any => {}
+            Type::Bool => {}
+            Type::Int => {}
+            Type::Fn(_, args, ret) => {
+                for arg in args {
+                    arg.subst_struct_name(var_name, typ);
+                }
+
+                ret.subst_struct_name(var_name, typ);
+            }
+            Type::Method(self_, args, ret) => {
+                self_.subst_struct_name(var_name, typ);
+                for arg in args {
+                    arg.subst_struct_name(var_name, typ);
+                }
+
+                ret.subst_struct_name(var_name, typ);
+            }
+            Type::Struct(t) => {
+                if t == var_name {
+                    *self = typ.clone();
+                }
+            }
+            Type::Ref(t) => {
+                t.subst_struct_name(var_name, typ);
+            }
+            Type::Byte => {}
+            Type::Array(t) => t.subst_struct_name(var_name, typ),
+            Type::SizedArray(t, _n) => t.subst_struct_name(var_name, typ),
+            Type::Optional(t) => t.subst_struct_name(var_name, typ),
+            Type::Nil => {}
+            Type::Self_ => {}
+            Type::TypeApp(t, vs) => {
+                t.subst_struct_name(var_name, typ);
+                for v in vs {
+                    v.subst_struct_name(var_name, typ);
+                }
+            }
+            Type::TypeVar(_) => {}
+            Type::Omit => todo!(),
         }
     }
 
@@ -500,8 +822,9 @@ impl Type {
             Type::Struct(s) => structs.get_projection_type(s, &label),
             Type::TypeApp(t, ps) => match t.as_ref() {
                 Type::Struct(s) => {
+                    let struct_ = structs.0[s].clone();
                     let mut typ = structs.get_projection_type(s, &label)?;
-                    for (pn, pt) in ps {
+                    for (pn, pt) in struct_.type_params.into_iter().zip(ps) {
                         typ.subst_typevar(&pn, &pt);
                     }
                     Ok(typ)
@@ -509,8 +832,195 @@ impl Type {
                 _ => bail!("Cannot project on {:?}", t),
             },
             Type::Ref(r) => r.get_projection_type(label, structs),
-            t => unreachable!("{:?}", t),
+            t => bail!("[get_projection_type] {:?}", t),
         }
+    }
+
+    pub fn type_applications(&self) -> Result<Vec<Type>> {
+        match self {
+            Type::Struct(_) => Ok(vec![]),
+            Type::TypeApp(t, ps) => {
+                let mut ts = t.type_applications()?;
+                ts.extend(ps.clone());
+                Ok(ts)
+            }
+            Type::Ref(r) => r.type_applications(),
+            _ => Ok(vec![]),
+        }
+    }
+
+    fn show_inner(&self, printer: &mut PrettyPrinter) {
+        match self {
+            Type::Self_ => {
+                printer.writeln("Self");
+            }
+            Type::Omit => {
+                printer.writeln("Omit");
+            }
+            Type::TypeVar(v) => {
+                printer.writeln("<<TypeVar>>");
+                printer.item("value", v);
+            }
+            Type::Infer(t) => {
+                printer.writeln("<<Infer>>");
+                printer.item("value", &format!("{:?}", t));
+            }
+            Type::Any => {
+                printer.writeln("Any");
+            }
+            Type::Nil => {
+                printer.writeln("Nil");
+            }
+            Type::Bool => {
+                printer.writeln("Bool");
+            }
+            Type::Int => {
+                printer.writeln("Int");
+            }
+            Type::Byte => {
+                printer.writeln("Byte");
+            }
+            Type::Fn(vs, args, ret) => {
+                printer.writeln("<<Fn>>");
+                printer.item("params", &format!("{:?}", vs));
+
+                printer.item("args", "");
+                printer.indent();
+                for arg in args {
+                    arg.show_inner(printer);
+                }
+                printer.dedent();
+
+                printer.item("ret", "");
+                printer.indent();
+                ret.show_inner(printer);
+                printer.dedent();
+            }
+            Type::Method(self_, args, ret) => {
+                printer.writeln("<<Method>>");
+                printer.item("self", "");
+                printer.indent();
+                self_.show_inner(printer);
+                printer.dedent();
+
+                printer.item("args", "");
+                printer.indent();
+                for arg in args {
+                    arg.show_inner(printer);
+                }
+                printer.dedent();
+
+                printer.item("ret", "");
+                printer.indent();
+                ret.show_inner(printer);
+                printer.dedent();
+            }
+            Type::Struct(s) => {
+                printer.writeln("<<Struct>>");
+                printer.item("name", s);
+            }
+            Type::Ref(t) => {
+                printer.writeln("<<Ref>>");
+                printer.item("type", "");
+                printer.indent();
+                t.show_inner(printer);
+                printer.dedent();
+            }
+            Type::Array(t) => {
+                printer.writeln("<<Array>>");
+                printer.item("type", "");
+                printer.indent();
+                t.show_inner(printer);
+                printer.dedent();
+            }
+            Type::SizedArray(t, n) => {
+                printer.writeln("<<SizedArray>>");
+                printer.item("type", "");
+                printer.indent();
+                t.show_inner(printer);
+                printer.dedent();
+                printer.item("size", &format!("{}", n));
+            }
+            Type::Optional(t) => {
+                printer.writeln("<<Optional>>");
+                printer.item("type", "");
+                printer.indent();
+                t.show_inner(printer);
+                printer.dedent();
+            }
+            Type::TypeApp(t, ps) => {
+                printer.writeln("<<TypeApp>>");
+                printer.item("type", "");
+                printer.indent();
+                t.show_inner(printer);
+                printer.dedent();
+                printer.item("params", "");
+                printer.indent();
+                for p in ps {
+                    p.show_inner(printer);
+                }
+                printer.dedent();
+            }
+        }
+    }
+
+    pub fn show(&self) -> String {
+        let mut printer = PrettyPrinter::new();
+
+        self.show_inner(&mut printer);
+
+        printer.finalize()
+    }
+
+    pub fn resolve(&mut self) -> Result<()> {
+        match self {
+            Type::TypeApp(t, vs) => match t.as_mut() {
+                Type::Fn(ts, args, f) => {
+                    for (t, v) in ts.iter().zip(vs) {
+                        f.subst_typevar(t, &v);
+                    }
+
+                    *self = Type::Fn(vec![], args.clone(), f.clone());
+                }
+                _ => bail!("Cannot resolve {:?}", self),
+            },
+            _ => {}
+        };
+
+        Ok(())
+    }
+
+    fn collect_struct_names_inner(&self, names: &mut HashSet<String>) {
+        match self {
+            Type::Struct(s) => {
+                names.insert(s.clone());
+            }
+            Type::TypeApp(t, ps) => {
+                t.collect_struct_names_inner(names);
+                for p in ps {
+                    p.collect_struct_names_inner(names);
+                }
+            }
+            Type::Ref(r) => {
+                r.collect_struct_names_inner(names);
+            }
+            Type::Array(t) => {
+                t.collect_struct_names_inner(names);
+            }
+            Type::SizedArray(t, _) => {
+                t.collect_struct_names_inner(names);
+            }
+            Type::Optional(t) => {
+                t.collect_struct_names_inner(names);
+            }
+            _ => {}
+        }
+    }
+
+    pub fn collect_struct_names(&self) -> HashSet<String> {
+        let mut names = HashSet::new();
+        self.collect_struct_names_inner(&mut names);
+        names
     }
 }
 
@@ -522,11 +1032,22 @@ pub struct StructTypeInfo {
 }
 
 impl StructTypeInfo {
-    pub fn replace_params_in_fields(&mut self, type_params: &Vec<(String, Type)>) {
-        for (p, pt) in type_params {
+    pub fn replace_params_in_fields(&mut self, type_params: &Vec<Type>) {
+        for (p, pt) in self.type_params.iter().zip(type_params) {
             for (_, t) in &mut self.fields {
                 t.subst_typevar(p, pt);
             }
+        }
+    }
+
+    pub fn normalize_type_params(&mut self) {
+        for p in &mut self.type_params {
+            let new_p = format!("?{}", p);
+            for (_, f) in &mut self.fields {
+                f.subst_typevar(p, &Type::TypeVar(new_p.clone()));
+            }
+
+            *p = new_p;
         }
     }
 
@@ -539,6 +1060,10 @@ impl StructTypeInfo {
 pub struct Structs(pub HashMap<String, StructTypeInfo>);
 
 impl Structs {
+    pub fn new() -> Self {
+        Structs(HashMap::new())
+    }
+
     pub fn get_projection_type(&self, val: &str, label: &str) -> Result<Type> {
         let struct_fields = self.0.get(val).ok_or(anyhow::anyhow!(
             "project type: {} not found in {}",
@@ -589,3 +1114,34 @@ pub struct Functions(
         ),
     >,
 );
+
+#[derive(Debug, Clone)]
+pub struct MethodTypeInfo {
+    pub name: String,
+    pub type_params: Vec<String>,
+    pub args: Vec<Type>,
+    pub ret: Type,
+}
+
+impl MethodTypeInfo {
+    pub fn apply(&mut self, type_params: &Vec<Type>) {
+        assert_eq!(self.type_params.len(), type_params.len());
+
+        for (p, pt) in self.type_params.iter().zip(type_params) {
+            for a in &mut self.args {
+                a.subst_typevar(p, pt);
+            }
+            self.ret.subst_typevar(p, pt);
+        }
+
+        self.type_params = vec![];
+    }
+
+    pub fn as_fn_type(&self) -> Type {
+        Type::Fn(
+            self.type_params.clone(),
+            self.args.iter().map(|t| t.clone()).collect::<Vec<Type>>(),
+            Box::new(self.ret.clone()),
+        )
+    }
+}

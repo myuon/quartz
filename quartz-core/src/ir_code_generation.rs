@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Debug};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 
 use crate::{
     ast::{
@@ -20,6 +20,7 @@ struct IrFunctionGenerator<'s> {
     strings: &'s mut Vec<String>,
     source_loader: &'s SourceLoader,
     module_path: &'s str,
+    type_applied: Vec<Type>,
 }
 
 impl<'s> IrFunctionGenerator<'s> {
@@ -38,11 +39,12 @@ impl<'s> IrFunctionGenerator<'s> {
             structs,
             strings,
             module_path,
+            type_applied: vec![],
         }
     }
 
-    pub fn ir_type(&self, typ: &Type) -> Result<IrType> {
-        IrType::from_type_ast(typ, self.structs)
+    pub fn ir_type(&self, typ: &Type) -> Result<IrElement> {
+        Ok(IrType::from_type_ast(typ, self.structs, &|_| IrType::typetag())?.to_element())
     }
 
     pub fn var_fresh(&mut self) -> String {
@@ -64,17 +66,15 @@ impl<'s> IrFunctionGenerator<'s> {
                         // special treatment for panic instruction
                         // FIXME: implement function meta attributes
                         if v == "_panic" {
-                            let meta = self.expr(&Source::unknown(Expr::Call(
-                                CallMode::Function,
-                                Box::new(Source::unknown(Expr::Var(vec!["_println".to_string()]))),
-                                vec![Source::unknown(Expr::Lit(
-                                    Literal::String(self.source_loader.specify_source(
+                            let meta = self.expr(&Source::unknown(Expr::function_call(
+                                Source::unknown(Expr::Var(vec!["_println".to_string()])),
+                                vec![Source::unknown(Expr::Lit(Literal::String(
+                                    self.source_loader.specify_source(
                                         self.module_path,
                                         expr.start.unwrap(),
                                         expr.end.unwrap(),
-                                    )?),
-                                    Type::Infer(0),
-                                ))],
+                                    )?,
+                                )))],
                             )))?;
                             self.ir.push(meta);
                         }
@@ -85,12 +85,20 @@ impl<'s> IrFunctionGenerator<'s> {
                     Ok(IrElement::Term(IrTerm::Ident(format!("{}_{}", v[0], v[1]))))
                 }
             }
-            Expr::Method(subj, v) => Ok(IrElement::Term(IrTerm::Ident(format!(
-                "{}_{}",
-                subj.method_selector_name()?,
-                v
-            )))),
-            Expr::Lit(literal, _typ) => match literal {
+            Expr::PathVar(segments) => {
+                assert_eq!(segments.len(), 2);
+                let mut type_args = vec![];
+                for seg in segments {
+                    type_args.extend(seg.type_args.clone());
+                }
+
+                self.type_applied = type_args;
+
+                let ident =
+                    IrElement::ident(format!("{}_{}", segments[0].ident, segments[1].ident));
+                Ok(ident)
+            }
+            Expr::Lit(literal) => match literal {
                 Literal::Nil => Ok(IrElement::Term(IrTerm::Nil)),
                 Literal::Bool(b) => Ok(IrElement::Term(IrTerm::Bool(*b))),
                 Literal::Int(n) => Ok(IrElement::Term(IrTerm::Int(*n))),
@@ -128,18 +136,6 @@ impl<'s> IrFunctionGenerator<'s> {
                     // Ok(IrElement::Term(IrTerm::Ident(v, size)))
                 }
             },
-            Expr::Call(CallMode::Function, f, args) => {
-                // in: f(a,b,c)
-                // out: (call f a b c)
-                let mut elements = vec![];
-                elements.push(self.expr(f.as_ref())?);
-
-                for arg in args {
-                    elements.push(self.expr(&arg)?);
-                }
-
-                Ok(IrElement::i_call_raw(elements))
-            }
             Expr::Call(CallMode::Array, f, args) => Ok(IrElement::i_addr_index(
                 self.expr(f.as_ref())?,
                 self.expr(&args[0])?,
@@ -148,6 +144,84 @@ impl<'s> IrFunctionGenerator<'s> {
                 self.expr(f.as_ref())?,
                 self.expr(&args[0])?,
             )),
+            Expr::Call(CallMode::Function, f, args) => {
+                // in: f(a,b,c)
+                // out: (call f a b c)
+                let mut elements = vec![];
+
+                self.type_applied = vec![];
+                elements.push(self.expr(f.as_ref())?);
+
+                for t in &self.type_applied {
+                    elements.push(IrElement::i_typetag(self.ir_type(&t)?));
+                }
+                self.type_applied = vec![];
+
+                for arg in args {
+                    elements.push(self.expr(&arg)?);
+                }
+
+                Ok(IrElement::i_call_raw(elements))
+            }
+            Expr::AssociatedCall(CallMode::Function, type_, label, args) => {
+                let mut elements = vec![];
+                elements.push(IrElement::Term(IrTerm::Ident(format!(
+                    "{}_{}",
+                    type_
+                        .method_selector_name()
+                        .context(format!("{:?}::{}", type_, label))?,
+                    label
+                ))));
+
+                for app in type_.type_applications()? {
+                    elements.push(self.ir_type(&app)?);
+                }
+
+                for arg in args {
+                    elements.push(self.expr(&arg)?);
+                }
+
+                Ok(IrElement::i_call_raw(elements))
+            }
+            Expr::AssociatedCall(_, _, _, _) => unreachable!(),
+            Expr::MethodCall(CallMode::Array, type_, _, label, self_, args) => {
+                Ok(IrElement::i_addr_index(
+                    self.expr(&Source::unknown(Expr::Project(
+                        type_.clone(),
+                        self_.clone(),
+                        label.clone(),
+                    )))?,
+                    self.expr(&args[0])?,
+                ))
+            }
+            Expr::MethodCall(CallMode::SizedArray, _, _, _, _, _) => unreachable!(),
+            Expr::MethodCall(CallMode::Function, type_, ts, label, self_, args) => {
+                let mut elements = vec![];
+                elements.push(self.expr(&Source::unknown(Expr::Var(vec![
+                    type_.method_selector_name().context(format!(
+                        "method selector name for {:?}::{}, {}",
+                        type_,
+                        label,
+                        self.source_loader.specify_source(
+                            self.module_path,
+                            expr.start.unwrap(),
+                            expr.end.unwrap(),
+                        )?,
+                    ))?,
+                    label.clone(),
+                ])))?);
+
+                for t in ts {
+                    elements.push(IrElement::i_typetag(self.ir_type(&t)?));
+                }
+
+                elements.push(self.expr(self_)?);
+                for arg in args {
+                    elements.push(self.expr(&arg)?);
+                }
+
+                Ok(IrElement::i_call_raw(elements))
+            }
             Expr::Struct(struct_name, params, exprs) => {
                 // in: A { a: 1, b: 2 }
                 // out: (let (data TYPE 1 2))
@@ -167,11 +241,10 @@ impl<'s> IrFunctionGenerator<'s> {
                     data,
                 ))
             }
-            Expr::Project(method, _, _proj, _label) if *method => {
-                unreachable!()
-            }
-            Expr::Project(_, proj_typ, proj, label) => {
-                let struct_name = &proj_typ.method_selector_name()?;
+            Expr::Project(proj_typ, proj, label) => {
+                let struct_name = &proj_typ
+                    .method_selector_name()
+                    .context(format!("{:?}.{}", proj.data, label))?;
                 let index = self.structs.get_projection_offset(struct_name, label)?;
                 // `f().x` should be compiled to `((let $v (call $f)) (offset $v 0))`
                 let value = {
@@ -216,20 +289,21 @@ impl<'s> IrFunctionGenerator<'s> {
             Expr::As(e, _, expected) => {
                 Ok(IrElement::i_coerce(self.expr(e)?, self.ir_type(expected)?))
             }
-            Expr::Address(e, _) => {
-                // You cannot just take the address of an immidiate value, so declare as a variable
-                let next = match e.data {
-                    Expr::Lit(_, _) | Expr::Struct(_, _, _) | Expr::Call(_, _, _) => {
+            Expr::Address(e) => {
+                let value = {
+                    let result = self.expr(e)?;
+
+                    if result.is_address_expr() {
+                        result
+                    } else {
                         let v = self.var_fresh();
-                        let value = self.expr(e)?;
-                        self.ir.push(IrElement::i_let(v.clone(), value));
+                        self.ir.push(IrElement::i_let(v.clone(), result));
 
                         IrElement::ident(v)
                     }
-                    _ => self.expr(e)?,
                 };
 
-                Ok(IrElement::i_address(next))
+                Ok(IrElement::i_address(value))
             }
             Expr::Make(t, args) => match t {
                 Type::SizedArray(arr, len) => {
@@ -237,11 +311,20 @@ impl<'s> IrFunctionGenerator<'s> {
                     let value = self.expr(&args[0])?;
                     Ok(IrElement::i_slice(*len, self.ir_type(arr)?, value))
                 }
-                Type::Array(arr) => {
-                    if args.len() != 2 {
-                        bail!("array constructor takes 2 arguments, found {}", args.len());
-                    }
+                Type::Array(arr) if args.len() == 1 => {
+                    let len = self.expr(&args[0])?;
+                    let len_var = self.var_fresh();
+                    self.ir.push(IrElement::i_let(len_var.clone(), len));
 
+                    let array = self.var_fresh();
+                    self.ir.push(IrElement::i_let(
+                        array.clone(),
+                        IrElement::i_alloc(self.ir_type(arr)?, IrElement::ident(len_var.clone())),
+                    ));
+
+                    Ok(IrElement::ident(array))
+                }
+                Type::Array(arr) if args.len() == 2 => {
                     let len = self.expr(&args[0])?;
                     let value = self.expr(&args[1])?;
 
@@ -311,12 +394,17 @@ impl<'s> IrFunctionGenerator<'s> {
                     )))?,
                 })
             }
+            Expr::TypeApp(t, ts) => {
+                self.type_applied.extend(ts.clone());
+
+                Ok(self.expr(t)?)
+            }
         }
     }
 
     fn statement(&mut self, statement: &Statement) -> Result<()> {
         match statement {
-            Statement::Let(x, e, _) => {
+            Statement::Let(x, e) => {
                 let v = self.expr(e)?;
                 self.ir.push(IrElement::i_let(x.to_string(), v));
             }
@@ -325,7 +413,7 @@ impl<'s> IrFunctionGenerator<'s> {
                 self.ir.push(v);
                 self.ir.push(IrElement::i_pop(self.ir_type(t)?));
             }
-            Statement::Return(e, _) => {
+            Statement::Return(e) => {
                 let v = self.expr(e)?;
                 self.ir.push(IrElement::i_return(v));
             }
@@ -364,7 +452,7 @@ impl<'s> IrFunctionGenerator<'s> {
                 ));
             }
             Statement::Continue => self.ir.push(IrElement::block("continue", vec![])),
-            Statement::Assignment(_typ, lhs, rhs) => {
+            Statement::Assignment(lhs, rhs) => {
                 let lhs_value = self.expr(lhs)?;
                 let rhs_value = self.expr(rhs)?;
 
@@ -441,7 +529,9 @@ impl<'s> IrGenerator<'s> {
     }
 
     fn ir_type(&self, typ: &Type) -> Result<IrType> {
-        IrType::from_type_ast(typ, &self.structs)
+        Ok(IrType::from_type_ast(typ, &self.structs, &|_| {
+            IrType::typetag()
+        })?)
     }
 
     fn function(&mut self, function: &Function) -> Result<IrElement> {
@@ -450,8 +540,14 @@ impl<'s> IrGenerator<'s> {
         let mut arg_types_in_ir = vec![];
 
         // argument in reverse order
+        for param in function.type_params.iter().rev() {
+            arg_index += 1;
+            args.insert(param.clone(), arg_index - 1);
+            arg_types_in_ir.push(IrType::typetag());
+        }
+
         for (name, typ) in function.args.iter().rev() {
-            arg_index += 1; // self.stack_size_of(typ)?;
+            arg_index += 1;
             args.insert(name.clone(), arg_index - 1);
             arg_types_in_ir.push(self.ir_type(typ)?);
         }
@@ -476,10 +572,12 @@ impl<'s> IrGenerator<'s> {
         ))
     }
 
-    fn method(&mut self, typ: &Type, function: &Function) -> Result<IrElement> {
+    fn method(&mut self, typ: &String, function: &Function) -> Result<IrElement> {
         let mut args = HashMap::new();
         let mut arg_index = 0;
         let mut arg_types_in_ir = vec![];
+
+        let type_params = &function.type_params;
 
         // argument in reverse order
         for (name, typ) in function.args.iter().rev() {
@@ -489,6 +587,11 @@ impl<'s> IrGenerator<'s> {
                 self.ir_type(typ)
                     .context(format!("at method: {:?}::{}", typ, function.name.data))?,
             );
+        }
+        for param in type_params.into_iter().rev() {
+            arg_index += 1;
+            args.insert(param.clone(), arg_index - 1);
+            arg_types_in_ir.push(IrType::typetag());
         }
 
         let return_type = self
@@ -507,7 +610,7 @@ impl<'s> IrGenerator<'s> {
 
         // FIXME: method block for ITable
         Ok(IrElement::d_func(
-            format!("{}_{}", typ.method_selector_name()?, function.name.data),
+            format!("{}_{}", typ, function.name.data),
             arg_types_in_ir,
             Box::new(return_type),
             generator.ir,
@@ -543,7 +646,7 @@ impl<'s> IrGenerator<'s> {
             if s.type_params.is_empty() {
                 tuple
             } else {
-                IrType::generic(tuple, s.type_params.clone())
+                IrType::generic(tuple, s.type_params.len())
             },
         ))
     }
@@ -565,14 +668,14 @@ impl<'s> IrGenerator<'s> {
                             .context(format!("function {}", f.name.data))?,
                     );
                 }
-                Declaration::Method(typ, f) => {
+                Declaration::Method(typ, _ts, f) => {
                     // skip if this function is not used
                     if f.dead_code {
                         continue;
                     }
 
                     elements.push(
-                        self.method(typ, f)
+                        self.method(&typ.data, f)
                             .context(format!("method {}", f.name.data))?,
                     );
                 }
@@ -806,6 +909,34 @@ func main() {
 )
 "#,
             ),
+            (
+                r#"
+struct container[T] {
+    data: T,
+}
+
+method container[T] get(self): T {
+    return self.data;
+}
+
+func main() {
+    let c = container { data: 10 };
+    let n = c.get();
+}
+"#,
+                r#"
+(module
+    (type $container (generic (tuple $typetag) 1))
+    (func $container_get (args $typetag (address (typeapp $container $typetag))) (return $typetag)
+        (return (addr_offset $0 0))
+    )
+    (func $main (args) (return $nil)
+        (let $c (tuple (typeapp $container $int) 10))
+        (let $n (call $container_get (typetag $int) (address $c)))
+    )
+)
+"#,
+            ),
         ];
 
         for (code, ir_code) in cases {
@@ -822,7 +953,7 @@ func main() {
 
             let element = parse_ir(ir_code).unwrap();
 
-            assert_eq!(generated, element, "{}", code);
+            assert_eq!(element, generated, "{}", code);
         }
     }
 }

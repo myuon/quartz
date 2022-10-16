@@ -5,8 +5,8 @@ use pretty_assertions::assert_eq;
 
 use crate::{
     ast::{
-        CallMode, Declaration, Expr, Literal, Module, OptionalMode, Source, Statement,
-        StructTypeInfo, Structs, Type,
+        CallMode, Declaration, Expr, Function, Literal, MethodTypeInfo, Module, OptionalMode,
+        PathSegment, Source, Statement, StructTypeInfo, Structs, Type,
     },
     compiler::SourceLoader,
 };
@@ -38,7 +38,7 @@ impl Constraints {
             (Type::Any, _) => Ok(Constraints::new()),
             (_, Type::Any) => Ok(Constraints::new()),
             (Type::Ref(s), Type::Ref(t)) => Ok(Constraints::unify(&s, &t)?),
-            (Type::Fn(args1, ret1), Type::Fn(args2, ret2)) => {
+            (Type::Fn(_, args1, ret1), Type::Fn(_, args2, ret2)) => {
                 if args1.len() != args2.len() {
                     bail!("Type error: want {:?} but found {:?}", args1, args2);
                 }
@@ -65,6 +65,13 @@ impl Constraints {
             (Type::Array(t), Type::Struct(s)) if s == "string" && t.as_ref() == &Type::Byte => {
                 Ok(Constraints::new())
             }
+            // FIXME: this is an adhoc solution
+            (Type::Int, Type::Struct(t)) if t == "int" => Ok(Constraints::new()),
+            (Type::Struct(t), Type::Int) if t == "int" => Ok(Constraints::new()),
+            (Type::Bool, Type::Struct(t)) if t == "bool" => Ok(Constraints::new()),
+            (Type::Struct(t), Type::Bool) if t == "bool" => Ok(Constraints::new()),
+            (Type::Byte, Type::Struct(t)) if t == "byte" => Ok(Constraints::new()),
+            (Type::Struct(t), Type::Byte) if t == "byte" => Ok(Constraints::new()),
             // nil in byte
             (Type::Nil, Type::Byte) => Ok(Constraints::new()),
             // nil in ref type
@@ -114,7 +121,7 @@ impl Constraints {
             Type::Nil => {}
             Type::Bool => {}
             Type::Int => {}
-            Type::Fn(args, ret) => {
+            Type::Fn(_, args, ret) => {
                 for arg in args {
                     self.apply(arg);
                 }
@@ -142,8 +149,14 @@ impl Constraints {
                 self.apply(t);
             }
             Type::Self_ => {}
-            Type::TypeApp(_, _) => todo!(),
-            Type::TypeVar(_) => todo!(),
+            Type::TypeApp(t, vs) => {
+                self.apply(t);
+                for v in vs {
+                    self.apply(v);
+                }
+            }
+            Type::TypeVar(_) => {}
+            Type::Omit => todo!(),
         }
     }
 }
@@ -151,16 +164,16 @@ impl Constraints {
 #[derive(Clone, Debug)]
 pub struct TypeChecker<'s> {
     infer_count: usize,
-    inferred: HashMap<usize, Type>,
+    infer_map: HashMap<usize, Type>,
+    type_params: HashSet<String>,
     pub variables: HashMap<String, Type>,
     pub structs: Structs,
     pub function_types: HashMap<String, (Vec<Type>, Type)>,
-    pub method_types: HashMap<(String, String), (Vec<Type>, Type)>,
+    pub method_types: HashMap<(String, String), MethodTypeInfo>,
     call_graph: HashMap<String, HashMap<String, ()>>,
     struct_graph: HashMap<String, HashMap<String, ()>>,
     current_function: Option<String>,
     entrypoint: String,
-    self_object: Option<Box<Source<Expr>>>,
     current_module_path: String,
     source_loader: Option<&'s SourceLoader>,
 }
@@ -174,7 +187,8 @@ impl<'s> TypeChecker<'s> {
     ) -> TypeChecker {
         TypeChecker {
             infer_count: 1,
-            inferred: HashMap::new(),
+            infer_map: HashMap::new(),
+            type_params: HashSet::new(),
             variables,
             structs,
             function_types: HashMap::new(),
@@ -183,7 +197,6 @@ impl<'s> TypeChecker<'s> {
             struct_graph: HashMap::new(),
             current_function: None,
             entrypoint: "main".to_string(),
-            self_object: None,
             source_loader,
             current_module_path: current_path,
         }
@@ -196,7 +209,7 @@ impl<'s> TypeChecker<'s> {
     pub fn unify(&mut self, expected: &Type, actual: &mut Type) -> Result<()> {
         let cs = Constraints::unify(expected, actual)?;
         cs.apply(actual);
-        self.inferred.extend(cs.0);
+        self.infer_map.extend(cs.0);
 
         Ok(())
     }
@@ -227,53 +240,37 @@ impl<'s> TypeChecker<'s> {
     }
 
     fn normalize_type(&mut self, typ: &mut Type) {
-        if let Type::Infer(0) = typ {
+        if let Type::Omit = typ {
             *typ = self.next_infer();
+        }
+
+        for t in &self.type_params {
+            typ.subst_struct_name(&t, &Type::TypeVar(t.clone()));
         }
     }
 
     fn load(&mut self, v: &Vec<String>, typ: &mut Type) -> Result<()> {
-        assert!(v.len() <= 2);
-        if v.len() == 1 {
-            let v = &v[0];
+        assert_eq!(v.len(), 1);
+        let v = &v[0];
 
-            if self.function_types.contains_key(v) {
-                self.call_graph
-                    .entry(self.current_function.clone().unwrap())
-                    .or_insert(HashMap::new())
-                    .insert(v.clone(), ());
-
-                let f = self.function_types[v].clone();
-
-                self.unify(&Type::Fn(f.0, Box::new(f.1)), typ)?;
-            } else {
-                let t = self
-                    .variables
-                    .get(v)
-                    .ok_or(anyhow::anyhow!("Variable {} not found", v))?
-                    .clone();
-
-                self.unify(&t, typ)?;
-            }
-        } else {
-            let (args, ret) = self
-                .method_types
-                .get(&(v[0].clone(), v[1].clone()))
-                .ok_or(anyhow::anyhow!("Method {}::{} not found", v[0], v[1]))?;
+        if self.function_types.contains_key(v) {
             self.call_graph
                 .entry(self.current_function.clone().unwrap())
                 .or_insert(HashMap::new())
-                .insert(format!("{}::{}", v[0], v[1]), ());
+                .insert(v.clone(), ());
 
-            self.unify(
-                &Type::Method(
-                    Box::new(Type::Struct(v[0].clone())),
-                    args.clone(),
-                    Box::new(ret.clone()),
-                ),
-                typ,
-            )?;
-        };
+            let f = self.function_types[v].clone();
+
+            self.unify(&Type::Fn(vec![], f.0, Box::new(f.1)), typ)?;
+        } else {
+            let t = self
+                .variables
+                .get(v)
+                .ok_or(anyhow::anyhow!("Variable {} not found", v))?
+                .clone();
+
+            self.unify(&t, typ)?;
+        }
 
         Ok(())
     }
@@ -297,7 +294,7 @@ impl<'s> TypeChecker<'s> {
 
         // reference
         if !current_type.is_ref() && expected_type.is_ref() {
-            *expr = Source::unknown(Expr::Address(Box::new(expr.clone()), current_type.clone()));
+            *expr = Source::unknown(Expr::Address(Box::new(expr.clone())));
             *current_type = Type::Ref(Box::new(current_type.clone()));
         }
         // dereference
@@ -341,7 +338,8 @@ impl<'s> TypeChecker<'s> {
 
                 *typ = t.as_ref().clone();
             }
-            Type::Method(_, _, _) | Type::Fn(_, _) | Type::Array(_) | Type::SizedArray(_, _) => {}
+            Type::Method(_, _, _) | Type::Fn(_, _, _) | Type::Array(_) | Type::SizedArray(_, _) => {
+            }
             Type::Struct(s) if s == "string" => {}
             t => bail!("Cannot call non-function type {:?}", t),
         };
@@ -349,17 +347,87 @@ impl<'s> TypeChecker<'s> {
         Ok(())
     }
 
+    fn typecheck_function(
+        &mut self,
+        f: &Source<Expr>,
+        fn_type: &Type,
+        args: &mut Vec<Source<Expr>>,
+    ) -> Result<Box<Type>> {
+        let (arg_types, ret_type) = fn_type.as_fn_type().ok_or(anyhow::anyhow!(
+            "Cannot call non-function type {:?}",
+            fn_type
+        ))?;
+        let arg_types = arg_types.clone();
+
+        let actual_arg_len = args.len();
+        let expected_arg_len = if fn_type.is_method_type() {
+            // FIXME: -1
+            arg_types.len()
+        } else {
+            arg_types.len()
+        };
+        if expected_arg_len != actual_arg_len {
+            anyhow::bail!(
+                "Expected {} arguments but given {} for {:?}, {} (args: {:?}): {:?})",
+                expected_arg_len,
+                actual_arg_len,
+                f,
+                self.error_context(f.start, f.end, "no source"),
+                args,
+                fn_type,
+            );
+        }
+
+        for i in 0..actual_arg_len {
+            let mut current = self.next_infer();
+            self.expr_coerce(&mut args[i], &mut current, &arg_types[i])
+                .context(format!("{}th argument", i))?;
+        }
+
+        Ok(ret_type.clone())
+    }
+
+    fn resolve_path_segments(&mut self, segments: &[PathSegment]) -> Result<Type> {
+        assert_eq!(segments.len(), 2);
+
+        let struct_name = &segments[0].ident;
+        let label = &segments[1].ident;
+        let mut method = self
+            .method_types
+            .get(&(struct_name.clone(), label.clone()))
+            .ok_or(anyhow::anyhow!(
+                "Method {} not found in struct {}",
+                label,
+                struct_name
+            ))?
+            .clone();
+
+        self.call_graph
+            .entry(self.current_function.clone().unwrap())
+            .or_insert(HashMap::new())
+            .insert(format!("{}::{}", struct_name, label), ());
+
+        if !segments[1].type_args.is_empty() {
+            method.apply(&segments[1].type_args);
+        }
+
+        let mut type_ = Type::TypeApp(Box::new(method.as_fn_type()), segments[0].type_args.clone());
+        type_.resolve()?;
+
+        Ok(type_)
+    }
+
     pub fn expr(&mut self, expr: &mut Source<Expr>, typ: &mut Type) -> Result<()> {
+        self.normalize_type(typ);
         match &mut expr.data {
             Expr::Var(v) => {
                 self.load(v, typ)
                     .context(self.error_context(expr.start, expr.end, "var"))?;
             }
-            Expr::Method(subj, v) => {
-                self.load(&vec![subj.method_selector_name()?, v.clone()], typ)
-                    .context(self.error_context(expr.start, expr.end, "var"))?;
+            Expr::PathVar(segments) => {
+                *typ = self.resolve_path_segments(&segments)?;
             }
-            Expr::Lit(lit, lit_typ) => {
+            Expr::Lit(lit) => {
                 let t = match lit {
                     Literal::Bool(_) => Type::Bool,
                     Literal::Int(_) => Type::Int,
@@ -376,7 +444,6 @@ impl<'s> TypeChecker<'s> {
 
                 self.unify(&t, typ)
                     .context(self.error_context(expr.start, expr.end, "literal"))?;
-                *lit_typ = typ.clone();
             }
             Expr::Call(mode, f, args) => {
                 let mut fn_type = self.next_infer();
@@ -416,44 +483,124 @@ impl<'s> TypeChecker<'s> {
                         "string indexing",
                     ))?;
                 } else {
-                    // restore self_object here
-                    if let Some(obj) = self.self_object.take() {
-                        args.insert(0, obj.as_ref().clone());
-                    }
-
-                    let (arg_types, ret_type) = fn_type.as_fn_type().ok_or(anyhow::anyhow!(
-                        "Cannot call non-function type {:?}",
-                        fn_type
-                    ))?;
-                    let arg_types = arg_types.clone();
-
-                    let actual_arg_len = args.len();
-                    let expected_arg_len = if fn_type.is_method_type() {
-                        // FIXME: -1
-                        arg_types.len()
-                    } else {
-                        arg_types.len()
-                    };
-                    if expected_arg_len != actual_arg_len {
-                        anyhow::bail!(
-                            "Expected {} arguments but given {} for {:?}, {} (args: {:?}): {:?})",
-                            expected_arg_len,
-                            actual_arg_len,
-                            f,
-                            self.error_context(f.start, f.end, "no source"),
-                            args,
-                            fn_type,
-                        );
-                    }
-
-                    for i in 0..actual_arg_len {
-                        let mut current = self.next_infer();
-                        self.expr_coerce(&mut args[i], &mut current, &arg_types[i])
-                            .context(format!("{}th argument", i))?;
-                    }
+                    let ret_type = self.typecheck_function(&f, &fn_type, args)?;
 
                     self.unify(&ret_type, typ)
                         .context(self.error_context(expr.start, expr.end, "call"))?;
+                }
+            }
+            Expr::AssociatedCall(mode, type_, label, args) => {
+                let mut method = self
+                    .method_types
+                    .get(&(type_.method_selector_name()?, label.clone()))
+                    .ok_or(anyhow::anyhow!(
+                        "Method {}::{} not found",
+                        type_.method_selector_name()?,
+                        label
+                    ))?
+                    .clone();
+                method.apply(&type_.type_applications()?);
+
+                let ret_type = self.typecheck_function(
+                    &Source::unknown(Expr::Var(vec![label.clone()])),
+                    &method.as_fn_type(),
+                    args,
+                )?;
+
+                self.unify(&ret_type, typ)
+                    .context(format!("[associated_call] {:?}::{}", type_, label))?;
+
+                self.call_graph
+                    .entry(self.current_function.clone().unwrap())
+                    .or_insert(HashMap::new())
+                    .insert(format!("{}::{}", type_.method_selector_name()?, label), ());
+
+                *mode = CallMode::Function;
+            }
+            Expr::MethodCall(mode, type_, ts, label, self_, args) => {
+                self.normalize_type(type_);
+                self.expr(self_, type_)?;
+                let name = type_.method_selector_name().context(self.error_context(
+                    self_.start,
+                    self_.end,
+                    &format!("[proj] {:?}", self_),
+                ))?;
+
+                let mut is_function = true;
+                let field_type = type_.get_projection_type(label, &self.structs);
+                if let Ok(field_type) = field_type {
+                    if let Some(t) = field_type.as_array() {
+                        // array indexing
+                        *mode = CallMode::Array;
+
+                        assert_eq!(args.len(), 1);
+                        self.expr(&mut args[0], &mut Type::Int)?;
+                        self.unify(t, typ).context(self.error_context(
+                            expr.start,
+                            expr.end,
+                            "array indexing",
+                        ))?;
+
+                        is_function = false;
+                    } else if let Some("string") = field_type.as_struct_type().map(|s| s.as_str()) {
+                        // string indexing
+                        *mode = CallMode::Array;
+
+                        self.expr(&mut args[0], &mut Type::Int)?;
+                        self.unify(&Type::Byte, typ).context(self.error_context(
+                            expr.start,
+                            expr.end,
+                            "string indexing",
+                        ))?;
+
+                        is_function = false;
+                    }
+                }
+
+                if is_function {
+                    *mode = CallMode::Function;
+
+                    let mut method = self
+                        .method_types
+                        .get(&(name.clone(), label.clone()))
+                        .cloned()
+                        .context(format!(
+                            "method {} of type {},\n{}",
+                            label,
+                            name,
+                            self.error_context(
+                                self_.start,
+                                self_.end,
+                                &format!("method {}", label)
+                            )
+                        ))?;
+                    let params = type_.type_applications()?;
+                    method.apply(&params);
+                    *ts = params;
+
+                    self.call_graph
+                        .entry(self.current_function.clone().unwrap())
+                        .or_insert(HashMap::new())
+                        .insert(
+                            // FIXME: use name_path for Func
+                            format!("{}::{}", name, label),
+                            (),
+                        );
+
+                    self.transform(self_, type_, &method.args[0])?;
+
+                    let mut args_self = vec![self_.as_ref().clone()];
+                    args_self.extend(args.clone());
+
+                    let ret_type =
+                        self.typecheck_function(self_, &method.as_fn_type(), &mut args_self)?;
+
+                    // recover modified expressions
+                    *self_ = Box::new(args_self[0].clone());
+                    *args = args_self[1..].to_vec();
+
+                    self.unify(&ret_type, typ)
+                        .context(format!("[project] {:?}", expr))?;
                 }
             }
             Expr::Struct(s, type_params, fields) => {
@@ -466,17 +613,18 @@ impl<'s> TypeChecker<'s> {
 
                 let mut defined = self.structs.0[s].clone();
 
-                let params = {
-                    let ps = defined.type_params.clone();
-                    let mut result = vec![];
-                    for p in ps {
-                        result.push((p, self.next_infer()));
-                    }
-
-                    result
-                };
+                let params = (0..defined.type_params.len())
+                    .map(|_| self.next_infer())
+                    .collect::<Vec<_>>();
+                for (_, t) in &mut defined.fields {
+                    self.normalize_type(t);
+                }
                 defined.replace_params_in_fields(&params);
-                let expected_fields = defined.fields.into_iter().collect::<HashMap<_, _>>();
+                let expected_fields = defined
+                    .fields
+                    .clone()
+                    .into_iter()
+                    .collect::<HashMap<_, _>>();
 
                 let first_expr = fields[0].clone().1;
                 for (label, expr, typ) in fields {
@@ -485,9 +633,14 @@ impl<'s> TypeChecker<'s> {
                 }
 
                 let mut type_app = vec![];
-                for (u, r) in params {
+                for r in params {
                     if let Type::Infer(i) = r {
-                        type_app.push((u, self.inferred[&i].clone()));
+                        type_app.push(
+                            self.infer_map
+                                .get(&i)
+                                .ok_or(anyhow::anyhow!("Cannot find type for {:?}", i))?
+                                .clone(),
+                        );
                     } else {
                         unreachable!();
                     }
@@ -510,63 +663,20 @@ impl<'s> TypeChecker<'s> {
                     "struct",
                 ))?;
             }
-            Expr::Project(is_method, proj_typ, proj, field) => {
+            Expr::Project(proj_typ, proj, label) => {
+                self.normalize_type(proj_typ);
                 self.expr(proj, proj_typ)?;
-                let name = proj_typ.method_selector_name().context(self.error_context(
+
+                let mut field_type = proj_typ
+                    .get_projection_type(label, &self.structs)
+                    .context(self.error_context(proj.start, proj.end, "projection"))?;
+                self.normalize_type(&mut field_type);
+
+                self.unify(&field_type, typ).context(self.error_context(
                     proj.start,
                     proj.end,
-                    &format!("[proj] {:?}", proj),
+                    "projection",
                 ))?;
-
-                if let Some((arg_types, return_type)) = self
-                    .method_types
-                    .get(&(name.clone(), field.clone()))
-                    .cloned()
-                {
-                    // FIXME: if pointer, something could be go wrong
-
-                    *is_method = true;
-
-                    self.call_graph
-                        .entry(self.current_function.clone().unwrap())
-                        .or_insert(HashMap::new())
-                        .insert(
-                            // FIXME: use name_path for Func
-                            format!("{}::{}", name, field),
-                            (),
-                        );
-
-                    // DESUGAR: x.f(m) => X::f(x, m)
-                    // x will be stored in self_object
-                    // x is passed by ref
-                    if !arg_types.is_empty() {
-                        let mut self_object = proj.clone();
-                        let mut current_type = proj_typ.clone();
-
-                        self.transform(&mut self_object, &mut current_type, &arg_types[0])?;
-                        self.self_object = Some(self_object);
-                    }
-                    let method_type = Type::Method(
-                        Box::new(Type::Struct(name.clone())),
-                        arg_types.clone(),
-                        Box::new(return_type.clone()),
-                    );
-                    *expr = Source::unknown(Expr::Var(vec![name.clone(), field.clone()]));
-
-                    self.unify(&method_type, typ)
-                        .context(format!("[project] {:?}", expr))?;
-                } else {
-                    let field_type = proj_typ
-                        .get_projection_type(field, &self.structs)
-                        .context(self.error_context(proj.start, proj.end, "projection"))?;
-                    *is_method = false;
-
-                    self.unify(&field_type, typ).context(self.error_context(
-                        proj.start,
-                        proj.end,
-                        "projection",
-                    ))?;
-                }
             }
             Expr::Ref(e, t) => {
                 self.expr(e, t)?;
@@ -587,9 +697,10 @@ impl<'s> TypeChecker<'s> {
                 self.unify(t, typ)
                     .context(self.error_context(e.start, e.end, "as"))?;
             }
-            Expr::Address(e, t) => {
-                self.expr(e, t)?;
-                self.unify(&Type::Ref(Box::new(t.clone())), typ)
+            Expr::Address(e) => {
+                let mut t = self.next_infer();
+                self.expr(e, &mut t)?;
+                self.unify(&Type::Ref(Box::new(t)), typ)
                     .context(self.error_context(e.start, e.end, "address"))?;
             }
             Expr::Make(t, args) => match t {
@@ -600,9 +711,15 @@ impl<'s> TypeChecker<'s> {
                         .context(self.error_context(expr.start, expr.end, "make"))?;
                 }
                 Type::Array(arr) => {
+                    self.normalize_type(arr);
+
                     if args.len() == 2 {
                         self.expr(&mut args[0], &mut Type::Int)?;
                         self.expr(&mut args[1], arr)?;
+                        self.unify(t, typ)
+                            .context(self.error_context(expr.start, expr.end, "make"))?;
+                    } else if args.len() == 1 {
+                        self.expr(&mut args[0], &mut Type::Int)?;
                         self.unify(t, typ)
                             .context(self.error_context(expr.start, expr.end, "make"))?;
                     } else {
@@ -623,6 +740,23 @@ impl<'s> TypeChecker<'s> {
                 self.unify(t.unwrap_type()?, typ)
                     .context(self.error_context(expr.start, expr.end, "unwrap"))?;
             }
+            Expr::TypeApp(expr, vs) => {
+                let mut t = self.next_infer();
+                self.expr(expr, &mut t)?;
+
+                let mut expected = Type::TypeApp(Box::new(t), vs.clone());
+                expected.resolve()?;
+                self.unify(&expected, typ)?;
+
+                for v in vs {
+                    for name in v.collect_struct_names() {
+                        self.struct_graph
+                            .entry(self.current_function.clone().unwrap())
+                            .or_insert(HashMap::new())
+                            .insert(name.clone(), ());
+                    }
+                }
+            }
         };
 
         Ok(())
@@ -636,7 +770,7 @@ impl<'s> TypeChecker<'s> {
     ) -> Result<()> {
         self.expr(expr, current_type)?;
         let cs = self.transform(expr, current_type, expected_typ)?;
-        self.inferred.extend(cs.0);
+        self.infer_map.extend(cs.0);
 
         Ok(())
     }
@@ -647,21 +781,24 @@ impl<'s> TypeChecker<'s> {
         return_type: &mut Type,
     ) -> Result<()> {
         match &mut statement.data {
-            Statement::Let(x, body, t) => {
-                self.expr(body, t)?;
+            Statement::Let(x, body) => {
+                let mut t = self.next_infer();
+                self.expr(body, &mut t)?;
                 self.variables.insert(x.clone(), t.clone());
             }
             Statement::Expr(e, t) => {
+                self.normalize_type(t);
                 self.expr(e, t)
                     .context(self.error_context(e.start, e.end, "expression"))?;
             }
-            Statement::Return(e, t) => {
-                self.expr(e, t).context(self.error_context(
+            Statement::Return(e) => {
+                let mut t = self.next_infer();
+                self.expr(e, &mut t).context(self.error_context(
                     statement.start,
                     statement.end,
                     "return",
                 ))?;
-                self.unify(t, return_type).context(self.error_context(
+                self.unify(&t, return_type).context(self.error_context(
                     statement.start,
                     statement.end,
                     "return",
@@ -674,8 +811,9 @@ impl<'s> TypeChecker<'s> {
                 self.statements(else_statements, return_type)?;
             }
             Statement::Continue => {}
-            Statement::Assignment(t, lhs, rhs) => {
-                self.expr(lhs, t)?;
+            Statement::Assignment(lhs, rhs) => {
+                let mut t = self.next_infer();
+                self.expr(lhs, &mut t)?;
 
                 let mut current = self.next_infer();
                 self.expr_coerce(rhs, &mut current, &t)?;
@@ -701,18 +839,6 @@ impl<'s> TypeChecker<'s> {
             self.statement(statement, typ)?;
         }
 
-        assert_eq!(
-            self.self_object,
-            None,
-            "self_object {} in \n{}",
-            self.error_context(
-                self.self_object.clone().unwrap().start,
-                self.self_object.clone().unwrap().end,
-                ""
-            ),
-            self.error_context(statements[0].start, statements.last().unwrap().end, "")
-        );
-
         Ok(())
     }
 
@@ -731,21 +857,28 @@ impl<'s> TypeChecker<'s> {
         Ok(())
     }
 
+    fn function(&mut self, func: &mut Function) -> Result<()> {
+        let variables = self.variables.clone();
+        self.variables.extend(func.args.clone());
+        self.function_statements(&mut func.body, &mut func.return_type)?;
+        self.variables = variables;
+
+        Ok(())
+    }
+
     pub fn declarations(&mut self, decls: &mut Vec<Declaration>) -> Result<()> {
         // preprocess: register all function types in this module
         for decl in decls.into_iter() {
+            self.type_params = HashSet::new();
+
             match decl {
                 Declaration::Function(func) => {
                     let mut arg_types = vec![];
-                    for arg in &func.args {
-                        let t = if matches!(arg.1, Type::Infer(_)) {
-                            self.next_infer()
-                        } else {
-                            arg.1.clone()
-                        };
+                    for (arg, arg_type) in &mut func.args {
+                        self.normalize_type(arg_type);
 
-                        arg_types.push(t.clone());
-                        self.variables.insert(arg.0.clone(), t);
+                        arg_types.push(arg_type.clone());
+                        self.variables.insert(arg.clone(), arg_type.clone());
                     }
                     self.normalize_type(&mut func.return_type);
 
@@ -754,26 +887,41 @@ impl<'s> TypeChecker<'s> {
                         (arg_types.clone(), func.return_type.clone()),
                     );
                 }
-                Declaration::Method(typ, func) => {
-                    let mut arg_types = vec![];
-                    for arg in &mut func.args {
-                        // NOTE: infer self type
-                        if arg.1 == Type::Self_ {
-                            arg.1 = Type::Ref(Box::new(typ.clone()));
+                Declaration::Method(typ, params, func) => {
+                    for param in &params.clone() {
+                        if self.type_params.contains(param) {
+                            bail!("Duplicate type parameter {}", param);
                         }
 
-                        let t = if matches!(arg.1, Type::Infer(_)) {
-                            self.next_infer()
-                        } else {
-                            arg.1.clone()
-                        };
+                        self.type_params.insert(param.clone());
+                    }
 
-                        arg_types.push(t.clone());
-                        self.variables.insert(arg.0.clone(), t);
+                    let mut arg_types = vec![];
+                    for (arg, arg_type) in &mut func.args {
+                        // NOTE: infer self type
+                        if arg_type == &Type::Self_ {
+                            *arg_type = Type::Ref(Box::new(if params.is_empty() {
+                                Type::Struct(typ.data.clone())
+                            } else {
+                                Type::TypeApp(
+                                    Box::new(Type::Struct(typ.data.clone())),
+                                    params
+                                        .clone()
+                                        .into_iter()
+                                        .map(|p| Type::TypeVar(p))
+                                        .collect(),
+                                )
+                            }));
+                        }
+
+                        self.normalize_type(arg_type);
+
+                        arg_types.push(arg_type.clone());
+                        self.variables.insert(arg.clone(), arg_type.clone());
                     }
                     self.normalize_type(&mut func.return_type);
 
-                    let key = (typ.method_selector_name()?, func.name.data.clone());
+                    let key = (typ.data.clone(), func.name.data.clone());
                     if self.method_types.contains_key(&key) {
                         bail!(
                             "Method {} already defined, {}",
@@ -781,8 +929,15 @@ impl<'s> TypeChecker<'s> {
                             self.error_context(func.name.start, func.name.end, "function")
                         );
                     }
-                    self.method_types
-                        .insert(key, (arg_types.clone(), func.return_type.clone()));
+                    self.method_types.insert(
+                        key,
+                        MethodTypeInfo {
+                            name: func.name.data.clone(),
+                            type_params: params.clone(),
+                            args: arg_types.clone(),
+                            ret: func.return_type.clone(),
+                        },
+                    );
                 }
                 _ => {}
             }
@@ -790,53 +945,31 @@ impl<'s> TypeChecker<'s> {
 
         for decl in decls {
             self.current_function = decl.function_path();
+            self.type_params = HashSet::new();
 
             match decl {
                 Declaration::Function(func) => {
-                    let variables = self.variables.clone();
-                    let mut arg_types = vec![];
-                    for arg in &func.args {
-                        let t = if matches!(arg.1, Type::Infer(_)) {
-                            self.next_infer()
-                        } else {
-                            arg.1.clone()
-                        };
-
-                        arg_types.push(t.clone());
-                        self.variables.insert(arg.0.clone(), t);
-                    }
-
-                    self.function_statements(&mut func.body, &mut func.return_type)?;
-                    self.variables = variables;
+                    self.function(func)?;
 
                     self.function_types.get_mut(&func.name.data).unwrap().1 =
                         func.return_type.clone();
                 }
-                Declaration::Method(typ, func) => {
-                    let variables = self.variables.clone();
-                    let mut arg_types = vec![];
-                    for arg in &func.args {
-                        let t = if matches!(arg.1, Type::Infer(_)) {
-                            self.next_infer()
-                        } else {
-                            arg.1.clone()
-                        };
+                Declaration::Method(typ, params, func) => {
+                    for param in params {
+                        if self.type_params.contains(param) {
+                            bail!("Duplicate type parameter {}", param);
+                        }
 
-                        arg_types.push(t.clone());
-                        self.variables.insert(arg.0.clone(), t);
+                        self.type_params.insert(param.clone());
                     }
 
-                    if let Some(_) = typ.clone().as_sized_array() {
-                        self.variables.insert("sized".to_string(), Type::Int);
-                    }
-
-                    self.function_statements(&mut func.body, &mut func.return_type)?;
-                    self.variables = variables;
+                    self.normalize_type(&mut func.return_type);
+                    self.function(func)?;
 
                     self.method_types
-                        .get_mut(&(typ.method_selector_name()?, func.name.data.clone()))
+                        .get_mut(&(typ.data.clone(), func.name.data.clone()))
                         .unwrap()
-                        .1 = func.return_type.clone();
+                        .ret = func.return_type.clone();
                 }
                 Declaration::Variable(x, e, typ) => {
                     self.expr(e, typ)?;
@@ -845,14 +978,16 @@ impl<'s> TypeChecker<'s> {
                 Declaration::Struct(st) => {
                     assert!(!self.structs.0.contains_key(&st.name));
                     let name = st.name.clone();
-                    self.structs.0.insert(
-                        name.clone(),
-                        StructTypeInfo {
-                            name: name.clone(),
-                            type_params: st.type_params.clone(),
-                            fields: st.fields.clone(),
-                        },
-                    );
+
+                    let mut type_info = StructTypeInfo {
+                        name: name.clone(),
+                        type_params: st.type_params.clone(),
+                        fields: st.fields.clone(),
+                    };
+                    // rename type paramters to avoid name conflict
+                    type_info.normalize_type_params();
+
+                    self.structs.0.insert(name.clone(), type_info);
                 }
                 Declaration::Import(_) => {}
             }
@@ -868,11 +1003,7 @@ impl<'s> TypeChecker<'s> {
         Ok(())
     }
 
-    pub fn modules(&mut self, modules: &mut Vec<Module>) -> Result<()> {
-        for m in modules.into_iter() {
-            self.module(m)?;
-        }
-
+    fn flag_dead_code(&mut self, modules: &mut Vec<Module>) {
         // update dead_code fields for functions
         // calculate reachable functions from entrypoint
         let mut reachables = HashSet::new();
@@ -907,7 +1038,7 @@ impl<'s> TypeChecker<'s> {
 
                         func.dead_code = true;
                     }
-                    Declaration::Method(_typ, func) => {
+                    Declaration::Method(_, _, func) => {
                         if reachables.contains(function_path.unwrap().as_str()) {
                             continue;
                         }
@@ -925,6 +1056,14 @@ impl<'s> TypeChecker<'s> {
                 }
             }
         }
+    }
+
+    pub fn modules(&mut self, modules: &mut Vec<Module>) -> Result<()> {
+        for m in modules.into_iter() {
+            self.module(m)?;
+        }
+
+        self.flag_dead_code(modules);
 
         Ok(())
     }
@@ -1036,6 +1175,7 @@ func main() {
                 vec![(
                     "f",
                     Type::Fn(
+                        vec![],
                         vec![Type::Int, Type::Struct("string".to_string())],
                         Box::new(Type::Bool),
                     ),
@@ -1084,7 +1224,7 @@ func main(): int {
     return x(2);
 }
             "#,
-                vec![("main", Type::Fn(vec![], Box::new(Type::Int)))],
+                vec![("main", Type::Fn(vec![], vec![], Box::new(Type::Int)))],
             ),
         ];
 

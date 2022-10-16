@@ -152,7 +152,7 @@ pub struct Compiler<'s> {
 impl Compiler<'_> {
     pub fn new() -> Compiler<'static> {
         Compiler {
-            typechecker: TypeChecker::new(builtin(), Structs(HashMap::new()), None, String::new()),
+            typechecker: TypeChecker::new(builtin(), Structs::new(), None, String::new()),
             vm_code_generation: VmGenerator::new(),
             ir_result: None,
             ir_source_map: HashMap::new(),

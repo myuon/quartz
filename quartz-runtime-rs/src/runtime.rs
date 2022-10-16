@@ -404,7 +404,7 @@ impl Runtime {
 
                 Array::from_values(&self.stack[addr..addr + length])
             }
-            t => todo!("{:?}", t),
+            t => bail!("expected addr but got {:?} at {}", t, self.debug_info()),
         }
     }
 
@@ -944,6 +944,11 @@ impl Runtime {
                         assert!(value.as_addr().is_some());
                         self.push(Value::bool(false));
                     }
+                }
+                "_sizeof" => {
+                    let value = self.pop();
+                    let info = value.as_info_addr().unwrap();
+                    self.push(Value::int(info as i32));
                 }
                 t => {
                     unreachable!("{}", t);
