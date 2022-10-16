@@ -512,11 +512,6 @@ impl IrType {
     }
 
     pub fn from_type_ast(typ: &Type, structs: &Structs) -> Result<IrType> {
-        IrType::from_type_ast_traced(typ, structs, vec![])
-    }
-
-    // refactor: remove trace
-    fn from_type_ast_traced(typ: &Type, structs: &Structs, trace: Vec<String>) -> Result<IrType> {
         Ok(match typ {
             Type::Nil => IrType::nil(),
             Type::Bool => IrType::bool(),
@@ -526,25 +521,24 @@ impl IrType {
             Type::Method(_, _, _) => todo!(),
             Type::Struct(s) if s == "string" => {
                 // string = array[byte]
-                IrType::from_type_ast_traced(&Type::Array(Box::new(Type::Byte)), structs, trace)?
+                IrType::from_type_ast(&Type::Array(Box::new(Type::Byte)), structs)?
             }
             Type::Struct(t) => IrType::Ident(t.clone()),
-            Type::Ref(t) => IrType::addr_of(IrType::from_type_ast_traced(t, structs, trace)?),
-            Type::Array(t) => IrType::addr_of(IrType::boxed_array(IrType::from_type_ast_traced(
-                t, structs, trace,
-            )?)),
-            Type::SizedArray(t, u) => IrType::slice(
-                *u,
-                Box::new(IrType::from_type_ast_traced(t.as_ref(), structs, trace)?),
-            ),
-            Type::Optional(t) => IrType::addr_of(IrType::from_type_ast_traced(t, structs, trace)?),
+            Type::Ref(t) => IrType::addr_of(IrType::from_type_ast(t, structs)?),
+            Type::Array(t) => {
+                IrType::addr_of(IrType::boxed_array(IrType::from_type_ast(t, structs)?))
+            }
+            Type::SizedArray(t, u) => {
+                IrType::slice(*u, Box::new(IrType::from_type_ast(t.as_ref(), structs)?))
+            }
+            Type::Optional(t) => IrType::addr_of(IrType::from_type_ast(t, structs)?),
             Type::Self_ => todo!(),
             Type::Any => IrType::byte(),
             Type::TypeVar(t) => IrType::Ident(t.clone()),
             Type::TypeApp(t, ps) => IrType::typeapp(
-                IrType::from_type_ast_traced(t, structs, trace.clone())?,
+                IrType::from_type_ast(t, structs)?,
                 ps.into_iter()
-                    .map(|t| IrType::from_type_ast_traced(t, structs, trace.clone()))
+                    .map(|t| IrType::from_type_ast(t, structs))
                     .collect::<Result<Vec<_>, _>>()?,
             ),
             t => bail!("Unsupported type: {:?}", t),
