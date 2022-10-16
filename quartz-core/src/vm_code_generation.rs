@@ -175,8 +175,8 @@ impl<'s> VmFunctionGenerator<'s> {
         );
     }
 
-    fn resolve_symbol(&self, v: &str) -> (QVMInstruction, IrType) {
-        match v {
+    fn resolve_symbol(&self, v: &str) -> Result<(QVMInstruction, IrType)> {
+        Ok(match v {
             "_add" => (
                 QVMInstruction::Add,
                 IrType::func(vec![IrType::int(), IrType::int()], IrType::int()),
@@ -296,11 +296,10 @@ impl<'s> VmFunctionGenerator<'s> {
                 QVMInstruction::LabelI32Const(v.to_string()),
                 self.functions
                     .get(v)
-                    .ok_or(anyhow::anyhow!("Unknown symbol {}", v))
-                    .unwrap()
+                    .ok_or(anyhow::anyhow!("Unknown symbol {}", v))?
                     .clone(),
             ),
-        }
+        })
     }
 
     // compile to an address (lvar)
@@ -320,7 +319,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         Ok(IrType::addr_of(t.clone()))
                     } else {
                         // resolve a function
-                        let (code, typ) = self.resolve_symbol(v.as_str());
+                        let (code, typ) = self.resolve_symbol(v.as_str())?;
                         self.writer.push(code);
 
                         Ok(IrType::addr_of(typ))
@@ -433,7 +432,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         Ok(t.clone())
                     } else {
                         // resolve an embedded instruction
-                        let (code, typ) = self.resolve_symbol(v.as_str());
+                        let (code, typ) = self.resolve_symbol(v.as_str())?;
                         self.writer.push(code);
 
                         Ok(IrType::addr_of(typ))

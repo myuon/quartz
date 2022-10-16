@@ -533,8 +533,17 @@ impl<'s> IrGenerator<'s> {
         self.structs = structs;
     }
 
-    fn ir_type(&self, typ: &Type) -> Result<IrType> {
-        IrType::from_type_ast(typ, &self.structs)
+    fn ir_type(&self, typ: &Type, args: &HashMap<String, usize>) -> Result<IrType> {
+        let mut type_ = IrType::from_type_ast(typ, &self.structs)?.to_element();
+        type_.walk_ident(&|s| {
+            if let Some(u) = args.get(s) {
+                IrElement::Term(IrTerm::Argument(*u))
+            } else {
+                IrElement::Term(IrTerm::Ident(s.to_string()))
+            }
+        });
+
+        IrType::from_element(&type_)
     }
 
     fn function(&mut self, function: &Function) -> Result<IrElement> {
@@ -552,10 +561,10 @@ impl<'s> IrGenerator<'s> {
         for (name, typ) in function.args.iter().rev() {
             arg_index += 1;
             args.insert(name.clone(), arg_index - 1);
-            arg_types_in_ir.push(self.ir_type(typ)?);
+            arg_types_in_ir.push(self.ir_type(typ, &args)?);
         }
 
-        let return_type = self.ir_type(&function.return_type)?;
+        let return_type = self.ir_type(&function.return_type, &args)?;
 
         let mut generator = IrFunctionGenerator::new(
             self.source_loader,
@@ -596,13 +605,13 @@ impl<'s> IrGenerator<'s> {
             arg_index += 1; // self.stack_size_of(typ)?;
             args.insert(name.clone(), arg_index - 1);
             arg_types_in_ir.push(
-                self.ir_type(typ)
+                self.ir_type(typ, &args)
                     .context(format!("at method: {:?}::{}", typ, function.name.data))?,
             );
         }
 
         let return_type = self
-            .ir_type(&function.return_type)
+            .ir_type(&function.return_type, &args)
             .context(format!("[return type] {:?}", function.return_type))?;
 
         let mut generator = IrFunctionGenerator::new(
@@ -626,7 +635,7 @@ impl<'s> IrGenerator<'s> {
 
     fn variable(&mut self, name: &String, expr: &Source<Expr>, typ: &Type) -> Result<IrElement> {
         let empty = HashMap::new();
-        let typ = self.ir_type(typ)?;
+        let typ = self.ir_type(typ, &HashMap::new())?;
         let mut generator = IrFunctionGenerator::new(
             self.source_loader,
             &empty,
@@ -643,7 +652,8 @@ impl<'s> IrGenerator<'s> {
             s.fields
                 .iter()
                 .map(|(_, typ)| -> Result<IrType> {
-                    self.ir_type(typ).context(format!("{:?}", typ))
+                    self.ir_type(typ, &HashMap::new())
+                        .context(format!("{:?}", typ))
                 })
                 .collect::<Result<_>>()?,
         );
