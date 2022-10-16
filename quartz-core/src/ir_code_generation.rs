@@ -44,16 +44,7 @@ impl<'s> IrFunctionGenerator<'s> {
     }
 
     pub fn ir_type(&self, typ: &Type) -> Result<IrElement> {
-        let mut type_ = IrType::from_type_ast(typ, self.structs)?.to_element();
-        type_.walk_ident(&|s| {
-            if let Some(u) = self.args.get(s) {
-                IrElement::Term(IrTerm::Argument(*u))
-            } else {
-                IrElement::Term(IrTerm::Ident(s.to_string()))
-            }
-        });
-
-        Ok(type_)
+        Ok(IrType::from_type_ast(typ, self.structs, &|_| IrType::typetag())?.to_element())
     }
 
     pub fn var_fresh(&mut self) -> String {
@@ -533,17 +524,10 @@ impl<'s> IrGenerator<'s> {
         self.structs = structs;
     }
 
-    fn ir_type(&self, typ: &Type, args: &HashMap<String, usize>) -> Result<IrType> {
-        let mut type_ = IrType::from_type_ast(typ, &self.structs)?.to_element();
-        type_.walk_ident(&|s| {
-            if let Some(u) = args.get(s) {
-                IrElement::Term(IrTerm::Argument(*u))
-            } else {
-                IrElement::Term(IrTerm::Ident(s.to_string()))
-            }
-        });
-
-        IrType::from_element(&type_)
+    fn ir_type(&self, typ: &Type) -> Result<IrType> {
+        Ok(IrType::from_type_ast(typ, &self.structs, &|_| {
+            IrType::typetag()
+        })?)
     }
 
     fn function(&mut self, function: &Function) -> Result<IrElement> {
@@ -561,10 +545,10 @@ impl<'s> IrGenerator<'s> {
         for (name, typ) in function.args.iter().rev() {
             arg_index += 1;
             args.insert(name.clone(), arg_index - 1);
-            arg_types_in_ir.push(self.ir_type(typ, &args)?);
+            arg_types_in_ir.push(self.ir_type(typ)?);
         }
 
-        let return_type = self.ir_type(&function.return_type, &args)?;
+        let return_type = self.ir_type(&function.return_type)?;
 
         let mut generator = IrFunctionGenerator::new(
             self.source_loader,
@@ -605,13 +589,13 @@ impl<'s> IrGenerator<'s> {
             arg_index += 1; // self.stack_size_of(typ)?;
             args.insert(name.clone(), arg_index - 1);
             arg_types_in_ir.push(
-                self.ir_type(typ, &args)
+                self.ir_type(typ)
                     .context(format!("at method: {:?}::{}", typ, function.name.data))?,
             );
         }
 
         let return_type = self
-            .ir_type(&function.return_type, &args)
+            .ir_type(&function.return_type)
             .context(format!("[return type] {:?}", function.return_type))?;
 
         let mut generator = IrFunctionGenerator::new(
@@ -635,7 +619,7 @@ impl<'s> IrGenerator<'s> {
 
     fn variable(&mut self, name: &String, expr: &Source<Expr>, typ: &Type) -> Result<IrElement> {
         let empty = HashMap::new();
-        let typ = self.ir_type(typ, &HashMap::new())?;
+        let typ = self.ir_type(typ)?;
         let mut generator = IrFunctionGenerator::new(
             self.source_loader,
             &empty,
@@ -652,8 +636,7 @@ impl<'s> IrGenerator<'s> {
             s.fields
                 .iter()
                 .map(|(_, typ)| -> Result<IrType> {
-                    self.ir_type(typ, &HashMap::new())
-                        .context(format!("{:?}", typ))
+                    self.ir_type(typ).context(format!("{:?}", typ))
                 })
                 .collect::<Result<_>>()?,
         );
@@ -922,6 +905,34 @@ func main() {
     (func $main (args) (return $nil)
         (let $s (string 0))
         (return (call $_println $s))
+    )
+)
+"#,
+            ),
+            (
+                r#"
+struct container[T] {
+    data: T,
+}
+
+method container[T] get(self): T {
+    return self.data;
+}
+
+func main() {
+    let c = container { data: 10 };
+    let n = c.get();
+}
+"#,
+                r#"
+(module
+    (type $container (generic (tuple $typetag) $typetag))
+    (func $container_get (args $typetag (address (typeapp $container $typetag))) (return $typetag)
+        (return (addr_offset $1 0))
+    )
+    (func $main (args) (return $nil)
+        (let $c (tuple (typeapp $container $int)) 10)
+        (let $n (call $container_get $int (address $c)))
     )
 )
 "#,

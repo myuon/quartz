@@ -522,7 +522,11 @@ impl IrType {
         })
     }
 
-    pub fn from_type_ast(typ: &Type, structs: &Structs) -> Result<IrType> {
+    pub fn from_type_ast(
+        typ: &Type,
+        structs: &Structs,
+        typevar_walker: &impl Fn(&mut String) -> IrType,
+    ) -> Result<IrType> {
         Ok(match typ {
             Type::Nil => IrType::nil(),
             Type::Bool => IrType::bool(),
@@ -532,24 +536,29 @@ impl IrType {
             Type::Method(_, _, _) => todo!(),
             Type::Struct(s) if s == "string" => {
                 // string = array[byte]
-                IrType::from_type_ast(&Type::Array(Box::new(Type::Byte)), structs)?
+                IrType::from_type_ast(&Type::Array(Box::new(Type::Byte)), structs, typevar_walker)?
             }
             Type::Struct(t) => IrType::Ident(t.clone()),
-            Type::Ref(t) => IrType::addr_of(IrType::from_type_ast(t, structs)?),
-            Type::Array(t) => {
-                IrType::addr_of(IrType::boxed_array(IrType::from_type_ast(t, structs)?))
+            Type::Ref(t) => IrType::addr_of(IrType::from_type_ast(t, structs, typevar_walker)?),
+            Type::Array(t) => IrType::addr_of(IrType::boxed_array(IrType::from_type_ast(
+                t,
+                structs,
+                typevar_walker,
+            )?)),
+            Type::SizedArray(t, u) => IrType::slice(
+                *u,
+                Box::new(IrType::from_type_ast(t.as_ref(), structs, typevar_walker)?),
+            ),
+            Type::Optional(t) => {
+                IrType::addr_of(IrType::from_type_ast(t, structs, typevar_walker)?)
             }
-            Type::SizedArray(t, u) => {
-                IrType::slice(*u, Box::new(IrType::from_type_ast(t.as_ref(), structs)?))
-            }
-            Type::Optional(t) => IrType::addr_of(IrType::from_type_ast(t, structs)?),
             Type::Self_ => todo!(),
             Type::Any => IrType::byte(),
             Type::TypeVar(t) => IrType::Ident(t.clone()),
             Type::TypeApp(t, ps) => IrType::typeapp(
-                IrType::from_type_ast(t, structs)?,
+                IrType::from_type_ast(t, structs, typevar_walker)?,
                 ps.into_iter()
-                    .map(|t| IrType::from_type_ast(t, structs))
+                    .map(|t| IrType::from_type_ast(t, structs, typevar_walker))
                     .collect::<Result<Vec<_>, _>>()?,
             ),
             t => bail!("Unsupported type: {:?}", t),
