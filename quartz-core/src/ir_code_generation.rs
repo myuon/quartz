@@ -43,8 +43,17 @@ impl<'s> IrFunctionGenerator<'s> {
         }
     }
 
-    pub fn ir_type(&self, typ: &Type) -> Result<IrType> {
-        IrType::from_type_ast(typ, self.structs)
+    pub fn ir_type(&self, typ: &Type) -> Result<IrElement> {
+        let mut type_ = IrType::from_type_ast(typ, self.structs)?.to_element();
+        type_.walk_ident(&|s| {
+            if let Some(u) = self.args.get(s) {
+                IrElement::Term(IrTerm::Argument(*u))
+            } else {
+                IrElement::Term(IrTerm::Ident(s.to_string()))
+            }
+        });
+
+        Ok(type_)
     }
 
     pub fn var_fresh(&mut self) -> String {
@@ -87,13 +96,16 @@ impl<'s> IrFunctionGenerator<'s> {
             }
             Expr::PathVar(segments) => {
                 assert_eq!(segments.len(), 2);
-                self.type_applied = segments[0].type_args.clone();
-                self.type_applied.extend(segments[1].type_args.clone());
+                let mut type_args = vec![];
+                for seg in segments {
+                    type_args.extend(seg.type_args.clone());
+                }
 
-                Ok(IrElement::ident(format!(
-                    "{}_{}",
-                    segments[0].ident, segments[1].ident
-                )))
+                self.type_applied = type_args;
+
+                let ident =
+                    IrElement::ident(format!("{}_{}", segments[0].ident, segments[1].ident));
+                Ok(ident)
             }
             Expr::Lit(literal) => match literal {
                 Literal::Nil => Ok(IrElement::Term(IrTerm::Nil)),
@@ -150,7 +162,7 @@ impl<'s> IrFunctionGenerator<'s> {
                 elements.push(self.expr(f.as_ref())?);
 
                 for t in &self.type_applied {
-                    elements.push(self.ir_type(&t)?.to_element());
+                    elements.push(self.ir_type(&t)?);
                 }
                 self.type_applied = vec![];
 
@@ -171,7 +183,7 @@ impl<'s> IrFunctionGenerator<'s> {
                 ))));
 
                 for app in type_.type_applications()? {
-                    elements.push(self.ir_type(&app)?.to_element());
+                    elements.push(self.ir_type(&app)?);
                 }
 
                 for arg in args {
@@ -563,12 +575,17 @@ impl<'s> IrGenerator<'s> {
         ))
     }
 
-    fn method(&mut self, typ: &String, function: &Function) -> Result<IrElement> {
+    fn method(&mut self, typ: &String, ts: &Vec<String>, function: &Function) -> Result<IrElement> {
         let mut args = HashMap::new();
         let mut arg_index = 0;
         let mut arg_types_in_ir = vec![];
 
         // argument in reverse order
+        for param in ts {
+            arg_index += 1;
+            args.insert(param.clone(), arg_index - 1);
+            arg_types_in_ir.push(IrType::typetag());
+        }
         for param in function.type_params.iter().rev() {
             arg_index += 1;
             args.insert(param.clone(), arg_index - 1);
@@ -658,14 +675,14 @@ impl<'s> IrGenerator<'s> {
                             .context(format!("function {}", f.name.data))?,
                     );
                 }
-                Declaration::Method(typ, _, f) => {
+                Declaration::Method(typ, ts, f) => {
                     // skip if this function is not used
                     if f.dead_code {
                         continue;
                     }
 
                     elements.push(
-                        self.method(&typ.data, f)
+                        self.method(&typ.data, ts, f)
                             .context(format!("method {}", f.name.data))?,
                     );
                 }

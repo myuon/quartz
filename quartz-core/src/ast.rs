@@ -670,6 +670,50 @@ impl Type {
         }
     }
 
+    pub fn walk_typevar(&mut self, walker: impl Fn(&mut String) -> Type) {
+        match self {
+            Type::Infer(_) => {}
+            Type::Any => {}
+            Type::Bool => {}
+            Type::Int => {}
+            Type::Fn(_, args, ret) => {
+                for arg in args {
+                    arg.walk_typevar(&walker);
+                }
+
+                ret.walk_typevar(&walker);
+            }
+            Type::Method(self_, args, ret) => {
+                self_.walk_typevar(&walker);
+                for arg in args {
+                    arg.walk_typevar(&walker);
+                }
+
+                ret.walk_typevar(&walker);
+            }
+            Type::Struct(_) => {}
+            Type::Ref(r) => {
+                r.walk_typevar(&walker);
+            }
+            Type::Byte => {}
+            Type::Array(t) => t.walk_typevar(&walker),
+            Type::SizedArray(t, _n) => t.walk_typevar(&walker),
+            Type::Optional(t) => t.walk_typevar(&walker),
+            Type::Nil => {}
+            Type::Self_ => {}
+            Type::TypeApp(t, vs) => {
+                t.walk_typevar(&walker);
+                for v in vs {
+                    v.walk_typevar(&walker);
+                }
+            }
+            Type::TypeVar(t) => {
+                *self = walker(t);
+            }
+            Type::Omit => todo!(),
+        }
+    }
+
     pub fn subst_struct_name(&mut self, var_name: &String, typ: &Type) {
         match self {
             Type::Infer(_) => {}

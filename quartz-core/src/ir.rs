@@ -131,6 +131,22 @@ impl IrElement {
         self.show_recur(0, true)
     }
 
+    pub fn walk_ident(&mut self, walker: &impl Fn(&mut String) -> IrElement) {
+        match self {
+            IrElement::Term(t) => match t {
+                IrTerm::Ident(i) => {
+                    *self = walker(i);
+                }
+                _ => {}
+            },
+            IrElement::Block(b) => {
+                for e in &mut b.elements {
+                    e.walk_ident(walker);
+                }
+            }
+        }
+    }
+
     // = IR instructions
 
     pub fn nil() -> IrElement {
@@ -175,8 +191,8 @@ impl IrElement {
         IrElement::block("deref", vec![element])
     }
 
-    pub fn i_coerce(element: IrElement, expected_typ: IrType) -> IrElement {
-        IrElement::block("coerce", vec![element, expected_typ.to_element()])
+    pub fn i_coerce(element: IrElement, expected_typ: IrElement) -> IrElement {
+        IrElement::block("coerce", vec![element, expected_typ])
     }
 
     pub fn i_address(element: IrElement) -> IrElement {
@@ -199,17 +215,14 @@ impl IrElement {
         IrElement::block("addr_offset", vec![element, IrElement::int(offset as i32)])
     }
 
-    pub fn i_tuple(typ: IrType, mut element: Vec<IrElement>) -> IrElement {
-        element.insert(0, typ.to_element());
+    pub fn i_tuple(typ: IrElement, mut element: Vec<IrElement>) -> IrElement {
+        element.insert(0, typ);
 
         IrElement::block("tuple", element)
     }
 
-    pub fn i_slice(len: usize, typ: IrType, element: IrElement) -> IrElement {
-        IrElement::block(
-            "slice",
-            vec![IrElement::int(len as i32), typ.to_element(), element],
-        )
+    pub fn i_slice(len: usize, typ: IrElement, element: IrElement) -> IrElement {
+        IrElement::block("slice", vec![IrElement::int(len as i32), typ, element])
     }
 
     pub fn i_slice_raw(len: IrElement, typ: IrType, element: IrElement) -> IrElement {
@@ -220,16 +233,16 @@ impl IrElement {
         IrElement::block("size_of", vec![typ.to_element()])
     }
 
-    pub fn i_pop(typ: IrType) -> IrElement {
-        IrElement::block("pop", vec![typ.to_element()])
+    pub fn i_pop(typ: IrElement) -> IrElement {
+        IrElement::block("pop", vec![typ])
     }
 
     pub fn i_return(element: IrElement) -> IrElement {
         IrElement::block("return", vec![element])
     }
 
-    pub fn i_alloc(typ: IrType, len: IrElement) -> IrElement {
-        IrElement::block("alloc", vec![typ.to_element(), len])
+    pub fn i_alloc(typ: IrElement, len: IrElement) -> IrElement {
+        IrElement::block("alloc", vec![typ, len])
     }
 
     pub fn i_while(cond: IrElement, body: Vec<IrElement>) -> IrElement {
@@ -390,6 +403,7 @@ pub enum IrType {
     Ident(String),
     Generic(Vec<String>, Box<IrType>),
     TypeApp(Box<IrType>, Vec<IrType>),
+    TypeArgument(usize),
     TypeTag,
 }
 
@@ -461,6 +475,7 @@ impl IrType {
                     "byte" => IrType::byte(),
                     t => IrType::Ident(t.to_string()),
                 },
+                IrTerm::Argument(u) => IrType::TypeArgument(*u),
                 t => unreachable!("{:?}", t),
             },
             IrElement::Block(block) => match block.name.as_str() {
@@ -574,6 +589,7 @@ impl IrType {
                 IrElement::block("typeapp", params)
             }
             IrType::TypeTag => IrElement::ident("type_tag"),
+            IrType::TypeArgument(_) => todo!(),
         }
     }
 
@@ -616,6 +632,41 @@ impl IrType {
                 }
             }
             IrType::TypeTag => {}
+            IrType::TypeArgument(_) => {}
+        }
+    }
+
+    pub fn walk_ident(&mut self, walker: impl Fn(&mut String) -> IrType) {
+        match self {
+            IrType::Unknown => {}
+            IrType::Single(t) => match t {
+                IrSingleType::Nil => {}
+                IrSingleType::Bool => {}
+                IrSingleType::Int => {}
+                IrSingleType::Address(t) => t.walk_ident(walker),
+                IrSingleType::BoxedArray(t) => t.walk_ident(walker),
+                _ => unreachable!(),
+            },
+            IrType::Tuple(ts) => {
+                for t in ts {
+                    t.walk_ident(&walker);
+                }
+            }
+            IrType::Slice(_, t) => t.walk_ident(walker),
+            IrType::Ident(ident) => {
+                *self = walker(ident);
+            }
+            IrType::Generic(_, t) => {
+                t.walk_ident(walker);
+            }
+            IrType::TypeApp(t, ps) => {
+                t.walk_ident(&walker);
+                for p in ps {
+                    p.walk_ident(&walker);
+                }
+            }
+            IrType::TypeTag => {}
+            IrType::TypeArgument(_) => todo!(),
         }
     }
 
@@ -667,6 +718,8 @@ impl IrType {
                 _ => unreachable!(),
             },
             IrType::TypeTag => Ok(1),
+            // Generics will be a pointer in runtime phase, so size is same as a pointer
+            IrType::TypeArgument(_t) => Ok(1),
         }
     }
 
