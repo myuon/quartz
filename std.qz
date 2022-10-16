@@ -293,6 +293,10 @@ method vector[T] push(self, item: T) {
     self.len = self.len + 1;
 }
 
+method vector[T] at(self, index: int): T {
+    return self.data(index);
+}
+
 func test() {
     assert("foo".eq("foo"));
     assert("foo".concat("bar").eq("foobar"));
@@ -313,5 +317,6 @@ func test() {
     v.push(10);
     v.push(20);
 
-    // assert(v.len() == 10);
+    assert(v.len() == 2);
+    assert(v.at(1) == 20);
 }

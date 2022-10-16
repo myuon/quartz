@@ -350,18 +350,7 @@ impl IrSingleType {
                 Ok(IrSingleType::Address(Box::new(unified)))
             }
             (IrSingleType::Fn(args1, ret1), IrSingleType::Fn(args2, ret2)) => {
-                // FIXME: Currenty we don't support generic functions
-                if args1
-                    .iter()
-                    .filter(|t| t.is_typetag())
-                    .collect::<Vec<_>>()
-                    .len()
-                    != args2
-                        .iter()
-                        .filter(|t| t.is_typetag())
-                        .collect::<Vec<_>>()
-                        .len()
-                {
+                if args1.len() != args2.len() {
                     bail!(
                         "function arity mismatch, {} vs {}",
                         args1.len(),
