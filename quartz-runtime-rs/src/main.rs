@@ -42,7 +42,12 @@ enum Command {
         qirv_output: Option<PathBuf>,
     },
     #[clap(name = "test", about = "Run a Quartz test program")]
-    Test,
+    Test {
+        #[clap(long, value_parser, value_name = "FILE")]
+        qasmv_output: Option<PathBuf>,
+        #[clap(long, value_parser, value_name = "FILE")]
+        qirv_output: Option<PathBuf>,
+    },
     #[clap(name = "compile", about = "Compile a Quartz program")]
     Compile {
         #[clap(long, value_parser, value_name = "FILE")]
@@ -162,11 +167,23 @@ fn main() -> Result<()> {
             )
             .unwrap();
         }
-        Command::Test => {
+        Command::Test {
+            qasmv_output,
+            qirv_output,
+        } => {
             let entrypoint = env::var("ENTRYPOINT").ok().unwrap_or("test".to_string());
 
             let mut compiler = Compiler::new();
             let code = compiler.compile(read_from_stdin(), entrypoint)?;
+            let ir = compiler.ir_result.clone().unwrap().show();
+
+            let mut file = File::create(qirv_output.unwrap_or("./build/out.qirv".into())).unwrap();
+            file.write_all(ir.as_bytes()).unwrap();
+
+            let mut file =
+                File::create(qasmv_output.unwrap_or("./build/out.qasmv".into())).unwrap();
+            file.write_all(compiler.show_qasmv(&code).as_bytes())
+                .unwrap();
 
             Runtime::new(code.clone(), compiler.vm_code_generation.globals()).run()?;
         }

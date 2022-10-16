@@ -404,7 +404,7 @@ impl Runtime {
 
                 Array::from_values(&self.stack[addr..addr + length])
             }
-            t => todo!("{:?}", t),
+            t => bail!("expected addr but got {:?} at {}", t, self.debug_info()),
         }
     }
 

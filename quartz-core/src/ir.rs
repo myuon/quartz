@@ -807,6 +807,9 @@ impl IrType {
             (IrType::Slice(_, _), IrType::Single(IrSingleType::Address(s))) => {
                 Ok(IrType::Single(IrSingleType::Address(s)))
             }
+            // FIXME: Currently, we don't support type argument
+            (IrType::TypeArgument(_), t) => Ok(t),
+            (s, IrType::TypeArgument(_)) => Ok(s),
             (s, t) => {
                 bail!(
                     "Type want {} but got {}",
