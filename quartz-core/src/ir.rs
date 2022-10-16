@@ -249,8 +249,8 @@ impl IrElement {
         IrElement::block("while", vec![cond, IrElement::block("seq", body)])
     }
 
-    pub fn i_typeinfo(type_: IrType) -> IrElement {
-        IrElement::block("typeinfo", vec![type_.to_element()])
+    pub fn i_typeinfo(type_: IrElement) -> IrElement {
+        IrElement::block("typeinfo", vec![type_])
     }
 
     pub fn d_var(name: impl Into<String>, typ: IrType, expr: IrElement) -> IrElement {
@@ -350,7 +350,18 @@ impl IrSingleType {
                 Ok(IrSingleType::Address(Box::new(unified)))
             }
             (IrSingleType::Fn(args1, ret1), IrSingleType::Fn(args2, ret2)) => {
-                if args1.len() != args2.len() {
+                // FIXME: Currenty we don't support generic functions
+                if args1
+                    .iter()
+                    .filter(|t| t.is_typeinfo())
+                    .collect::<Vec<_>>()
+                    .len()
+                    != args2
+                        .iter()
+                        .filter(|t| t.is_typeinfo())
+                        .collect::<Vec<_>>()
+                        .len()
+                {
                     bail!(
                         "function arity mismatch, {} vs {}",
                         args1.len(),
@@ -727,6 +738,13 @@ impl IrType {
     pub fn is_unknown(&self) -> bool {
         match self {
             IrType::Unknown => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_typeinfo(&self) -> bool {
+        match self {
+            IrType::TypeTag => true,
             _ => false,
         }
     }

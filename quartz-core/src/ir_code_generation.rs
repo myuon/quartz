@@ -162,7 +162,7 @@ impl<'s> IrFunctionGenerator<'s> {
                 elements.push(self.expr(f.as_ref())?);
 
                 for t in &self.type_applied {
-                    elements.push(self.ir_type(&t)?);
+                    elements.push(IrElement::i_typeinfo(self.ir_type(&t)?));
                 }
                 self.type_applied = vec![];
 
