@@ -249,8 +249,8 @@ impl IrElement {
         IrElement::block("while", vec![cond, IrElement::block("seq", body)])
     }
 
-    pub fn i_typeinfo(type_: IrElement) -> IrElement {
-        IrElement::block("typeinfo", vec![type_])
+    pub fn i_typetag(type_: IrElement) -> IrElement {
+        IrElement::block("typetag", vec![type_])
     }
 
     pub fn d_var(name: impl Into<String>, typ: IrType, expr: IrElement) -> IrElement {
@@ -353,12 +353,12 @@ impl IrSingleType {
                 // FIXME: Currenty we don't support generic functions
                 if args1
                     .iter()
-                    .filter(|t| t.is_typeinfo())
+                    .filter(|t| t.is_typetag())
                     .collect::<Vec<_>>()
                     .len()
                     != args2
                         .iter()
-                        .filter(|t| t.is_typeinfo())
+                        .filter(|t| t.is_typetag())
                         .collect::<Vec<_>>()
                         .len()
                 {
@@ -593,7 +593,7 @@ impl IrType {
 
                 IrElement::block("typeapp", params)
             }
-            IrType::TypeTag => IrElement::ident("type_tag"),
+            IrType::TypeTag => IrElement::ident("typetag"),
             IrType::TypeArgument(t) => IrElement::Term(IrTerm::Argument(*t)),
         }
     }
@@ -689,7 +689,7 @@ impl IrType {
             IrType::Slice(len, t) => Ok(len * t.size_of(types)? + 1),
             IrType::Ident(t) => {
                 // FIXME: Really?
-                if t == "type_tag" {
+                if t == "typetag" {
                     return Ok(1);
                 }
 
@@ -742,7 +742,7 @@ impl IrType {
         }
     }
 
-    pub fn is_typeinfo(&self) -> bool {
+    pub fn is_typetag(&self) -> bool {
         match self {
             IrType::TypeTag => true,
             _ => false,

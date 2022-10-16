@@ -874,7 +874,7 @@ impl<'s> VmFunctionGenerator<'s> {
 
                         Ok(IrType::addr_of(IrType::boxed_array(typ)))
                     }
-                    "typeinfo" => {
+                    "typetag" => {
                         self.new_source_map(element.show_compact());
                         let type_ = unvec!(block.elements, 1);
                         let type_ = IrType::from_element(&type_)?;
@@ -882,7 +882,7 @@ impl<'s> VmFunctionGenerator<'s> {
                         self.writer
                             .push(QVMInstruction::InfoConst(self.size_of(&type_)?));
 
-                        Ok(IrType::Ident("typeinfo".to_string()))
+                        Ok(IrType::Ident("typetag".to_string()))
                     }
                     name => todo!("{:?}", name),
                 }
