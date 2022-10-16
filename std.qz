@@ -314,9 +314,18 @@ func test() {
     assert(_sizeof[vector[int]]() == 3);
 
     let v = vector[int]::new();
+    v.push(1);
+    v.push(2);
+    v.push(3);
+    v.push(4);
+    v.push(5);
+    v.push(6);
+    v.push(7);
+    v.push(8);
+    v.push(9);
     v.push(10);
-    v.push(20);
 
-    assert(v.len() == 2);
-    assert(v.at(1) == 20);
+    v.push(11);
+    assert(v.len() == 11);
+    assert(v.at(10) == 11);
 }
