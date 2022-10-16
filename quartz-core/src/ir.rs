@@ -583,7 +583,7 @@ impl IrType {
                 IrElement::block("typeapp", params)
             }
             IrType::TypeTag => IrElement::ident("type_tag"),
-            IrType::TypeArgument(_) => todo!(),
+            IrType::TypeArgument(t) => IrElement::Term(IrTerm::Argument(*t)),
         }
     }
 
@@ -676,13 +676,20 @@ impl IrType {
                 .sum::<usize>()
                 + 1), // +1 for a pointer to info table
             IrType::Slice(len, t) => Ok(len * t.size_of(types)? + 1),
-            IrType::Ident(t) => types
-                .get(t)
-                .ok_or(anyhow::anyhow!(
-                    "Cannot determine size of type {}, because it is not defined",
-                    t
-                ))?
-                .size_of(types),
+            IrType::Ident(t) => {
+                // FIXME: Really?
+                if t == "type_tag" {
+                    return Ok(1);
+                }
+
+                types
+                    .get(t)
+                    .ok_or(anyhow::anyhow!(
+                        "Cannot determine size of type {}, because it is not defined",
+                        t
+                    ))?
+                    .size_of(types)
+            }
             IrType::Generic(_, _) => {
                 bail!("Cannot determine size of generic type, because it is not instantiated")
             }
