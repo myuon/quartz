@@ -484,6 +484,7 @@ impl IrType {
                     "bool" => IrType::bool(),
                     "int" => IrType::int(),
                     "byte" => IrType::byte(),
+                    "typetag" => IrType::typetag(),
                     t => IrType::Ident(t.to_string()),
                 },
                 IrTerm::Argument(u) => IrType::TypeArgument(*u),
