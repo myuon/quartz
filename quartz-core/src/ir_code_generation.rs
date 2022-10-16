@@ -184,7 +184,7 @@ impl<'s> IrFunctionGenerator<'s> {
                 Ok(IrElement::i_call_raw(elements))
             }
             Expr::AssociatedCall(_, _, _, _) => unreachable!(),
-            Expr::MethodCall(CallMode::Array, type_, label, self_, args) => {
+            Expr::MethodCall(CallMode::Array, type_, _, label, self_, args) => {
                 Ok(IrElement::i_addr_index(
                     self.expr(&Source::unknown(Expr::Project(
                         type_.clone(),
@@ -194,8 +194,8 @@ impl<'s> IrFunctionGenerator<'s> {
                     self.expr(&args[0])?,
                 ))
             }
-            Expr::MethodCall(CallMode::SizedArray, _, _, _, _) => unreachable!(),
-            Expr::MethodCall(CallMode::Function, type_, label, self_, args) => {
+            Expr::MethodCall(CallMode::SizedArray, _, _, _, _, _) => unreachable!(),
+            Expr::MethodCall(CallMode::Function, type_, ts, label, self_, args) => {
                 let mut elements = vec![];
                 elements.push(self.expr(&Source::unknown(Expr::Var(vec![
                     type_.method_selector_name().context(format!(
@@ -210,6 +210,10 @@ impl<'s> IrFunctionGenerator<'s> {
                     ))?,
                     label.clone(),
                 ])))?);
+
+                for t in ts {
+                    elements.push(IrElement::i_typetag(self.ir_type(&t)?));
+                }
 
                 elements.push(self.expr(self_)?);
                 for arg in args {
@@ -573,18 +577,11 @@ impl<'s> IrGenerator<'s> {
         let mut arg_index = 0;
         let mut arg_types_in_ir = vec![];
 
-        // argument in reverse order
-        for param in ts {
-            arg_index += 1;
-            args.insert(param.clone(), arg_index - 1);
-            arg_types_in_ir.push(IrType::typetag());
-        }
-        for param in function.type_params.iter().rev() {
-            arg_index += 1;
-            args.insert(param.clone(), arg_index - 1);
-            arg_types_in_ir.push(IrType::typetag());
-        }
+        let mut type_params = vec![];
+        type_params.extend(ts);
+        type_params.extend(&function.type_params);
 
+        // argument in reverse order
         for (name, typ) in function.args.iter().rev() {
             arg_index += 1; // self.stack_size_of(typ)?;
             args.insert(name.clone(), arg_index - 1);
@@ -592,6 +589,11 @@ impl<'s> IrGenerator<'s> {
                 self.ir_type(typ)
                     .context(format!("at method: {:?}::{}", typ, function.name.data))?,
             );
+        }
+        for param in type_params.into_iter().rev() {
+            arg_index += 1;
+            args.insert(param.clone(), arg_index - 1);
+            arg_types_in_ir.push(IrType::typetag());
         }
 
         let return_type = self
@@ -928,11 +930,11 @@ func main() {
 (module
     (type $container (generic (tuple $typetag) $typetag))
     (func $container_get (args $typetag (address (typeapp $container $typetag))) (return $typetag)
-        (return (addr_offset $1 0))
+        (return (addr_offset $0 0))
     )
     (func $main (args) (return $nil)
-        (let $c (tuple (typeapp $container $int)) 10)
-        (let $n (call $container_get $int (address $c)))
+        (let $c (tuple (typeapp $container $int) 10))
+        (let $n (call $container_get (typetag $int) (address $c)))
     )
 )
 "#,
@@ -953,7 +955,7 @@ func main() {
 
             let element = parse_ir(ir_code).unwrap();
 
-            assert_eq!(generated, element, "{}", code);
+            assert_eq!(element, generated, "{}", code);
         }
     }
 }

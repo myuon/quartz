@@ -409,6 +409,7 @@ impl Parser {
                         result = Expr::MethodCall(
                             CallMode::Function,
                             Type::Omit,
+                            vec![],
                             label,
                             Box::new(self.source_from(result, result_start)),
                             args,

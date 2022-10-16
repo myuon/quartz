@@ -517,7 +517,7 @@ impl<'s> TypeChecker<'s> {
 
                 *mode = CallMode::Function;
             }
-            Expr::MethodCall(mode, type_, label, self_, args) => {
+            Expr::MethodCall(mode, type_, ts, label, self_, args) => {
                 self.normalize_type(type_);
                 self.expr(self_, type_)?;
                 let name = type_.method_selector_name().context(self.error_context(
@@ -574,7 +574,9 @@ impl<'s> TypeChecker<'s> {
                                 &format!("method {}", label)
                             )
                         ))?;
-                    method.apply(&type_.type_applications()?);
+                    let params = type_.type_applications()?;
+                    method.apply(&params);
+                    *ts = params;
 
                     self.call_graph
                         .entry(self.current_function.clone().unwrap())

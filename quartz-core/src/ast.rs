@@ -189,7 +189,14 @@ pub enum Expr {
     Make(Type, Vec<Source<Expr>>),
     Lit(Literal),
     Call(CallMode, Box<Source<Expr>>, Vec<Source<Expr>>),
-    MethodCall(CallMode, Type, String, Box<Source<Expr>>, Vec<Source<Expr>>),
+    MethodCall(
+        CallMode,
+        Type,
+        Vec<Type>,
+        String,
+        Box<Source<Expr>>,
+        Vec<Source<Expr>>,
+    ),
     AssociatedCall(CallMode, Type, String, Vec<Source<Expr>>),
     Struct(String, Vec<Type>, Vec<(String, Source<Expr>, Type)>),
     Project(Type, Box<Source<Expr>>, String),
@@ -237,6 +244,7 @@ impl Expr {
         Expr::MethodCall(
             CallMode::Function,
             type_,
+            vec![],
             var.into(),
             Box::new(callee),
             args,
@@ -316,10 +324,14 @@ impl Expr {
                 }
                 printer.dedent();
             }
-            Expr::MethodCall(m, t, v, c, a) => {
+            Expr::MethodCall(m, t, ts, v, c, a) => {
                 printer.writeln("<<MethodCall>>");
                 printer.item("mode", &format!("{:?}", m));
                 printer.item_verbose("type", &t.show());
+                printer.item_verbose(
+                    "type_args",
+                    &ts.iter().map(|t| t.show()).collect::<Vec<_>>().join(", "),
+                );
                 printer.item("name", v);
                 printer.item_verbose("callee", &c.data.show());
 
