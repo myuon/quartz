@@ -6,6 +6,7 @@ func generate(element: IrElement): vector[string] {
     // first path
     let block = element.into_block();
     let index = 0;
+    _start_debugger;
     while index < block!.elements.len() {
         let block = block!.elements.at(index).into_block();
         if block!.name == "func" {

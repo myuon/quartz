@@ -206,7 +206,6 @@ method IrLexer next_token(self): Token {
     let n = find_variable_letters(current);
     if (n > 0) {
         self.position = self.position + n;
-        _start_debugger;
 
         return Token {
             type: "KEYWORD",

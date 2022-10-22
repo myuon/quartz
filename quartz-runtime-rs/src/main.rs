@@ -240,24 +240,36 @@ fn main() -> Result<()> {
             }
         },
         Command::Debugger { debugger_json } => {
-            let mut runtime = Runtime::new_from_debugger_json(
-                debugger_json.unwrap_or("./quartz-debugger.json".into()),
-            )?;
-
             enable_raw_mode()?;
+            let result = std::panic::catch_unwind(|| -> Result<()> {
+                let mut runtime = Runtime::new_from_debugger_json(
+                    debugger_json.unwrap_or("./quartz-debugger.json".into()),
+                )?;
 
-            let mut stdout = std::io::stdout();
-            execute!(stdout, EnterAlternateScreen)?;
-            let backend = CrosstermBackend::new(stdout);
-            let mut terminal = Terminal::new(backend)?;
+                let mut stdout = std::io::stdout();
+                execute!(stdout, EnterAlternateScreen)?;
+                let backend = CrosstermBackend::new(stdout);
+                let mut terminal = Terminal::new(backend)?;
 
-            if let Err(err) = start_debugger(&mut runtime, &mut terminal) {
-                error!("{:?}", err);
-            }
+                if let Err(err) = start_debugger(&mut runtime, &mut terminal) {
+                    error!("{:?}", err);
+                }
 
+                execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
+                terminal.show_cursor()?;
+
+                Ok(())
+            });
             disable_raw_mode()?;
-            execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
-            terminal.show_cursor()?;
+
+            match result {
+                Ok(result) => {
+                    let _ = result?;
+                }
+                Err(err) => {
+                    error!("{:?}", err);
+                }
+            }
         }
     }
 
