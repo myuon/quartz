@@ -191,7 +191,7 @@ impl<'s> VmFunctionGenerator<'s> {
             ),
             "_eq" => (
                 QVMInstruction::Eq,
-                IrType::func(vec![IrType::int(), IrType::int()], IrType::bool()),
+                IrType::func(vec![IrType::unknown(), IrType::unknown()], IrType::bool()),
             ),
             "_neq" => (
                 QVMInstruction::Neq,
@@ -503,8 +503,19 @@ impl<'s> VmFunctionGenerator<'s> {
 
                         let callee_type = self.element_addr(callee.clone())?;
                         let callee_typ = callee_type
-                            .unify(IrType::addr_of(IrType::func(arg_types, IrType::unknown())))
-                            .context(format!("[call:arg] {}", callee.show()))?;
+                            .unify(IrType::addr_of(IrType::func(
+                                arg_types.clone(),
+                                IrType::unknown(),
+                            )))
+                            .context(format!(
+                                "[call:arg] {} ({})",
+                                callee.show(),
+                                arg_types
+                                    .iter()
+                                    .map(|t| t.to_element().show())
+                                    .collect::<Vec<_>>()
+                                    .join(", ")
+                            ))?;
                         let (_, ret_type) = callee_typ.as_addr().unwrap().as_func().unwrap();
 
                         // If the last instruction is not LabelAddrConst, it will be a builtin operation and no need to run CALL operation

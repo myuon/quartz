@@ -1734,6 +1734,25 @@ func main() {
 "#,
             5,
         ),
+        (
+            "is nil",
+            r#"
+func f(): int? {
+    return 10 as int?;
+}
+
+func main(): int {
+    let t = f();
+
+    if t == nil {
+        return 0;
+    } else {
+        return t!;
+    };
+}
+"#,
+            10,
+        ),
     ];
 
     fn run(name: &str, input: &str, buffer: &mut Vec<u8>) -> Result<Value> {
