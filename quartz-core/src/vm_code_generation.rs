@@ -280,10 +280,6 @@ impl<'s> VmFunctionGenerator<'s> {
                 QVMInstruction::RuntimeInstr("_check_sp".to_string()),
                 IrType::nil(),
             ),
-            "_is_nil" => (
-                QVMInstruction::RuntimeInstr("_is_nil".to_string()),
-                IrType::func(vec![IrType::addr_of(IrType::unknown())], IrType::bool()),
-            ),
             "_println_any" => (
                 QVMInstruction::RuntimeInstr("_println_any".to_string()),
                 IrType::func(vec![IrType::addr_of(IrType::unknown())], IrType::nil()),

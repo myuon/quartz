@@ -936,15 +936,6 @@ impl Runtime {
                         }
                     }
                 }
-                "_is_nil" => {
-                    let value = self.pop();
-                    if value.is_nil() {
-                        self.push(Value::bool(true));
-                    } else {
-                        assert!(value.as_addr().is_some());
-                        self.push(Value::bool(false));
-                    }
-                }
                 "_sizeof" => {
                     let value = self.pop();
                     let info = value.as_info_addr().unwrap();
@@ -1435,7 +1426,7 @@ func main() {
         value: nil,
     };
 
-    if _is_nil(bar.value) {
+    if bar.value == nil {
         return 10;
     } else {
         return 20;
@@ -1452,7 +1443,7 @@ struct Nat {
 }
 
 method Nat add(self, m: Nat): Nat {
-    if _is_nil(self.succ) {
+    if self.succ == nil {
         return m;
     } else {
         return Nat {
@@ -1462,7 +1453,7 @@ method Nat add(self, m: Nat): Nat {
 }
 
 method Nat to_int(self): int {
-    if _is_nil(self.succ) {
+    if self.succ == nil {
         return 0;
     } else {
         return self.succ.to_int() + 1;
@@ -1511,7 +1502,7 @@ func main() {
         point: nil,
     };
 
-    if _is_nil(c1.point) {
+    if c1.point == nil {
         return 1;
     } else {
         return 0;
@@ -1649,7 +1640,7 @@ func main() {
     let p = nil as int?;
     p = int_or(100);
 
-    if _is_nil(p) {
+    if p == nil {
         return 0;
     } else {
         return p!;

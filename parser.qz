@@ -68,7 +68,7 @@ struct IrElementList {
 method IrElementList to_string(self): string {
     let s = "";
     let n = self.list;
-    while _not(_is_nil(n)) {
+    while _not(n == nil) {
        s = s.concat(" ").concat(n.node.to_string());
        n = n.next.list;
     };
@@ -91,7 +91,7 @@ method IrElementList cons(self, node: IrElement): IrElementList {
 }
 
 method IrElementList concat(self, node: IrElementList): IrElementList {
-    if _is_nil(self.list) {
+    if self.list == nil {
         return node;
     } else {
         let current = self.list!;
@@ -106,7 +106,7 @@ method IrElementList concat(self, node: IrElementList): IrElementList {
 }
 
 method IrElementList reverse(self): IrElementList {
-    if _is_nil(self.list) {
+    if self.list == nil {
         return IrElementList {
             list: nil,
         };
@@ -153,7 +153,7 @@ method IrParser new(tokens: TokenList): IrParser {
 }
 
 method IrParser is_eof(self): bool {
-    return _is_nil(self.tokens.next);
+    return self.tokens.next == nil;
 }
 
 method IrParser expect(self, token_type: string): Token {
@@ -166,7 +166,7 @@ method IrParser expect(self, token_type: string): Token {
 }
 
 method IrParser next(self): Token {
-    if _is_nil(self.tokens.next) {
+    if self.tokens.next == nil {
         _panic;
         return Token {
             type: "",
@@ -181,7 +181,7 @@ method IrParser next(self): Token {
 }
 
 method IrParser peek(self): Token {
-    if _is_nil(self.tokens.next) {
+    if self.tokens.next == nil {
         _panic;
         return Token {
             type: "",
@@ -232,7 +232,7 @@ method IrParser term(self, token: Token): IrTerm {
     };
     if (token.type.eq("KEYWORD")) {
         let keyword = token.value_string!;
-        if _is_nil(keyword) {
+        if keyword == nil {
             _panic;
         };
 

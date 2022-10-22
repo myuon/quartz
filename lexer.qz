@@ -116,7 +116,7 @@ method TokenList cons(self, node: Token): TokenList {
 }
 
 method TokenList concat(self, node: TokenList): TokenList {
-    if _is_nil(self.next) {
+    if self.next == nil {
         return node;
     } else {
         let current = self.next!;
@@ -131,7 +131,7 @@ method TokenList concat(self, node: TokenList): TokenList {
 }
 
 method TokenList reverse(self): TokenList {
-    if _is_nil(self.next) {
+    if self.next == nil {
         return TokenList {
             next: nil,
         };

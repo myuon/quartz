@@ -99,10 +99,6 @@ pub fn builtin() -> HashMap<String, Type> {
             ),
         ),
         (
-            "_is_nil",
-            Type::Fn(vec![], vec![Type::Any], Box::new(Type::Bool)),
-        ),
-        (
             "_println_any",
             Type::Fn(vec![], vec![Type::Any], Box::new(Type::Nil)),
         ),
