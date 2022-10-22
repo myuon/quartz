@@ -754,6 +754,16 @@ impl IrType {
             // FIXME: Currently, we don't support type argument
             (IrType::TypeArgument(_), t) => Ok(t),
             (s, IrType::TypeArgument(_)) => Ok(s),
+            (IrType::TypeApp(s, vs), IrType::TypeApp(t, ps)) => {
+                let u = s.unify(t.as_ref().clone())?;
+
+                let mut result = vec![];
+                for (v, p) in vs.into_iter().zip(ps) {
+                    result.push(v.unify(p)?);
+                }
+
+                Ok(IrType::TypeApp(Box::new(u), result))
+            }
             (IrType::TypeTag, t) => Ok(t),
             (s, IrType::TypeTag) => Ok(s),
             (s, t) => {

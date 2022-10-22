@@ -124,6 +124,22 @@ method IrElementList reverse(self): IrElementList {
     };
 }
 
+method IrElementList len(self): int {
+    if self.list == nil {
+        return 0;
+    } else {
+        return self.list!.next.len() + 1;
+    };
+}
+
+method IrElementList at(self, i: int): IrElement {
+    if i == 0 {
+        return self.list!.node;
+    } else {
+        return self.list!.next.at(i - 1);
+    };
+}
+
 struct IrElement {
     type: string, // BLOCK or TERM
     term: IrTerm?,
@@ -140,6 +156,14 @@ method IrElement to_string(self): string {
 
     _panic;
     return "";
+}
+
+method IrElement into_block(self): IrBlock? {
+    if (self.type.eq("BLOCK")) {
+        return self.block;
+    };
+
+    return nil;
 }
 
 struct IrParser {

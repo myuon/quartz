@@ -1,5 +1,25 @@
 import parser;
 
+func generate(element: IrElement): vector[string] {
+    let code = vector[string]::new();
+
+    // first path
+    let block = element.into_block();
+    let index = 0;
+    while index < block!.elements.len() {
+        let block = block!.elements.at(index).into_block();
+        if block!.name == "func" {
+            _println("func");
+        } else {
+            _println("not func");
+        }
+
+        index = index + 1;
+    }
+
+    return code;
+}
+
 func main() {
     let input = "(module (func $main 0 (return 10)))";
     let IrLexer = IrLexer {
@@ -12,6 +32,8 @@ func main() {
     let element = parser.element()!;
     _println_any(ref element);
     _println(element.to_string());
+
+    _println_any(ref generate(element).len());
 
     _println("== COMPILE FINISHED");
 }
