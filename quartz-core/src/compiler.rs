@@ -213,10 +213,6 @@ impl Compiler<'_> {
         let mut modules = vec![];
         let mut visited = HashSet::new();
         let mut stack = vec!["main".to_string()];
-        if let Some(path) = preload_path {
-            stack.push(path.clone());
-            visited.insert(path);
-        }
 
         while let Some(path) = stack.pop() {
             let mut module = self
@@ -240,6 +236,23 @@ impl Compiler<'_> {
             modules.push(module);
             info!("parsed module: {}", path);
         }
+
+        if let Some(path) = preload_path {
+            let mut module = self.parse(
+                &path,
+                &self
+                    .source_loader
+                    .as_ref()
+                    .unwrap()
+                    .load_module(path.as_str())?,
+            )?;
+            module.module_path = path.clone();
+
+            modules.push(module);
+            info!("parsed module: {}", path);
+        }
+
+        modules.reverse();
 
         typechecker.set_entrypoint(entrypoint);
         typechecker

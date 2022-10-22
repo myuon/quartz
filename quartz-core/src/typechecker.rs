@@ -565,7 +565,7 @@ impl<'s> TypeChecker<'s> {
                         .get(&(name.clone(), label.clone()))
                         .cloned()
                         .context(format!(
-                            "method {} of type {},\n{}",
+                            "method {} of type {} not found,\n{}",
                             label,
                             name,
                             self.error_context(
