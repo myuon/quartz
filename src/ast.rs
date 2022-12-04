@@ -9,12 +9,14 @@ impl Ident {
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Type {
+    Omit,
     I32,
 }
 
 impl Type {
     pub fn as_str(&self) -> &str {
         match self {
+            Type::Omit => "i32", // FIXME
             Type::I32 => "i32",
         }
     }

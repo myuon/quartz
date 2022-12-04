@@ -32,15 +32,26 @@ mod tests {
     #[test]
     fn test_compile_and_run() {
         let mut runtime = Runtime::new();
-        let cases = vec![(
-            r#"
+        let cases = vec![
+            (
+                r#"
 fun main(): i32 {
     let x: i32 = 10;
     return x + 1;
 }
 "#,
-            vec![Value::I32(11)],
-        )];
+                vec![Value::I32(11)],
+            ),
+            (
+                r#"
+fun main() {
+    let x = 10;
+    return x + 1;
+}
+"#,
+                vec![Value::I32(11)],
+            ),
+        ];
 
         for (input, expected) in cases {
             let mut compiler = Compiler::new();

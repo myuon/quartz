@@ -47,8 +47,12 @@ impl Parser {
         let name = self.ident()?;
         self.expect(Lexeme::LParen)?;
         self.expect(Lexeme::RParen)?;
-        self.expect(Lexeme::Colon)?;
-        let result = self.type_()?;
+
+        let mut result = Type::Omit;
+        if self.peek()?.lexeme == Lexeme::Colon {
+            self.consume()?;
+            result = self.type_()?;
+        }
 
         self.expect(Lexeme::LBrace)?;
         let body = self.block()?;
@@ -74,8 +78,13 @@ impl Parser {
         let current = self.consume()?;
         if current.lexeme == Lexeme::Let {
             let ident = self.ident()?;
-            self.expect(Lexeme::Colon)?;
-            let type_ = self.type_()?;
+
+            let mut type_ = Type::Omit;
+            if self.peek()?.lexeme == Lexeme::Colon {
+                self.consume()?;
+                type_ = self.type_()?;
+            }
+
             self.expect(Lexeme::Equal)?;
             let value = self.expr()?;
             self.expect(Lexeme::Semicolon)?;
