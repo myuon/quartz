@@ -1,3 +1,5 @@
+use anyhow::{bail, Result};
+
 #[derive(PartialEq, Debug, Clone)]
 pub struct Ident(pub String);
 
@@ -11,13 +13,29 @@ impl Ident {
 pub enum Type {
     Omit,
     I32,
+    Func(Vec<Type>, Box<Type>),
 }
 
 impl Type {
-    pub fn as_str(&self) -> &str {
+    pub fn to_string(&self) -> String {
         match self {
-            Type::Omit => "i32", // FIXME
-            Type::I32 => "i32",
+            Type::Omit => "_".to_string(),
+            Type::I32 => "i32".to_string(),
+            Type::Func(args, ret) => format!(
+                "({}) -> {}",
+                args.iter()
+                    .map(|t| t.to_string())
+                    .collect::<Vec<String>>()
+                    .join(", "),
+                ret.to_string()
+            ),
+        }
+    }
+
+    pub fn to_func(self) -> Result<(Vec<Type>, Box<Type>)> {
+        match self {
+            Type::Func(args, ret) => Ok((args, ret)),
+            _ => bail!("expected function type, but found {}", self.to_string()),
         }
     }
 }

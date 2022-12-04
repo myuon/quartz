@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use thiserror::Error;
 
-use crate::{generator::Generator, lexer::Lexer, parser::Parser};
+use crate::{generator::Generator, lexer::Lexer, parser::Parser, typecheck::TypeChecker};
 
 #[derive(Debug, Error)]
 #[error("Found error in span ({start:?},{end:?})")]
@@ -20,10 +20,13 @@ impl Compiler {
     fn compile_(&mut self, input: &str) -> Result<String> {
         let mut lexer = Lexer::new();
         let mut parser = Parser::new();
+        let mut typechecker = TypeChecker::new();
         let mut generator = Generator::new();
 
         lexer.run(input).context("lexer phase")?;
         let mut ast = parser.run(lexer.tokens).context("parser phase")?;
+        typechecker.run(&mut ast).context("typechecker phase")?;
+
         generator.run(&mut ast).context("generator phase")?;
 
         Ok(generator.writer.buffer)

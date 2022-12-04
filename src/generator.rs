@@ -48,10 +48,10 @@ impl Generator {
         self.writer.write(&format!("${}", func.name.as_str()));
         for (name, type_) in &mut func.params {
             self.writer
-                .write(&format!("(param ${} {})", name.as_str(), type_.as_str()));
+                .write(&format!("(param ${} {})", name.as_str(), type_.to_string()));
         }
         self.writer
-            .write(&format!("(result {})", func.result.as_str()));
+            .write(&format!("(result {})", func.result.to_string()));
         for statement in &mut func.body {
             self.statement(statement)?;
         }
@@ -65,7 +65,7 @@ impl Generator {
             Statement::Let(ident, type_, value) => {
                 self.writer.start();
                 self.writer
-                    .write(&format!("local ${} {}", ident.as_str(), type_.as_str()));
+                    .write(&format!("local ${} {}", ident.as_str(), type_.to_string()));
                 self.writer.end();
 
                 self.writer.start();

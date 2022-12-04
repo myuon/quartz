@@ -4,6 +4,7 @@ mod generator;
 mod lexer;
 mod parser;
 mod runtime;
+mod typecheck;
 
 use crate::{compiler::Compiler, runtime::Runtime};
 
@@ -12,9 +13,9 @@ fn main() -> anyhow::Result<()> {
     let mut runtime = Runtime::new();
     let wat = compiler.compile(
         r#"
-fun main(): i32 {
-let x: i32 = 10;
-return x + 1;
+fun main() {
+  let x = 10;
+  return x + 1;
 }
 "#,
     )?;
