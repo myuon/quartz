@@ -14,6 +14,7 @@ pub enum Type {
     Omit(usize),
     I32,
     Func(Vec<Type>, Box<Type>),
+    Nil,
 }
 
 impl Type {
@@ -29,6 +30,7 @@ impl Type {
                     .join(", "),
                 ret.to_string()
             ),
+            Type::Nil => "nil".to_string(),
         }
     }
 
@@ -36,6 +38,20 @@ impl Type {
         match self {
             Type::Func(args, ret) => Ok((args, ret)),
             _ => bail!("expected function type, but found {}", self.to_string()),
+        }
+    }
+
+    pub fn is_omit(&self) -> bool {
+        match self {
+            Type::Omit(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_nil(&self) -> bool {
+        match self {
+            Type::Nil => true,
+            _ => false,
         }
     }
 }
@@ -56,6 +72,8 @@ pub enum Expr {
 pub enum Statement {
     Let(Ident, Type, Expr),
     Return(Expr),
+    Expr(Expr),
+    Assign(Ident, Box<Expr>),
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -78,6 +96,7 @@ impl Func {
 #[derive(PartialEq, Debug, Clone)]
 pub enum Decl {
     Func(Func),
+    Let(Ident, Type, Expr),
 }
 
 #[derive(PartialEq, Debug, Clone)]

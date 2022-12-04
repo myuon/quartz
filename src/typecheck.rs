@@ -47,6 +47,13 @@ impl TypeChecker {
                 self.globals
                     .insert(func.name.as_str().to_string(), func.to_type());
             }
+            Decl::Let(ident, type_, expr) => {
+                let mut result = self.expr(expr)?;
+                self.unify(type_, &mut result)?;
+
+                self.globals
+                    .insert(ident.as_str().to_string(), type_.clone());
+            }
         }
 
         Ok(())
@@ -66,6 +73,10 @@ impl TypeChecker {
 
         self.locals = locals;
 
+        if func.result.is_omit() {
+            func.result = Type::Nil;
+        }
+
         Ok(())
     }
 
@@ -80,6 +91,17 @@ impl TypeChecker {
                 Ok(None)
             }
             Statement::Return(expr) => Ok(Some(self.expr(expr)?)),
+            Statement::Expr(expr) => {
+                self.expr(expr)?;
+                Ok(None)
+            }
+            Statement::Assign(lhs, rhs) => {
+                let mut lhs_type = self.ident(lhs)?;
+                let mut rhs_type = self.expr(rhs)?;
+                self.unify(&mut lhs_type, &mut rhs_type)?;
+
+                Ok(None)
+            }
         }
     }
 

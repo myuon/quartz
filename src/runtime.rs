@@ -66,6 +66,21 @@ fun main() {
 "#,
                 vec![Value::I32(13)],
             ),
+            (
+                r#"
+let a = 5;
+
+fun f() {
+    a = a + 10;
+}
+
+fun main() {
+    f();
+    return a;
+}
+"#,
+                vec![Value::I32(13)],
+            ),
         ];
 
         for (input, expected) in cases {
@@ -73,7 +88,7 @@ fun main() {
             let wat = compiler.compile(input).unwrap();
             let result = runtime
                 .run(&wat)
-                .context(format!("\n== COMPILED\n{}", wat))
+                .context(format!("\n== SOURCE\n{}\n\n== COMPILED\n{}", input, wat))
                 .unwrap();
             assert_eq!(expected.as_slice(), result.as_ref());
         }

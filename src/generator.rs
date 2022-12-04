@@ -1,6 +1,6 @@
 use anyhow::{Ok, Result};
 
-use crate::ast::{Decl, Expr, Func, Ident, Lit, Module, Statement};
+use crate::ast::{Decl, Expr, Func, Ident, Lit, Module, Statement, Type};
 
 pub struct Generator {
     pub writer: Writer,
@@ -39,6 +39,7 @@ impl Generator {
     fn decl(&mut self, decl: &mut Decl) -> Result<()> {
         match decl {
             Decl::Func(func) => self.func(func),
+            Decl::Let(ident, type_, expr) => self.let_(ident, type_, expr),
         }
     }
 
@@ -50,8 +51,11 @@ impl Generator {
             self.writer
                 .write(&format!("(param ${} {})", name.as_str(), type_.to_string()));
         }
-        self.writer
-            .write(&format!("(result {})", func.result.to_string()));
+
+        if !func.result.is_nil() {
+            self.writer
+                .write(&format!("(result {})", func.result.to_string()));
+        }
 
         for statement in &mut func.body {
             if let Statement::Let(ident, type_, _) = statement {
@@ -70,6 +74,19 @@ impl Generator {
         Ok(())
     }
 
+    fn let_(&mut self, ident: &mut Ident, type_: &mut Type, expr: &mut Expr) -> Result<()> {
+        self.writer.start();
+        self.writer.write("global");
+        self.writer.write(&format!("${}", ident.as_str()));
+        self.writer.write(&type_.to_string());
+        self.writer.start();
+        self.expr(expr)?;
+        self.writer.end();
+        self.writer.end();
+
+        Ok(())
+    }
+
     fn statement(&mut self, statement: &mut Statement) -> Result<()> {
         match statement {
             Statement::Let(ident, _, value) => {
@@ -83,6 +100,18 @@ impl Generator {
             Statement::Return(value) => {
                 self.writer.new_statement();
                 self.expr(value)?;
+            }
+            Statement::Expr(expr) => {
+                self.writer.new_statement();
+                self.expr(expr)?;
+            }
+            Statement::Assign(lhs, rhs) => {
+                self.writer.new_statement();
+                self.expr(rhs)?;
+
+                self.writer.new_statement();
+                self.writer.write("local.set");
+                self.writer.write(&format!("${}", lhs.as_str()));
             }
         }
 

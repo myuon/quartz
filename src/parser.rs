@@ -40,6 +40,10 @@ impl Parser {
         let consume = self.peek()?;
         match consume.lexeme {
             Lexeme::Fun => Ok(Decl::Func(self.func()?)),
+            Lexeme::Let => {
+                let (ident, type_, value) = self.let_()?;
+                Ok(Decl::Let(ident, type_, value))
+            }
             _ => Err(anyhow!("Unexpected token {:?}", self.peek()?.lexeme)),
         }
     }
@@ -90,27 +94,54 @@ impl Parser {
     }
 
     fn statement(&mut self) -> Result<Statement> {
-        let current = self.consume()?;
+        let current = self.peek()?;
         if current.lexeme == Lexeme::Let {
-            let ident = self.ident()?;
-
-            let mut type_ = self.gen_omit()?;
-            if self.peek()?.lexeme == Lexeme::Colon {
-                self.consume()?;
-                type_ = self.type_()?;
-            }
-
-            self.expect(Lexeme::Equal)?;
-            let value = self.expr()?;
-            self.expect(Lexeme::Semicolon)?;
+            let (ident, type_, value) = self.let_()?;
             Ok(Statement::Let(ident, type_, value))
         } else if current.lexeme == Lexeme::Return {
+            self.consume()?;
             let value = self.expr()?;
             self.expect(Lexeme::Semicolon)?;
             Ok(Statement::Return(value))
         } else {
-            Err(anyhow!("Unexpected token {:?}", current.lexeme))
+            let expr = self.expr()?;
+
+            match self.peek()?.lexeme {
+                Lexeme::Semicolon => {
+                    self.consume()?;
+                    Ok(Statement::Expr(expr))
+                }
+                Lexeme::Equal => {
+                    self.consume()?;
+                    let value = self.expr()?;
+                    self.expect(Lexeme::Semicolon)?;
+
+                    let Expr::Ident(lhs) = expr else {
+                        bail!("Expected identifier, but found {:?}", expr)
+                    };
+
+                    Ok(Statement::Assign(lhs, Box::new(value)))
+                }
+                _ => Err(anyhow!("Unexpected token {:?}", self.peek()?.lexeme)),
+            }
         }
+    }
+
+    fn let_(&mut self) -> Result<(Ident, Type, Expr)> {
+        self.expect(Lexeme::Let)?;
+        let ident = self.ident()?;
+
+        let mut type_ = self.gen_omit()?;
+        if self.peek()?.lexeme == Lexeme::Colon {
+            self.consume()?;
+            type_ = self.type_()?;
+        }
+
+        self.expect(Lexeme::Equal)?;
+        let value = self.expr()?;
+        self.expect(Lexeme::Semicolon)?;
+
+        Ok((ident, type_, value))
     }
 
     fn expr(&mut self) -> Result<Expr> {
