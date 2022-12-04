@@ -20,13 +20,18 @@ impl Generator {
     }
 
     fn module(&mut self, module: &mut Module) -> Result<()> {
-        self.writer.write("(module\n");
+        self.writer.start();
+        self.writer.write("module ");
         for decl in &mut module.0 {
             self.decl(decl)?;
         }
 
-        self.writer.write(r#"(export "main" (func $main))"#);
-        self.writer.write(")");
+        self.writer.start();
+        self.writer.write(r#"export "main" (func $main)"#);
+        self.writer.end();
+        self.writer.end();
+
+        self.writer.finalize();
 
         Ok(())
     }
@@ -38,18 +43,19 @@ impl Generator {
     }
 
     fn func(&mut self, func: &mut Func) -> Result<()> {
-        self.writer.write("(func\n");
+        self.writer.start();
+        self.writer.write("func ");
         self.writer.write(&format!("${} ", func.name.as_str()));
         for (name, type_) in &mut func.params {
             self.writer
-                .write(&format!("(param ${} {})", name.as_str(), type_.as_str()));
+                .write(&format!("(param ${} {}) ", name.as_str(), type_.as_str()));
         }
         self.writer
-            .write(&format!("(result {})", func.result.as_str()));
+            .write(&format!("(result {}) ", func.result.as_str()));
         for statement in &mut func.body {
             self.statement(statement)?;
         }
-        self.writer.write(")");
+        self.writer.end();
 
         Ok(())
     }
@@ -57,14 +63,17 @@ impl Generator {
     fn statement(&mut self, statement: &mut Statement) -> Result<()> {
         match statement {
             Statement::Let(ident, type_, value) => {
-                self.writer.write("(local ");
+                self.writer.start();
                 self.writer
-                    .write(&format!("${} {})", ident.as_str(), type_.as_str()));
+                    .write(&format!("local ${} {}", ident.as_str(), type_.as_str()));
+                self.writer.end();
 
-                self.writer.write("(local.set ");
+                self.writer.start();
+                self.writer.write("local.set ");
                 self.writer.write(&format!("${} ", ident.as_str()));
                 self.expr(value)?;
-                self.writer.write(") ");
+                self.writer.write("");
+                self.writer.end();
             }
             Statement::Return(value) => {
                 self.expr(value)?;
@@ -92,10 +101,13 @@ impl Generator {
 
     fn ident(&mut self, ident: &mut Ident) -> Result<()> {
         match ident.as_str() {
-            "add" => self.writer.write("i32.add "),
-            _ => self
-                .writer
-                .write(&format!("local.get ${} ", ident.as_str())),
+            "add" => {
+                self.writer.write("i32.add ");
+            }
+            _ => {
+                self.writer
+                    .write(&format!("local.get ${} ", ident.as_str()));
+            }
         }
 
         Ok(())
@@ -103,8 +115,11 @@ impl Generator {
 
     fn call(&mut self, caller: &mut Expr, args: &mut Vec<Expr>) -> Result<()> {
         for arg in args {
+            self.writer.new_statement();
             self.expr(arg)?;
         }
+
+        self.writer.new_statement();
         self.expr(caller)?;
 
         Ok(())
@@ -129,11 +144,17 @@ impl Writer {
     }
 
     pub fn start(&mut self) {
+        self.write(&format!("\n{}(", " ".repeat(self.depth)));
         self.depth += 1;
     }
 
     pub fn end(&mut self) {
+        self.write(") ");
         self.depth -= 1;
+    }
+
+    pub fn new_statement(&mut self) {
+        self.write(&format!("\n{}", " ".repeat(self.depth)));
     }
 
     pub fn finalize(&mut self) {
