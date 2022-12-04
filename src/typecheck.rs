@@ -48,26 +48,26 @@ impl TypeChecker {
 
     fn func(&mut self, func: &mut Func) -> Result<()> {
         for statement in &mut func.body {
-            self.statement(statement)?;
+            if let Some(result) = &mut self.statement(statement)? {
+                self.unify(&mut func.result, result)?;
+            }
         }
 
         Ok(())
     }
 
-    fn statement(&mut self, statement: &mut Statement) -> Result<()> {
+    fn statement(&mut self, statement: &mut Statement) -> Result<Option<Type>> {
         match statement {
             Statement::Let(val, type_, expr) => {
                 let mut result = self.expr(expr)?;
                 self.unify(type_, &mut result)?;
 
                 self.locals.insert(val.as_str().to_string(), type_.clone());
-            }
-            Statement::Return(expr) => {
-                self.expr(expr)?;
-            }
-        }
 
-        Ok(())
+                Ok(None)
+            }
+            Statement::Return(expr) => Ok(Some(self.expr(expr)?)),
+        }
     }
 
     fn expr(&mut self, expr: &mut Expr) -> Result<Type> {
