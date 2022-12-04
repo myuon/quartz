@@ -5,6 +5,7 @@ use anyhow::{bail, Result};
 use crate::ast::{Decl, Expr, Func, Ident, Lit, Module, Statement, Type};
 
 pub struct TypeChecker {
+    omits: Constrains,
     locals: HashMap<String, Type>,
     globals: HashMap<String, Type>,
 }
@@ -12,6 +13,7 @@ pub struct TypeChecker {
 impl TypeChecker {
     pub fn new() -> TypeChecker {
         TypeChecker {
+            omits: Constrains::empty(),
             locals: HashMap::new(),
             globals: vec![(
                 "add",
@@ -55,7 +57,9 @@ impl TypeChecker {
     fn statement(&mut self, statement: &mut Statement) -> Result<()> {
         match statement {
             Statement::Let(val, type_, expr) => {
-                self.expr(expr)?;
+                let mut result = self.expr(expr)?;
+                self.unify(type_, &mut result)?;
+
                 self.locals.insert(val.as_str().to_string(), type_.clone());
             }
             Statement::Return(expr) => {
@@ -88,7 +92,7 @@ impl TypeChecker {
     }
 
     fn call(&mut self, caller: &mut Expr, args: &mut Vec<Expr>) -> Result<Type> {
-        let (arg_types, result_type) = self.expr(caller)?.to_func()?;
+        let (mut arg_types, result_type) = self.expr(caller)?.to_func()?;
         if arg_types.len() != args.len() {
             bail!(
                 "wrong number of arguments, expected {}, but found {}",
@@ -98,15 +102,97 @@ impl TypeChecker {
         }
 
         for (index, arg) in args.into_iter().enumerate() {
-            if arg_types[index] != self.expr(arg)? {
-                bail!(
-                    "wrong type of argument, expected {}, but found {}",
-                    arg_types[index].to_string(),
-                    self.expr(arg)?.to_string()
-                );
-            }
+            let mut arg_type = self.expr(arg)?;
+            self.unify(&mut arg_types[index], &mut arg_type)?
         }
 
         Ok(result_type.as_ref().clone())
+    }
+
+    fn unify(&mut self, type1: &mut Type, type2: &mut Type) -> Result<()> {
+        let cs = Constrains::unify(type1, type2)?;
+        self.omits.merge(&cs);
+
+        cs.apply(type1);
+        cs.apply(type2);
+
+        Ok(())
+    }
+}
+
+struct Constrains {
+    constrains: HashMap<usize, Type>,
+}
+
+impl Constrains {
+    pub fn empty() -> Constrains {
+        Constrains {
+            constrains: HashMap::new(),
+        }
+    }
+
+    pub fn unify(type1: &Type, type2: &Type) -> Result<Constrains> {
+        match (type1, type2) {
+            (type1, type2) if type1 == type2 => Ok(Constrains::empty()),
+            (Type::Omit(i), type_) => {
+                let mut constrains = Constrains::empty();
+                constrains.constrains.insert(*i, type_.clone());
+                Ok(constrains)
+            }
+            (type_, Type::Omit(i)) => {
+                let mut constrains = Constrains::empty();
+                constrains.constrains.insert(*i, type_.clone());
+                Ok(constrains)
+            }
+            (Type::I32, Type::I32) => Ok(Constrains::empty()),
+            (Type::Func(args1, ret1), Type::Func(args2, ret2)) => {
+                if args1.len() != args2.len() {
+                    bail!(
+                        "wrong number of arguments, expected {}, but found {}",
+                        args1.len(),
+                        args2.len()
+                    );
+                }
+
+                let mut constrains = Constrains::empty();
+                for (arg1, arg2) in args1.into_iter().zip(args2.into_iter()) {
+                    constrains.merge(&Constrains::unify(arg1, arg2)?);
+                }
+
+                constrains.merge(&Constrains::unify(ret1.as_ref(), ret2.as_ref())?);
+
+                Ok(constrains)
+            }
+            (type1, type2) => {
+                bail!(
+                    "type mismatch, expected {}, but found {}",
+                    type1.to_string(),
+                    type2.to_string()
+                );
+            }
+        }
+    }
+
+    fn merge(&mut self, other: &Constrains) {
+        for (i, type_) in other.constrains.iter() {
+            self.constrains.insert(*i, type_.clone());
+        }
+    }
+
+    fn apply(&self, type_: &mut Type) {
+        match type_ {
+            Type::Omit(i) => {
+                if let Some(result) = self.constrains.get(i) {
+                    *type_ = result.clone();
+                }
+            }
+            Type::Func(args, ret) => {
+                for arg in args {
+                    self.apply(arg);
+                }
+                self.apply(ret.as_mut());
+            }
+            _ => {}
+        }
     }
 }

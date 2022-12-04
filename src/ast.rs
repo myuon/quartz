@@ -11,7 +11,7 @@ impl Ident {
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Type {
-    Omit,
+    Omit(usize),
     I32,
     Func(Vec<Type>, Box<Type>),
 }
@@ -19,7 +19,7 @@ pub enum Type {
 impl Type {
     pub fn to_string(&self) -> String {
         match self {
-            Type::Omit => "_".to_string(),
+            Type::Omit(i) => format!("?{}", i),
             Type::I32 => "i32".to_string(),
             Type::Func(args, ret) => format!(
                 "({}) -> {}",

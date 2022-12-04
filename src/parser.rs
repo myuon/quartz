@@ -9,6 +9,7 @@ use crate::{
 pub struct Parser {
     position: usize,
     input: Vec<Token>,
+    omit_index: usize,
 }
 
 impl Parser {
@@ -16,6 +17,7 @@ impl Parser {
         Parser {
             position: 0,
             input: vec![],
+            omit_index: 0,
         }
     }
 
@@ -48,7 +50,7 @@ impl Parser {
         self.expect(Lexeme::LParen)?;
         self.expect(Lexeme::RParen)?;
 
-        let mut result = Type::Omit;
+        let mut result = self.gen_omit()?;
         if self.peek()?.lexeme == Lexeme::Colon {
             self.consume()?;
             result = self.type_()?;
@@ -79,7 +81,7 @@ impl Parser {
         if current.lexeme == Lexeme::Let {
             let ident = self.ident()?;
 
-            let mut type_ = Type::Omit;
+            let mut type_ = self.gen_omit()?;
             if self.peek()?.lexeme == Lexeme::Colon {
                 self.consume()?;
                 type_ = self.type_()?;
@@ -191,5 +193,11 @@ impl Parser {
                 }),
             );
         }
+    }
+
+    fn gen_omit(&mut self) -> Result<Type> {
+        self.omit_index += 1;
+
+        Ok(Type::Omit(self.omit_index))
     }
 }
