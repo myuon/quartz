@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 
 use crate::{
     ast::{Decl, Expr, Func, Ident, Lit, Module, Statement, Type},
@@ -48,6 +48,7 @@ impl Parser {
         self.expect(Lexeme::Fun)?;
         let name = self.ident()?;
         self.expect(Lexeme::LParen)?;
+        let params = self.params()?;
         self.expect(Lexeme::RParen)?;
 
         let mut result = self.gen_omit()?;
@@ -62,10 +63,22 @@ impl Parser {
 
         Ok(Func {
             name,
-            params: vec![],
+            params,
             result,
             body,
         })
+    }
+
+    fn params(&mut self) -> Result<Vec<(Ident, Type)>> {
+        let mut params = vec![];
+        while self.peek()?.lexeme != Lexeme::RParen {
+            let name = self.ident()?;
+            self.expect(Lexeme::Colon)?;
+            let type_ = self.type_()?;
+            params.push((name, type_));
+        }
+
+        Ok(params)
     }
 
     fn block(&mut self) -> Result<Vec<Statement>> {
@@ -103,14 +116,29 @@ impl Parser {
     fn expr(&mut self) -> Result<Expr> {
         let mut current = self.term()?;
 
-        if let Lexeme::Plus = self.peek()?.lexeme {
-            self.consume()?;
-            let rhs = self.expr()?;
+        match self.peek()?.lexeme {
+            Lexeme::Plus => {
+                self.consume()?;
+                let rhs = self.expr()?;
 
-            current = Expr::Call(
-                Box::new(Expr::Ident(Ident("add".to_string()))),
-                vec![current, rhs],
-            );
+                current = Expr::Call(Ident("add".to_string()), vec![current, rhs]);
+            }
+            Lexeme::LParen => {
+                self.consume()?;
+                let mut args = vec![];
+                while self.peek()?.lexeme != Lexeme::RParen {
+                    args.push(self.expr()?);
+                }
+                self.consume()?;
+
+                match current {
+                    Expr::Ident(i) => {
+                        current = Expr::Call(i, args);
+                    }
+                    _ => bail!("Unexpected token {:?}", current),
+                }
+            }
+            _ => (),
         }
 
         Ok(current)

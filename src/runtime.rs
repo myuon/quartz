@@ -23,6 +23,7 @@ impl Runtime {
 
 #[cfg(test)]
 mod tests {
+    use anyhow::Context;
     use pretty_assertions::assert_eq;
 
     use crate::compiler::Compiler;
@@ -51,12 +52,29 @@ fun main() {
 "#,
                 vec![Value::I32(11)],
             ),
+            (
+                r#"
+fun calc(b: i32): i32 {
+    let a = 1;
+    let z = 10;
+    return z + a + b;
+}
+
+fun main() {
+    return calc(2);
+}
+"#,
+                vec![Value::I32(13)],
+            ),
         ];
 
         for (input, expected) in cases {
             let mut compiler = Compiler::new();
             let wat = compiler.compile(input).unwrap();
-            let result = runtime.run(&wat).unwrap();
+            let result = runtime
+                .run(&wat)
+                .context(format!("\n== COMPILED\n{}", wat))
+                .unwrap();
             assert_eq!(expected.as_slice(), result.as_ref());
         }
     }

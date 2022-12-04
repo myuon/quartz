@@ -49,7 +49,7 @@ pub enum Lit {
 pub enum Expr {
     Ident(Ident),
     Lit(Lit),
-    Call(Box<Expr>, Vec<Expr>),
+    Call(Ident, Vec<Expr>),
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -64,6 +64,15 @@ pub struct Func {
     pub params: Vec<(Ident, Type)>,
     pub result: Type,
     pub body: Vec<Statement>,
+}
+
+impl Func {
+    pub fn to_type(&self) -> Type {
+        Type::Func(
+            self.params.iter().map(|(_, t)| t.clone()).collect(),
+            Box::new(self.result.clone()),
+        )
+    }
 }
 
 #[derive(PartialEq, Debug, Clone)]

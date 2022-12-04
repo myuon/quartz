@@ -42,16 +42,29 @@ impl TypeChecker {
 
     fn decl(&mut self, decl: &mut Decl) -> Result<()> {
         match decl {
-            Decl::Func(func) => self.func(func),
+            Decl::Func(func) => {
+                self.func(func)?;
+                self.globals
+                    .insert(func.name.as_str().to_string(), func.to_type());
+            }
         }
+
+        Ok(())
     }
 
     fn func(&mut self, func: &mut Func) -> Result<()> {
+        let locals = self.locals.clone();
+        for (name, type_) in &mut func.params {
+            self.locals.insert(name.as_str().to_string(), type_.clone());
+        }
+
         for statement in &mut func.body {
             if let Some(result) = &mut self.statement(statement)? {
                 self.unify(&mut func.result, result)?;
             }
         }
+
+        self.locals = locals;
 
         Ok(())
     }
@@ -91,8 +104,8 @@ impl TypeChecker {
         }
     }
 
-    fn call(&mut self, caller: &mut Expr, args: &mut Vec<Expr>) -> Result<Type> {
-        let (mut arg_types, result_type) = self.expr(caller)?.to_func()?;
+    fn call(&mut self, caller: &mut Ident, args: &mut Vec<Expr>) -> Result<Type> {
+        let (mut arg_types, result_type) = self.ident(caller)?.to_func()?;
         if arg_types.len() != args.len() {
             bail!(
                 "wrong number of arguments, expected {}, but found {}",
