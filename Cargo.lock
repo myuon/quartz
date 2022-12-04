@@ -585,6 +585,7 @@ dependencies = [
  "anyhow",
  "once_cell",
  "regex",
+ "thiserror",
  "wasmer",
 ]
 

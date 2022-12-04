@@ -2,6 +2,7 @@ use anyhow::{anyhow, bail, Result};
 
 use crate::{
     ast::{Decl, Expr, Func, Ident, Lit, Module, Statement, Type},
+    compiler::ErrorInSource,
     lexer::{Lexeme, Token},
 };
 
@@ -168,7 +169,12 @@ impl Parser {
             self.position += 1;
             Ok(token.clone())
         } else {
-            bail!("Expected {:?}, got {:?}", lexeme, token.lexeme)
+            return Err(
+                anyhow!("Expected {:?}, got {:?}", lexeme, token.lexeme).context(ErrorInSource {
+                    start: self.position,
+                    end: token.position,
+                }),
+            );
         }
     }
 }

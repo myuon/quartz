@@ -12,9 +12,9 @@ fn main() -> anyhow::Result<()> {
     let mut compiler = Compiler::new();
     let wat = compiler.compile(
         r#"
-fun main() {
+fun main(): i32 {
   let x = 10;
-  return x+1;
+  return x + 1;
 }
 "#,
     )?;

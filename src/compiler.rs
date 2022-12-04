@@ -1,6 +1,14 @@
 use anyhow::{Context, Result};
+use thiserror::Error;
 
 use crate::{generator::Generator, lexer::Lexer, parser::Parser};
+
+#[derive(Debug, Error)]
+#[error("Found error in span ({start:?},{end:?})")]
+pub struct ErrorInSource {
+    pub start: usize,
+    pub end: usize,
+}
 
 pub struct Compiler {}
 
@@ -9,7 +17,7 @@ impl Compiler {
         Compiler {}
     }
 
-    pub fn compile(&mut self, input: &str) -> Result<String> {
+    fn compile_(&mut self, input: &str) -> Result<String> {
         let mut lexer = Lexer::new();
         let mut parser = Parser::new();
         let mut generator = Generator::new();
@@ -19,5 +27,25 @@ impl Compiler {
         generator.run(&mut ast).context("generator phase")?;
 
         Ok(generator.writer)
+    }
+
+    pub fn compile(&mut self, input: &str) -> Result<String> {
+        self.compile_(input).map_err(|error| {
+            if let Some(source) = error.downcast_ref::<ErrorInSource>() {
+                let start = source.start;
+                let end = source.end;
+                error.context(format!(
+                    "\n{}",
+                    input[start..end]
+                        .lines()
+                        .enumerate()
+                        .map(|(i, line)| format!("{}: {}", i + 1, line))
+                        .collect::<Vec<String>>()
+                        .join("\n")
+                ))
+            } else {
+                error
+            }
+        })
     }
 }
