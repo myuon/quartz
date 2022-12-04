@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use anyhow::{bail, Ok, Result};
 
@@ -7,6 +7,7 @@ use crate::ast::{Decl, Expr, Func, Ident, Lit, Module, Statement, Type, VarType}
 pub struct Generator {
     pub writer: Writer,
     pub globals: HashSet<Ident>,
+    pub types: HashMap<Ident, Type>,
 }
 
 impl Generator {
@@ -14,11 +15,16 @@ impl Generator {
         Generator {
             writer: Writer::new(),
             globals: HashSet::new(),
+            types: HashMap::new(),
         }
     }
 
     pub fn set_globals(&mut self, globals: HashSet<Ident>) {
         self.globals = globals;
+    }
+
+    pub fn set_types(&mut self, types: HashMap<Ident, Type>) {
+        self.types = types;
     }
 
     pub fn run(&mut self, module: &mut Module) -> Result<()> {
@@ -108,11 +114,17 @@ impl Generator {
 
         for statement in &mut func.body {
             if let Statement::Let(ident, type_, _) = statement {
+                let type_resolved = if let Type::Ident(ident) = type_ {
+                    self.types.get(ident).unwrap().clone()
+                } else {
+                    type_.clone()
+                };
+
                 self.writer.start();
                 self.writer.write(&format!(
                     "local ${} {}",
                     ident.as_str(),
-                    TypeRep::from_type(type_)?.to_wasm_type()
+                    TypeRep::from_type(&type_resolved)?.to_wasm_type()
                 ));
                 self.writer.end();
             }
@@ -221,31 +233,46 @@ impl Generator {
             Expr::Call(caller, args) => self.call(caller, args),
             Expr::Record(_, fields) => {
                 // allocate memory
+                self.writer.new_statement();
                 self.writer.write(&format!("i32.const {}", fields.len()));
+                self.writer.new_statement();
                 self.writer.write("call $alloc");
-                // set $address
-                self.writer.write("local.set $address");
 
                 for (i, (_, expr)) in fields.into_iter().enumerate() {
+                    self.writer.new_statement();
+
+                    self.writer.new_statement();
                     self.expr(expr)?;
 
-                    // store
-                    self.writer.write("local.set $value");
+                    self.writer.new_statement();
+                    self.writer.write("local.tee $value");
+                    self.writer.new_statement();
                     self.writer.write("local.get $address");
+                    self.writer.new_statement();
                     self.writer.write(&format!("i32.const {}", i));
+                    self.writer.new_statement();
                     self.writer.write("i32.add");
+                    self.writer.new_statement();
                     self.writer.write("local.get $value");
+                    self.writer.new_statement();
                     self.writer.write("i32.store");
                 }
 
                 Ok(())
             }
-            Expr::Project(expr, label) => {
-                self.writer.start();
+            Expr::Project(expr, type_, label) => {
                 self.expr(expr)?;
-                self.writer.write("get");
-                self.writer.write(&format!("${}", label.as_str()));
-                self.writer.end();
+
+                self.writer.new_statement();
+                let fields = self.types[&type_.clone().to_ident()?].clone().to_record()?;
+                self.writer.write(&format!(
+                    "i32.const {}",
+                    fields.iter().position(|(l, _)| l == label).unwrap()
+                ));
+                self.writer.new_statement();
+                self.writer.write("i32.add");
+                self.writer.new_statement();
+                self.writer.write("i32.load");
 
                 Ok(())
             }

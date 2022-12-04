@@ -61,6 +61,13 @@ impl Type {
         }
     }
 
+    pub fn to_ident(self) -> Result<Ident> {
+        match self {
+            Type::Ident(name) => Ok(name),
+            _ => bail!("expected identifier type, but found {}", self.to_string()),
+        }
+    }
+
     pub fn is_omit(&self) -> bool {
         match self {
             Type::Omit(_) => true,
@@ -87,7 +94,7 @@ pub enum Expr {
     Lit(Lit),
     Call(Ident, Vec<Expr>),
     Record(Ident, Vec<(Ident, Expr)>),
-    Project(Box<Expr>, Ident),
+    Project(Box<Expr>, Type, Ident),
 }
 
 #[derive(PartialEq, Debug, Clone)]

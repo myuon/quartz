@@ -186,8 +186,10 @@ impl TypeChecker {
 
                 Ok(Type::Ident(ident.clone()))
             }
-            Expr::Project(expr, label) => {
-                let expr_type = self.expr(expr)?;
+            Expr::Project(expr, type_, label) => {
+                let mut expr_type = self.expr(expr)?;
+                self.unify(type_, &mut expr_type)?;
+
                 let fields = self.resolve_record_type(expr_type.clone())?;
                 let type_ = fields
                     .into_iter()

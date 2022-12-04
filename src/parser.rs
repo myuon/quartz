@@ -296,7 +296,7 @@ impl Parser {
                         self.consume()?;
 
                         let field = self.ident()?;
-                        current = Expr::Project(Box::new(current), field);
+                        current = Expr::Project(Box::new(current), self.gen_omit()?, field);
                     }
                     Lexeme::LBrace => {
                         self.consume()?;
