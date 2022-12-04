@@ -7,6 +7,7 @@ pub enum Lexeme {
     Module,
     Fun,
     Let,
+    Type,
     Return,
     If,
     Else,
@@ -22,6 +23,7 @@ pub enum Lexeme {
     Minus,
     Star,
     Comma,
+    Dot,
     Ident(String),
     Int(i32),
     String(String),
@@ -138,6 +140,7 @@ impl Lexer {
                     ("module", Lexeme::Module),
                     ("fun", Lexeme::Fun),
                     ("let", Lexeme::Let),
+                    ("type", Lexeme::Type),
                     ("return", Lexeme::Return),
                     ("if", Lexeme::If),
                     ("else", Lexeme::Else),
@@ -161,6 +164,7 @@ impl Lexer {
                     ("-", Lexeme::Minus),
                     ("*", Lexeme::Star),
                     (",", Lexeme::Comma),
+                    (".", Lexeme::Dot),
                 ],
             ) {
                 continue;

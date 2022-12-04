@@ -12,16 +12,20 @@ impl Ident {
 #[derive(PartialEq, Debug, Clone)]
 pub enum Type {
     Omit(usize),
-    I32,
-    Func(Vec<Type>, Box<Type>),
     Nil,
     Bool,
+    I32,
+    Func(Vec<Type>, Box<Type>),
+    Record(Vec<(Ident, Type)>),
+    Ident(Ident),
 }
 
 impl Type {
     pub fn to_string(&self) -> String {
         match self {
             Type::Omit(i) => format!("?{}", i),
+            Type::Nil => "nil".to_string(),
+            Type::Bool => "bool".to_string(),
             Type::I32 => "i32".to_string(),
             Type::Func(args, ret) => format!(
                 "({}) -> {}",
@@ -31,8 +35,15 @@ impl Type {
                     .join(", "),
                 ret.to_string()
             ),
-            Type::Nil => "nil".to_string(),
-            Type::Bool => "bool".to_string(),
+            Type::Record(fields) => format!(
+                "{{{}}}",
+                fields
+                    .iter()
+                    .map(|(name, t)| format!("{}: {}", name.as_str(), t.to_string()))
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            ),
+            Type::Ident(name) => format!("{}", name.as_str()),
         }
     }
 
@@ -40,6 +51,13 @@ impl Type {
         match self {
             Type::Func(args, ret) => Ok((args, ret)),
             _ => bail!("expected function type, but found {}", self.to_string()),
+        }
+    }
+
+    pub fn to_record(self) -> Result<Vec<(Ident, Type)>> {
+        match self {
+            Type::Record(fields) => Ok(fields),
+            _ => bail!("expected record type, but found {}", self.to_string()),
         }
     }
 
@@ -68,6 +86,8 @@ pub enum Expr {
     Ident(Ident),
     Lit(Lit),
     Call(Ident, Vec<Expr>),
+    Record(Ident, Vec<(Ident, Expr)>),
+    Project(Box<Expr>, Ident),
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -106,6 +126,7 @@ impl Func {
 pub enum Decl {
     Func(Func),
     Let(Ident, Type, Expr),
+    Type(Ident, Type),
 }
 
 #[derive(PartialEq, Debug, Clone)]

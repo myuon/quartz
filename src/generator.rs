@@ -30,12 +30,52 @@ impl Generator {
     fn module(&mut self, module: &mut Module) -> Result<()> {
         self.writer.start();
         self.writer.write("module");
+
+        self.writer.start();
+        self.writer.write(r#"import "env" "memory" (memory 1)"#);
+        self.writer.end();
+
         for decl in &mut module.0 {
             self.decl(decl)?;
         }
 
+        // builtin functions here
+        self.writer.write(
+            r#"
+(func $_init (result i32)
+    ;; stack pointer
+    i32.const 0
+    i32.const 1
+    i32.store
+    ;; call $main
+    call $main
+)
+(func $alloc (param $size i32) (result i32)
+    (local $addr i32)
+
+    ;; get stack pointer
+    i32.const 0
+    i32.load
+    local.set $addr
+
+    i32.const 0
+    ;; new pointer
+    local.get $addr
+    local.get $size
+    i32.add
+    ;; store new stack pointer
+    i32.store
+
+    ;; return old stack pointer
+    local.get $addr
+    local.get $size
+    i32.sub
+)
+"#,
+        );
+
         self.writer.start();
-        self.writer.write(r#"export "main" (func $main)"#);
+        self.writer.write(r#"export "main" (func $_init)"#);
         self.writer.end();
         self.writer.end();
 
@@ -48,6 +88,7 @@ impl Generator {
         match decl {
             Decl::Func(func) => self.func(func),
             Decl::Let(ident, type_, expr) => self.global_let(ident, type_, expr),
+            Decl::Type(_, _) => Ok(()),
         }
     }
 
@@ -68,8 +109,11 @@ impl Generator {
         for statement in &mut func.body {
             if let Statement::Let(ident, type_, _) = statement {
                 self.writer.start();
-                self.writer
-                    .write(&format!("local ${} {}", ident.as_str(), type_.to_string()));
+                self.writer.write(&format!(
+                    "local ${} {}",
+                    ident.as_str(),
+                    TypeRep::from_type(type_)?.to_wasm_type()
+                ));
                 self.writer.end();
             }
         }
@@ -175,6 +219,36 @@ impl Generator {
                 Ok(())
             }
             Expr::Call(caller, args) => self.call(caller, args),
+            Expr::Record(_, fields) => {
+                // allocate memory
+                self.writer.write(&format!("i32.const {}", fields.len()));
+                self.writer.write("call $alloc");
+                // set $address
+                self.writer.write("local.set $address");
+
+                for (i, (_, expr)) in fields.into_iter().enumerate() {
+                    self.expr(expr)?;
+
+                    // store
+                    self.writer.write("local.set $value");
+                    self.writer.write("local.get $address");
+                    self.writer.write(&format!("i32.const {}", i));
+                    self.writer.write("i32.add");
+                    self.writer.write("local.get $value");
+                    self.writer.write("i32.store");
+                }
+
+                Ok(())
+            }
+            Expr::Project(expr, label) => {
+                self.writer.start();
+                self.expr(expr)?;
+                self.writer.write("get");
+                self.writer.write(&format!("${}", label.as_str()));
+                self.writer.end();
+
+                Ok(())
+            }
         }
     }
 
@@ -261,7 +335,7 @@ impl Writer {
 
     pub fn new_statement(&mut self) {
         if self.index != 0 {
-            self.write(&format!("\n{}", " ".repeat(self.depth)));
+            self.write(&format!("\n{}", " ".repeat(self.depth * 2)));
         }
         self.index = 0;
     }
@@ -270,5 +344,32 @@ impl Writer {
         for _ in 0..self.depth {
             self.end();
         }
+    }
+}
+
+enum TypeRep {
+    I32,
+    Pointer,
+}
+
+impl TypeRep {
+    fn from_type(type_: &Type) -> Result<TypeRep> {
+        match type_ {
+            Type::Omit(_) => todo!(),
+            Type::I32 => Ok(TypeRep::I32),
+            Type::Nil => todo!(),
+            Type::Bool => Ok(TypeRep::I32),
+            Type::Func(_, _) => todo!(),
+            Type::Record(_) => Ok(TypeRep::Pointer),
+            Type::Ident(_) => todo!(),
+        }
+    }
+
+    fn to_wasm_type(&self) -> String {
+        match self {
+            TypeRep::I32 => "i32",
+            TypeRep::Pointer => "i32",
+        }
+        .to_string()
     }
 }

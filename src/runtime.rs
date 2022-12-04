@@ -1,5 +1,5 @@
 use anyhow::Result;
-use wasmer::{imports, Instance, Module, Store, Value};
+use wasmer::{imports, Instance, Memory, MemoryType, Module, Store, Value};
 
 pub struct Runtime {}
 
@@ -10,8 +10,13 @@ impl Runtime {
 
     pub fn run(&mut self, wat: &str) -> Result<Box<[Value]>> {
         let mut store = Store::default();
+        let memory = Memory::new(&mut store, MemoryType::new(1, None, false)).unwrap();
         let module = Module::new(&store, &wat)?;
-        let import_object = imports! {};
+        let import_object = imports! {
+            "env" => {
+                "memory" => memory,
+            },
+        };
         let instance = Instance::new(&mut store, &module, &import_object)?;
 
         let main = instance.exports.get_function("main")?;
@@ -96,6 +101,21 @@ fun main() {
 }
 "#,
                 vec![Value::I32(120)],
+            ),
+            (
+                r#"
+type Point = {
+    x: i32,
+    y: i32,
+};
+
+fun main() {
+    let p = Point { x: 10, y: 20 };
+
+    return p.y;
+}
+"#,
+                vec![Value::I32(3)],
             ),
         ];
 

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
 
 use crate::ast::{Decl, Expr, Func, Ident, Lit, Module, Statement, Type, VarType};
 
@@ -8,6 +8,7 @@ pub struct TypeChecker {
     omits: Constrains,
     locals: HashMap<Ident, Type>,
     pub globals: HashMap<Ident, Type>,
+    pub types: HashMap<Ident, Type>,
 }
 
 impl TypeChecker {
@@ -36,6 +37,7 @@ impl TypeChecker {
             .into_iter()
             .map(|(k, v)| (Ident(k.to_string()), v))
             .collect(),
+            types: HashMap::new(),
         }
     }
 
@@ -65,6 +67,9 @@ impl TypeChecker {
                 self.unify(type_, &mut result)?;
 
                 self.globals.insert(ident.clone(), type_.clone());
+            }
+            Decl::Type(ident, type_) => {
+                self.types.insert(ident.clone(), type_.clone());
             }
         }
 
@@ -159,6 +164,43 @@ impl TypeChecker {
             Expr::Lit(lit) => self.lit(lit),
             Expr::Ident(ident) => self.ident(ident),
             Expr::Call(caller, args) => self.call(caller, args),
+            Expr::Record(ident, record) => {
+                let mut field_types = self
+                    .resolve_record_type(Type::Ident(ident.clone()))?
+                    .into_iter()
+                    .collect::<HashMap<_, _>>();
+
+                if field_types.len() != record.len() {
+                    bail!("invalid number of fields");
+                }
+
+                for (field, expr) in record {
+                    let mut expr_type = self.expr(expr)?;
+                    self.unify(
+                        &mut expr_type,
+                        field_types
+                            .get_mut(field)
+                            .ok_or(anyhow!("unknown field: {}", field.as_str()))?,
+                    )?;
+                }
+
+                Ok(Type::Ident(ident.clone()))
+            }
+            Expr::Project(expr, label) => {
+                let expr_type = self.expr(expr)?;
+                let fields = self.resolve_record_type(expr_type.clone())?;
+                let type_ = fields
+                    .into_iter()
+                    .find(|p| p.0 .0 == label.0)
+                    .ok_or(anyhow!(
+                        "field `{:?}` not found in record `{:?}`",
+                        label,
+                        expr_type
+                    ))?
+                    .1;
+
+                Ok(type_.clone())
+            }
         }
     }
 
@@ -212,6 +254,22 @@ impl TypeChecker {
         cs.apply(type2);
 
         Ok(())
+    }
+
+    fn resolve_record_type(&mut self, type_: Type) -> Result<Vec<(Ident, Type)>> {
+        match type_ {
+            Type::Ident(ident) => {
+                let type_ = self
+                    .types
+                    .get(&ident)
+                    .ok_or(anyhow!("unknown type: {}", ident.as_str()))?;
+                let fields = type_.clone().to_record()?;
+
+                Ok(fields)
+            }
+            Type::Record(fields) => Ok(fields),
+            _ => bail!("expected record type, but found {:?}", type_),
+        }
     }
 }
 

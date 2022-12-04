@@ -44,6 +44,10 @@ impl Parser {
                 let (ident, type_, value) = self.let_()?;
                 Ok(Decl::Let(ident, type_, value))
             }
+            Lexeme::Type => {
+                let (ident, type_) = self.type_decl()?;
+                Ok(Decl::Type(ident, type_))
+            }
             _ => Err(anyhow!("Unexpected token {:?}", self.peek()?.lexeme)),
         }
     }
@@ -71,6 +75,34 @@ impl Parser {
             result,
             body,
         })
+    }
+
+    fn type_decl(&mut self) -> Result<(Ident, Type)> {
+        self.expect(Lexeme::Type)?;
+        let ident = self.ident()?;
+        self.expect(Lexeme::Equal)?;
+
+        self.expect(Lexeme::LBrace)?;
+
+        let mut record_type = vec![];
+        while self.peek()?.lexeme != Lexeme::RBrace {
+            let field = self.ident()?;
+            self.expect(Lexeme::Colon)?;
+            let type_ = self.type_()?;
+
+            record_type.push((field, type_));
+
+            if self.peek()?.lexeme == Lexeme::Comma {
+                self.consume()?;
+            } else {
+                break;
+            }
+        }
+
+        self.expect(Lexeme::RBrace)?;
+        self.expect(Lexeme::Semicolon)?;
+
+        Ok((ident, Type::Record(record_type)))
     }
 
     fn params(&mut self) -> Result<Vec<(Ident, Type)>> {
@@ -260,6 +292,32 @@ impl Parser {
 
                         current = Expr::Call(ident, args);
                     }
+                    Lexeme::Dot => {
+                        self.consume()?;
+
+                        let field = self.ident()?;
+                        current = Expr::Project(Box::new(current), field);
+                    }
+                    Lexeme::LBrace => {
+                        self.consume()?;
+
+                        let mut fields = vec![];
+                        while self.peek()?.lexeme != Lexeme::RBrace {
+                            let field = self.ident()?;
+                            self.expect(Lexeme::Colon)?;
+                            let value = self.expr()?;
+                            fields.push((field, value));
+
+                            if self.peek()?.lexeme == Lexeme::Comma {
+                                self.consume()?;
+                            } else {
+                                break;
+                            }
+                        }
+                        self.consume()?;
+
+                        current = Expr::Record(ident, fields);
+                    }
                     _ => (),
                 }
 
@@ -296,6 +354,23 @@ impl Parser {
         let current = self.consume()?;
         if current.lexeme == Lexeme::Ident("i32".to_string()) {
             Ok(Type::I32)
+        } else if current.lexeme == Lexeme::LBrace {
+            let mut fields = vec![];
+            while self.peek()?.lexeme != Lexeme::RBrace {
+                let ident = self.ident()?;
+                self.expect(Lexeme::Colon)?;
+                let type_ = self.type_()?;
+                fields.push((ident, type_));
+
+                if self.peek()?.lexeme == Lexeme::Comma {
+                    self.consume()?;
+                } else {
+                    break;
+                }
+            }
+            self.expect(Lexeme::RBrace)?;
+
+            Ok(Type::Record(fields))
         } else {
             Err(anyhow!("Expected type, got {:?}", current.lexeme))
         }
