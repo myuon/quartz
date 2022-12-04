@@ -13,7 +13,7 @@ fn main() -> anyhow::Result<()> {
     let wat = compiler.compile(
         r#"
 fun main(): i32 {
-  let x = 10;
+  let x: i32 = 10;
   return x + 1;
 }
 "#,
@@ -24,11 +24,9 @@ fun main(): i32 {
     let import_object = imports! {};
     let instance = Instance::new(&mut store, &module, &import_object)?;
 
-    let add_one = instance.exports.get_function("add_one")?;
-    let result = add_one.call(&mut store, &[Value::I32(42)])?;
-    assert_eq!(result[0], Value::I32(43));
-
-    println!("{:?}", result);
+    let main = instance.exports.get_function("main")?;
+    let result = main.call(&mut store, &[])?;
+    assert_eq!(result[0], Value::I32(11));
 
     Ok(())
 }

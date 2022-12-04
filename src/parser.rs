@@ -80,8 +80,12 @@ impl Parser {
             let value = self.expr()?;
             self.expect(Lexeme::Semicolon)?;
             Ok(Statement::Let(ident, type_, value))
+        } else if current.lexeme == Lexeme::Return {
+            let value = self.expr()?;
+            self.expect(Lexeme::Semicolon)?;
+            Ok(Statement::Return(value))
         } else {
-            Err(anyhow!("Expected statement, got {:?}", current.lexeme))
+            Err(anyhow!("Unexpected token {:?}", current.lexeme))
         }
     }
 
@@ -102,19 +106,16 @@ impl Parser {
     }
 
     fn term(&mut self) -> Result<Expr> {
-        if let Ok(result) = self.lit() {
-            return Ok(Expr::Lit(result));
-        }
-
-        let current = self.consume()?;
-        if let Lexeme::Ident(ident) = &current.lexeme {
-            Ok(Expr::Ident(Ident(ident.clone())))
-        } else if let Lexeme::LParen = current.lexeme {
+        let current = self.peek()?;
+        if let Lexeme::LParen = current.lexeme {
+            self.consume()?;
             let expr = self.expr()?;
             self.expect(Lexeme::RParen)?;
             Ok(expr)
+        } else if let Lexeme::Ident(_) = current.lexeme {
+            self.ident().map(Expr::Ident)
         } else {
-            Err(anyhow!("Expected expression, got {:?}", current.lexeme))
+            self.lit().map(Expr::Lit)
         }
     }
 
@@ -123,7 +124,12 @@ impl Parser {
         if let Lexeme::Ident(ident) = &current.lexeme {
             Ok(Ident(ident.clone()))
         } else {
-            Err(anyhow!("Expected identifier, got {:?}", current.lexeme))
+            Err(
+                anyhow!("Expected identifier, got {:?}", current.lexeme).context(ErrorInSource {
+                    start: self.position,
+                    end: current.position,
+                }),
+            )
         }
     }
 

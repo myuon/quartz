@@ -7,6 +7,7 @@ pub enum Lexeme {
     Module,
     Fun,
     Let,
+    Return,
     LParen,
     RParen,
     LBrace,
@@ -131,6 +132,7 @@ impl Lexer {
                     ("module", Lexeme::Module),
                     ("fun", Lexeme::Fun),
                     ("let", Lexeme::Let),
+                    ("return", Lexeme::Return),
                 ],
             ) {
                 continue;

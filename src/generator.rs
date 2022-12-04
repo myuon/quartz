@@ -24,6 +24,8 @@ impl Generator {
         for decl in &mut module.0 {
             self.decl(decl)?;
         }
+
+        self.writer.push_str(r#"(export "main" (func $main))"#);
         self.writer.push_str(")");
 
         Ok(())
@@ -55,15 +57,17 @@ impl Generator {
     fn statement(&mut self, statement: &mut Statement) -> Result<()> {
         match statement {
             Statement::Let(ident, type_, value) => {
+                self.writer.push_str("(local ");
+                self.writer
+                    .push_str(&format!("${} {})", ident.as_str(), type_.as_str()));
+
                 self.writer.push_str("(local.set ");
                 self.writer.push_str(&format!("${} ", ident.as_str()));
                 self.expr(value)?;
-                self.writer.push_str(")");
+                self.writer.push_str(") ");
             }
             Statement::Return(value) => {
-                self.writer.push_str("(return ");
                 self.expr(value)?;
-                self.writer.push_str(")");
             }
         }
 
@@ -80,26 +84,28 @@ impl Generator {
 
     fn lit(&mut self, literal: &mut Lit) -> Result<()> {
         match literal {
-            Lit::I32(value) => self.writer.push_str(&format!("(i32.const {})", value)),
+            Lit::I32(value) => self.writer.push_str(&format!("i32.const {} ", value)),
         }
 
         Ok(())
     }
 
     fn ident(&mut self, ident: &mut Ident) -> Result<()> {
-        self.writer
-            .push_str(&format!("(local.get ${})", ident.as_str()));
+        match ident.as_str() {
+            "add" => self.writer.push_str("i32.add "),
+            _ => self
+                .writer
+                .push_str(&format!("local.get ${} ", ident.as_str())),
+        }
 
         Ok(())
     }
 
     fn call(&mut self, caller: &mut Expr, args: &mut Vec<Expr>) -> Result<()> {
-        self.writer.push_str("(call ");
-        self.expr(caller)?;
         for arg in args {
             self.expr(arg)?;
         }
-        self.writer.push_str(")");
+        self.expr(caller)?;
 
         Ok(())
     }
