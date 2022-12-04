@@ -1,18 +1,26 @@
+mod ast;
+mod compiler;
+mod generator;
+mod lexer;
+mod parser;
+
 use wasmer::{imports, Instance, Module, Store, Value};
 
+use crate::compiler::Compiler;
+
 fn main() -> anyhow::Result<()> {
-    let module_wat = r#"
-    (module
-      (type $t0 (func (param i32) (result i32)))
-      (func $add_one (export "add_one") (type $t0) (param $p0 i32) (result i32)
-        get_local $p0
-        i32.const 1
-        i32.add))
-    "#;
+    let mut compiler = Compiler::new();
+    let wat = compiler.compile(
+        r#"
+fun main() {
+  let x = 10;
+  return x+1;
+}
+"#,
+    )?;
 
     let mut store = Store::default();
-    let module = Module::new(&store, &module_wat)?;
-    // The module doesn't import anything, so we create an empty import object.
+    let module = Module::new(&store, &wat)?;
     let import_object = imports! {};
     let instance = Instance::new(&mut store, &module, &import_object)?;
 
