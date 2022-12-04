@@ -1,6 +1,8 @@
 mod ast;
 mod compiler;
 mod generator;
+mod ir;
+mod ir_code_gen;
 mod lexer;
 mod parser;
 mod runtime;
