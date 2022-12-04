@@ -10,14 +10,12 @@ impl Ident {
 #[derive(PartialEq, Debug, Clone)]
 pub enum Type {
     I32,
-    F32,
 }
 
 impl Type {
     pub fn as_str(&self) -> &str {
         match self {
             Type::I32 => "i32",
-            Type::F32 => "f32",
         }
     }
 }

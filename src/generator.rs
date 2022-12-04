@@ -21,7 +21,7 @@ impl Generator {
 
     fn module(&mut self, module: &mut Module) -> Result<()> {
         self.writer.start();
-        self.writer.write("module ");
+        self.writer.write("module");
         for decl in &mut module.0 {
             self.decl(decl)?;
         }
@@ -44,14 +44,14 @@ impl Generator {
 
     fn func(&mut self, func: &mut Func) -> Result<()> {
         self.writer.start();
-        self.writer.write("func ");
-        self.writer.write(&format!("${} ", func.name.as_str()));
+        self.writer.write("func");
+        self.writer.write(&format!("${}", func.name.as_str()));
         for (name, type_) in &mut func.params {
             self.writer
-                .write(&format!("(param ${} {}) ", name.as_str(), type_.as_str()));
+                .write(&format!("(param ${} {})", name.as_str(), type_.as_str()));
         }
         self.writer
-            .write(&format!("(result {}) ", func.result.as_str()));
+            .write(&format!("(result {})", func.result.as_str()));
         for statement in &mut func.body {
             self.statement(statement)?;
         }
@@ -69,10 +69,9 @@ impl Generator {
                 self.writer.end();
 
                 self.writer.start();
-                self.writer.write("local.set ");
-                self.writer.write(&format!("${} ", ident.as_str()));
+                self.writer.write("local.set");
+                self.writer.write(&format!("${}", ident.as_str()));
                 self.expr(value)?;
-                self.writer.write("");
                 self.writer.end();
             }
             Statement::Return(value) => {
@@ -93,7 +92,7 @@ impl Generator {
 
     fn lit(&mut self, literal: &mut Lit) -> Result<()> {
         match literal {
-            Lit::I32(value) => self.writer.write(&format!("i32.const {} ", value)),
+            Lit::I32(value) => self.writer.write(&format!("i32.const {}", value)),
         }
 
         Ok(())
@@ -102,11 +101,10 @@ impl Generator {
     fn ident(&mut self, ident: &mut Ident) -> Result<()> {
         match ident.as_str() {
             "add" => {
-                self.writer.write("i32.add ");
+                self.writer.write("i32.add");
             }
             _ => {
-                self.writer
-                    .write(&format!("local.get ${} ", ident.as_str()));
+                self.writer.write(&format!("local.get ${}", ident.as_str()));
             }
         }
 
@@ -129,6 +127,7 @@ impl Generator {
 pub struct Writer {
     pub buffer: String,
     depth: usize,
+    index: usize,
 }
 
 impl Writer {
@@ -136,25 +135,35 @@ impl Writer {
         Writer {
             buffer: String::new(),
             depth: 0,
+            index: 0,
         }
     }
 
     pub fn write(&mut self, text: &str) {
-        self.buffer.push_str(text);
+        self.buffer.push_str(&format!(
+            "{}{}",
+            if self.index == 0 { "" } else { " " },
+            text
+        ));
+        self.index += 1;
     }
 
     pub fn start(&mut self) {
-        self.write(&format!("\n{}(", " ".repeat(self.depth)));
+        self.new_statement();
+        self.write("(");
         self.depth += 1;
+        self.index = 0;
     }
 
     pub fn end(&mut self) {
-        self.write(") ");
         self.depth -= 1;
+        self.index = 0;
+        self.write(")");
     }
 
     pub fn new_statement(&mut self) {
         self.write(&format!("\n{}", " ".repeat(self.depth)));
+        self.index = 0;
     }
 
     pub fn finalize(&mut self) {
