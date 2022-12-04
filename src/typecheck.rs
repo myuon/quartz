@@ -15,10 +15,24 @@ impl TypeChecker {
         TypeChecker {
             omits: Constrains::empty(),
             locals: HashMap::new(),
-            globals: vec![(
-                "add",
-                Type::Func(vec![Type::I32, Type::I32], Box::new(Type::I32)),
-            )]
+            globals: vec![
+                (
+                    "add",
+                    Type::Func(vec![Type::I32, Type::I32], Box::new(Type::I32)),
+                ),
+                (
+                    "mult",
+                    Type::Func(vec![Type::I32, Type::I32], Box::new(Type::I32)),
+                ),
+                (
+                    "sub",
+                    Type::Func(vec![Type::I32, Type::I32], Box::new(Type::I32)),
+                ),
+                (
+                    "equal",
+                    Type::Func(vec![Type::I32, Type::I32], Box::new(Type::Bool)), // FIXME: support bool
+                ),
+            ]
             .into_iter()
             .map(|(k, v)| (Ident(k.to_string()), v))
             .collect(),
@@ -63,6 +77,7 @@ impl TypeChecker {
             self.locals.insert(name.clone(), type_.clone());
         }
 
+        self.block(&mut func.body, &mut func.result)?;
         for statement in &mut func.body {
             if let Some(result) = &mut self.statement(statement)? {
                 self.unify(&mut func.result, result)?;
@@ -73,6 +88,16 @@ impl TypeChecker {
 
         if func.result.is_omit() {
             func.result = Type::Nil;
+        }
+
+        Ok(())
+    }
+
+    fn block(&mut self, statements: &mut Vec<Statement>, expected: &mut Type) -> Result<()> {
+        for statement in statements {
+            if let Some(result) = &mut self.statement(statement)? {
+                self.unify(expected, result)?;
+            }
         }
 
         Ok(())
@@ -105,6 +130,19 @@ impl TypeChecker {
                 } else {
                     bail!("unknown variable: {}", lhs.as_str());
                 });
+
+                Ok(None)
+            }
+            Statement::If(cond, then_block, else_block) => {
+                let mut cond_type = self.expr(cond)?;
+                self.unify(&mut cond_type, &mut Type::Bool)?;
+
+                let mut then_type = Type::Omit(0);
+                self.block(then_block, &mut then_type)?;
+
+                if let Some(else_block) = else_block {
+                    self.block(else_block, &mut then_type)?;
+                }
 
                 Ok(None)
             }

@@ -15,6 +15,7 @@ pub enum Type {
     I32,
     Func(Vec<Type>, Box<Type>),
     Nil,
+    Bool,
 }
 
 impl Type {
@@ -31,6 +32,7 @@ impl Type {
                 ret.to_string()
             ),
             Type::Nil => "nil".to_string(),
+            Type::Bool => "bool".to_string(),
         }
     }
 
@@ -74,6 +76,7 @@ pub enum Statement {
     Return(Expr),
     Expr(Expr),
     Assign(Option<VarType>, Ident, Box<Expr>),
+    If(Expr, Vec<Statement>, Option<Vec<Statement>>),
 }
 
 #[derive(PartialEq, Debug, Clone)]

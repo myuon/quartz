@@ -94,35 +94,58 @@ impl Parser {
     }
 
     fn statement(&mut self) -> Result<Statement> {
-        let current = self.peek()?;
-        if current.lexeme == Lexeme::Let {
-            let (ident, type_, value) = self.let_()?;
-            Ok(Statement::Let(ident, type_, value))
-        } else if current.lexeme == Lexeme::Return {
-            self.consume()?;
-            let value = self.expr()?;
-            self.expect(Lexeme::Semicolon)?;
-            Ok(Statement::Return(value))
-        } else {
-            let expr = self.expr()?;
+        match self.peek()?.lexeme {
+            Lexeme::Let => {
+                let (ident, type_, value) = self.let_()?;
+                Ok(Statement::Let(ident, type_, value))
+            }
+            Lexeme::Return => {
+                self.consume()?;
+                let value = self.expr()?;
+                self.expect(Lexeme::Semicolon)?;
+                Ok(Statement::Return(value))
+            }
+            Lexeme::If => {
+                self.consume()?;
+                let condition = self.expr()?;
+                self.expect(Lexeme::LBrace)?;
+                let then_block = self.block()?;
+                self.expect(Lexeme::RBrace)?;
 
-            match self.peek()?.lexeme {
-                Lexeme::Semicolon => {
+                let else_block = if self.peek()?.lexeme == Lexeme::Else {
                     self.consume()?;
-                    Ok(Statement::Expr(expr))
-                }
-                Lexeme::Equal => {
-                    self.consume()?;
-                    let value = self.expr()?;
-                    self.expect(Lexeme::Semicolon)?;
+                    self.expect(Lexeme::LBrace)?;
+                    let else_body = self.block()?;
+                    self.expect(Lexeme::RBrace)?;
 
-                    let Expr::Ident(lhs) = expr else {
-                        bail!("Expected identifier, but found {:?}", expr)
-                    };
+                    Some(else_body)
+                } else {
+                    None
+                };
 
-                    Ok(Statement::Assign(None, lhs, Box::new(value)))
+                Ok(Statement::If(condition, then_block, else_block))
+            }
+            _ => {
+                let expr = self.expr()?;
+
+                match self.peek()?.lexeme {
+                    Lexeme::Semicolon => {
+                        self.consume()?;
+                        Ok(Statement::Expr(expr))
+                    }
+                    Lexeme::Equal => {
+                        self.consume()?;
+                        let value = self.expr()?;
+                        self.expect(Lexeme::Semicolon)?;
+
+                        let Expr::Ident(lhs) = expr else {
+                            bail!("Expected identifier, but found {:?}", expr)
+                        };
+
+                        Ok(Statement::Assign(None, lhs, Box::new(value)))
+                    }
+                    _ => Err(anyhow!("Unexpected token {:?}", self.peek()?.lexeme)),
                 }
-                _ => Err(anyhow!("Unexpected token {:?}", self.peek()?.lexeme)),
             }
         }
     }
@@ -145,7 +168,27 @@ impl Parser {
     }
 
     fn expr(&mut self) -> Result<Expr> {
-        let mut current = self.term()?;
+        self.term_3()
+    }
+
+    fn term_3(&mut self) -> Result<Expr> {
+        let mut current = self.term_2()?;
+
+        match self.peek()?.lexeme {
+            Lexeme::DoubleEqual => {
+                self.consume()?;
+                let rhs = self.expr()?;
+
+                current = Expr::Call(Ident("equal".to_string()), vec![current, rhs]);
+            }
+            _ => (),
+        }
+
+        Ok(current)
+    }
+
+    fn term_2(&mut self) -> Result<Expr> {
+        let mut current = self.term_1()?;
 
         match self.peek()?.lexeme {
             Lexeme::Plus => {
@@ -154,20 +197,11 @@ impl Parser {
 
                 current = Expr::Call(Ident("add".to_string()), vec![current, rhs]);
             }
-            Lexeme::LParen => {
+            Lexeme::Minus => {
                 self.consume()?;
-                let mut args = vec![];
-                while self.peek()?.lexeme != Lexeme::RParen {
-                    args.push(self.expr()?);
-                }
-                self.consume()?;
+                let rhs = self.expr()?;
 
-                match current {
-                    Expr::Ident(i) => {
-                        current = Expr::Call(i, args);
-                    }
-                    _ => bail!("Unexpected token {:?}", current),
-                }
+                current = Expr::Call(Ident("sub".to_string()), vec![current, rhs]);
             }
             _ => (),
         }
@@ -175,17 +209,58 @@ impl Parser {
         Ok(current)
     }
 
-    fn term(&mut self) -> Result<Expr> {
-        let current = self.peek()?;
-        if let Lexeme::LParen = current.lexeme {
-            self.consume()?;
-            let expr = self.expr()?;
-            self.expect(Lexeme::RParen)?;
-            Ok(expr)
-        } else if let Lexeme::Ident(_) = current.lexeme {
-            self.ident().map(Expr::Ident)
-        } else {
-            self.lit().map(Expr::Lit)
+    fn term_1(&mut self) -> Result<Expr> {
+        let mut current = self.term_0()?;
+
+        match self.peek()?.lexeme {
+            Lexeme::Star => {
+                self.consume()?;
+                let rhs = self.term_1()?;
+
+                current = Expr::Call(Ident("mult".to_string()), vec![current, rhs]);
+            }
+            _ => (),
+        }
+
+        Ok(current)
+    }
+
+    fn term_0(&mut self) -> Result<Expr> {
+        match self.peek()?.lexeme {
+            Lexeme::LParen => {
+                self.consume()?;
+                let expr = self.expr()?;
+                self.expect(Lexeme::RParen)?;
+
+                Ok(expr)
+            }
+            Lexeme::Ident(_) => {
+                let ident = self.ident()?;
+                let mut current = Expr::Ident(ident.clone());
+
+                match self.peek()?.lexeme {
+                    Lexeme::LParen => {
+                        self.consume()?;
+                        let mut args = vec![];
+                        while self.peek()?.lexeme != Lexeme::RParen {
+                            args.push(self.expr()?);
+
+                            if self.peek()?.lexeme == Lexeme::Comma {
+                                self.consume()?;
+                            } else {
+                                break;
+                            }
+                        }
+                        self.consume()?;
+
+                        current = Expr::Call(ident, args);
+                    }
+                    _ => (),
+                }
+
+                Ok(current)
+            }
+            _ => self.lit().map(Expr::Lit),
         }
     }
 

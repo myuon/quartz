@@ -125,6 +125,31 @@ impl Generator {
                 });
                 self.writer.write(&format!("${}", lhs.as_str()));
             }
+            Statement::If(cond, then_block, else_block) => {
+                self.writer.new_statement();
+                self.expr(cond)?;
+
+                self.writer.start();
+                self.writer.write("if");
+
+                self.writer.start();
+                self.writer.write("then");
+                for statement in then_block {
+                    self.writer.new_statement();
+                    self.statement(statement)?;
+                }
+                self.writer.end();
+
+                if let Some(else_block) = else_block {
+                    self.writer.start();
+                    self.writer.write("else");
+                    for statement in else_block {
+                        self.writer.new_statement();
+                        self.statement(statement)?;
+                    }
+                    self.writer.end();
+                }
+            }
         }
 
         Ok(())

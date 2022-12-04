@@ -81,6 +81,22 @@ fun main() {
 "#,
                 vec![Value::I32(15)],
             ),
+            (
+                r#"
+fun factorial(n: i32): i32 {
+    if n == 0 {
+        return 1;
+    } else {
+        return n * factorial(n - 1);
+    }
+}
+
+fun main() {
+    return factorial(5);
+}
+"#,
+                vec![Value::I32(120)],
+            ),
         ];
 
         for (input, expected) in cases {
