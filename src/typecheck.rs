@@ -73,6 +73,9 @@ impl TypeChecker {
 
     fn func(&mut self, func: &mut Func) -> Result<()> {
         let locals = self.locals.clone();
+
+        self.locals.insert(func.name.clone(), func.to_type());
+
         for (name, type_) in &mut func.params {
             self.locals.insert(name.clone(), type_.clone());
         }
@@ -133,7 +136,7 @@ impl TypeChecker {
 
                 Ok(None)
             }
-            Statement::If(cond, then_block, else_block) => {
+            Statement::If(cond, type_, then_block, else_block) => {
                 let mut cond_type = self.expr(cond)?;
                 self.unify(&mut cond_type, &mut Type::Bool)?;
 
@@ -143,6 +146,8 @@ impl TypeChecker {
                 if let Some(else_block) = else_block {
                     self.block(else_block, &mut then_type)?;
                 }
+
+                self.unify(type_, &mut then_type)?;
 
                 Ok(None)
             }

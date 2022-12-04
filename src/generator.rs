@@ -125,12 +125,16 @@ impl Generator {
                 });
                 self.writer.write(&format!("${}", lhs.as_str()));
             }
-            Statement::If(cond, then_block, else_block) => {
+            Statement::If(cond, type_, then_block, else_block) => {
                 self.writer.new_statement();
                 self.expr(cond)?;
 
                 self.writer.start();
                 self.writer.write("if");
+                if !type_.is_nil() {
+                    self.writer
+                        .write(&format!("(result {})", type_.to_string()));
+                }
 
                 self.writer.start();
                 self.writer.write("then");
@@ -149,6 +153,8 @@ impl Generator {
                     }
                     self.writer.end();
                 }
+
+                self.writer.end();
             }
         }
 
@@ -197,6 +203,15 @@ impl Generator {
         match caller.as_str() {
             "add" => {
                 self.writer.write("i32.add");
+            }
+            "sub" => {
+                self.writer.write("i32.sub");
+            }
+            "mult" => {
+                self.writer.write("i32.mul");
+            }
+            "equal" => {
+                self.writer.write("i32.eq");
             }
             _ => {
                 self.writer.write(&format!("call ${}", caller.as_str()));

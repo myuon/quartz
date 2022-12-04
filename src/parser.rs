@@ -123,7 +123,12 @@ impl Parser {
                     None
                 };
 
-                Ok(Statement::If(condition, then_block, else_block))
+                Ok(Statement::If(
+                    condition,
+                    self.gen_omit()?,
+                    then_block,
+                    else_block,
+                ))
             }
             _ => {
                 let expr = self.expr()?;
