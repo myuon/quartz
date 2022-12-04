@@ -2,12 +2,12 @@ use std::collections::HashMap;
 
 use anyhow::{bail, Result};
 
-use crate::ast::{Decl, Expr, Func, Ident, Lit, Module, Statement, Type};
+use crate::ast::{Decl, Expr, Func, Ident, Lit, Module, Statement, Type, VarType};
 
 pub struct TypeChecker {
     omits: Constrains,
-    locals: HashMap<String, Type>,
-    globals: HashMap<String, Type>,
+    locals: HashMap<Ident, Type>,
+    pub globals: HashMap<Ident, Type>,
 }
 
 impl TypeChecker {
@@ -20,7 +20,7 @@ impl TypeChecker {
                 Type::Func(vec![Type::I32, Type::I32], Box::new(Type::I32)),
             )]
             .into_iter()
-            .map(|(k, v)| (k.to_string(), v))
+            .map(|(k, v)| (Ident(k.to_string()), v))
             .collect(),
         }
     }
@@ -44,15 +44,13 @@ impl TypeChecker {
         match decl {
             Decl::Func(func) => {
                 self.func(func)?;
-                self.globals
-                    .insert(func.name.as_str().to_string(), func.to_type());
+                self.globals.insert(func.name.clone(), func.to_type());
             }
             Decl::Let(ident, type_, expr) => {
                 let mut result = self.expr(expr)?;
                 self.unify(type_, &mut result)?;
 
-                self.globals
-                    .insert(ident.as_str().to_string(), type_.clone());
+                self.globals.insert(ident.clone(), type_.clone());
             }
         }
 
@@ -62,7 +60,7 @@ impl TypeChecker {
     fn func(&mut self, func: &mut Func) -> Result<()> {
         let locals = self.locals.clone();
         for (name, type_) in &mut func.params {
-            self.locals.insert(name.as_str().to_string(), type_.clone());
+            self.locals.insert(name.clone(), type_.clone());
         }
 
         for statement in &mut func.body {
@@ -86,7 +84,7 @@ impl TypeChecker {
                 let mut result = self.expr(expr)?;
                 self.unify(type_, &mut result)?;
 
-                self.locals.insert(val.as_str().to_string(), type_.clone());
+                self.locals.insert(val.clone(), type_.clone());
 
                 Ok(None)
             }
@@ -95,10 +93,18 @@ impl TypeChecker {
                 self.expr(expr)?;
                 Ok(None)
             }
-            Statement::Assign(lhs, rhs) => {
+            Statement::Assign(var_type, lhs, rhs) => {
                 let mut lhs_type = self.ident(lhs)?;
                 let mut rhs_type = self.expr(rhs)?;
                 self.unify(&mut lhs_type, &mut rhs_type)?;
+
+                *var_type = Some(if self.ident_local(lhs).is_ok() {
+                    VarType::Local
+                } else if self.ident_global(lhs).is_ok() {
+                    VarType::Global
+                } else {
+                    bail!("unknown variable: {}", lhs.as_str());
+                });
 
                 Ok(None)
             }
@@ -119,11 +125,22 @@ impl TypeChecker {
         }
     }
 
-    fn ident(&mut self, ident: &mut Ident) -> Result<Type> {
-        match (self.locals.get(ident.as_str())).or(self.globals.get(ident.as_str())) {
+    fn ident_local(&mut self, ident: &mut Ident) -> Result<Type> {
+        match self.locals.get(ident) {
             Some(type_) => Ok(type_.clone()),
             None => bail!("Ident Not Found: {}", ident.as_str()),
         }
+    }
+
+    fn ident_global(&mut self, ident: &mut Ident) -> Result<Type> {
+        match self.globals.get(ident) {
+            Some(type_) => Ok(type_.clone()),
+            None => bail!("Ident Not Found: {}", ident.as_str()),
+        }
+    }
+
+    fn ident(&mut self, ident: &mut Ident) -> Result<Type> {
+        self.ident_local(ident).or(self.ident_global(ident))
     }
 
     fn call(&mut self, caller: &mut Ident, args: &mut Vec<Expr>) -> Result<Type> {

@@ -79,7 +79,7 @@ fun main() {
     return a;
 }
 "#,
-                vec![Value::I32(13)],
+                vec![Value::I32(15)],
             ),
         ];
 

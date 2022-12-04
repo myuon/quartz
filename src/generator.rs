@@ -1,16 +1,24 @@
-use anyhow::{Ok, Result};
+use std::collections::HashSet;
 
-use crate::ast::{Decl, Expr, Func, Ident, Lit, Module, Statement, Type};
+use anyhow::{bail, Ok, Result};
+
+use crate::ast::{Decl, Expr, Func, Ident, Lit, Module, Statement, Type, VarType};
 
 pub struct Generator {
     pub writer: Writer,
+    pub globals: HashSet<Ident>,
 }
 
 impl Generator {
     pub fn new() -> Generator {
         Generator {
             writer: Writer::new(),
+            globals: HashSet::new(),
         }
+    }
+
+    pub fn set_globals(&mut self, globals: HashSet<Ident>) {
+        self.globals = globals;
     }
 
     pub fn run(&mut self, module: &mut Module) -> Result<()> {
@@ -39,7 +47,7 @@ impl Generator {
     fn decl(&mut self, decl: &mut Decl) -> Result<()> {
         match decl {
             Decl::Func(func) => self.func(func),
-            Decl::Let(ident, type_, expr) => self.let_(ident, type_, expr),
+            Decl::Let(ident, type_, expr) => self.global_let(ident, type_, expr),
         }
     }
 
@@ -74,11 +82,11 @@ impl Generator {
         Ok(())
     }
 
-    fn let_(&mut self, ident: &mut Ident, type_: &mut Type, expr: &mut Expr) -> Result<()> {
+    fn global_let(&mut self, ident: &mut Ident, type_: &mut Type, expr: &mut Expr) -> Result<()> {
         self.writer.start();
         self.writer.write("global");
         self.writer.write(&format!("${}", ident.as_str()));
-        self.writer.write(&type_.to_string());
+        self.writer.write(&format!("(mut {})", type_.to_string()));
         self.writer.start();
         self.expr(expr)?;
         self.writer.end();
@@ -105,12 +113,16 @@ impl Generator {
                 self.writer.new_statement();
                 self.expr(expr)?;
             }
-            Statement::Assign(lhs, rhs) => {
+            Statement::Assign(var_type, lhs, rhs) => {
                 self.writer.new_statement();
                 self.expr(rhs)?;
 
                 self.writer.new_statement();
-                self.writer.write("local.set");
+                self.writer.write(match var_type {
+                    Some(VarType::Local) => "local.set",
+                    Some(VarType::Global) => "global.set",
+                    _ => bail!("expected var_type, but None"),
+                });
                 self.writer.write(&format!("${}", lhs.as_str()));
             }
         }
@@ -122,7 +134,11 @@ impl Generator {
         match expr {
             Expr::Lit(lit) => self.lit(lit),
             Expr::Ident(ident) => {
-                self.writer.write("local.get");
+                self.writer.write(if self.globals.contains(ident) {
+                    "global.get"
+                } else {
+                    "local.get"
+                });
                 self.ident(ident)?;
 
                 Ok(())

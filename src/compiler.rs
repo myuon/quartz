@@ -27,6 +27,7 @@ impl Compiler {
         let mut ast = parser.run(lexer.tokens).context("parser phase")?;
         typechecker.run(&mut ast).context("typechecker phase")?;
 
+        generator.set_globals(typechecker.globals.keys().into_iter().cloned().collect());
         generator.run(&mut ast).context("generator phase")?;
 
         Ok(generator.writer.buffer)

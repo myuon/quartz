@@ -120,7 +120,7 @@ impl Parser {
                         bail!("Expected identifier, but found {:?}", expr)
                     };
 
-                    Ok(Statement::Assign(lhs, Box::new(value)))
+                    Ok(Statement::Assign(None, lhs, Box::new(value)))
                 }
                 _ => Err(anyhow!("Unexpected token {:?}", self.peek()?.lexeme)),
             }

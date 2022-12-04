@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Hash, Eq)]
 pub struct Ident(pub String);
 
 impl Ident {
@@ -73,7 +73,13 @@ pub enum Statement {
     Let(Ident, Type, Expr),
     Return(Expr),
     Expr(Expr),
-    Assign(Ident, Box<Expr>),
+    Assign(Option<VarType>, Ident, Box<Expr>),
+}
+
+#[derive(PartialEq, Debug, Clone)]
+pub enum VarType {
+    Local,
+    Global,
 }
 
 #[derive(PartialEq, Debug, Clone)]
