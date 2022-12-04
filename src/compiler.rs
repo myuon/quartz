@@ -26,7 +26,7 @@ impl Compiler {
         let mut ast = parser.run(lexer.tokens).context("parser phase")?;
         generator.run(&mut ast).context("generator phase")?;
 
-        Ok(generator.writer)
+        Ok(generator.writer.buffer)
     }
 
     pub fn compile(&mut self, input: &str) -> Result<String> {

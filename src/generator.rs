@@ -3,13 +3,13 @@ use anyhow::Result;
 use crate::ast::{Decl, Expr, Func, Ident, Lit, Module, Statement};
 
 pub struct Generator {
-    pub writer: String,
+    pub writer: Writer,
 }
 
 impl Generator {
     pub fn new() -> Generator {
         Generator {
-            writer: String::new(),
+            writer: Writer::new(),
         }
     }
 
@@ -20,13 +20,13 @@ impl Generator {
     }
 
     fn module(&mut self, module: &mut Module) -> Result<()> {
-        self.writer.push_str("(module\n");
+        self.writer.write("(module\n");
         for decl in &mut module.0 {
             self.decl(decl)?;
         }
 
-        self.writer.push_str(r#"(export "main" (func $main))"#);
-        self.writer.push_str(")");
+        self.writer.write(r#"(export "main" (func $main))"#);
+        self.writer.write(")");
 
         Ok(())
     }
@@ -38,18 +38,18 @@ impl Generator {
     }
 
     fn func(&mut self, func: &mut Func) -> Result<()> {
-        self.writer.push_str("(func\n");
-        self.writer.push_str(&format!("${} ", func.name.as_str()));
+        self.writer.write("(func\n");
+        self.writer.write(&format!("${} ", func.name.as_str()));
         for (name, type_) in &mut func.params {
             self.writer
-                .push_str(&format!("(param ${} {})", name.as_str(), type_.as_str()));
+                .write(&format!("(param ${} {})", name.as_str(), type_.as_str()));
         }
         self.writer
-            .push_str(&format!("(result {})", func.result.as_str()));
+            .write(&format!("(result {})", func.result.as_str()));
         for statement in &mut func.body {
             self.statement(statement)?;
         }
-        self.writer.push_str(")");
+        self.writer.write(")");
 
         Ok(())
     }
@@ -57,14 +57,14 @@ impl Generator {
     fn statement(&mut self, statement: &mut Statement) -> Result<()> {
         match statement {
             Statement::Let(ident, type_, value) => {
-                self.writer.push_str("(local ");
+                self.writer.write("(local ");
                 self.writer
-                    .push_str(&format!("${} {})", ident.as_str(), type_.as_str()));
+                    .write(&format!("${} {})", ident.as_str(), type_.as_str()));
 
-                self.writer.push_str("(local.set ");
-                self.writer.push_str(&format!("${} ", ident.as_str()));
+                self.writer.write("(local.set ");
+                self.writer.write(&format!("${} ", ident.as_str()));
                 self.expr(value)?;
-                self.writer.push_str(") ");
+                self.writer.write(") ");
             }
             Statement::Return(value) => {
                 self.expr(value)?;
@@ -84,7 +84,7 @@ impl Generator {
 
     fn lit(&mut self, literal: &mut Lit) -> Result<()> {
         match literal {
-            Lit::I32(value) => self.writer.push_str(&format!("i32.const {} ", value)),
+            Lit::I32(value) => self.writer.write(&format!("i32.const {} ", value)),
         }
 
         Ok(())
@@ -92,10 +92,10 @@ impl Generator {
 
     fn ident(&mut self, ident: &mut Ident) -> Result<()> {
         match ident.as_str() {
-            "add" => self.writer.push_str("i32.add "),
+            "add" => self.writer.write("i32.add "),
             _ => self
                 .writer
-                .push_str(&format!("local.get ${} ", ident.as_str())),
+                .write(&format!("local.get ${} ", ident.as_str())),
         }
 
         Ok(())
@@ -108,5 +108,37 @@ impl Generator {
         self.expr(caller)?;
 
         Ok(())
+    }
+}
+
+pub struct Writer {
+    pub buffer: String,
+    depth: usize,
+}
+
+impl Writer {
+    pub fn new() -> Writer {
+        Writer {
+            buffer: String::new(),
+            depth: 0,
+        }
+    }
+
+    pub fn write(&mut self, text: &str) {
+        self.buffer.push_str(text);
+    }
+
+    pub fn start(&mut self) {
+        self.depth += 1;
+    }
+
+    pub fn end(&mut self) {
+        self.depth -= 1;
+    }
+
+    pub fn finalize(&mut self) {
+        for _ in 0..self.depth {
+            self.end();
+        }
     }
 }
