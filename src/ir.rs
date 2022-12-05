@@ -182,6 +182,59 @@ impl IrTerm {
         }
     }
 
+    pub fn find_let(&self) -> Vec<(String, IrType, Box<IrTerm>)> {
+        match self {
+            IrTerm::Nil => vec![],
+            IrTerm::I32(_) => vec![],
+            IrTerm::Ident(_) => vec![],
+            IrTerm::Call { name, args } => {
+                let mut result = vec![];
+                for arg in args {
+                    result.extend(arg.find_let());
+                }
+                result
+            }
+            IrTerm::Seq { elements } => {
+                let mut result = vec![];
+                for element in elements {
+                    result.extend(element.find_let());
+                }
+                result
+            }
+            IrTerm::Let { name, type_, value } => {
+                let mut result = vec![];
+                result.push((name.clone(), type_.clone(), value.clone()));
+                result.extend(value.find_let());
+                result
+            }
+            IrTerm::Return { value } => {
+                let mut result = vec![];
+                result.extend(value.find_let());
+                result
+            }
+            IrTerm::AssignLocal { lhs, rhs } => {
+                let mut result = vec![];
+                result.extend(rhs.find_let());
+                result
+            }
+            IrTerm::AssignGlobal { lhs, rhs } => vec![],
+            IrTerm::If {
+                cond,
+                type_,
+                then,
+                else_,
+            } => {
+                let mut result = vec![];
+                result.extend(cond.find_let());
+                result.extend(then.find_let());
+                result.extend(else_.find_let());
+                result
+            }
+            IrTerm::Module { elements } => todo!(),
+            _ => vec![],
+        }
+    }
+
     pub fn to_string(&self) -> String {
         let mut writer = SExprWriter::new();
         self.to_string_writer(&mut writer);

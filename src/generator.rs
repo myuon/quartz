@@ -132,13 +132,8 @@ impl Generator {
                 .write(&format!("(result {})", result.to_string()));
         }
 
-        for statement in body.iter_mut() {
-            if let IrTerm::Let {
-                name,
-                type_,
-                value: _,
-            } = statement
-            {
+        for term in body.iter() {
+            for (name, type_, _) in term.find_let() {
                 self.writer.start();
                 self.writer
                     .write(&format!("local ${} {}", name.as_str(), type_.to_string()));
