@@ -3,162 +3,166 @@ use anyhow::{bail, Result};
 use crate::{ast::Type, util::sexpr_writer::SExprWriter};
 
 #[derive(PartialEq, Debug, Clone)]
-pub enum IrElement {
-    Term(IrTerm),
-    Block(IrBlock),
-}
-
-impl IrElement {
-    pub fn nil() -> Self {
-        IrElement::Term(IrTerm::Nil)
-    }
-
-    pub fn ident(name: impl Into<String>) -> Self {
-        IrElement::Term(IrTerm::Ident(name.into()))
-    }
-
-    pub fn i32(value: i32) -> Self {
-        IrElement::Term(IrTerm::I32(value))
-    }
-
-    pub fn block(name: impl Into<String>, elements: Vec<IrElement>) -> Self {
-        IrElement::Block(IrBlock {
-            name: name.into(),
-            elements,
-        })
-    }
-
-    pub fn i_func(name: impl Into<String>, elements: Vec<IrElement>) -> Self {
-        IrElement::block(
-            "func",
-            vec![IrElement::ident(name), IrElement::block("body", elements)],
-        )
-    }
-
-    pub fn i_global_let(name: impl Into<String>, type_: IrType, value: IrElement) -> Self {
-        IrElement::block(
-            "global_let",
-            vec![
-                IrElement::ident(name),
-                IrElement::Term(type_.to_term()),
-                IrElement::block("value", vec![value]),
-            ],
-        )
-    }
-
-    pub fn i_call(name: impl Into<String>, args: Vec<IrElement>) -> Self {
-        IrElement::block(
-            "call",
-            vec![IrElement::ident(name), IrElement::block("args", args)],
-        )
-    }
-
-    pub fn i_seq(elements: Vec<IrElement>) -> Self {
-        IrElement::block("seq", elements)
-    }
-
-    pub fn i_let(name: impl Into<String>, type_: IrType, value: IrElement) -> Self {
-        IrElement::block(
-            "let",
-            vec![
-                IrElement::ident(name),
-                IrElement::Term(type_.to_term()),
-                value,
-            ],
-        )
-    }
-
-    pub fn i_return(value: IrElement) -> Self {
-        IrElement::block("return", vec![value])
-    }
-
-    pub fn i_assign_local(lhs: IrElement, rhs: IrElement) -> Self {
-        IrElement::block("assign_local", vec![lhs, rhs])
-    }
-
-    pub fn i_assign_global(lhs: IrElement, rhs: IrElement) -> Self {
-        IrElement::block("assign_global", vec![lhs, rhs])
-    }
-
-    pub fn i_if(cond: IrElement, type_: IrType, then: IrElement, else_: IrElement) -> Self {
-        IrElement::block(
-            "if",
-            vec![
-                cond,
-                IrElement::Term(type_.to_term()),
-                IrElement::block("then", vec![then]),
-                else_,
-            ],
-        )
-    }
-
-    fn to_string_writer(&self, writer: &mut SExprWriter) {
-        match self {
-            IrElement::Term(t) => {
-                t.to_string_writer(writer);
-            }
-            IrElement::Block(b) => {
-                b.to_string_writer(writer);
-            }
-        }
-    }
-
-    pub fn to_string(&self) -> String {
-        let mut writer = SExprWriter::new();
-        self.to_string_writer(&mut writer);
-
-        writer.buffer
-    }
-}
-
-#[derive(PartialEq, Debug, Clone)]
 pub enum IrTerm {
     Nil,
     I32(i32),
     Address(usize),
     Ident(String),
+    Func {
+        name: String,
+        body: Vec<IrTerm>,
+    },
+    GlobalLet {
+        name: String,
+        type_: IrType,
+        value: Box<IrTerm>,
+    },
+    Call {
+        name: String,
+        args: Vec<IrTerm>,
+    },
+    Seq {
+        elements: Vec<IrTerm>,
+    },
+    Let {
+        name: String,
+        type_: IrType,
+        value: Box<IrTerm>,
+    },
+    Return {
+        value: Box<IrTerm>,
+    },
+    AssignLocal {
+        lhs: Box<IrTerm>,
+        rhs: Box<IrTerm>,
+    },
+    AssignGlobal {
+        lhs: Box<IrTerm>,
+        rhs: Box<IrTerm>,
+    },
+    If {
+        cond: Box<IrTerm>,
+        type_: IrType,
+        then: Box<IrTerm>,
+        else_: Box<IrTerm>,
+    },
+    Module {
+        elements: Vec<IrTerm>,
+    },
 }
 
 impl IrTerm {
+    pub fn nil() -> Self {
+        IrTerm::Nil
+    }
+
+    pub fn ident(name: impl Into<String>) -> Self {
+        IrTerm::Ident(name.into())
+    }
+
+    pub fn i32(value: i32) -> Self {
+        IrTerm::I32(value)
+    }
+
     fn to_string_writer(&self, writer: &mut SExprWriter) {
         match self {
             IrTerm::Nil => {
                 writer.write("nil");
             }
             IrTerm::I32(i) => {
-                writer.write(&format!("{}", i));
+                writer.write(&i.to_string());
             }
-            IrTerm::Address(a) => {
-                writer.write(&format!("&{}", a));
+            IrTerm::Address(p) => {
+                writer.write(&format!("&{}", p));
             }
-            IrTerm::Ident(i) => {
-                writer.write(&format!("${}", i));
+            IrTerm::Ident(p) => {
+                writer.write(p);
+            }
+            IrTerm::Func { name, body } => {
+                writer.start();
+                writer.write("func");
+                writer.write(name);
+                for term in body {
+                    term.to_string_writer(writer);
+                }
+                writer.end();
+            }
+            IrTerm::GlobalLet { name, type_, value } => {
+                writer.start();
+                writer.write("global-let");
+                writer.write(name);
+                type_.to_term().to_string_writer(writer);
+                value.to_string_writer(writer);
+                writer.end();
+            }
+            IrTerm::Call { name, args } => {
+                writer.start();
+                writer.write("call");
+                writer.write(name);
+                for arg in args {
+                    arg.to_string_writer(writer);
+                }
+                writer.end();
+            }
+            IrTerm::Seq { elements } => {
+                writer.start();
+                writer.write("seq");
+                for element in elements {
+                    element.to_string_writer(writer);
+                }
+                writer.end();
+            }
+            IrTerm::Let { name, type_, value } => {
+                writer.start();
+                writer.write("let");
+                writer.write(name);
+                type_.to_term().to_string_writer(writer);
+                value.to_string_writer(writer);
+                writer.end();
+            }
+            IrTerm::Return { value } => {
+                writer.start();
+                writer.write("return");
+                value.to_string_writer(writer);
+                writer.end();
+            }
+            IrTerm::AssignLocal { lhs, rhs } => {
+                writer.start();
+                writer.write("assign-local");
+                lhs.to_string_writer(writer);
+                rhs.to_string_writer(writer);
+                writer.end();
+            }
+            IrTerm::AssignGlobal { lhs, rhs } => {
+                writer.start();
+                writer.write("assign-global");
+                lhs.to_string_writer(writer);
+                rhs.to_string_writer(writer);
+                writer.end();
+            }
+            IrTerm::If {
+                cond,
+                type_,
+                then,
+                else_,
+            } => {
+                writer.start();
+                writer.write("if");
+                cond.to_string_writer(writer);
+                type_.to_term().to_string_writer(writer);
+                then.to_string_writer(writer);
+                else_.to_string_writer(writer);
+                writer.end();
+            }
+            IrTerm::Module { elements } => {
+                writer.start();
+                writer.write("module");
+                for element in elements {
+                    element.to_string_writer(writer);
+                }
+                writer.end();
             }
         }
-    }
-
-    pub fn to_string(&self) -> String {
-        let mut writer = SExprWriter::new();
-        self.to_string_writer(&mut writer);
-
-        writer.buffer
-    }
-}
-
-#[derive(PartialEq, Debug, Clone)]
-pub struct IrBlock {
-    pub name: String,
-    pub elements: Vec<IrElement>,
-}
-
-impl IrBlock {
-    pub fn to_string_writer(&self, writer: &mut SExprWriter) {
-        writer.start();
-        writer.write(&self.name);
-        for e in &self.elements {
-            e.to_string_writer(writer);
-        }
-        writer.end();
     }
 
     pub fn to_string(&self) -> String {

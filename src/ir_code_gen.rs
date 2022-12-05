@@ -4,7 +4,7 @@ use anyhow::{anyhow, bail, Result};
 
 use crate::{
     ast::{Decl, Expr, Func, Ident, Lit, Module, Statement, Type, VarType},
-    ir::{IrElement, IrType},
+    ir::{IrTerm, IrType},
 };
 
 #[derive(Debug, Clone)]
@@ -23,59 +23,64 @@ impl IrCodeGenerator {
         self.types = types;
     }
 
-    pub fn run(&mut self, module: &mut Module) -> Result<IrElement> {
+    pub fn run(&mut self, module: &mut Module) -> Result<IrTerm> {
         self.module(module)
     }
 
-    fn module(&mut self, module: &mut Module) -> Result<IrElement> {
+    fn module(&mut self, module: &mut Module) -> Result<IrTerm> {
         let mut elements = vec![];
 
         for decl in &mut module.0 {
             elements.push(self.decl(decl)?);
         }
 
-        Ok(IrElement::block("module", elements))
+        Ok(IrTerm::Module { elements })
     }
 
-    fn decl(&mut self, decl: &mut Decl) -> Result<IrElement> {
+    fn decl(&mut self, decl: &mut Decl) -> Result<IrTerm> {
         match decl {
             Decl::Func(func) => self.func(func),
-            Decl::Let(ident, type_, expr) => Ok(IrElement::i_global_let(
-                ident.as_str(),
-                IrType::from_type(type_)?,
-                self.expr(expr)?,
-            )),
-            Decl::Type(_, _) => Ok(IrElement::nil()),
+            Decl::Let(ident, type_, expr) => Ok(IrTerm::GlobalLet {
+                name: ident.0.clone(),
+                type_: IrType::from_type(type_)?,
+                value: Box::new(self.expr(expr)?),
+            }),
+            Decl::Type(_, _) => Ok(IrTerm::nil()),
         }
     }
 
-    fn func(&mut self, func: &mut Func) -> Result<IrElement> {
+    fn func(&mut self, func: &mut Func) -> Result<IrTerm> {
         let mut elements = vec![];
         for statement in &mut func.body {
             elements.push(self.statement(statement)?);
         }
 
-        Ok(IrElement::i_func(func.name.as_str(), elements))
+        Ok(IrTerm::Func {
+            name: func.name.0.clone(),
+            body: vec![IrTerm::Seq { elements }],
+        })
     }
 
-    fn statement(&mut self, statement: &mut Statement) -> Result<IrElement> {
+    fn statement(&mut self, statement: &mut Statement) -> Result<IrTerm> {
         match statement {
-            Statement::Let(ident, type_, expr) => Ok(IrElement::i_let(
-                ident.as_str(),
-                IrType::from_type(type_)?,
-                self.expr(expr)?,
-            )),
-            Statement::Return(expr) => Ok(IrElement::i_return(self.expr(expr)?)),
+            Statement::Let(ident, type_, expr) => Ok(IrTerm::Let {
+                name: ident.0.clone(),
+                type_: IrType::from_type(type_)?,
+                value: Box::new(self.expr(expr)?),
+            }),
+            Statement::Return(expr) => Ok(IrTerm::Return {
+                value: Box::new(self.expr(expr)?),
+            }),
             Statement::Expr(expr) => Ok(self.expr(expr)?),
             Statement::Assign(var_type, lhs, rhs) => match var_type {
-                Some(VarType::Local) => Ok(IrElement::i_assign_local(
-                    IrElement::ident(lhs.as_str()),
-                    self.expr(rhs)?,
-                )),
-                Some(VarType::Global) => Ok(IrElement::i_assign_global(
-                    IrElement::ident(lhs.as_str()),
-                    self.expr(rhs)?,
-                )),
+                Some(VarType::Local) => Ok(IrTerm::AssignLocal {
+                    lhs: Box::new(IrTerm::ident(lhs.as_str())),
+                    rhs: Box::new(self.expr(rhs)?),
+                }),
+                Some(VarType::Global) => Ok(IrTerm::AssignGlobal {
+                    lhs: Box::new(IrTerm::ident(lhs.as_str())),
+                    rhs: Box::new(self.expr(rhs)?),
+                }),
                 None => bail!("Invalid assignment"),
             },
             Statement::If(cond, type_, then_block, else_block) => {
@@ -91,21 +96,25 @@ impl IrCodeGenerator {
                     }
                 }
 
-                Ok(IrElement::i_if(
-                    self.expr(cond)?,
-                    IrType::from_type(type_)?,
-                    IrElement::block("then", then_elements),
-                    IrElement::block("else", else_elements),
-                ))
+                Ok(IrTerm::If {
+                    cond: Box::new(self.expr(cond)?),
+                    type_: IrType::from_type(type_)?,
+                    then: Box::new(IrTerm::Seq {
+                        elements: then_elements,
+                    }),
+                    else_: Box::new(IrTerm::Seq {
+                        elements: else_elements,
+                    }),
+                })
             }
         }
     }
 
-    fn expr(&mut self, expr: &mut Expr) -> Result<IrElement> {
+    fn expr(&mut self, expr: &mut Expr) -> Result<IrTerm> {
         match expr {
-            Expr::Ident(ident) => Ok(IrElement::ident(ident.as_str())),
+            Expr::Ident(ident) => Ok(IrTerm::ident(ident.as_str())),
             Expr::Lit(lit) => match lit {
-                Lit::I32(i) => Ok(IrElement::i32(*i)),
+                Lit::I32(i) => Ok(IrTerm::i32(*i)),
             },
             Expr::Call(callee, args) => {
                 let mut elements = vec![];
@@ -113,7 +122,10 @@ impl IrCodeGenerator {
                     elements.push(self.expr(arg)?);
                 }
 
-                Ok(IrElement::i_call(callee.as_str(), elements))
+                Ok(IrTerm::Call {
+                    name: callee.to_string(),
+                    args: elements,
+                })
             }
             Expr::Record(ident, fields) => {
                 /* example
@@ -137,27 +149,32 @@ impl IrCodeGenerator {
                 let var = "_record";
 
                 let mut elements = vec![];
-                elements.push(IrElement::i_let(
-                    var,
-                    IrType::Address,
-                    IrElement::i_call("alloc", vec![IrElement::i32(record_type.len() as i32)]),
-                ));
+                elements.push(IrTerm::Let {
+                    name: var.to_string(),
+                    type_: IrType::Address,
+                    value: Box::new(IrTerm::Call {
+                        name: "alloc".to_string(),
+                        args: vec![IrTerm::i32(record_type.len() as i32)],
+                    }),
+                });
                 for (field, expr) in fields {
                     let index = record_type
                         .iter()
                         .position(|(f, _)| f == field)
                         .ok_or(anyhow!("Field not found: {:?} in {:?}", field, record_type))?;
-                    elements.push(IrElement::i_call(
-                        "set_field",
-                        vec![
-                            IrElement::ident(var),
-                            IrElement::i32(index as i32),
+                    elements.push(IrTerm::Call {
+                        name: "set_field".to_string(),
+                        args: vec![
+                            IrTerm::ident(var),
+                            IrTerm::i32(index as i32),
                             self.expr(expr)?,
                         ],
-                    ));
+                    });
                 }
 
-                Ok(IrElement::i_seq(elements))
+                elements.push(IrTerm::ident(var));
+
+                Ok(IrTerm::Seq { elements })
             }
             Expr::Project(expr, type_, label) => {
                 let record_type = self
@@ -172,10 +189,10 @@ impl IrCodeGenerator {
                     .position(|(f, _)| f == label)
                     .ok_or(anyhow!("Field not found: {:?} in {:?}", label, record_type))?;
 
-                Ok(IrElement::i_call(
-                    "get_field",
-                    vec![self.expr(expr)?, IrElement::i32(index as i32)],
-                ))
+                Ok(IrTerm::Call {
+                    name: "get_field".to_string(),
+                    args: vec![self.expr(expr)?, IrTerm::i32(index as i32)],
+                })
             }
         }
     }
