@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use anyhow::{bail, Ok, Result};
 
 use crate::{
-    ast::{Ident, Lit, Type},
+    ast::{Ident, Type},
     ir::{IrTerm, IrType},
     util::sexpr_writer::SExprWriter,
 };
@@ -181,7 +181,7 @@ impl Generator {
                 self.writer.write(&format!("i32.const {}", i));
             }
             IrTerm::Ident(i) => {
-                self.writer.write(&format!("${}", i.as_str()));
+                self.writer.write(&format!("local.get ${}", i.as_str()));
             }
             IrTerm::Call { name, args } => self.call(name, args)?,
             IrTerm::Seq { elements } => {
@@ -189,13 +189,17 @@ impl Generator {
                     self.expr(element)?;
                 }
             }
-            IrTerm::Let { name, type_, value } => {
+            IrTerm::Let {
+                name,
+                type_: _,
+                value,
+            } => {
                 self.writer.new_statement();
                 self.expr(value)?;
 
                 self.writer.new_statement();
                 self.writer.write("local.set");
-                self.writer.write(&format!("${}", name.as_str()));
+                self.expr_left_value(&mut IrTerm::Ident(name.clone()))?;
             }
             IrTerm::Return { value } => {
                 self.writer.new_statement();
@@ -207,7 +211,7 @@ impl Generator {
 
                 self.writer.new_statement();
                 self.writer.write("local.set");
-                self.expr(lhs)?;
+                self.expr_left_value(lhs)?;
             }
             IrTerm::AssignGlobal { lhs, rhs } => {
                 self.writer.new_statement();
@@ -215,7 +219,7 @@ impl Generator {
 
                 self.writer.new_statement();
                 self.writer.write("global.set");
-                self.expr(lhs)?;
+                self.expr_left_value(lhs)?;
             }
             IrTerm::If {
                 cond,
@@ -228,6 +232,10 @@ impl Generator {
 
                 self.writer.new_statement();
                 self.writer.write("if");
+                if !type_.is_nil() {
+                    self.writer
+                        .write(&format!("(result {})", type_.to_string()));
+                }
                 self.writer.start();
                 self.expr(then)?;
                 self.writer.end();
@@ -241,22 +249,19 @@ impl Generator {
                 self.writer.new_statement();
                 self.writer.write("end");
             }
-            _ => unreachable!(),
+            _ => todo!(),
         }
 
         Ok(())
     }
 
-    fn lit(&mut self, literal: &mut Lit) -> Result<()> {
-        match literal {
-            Lit::I32(value) => self.writer.write(&format!("i32.const {}", value)),
+    fn expr_left_value(&mut self, expr: &mut IrTerm) -> Result<()> {
+        match expr {
+            IrTerm::Ident(i) => {
+                self.writer.write(&format!("${}", i.as_str()));
+            }
+            _ => todo!(),
         }
-
-        Ok(())
-    }
-
-    fn ident(&mut self, ident: &mut Ident) -> Result<()> {
-        self.writer.write(&format!("${}", ident.as_str()));
 
         Ok(())
     }
@@ -288,32 +293,5 @@ impl Generator {
         }
 
         Ok(())
-    }
-}
-
-enum TypeRep {
-    I32,
-    Pointer,
-}
-
-impl TypeRep {
-    fn from_type(type_: &Type) -> Result<TypeRep> {
-        match type_ {
-            Type::Omit(_) => todo!(),
-            Type::I32 => Ok(TypeRep::I32),
-            Type::Nil => todo!(),
-            Type::Bool => Ok(TypeRep::I32),
-            Type::Func(_, _) => todo!(),
-            Type::Record(_) => Ok(TypeRep::Pointer),
-            Type::Ident(_) => todo!(),
-        }
-    }
-
-    fn to_wasm_type(&self) -> String {
-        match self {
-            TypeRep::I32 => "i32",
-            TypeRep::Pointer => "i32",
-        }
-        .to_string()
     }
 }
