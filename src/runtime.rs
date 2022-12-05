@@ -1,5 +1,6 @@
 use anyhow::Result;
-use wasmer::{imports, Instance, Memory, MemoryType, Module, Store, Value};
+use wasmer::Value;
+use wasmer::{imports, Instance, Memory, MemoryType, Module, Store};
 
 pub struct Runtime {}
 
@@ -115,7 +116,7 @@ fun main() {
     return p.y;
 }
 "#,
-                vec![Value::I32(3)],
+                vec![Value::I32(20)],
             ),
         ];
 

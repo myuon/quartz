@@ -83,8 +83,6 @@ impl Generator {
 
     ;; return old stack pointer
     local.get $addr
-    local.get $size
-    i32.sub
 )
 "#,
         );
