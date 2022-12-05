@@ -169,13 +169,10 @@ impl IrCodeGenerator {
                         .iter()
                         .position(|(f, _)| f == field)
                         .ok_or(anyhow!("Field not found: {:?} in {:?}", field, record_type))?;
-                    elements.push(IrTerm::Call {
-                        name: "set_field".to_string(),
-                        args: vec![
-                            IrTerm::ident(var),
-                            IrTerm::i32(index as i32),
-                            self.expr(expr)?,
-                        ],
+                    elements.push(IrTerm::SetField {
+                        address: Box::new(IrTerm::ident(var)),
+                        offset: index,
+                        value: Box::new(self.expr(expr)?),
                     });
                 }
 
@@ -196,9 +193,9 @@ impl IrCodeGenerator {
                     .position(|(f, _)| f == label)
                     .ok_or(anyhow!("Field not found: {:?} in {:?}", label, record_type))?;
 
-                Ok(IrTerm::Call {
-                    name: "get_field".to_string(),
-                    args: vec![self.expr(expr)?, IrTerm::i32(index as i32)],
+                Ok(IrTerm::GetField {
+                    address: Box::new(self.expr(expr)?),
+                    offset: index,
                 })
             }
         }

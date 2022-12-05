@@ -47,6 +47,15 @@ pub enum IrTerm {
         then: Box<IrTerm>,
         else_: Box<IrTerm>,
     },
+    SetField {
+        address: Box<IrTerm>,
+        offset: usize,
+        value: Box<IrTerm>,
+    },
+    GetField {
+        address: Box<IrTerm>,
+        offset: usize,
+    },
     Module {
         elements: Vec<IrTerm>,
     },
@@ -179,6 +188,25 @@ impl IrTerm {
                 }
                 writer.end();
             }
+            IrTerm::SetField {
+                address,
+                offset,
+                value,
+            } => {
+                writer.start();
+                writer.write("set-field");
+                address.to_string_writer(writer);
+                writer.write(&offset.to_string());
+                value.to_string_writer(writer);
+                writer.end();
+            }
+            IrTerm::GetField { address, offset } => {
+                writer.start();
+                writer.write("get-field");
+                address.to_string_writer(writer);
+                writer.write(&offset.to_string());
+                writer.end();
+            }
         }
     }
 
@@ -265,7 +293,7 @@ impl IrType {
         match self {
             IrType::Nil => IrTerm::nil(),
             IrType::I32 => IrTerm::Ident("i32".to_string()),
-            IrType::Address => IrTerm::Ident("address".to_string()),
+            IrType::Address => IrTerm::Ident("i32".to_string()),
         }
     }
 
