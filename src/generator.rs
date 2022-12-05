@@ -2,10 +2,13 @@ use std::collections::{HashMap, HashSet};
 
 use anyhow::{bail, Ok, Result};
 
-use crate::ast::{Decl, Expr, Func, Ident, Lit, Module, Statement, Type, VarType};
+use crate::{
+    ast::{Decl, Expr, Func, Ident, Lit, Module, Statement, Type, VarType},
+    util::sexpr_writer::SExprWriter,
+};
 
 pub struct Generator {
-    pub writer: Writer,
+    pub writer: SExprWriter,
     pub globals: HashSet<Ident>,
     pub types: HashMap<Ident, Type>,
 }
@@ -13,7 +16,7 @@ pub struct Generator {
 impl Generator {
     pub fn new() -> Generator {
         Generator {
-            writer: Writer::new(),
+            writer: SExprWriter::new(),
             globals: HashSet::new(),
             types: HashMap::new(),
         }
@@ -320,57 +323,6 @@ impl Generator {
         }
 
         Ok(())
-    }
-}
-
-pub struct Writer {
-    pub buffer: String,
-    depth: usize,
-    index: usize,
-}
-
-impl Writer {
-    pub fn new() -> Writer {
-        Writer {
-            buffer: String::new(),
-            depth: 0,
-            index: 0,
-        }
-    }
-
-    pub fn write(&mut self, text: &str) {
-        self.buffer.push_str(&format!(
-            "{}{}",
-            if self.index == 0 { "" } else { " " },
-            text
-        ));
-        self.index += 1;
-    }
-
-    pub fn start(&mut self) {
-        self.new_statement();
-        self.write("(");
-        self.depth += 1;
-        self.index = 0;
-    }
-
-    pub fn end(&mut self) {
-        self.depth -= 1;
-        self.index = 0;
-        self.write(")");
-    }
-
-    pub fn new_statement(&mut self) {
-        if self.index != 0 {
-            self.write(&format!("\n{}", " ".repeat(self.depth * 2)));
-        }
-        self.index = 0;
-    }
-
-    pub fn finalize(&mut self) {
-        for _ in 0..self.depth {
-            self.end();
-        }
     }
 }
 

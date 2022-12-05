@@ -7,6 +7,7 @@ mod lexer;
 mod parser;
 mod runtime;
 mod typecheck;
+mod util;
 
 use crate::{compiler::Compiler, runtime::Runtime};
 
