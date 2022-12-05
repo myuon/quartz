@@ -3,7 +3,8 @@ use std::collections::{HashMap, HashSet};
 use anyhow::{bail, Ok, Result};
 
 use crate::{
-    ast::{Decl, Expr, Func, Ident, Lit, Module, Statement, Type, VarType},
+    ast::{Ident, Lit, Type},
+    ir::{IrTerm, IrType},
     util::sexpr_writer::SExprWriter,
 };
 
@@ -30,13 +31,18 @@ impl Generator {
         self.types = types;
     }
 
-    pub fn run(&mut self, module: &mut Module) -> Result<()> {
-        self.module(module)?;
+    pub fn run(&mut self, module: &mut IrTerm) -> Result<()> {
+        match module {
+            IrTerm::Module { elements } => {
+                self.module(elements)?;
+            }
+            _ => bail!("Expected module"),
+        }
 
         Ok(())
     }
 
-    fn module(&mut self, module: &mut Module) -> Result<()> {
+    fn module(&mut self, elements: &mut Vec<IrTerm>) -> Result<()> {
         self.writer.start();
         self.writer.write("module");
 
@@ -44,8 +50,8 @@ impl Generator {
         self.writer.write(r#"import "env" "memory" (memory 1)"#);
         self.writer.end();
 
-        for decl in &mut module.0 {
-            self.decl(decl)?;
+        for term in elements {
+            self.decl(term)?;
         }
 
         // builtin functions here
@@ -93,47 +99,54 @@ impl Generator {
         Ok(())
     }
 
-    fn decl(&mut self, decl: &mut Decl) -> Result<()> {
+    fn decl(&mut self, decl: &mut IrTerm) -> Result<()> {
         match decl {
-            Decl::Func(func) => self.func(func),
-            Decl::Let(ident, type_, expr) => self.global_let(ident, type_, expr),
-            Decl::Type(_, _) => Ok(()),
+            IrTerm::Func {
+                name,
+                params,
+                result,
+                body,
+            } => self.func(name, params, result, body),
+            IrTerm::GlobalLet { name, type_, value } => self.global_let(name, type_, value),
+            _ => bail!("Expected func or global let"),
         }
     }
 
-    fn func(&mut self, func: &mut Func) -> Result<()> {
+    fn func(
+        &mut self,
+        name: &mut String,
+        params: &mut Vec<(String, IrType)>,
+        result: &mut IrType,
+        body: &mut Vec<IrTerm>,
+    ) -> Result<()> {
         self.writer.start();
         self.writer.write("func");
-        self.writer.write(&format!("${}", func.name.as_str()));
-        for (name, type_) in &mut func.params {
+        self.writer.write(&format!("${}", name.as_str()));
+        for (name, type_) in params {
             self.writer
                 .write(&format!("(param ${} {})", name.as_str(), type_.to_string()));
         }
 
-        if !func.result.is_nil() {
+        if !result.is_nil() {
             self.writer
-                .write(&format!("(result {})", func.result.to_string()));
+                .write(&format!("(result {})", result.to_string()));
         }
 
-        for statement in &mut func.body {
-            if let Statement::Let(ident, type_, _) = statement {
-                let type_resolved = if let Type::Ident(ident) = type_ {
-                    self.types.get(ident).unwrap().clone()
-                } else {
-                    type_.clone()
-                };
-
+        for statement in body.iter_mut() {
+            if let IrTerm::Let {
+                name,
+                type_,
+                value: _,
+            } = statement
+            {
                 self.writer.start();
-                self.writer.write(&format!(
-                    "local ${} {}",
-                    ident.as_str(),
-                    TypeRep::from_type(&type_resolved)?.to_wasm_type()
-                ));
+                self.writer
+                    .write(&format!("local ${} {}", name.as_str(), type_.to_string()));
                 self.writer.end();
             }
         }
-        for statement in &mut func.body {
-            self.statement(statement)?;
+        for expr in body.iter_mut() {
+            self.expr(expr)?;
         }
 
         self.writer.end();
@@ -141,10 +154,15 @@ impl Generator {
         Ok(())
     }
 
-    fn global_let(&mut self, ident: &mut Ident, type_: &mut Type, expr: &mut Expr) -> Result<()> {
+    fn global_let(
+        &mut self,
+        name: &mut String,
+        type_: &mut IrType,
+        expr: &mut IrTerm,
+    ) -> Result<()> {
         self.writer.start();
         self.writer.write("global");
-        self.writer.write(&format!("${}", ident.as_str()));
+        self.writer.write(&format!("${}", name.as_str()));
         self.writer.write(&format!("(mut {})", type_.to_string()));
         self.writer.start();
         self.expr(expr)?;
@@ -154,132 +172,79 @@ impl Generator {
         Ok(())
     }
 
-    fn statement(&mut self, statement: &mut Statement) -> Result<()> {
-        match statement {
-            Statement::Let(ident, _, value) => {
+    fn expr(&mut self, expr: &mut IrTerm) -> Result<()> {
+        match expr {
+            IrTerm::Nil => {
+                self.writer.write(&format!("i32.const {}", -1));
+            }
+            IrTerm::I32(i) => {
+                self.writer.write(&format!("i32.const {}", i));
+            }
+            IrTerm::Ident(i) => {
+                self.writer.write(&format!("${}", i.as_str()));
+            }
+            IrTerm::Call { name, args } => self.call(name, args)?,
+            IrTerm::Seq { elements } => {
+                for element in elements {
+                    self.expr(element)?;
+                }
+            }
+            IrTerm::Let { name, type_, value } => {
                 self.writer.new_statement();
                 self.expr(value)?;
 
                 self.writer.new_statement();
                 self.writer.write("local.set");
-                self.writer.write(&format!("${}", ident.as_str()));
+                self.writer.write(&format!("${}", name.as_str()));
             }
-            Statement::Return(value) => {
+            IrTerm::Return { value } => {
                 self.writer.new_statement();
                 self.expr(value)?;
             }
-            Statement::Expr(expr) => {
-                self.writer.new_statement();
-                self.expr(expr)?;
-            }
-            Statement::Assign(var_type, lhs, rhs) => {
+            IrTerm::AssignLocal { lhs, rhs } => {
                 self.writer.new_statement();
                 self.expr(rhs)?;
 
                 self.writer.new_statement();
-                self.writer.write(match var_type {
-                    Some(VarType::Local) => "local.set",
-                    Some(VarType::Global) => "global.set",
-                    _ => bail!("expected var_type, but None"),
-                });
-                self.writer.write(&format!("${}", lhs.as_str()));
+                self.writer.write("local.set");
+                self.expr(lhs)?;
             }
-            Statement::If(cond, type_, then_block, else_block) => {
+            IrTerm::AssignGlobal { lhs, rhs } => {
+                self.writer.new_statement();
+                self.expr(rhs)?;
+
+                self.writer.new_statement();
+                self.writer.write("global.set");
+                self.expr(lhs)?;
+            }
+            IrTerm::If {
+                cond,
+                type_,
+                then,
+                else_,
+            } => {
                 self.writer.new_statement();
                 self.expr(cond)?;
 
-                self.writer.start();
+                self.writer.new_statement();
                 self.writer.write("if");
-                if !type_.is_nil() {
-                    self.writer
-                        .write(&format!("(result {})", type_.to_string()));
-                }
-
                 self.writer.start();
-                self.writer.write("then");
-                for statement in then_block {
-                    self.writer.new_statement();
-                    self.statement(statement)?;
-                }
+                self.expr(then)?;
                 self.writer.end();
 
-                if let Some(else_block) = else_block {
-                    self.writer.start();
-                    self.writer.write("else");
-                    for statement in else_block {
-                        self.writer.new_statement();
-                        self.statement(statement)?;
-                    }
-                    self.writer.end();
-                }
-
+                self.writer.new_statement();
+                self.writer.write("else");
+                self.writer.start();
+                self.expr(else_)?;
                 self.writer.end();
+
+                self.writer.new_statement();
+                self.writer.write("end");
             }
+            _ => unreachable!(),
         }
 
         Ok(())
-    }
-
-    fn expr(&mut self, expr: &mut Expr) -> Result<()> {
-        match expr {
-            Expr::Lit(lit) => self.lit(lit),
-            Expr::Ident(ident) => {
-                self.writer.write(if self.globals.contains(ident) {
-                    "global.get"
-                } else {
-                    "local.get"
-                });
-                self.ident(ident)?;
-
-                Ok(())
-            }
-            Expr::Call(caller, args) => self.call(caller, args),
-            Expr::Record(_, fields) => {
-                // allocate memory
-                self.writer.new_statement();
-                self.writer.write(&format!("i32.const {}", fields.len()));
-                self.writer.new_statement();
-                self.writer.write("call $alloc");
-
-                for (i, (_, expr)) in fields.into_iter().enumerate() {
-                    self.writer.new_statement();
-
-                    self.writer.new_statement();
-                    self.expr(expr)?;
-
-                    self.writer.new_statement();
-                    self.writer.write("local.tee $value");
-                    self.writer.new_statement();
-                    self.writer.write("local.get $address");
-                    self.writer.new_statement();
-                    self.writer.write(&format!("i32.const {}", i));
-                    self.writer.new_statement();
-                    self.writer.write("i32.add");
-                    self.writer.new_statement();
-                    self.writer.write("local.get $value");
-                    self.writer.new_statement();
-                    self.writer.write("i32.store");
-                }
-
-                Ok(())
-            }
-            Expr::Project(expr, type_, label) => {
-                self.expr(expr)?;
-
-                self.writer.new_statement();
-                let fields = self.types[&type_.clone().to_ident()?].clone().to_record()?;
-                self.writer.write(&format!(
-                    "i32.const {}",
-                    fields.iter().position(|(l, _)| l == label).unwrap()
-                ));
-                self.writer.new_statement();
-                self.writer.write("i32.add");
-                self.writer.new_statement();
-                self.writer.write("i32.load");
-
-                Ok(())
-            }
-        }
     }
 
     fn lit(&mut self, literal: &mut Lit) -> Result<()> {
@@ -296,7 +261,7 @@ impl Generator {
         Ok(())
     }
 
-    fn call(&mut self, caller: &mut Ident, args: &mut Vec<Expr>) -> Result<()> {
+    fn call(&mut self, caller: &mut String, args: &mut Vec<IrTerm>) -> Result<()> {
         for arg in args {
             self.writer.new_statement();
             self.expr(arg)?;

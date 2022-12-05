@@ -55,8 +55,15 @@ impl IrCodeGenerator {
             elements.push(self.statement(statement)?);
         }
 
+        let mut params = vec![];
+        for (ident, type_) in &func.params {
+            params.push((ident.0.clone(), IrType::from_type(type_)?));
+        }
+
         Ok(IrTerm::Func {
             name: func.name.0.clone(),
+            params,
+            result: Box::new(IrType::from_type(&func.result)?),
             body: vec![IrTerm::Seq { elements }],
         })
     }

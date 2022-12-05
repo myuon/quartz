@@ -6,10 +6,11 @@ use crate::{ast::Type, util::sexpr_writer::SExprWriter};
 pub enum IrTerm {
     Nil,
     I32(i32),
-    Address(usize),
     Ident(String),
     Func {
         name: String,
+        params: Vec<(String, IrType)>,
+        result: Box<IrType>,
         body: Vec<IrTerm>,
     },
     GlobalLet {
@@ -72,16 +73,32 @@ impl IrTerm {
             IrTerm::I32(i) => {
                 writer.write(&i.to_string());
             }
-            IrTerm::Address(p) => {
-                writer.write(&format!("&{}", p));
-            }
             IrTerm::Ident(p) => {
                 writer.write(p);
             }
-            IrTerm::Func { name, body } => {
+            IrTerm::Func {
+                name,
+                params,
+                result,
+                body,
+            } => {
                 writer.start();
                 writer.write("func");
                 writer.write(name);
+
+                for (name, type_) in params {
+                    writer.start();
+                    writer.write("param");
+                    writer.write(name);
+                    type_.to_term().to_string_writer(writer);
+                    writer.end();
+                }
+
+                writer.start();
+                writer.write("result");
+                result.to_term().to_string_writer(writer);
+                writer.end();
+
                 for term in body {
                     term.to_string_writer(writer);
                 }
@@ -175,6 +192,7 @@ impl IrTerm {
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum IrType {
+    Nil,
     I32,
     Address,
 }
@@ -182,6 +200,7 @@ pub enum IrType {
 impl IrType {
     pub fn from_type(type_: &Type) -> Result<Self> {
         match type_ {
+            Type::Nil => Ok(IrType::Nil),
             Type::I32 => Ok(IrType::I32),
             Type::Record(_) => Ok(IrType::Address),
             Type::Ident(_) => Ok(IrType::Address),
@@ -191,8 +210,20 @@ impl IrType {
 
     pub fn to_term(&self) -> IrTerm {
         match self {
+            IrType::Nil => IrTerm::nil(),
             IrType::I32 => IrTerm::Ident("i32".to_string()),
             IrType::Address => IrTerm::Ident("address".to_string()),
         }
+    }
+
+    pub fn is_nil(&self) -> bool {
+        match self {
+            IrType::Nil => true,
+            _ => false,
+        }
+    }
+
+    pub fn to_string(&self) -> String {
+        self.to_term().to_string()
     }
 }
