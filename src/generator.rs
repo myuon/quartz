@@ -108,7 +108,7 @@ impl Generator {
                 body,
             } => self.func(name, params, result, body),
             IrTerm::GlobalLet { name, type_, value } => self.global_let(name, type_, value),
-            _ => bail!("Expected func or global let"),
+            _ => bail!("Expected func or global let, got {:?}", decl),
         }
     }
 
@@ -229,21 +229,15 @@ impl Generator {
                 self.writer.new_statement();
                 self.expr(cond)?;
 
-                self.writer.new_statement();
                 self.writer.write("if");
                 if !type_.is_nil() {
                     self.writer
                         .write(&format!("(result {})", type_.to_string()));
                 }
-                self.writer.start();
-                self.expr(then)?;
-                self.writer.end();
 
-                self.writer.new_statement();
+                self.expr(then)?;
                 self.writer.write("else");
-                self.writer.start();
                 self.expr(else_)?;
-                self.writer.end();
 
                 self.writer.new_statement();
                 self.writer.write("end");

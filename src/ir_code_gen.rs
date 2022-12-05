@@ -31,22 +31,22 @@ impl IrCodeGenerator {
         let mut elements = vec![];
 
         for decl in &mut module.0 {
-            elements.push(self.decl(decl)?);
+            match decl {
+                Decl::Func(func) => {
+                    elements.push(self.func(func)?);
+                }
+                Decl::Let(ident, type_, expr) => {
+                    elements.push(IrTerm::GlobalLet {
+                        name: ident.0.clone(),
+                        type_: IrType::from_type(type_)?,
+                        value: Box::new(self.expr(expr)?),
+                    });
+                }
+                Decl::Type(_, _) => (),
+            }
         }
 
         Ok(IrTerm::Module { elements })
-    }
-
-    fn decl(&mut self, decl: &mut Decl) -> Result<IrTerm> {
-        match decl {
-            Decl::Func(func) => self.func(func),
-            Decl::Let(ident, type_, expr) => Ok(IrTerm::GlobalLet {
-                name: ident.0.clone(),
-                type_: IrType::from_type(type_)?,
-                value: Box::new(self.expr(expr)?),
-            }),
-            Decl::Type(_, _) => Ok(IrTerm::nil()),
-        }
     }
 
     fn func(&mut self, func: &mut Func) -> Result<IrTerm> {
