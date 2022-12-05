@@ -176,7 +176,11 @@ impl Generator {
                 self.writer.write(&format!("i32.const {}", i));
             }
             IrTerm::Ident(i) => {
-                self.writer.write(&format!("local.get ${}", i.as_str()));
+                if self.globals.contains(&Ident(i.clone())) {
+                    self.writer.write(&format!("global.get ${}", i.as_str()));
+                } else {
+                    self.writer.write(&format!("local.get ${}", i.as_str()));
+                }
             }
             IrTerm::Call { name, args } => self.call(name, args)?,
             IrTerm::Seq { elements } => {
