@@ -35,7 +35,7 @@ impl Compiler {
         let ir = ir_code_generator
             .run(&mut ast)
             .context("ir code generator phase")?;
-        println!("{:?}", ir);
+        println!("{}", ir.to_string());
 
         generator.set_globals(typechecker.globals.keys().into_iter().cloned().collect());
         generator.set_types(typechecker.types);

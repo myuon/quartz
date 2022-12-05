@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 
-use crate::ast::Type;
+use crate::{ast::Type, util::sexpr_writer::SExprWriter};
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum IrElement {
@@ -91,6 +91,24 @@ impl IrElement {
             ],
         )
     }
+
+    fn to_string_writer(&self, writer: &mut SExprWriter) {
+        match self {
+            IrElement::Term(t) => {
+                t.to_string_writer(writer);
+            }
+            IrElement::Block(b) => {
+                b.to_string_writer(writer);
+            }
+        }
+    }
+
+    pub fn to_string(&self) -> String {
+        let mut writer = SExprWriter::new();
+        self.to_string_writer(&mut writer);
+
+        writer.buffer
+    }
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -101,10 +119,54 @@ pub enum IrTerm {
     Ident(String),
 }
 
+impl IrTerm {
+    fn to_string_writer(&self, writer: &mut SExprWriter) {
+        match self {
+            IrTerm::Nil => {
+                writer.write("nil");
+            }
+            IrTerm::I32(i) => {
+                writer.write(&format!("{}", i));
+            }
+            IrTerm::Address(a) => {
+                writer.write(&format!("&{}", a));
+            }
+            IrTerm::Ident(i) => {
+                writer.write(&format!("${}", i));
+            }
+        }
+    }
+
+    pub fn to_string(&self) -> String {
+        let mut writer = SExprWriter::new();
+        self.to_string_writer(&mut writer);
+
+        writer.buffer
+    }
+}
+
 #[derive(PartialEq, Debug, Clone)]
 pub struct IrBlock {
     pub name: String,
     pub elements: Vec<IrElement>,
+}
+
+impl IrBlock {
+    pub fn to_string_writer(&self, writer: &mut SExprWriter) {
+        writer.start();
+        writer.write(&self.name);
+        for e in &self.elements {
+            e.to_string_writer(writer);
+        }
+        writer.end();
+    }
+
+    pub fn to_string(&self) -> String {
+        let mut writer = SExprWriter::new();
+        self.to_string_writer(&mut writer);
+
+        writer.buffer
+    }
 }
 
 #[derive(PartialEq, Debug, Clone)]
