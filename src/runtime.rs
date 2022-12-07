@@ -119,16 +119,16 @@ fun main() {
                 r#"
 fun main() {
     let x = 10;
-    let n = 10;
+    let n = 0;
     while n < 10 {
         x = x + n;
-        n = n - 1;
+        n = n + 1;
     }
 
     return x;
 }
 "#,
-                vec![Value::I32(20)],
+                vec![Value::I32(55)],
             ),
             (
                 r#"

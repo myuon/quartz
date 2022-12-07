@@ -276,29 +276,35 @@ impl Generator {
             IrTerm::While { cond, body } => {
                 /*  [while(cond) {block}]
 
-                    (loop $loop
-                        (not (cond))
-                        (br 0)
+                    (block $exit
+                        (loop
+                            (not (cond))
+                            (br_if $exit)
 
-                        (block)
-                        (br $loop)
+                            (block)
+                            (br 0)
+                        )
                     )
                 */
 
                 self.writer.start();
+                self.writer.write("block");
+                self.writer.write("$exit");
+
+                self.writer.start();
                 self.writer.write("loop");
-                self.writer.write("$loop");
 
                 self.expr(cond.as_mut())?;
                 self.writer.new_statement();
                 self.writer.write("i32.eqz");
                 self.writer.new_statement();
-                self.writer.write("br_if 0");
+                self.writer.write("br_if $exit");
 
                 self.expr(body.as_mut())?;
                 self.writer.new_statement();
-                self.writer.write("br_if $loop");
+                self.writer.write("br 0");
 
+                self.writer.end();
                 self.writer.end();
             }
             _ => todo!(),
