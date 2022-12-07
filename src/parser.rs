@@ -218,6 +218,7 @@ impl Parser {
         let position = self.position;
         let mut current = self.term_3()?;
 
+        let token_position = self.position;
         let token = self.peek()?;
         match token.lexeme {
             Lexeme::DoubleEqual => {
@@ -229,7 +230,7 @@ impl Parser {
                     Expr::Call(
                         Box::new(self.source(
                             Expr::Ident(Ident("equal".to_string())),
-                            token.position,
+                            token_position,
                             token_position_end,
                         )),
                         vec![current, rhs],
@@ -247,6 +248,7 @@ impl Parser {
         let position = self.position;
         let mut current = self.term_2()?;
 
+        let token_position = self.position;
         let token = self.peek()?;
         match token.lexeme {
             Lexeme::Lt => {
@@ -258,7 +260,7 @@ impl Parser {
                     Expr::Call(
                         Box::new(self.source(
                             Expr::Ident(Ident("lt".to_string())),
-                            token.position,
+                            token_position,
                             token_position_end,
                         )),
                         vec![current, rhs],
@@ -276,6 +278,7 @@ impl Parser {
         let position = self.position;
         let mut current = self.term_1()?;
 
+        let token_position = self.position;
         let token = self.peek()?;
         match token.lexeme {
             Lexeme::Plus => {
@@ -287,7 +290,7 @@ impl Parser {
                     Expr::Call(
                         Box::new(self.source(
                             Expr::Ident(Ident("add".to_string())),
-                            token.position,
+                            token_position,
                             token_position_end,
                         )),
                         vec![current, rhs],
@@ -304,7 +307,7 @@ impl Parser {
                     Expr::Call(
                         Box::new(self.source(
                             Expr::Ident(Ident("sub".to_string())),
-                            token.position,
+                            token_position,
                             token_position_end,
                         )),
                         vec![current, rhs],
@@ -322,6 +325,7 @@ impl Parser {
         let position = self.position;
         let mut current = self.term_0()?;
 
+        let token_position = self.position;
         let token = self.peek()?;
         match token.lexeme {
             Lexeme::Star => {
@@ -333,7 +337,7 @@ impl Parser {
                     Expr::Call(
                         Box::new(self.source(
                             Expr::Ident(Ident("mult".to_string())),
-                            token.position,
+                            token_position,
                             token_position_end,
                         )),
                         vec![current, rhs],

@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, bail, Context, Result};
 
 use crate::{
     ast::{Decl, Expr, Func, Ident, Lit, Module, Statement, Type},
+    compiler::ErrorInSource,
     util::source::Source,
 };
 
@@ -78,7 +79,10 @@ impl TypeChecker {
             }
             Decl::Let(ident, type_, expr) => {
                 let mut result = self.expr(expr)?;
-                self.unify(type_, &mut result)?;
+                self.unify(type_, &mut result).context(ErrorInSource {
+                    start: expr.start.unwrap_or(0),
+                    end: expr.end.unwrap_or(0),
+                })?;
 
                 self.globals.insert(ident.clone(), type_.clone());
             }
@@ -129,7 +133,10 @@ impl TypeChecker {
         match statement {
             Statement::Let(val, type_, expr) => {
                 let mut result = self.expr(expr)?;
-                self.unify(type_, &mut result)?;
+                self.unify(type_, &mut result).context(ErrorInSource {
+                    start: expr.start.unwrap_or(0),
+                    end: expr.end.unwrap_or(0),
+                })?;
 
                 self.locals.insert(val.clone(), type_.clone());
 
@@ -143,13 +150,21 @@ impl TypeChecker {
             Statement::Assign(lhs, rhs) => {
                 let mut lhs_type = self.expr(lhs)?;
                 let mut rhs_type = self.expr(rhs)?;
-                self.unify(&mut lhs_type, &mut rhs_type)?;
+                self.unify(&mut lhs_type, &mut rhs_type)
+                    .context(ErrorInSource {
+                        start: lhs.start.unwrap_or(0),
+                        end: lhs.end.unwrap_or(0),
+                    })?;
 
                 Ok(None)
             }
             Statement::If(cond, type_, then_block, else_block) => {
                 let mut cond_type = self.expr(cond)?;
-                self.unify(&mut cond_type, &mut Type::Bool)?;
+                self.unify(&mut cond_type, &mut Type::Bool)
+                    .context(ErrorInSource {
+                        start: cond.start.unwrap_or(0),
+                        end: cond.end.unwrap_or(0),
+                    })?;
 
                 let mut then_type = Type::Omit(0);
                 self.block(then_block, &mut then_type)?;
@@ -164,7 +179,11 @@ impl TypeChecker {
             }
             Statement::While(cond, block) => {
                 let mut cond_type = self.expr(cond)?;
-                self.unify(&mut cond_type, &mut Type::Bool)?;
+                self.unify(&mut cond_type, &mut Type::Bool)
+                    .context(ErrorInSource {
+                        start: cond.start.unwrap_or(0),
+                        end: cond.end.unwrap_or(0),
+                    })?;
 
                 let mut block_type = Type::Omit(0);
                 self.block(block, &mut block_type)?;
@@ -196,14 +215,21 @@ impl TypeChecker {
                         field_types
                             .get_mut(field)
                             .ok_or(anyhow!("unknown field: {}", field.as_str()))?,
-                    )?;
+                    )
+                    .context(ErrorInSource {
+                        start: expr.start.unwrap_or(0),
+                        end: expr.end.unwrap_or(0),
+                    })?;
                 }
 
                 Ok(Type::Ident(ident.clone()))
             }
             Expr::Project(expr, type_, label) => {
                 let mut expr_type = self.expr(expr)?;
-                self.unify(type_, &mut expr_type)?;
+                self.unify(type_, &mut expr_type).context(ErrorInSource {
+                    start: expr.start.unwrap_or(0),
+                    end: expr.end.unwrap_or(0),
+                })?;
 
                 match expr_type {
                     // methods for Pointer<_> type
@@ -270,7 +296,11 @@ impl TypeChecker {
 
         for (index, arg) in args.into_iter().enumerate() {
             let mut arg_type = self.expr(arg)?;
-            self.unify(&mut arg_types[index], &mut arg_type)?
+            self.unify(&mut arg_types[index], &mut arg_type)
+                .context(ErrorInSource {
+                    start: arg.start.unwrap_or(0),
+                    end: arg.end.unwrap_or(0),
+                })?
         }
 
         Ok(result_type.as_ref().clone())
