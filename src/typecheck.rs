@@ -234,7 +234,7 @@ impl TypeChecker {
                 match expr_type {
                     // methods for Pointer<_> type
                     Type::Pointer(p) => match label.as_str() {
-                        "at" => Ok(Type::Func(vec![Type::I32], Box::new(Type::Pointer(p)))),
+                        "at" => Ok(Type::Func(vec![Type::I32], p)),
                         _ => bail!("unknown method for {:?}: {}", p, label.as_str()),
                     },
                     _ => {
@@ -257,10 +257,7 @@ impl TypeChecker {
     }
 
     fn expr_left_value(&mut self, expr: &mut Source<Expr>) -> Result<Type> {
-        match &mut expr.data {
-            Expr::Ident(ident) => Ok(Type::Pointer(Box::new(self.ident(ident)?))),
-            _ => self.expr(expr),
-        }
+        Ok(Type::Pointer(Box::new(self.expr(expr)?)))
     }
 
     fn lit(&mut self, lit: &mut Lit) -> Result<Type> {
