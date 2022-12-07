@@ -108,6 +108,7 @@ pub enum Statement {
     Expr(Expr),
     Assign(Option<VarType>, Ident, Box<Expr>),
     If(Expr, Type, Vec<Statement>, Option<Vec<Statement>>),
+    While(Expr, Vec<Statement>),
 }
 
 #[derive(PartialEq, Debug, Clone)]

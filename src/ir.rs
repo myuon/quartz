@@ -56,6 +56,10 @@ pub enum IrTerm {
         address: Box<IrTerm>,
         offset: usize,
     },
+    While {
+        cond: Box<IrTerm>,
+        body: Box<IrTerm>,
+    },
     Module {
         elements: Vec<IrTerm>,
     },
@@ -205,6 +209,13 @@ impl IrTerm {
                 writer.write("get-field");
                 address.to_string_writer(writer);
                 writer.write(&offset.to_string());
+                writer.end();
+            }
+            IrTerm::While { cond, body } => {
+                writer.start();
+                writer.write("while");
+                cond.to_string_writer(writer);
+                body.to_string_writer(writer);
                 writer.end();
             }
         }

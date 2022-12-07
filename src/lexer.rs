@@ -11,6 +11,7 @@ pub enum Lexeme {
     Return,
     If,
     Else,
+    While,
     LParen,
     RParen,
     LBrace,
@@ -24,6 +25,7 @@ pub enum Lexeme {
     Star,
     Comma,
     Dot,
+    Lt,
     Ident(String),
     Int(i32),
     String(String),
@@ -144,6 +146,7 @@ impl Lexer {
                     ("return", Lexeme::Return),
                     ("if", Lexeme::If),
                     ("else", Lexeme::Else),
+                    ("while", Lexeme::While),
                 ],
             ) {
                 continue;
@@ -165,6 +168,7 @@ impl Lexer {
                     ("*", Lexeme::Star),
                     (",", Lexeme::Comma),
                     (".", Lexeme::Dot),
+                    ("<", Lexeme::Lt),
                 ],
             ) {
                 continue;

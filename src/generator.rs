@@ -273,6 +273,34 @@ impl Generator {
                 self.writer.new_statement();
                 self.writer.write("i32.store");
             }
+            IrTerm::While { cond, body } => {
+                /*  [while(cond) {block}]
+
+                    (loop $loop
+                        (not (cond))
+                        (br 0)
+
+                        (block)
+                        (br $loop)
+                    )
+                */
+
+                self.writer.start();
+                self.writer.write("loop");
+                self.writer.write("$loop");
+
+                self.expr(cond.as_mut())?;
+                self.writer.new_statement();
+                self.writer.write("i32.eqz");
+                self.writer.new_statement();
+                self.writer.write("br_if 0");
+
+                self.expr(body.as_mut())?;
+                self.writer.new_statement();
+                self.writer.write("br_if $loop");
+
+                self.writer.end();
+            }
             _ => todo!(),
         }
 
@@ -310,6 +338,9 @@ impl Generator {
             }
             "equal" => {
                 self.writer.write("i32.eq");
+            }
+            "lt" => {
+                self.writer.write("i32.lt_s");
             }
             _ => {
                 self.writer.write(&format!("call ${}", caller.as_str()));

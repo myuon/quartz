@@ -162,6 +162,15 @@ impl Parser {
                     else_block,
                 ))
             }
+            Lexeme::While => {
+                self.consume()?;
+                let condition = self.expr()?;
+                self.expect(Lexeme::LBrace)?;
+                let body = self.block()?;
+                self.expect(Lexeme::RBrace)?;
+
+                Ok(Statement::While(condition, body))
+            }
             _ => {
                 let expr = self.expr()?;
 
@@ -205,11 +214,11 @@ impl Parser {
     }
 
     fn expr(&mut self) -> Result<Expr> {
-        self.term_3()
+        self.term_4()
     }
 
-    fn term_3(&mut self) -> Result<Expr> {
-        let mut current = self.term_2()?;
+    fn term_4(&mut self) -> Result<Expr> {
+        let mut current = self.term_3()?;
 
         match self.peek()?.lexeme {
             Lexeme::DoubleEqual => {
@@ -217,6 +226,22 @@ impl Parser {
                 let rhs = self.expr()?;
 
                 current = Expr::Call(Ident("equal".to_string()), vec![current, rhs]);
+            }
+            _ => (),
+        }
+
+        Ok(current)
+    }
+
+    fn term_3(&mut self) -> Result<Expr> {
+        let mut current = self.term_2()?;
+
+        match self.peek()?.lexeme {
+            Lexeme::Lt => {
+                self.consume()?;
+                let rhs = self.expr()?;
+
+                current = Expr::Call(Ident("lt".to_string()), vec![current, rhs]);
             }
             _ => (),
         }

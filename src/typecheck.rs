@@ -33,6 +33,10 @@ impl TypeChecker {
                     "equal",
                     Type::Func(vec![Type::I32, Type::I32], Box::new(Type::Bool)), // FIXME: support bool
                 ),
+                (
+                    "lt",
+                    Type::Func(vec![Type::I32, Type::I32], Box::new(Type::Bool)),
+                ),
             ]
             .into_iter()
             .map(|(k, v)| (Ident(k.to_string()), v))
@@ -153,6 +157,15 @@ impl TypeChecker {
                 }
 
                 self.unify(type_, &mut then_type)?;
+
+                Ok(None)
+            }
+            Statement::While(cond, block) => {
+                let mut cond_type = self.expr(cond)?;
+                self.unify(&mut cond_type, &mut Type::Bool)?;
+
+                let mut block_type = Type::Omit(0);
+                self.block(block, &mut block_type)?;
 
                 Ok(None)
             }

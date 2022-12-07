@@ -114,6 +114,17 @@ impl IrCodeGenerator {
                     }),
                 })
             }
+            Statement::While(cond, block) => {
+                let mut elements = vec![];
+                for statement in block {
+                    elements.push(self.statement(statement)?);
+                }
+
+                Ok(IrTerm::While {
+                    cond: Box::new(self.expr(cond)?),
+                    body: Box::new(IrTerm::Seq { elements }),
+                })
+            }
         }
     }
 

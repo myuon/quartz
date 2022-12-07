@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use wasmer::Value;
 use wasmer::{imports, Instance, Memory, MemoryType, Module, Store};
 
@@ -9,7 +9,7 @@ impl Runtime {
         Runtime {}
     }
 
-    pub fn run(&mut self, wat: &str) -> Result<Box<[Value]>> {
+    pub fn _run(&mut self, wat: &str) -> Result<Box<[Value]>> {
         let mut store = Store::default();
         let memory = Memory::new(&mut store, MemoryType::new(1, None, false)).unwrap();
         let module = Module::new(&store, &wat)?;
@@ -24,6 +24,18 @@ impl Runtime {
         let result = main.call(&mut store, &[])?;
 
         Ok(result)
+    }
+
+    pub fn run(&mut self, wat: &str) -> Result<Box<[Value]>> {
+        self._run(wat).map_err(|err| {
+            let message = err.to_string();
+            // regexp test (at offset %d) against message
+            let re = regex::Regex::new(r"\(at offset (\d+)\)").unwrap();
+            let cap = re.captures(&message).unwrap();
+            let offset = cap[1].parse::<usize>().unwrap();
+
+            anyhow!("{}\n\nOriginal Error: {}", wat[0..offset].to_string(), err)
+        })
     }
 }
 
@@ -102,6 +114,21 @@ fun main() {
 }
 "#,
                 vec![Value::I32(120)],
+            ),
+            (
+                r#"
+fun main() {
+    let x = 10;
+    let n = 10;
+    while n < 10 {
+        x = x + n;
+        n = n - 1;
+    }
+
+    return x;
+}
+"#,
+                vec![Value::I32(20)],
             ),
             (
                 r#"
