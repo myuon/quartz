@@ -202,18 +202,27 @@ impl TypeChecker {
                 let mut expr_type = self.expr(expr)?;
                 self.unify(type_, &mut expr_type)?;
 
-                let fields = self.resolve_record_type(expr_type.clone())?;
-                let type_ = fields
-                    .into_iter()
-                    .find(|p| p.0 .0 == label.0)
-                    .ok_or(anyhow!(
-                        "field `{:?}` not found in record `{:?}`",
-                        label,
-                        expr_type
-                    ))?
-                    .1;
+                match expr_type {
+                    // methods for Pointer<_> type
+                    Type::Pointer(p) => match label.as_str() {
+                        "at" => Ok(Type::Func(vec![Type::I32], Box::new(Type::Pointer(p)))),
+                        _ => bail!("unknown method for {:?}: {}", p, label.as_str()),
+                    },
+                    _ => {
+                        let fields = self.resolve_record_type(expr_type.clone())?;
+                        let type_ = fields
+                            .into_iter()
+                            .find(|p| p.0 .0 == label.0)
+                            .ok_or(anyhow!(
+                                "field `{:?}` not found in record `{:?}`",
+                                label,
+                                expr_type
+                            ))?
+                            .1;
 
-                Ok(type_.clone())
+                        Ok(type_.clone())
+                    }
+                }
             }
         }
     }
