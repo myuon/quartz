@@ -193,9 +193,6 @@ impl Generator {
             } => {
                 self.writer.new_statement();
                 self.expr(value)?;
-
-                self.writer.new_statement();
-                self.writer.write("local.set");
                 self.expr_left_value(&mut IrTerm::Ident(name.clone()))?;
             }
             IrTerm::Return { value } => {
@@ -205,9 +202,6 @@ impl Generator {
             IrTerm::Assign { lhs, rhs } => {
                 self.writer.new_statement();
                 self.expr(rhs)?;
-
-                self.writer.new_statement();
-                self.writer.write("local.set");
                 self.expr_left_value(lhs)?;
             }
             IrTerm::If {
@@ -308,6 +302,12 @@ impl Generator {
     fn expr_left_value(&mut self, expr: &mut IrTerm) -> Result<()> {
         match expr {
             IrTerm::Ident(i) => {
+                self.writer.new_statement();
+                if self.globals.contains(&Ident(i.clone())) {
+                    self.writer.write("global.set");
+                } else {
+                    self.writer.write("local.set");
+                }
                 self.writer.write(&format!("${}", i.as_str()));
             }
             _ => todo!(),
