@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 
 use crate::{
     ast::{Decl, Expr, Func, Ident, Lit, Module, Statement, Type},
@@ -80,10 +80,7 @@ impl IrCodeGenerator {
                 value: Box::new(self.expr(expr)?),
             }),
             Statement::Expr(expr) => Ok(self.expr(expr)?),
-            Statement::Assign(lhs, rhs) => Ok(IrTerm::Assign {
-                lhs: Box::new(self.expr(lhs)?),
-                rhs: Box::new(self.expr(rhs)?),
-            }),
+            Statement::Assign(lhs, rhs) => self.assign(lhs, rhs),
             Statement::If(cond, type_, then_block, else_block) => {
                 let mut then_elements = vec![];
                 for statement in then_block {
@@ -119,6 +116,22 @@ impl IrCodeGenerator {
                     body: Box::new(IrTerm::Seq { elements }),
                 })
             }
+        }
+    }
+
+    fn assign(&mut self, lhs: &mut Source<Expr>, rhs: &mut Source<Expr>) -> Result<IrTerm> {
+        let lhs = self.expr(lhs)?;
+        let rhs = self.expr(rhs)?;
+        match lhs {
+            IrTerm::Ident(ident) => Ok(IrTerm::Assign {
+                lhs: ident,
+                rhs: Box::new(rhs),
+            }),
+            IrTerm::PointerAt { .. } => Ok(IrTerm::SetPointer {
+                address: Box::new(lhs),
+                value: Box::new(rhs),
+            }),
+            _ => bail!("invalid lhs for assignment: {}", lhs.to_string()),
         }
     }
 

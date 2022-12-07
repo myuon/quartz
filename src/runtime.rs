@@ -162,7 +162,7 @@ fun main() {
     return p.at(2);
 }
 "#,
-                vec![Value::I32(20)],
+                vec![Value::I32(30)],
             ),
         ];
 

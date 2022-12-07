@@ -34,7 +34,7 @@ pub enum IrTerm {
         value: Box<IrTerm>,
     },
     Assign {
-        lhs: Box<IrTerm>,
+        lhs: String,
         rhs: Box<IrTerm>,
     },
     If {
@@ -55,6 +55,10 @@ pub enum IrTerm {
     PointerAt {
         address: Box<IrTerm>,
         offset: Box<IrTerm>,
+    },
+    SetPointer {
+        address: Box<IrTerm>,
+        value: Box<IrTerm>,
     },
     While {
         cond: Box<IrTerm>,
@@ -159,7 +163,7 @@ impl IrTerm {
             IrTerm::Assign { lhs, rhs } => {
                 writer.start();
                 writer.write("assign");
-                lhs.to_string_writer(writer);
+                writer.write(lhs);
                 rhs.to_string_writer(writer);
                 writer.end();
             }
@@ -218,6 +222,13 @@ impl IrTerm {
                 offset.to_string_writer(writer);
                 writer.end();
             }
+            IrTerm::SetPointer { address, value } => {
+                writer.start();
+                writer.write("set-pointer");
+                address.to_string_writer(writer);
+                value.to_string_writer(writer);
+                writer.end();
+            }
         }
     }
 
@@ -253,7 +264,6 @@ impl IrTerm {
             }
             IrTerm::Assign { lhs, rhs } => {
                 let mut result = vec![];
-                result.extend(lhs.find_let());
                 result.extend(rhs.find_let());
                 result
             }

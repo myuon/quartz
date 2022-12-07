@@ -199,10 +199,16 @@ impl Generator {
                 self.writer.new_statement();
                 self.expr(value)?;
             }
-            IrTerm::Assign { lhs, rhs } => {
-                self.writer.new_statement();
+            IrTerm::Assign { lhs: ident, rhs } => {
                 self.expr(rhs)?;
-                self.expr_left_value(lhs)?;
+
+                self.writer.new_statement();
+                if self.globals.contains(&Ident(ident.clone())) {
+                    self.writer.write("global.set");
+                } else {
+                    self.writer.write("local.set");
+                }
+                self.writer.write(&format!("${}", ident.as_str()));
             }
             IrTerm::If {
                 cond,
@@ -299,12 +305,27 @@ impl Generator {
 
                 self.writer.new_statement();
                 self.expr(offset)?;
+                // multiply by sizeof(i32)
+                self.writer.new_statement();
+                self.writer.write("i32.const 32");
+                self.writer.new_statement();
+                self.writer.write("i32.mul");
 
                 self.writer.new_statement();
                 self.writer.write("i32.add");
 
                 self.writer.new_statement();
                 self.writer.write("i32.load");
+            }
+            IrTerm::SetPointer { address, value } => {
+                self.writer.new_statement();
+                self.expr_left_value(address)?;
+
+                self.writer.new_statement();
+                self.expr(value)?;
+
+                self.writer.new_statement();
+                self.writer.write("i32.store");
             }
             _ => todo!(),
         }
@@ -329,12 +350,14 @@ impl Generator {
 
                 self.writer.new_statement();
                 self.expr(offset)?;
+                // multiply by sizeof(i32)
+                self.writer.new_statement();
+                self.writer.write("i32.const 32");
+                self.writer.new_statement();
+                self.writer.write("i32.mul");
 
                 self.writer.new_statement();
                 self.writer.write("i32.add");
-
-                self.writer.new_statement();
-                self.writer.write("i32.store");
             }
             _ => todo!(),
         }
