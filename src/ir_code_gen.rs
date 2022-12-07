@@ -134,7 +134,7 @@ impl IrCodeGenerator {
                 }
 
                 Ok(IrTerm::Call {
-                    name: callee.to_string(),
+                    callee: Box::new(self.expr(callee.as_mut())?),
                     args: elements,
                 })
             }
@@ -164,7 +164,7 @@ impl IrCodeGenerator {
                     name: var.to_string(),
                     type_: IrType::Address,
                     value: Box::new(IrTerm::Call {
-                        name: "alloc".to_string(),
+                        callee: Box::new(IrTerm::Ident("alloc".to_string())),
                         args: vec![IrTerm::i32(record_type.len() as i32)],
                     }),
                 });

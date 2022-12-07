@@ -19,7 +19,7 @@ pub enum IrTerm {
         value: Box<IrTerm>,
     },
     Call {
-        name: String,
+        callee: Box<IrTerm>,
         args: Vec<IrTerm>,
     },
     Seq {
@@ -121,10 +121,10 @@ impl IrTerm {
                 value.to_string_writer(writer);
                 writer.end();
             }
-            IrTerm::Call { name, args } => {
+            IrTerm::Call { callee, args } => {
                 writer.start();
                 writer.write("call");
-                writer.write(name);
+                callee.to_string_writer(writer);
                 for arg in args {
                     arg.to_string_writer(writer);
                 }
@@ -215,7 +215,7 @@ impl IrTerm {
             IrTerm::Nil => vec![],
             IrTerm::I32(_) => vec![],
             IrTerm::Ident(_) => vec![],
-            IrTerm::Call { name, args } => {
+            IrTerm::Call { callee: name, args } => {
                 let mut result = vec![];
                 for arg in args {
                     result.extend(arg.find_let());

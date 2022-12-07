@@ -22,6 +22,7 @@ pub enum Type {
     Func(Vec<Type>, Box<Type>),
     Record(Vec<(Ident, Type)>),
     Ident(Ident),
+    Pointer(Box<Type>),
 }
 
 impl Type {
@@ -48,6 +49,7 @@ impl Type {
                     .join(", ")
             ),
             Type::Ident(name) => format!("{}", name.as_str()),
+            Type::Pointer(t) => format!("pointer<{}>", t.to_string()),
         }
     }
 
@@ -96,7 +98,7 @@ pub enum Lit {
 pub enum Expr {
     Ident(Ident),
     Lit(Lit),
-    Call(Ident, Vec<Expr>),
+    Call(Box<Expr>, Vec<Expr>),
     Record(Ident, Vec<(Ident, Expr)>),
     Project(Box<Expr>, Type, Ident),
 }

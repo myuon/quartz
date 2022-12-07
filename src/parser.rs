@@ -1,4 +1,4 @@
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, Result};
 
 use crate::{
     ast::{Decl, Expr, Func, Ident, Lit, Module, Statement, Type},
@@ -221,7 +221,10 @@ impl Parser {
                 self.consume()?;
                 let rhs = self.expr()?;
 
-                current = Expr::Call(Ident("equal".to_string()), vec![current, rhs]);
+                current = Expr::Call(
+                    Box::new(Expr::Ident(Ident("equal".to_string()))),
+                    vec![current, rhs],
+                );
             }
             _ => (),
         }
@@ -237,7 +240,10 @@ impl Parser {
                 self.consume()?;
                 let rhs = self.expr()?;
 
-                current = Expr::Call(Ident("lt".to_string()), vec![current, rhs]);
+                current = Expr::Call(
+                    Box::new(Expr::Ident(Ident("lt".to_string()))),
+                    vec![current, rhs],
+                );
             }
             _ => (),
         }
@@ -253,13 +259,19 @@ impl Parser {
                 self.consume()?;
                 let rhs = self.expr()?;
 
-                current = Expr::Call(Ident("add".to_string()), vec![current, rhs]);
+                current = Expr::Call(
+                    Box::new(Expr::Ident(Ident("add".to_string()))),
+                    vec![current, rhs],
+                );
             }
             Lexeme::Minus => {
                 self.consume()?;
                 let rhs = self.expr()?;
 
-                current = Expr::Call(Ident("sub".to_string()), vec![current, rhs]);
+                current = Expr::Call(
+                    Box::new(Expr::Ident(Ident("sub".to_string()))),
+                    vec![current, rhs],
+                );
             }
             _ => (),
         }
@@ -275,7 +287,10 @@ impl Parser {
                 self.consume()?;
                 let rhs = self.term_1()?;
 
-                current = Expr::Call(Ident("mult".to_string()), vec![current, rhs]);
+                current = Expr::Call(
+                    Box::new(Expr::Ident(Ident("mult".to_string()))),
+                    vec![current, rhs],
+                );
             }
             _ => (),
         }
@@ -312,7 +327,7 @@ impl Parser {
                             }
                             self.consume()?;
 
-                            current = Expr::Call(ident.clone(), args);
+                            current = Expr::Call(Box::new(current), args);
                         }
                         Lexeme::Dot => {
                             self.consume()?;

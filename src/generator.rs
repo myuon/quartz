@@ -180,7 +180,7 @@ impl Generator {
                     self.writer.write(&format!("local.get ${}", i.as_str()));
                 }
             }
-            IrTerm::Call { name, args } => self.call(name, args)?,
+            IrTerm::Call { callee, args } => self.call(callee, args)?,
             IrTerm::Seq { elements } => {
                 for element in elements {
                     self.expr(element)?;
@@ -316,7 +316,7 @@ impl Generator {
         Ok(())
     }
 
-    fn call(&mut self, caller: &mut String, args: &mut Vec<IrTerm>) -> Result<()> {
+    fn call(&mut self, caller: &mut Box<IrTerm>, args: &mut Vec<IrTerm>) -> Result<()> {
         for arg in args {
             self.writer.new_statement();
             self.expr(arg)?;
@@ -324,25 +324,28 @@ impl Generator {
 
         self.writer.new_statement();
 
-        match caller.as_str() {
-            "add" => {
-                self.writer.write("i32.add");
-            }
-            "sub" => {
-                self.writer.write("i32.sub");
-            }
-            "mult" => {
-                self.writer.write("i32.mul");
-            }
-            "equal" => {
-                self.writer.write("i32.eq");
-            }
-            "lt" => {
-                self.writer.write("i32.lt_s");
-            }
-            _ => {
-                self.writer.write(&format!("call ${}", caller.as_str()));
-            }
+        match caller.as_ref() {
+            IrTerm::Ident(ident) => match ident.as_str() {
+                "add" => {
+                    self.writer.write("i32.add");
+                }
+                "sub" => {
+                    self.writer.write("i32.sub");
+                }
+                "mult" => {
+                    self.writer.write("i32.mul");
+                }
+                "equal" => {
+                    self.writer.write("i32.eq");
+                }
+                "lt" => {
+                    self.writer.write("i32.lt_s");
+                }
+                _ => {
+                    self.writer.write(&format!("call ${}", ident.as_str()));
+                }
+            },
+            _ => todo!(),
         }
 
         Ok(())

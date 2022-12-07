@@ -37,6 +37,13 @@ impl TypeChecker {
                     "lt",
                     Type::Func(vec![Type::I32, Type::I32], Box::new(Type::Bool)),
                 ),
+                (
+                    "alloc",
+                    Type::Func(
+                        vec![Type::I32],
+                        Box::new(Type::Pointer(Box::new(Type::I32))),
+                    ),
+                ),
             ]
             .into_iter()
             .map(|(k, v)| (Ident(k.to_string()), v))
@@ -235,8 +242,8 @@ impl TypeChecker {
         self.ident_local(ident).or(self.ident_global(ident))
     }
 
-    fn call(&mut self, caller: &mut Ident, args: &mut Vec<Expr>) -> Result<Type> {
-        let (mut arg_types, result_type) = self.ident(caller)?.to_func()?;
+    fn call(&mut self, caller: &mut Box<Expr>, args: &mut Vec<Expr>) -> Result<Type> {
+        let (mut arg_types, result_type) = self.expr(caller.as_mut())?.to_func()?;
         if arg_types.len() != args.len() {
             bail!(
                 "wrong number of arguments, expected {}, but found {}",
