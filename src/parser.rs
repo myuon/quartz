@@ -184,11 +184,7 @@ impl Parser {
                         let value = self.expr()?;
                         self.expect(Lexeme::Semicolon)?;
 
-                        let Expr::Ident(lhs) = expr else {
-                            bail!("Expected identifier, but found {:?}", expr)
-                        };
-
-                        Ok(Statement::Assign(None, lhs, Box::new(value)))
+                        Ok(Statement::Assign(Box::new(expr), Box::new(value)))
                     }
                     _ => Err(anyhow!("Unexpected token {:?}", self.peek()?.lexeme)),
                 }
@@ -300,50 +296,52 @@ impl Parser {
                 let ident = self.ident()?;
                 let mut current = Expr::Ident(ident.clone());
 
-                match self.peek()?.lexeme {
-                    Lexeme::LParen => {
-                        self.consume()?;
-                        let mut args = vec![];
-                        while self.peek()?.lexeme != Lexeme::RParen {
-                            args.push(self.expr()?);
+                loop {
+                    match self.peek()?.lexeme {
+                        Lexeme::LParen => {
+                            self.consume()?;
+                            let mut args = vec![];
+                            while self.peek()?.lexeme != Lexeme::RParen {
+                                args.push(self.expr()?);
 
-                            if self.peek()?.lexeme == Lexeme::Comma {
-                                self.consume()?;
-                            } else {
-                                break;
+                                if self.peek()?.lexeme == Lexeme::Comma {
+                                    self.consume()?;
+                                } else {
+                                    break;
+                                }
                             }
+                            self.consume()?;
+
+                            current = Expr::Call(ident.clone(), args);
                         }
-                        self.consume()?;
+                        Lexeme::Dot => {
+                            self.consume()?;
 
-                        current = Expr::Call(ident, args);
-                    }
-                    Lexeme::Dot => {
-                        self.consume()?;
-
-                        let field = self.ident()?;
-                        current = Expr::Project(Box::new(current), self.gen_omit()?, field);
-                    }
-                    Lexeme::LBrace => {
-                        self.consume()?;
-
-                        let mut fields = vec![];
-                        while self.peek()?.lexeme != Lexeme::RBrace {
                             let field = self.ident()?;
-                            self.expect(Lexeme::Colon)?;
-                            let value = self.expr()?;
-                            fields.push((field, value));
-
-                            if self.peek()?.lexeme == Lexeme::Comma {
-                                self.consume()?;
-                            } else {
-                                break;
-                            }
+                            current = Expr::Project(Box::new(current), self.gen_omit()?, field);
                         }
-                        self.consume()?;
+                        Lexeme::LBrace => {
+                            self.consume()?;
 
-                        current = Expr::Record(ident, fields);
+                            let mut fields = vec![];
+                            while self.peek()?.lexeme != Lexeme::RBrace {
+                                let field = self.ident()?;
+                                self.expect(Lexeme::Colon)?;
+                                let value = self.expr()?;
+                                fields.push((field, value));
+
+                                if self.peek()?.lexeme == Lexeme::Comma {
+                                    self.consume()?;
+                                } else {
+                                    break;
+                                }
+                            }
+                            self.expect(Lexeme::RBrace)?;
+
+                            current = Expr::Record(ident.clone(), fields);
+                        }
+                        _ => break,
                     }
-                    _ => (),
                 }
 
                 Ok(current)

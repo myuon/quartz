@@ -33,11 +33,7 @@ pub enum IrTerm {
     Return {
         value: Box<IrTerm>,
     },
-    AssignLocal {
-        lhs: Box<IrTerm>,
-        rhs: Box<IrTerm>,
-    },
-    AssignGlobal {
+    Assign {
         lhs: Box<IrTerm>,
         rhs: Box<IrTerm>,
     },
@@ -156,16 +152,9 @@ impl IrTerm {
                 value.to_string_writer(writer);
                 writer.end();
             }
-            IrTerm::AssignLocal { lhs, rhs } => {
+            IrTerm::Assign { lhs, rhs } => {
                 writer.start();
-                writer.write("assign-local");
-                lhs.to_string_writer(writer);
-                rhs.to_string_writer(writer);
-                writer.end();
-            }
-            IrTerm::AssignGlobal { lhs, rhs } => {
-                writer.start();
-                writer.write("assign-global");
+                writer.write("assign");
                 lhs.to_string_writer(writer);
                 rhs.to_string_writer(writer);
                 writer.end();
@@ -251,12 +240,12 @@ impl IrTerm {
                 result.extend(value.find_let());
                 result
             }
-            IrTerm::AssignLocal { lhs, rhs } => {
+            IrTerm::Assign { lhs, rhs } => {
                 let mut result = vec![];
+                result.extend(lhs.find_let());
                 result.extend(rhs.find_let());
                 result
             }
-            IrTerm::AssignGlobal { lhs, rhs } => vec![],
             IrTerm::If {
                 cond,
                 type_,

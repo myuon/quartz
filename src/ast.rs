@@ -106,15 +106,9 @@ pub enum Statement {
     Let(Ident, Type, Expr),
     Return(Expr),
     Expr(Expr),
-    Assign(Option<VarType>, Ident, Box<Expr>),
+    Assign(Box<Expr>, Box<Expr>),
     If(Expr, Type, Vec<Statement>, Option<Vec<Statement>>),
     While(Expr, Vec<Statement>),
-}
-
-#[derive(PartialEq, Debug, Clone)]
-pub enum VarType {
-    Local,
-    Global,
 }
 
 #[derive(PartialEq, Debug, Clone)]

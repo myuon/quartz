@@ -30,9 +30,15 @@ impl Runtime {
         self._run(wat).map_err(|err| {
             let message = err.to_string();
             // regexp test (at offset %d) against message
-            let re = regex::Regex::new(r"\(at offset (\d+)\)").unwrap();
-            let cap = re.captures(&message).unwrap();
-            let offset = cap[1].parse::<usize>().unwrap();
+            let Ok(re) = regex::Regex::new(r"\(at offset (\d+)\)") else {
+                return anyhow!("{}\n\nOriginal Error: {}", wat, err);
+            };
+            let Some(cap) = re.captures(&message) else {
+                return anyhow!("{}\n\nOriginal Error: {}", wat, err);
+            };
+            let Ok(offset) = cap[1].parse::<usize>() else {
+                return anyhow!("{}\n\nOriginal Error: {}", wat, err);
+            };
 
             anyhow!("{}\n\nOriginal Error: {}", wat[0..offset].to_string(), err)
         })
@@ -141,6 +147,17 @@ fun main() {
     let p = Point { x: 10, y: 20 };
 
     return p.y;
+}
+"#,
+                vec![Value::I32(20)],
+            ),
+            (
+                r#"
+fun main() {
+    let p = alloc(20);
+    p.at(0) = 10;
+
+    return p.at(2);
 }
 "#,
                 vec![Value::I32(20)],

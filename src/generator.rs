@@ -202,20 +202,12 @@ impl Generator {
                 self.writer.new_statement();
                 self.expr(value)?;
             }
-            IrTerm::AssignLocal { lhs, rhs } => {
+            IrTerm::Assign { lhs, rhs } => {
                 self.writer.new_statement();
                 self.expr(rhs)?;
 
                 self.writer.new_statement();
                 self.writer.write("local.set");
-                self.expr_left_value(lhs)?;
-            }
-            IrTerm::AssignGlobal { lhs, rhs } => {
-                self.writer.new_statement();
-                self.expr(rhs)?;
-
-                self.writer.new_statement();
-                self.writer.write("global.set");
                 self.expr_left_value(lhs)?;
             }
             IrTerm::If {

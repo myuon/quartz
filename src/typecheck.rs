@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use anyhow::{anyhow, bail, Result};
 
-use crate::ast::{Decl, Expr, Func, Ident, Lit, Module, Statement, Type, VarType};
+use crate::ast::{Decl, Expr, Func, Ident, Lit, Module, Statement, Type};
 
 pub struct TypeChecker {
     omits: Constrains,
@@ -130,18 +130,10 @@ impl TypeChecker {
                 self.expr(expr)?;
                 Ok(None)
             }
-            Statement::Assign(var_type, lhs, rhs) => {
-                let mut lhs_type = self.ident(lhs)?;
+            Statement::Assign(lhs, rhs) => {
+                let mut lhs_type = self.expr(lhs)?;
                 let mut rhs_type = self.expr(rhs)?;
                 self.unify(&mut lhs_type, &mut rhs_type)?;
-
-                *var_type = Some(if self.ident_local(lhs).is_ok() {
-                    VarType::Local
-                } else if self.ident_global(lhs).is_ok() {
-                    VarType::Global
-                } else {
-                    bail!("unknown variable: {}", lhs.as_str());
-                });
 
                 Ok(None)
             }

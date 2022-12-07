@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, Result};
 
 use crate::{
-    ast::{Decl, Expr, Func, Ident, Lit, Module, Statement, Type, VarType},
+    ast::{Decl, Expr, Func, Ident, Lit, Module, Statement, Type},
     ir::{IrTerm, IrType},
 };
 
@@ -79,17 +79,10 @@ impl IrCodeGenerator {
                 value: Box::new(self.expr(expr)?),
             }),
             Statement::Expr(expr) => Ok(self.expr(expr)?),
-            Statement::Assign(var_type, lhs, rhs) => match var_type {
-                Some(VarType::Local) => Ok(IrTerm::AssignLocal {
-                    lhs: Box::new(IrTerm::ident(lhs.as_str())),
-                    rhs: Box::new(self.expr(rhs)?),
-                }),
-                Some(VarType::Global) => Ok(IrTerm::AssignGlobal {
-                    lhs: Box::new(IrTerm::ident(lhs.as_str())),
-                    rhs: Box::new(self.expr(rhs)?),
-                }),
-                None => bail!("Invalid assignment"),
-            },
+            Statement::Assign(lhs, rhs) => Ok(IrTerm::Assign {
+                lhs: Box::new(self.expr(lhs)?),
+                rhs: Box::new(self.expr(rhs)?),
+            }),
             Statement::If(cond, type_, then_block, else_block) => {
                 let mut then_elements = vec![];
                 for statement in then_block {
