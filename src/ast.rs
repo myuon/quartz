@@ -1,5 +1,7 @@
 use anyhow::{bail, Result};
 
+use crate::util::source::Source;
+
 #[derive(PartialEq, Debug, Clone, Hash, Eq)]
 pub struct Ident(pub String);
 
@@ -98,19 +100,19 @@ pub enum Lit {
 pub enum Expr {
     Ident(Ident),
     Lit(Lit),
-    Call(Box<Expr>, Vec<Expr>),
-    Record(Ident, Vec<(Ident, Expr)>),
-    Project(Box<Expr>, Type, Ident),
+    Call(Box<Source<Expr>>, Vec<Source<Expr>>),
+    Record(Ident, Vec<(Ident, Source<Expr>)>),
+    Project(Box<Source<Expr>>, Type, Ident),
 }
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Statement {
-    Let(Ident, Type, Expr),
-    Return(Expr),
-    Expr(Expr),
-    Assign(Box<Expr>, Box<Expr>),
-    If(Expr, Type, Vec<Statement>, Option<Vec<Statement>>),
-    While(Expr, Vec<Statement>),
+    Let(Ident, Type, Source<Expr>),
+    Return(Source<Expr>),
+    Expr(Source<Expr>),
+    Assign(Box<Source<Expr>>, Box<Source<Expr>>),
+    If(Source<Expr>, Type, Vec<Statement>, Option<Vec<Statement>>),
+    While(Source<Expr>, Vec<Statement>),
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -133,7 +135,7 @@ impl Func {
 #[derive(PartialEq, Debug, Clone)]
 pub enum Decl {
     Func(Func),
-    Let(Ident, Type, Expr),
+    Let(Ident, Type, Source<Expr>),
     Type(Ident, Type),
 }
 

@@ -4,6 +4,7 @@ use crate::{
     ast::{Decl, Expr, Func, Ident, Lit, Module, Statement, Type},
     compiler::ErrorInSource,
     lexer::{Lexeme, Token},
+    util::source::Source,
 };
 
 pub struct Parser {
@@ -192,7 +193,7 @@ impl Parser {
         }
     }
 
-    fn let_(&mut self) -> Result<(Ident, Type, Expr)> {
+    fn let_(&mut self) -> Result<(Ident, Type, Source<Expr>)> {
         self.expect(Lexeme::Let)?;
         let ident = self.ident()?;
 
@@ -209,21 +210,31 @@ impl Parser {
         Ok((ident, type_, value))
     }
 
-    fn expr(&mut self) -> Result<Expr> {
+    fn expr(&mut self) -> Result<Source<Expr>> {
         self.term_4()
     }
 
-    fn term_4(&mut self) -> Result<Expr> {
+    fn term_4(&mut self) -> Result<Source<Expr>> {
+        let position = self.position;
         let mut current = self.term_3()?;
 
-        match self.peek()?.lexeme {
+        let token = self.peek()?;
+        match token.lexeme {
             Lexeme::DoubleEqual => {
                 self.consume()?;
+                let token_position_end = self.position;
                 let rhs = self.expr()?;
 
-                current = Expr::Call(
-                    Box::new(Expr::Ident(Ident("equal".to_string()))),
-                    vec![current, rhs],
+                current = self.source_from(
+                    Expr::Call(
+                        Box::new(self.source(
+                            Expr::Ident(Ident("equal".to_string())),
+                            token.position,
+                            token_position_end,
+                        )),
+                        vec![current, rhs],
+                    ),
+                    position,
                 );
             }
             _ => (),
@@ -232,17 +243,27 @@ impl Parser {
         Ok(current)
     }
 
-    fn term_3(&mut self) -> Result<Expr> {
+    fn term_3(&mut self) -> Result<Source<Expr>> {
+        let position = self.position;
         let mut current = self.term_2()?;
 
-        match self.peek()?.lexeme {
+        let token = self.peek()?;
+        match token.lexeme {
             Lexeme::Lt => {
                 self.consume()?;
+                let token_position_end = self.position;
                 let rhs = self.expr()?;
 
-                current = Expr::Call(
-                    Box::new(Expr::Ident(Ident("lt".to_string()))),
-                    vec![current, rhs],
+                current = self.source_from(
+                    Expr::Call(
+                        Box::new(self.source(
+                            Expr::Ident(Ident("lt".to_string())),
+                            token.position,
+                            token_position_end,
+                        )),
+                        vec![current, rhs],
+                    ),
+                    position,
                 );
             }
             _ => (),
@@ -251,26 +272,44 @@ impl Parser {
         Ok(current)
     }
 
-    fn term_2(&mut self) -> Result<Expr> {
+    fn term_2(&mut self) -> Result<Source<Expr>> {
+        let position = self.position;
         let mut current = self.term_1()?;
 
-        match self.peek()?.lexeme {
+        let token = self.peek()?;
+        match token.lexeme {
             Lexeme::Plus => {
                 self.consume()?;
+                let token_position_end = self.position;
                 let rhs = self.expr()?;
 
-                current = Expr::Call(
-                    Box::new(Expr::Ident(Ident("add".to_string()))),
-                    vec![current, rhs],
+                current = self.source_from(
+                    Expr::Call(
+                        Box::new(self.source(
+                            Expr::Ident(Ident("add".to_string())),
+                            token.position,
+                            token_position_end,
+                        )),
+                        vec![current, rhs],
+                    ),
+                    position,
                 );
             }
             Lexeme::Minus => {
                 self.consume()?;
+                let token_position_end = self.position;
                 let rhs = self.expr()?;
 
-                current = Expr::Call(
-                    Box::new(Expr::Ident(Ident("sub".to_string()))),
-                    vec![current, rhs],
+                current = self.source_from(
+                    Expr::Call(
+                        Box::new(self.source(
+                            Expr::Ident(Ident("sub".to_string())),
+                            token.position,
+                            token_position_end,
+                        )),
+                        vec![current, rhs],
+                    ),
+                    position,
                 );
             }
             _ => (),
@@ -279,17 +318,27 @@ impl Parser {
         Ok(current)
     }
 
-    fn term_1(&mut self) -> Result<Expr> {
+    fn term_1(&mut self) -> Result<Source<Expr>> {
+        let position = self.position;
         let mut current = self.term_0()?;
 
-        match self.peek()?.lexeme {
+        let token = self.peek()?;
+        match token.lexeme {
             Lexeme::Star => {
                 self.consume()?;
+                let token_position_end = self.position;
                 let rhs = self.term_1()?;
 
-                current = Expr::Call(
-                    Box::new(Expr::Ident(Ident("mult".to_string()))),
-                    vec![current, rhs],
+                current = self.source_from(
+                    Expr::Call(
+                        Box::new(self.source(
+                            Expr::Ident(Ident("mult".to_string())),
+                            token.position,
+                            token_position_end,
+                        )),
+                        vec![current, rhs],
+                    ),
+                    position,
                 );
             }
             _ => (),
@@ -298,7 +347,7 @@ impl Parser {
         Ok(current)
     }
 
-    fn term_0(&mut self) -> Result<Expr> {
+    fn term_0(&mut self) -> Result<Source<Expr>> {
         match self.peek()?.lexeme {
             Lexeme::LParen => {
                 self.consume()?;
@@ -308,8 +357,9 @@ impl Parser {
                 Ok(expr)
             }
             Lexeme::Ident(_) => {
+                let position = self.position;
                 let ident = self.ident()?;
-                let mut current = Expr::Ident(ident.clone());
+                let mut current = self.source_from(Expr::Ident(ident.clone()), position);
 
                 loop {
                     match self.peek()?.lexeme {
@@ -327,13 +377,18 @@ impl Parser {
                             }
                             self.consume()?;
 
-                            current = Expr::Call(Box::new(current), args);
+                            current =
+                                self.source_from(Expr::Call(Box::new(current), args), position);
                         }
                         Lexeme::Dot => {
                             self.consume()?;
 
                             let field = self.ident()?;
-                            current = Expr::Project(Box::new(current), self.gen_omit()?, field);
+                            let omit = self.gen_omit()?;
+                            current = self.source_from(
+                                Expr::Project(Box::new(current), omit, field),
+                                position,
+                            );
                         }
                         Lexeme::LBrace => {
                             self.consume()?;
@@ -353,7 +408,8 @@ impl Parser {
                             }
                             self.expect(Lexeme::RBrace)?;
 
-                            current = Expr::Record(ident.clone(), fields);
+                            current =
+                                self.source_from(Expr::Record(ident.clone(), fields), position);
                         }
                         _ => break,
                     }
@@ -361,7 +417,7 @@ impl Parser {
 
                 Ok(current)
             }
-            _ => self.lit().map(Expr::Lit),
+            _ => self.lit().map(|lit| Source::unknown(Expr::Lit(lit))),
         }
     }
 
@@ -451,5 +507,17 @@ impl Parser {
         self.omit_index += 1;
 
         Ok(Type::Omit(self.omit_index))
+    }
+
+    fn source<T>(&self, data: T, start: usize, end: usize) -> Source<T> {
+        Source {
+            data,
+            start: Some(self.input[start].position),
+            end: Some(self.input[end].position),
+        }
+    }
+
+    fn source_from<T>(&self, data: T, start: usize) -> Source<T> {
+        self.source(data, start, self.position)
     }
 }

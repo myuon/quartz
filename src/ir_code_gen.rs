@@ -5,6 +5,7 @@ use anyhow::{anyhow, Result};
 use crate::{
     ast::{Decl, Expr, Func, Ident, Lit, Module, Statement, Type},
     ir::{IrTerm, IrType},
+    util::source::Source,
 };
 
 #[derive(Debug, Clone)]
@@ -121,8 +122,8 @@ impl IrCodeGenerator {
         }
     }
 
-    fn expr(&mut self, expr: &mut Expr) -> Result<IrTerm> {
-        match expr {
+    fn expr(&mut self, expr: &mut Source<Expr>) -> Result<IrTerm> {
+        match &mut expr.data {
             Expr::Ident(ident) => Ok(IrTerm::ident(ident.as_str())),
             Expr::Lit(lit) => match lit {
                 Lit::I32(i) => Ok(IrTerm::i32(*i)),

@@ -2,7 +2,10 @@ use std::collections::HashMap;
 
 use anyhow::{anyhow, bail, Result};
 
-use crate::ast::{Decl, Expr, Func, Ident, Lit, Module, Statement, Type};
+use crate::{
+    ast::{Decl, Expr, Func, Ident, Lit, Module, Statement, Type},
+    util::source::Source,
+};
 
 pub struct TypeChecker {
     omits: Constrains,
@@ -171,8 +174,8 @@ impl TypeChecker {
         }
     }
 
-    fn expr(&mut self, expr: &mut Expr) -> Result<Type> {
-        match expr {
+    fn expr(&mut self, expr: &mut Source<Expr>) -> Result<Type> {
+        match &mut expr.data {
             Expr::Lit(lit) => self.lit(lit),
             Expr::Ident(ident) => self.ident(ident),
             Expr::Call(caller, args) => self.call(caller, args),
@@ -251,7 +254,11 @@ impl TypeChecker {
         self.ident_local(ident).or(self.ident_global(ident))
     }
 
-    fn call(&mut self, caller: &mut Box<Expr>, args: &mut Vec<Expr>) -> Result<Type> {
+    fn call(
+        &mut self,
+        caller: &mut Box<Source<Expr>>,
+        args: &mut Vec<Source<Expr>>,
+    ) -> Result<Type> {
         let (mut arg_types, result_type) = self.expr(caller.as_mut())?.to_func()?;
         if arg_types.len() != args.len() {
             bail!(
