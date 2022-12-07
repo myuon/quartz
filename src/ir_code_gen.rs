@@ -128,17 +128,43 @@ impl IrCodeGenerator {
             Expr::Lit(lit) => match lit {
                 Lit::I32(i) => Ok(IrTerm::i32(*i)),
             },
-            Expr::Call(callee, args) => {
-                let mut elements = vec![];
-                for arg in args {
-                    elements.push(self.expr(arg)?);
-                }
+            Expr::Call(callee, args) => match &mut callee.data {
+                Expr::Project(expr, type_, label) => match (type_, label.as_str()) {
+                    (Type::Pointer(_), "at") => {
+                        assert_eq!(args.len(), 1);
 
-                Ok(IrTerm::Call {
-                    callee: Box::new(self.expr(callee.as_mut())?),
-                    args: elements,
-                })
-            }
+                        Ok(IrTerm::PointerAt {
+                            address: Box::new(self.expr(expr)?),
+                            offset: Box::new(self.expr(&mut args[0])?),
+                        })
+                    }
+                    _ => {
+                        let mut elements = vec![];
+                        elements.push(self.expr(expr)?);
+                        for arg in args {
+                            elements.push(self.expr(arg)?);
+                        }
+
+                        Ok(IrTerm::Call {
+                            callee: Box::new(
+                                self.expr(&mut Source::unknown(Expr::Ident(label.clone())))?,
+                            ),
+                            args: elements,
+                        })
+                    }
+                },
+                _ => {
+                    let mut elements = vec![];
+                    for arg in args {
+                        elements.push(self.expr(arg)?);
+                    }
+
+                    Ok(IrTerm::Call {
+                        callee: Box::new(self.expr(callee.as_mut())?),
+                        args: elements,
+                    })
+                }
+            },
             Expr::Record(ident, fields) => {
                 /* example
                     let x = Point { x: 10, y: 20 };

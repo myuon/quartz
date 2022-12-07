@@ -148,8 +148,8 @@ impl TypeChecker {
                 Ok(None)
             }
             Statement::Assign(lhs, rhs) => {
-                let mut lhs_type = self.expr(lhs)?;
-                let mut rhs_type = self.expr(rhs)?;
+                let mut lhs_type = self.expr_left_value(lhs)?;
+                let mut rhs_type = Type::Pointer(Box::new(self.expr(rhs)?));
                 self.unify(&mut lhs_type, &mut rhs_type)
                     .context(ErrorInSource {
                         start: lhs.start.unwrap_or(0),
@@ -253,6 +253,13 @@ impl TypeChecker {
                     }
                 }
             }
+        }
+    }
+
+    fn expr_left_value(&mut self, expr: &mut Source<Expr>) -> Result<Type> {
+        match &mut expr.data {
+            Expr::Ident(ident) => Ok(Type::Pointer(Box::new(self.ident(ident)?))),
+            _ => self.expr(expr),
         }
     }
 
@@ -375,6 +382,9 @@ impl Constrains {
                 constrains.merge(&Constrains::unify(ret1.as_ref(), ret2.as_ref())?);
 
                 Ok(constrains)
+            }
+            (Type::Pointer(type1), Type::Pointer(type2)) => {
+                Constrains::unify(type1.as_ref(), type2.as_ref())
             }
             (type1, type2) => {
                 bail!(

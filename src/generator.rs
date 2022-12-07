@@ -293,6 +293,19 @@ impl Generator {
                 self.writer.end();
                 self.writer.end();
             }
+            IrTerm::PointerAt { address, offset } => {
+                self.writer.new_statement();
+                self.expr(address)?;
+
+                self.writer.new_statement();
+                self.expr(offset)?;
+
+                self.writer.new_statement();
+                self.writer.write("i32.add");
+
+                self.writer.new_statement();
+                self.writer.write("i32.load");
+            }
             _ => todo!(),
         }
 
@@ -309,6 +322,19 @@ impl Generator {
                     self.writer.write("local.set");
                 }
                 self.writer.write(&format!("${}", i.as_str()));
+            }
+            IrTerm::PointerAt { address, offset } => {
+                self.writer.new_statement();
+                self.expr(address)?;
+
+                self.writer.new_statement();
+                self.expr(offset)?;
+
+                self.writer.new_statement();
+                self.writer.write("i32.add");
+
+                self.writer.new_statement();
+                self.writer.write("i32.store");
             }
             _ => todo!(),
         }

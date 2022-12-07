@@ -52,6 +52,10 @@ pub enum IrTerm {
         address: Box<IrTerm>,
         offset: usize,
     },
+    PointerAt {
+        address: Box<IrTerm>,
+        offset: Box<IrTerm>,
+    },
     While {
         cond: Box<IrTerm>,
         body: Box<IrTerm>,
@@ -207,6 +211,13 @@ impl IrTerm {
                 body.to_string_writer(writer);
                 writer.end();
             }
+            IrTerm::PointerAt { address, offset } => {
+                writer.start();
+                writer.write("pointer-at");
+                address.to_string_writer(writer);
+                offset.to_string_writer(writer);
+                writer.end();
+            }
         }
     }
 
@@ -215,7 +226,7 @@ impl IrTerm {
             IrTerm::Nil => vec![],
             IrTerm::I32(_) => vec![],
             IrTerm::Ident(_) => vec![],
-            IrTerm::Call { callee: name, args } => {
+            IrTerm::Call { callee: _, args } => {
                 let mut result = vec![];
                 for arg in args {
                     result.extend(arg.find_let());
@@ -284,7 +295,8 @@ impl IrType {
             Type::Nil => Ok(IrType::Nil),
             Type::I32 => Ok(IrType::I32),
             Type::Record(_) => Ok(IrType::Address),
-            Type::Ident(_) => Ok(IrType::Address),
+            Type::Ident(_) => Ok(IrType::Address), // FIXME: could be other types
+            Type::Pointer(_) => Ok(IrType::Address),
             _ => bail!("unknown type {}", type_.to_string()),
         }
     }
