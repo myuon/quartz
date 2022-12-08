@@ -342,9 +342,9 @@ impl IrType {
 
     pub fn sizeof(&self) -> usize {
         match self {
-            IrType::Nil => 32,
-            IrType::I32 => 32,
-            IrType::Address => 32,
+            IrType::Nil => 4,
+            IrType::I32 => 4,
+            IrType::Address => 4,
         }
     }
 }
