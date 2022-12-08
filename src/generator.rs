@@ -304,12 +304,13 @@ impl Generator {
                 self.expr(address)?;
 
                 self.writer.new_statement();
-                self.expr(offset)?;
-                // multiply by sizeof(i32)
-                self.writer.new_statement();
-                self.writer.write("i32.const 32");
-                self.writer.new_statement();
-                self.writer.write("i32.mul");
+                self.expr(&mut IrTerm::Call {
+                    callee: Box::new(IrTerm::ident("mult")),
+                    args: vec![
+                        offset.as_ref().clone(),
+                        IrTerm::SizeOf { type_: IrType::I32 },
+                    ],
+                })?;
 
                 self.writer.new_statement();
                 self.writer.write("i32.add");
@@ -326,6 +327,10 @@ impl Generator {
 
                 self.writer.new_statement();
                 self.writer.write("i32.store");
+            }
+            IrTerm::SizeOf { type_ } => {
+                self.writer.new_statement();
+                self.writer.write(&format!("i32.const {}", type_.sizeof()));
             }
             _ => todo!(),
         }
@@ -349,12 +354,13 @@ impl Generator {
                 self.expr(address)?;
 
                 self.writer.new_statement();
-                self.expr(offset)?;
-                // multiply by sizeof(i32)
-                self.writer.new_statement();
-                self.writer.write("i32.const 32");
-                self.writer.new_statement();
-                self.writer.write("i32.mul");
+                self.expr(&mut IrTerm::Call {
+                    callee: Box::new(IrTerm::ident("mult")),
+                    args: vec![
+                        offset.as_ref().clone(),
+                        IrTerm::SizeOf { type_: IrType::I32 },
+                    ],
+                })?;
 
                 self.writer.new_statement();
                 self.writer.write("i32.add");

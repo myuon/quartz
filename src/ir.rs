@@ -64,6 +64,9 @@ pub enum IrTerm {
         cond: Box<IrTerm>,
         body: Box<IrTerm>,
     },
+    SizeOf {
+        type_: IrType,
+    },
     Module {
         elements: Vec<IrTerm>,
     },
@@ -229,6 +232,12 @@ impl IrTerm {
                 value.to_string_writer(writer);
                 writer.end();
             }
+            IrTerm::SizeOf { type_ } => {
+                writer.start();
+                writer.write("size-of");
+                type_.to_term().to_string_writer(writer);
+                writer.end();
+            }
         }
     }
 
@@ -328,5 +337,13 @@ impl IrType {
 
     pub fn to_string(&self) -> String {
         self.to_term().to_string()
+    }
+
+    pub fn sizeof(&self) -> usize {
+        match self {
+            IrType::Nil => 32,
+            IrType::I32 => 32,
+            IrType::Address => 32,
+        }
     }
 }
