@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 
 use crate::{
     ast::{Decl, Expr, Func, Ident, Lit, Module, Statement, Type},
@@ -415,6 +415,29 @@ impl Parser {
                             current =
                                 self.source_from(Expr::Record(ident.clone(), fields), position);
                         }
+                        Lexeme::LBracket => {
+                            self.consume()?;
+
+                            let type_ = self.type_()?;
+                            self.expect(Lexeme::RBracket)?;
+
+                            self.expect(Lexeme::LParen)?;
+                            let mut args = vec![];
+                            while self.peek()?.lexeme != Lexeme::RParen {
+                                args.push(self.expr()?);
+
+                                if self.peek()?.lexeme == Lexeme::Comma {
+                                    self.consume()?;
+                                } else {
+                                    break;
+                                }
+                            }
+                            self.expect(Lexeme::RParen)?;
+
+                            assert_eq!(ident.as_str(), "make");
+
+                            current = self.source_from(Expr::Make(type_, args), position);
+                        }
                         _ => break,
                     }
                 }
@@ -469,6 +492,19 @@ impl Parser {
             self.expect(Lexeme::RBrace)?;
 
             Ok(Type::Record(fields))
+        } else if current.lexeme == Lexeme::Ident("array".to_string()) {
+            self.expect(Lexeme::LBracket)?;
+            let type_ = self.type_()?;
+            self.expect(Lexeme::Comma)?;
+
+            let token = self.consume()?;
+            let Lexeme::Int(size) = token.lexeme else {
+                bail!("Expected integer, got {:?}", current.lexeme);
+            };
+
+            self.expect(Lexeme::RBracket)?;
+
+            Ok(Type::Array(Box::new(type_), size as usize))
         } else {
             Err(anyhow!("Expected type, got {:?}", current.lexeme))
         }

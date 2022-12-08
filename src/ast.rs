@@ -25,6 +25,7 @@ pub enum Type {
     Record(Vec<(Ident, Type)>),
     Ident(Ident),
     Pointer(Box<Type>),
+    Array(Box<Type>, usize),
 }
 
 impl Type {
@@ -51,7 +52,8 @@ impl Type {
                     .join(", ")
             ),
             Type::Ident(name) => format!("{}", name.as_str()),
-            Type::Pointer(t) => format!("pointer<{}>", t.to_string()),
+            Type::Pointer(t) => format!("pointer[{}]", t.to_string()),
+            Type::Array(type_, size) => format!("array[{}, {}]", type_.to_string(), size),
         }
     }
 
@@ -103,6 +105,7 @@ pub enum Expr {
     Call(Box<Source<Expr>>, Vec<Source<Expr>>),
     Record(Ident, Vec<(Ident, Source<Expr>)>),
     Project(Box<Source<Expr>>, Type, Ident),
+    Make(Type, Vec<Source<Expr>>),
 }
 
 #[derive(PartialEq, Debug, Clone)]

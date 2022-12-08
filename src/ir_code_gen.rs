@@ -242,6 +242,9 @@ impl IrCodeGenerator {
                     offset: index,
                 })
             }
+            Expr::Make(type_, _) => match type_ {
+                _ => bail!("unsupported type for make: {:?}", type_),
+            },
         }
     }
 }

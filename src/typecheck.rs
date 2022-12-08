@@ -253,6 +253,11 @@ impl TypeChecker {
                     }
                 }
             }
+            Expr::Make(type_, args) => {
+                assert_eq!(args, &mut vec![]);
+
+                Ok(type_.clone())
+            }
         }
     }
 
