@@ -48,18 +48,37 @@ impl Compiler {
             if let Some(source) = error.downcast_ref::<ErrorInSource>() {
                 let start = source.start;
                 let end = source.end;
+
+                let (start_line_number, start_column_index) = find_position(input, start);
+                let start_line = input.lines().nth(start_line_number).unwrap();
+
+                let line_number_gutter = format!("{}: ", start_line_number);
+
                 error.context(format!(
-                    "\n{}",
-                    input[start..end]
-                        .lines()
-                        .enumerate()
-                        .map(|(i, line)| format!("{}: {}", i + 1, line))
-                        .collect::<Vec<String>>()
-                        .join("\n")
+                    "\n{}{}\n{}{}",
+                    line_number_gutter,
+                    start_line,
+                    " ".repeat(line_number_gutter.len() + start_column_index),
+                    "^".repeat(end - start)
                 ))
             } else {
                 error
             }
         })
     }
+}
+
+fn find_position(input: &str, position: usize) -> (usize, usize) {
+    let mut line_number = 0;
+    let mut count = 0;
+    for line in input.lines() {
+        if count + line.len() > position {
+            break;
+        }
+
+        line_number += 1;
+        count += line.len() + 1;
+    }
+
+    (line_number, position - count)
 }

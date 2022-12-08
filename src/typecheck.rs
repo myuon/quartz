@@ -200,7 +200,11 @@ impl TypeChecker {
             Expr::Call(caller, args) => self.call(caller, args),
             Expr::Record(ident, record) => {
                 let mut field_types = self
-                    .resolve_record_type(Type::Ident(ident.clone()))?
+                    .resolve_record_type(Type::Ident(ident.clone()))
+                    .context(ErrorInSource {
+                        start: expr.start.unwrap_or(0),
+                        end: expr.end.unwrap_or(0),
+                    })?
                     .into_iter()
                     .collect::<HashMap<_, _>>();
 
@@ -237,8 +241,18 @@ impl TypeChecker {
                         "at" => Ok(Type::Func(vec![Type::I32], p)),
                         _ => bail!("unknown method for {:?}: {}", p, label.as_str()),
                     },
+                    Type::Array(p, _) => match label.as_str() {
+                        "at" => Ok(Type::Func(vec![Type::I32], p)),
+                        "len" => Ok(Type::Func(vec![], Box::new(Type::I32))),
+                        _ => bail!("unknown method for {:?}: {}", p, label.as_str()),
+                    },
                     _ => {
-                        let fields = self.resolve_record_type(expr_type.clone())?;
+                        let fields =
+                            self.resolve_record_type(expr_type.clone())
+                                .context(ErrorInSource {
+                                    start: expr.start.unwrap_or(0),
+                                    end: expr.end.unwrap_or(0),
+                                })?;
                         let type_ = fields
                             .into_iter()
                             .find(|p| p.0 .0 == label.0)

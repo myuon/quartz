@@ -316,6 +316,7 @@ impl IrType {
             Type::Record(_) => Ok(IrType::Address),
             Type::Ident(_) => Ok(IrType::Address), // FIXME: could be other types
             Type::Pointer(_) => Ok(IrType::Address),
+            Type::Array(_, _) => Ok(IrType::Address),
             _ => bail!("unknown type {}", type_.to_string()),
         }
     }

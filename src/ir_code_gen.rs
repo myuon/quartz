@@ -151,6 +151,19 @@ impl IrCodeGenerator {
                             offset: Box::new(self.expr(&mut args[0])?),
                         })
                     }
+                    (Type::Array(_, _), "at") => {
+                        assert_eq!(args.len(), 1);
+
+                        Ok(IrTerm::PointerAt {
+                            address: Box::new(self.expr(expr)?),
+                            offset: Box::new(self.expr(&mut args[0])?),
+                        })
+                    }
+                    (Type::Array(_, size), "len") => {
+                        assert_eq!(args.len(), 0);
+
+                        Ok(IrTerm::I32(*size as i32))
+                    }
                     _ => {
                         let mut elements = vec![];
                         elements.push(self.expr(expr)?);
@@ -243,6 +256,18 @@ impl IrCodeGenerator {
                 })
             }
             Expr::Make(type_, _) => match type_ {
+                Type::Array(elem, size) => Ok(IrTerm::Call {
+                    callee: Box::new(IrTerm::Ident("alloc".to_string())),
+                    args: vec![IrTerm::Call {
+                        callee: Box::new(IrTerm::Ident("mult".to_string())),
+                        args: vec![
+                            IrTerm::SizeOf {
+                                type_: IrType::from_type(elem)?,
+                            },
+                            IrTerm::i32(*size as i32),
+                        ],
+                    }],
+                }),
                 _ => bail!("unsupported type for make: {:?}", type_),
             },
         }
