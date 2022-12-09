@@ -288,9 +288,18 @@ impl IrCodeGenerator {
                     .position(|(f, _)| f == label)
                     .ok_or(anyhow!("Field not found: {:?} in {:?}", label, record_type))?;
 
+                let mut offset = 0;
+                for (field, _) in record_type.iter().take(index) {
+                    let (_, type_) = record_type
+                        .iter()
+                        .find(|(f, _)| f == field)
+                        .ok_or(anyhow!("Field not found: {:?} in {:?}", field, record_type))?;
+                    offset += IrType::from_type(type_)?.sizeof();
+                }
+
                 Ok(IrTerm::GetField {
                     address: Box::new(self.expr(expr)?),
-                    offset: index,
+                    offset,
                 })
             }
             Expr::Make(type_, _) => match type_ {

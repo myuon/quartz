@@ -171,6 +171,23 @@ fun main() {
             ),
             (
                 r#"
+type Point = {
+    x: i32,
+    y: i32,
+    z: i32,
+};
+
+fun main() {
+    let p = Point { x: 10, y: 20, z: 0 };
+    p.z = p.x + p.y;
+
+    return p.z;
+}
+"#,
+                vec![Value::I32(30)],
+            ),
+            (
+                r#"
 fun main() {
     let p = make[array[i32,20]]();
     p.at(0) = 10;
@@ -246,7 +263,7 @@ fun main() {
                 .run(&wat)
                 .context(format!("\n== SOURCE\n{}\n\n== COMPILED\n{}", input, wat))
                 .unwrap();
-            assert_eq!(expected.as_slice(), result.as_ref());
+            assert_eq!(expected.as_slice(), result.as_ref(), "case: {}", input);
         }
     }
 }
