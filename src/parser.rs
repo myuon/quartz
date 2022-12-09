@@ -493,44 +493,47 @@ impl Parser {
 
     fn type_(&mut self) -> Result<Type> {
         let current = self.consume()?;
-        if current.lexeme == Lexeme::Ident("i32".to_string()) {
-            Ok(Type::I32)
-        } else if current.lexeme == Lexeme::Ident("string".to_string()) {
-            Ok(Type::Ident(Ident("string".to_string())))
-        } else if current.lexeme == Lexeme::Ident("nil".to_string()) {
-            Ok(Type::Nil)
-        } else if current.lexeme == Lexeme::LBrace {
-            let mut fields = vec![];
-            while self.peek()?.lexeme != Lexeme::RBrace {
-                let ident = self.ident()?;
-                self.expect(Lexeme::Colon)?;
-                let type_ = self.type_()?;
-                fields.push((ident, type_));
+        match current.lexeme {
+            Lexeme::Ident(ident) => match ident.as_str() {
+                "nil" => Ok(Type::Nil),
+                "i32" => Ok(Type::I32),
+                "bool" => Ok(Type::Bool),
+                "byte" => Ok(Type::Byte),
+                "array" => {
+                    self.expect(Lexeme::LBracket)?;
+                    let type_ = self.type_()?;
+                    self.expect(Lexeme::Comma)?;
 
-                if self.peek()?.lexeme == Lexeme::Comma {
-                    self.consume()?;
-                } else {
-                    break;
+                    let token = self.consume()?;
+                    let Lexeme::Int(size) = token.lexeme else {
+                        bail!("Expected integer, got {:?}", ident);
+                    };
+
+                    self.expect(Lexeme::RBracket)?;
+
+                    Ok(Type::Array(Box::new(type_), size as usize))
                 }
+                ident => Ok(Type::Ident(Ident(ident.to_string()))),
+            },
+            Lexeme::LBrace => {
+                let mut fields = vec![];
+                while self.peek()?.lexeme != Lexeme::RBrace {
+                    let ident = self.ident()?;
+                    self.expect(Lexeme::Colon)?;
+                    let type_ = self.type_()?;
+                    fields.push((ident, type_));
+
+                    if self.peek()?.lexeme == Lexeme::Comma {
+                        self.consume()?;
+                    } else {
+                        break;
+                    }
+                }
+                self.expect(Lexeme::RBrace)?;
+
+                Ok(Type::Record(fields))
             }
-            self.expect(Lexeme::RBrace)?;
-
-            Ok(Type::Record(fields))
-        } else if current.lexeme == Lexeme::Ident("array".to_string()) {
-            self.expect(Lexeme::LBracket)?;
-            let type_ = self.type_()?;
-            self.expect(Lexeme::Comma)?;
-
-            let token = self.consume()?;
-            let Lexeme::Int(size) = token.lexeme else {
-                bail!("Expected integer, got {:?}", current.lexeme);
-            };
-
-            self.expect(Lexeme::RBracket)?;
-
-            Ok(Type::Array(Box::new(type_), size as usize))
-        } else {
-            Err(anyhow!("Expected type, got {:?}", current.lexeme))
+            _ => bail!("Expected type, got {:?}", current.lexeme),
         }
     }
 
