@@ -49,11 +49,8 @@ impl TypeChecker {
                     ),
                 ),
                 (
-                    "println",
-                    Type::Func(
-                        vec![Type::Pointer(Box::new(Type::Byte))],
-                        Box::new(Type::Nil),
-                    ),
+                    "write_stdout",
+                    Type::Func(vec![Type::Byte], Box::new(Type::Nil)),
                 ),
             ]
             .into_iter()

@@ -93,12 +93,6 @@ impl Generator {
     ;; return old stack pointer
     local.get $addr
 )
-(func $println (param $address i32)
-    local.get $address
-    i32.load
-
-    call $write_stdout
-)
 "#,
             if main_result.is_nil() {
                 String::new()

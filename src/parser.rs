@@ -205,17 +205,17 @@ impl Parser {
 
         self.expect(Lexeme::Equal)?;
         let value = self.expr()?;
-        self.expect(Lexeme::Semicolon)?;
+        self.expect(Lexeme::Semicolon).context("let:end")?;
 
         Ok((ident, type_, value))
     }
 
     fn expr_conditional(&mut self) -> Result<Source<Expr>> {
-        self.expr_(true)
+        self.expr_(false)
     }
 
     fn expr(&mut self) -> Result<Source<Expr>> {
-        self.expr_(false)
+        self.expr_(true)
     }
 
     fn expr_(&mut self, with_struct: bool) -> Result<Source<Expr>> {
@@ -262,7 +262,7 @@ impl Parser {
             Lexeme::Lt => {
                 self.consume()?;
                 let token_position_end = self.position;
-                let rhs = self.expr()?;
+                let rhs = self.expr_(with_struct)?;
 
                 current = self.source_from(
                     Expr::Call(
@@ -408,7 +408,8 @@ impl Parser {
                             let mut fields = vec![];
                             while self.peek()?.lexeme != Lexeme::RBrace {
                                 let field = self.ident()?;
-                                self.expect(Lexeme::Colon)?;
+                                self.expect(Lexeme::Colon)
+                                    .context("record:initialization")?;
                                 let value = self.expr()?;
                                 fields.push((field, value));
 
