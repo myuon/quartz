@@ -140,7 +140,7 @@ impl Parser {
             }
             Lexeme::If => {
                 self.consume()?;
-                let condition = self.expr()?;
+                let condition = self.expr_conditional()?;
                 self.expect(Lexeme::LBrace)?;
                 let then_block = self.block()?;
                 self.expect(Lexeme::RBrace)?;
@@ -165,7 +165,7 @@ impl Parser {
             }
             Lexeme::While => {
                 self.consume()?;
-                let condition = self.expr()?;
+                let condition = self.expr_conditional()?;
                 self.expect(Lexeme::LBrace)?;
                 let body = self.block()?;
                 self.expect(Lexeme::RBrace)?;
@@ -210,13 +210,21 @@ impl Parser {
         Ok((ident, type_, value))
     }
 
-    fn expr(&mut self) -> Result<Source<Expr>> {
-        self.term_4()
+    fn expr_conditional(&mut self) -> Result<Source<Expr>> {
+        self.expr_(true)
     }
 
-    fn term_4(&mut self) -> Result<Source<Expr>> {
+    fn expr(&mut self) -> Result<Source<Expr>> {
+        self.expr_(false)
+    }
+
+    fn expr_(&mut self, with_struct: bool) -> Result<Source<Expr>> {
+        self.term_4(with_struct)
+    }
+
+    fn term_4(&mut self, with_struct: bool) -> Result<Source<Expr>> {
         let position = self.position;
-        let mut current = self.term_3()?;
+        let mut current = self.term_3(with_struct)?;
 
         let token_position = self.position;
         let token = self.peek()?;
@@ -244,9 +252,9 @@ impl Parser {
         Ok(current)
     }
 
-    fn term_3(&mut self) -> Result<Source<Expr>> {
+    fn term_3(&mut self, with_struct: bool) -> Result<Source<Expr>> {
         let position = self.position;
-        let mut current = self.term_2()?;
+        let mut current = self.term_2(with_struct)?;
 
         let token_position = self.position;
         let token = self.peek()?;
@@ -274,9 +282,9 @@ impl Parser {
         Ok(current)
     }
 
-    fn term_2(&mut self) -> Result<Source<Expr>> {
+    fn term_2(&mut self, with_struct: bool) -> Result<Source<Expr>> {
         let position = self.position;
-        let mut current = self.term_1()?;
+        let mut current = self.term_1(with_struct)?;
 
         let token_position = self.position;
         let token = self.peek()?;
@@ -284,7 +292,7 @@ impl Parser {
             Lexeme::Plus => {
                 self.consume()?;
                 let token_position_end = self.position;
-                let rhs = self.expr()?;
+                let rhs = self.expr_(with_struct)?;
 
                 current = self.source_from(
                     Expr::Call(
@@ -321,9 +329,9 @@ impl Parser {
         Ok(current)
     }
 
-    fn term_1(&mut self) -> Result<Source<Expr>> {
+    fn term_1(&mut self, with_struct: bool) -> Result<Source<Expr>> {
         let position = self.position;
-        let mut current = self.term_0()?;
+        let mut current = self.term_0(with_struct)?;
 
         let token_position = self.position;
         let token = self.peek()?;
@@ -331,7 +339,7 @@ impl Parser {
             Lexeme::Star => {
                 self.consume()?;
                 let token_position_end = self.position;
-                let rhs = self.term_1()?;
+                let rhs = self.term_1(with_struct)?;
 
                 current = self.source_from(
                     Expr::Call(
@@ -351,7 +359,7 @@ impl Parser {
         Ok(current)
     }
 
-    fn term_0(&mut self) -> Result<Source<Expr>> {
+    fn term_0(&mut self, with_struct: bool) -> Result<Source<Expr>> {
         match self.peek()?.lexeme {
             Lexeme::LParen => {
                 self.consume()?;
@@ -394,7 +402,7 @@ impl Parser {
                                 position,
                             );
                         }
-                        Lexeme::LBrace => {
+                        Lexeme::LBrace if with_struct => {
                             self.consume()?;
 
                             let mut fields = vec![];
