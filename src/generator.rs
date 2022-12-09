@@ -366,9 +366,6 @@ impl Generator {
                         value: Box::new(v.clone()),
                     })?;
                 }
-
-                self.writer.new_statement();
-                self.writer.write(&format!("{}.store", type_.to_string()));
             }
             _ => todo!(),
         }

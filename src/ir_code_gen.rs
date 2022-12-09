@@ -163,6 +163,7 @@ impl IrCodeGenerator {
                             address: Box::new(IrTerm::Ident("_alloc".to_string())),
                             value: s.bytes().map(|b| IrTerm::i32(b as i32)).collect(),
                         },
+                        IrTerm::Ident("_alloc".to_string()),
                     ],
                 }),
             },
