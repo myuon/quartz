@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use wasmer::Value;
-use wasmer::{imports, Instance, Memory, MemoryType, Module, Store};
+use wasmer::{imports, Instance, Module, Store};
 
 pub struct Runtime {}
 
@@ -11,13 +11,8 @@ impl Runtime {
 
     pub fn _run(&mut self, wat: &str) -> Result<Box<[Value]>> {
         let mut store = Store::default();
-        let memory = Memory::new(&mut store, MemoryType::new(1, None, false)).unwrap();
         let module = Module::new(&store, &wat)?;
-        let import_object = imports! {
-            "env" => {
-                "memory" => memory,
-            },
-        };
+        let import_object = imports! {};
         let instance = Instance::new(&mut store, &module, &import_object)?;
 
         let main = instance.exports.get_function("main")?;

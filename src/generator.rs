@@ -47,7 +47,7 @@ impl Generator {
         self.writer.write("module");
 
         self.writer.start();
-        self.writer.write(r#"import "env" "memory" (memory 1)"#);
+        self.writer.write(r#"memory 1"#);
         self.writer.end();
 
         for term in elements {
