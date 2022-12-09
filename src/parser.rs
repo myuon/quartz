@@ -486,6 +486,10 @@ impl Parser {
         let current = self.consume()?;
         if current.lexeme == Lexeme::Ident("i32".to_string()) {
             Ok(Type::I32)
+        } else if current.lexeme == Lexeme::Ident("string".to_string()) {
+            Ok(Type::Ident(Ident("string".to_string())))
+        } else if current.lexeme == Lexeme::Ident("nil".to_string()) {
+            Ok(Type::Nil)
         } else if current.lexeme == Lexeme::LBrace {
             let mut fields = vec![];
             while self.peek()?.lexeme != Lexeme::RBrace {
@@ -547,8 +551,8 @@ impl Parser {
         } else {
             return Err(
                 anyhow!("Expected {:?}, got {:?}", lexeme, token.lexeme).context(ErrorInSource {
-                    start: self.position,
-                    end: token.position,
+                    start: self.input[self.position].position,
+                    end: self.input[self.position + 1].position,
                 }),
             );
         }

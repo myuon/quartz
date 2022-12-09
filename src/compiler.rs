@@ -44,18 +44,39 @@ impl Compiler {
     }
 
     pub fn compile(&mut self, input: &str) -> Result<String> {
-        self.compile_(input).map_err(|error| {
+        let mut input = input.to_string();
+        input.push_str(
+            r#"
+fun println(s: string) {
+    let l = s.length;
+    let d = s.data;
+    let n = 0;
+    while n < l {
+        write_stdout(d.at(n));
+        n = n + 1;
+    }
+}
+"#,
+        );
+
+        self.compile_(&input).map_err(|error| {
             if let Some(source) = error.downcast_ref::<ErrorInSource>() {
                 let start = source.start;
                 let end = source.end;
 
-                let (start_line_number, start_column_index) = find_position(input, start);
+                let (start_line_number, start_column_index) = find_position(&input, start);
                 let start_line = input.lines().nth(start_line_number).unwrap();
+
+                let (end_line_number, end_column_index) = find_position(&input, end);
 
                 let line_number_gutter = format!("{}: ", start_line_number);
 
                 error.context(format!(
-                    "\n{}{}\n{}{}",
+                    "Error at (line.{}:{}) to (line.{}:{})\n{}{}\n{}{}",
+                    start_line_number,
+                    start_column_index,
+                    end_line_number,
+                    end_column_index,
                     line_number_gutter,
                     start_line,
                     " ".repeat(line_number_gutter.len() + start_column_index),
