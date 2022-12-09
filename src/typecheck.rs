@@ -79,6 +79,21 @@ impl TypeChecker {
     }
 
     fn module(&mut self, module: &mut Module) -> Result<()> {
+        // for back reference
+        for decl in &mut module.0 {
+            match decl {
+                Decl::Func(func) => {
+                    self.globals.insert(func.name.clone(), func.to_type());
+                }
+                Decl::Let(ident, type_, _expr) => {
+                    self.globals.insert(ident.clone(), type_.clone());
+                }
+                Decl::Type(ident, type_) => {
+                    self.types.insert(ident.clone(), type_.clone());
+                }
+            }
+        }
+
         for decl in &mut module.0 {
             self.locals.clear();
             self.decl(decl)?;
@@ -298,7 +313,7 @@ impl TypeChecker {
     fn lit(&mut self, lit: &mut Lit) -> Result<Type> {
         match lit {
             Lit::I32(_) => Ok(Type::I32),
-            Lit::String(_) => Ok(Type::Pointer(Box::new(Type::Byte))),
+            Lit::String(_) => Ok(Type::Ident(Ident("string".to_string()))),
         }
     }
 
