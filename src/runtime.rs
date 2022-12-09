@@ -192,6 +192,31 @@ fun main() {
 "#,
                 vec![],
             ),
+            (
+                r#"
+fun h(b: i32): i32 {
+    return b;
+}
+
+fun g(b: i32): i32 {
+    let a = 20;
+
+    return h(b) + a;
+}
+
+fun f(b: i32): i32 {
+    let a = 10;
+
+    return g(b) + a;
+}
+
+fun main() {
+    let a = 5;
+    return f(a);
+}
+"#,
+                vec![Value::I32(35)],
+            ),
         ];
 
         for (input, expected) in cases {
