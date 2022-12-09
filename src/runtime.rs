@@ -188,7 +188,7 @@ fun main() {
     return println(str);
 }
 "#,
-                vec![Value::I32(30)],
+                vec![],
             ),
         ];
 

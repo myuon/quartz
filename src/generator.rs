@@ -12,6 +12,7 @@ pub struct Generator {
     pub writer: SExprWriter,
     pub globals: HashSet<Ident>,
     pub types: HashMap<Ident, Type>,
+    pub main_signature: Option<(Vec<IrType>, IrType)>,
 }
 
 impl Generator {
@@ -20,6 +21,7 @@ impl Generator {
             writer: SExprWriter::new(),
             globals: HashSet::new(),
             types: HashMap::new(),
+            main_signature: None,
         }
     }
 
@@ -59,10 +61,12 @@ impl Generator {
             self.decl(term)?;
         }
 
+        let main_result = self.main_signature.as_ref().unwrap().1.clone();
+
         // builtin functions here
-        self.writer.write(
+        self.writer.write(&format!(
             r#"
-(func $_init (result i32)
+(func $_init {}
     ;; stack pointer
     i32.const 0
     i32.const 1
@@ -96,7 +100,12 @@ impl Generator {
     call $write_stdout
 )
 "#,
-        );
+            if main_result.is_nil() {
+                String::new()
+            } else {
+                format!("(result {})", main_result.to_string())
+            }
+        ));
 
         self.writer.start();
         self.writer.write(r#"export "main" (func $_init)"#);
@@ -128,6 +137,13 @@ impl Generator {
         result: &mut IrType,
         body: &mut Vec<IrTerm>,
     ) -> Result<()> {
+        if name == "main" {
+            self.main_signature = Some((
+                params.iter().map(|(_, t)| t.clone()).collect(),
+                result.clone(),
+            ));
+        }
+
         self.writer.start();
         self.writer.write("func");
         self.writer.write(&format!("${}", name.as_str()));
