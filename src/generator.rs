@@ -61,48 +61,29 @@ impl Generator {
             self.decl(term)?;
         }
 
-        let main_result = self.main_signature.as_ref().unwrap().1.clone();
-
         // builtin functions here
-        self.writer.write(&format!(
+        self.writer.write(
             r#"
-(func $_init {}
-    ;; stack pointer
-    i32.const 0
-    i32.const 1
-    i32.store
-    ;; call $main
-    call $main
-)
+(global $_sp (mut i32) (i32.const 0))
+(global $_bp (mut i32) (i32.const 0))
+
 (func $alloc (param $size i32) (result i32)
     (local $addr i32)
 
-    ;; get stack pointer
-    i32.const 0
-    i32.load
-    local.set $addr
+    global.get $_sp
+    local.tee $addr
 
-    i32.const 0
-    ;; new pointer
-    local.get $addr
     local.get $size
     i32.add
-    ;; store new stack pointer
-    i32.store
+    global.set $_sp
 
-    ;; return old stack pointer
     local.get $addr
 )
 "#,
-            if main_result.is_nil() {
-                String::new()
-            } else {
-                format!("(result {})", main_result.to_string())
-            }
-        ));
+        );
 
         self.writer.start();
-        self.writer.write(r#"export "main" (func $_init)"#);
+        self.writer.write(r#"export "main" (func $main)"#);
         self.writer.end();
         self.writer.end();
 
