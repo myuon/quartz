@@ -252,7 +252,7 @@ fun main() {
     });
 }
 "#,
-                vec![Value::I32(35)],
+                vec![Value::I32(10)],
             ),
         ];
 

@@ -131,6 +131,11 @@ impl IrCodeGenerator {
                 address: Box::new(lhs),
                 value: Box::new(rhs),
             }),
+            IrTerm::GetField { address, offset } => Ok(IrTerm::SetField {
+                address,
+                offset,
+                value: Box::new(rhs),
+            }),
             _ => bail!("invalid lhs for assignment: {}", lhs.to_string()),
         }
     }
