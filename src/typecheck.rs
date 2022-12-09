@@ -59,7 +59,19 @@ impl TypeChecker {
             .into_iter()
             .map(|(k, v)| (Ident(k.to_string()), v))
             .collect(),
-            types: HashMap::new(),
+            types: vec![(
+                "string",
+                Type::Record(vec![
+                    (Ident("length".to_string()), Type::I32),
+                    (
+                        Ident("data".to_string()),
+                        Type::Pointer(Box::new(Type::Byte)),
+                    ),
+                ]),
+            )]
+            .into_iter()
+            .map(|(k, v)| (Ident(k.to_string()), v))
+            .collect(),
         }
     }
 

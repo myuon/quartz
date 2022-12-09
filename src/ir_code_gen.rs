@@ -142,22 +142,30 @@ impl IrCodeGenerator {
                 Lit::I32(i) => Ok(IrTerm::i32(*i)),
                 Lit::String(s) => Ok(IrTerm::Seq {
                     elements: vec![
-                        IrTerm::Let {
-                            name: "_alloc".to_string(),
-                            type_: IrType::from_type(&Type::Pointer(Box::new(Type::Byte)))?,
-                            value: Box::new(IrTerm::Call {
-                                callee: Box::new(IrTerm::Ident("alloc".to_string())),
-                                args: vec![IrTerm::Call {
-                                    callee: Box::new(IrTerm::Ident("mult".to_string())),
-                                    args: vec![
-                                        IrTerm::SizeOf {
-                                            type_: IrType::from_type(&Type::Byte)?,
-                                        },
-                                        IrTerm::i32(s.len() as i32),
-                                    ],
-                                }],
-                            }),
-                        },
+                        self.statement(&mut Statement::Let(
+                            Ident("_alloc".to_string()),
+                            self.type_name(&Ident("string".to_string()))?.clone(),
+                            Source::unknown(Expr::Record(
+                                Ident("string".to_string()),
+                                vec![
+                                    (
+                                        Ident("length".to_string()),
+                                        Source::unknown(Expr::Lit(Lit::I32(s.len() as i32))),
+                                    ),
+                                    (
+                                        Ident("data".to_string()),
+                                        Source::unknown(Expr::Call(
+                                            Box::new(Source::unknown(Expr::Ident(Ident(
+                                                "alloc".to_string(),
+                                            )))),
+                                            vec![Source::unknown(Expr::Lit(Lit::I32(
+                                                s.len() as i32
+                                            )))],
+                                        )),
+                                    ),
+                                ],
+                            )),
+                        ))?,
                         IrTerm::WriteMemory {
                             type_: IrType::from_type(&Type::Byte)?,
                             address: Box::new(IrTerm::Ident("_alloc".to_string())),
@@ -297,5 +305,11 @@ impl IrCodeGenerator {
                 _ => bail!("unsupported type for make: {:?}", type_),
             },
         }
+    }
+
+    fn type_name(&self, ident: &Ident) -> Result<&Type> {
+        self.types
+            .get(ident)
+            .ok_or(anyhow!("Type not found: {:?}", ident))
     }
 }
