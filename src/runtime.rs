@@ -16,7 +16,9 @@ impl Runtime {
         let module = Module::new(&store, &wat)?;
         let import_object = imports! {
             "env" => {
-                "write_stdout" => Function::new_typed(&mut store, |ch: u32| write!(std::io::stdout().lock(), "{}", ch).unwrap()),
+                "write_stdout" => Function::new_typed(&mut store, |ch: u32| {
+                    std::io::stdout().lock().write_all(&ch.to_be_bytes()).unwrap();
+                }),
             }
         };
         let instance = Instance::new(&mut store, &module, &import_object)?;
