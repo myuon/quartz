@@ -229,7 +229,7 @@ fun get_x(p: Point): i32 {
 }
 
 fun main() {
-    return f(Point {
+    return get_x(Point {
         x: 10,
         y: 20,
     });

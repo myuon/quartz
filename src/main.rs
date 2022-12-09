@@ -47,9 +47,13 @@ fn main() -> anyhow::Result<()> {
             let wat = compiler.compile(&read_from_stdin())?;
             println!("{}", wat);
 
-            let file = std::fs::File::create("build/out.wat")?;
+            let file = std::fs::File::create("build/build.wat")?;
             let mut writer = std::io::BufWriter::new(file);
             writer.write_all(wat.as_bytes())?;
+
+            let file = std::fs::File::create("build/build.wasm")?;
+            let mut writer = std::io::BufWriter::new(file);
+            writer.write_all(&wat::parse_str(wat)?)?;
         }
         SubCommand::Run => {
             let wat = compiler.compile(&read_from_stdin())?;

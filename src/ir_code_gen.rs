@@ -255,16 +255,20 @@ impl IrCodeGenerator {
                         args: vec![IrTerm::i32(record_type.len() as i32)],
                     }),
                 });
+
+                let mut offset = 0;
                 for (field, expr) in fields {
-                    let index = record_type
+                    let (_, type_) = record_type
                         .iter()
-                        .position(|(f, _)| f == field)
+                        .find(|(f, _)| f == field)
                         .ok_or(anyhow!("Field not found: {:?} in {:?}", field, record_type))?;
                     elements.push(IrTerm::SetField {
                         address: Box::new(IrTerm::ident(var)),
-                        offset: index,
+                        offset,
                         value: Box::new(self.expr(expr)?),
                     });
+
+                    offset += IrType::from_type(type_)?.sizeof();
                 }
 
                 elements.push(IrTerm::ident(var));
