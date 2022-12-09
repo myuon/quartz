@@ -27,21 +27,36 @@ impl Runtime {
         Ok(result)
     }
 
-    pub fn run(&mut self, wat: &str) -> Result<Box<[Value]>> {
-        self._run(wat).map_err(|err| {
+    pub fn run(&mut self, input: &str) -> Result<Box<[Value]>> {
+        self._run(input).map_err(|err| {
             let message = err.to_string();
             // regexp test (at offset %d) against message
             let Ok(re) = regex::Regex::new(r"\(at offset (\d+)\)") else {
-                return anyhow!("{}\n\nOriginal Error: {}", wat, err);
+                return anyhow!("{}\n\nOriginal Error: {}", input, err);
             };
             let Some(cap) = re.captures(&message) else {
-                return anyhow!("{}\n\nOriginal Error: {}", wat, err);
+                return anyhow!("{}\n\nOriginal Error: {}", input, err);
             };
             let Ok(offset) = cap[1].parse::<usize>() else {
-                return anyhow!("{}\n\nOriginal Error: {}", wat, err);
+                return anyhow!("{}\n\nOriginal Error: {}", input, err);
             };
 
-            anyhow!("{}\n\nOriginal Error: {}", wat[0..offset].to_string(), err)
+            let wasm = wat::parse_str(input).unwrap();
+
+            let Ok(mut file) = std::fs::File::create("build/build.wat") else {
+                return anyhow!("{}\n\nOriginal Error: {}", input, err);
+            };
+            file.write_all(input.as_bytes()).unwrap();
+
+            let Ok(mut file) = std::fs::File::create("build/error.wasm") else {
+                return anyhow!("{}\n\nOriginal Error: {}", input, err);
+            };
+            file.write_all(&wasm).unwrap();
+
+            // offset in base-16
+            let offset_hex = format!("{:x}", offset);
+
+            anyhow!("Error at: {}\n\nOriginal Error: {}", offset_hex, err)
         })
     }
 }

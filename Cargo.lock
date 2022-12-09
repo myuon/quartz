@@ -733,6 +733,7 @@ dependencies = [
  "regex",
  "thiserror",
  "wasmer",
+ "wat",
 ]
 
 [[package]]
