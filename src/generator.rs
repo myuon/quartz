@@ -79,30 +79,6 @@ impl Generator {
 
     local.get $addr
 )
-(func $push (param $value i32)
-    global.get $_sp
-    local.get $value
-    i32.store
-
-    global.get $_sp
-    i32.const 4
-    i32.add
-    global.set $_sp
-)
-(func $pop (result i32)
-    (local $value i32)
-
-    global.get $_sp
-    i32.load
-    local.set $value
-
-    global.get $_sp
-    i32.const 4
-    i32.sub
-    global.set $_sp
-
-    local.get $value
-)
 "#,
         );
 
@@ -447,53 +423,12 @@ impl Generator {
                     self.writer.write("i32.lt_s");
                 }
                 _ => {
-                    self.prologue();
                     self.writer.write(&format!("call ${}", ident.as_str()));
-                    self.epilogue();
                 }
             },
             _ => todo!(),
         }
 
         Ok(())
-    }
-
-    fn prologue(&mut self) {
-        // Instead of return address, we push debug information
-        self.writer.new_statement();
-        self.writer.write("i32.const -1");
-        self.writer.new_statement();
-        self.writer.write("call $push");
-
-        self.writer.new_statement();
-        self.writer.write("global.get $_bp");
-        self.writer.new_statement();
-        self.writer.write("call $push");
-
-        self.writer.new_statement();
-        self.writer.write("global.get $_sp");
-        self.writer.new_statement();
-        self.writer.write("global.set $_bp");
-
-        self.writer.new_statement();
-        self.writer.write("global.get $_sp");
-        self.writer.new_statement();
-        self.writer.write("i32.const 8");
-        self.writer.new_statement();
-        self.writer.write("i32.add");
-        self.writer.new_statement();
-        self.writer.write("global.set $_sp");
-    }
-
-    fn epilogue(&mut self) {
-        self.writer.new_statement();
-        self.writer.write("global.get $_bp");
-        self.writer.new_statement();
-        self.writer.write("global.set $_sp");
-
-        self.writer.new_statement();
-        self.writer.write("call $pop");
-        self.writer.new_statement();
-        self.writer.write("global.set $_bp");
     }
 }
