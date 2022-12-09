@@ -48,6 +48,13 @@ impl TypeChecker {
                         Box::new(Type::Pointer(Box::new(Type::I32))),
                     ),
                 ),
+                (
+                    "println",
+                    Type::Func(
+                        vec![Type::Pointer(Box::new(Type::Byte))],
+                        Box::new(Type::Nil),
+                    ),
+                ),
             ]
             .into_iter()
             .map(|(k, v)| (Ident(k.to_string()), v))
@@ -282,6 +289,7 @@ impl TypeChecker {
     fn lit(&mut self, lit: &mut Lit) -> Result<Type> {
         match lit {
             Lit::I32(_) => Ok(Type::I32),
+            Lit::String(_) => Ok(Type::Pointer(Box::new(Type::Byte))),
         }
     }
 

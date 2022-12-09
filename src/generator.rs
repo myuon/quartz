@@ -47,6 +47,11 @@ impl Generator {
         self.writer.write("module");
 
         self.writer.start();
+        self.writer
+            .write(r#"import "env" "write_stdout" (func $write_stdout (param i32))"#);
+        self.writer.end();
+
+        self.writer.start();
         self.writer.write(r#"memory 1"#);
         self.writer.end();
 
@@ -83,6 +88,12 @@ impl Generator {
 
     ;; return old stack pointer
     local.get $addr
+)
+(func $println (param $address i32)
+    local.get $address
+    i32.load
+
+    call $write_stdout
 )
 "#,
         );
@@ -331,6 +342,33 @@ impl Generator {
             IrTerm::SizeOf { type_ } => {
                 self.writer.new_statement();
                 self.writer.write(&format!("i32.const {}", type_.sizeof()));
+            }
+            IrTerm::WriteMemory {
+                type_,
+                address,
+                value,
+            } => {
+                for (i, v) in value.into_iter().enumerate() {
+                    self.writer.new_statement();
+                    self.expr(&mut IrTerm::SetPointer {
+                        address: Box::new(IrTerm::PointerAt {
+                            address: address.clone(),
+                            offset: Box::new(IrTerm::Call {
+                                callee: Box::new(IrTerm::Ident("mult".to_string())),
+                                args: vec![
+                                    IrTerm::I32(i as i32),
+                                    IrTerm::SizeOf {
+                                        type_: type_.clone(),
+                                    },
+                                ],
+                            }),
+                        }),
+                        value: Box::new(v.clone()),
+                    })?;
+                }
+
+                self.writer.new_statement();
+                self.writer.write(&format!("{}.store", type_.to_string()));
             }
             _ => todo!(),
         }

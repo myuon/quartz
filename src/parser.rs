@@ -1,4 +1,4 @@
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, bail, Context, Result};
 
 use crate::{
     ast::{Decl, Expr, Func, Ident, Lit, Module, Statement, Type},
@@ -444,7 +444,11 @@ impl Parser {
 
                 Ok(current)
             }
-            _ => self.lit().map(|lit| Source::unknown(Expr::Lit(lit))),
+            _ => {
+                let lit = self.lit()?;
+
+                Ok(Source::unknown(Expr::Lit(lit)))
+            }
         }
     }
 
@@ -464,10 +468,17 @@ impl Parser {
 
     fn lit(&mut self) -> Result<Lit> {
         let current = self.consume()?;
-        if let Lexeme::Int(int) = current.lexeme {
-            Ok(Lit::I32(int))
-        } else {
-            Err(anyhow!("Expected literal, got {:?}", current.lexeme))
+        match current.lexeme {
+            Lexeme::Int(int) => Ok(Lit::I32(int)),
+            Lexeme::String(string) => Ok(Lit::String(string)),
+            _ => {
+                return Err(
+                    anyhow!("Expected literal, got {:?}", current.lexeme).context(ErrorInSource {
+                        start: self.position,
+                        end: current.position,
+                    }),
+                )
+            }
         }
     }
 

@@ -140,6 +140,31 @@ impl IrCodeGenerator {
             Expr::Ident(ident) => Ok(IrTerm::ident(ident.as_str())),
             Expr::Lit(lit) => match lit {
                 Lit::I32(i) => Ok(IrTerm::i32(*i)),
+                Lit::String(s) => Ok(IrTerm::Seq {
+                    elements: vec![
+                        IrTerm::Let {
+                            name: "_alloc".to_string(),
+                            type_: IrType::from_type(&Type::Pointer(Box::new(Type::Byte)))?,
+                            value: Box::new(IrTerm::Call {
+                                callee: Box::new(IrTerm::Ident("alloc".to_string())),
+                                args: vec![IrTerm::Call {
+                                    callee: Box::new(IrTerm::Ident("mult".to_string())),
+                                    args: vec![
+                                        IrTerm::SizeOf {
+                                            type_: IrType::from_type(&Type::Byte)?,
+                                        },
+                                        IrTerm::i32(s.len() as i32),
+                                    ],
+                                }],
+                            }),
+                        },
+                        IrTerm::WriteMemory {
+                            type_: IrType::from_type(&Type::Byte)?,
+                            address: Box::new(IrTerm::Ident("_alloc".to_string())),
+                            value: s.bytes().map(|b| IrTerm::i32(b as i32)).collect(),
+                        },
+                    ],
+                }),
             },
             Expr::Call(callee, args) => match &mut callee.data {
                 Expr::Project(expr, type_, label) => match (type_, label.as_str()) {

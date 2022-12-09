@@ -21,6 +21,7 @@ pub enum Type {
     Nil,
     Bool,
     I32,
+    Byte,
     Func(Vec<Type>, Box<Type>),
     Record(Vec<(Ident, Type)>),
     Ident(Ident),
@@ -54,6 +55,7 @@ impl Type {
             Type::Ident(name) => format!("{}", name.as_str()),
             Type::Pointer(t) => format!("pointer[{}]", t.to_string()),
             Type::Array(type_, size) => format!("array[{}, {}]", type_.to_string(), size),
+            Type::Byte => "byte".to_string(),
         }
     }
 
@@ -96,6 +98,7 @@ impl Type {
 #[derive(PartialEq, Debug, Clone)]
 pub enum Lit {
     I32(i32),
+    String(String),
 }
 
 #[derive(PartialEq, Debug, Clone)]

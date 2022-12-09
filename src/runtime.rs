@@ -1,6 +1,8 @@
+use std::io::Write;
+
 use anyhow::{anyhow, Result};
-use wasmer::Value;
 use wasmer::{imports, Instance, Module, Store};
+use wasmer::{Function, Value};
 
 pub struct Runtime {}
 
@@ -12,7 +14,11 @@ impl Runtime {
     pub fn _run(&mut self, wat: &str) -> Result<Box<[Value]>> {
         let mut store = Store::default();
         let module = Module::new(&store, &wat)?;
-        let import_object = imports! {};
+        let import_object = imports! {
+            "env" => {
+                "write_stdout" => Function::new_typed(&mut store, |ch: u32| write!(std::io::stdout().lock(), "{}", ch).unwrap()),
+            }
+        };
         let instance = Instance::new(&mut store, &module, &import_object)?;
 
         let main = instance.exports.get_function("main")?;
@@ -155,6 +161,16 @@ fun main() {
     p.at(2) = p.at(0) + p.at(1);
 
     return p.at(2);
+}
+"#,
+                vec![Value::I32(30)],
+            ),
+            (
+                r#"
+fun main() {
+    let str = "Hello, World!";
+
+    return println(str);
 }
 "#,
                 vec![Value::I32(30)],
