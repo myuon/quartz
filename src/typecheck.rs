@@ -5,7 +5,6 @@ use anyhow::{anyhow, bail, Context, Result};
 use crate::{
     ast::{Decl, Expr, Func, Ident, Lit, Module, Statement, Type},
     compiler::ErrorInSource,
-    ir::{IrTerm, IrType},
     util::source::Source,
 };
 
@@ -104,13 +103,23 @@ impl TypeChecker {
     }
 
     pub fn run(&mut self, module: &mut Module) -> Result<()> {
-        self.module(module)?;
+        self.module(&mut Ident("main".to_string()), module)?;
 
         Ok(())
     }
 
-    fn module(&mut self, module: &mut Module) -> Result<()> {
-        // for back reference
+    fn module(&mut self, ident: &mut Ident, module: &mut Module) -> Result<()> {
+        self.module_register_for_back_reference(ident, module)?;
+        self.module_typecheck(ident, module)?;
+
+        Ok(())
+    }
+
+    fn module_register_for_back_reference(
+        &mut self,
+        ident: &mut Ident,
+        module: &mut Module,
+    ) -> Result<()> {
         for decl in &mut module.0 {
             match decl {
                 Decl::Func(func) => {
@@ -122,18 +131,28 @@ impl TypeChecker {
                 Decl::Type(ident, type_) => {
                     self.types.insert(ident.clone(), type_.clone());
                 }
+                Decl::Module(name, module) => {
+                    self.module_register_for_back_reference(
+                        &mut Ident(format!("{}::{}", ident.as_str(), name.as_str())),
+                        module,
+                    )?;
+                }
             }
-        }
-
-        for decl in &mut module.0 {
-            self.locals.clear();
-            self.decl(decl)?;
         }
 
         Ok(())
     }
 
-    fn decl(&mut self, decl: &mut Decl) -> Result<()> {
+    fn module_typecheck(&mut self, ident: &mut Ident, module: &mut Module) -> Result<()> {
+        for decl in &mut module.0 {
+            self.locals.clear();
+            self.decl(ident, decl)?;
+        }
+
+        Ok(())
+    }
+
+    fn decl(&mut self, ident: &mut Ident, decl: &mut Decl) -> Result<()> {
         match decl {
             Decl::Func(func) => {
                 self.func(func)?;
@@ -150,6 +169,12 @@ impl TypeChecker {
             }
             Decl::Type(ident, type_) => {
                 self.types.insert(ident.clone(), type_.clone());
+            }
+            Decl::Module(name, module) => {
+                self.module(
+                    &mut Ident(format!("{}::{}", ident.as_str(), name.as_str())),
+                    module,
+                )?;
             }
         }
 

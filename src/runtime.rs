@@ -320,6 +320,38 @@ fun main() {
 "#,
                 vec![Value::I32(100)],
             ),
+            (
+                r#"
+type Point = {
+    x: i32,
+    y: i32,
+};
+
+module Point {
+    fun get_x(): i32 {
+        return self.x;
+    }
+
+    fun sum(): i32 {
+        return self.get_x() + self.y;
+    }
+
+    fun new(x: i32, y: i32): Point {
+        return Point {
+            x: x,
+            y: y,
+        };
+    }
+}
+
+fun main() {
+    let p = Point.new(10, 20);
+
+    return p.sum();
+}
+"#,
+                vec![Value::I32(100)],
+            ),
         ];
 
         for (input, expected) in cases {

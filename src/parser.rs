@@ -30,7 +30,7 @@ impl Parser {
     pub fn module(&mut self) -> Result<Module> {
         let mut decls = vec![];
 
-        while !self.is_end() {
+        while !self.is_end() && self.peek()?.lexeme != Lexeme::RBrace {
             decls.push(self.decl()?);
         }
 
@@ -48,6 +48,15 @@ impl Parser {
             Lexeme::Type => {
                 let (ident, type_) = self.type_decl()?;
                 Ok(Decl::Type(ident, type_))
+            }
+            Lexeme::Module => {
+                self.expect(Lexeme::Module)?;
+                let ident = self.ident()?;
+                self.expect(Lexeme::LBrace)?;
+                let module = self.module()?;
+                self.expect(Lexeme::RBrace)?;
+
+                Ok(Decl::Module(ident, module))
             }
             _ => Err(anyhow!("Unexpected token {:?}", self.peek()?.lexeme)),
         }

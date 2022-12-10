@@ -45,6 +45,7 @@ impl IrCodeGenerator {
                     });
                 }
                 Decl::Type(_, _) => (),
+                Decl::Module(_, _) => todo!(),
             }
         }
 
