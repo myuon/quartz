@@ -113,6 +113,12 @@ impl Parser {
             self.expect(Lexeme::Colon)?;
             let type_ = self.type_()?;
             params.push((name, type_));
+
+            if self.peek()?.lexeme == Lexeme::RParen {
+                break;
+            }
+
+            self.expect(Lexeme::Comma)?;
         }
 
         Ok(params)
@@ -468,8 +474,8 @@ impl Parser {
         } else {
             Err(
                 anyhow!("Expected identifier, got {:?}", current.lexeme).context(ErrorInSource {
-                    start: self.position,
-                    end: current.position,
+                    start: self.input[self.position].position,
+                    end: self.input[self.position + 1].position,
                 }),
             )
         }

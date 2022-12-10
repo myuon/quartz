@@ -254,6 +254,26 @@ fun main() {
 "#,
                 vec![Value::I32(10)],
             ),
+            (
+                r#"
+type Point = {
+    x: i32,
+    y: i32,
+};
+
+fun point(x: i32, y: i32): Point {
+    return Point {
+        x: x,
+        y: y,
+    };
+}
+
+fun main() {
+    return point(10, 20).y;
+}
+"#,
+                vec![Value::I32(20)],
+            ),
         ];
 
         for (input, expected) in cases {
