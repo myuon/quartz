@@ -1,50 +1,40 @@
+use anyhow::Result;
 use once_cell::sync::Lazy;
 use regex::Regex;
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Lexeme {
-    Nil,
-    True,
-    False,
-    Func,
-    Method,
+    Module,
+    Fun,
     Let,
+    Type,
     Return,
     If,
     Else,
-    Loop,
     While,
-    Continue,
-    Struct,
-    Make,
-    Import,
+    For,
+    In,
+    As,
+    Self_,
     LParen,
     RParen,
     LBrace,
     RBrace,
     LBracket,
     RBracket,
-    SemiColon,
-    Colon,
     DoubleColon,
-    Comma,
-    Dot,
+    Colon,
+    Semicolon,
     DoubleEqual,
-    NotEqual,
     Equal,
-    And,
-    Star,
-    Lt,
-    LEq,
-    Gt,
-    GEq,
     Plus,
     Minus,
-    Question,
-    Ref,
-    As,
-    Self_,
-    Exclamation,
+    Star,
+    Comma,
+    DoubleDot,
+    Dot,
+    Lt,
+    Underscore,
     Ident(String),
     Int(i32),
     String(String),
@@ -72,14 +62,14 @@ fn is_term_boundary(s: &str) -> bool {
     }
 }
 
-struct TokenReader {
+pub struct Lexer {
     position: usize,
-    tokens: Vec<Token>,
+    pub tokens: Vec<Token>,
 }
 
-impl TokenReader {
-    fn new() -> TokenReader {
-        TokenReader {
+impl Lexer {
+    pub fn new() -> Lexer {
+        Lexer {
             position: 0,
             tokens: vec![],
         }
@@ -135,7 +125,7 @@ impl TokenReader {
         false
     }
 
-    pub fn run_lexer(&mut self, input: &str) {
+    pub fn run(&mut self, input: &str) -> Result<()> {
         while input.len() > self.position {
             match SPACE_PATTERN.find(&input[self.position..]) {
                 Some(m) => {
@@ -158,24 +148,18 @@ impl TokenReader {
             if self.matches_any_term(
                 input,
                 vec![
-                    ("nil", Lexeme::Nil),
-                    ("true", Lexeme::True),
-                    ("false", Lexeme::False),
-                    ("func", Lexeme::Func),
-                    ("method", Lexeme::Method),
+                    ("module", Lexeme::Module),
+                    ("fun", Lexeme::Fun),
                     ("let", Lexeme::Let),
+                    ("type", Lexeme::Type),
                     ("return", Lexeme::Return),
                     ("if", Lexeme::If),
                     ("else", Lexeme::Else),
-                    ("loop", Lexeme::Loop),
                     ("while", Lexeme::While),
-                    ("continue", Lexeme::Continue),
-                    ("struct", Lexeme::Struct),
-                    ("ref", Lexeme::Ref),
+                    ("for", Lexeme::For),
+                    ("in", Lexeme::In),
                     ("as", Lexeme::As),
                     ("self", Lexeme::Self_),
-                    ("make", Lexeme::Make),
-                    ("import", Lexeme::Import),
                 ],
             ) {
                 continue;
@@ -184,30 +168,25 @@ impl TokenReader {
             if self.matches_any(
                 input,
                 vec![
-                    ("==", Lexeme::DoubleEqual),
-                    ("!=", Lexeme::NotEqual),
-                    ("<=", Lexeme::LEq),
-                    (">=", Lexeme::GEq),
-                    ("::", Lexeme::DoubleColon),
                     ("(", Lexeme::LParen),
                     (")", Lexeme::RParen),
                     ("{", Lexeme::LBrace),
                     ("}", Lexeme::RBrace),
                     ("[", Lexeme::LBracket),
                     ("]", Lexeme::RBracket),
-                    (";", Lexeme::SemiColon),
+                    ("::", Lexeme::DoubleColon),
                     (":", Lexeme::Colon),
-                    (",", Lexeme::Comma),
-                    (".", Lexeme::Dot),
+                    (";", Lexeme::Semicolon),
+                    ("==", Lexeme::DoubleEqual),
                     ("=", Lexeme::Equal),
-                    ("&", Lexeme::And),
-                    ("*", Lexeme::Star),
-                    ("<", Lexeme::Lt),
-                    (">", Lexeme::Gt),
-                    ("-", Lexeme::Minus),
                     ("+", Lexeme::Plus),
-                    ("?", Lexeme::Question),
-                    ("!", Lexeme::Exclamation),
+                    ("-", Lexeme::Minus),
+                    ("*", Lexeme::Star),
+                    (",", Lexeme::Comma),
+                    ("..", Lexeme::DoubleDot),
+                    (".", Lexeme::Dot),
+                    ("<", Lexeme::Lt),
+                    ("_", Lexeme::Underscore),
                 ],
             ) {
                 continue;
@@ -254,127 +233,7 @@ impl TokenReader {
 
             panic!("{}", &input[self.position..]);
         }
-    }
-}
 
-pub fn run_lexer(input: &str) -> Vec<Token> {
-    let mut reader = TokenReader::new();
-    reader.run_lexer(input);
-
-    reader.tokens
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use pretty_assertions::assert_eq;
-
-    #[test]
-    fn test_run_lexer() {
-        use Lexeme::*;
-        let cases = vec![
-            (
-                r#"
-                    // this is a comment
-                    let main = func () {
-                    f(10, 20, 40);
-                    100;
-                    "foo"; // and comment
-                    let u = func () { 20 };
-            };
-            main();"#,
-                vec![
-                    Let,
-                    Ident("main".to_string()),
-                    Equal,
-                    Func,
-                    LParen,
-                    RParen,
-                    LBrace,
-                    Ident("f".to_string()),
-                    LParen,
-                    Int(10),
-                    Comma,
-                    Int(20),
-                    Comma,
-                    Int(40),
-                    RParen,
-                    SemiColon,
-                    Int(100),
-                    SemiColon,
-                    String("foo".to_string()),
-                    SemiColon,
-                    Let,
-                    Ident("u".to_string()),
-                    Equal,
-                    Func,
-                    LParen,
-                    RParen,
-                    LBrace,
-                    Int(20),
-                    RBrace,
-                    SemiColon,
-                    RBrace,
-                    SemiColon,
-                    Ident("main".to_string()),
-                    LParen,
-                    RParen,
-                    SemiColon,
-                ],
-            ),
-            (
-                r#"f("日本語")"#,
-                vec![
-                    Ident("f".to_string()),
-                    LParen,
-                    String("日本語".to_string()),
-                    RParen,
-                ],
-            ),
-            (
-                r#"func () { return 10; }"#,
-                vec![
-                    Func,
-                    LParen,
-                    RParen,
-                    LBrace,
-                    Return,
-                    Int(10),
-                    SemiColon,
-                    RBrace,
-                ],
-            ),
-            (
-                r#"&10; *v"#,
-                vec![And, Int(10), SemiColon, Star, Ident("v".to_string())],
-            ),
-            (
-                // empty string
-                r#"return "";"#,
-                vec![Return, String("".to_string()), SemiColon],
-            ),
-            (
-                // escaped double quote
-                r#"return "ab\"c";"#,
-                vec![Return, String(r#"ab\"c"#.to_string()), SemiColon],
-            ),
-            (
-                // escaped escape
-                r#"return "ab\\c";"#,
-                vec![Return, String(r#"ab\\c"#.to_string()), SemiColon],
-            ),
-        ];
-
-        for c in cases {
-            assert_eq!(
-                run_lexer(c.0)
-                    .into_iter()
-                    .map(|t| t.lexeme)
-                    .collect::<Vec<_>>(),
-                c.1,
-                "{}",
-                c.0
-            );
-        }
+        Ok(())
     }
 }

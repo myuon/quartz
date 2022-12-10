@@ -30,5 +30,3 @@ jobs:
       - run: mkdir -p ./build
       - name: Run tests
         run: cargo test --verbose
-      - name: Run compiler tests
-        run: cargo run test
