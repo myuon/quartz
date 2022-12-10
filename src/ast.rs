@@ -80,6 +80,7 @@ impl Type {
     pub fn to_ident(self) -> Result<Ident> {
         match self {
             Type::Ident(name) => Ok(name),
+            Type::Array(_, _) => Ok(Ident("array".to_string())),
             Type::Vec(_) => Ok(Ident("vec".to_string())),
             _ => bail!("expected identifier type, but found {}", self.to_string()),
         }

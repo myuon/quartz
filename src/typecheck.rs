@@ -86,6 +86,16 @@ impl TypeChecker {
                     ]),
                 ),
                 (
+                    "array",
+                    Type::Record(vec![
+                        (Ident("length".to_string()), Type::I32),
+                        (
+                            Ident("data".to_string()),
+                            Type::Pointer(Box::new(Type::Byte)),
+                        ),
+                    ]),
+                ),
+                (
                     "vec",
                     Type::Record(vec![
                         (
@@ -319,8 +329,9 @@ impl TypeChecker {
                         _ => bail!("unknown method for {:?}: {}", p, label.as_str()),
                     },
                     Type::Array(p, _) => match label.as_str() {
-                        "at" => Ok(Type::Func(vec![Type::I32], p)),
+                        "data" => Ok(Type::Pointer(p)),
                         "length" => Ok(Type::I32),
+                        "at" => Ok(Type::Func(vec![Type::I32], p)),
                         _ => bail!("unknown method for {:?}: {}", p, label.as_str()),
                     },
                     Type::Vec(p) => match label.as_str() {

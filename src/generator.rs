@@ -237,18 +237,24 @@ impl Generator {
                 self.writer.new_statement();
                 self.expr(cond)?;
 
+                self.writer.start();
                 self.writer.write("if");
                 if !type_.is_nil() {
                     self.writer
                         .write(&format!("(result {})", type_.to_string()));
                 }
 
+                self.writer.start();
+                self.writer.write("then");
                 self.expr(then)?;
+                self.writer.end();
+
+                self.writer.start();
                 self.writer.write("else");
                 self.expr(else_)?;
+                self.writer.end();
 
-                self.writer.new_statement();
-                self.writer.write("end");
+                self.writer.end();
             }
             IrTerm::GetField { address, offset } => {
                 self.writer.new_statement();

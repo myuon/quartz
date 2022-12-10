@@ -71,6 +71,7 @@ fun vec_make(init_capacity: i32, size: i32): vec[i32] {
 }
 
 fun vec_push(v: vec[i32], e: i32) {
+    println(char_to_string((48 + v.length) as byte));
     if (v.length + 1) == v.capacity {
         let new_capacity = v.capacity * 2;
         let new_data = alloc(new_capacity);
@@ -82,6 +83,16 @@ fun vec_push(v: vec[i32], e: i32) {
 
     v.data.at(v.length) = e;
     v.length = v.length + 1;
+}
+
+fun char_to_string(char: byte): string {
+    let s = make[array[byte,1]]();
+    s.at(0) = char;
+
+    return string {
+        data: s.data,
+        length: s.length,
+    };
 }
 "#,
         );
