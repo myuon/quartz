@@ -3,9 +3,9 @@ use std::collections::HashMap;
 use anyhow::{anyhow, bail, Context, Result};
 
 use crate::{
-    ast::{Decl, Expr, Func, Ident, Lit, Module, Statement, Type},
+    ast::{Decl, Expr, Func, Lit, Module, Statement, Type},
     compiler::ErrorInSource,
-    util::source::Source,
+    util::{ident::Ident, source::Source},
 };
 
 pub struct TypeChecker {
@@ -131,7 +131,10 @@ impl TypeChecker {
         for decl in &mut module.0 {
             match decl {
                 Decl::Func(func) => {
-                    self.globals.insert(func.name.clone(), func.to_type());
+                    self.globals.insert(
+                        Ident(format!("{}_{}", ident.as_str(), func.name.as_str())),
+                        func.to_type(),
+                    );
                 }
                 Decl::Let(ident, type_, _expr) => {
                     self.globals.insert(ident.clone(), type_.clone());

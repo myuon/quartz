@@ -3,9 +3,9 @@ use std::collections::{HashMap, HashSet};
 use anyhow::{bail, Ok, Result};
 
 use crate::{
-    ast::{Ident, Type},
+    ast::Type,
     ir::{IrTerm, IrType},
-    util::sexpr_writer::SExprWriter,
+    util::{ident::Ident, sexpr_writer::SExprWriter},
 };
 
 pub struct Generator {

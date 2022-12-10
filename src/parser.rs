@@ -1,10 +1,10 @@
 use anyhow::{anyhow, bail, Context, Result};
 
 use crate::{
-    ast::{Decl, Expr, Func, Ident, Lit, Module, Statement, Type},
+    ast::{Decl, Expr, Func, Lit, Module, Statement, Type},
     compiler::ErrorInSource,
     lexer::{Lexeme, Token},
-    util::source::Source,
+    util::{ident::Ident, source::Source},
 };
 
 pub struct Parser {
