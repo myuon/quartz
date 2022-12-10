@@ -386,8 +386,10 @@ impl TypeChecker {
                         .globals
                         .get(&self.path_to(&label))
                         .ok_or(anyhow!("unknown method: {}", label.as_str()))?;
+                    let (mut arg_types, result_type) = type_.clone().to_func()?;
+                    self.unify(&mut expr_type, &mut arg_types[0])?;
 
-                    Ok(type_.clone())
+                    Ok(Type::Func(arg_types[1..].to_vec(), result_type))
                 }
             }
             Expr::Make(type_, args) => {
