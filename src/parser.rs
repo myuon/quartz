@@ -346,6 +346,12 @@ impl Parser {
                     position,
                 );
             }
+            Lexeme::As => {
+                self.consume()?;
+                let type_ = self.type_()?;
+
+                current = self.source_from(Expr::As(Box::new(current), type_), position);
+            }
             _ => (),
         }
 

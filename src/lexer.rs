@@ -14,6 +14,7 @@ pub enum Lexeme {
     While,
     For,
     In,
+    As,
     LParen,
     RParen,
     LBrace,
@@ -155,6 +156,7 @@ impl Lexer {
                     ("while", Lexeme::While),
                     ("for", Lexeme::For),
                     ("in", Lexeme::In),
+                    ("as", Lexeme::As),
                 ],
             ) {
                 continue;

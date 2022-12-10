@@ -389,6 +389,7 @@ impl IrCodeGenerator {
                 _ => bail!("unsupported type for make: {:?}", type_),
             },
             Expr::Range(_, _) => todo!(),
+            Expr::As(expr, _) => self.expr(expr),
         }
     }
 
