@@ -19,4 +19,12 @@ impl Path {
     pub fn push(&mut self, ident: Ident) {
         self.0.push(ident);
     }
+
+    pub fn as_str(&mut self) -> String {
+        self.0
+            .iter()
+            .map(|ident| ident.as_str())
+            .collect::<Vec<&str>>()
+            .join("::")
+    }
 }

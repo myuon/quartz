@@ -117,6 +117,13 @@ impl Generator {
                 body,
             } => self.func(name, params, result, body),
             IrTerm::GlobalLet { name, type_, value } => self.global_let(name, type_, value),
+            IrTerm::Module { elements } => {
+                for element in elements {
+                    self.decl(element)?;
+                }
+
+                Ok(())
+            }
             _ => bail!("Expected func or global let, got {:?}", decl),
         }
     }

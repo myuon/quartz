@@ -6,18 +6,20 @@ use crate::{
     ast::{Decl, Expr, Func, Lit, Module, Statement, Type},
     compiler::ErrorInSource,
     ir::{IrTerm, IrType},
-    util::{ident::Ident, source::Source},
+    util::{ident::Ident, path::Path, source::Source},
 };
 
 #[derive(Debug, Clone)]
 pub struct IrCodeGenerator {
     types: HashMap<Ident, Type>,
+    current_path: Path,
 }
 
 impl IrCodeGenerator {
     pub fn new() -> Self {
         IrCodeGenerator {
             types: HashMap::new(),
+            current_path: Path::empty(),
         }
     }
 
@@ -45,7 +47,13 @@ impl IrCodeGenerator {
                     });
                 }
                 Decl::Type(_, _) => (),
-                Decl::Module(_, _) => todo!(),
+                Decl::Module(ident, module) => {
+                    let path = self.current_path.clone();
+                    self.current_path.push(ident.clone());
+                    elements.push(self.module(module)?);
+
+                    self.current_path = path;
+                }
             }
         }
 
@@ -57,11 +65,24 @@ impl IrCodeGenerator {
 
         let mut params = vec![];
         for (ident, type_) in &func.params {
-            params.push((ident.0.clone(), IrType::from_type(type_)?));
+            if ident.as_str() == "self" {
+                params.push((
+                    ident.0.clone(),
+                    IrType::from_type(&Type::Ident(self.current_path.0[0].clone()))?,
+                ));
+            } else {
+                params.push((ident.0.clone(), IrType::from_type(type_)?));
+            }
         }
 
+        let name = func.name.0.clone();
+
         Ok(IrTerm::Func {
-            name: func.name.0.clone(),
+            name: if self.current_path.0.is_empty() {
+                name
+            } else {
+                format!("{}_{}", self.current_path.0[0].as_str(), name)
+            },
             params,
             result: Box::new(IrType::from_type(&func.result)?),
             body: vec![IrTerm::Seq { elements }],
@@ -190,7 +211,12 @@ impl IrCodeGenerator {
     fn expr(&mut self, expr: &mut Source<Expr>) -> Result<IrTerm> {
         match &mut expr.data {
             Expr::Ident(ident) => Ok(IrTerm::ident(ident.as_str())),
-            Expr::Path(path) => Ok(IrTerm::ident(format!("{}", path.0[1].as_str()))),
+            Expr::Self_ => Ok(IrTerm::Ident("self".to_string())),
+            Expr::Path(path) => Ok(IrTerm::ident(format!(
+                "{}_{}",
+                path.0[0].as_str(),
+                path.0[1].as_str()
+            ))),
             Expr::Lit(lit) => match lit {
                 Lit::I32(i) => Ok(IrTerm::i32(*i)),
                 Lit::String(s) => Ok(IrTerm::Seq {
@@ -269,7 +295,7 @@ impl IrCodeGenerator {
                             ))))?,
                         )
                     }
-                    _ => {
+                    (Type::Ident(module_name), label) => {
                         let mut elements = vec![];
                         elements.push(self.expr(expr)?);
                         for arg in args {
@@ -277,12 +303,13 @@ impl IrCodeGenerator {
                         }
 
                         Ok(IrTerm::Call {
-                            callee: Box::new(
-                                self.expr(&mut Source::unknown(Expr::Ident(label.clone())))?,
-                            ),
+                            callee: Box::new(self.expr(&mut Source::unknown(Expr::Path(
+                                Path::new(vec![module_name.clone(), Ident(label.to_string())]),
+                            )))?),
                             args: elements,
                         })
                     }
+                    _ => bail!("invalid project: {:?}", expr),
                 },
                 _ => {
                     let mut elements = vec![];
@@ -401,7 +428,6 @@ impl IrCodeGenerator {
                 let type_ = IrType::from_type(type_)?;
                 Ok(IrTerm::SizeOf { type_ })
             }
-            Expr::Self_ => todo!(),
         }
     }
 

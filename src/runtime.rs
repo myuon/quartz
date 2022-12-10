@@ -350,7 +350,7 @@ fun main() {
     return p.sum();
 }
 "#,
-                vec![Value::I32(100)],
+                vec![Value::I32(30)],
             ),
         ];
 
