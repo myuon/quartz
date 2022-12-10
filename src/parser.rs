@@ -540,6 +540,11 @@ impl Parser {
                     let name = self.ident()?;
                     current = self.source_from(Expr::Path(Path::new(vec![ident, name])), position);
                 }
+                Lexeme::Question => {
+                    self.consume()?;
+
+                    current = self.source_from(Expr::Wrap(Box::new(current)), position);
+                }
                 _ => break,
             }
         }

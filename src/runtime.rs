@@ -354,6 +354,22 @@ fun main() {
             ),
             (
                 r#"
+type Container = {
+    x: i32?,
+};
+
+fun main() {
+    let c = Container {
+        x: 0?,
+    };
+
+    return c.x == nil;
+}
+"#,
+                vec![Value::I32(0)],
+            ),
+            (
+                r#"
 type Point = {
     x: i32?,
     y: i32?,
@@ -370,7 +386,7 @@ module Point {
 fun main() {
     let p = Point {
         x: nil,
-        y: 10,
+        y: 10?,
     };
     p.swap();
 

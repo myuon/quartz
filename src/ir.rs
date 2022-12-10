@@ -270,6 +270,7 @@ impl IrTerm {
         }
     }
 
+    #[allow(unused_variables)]
     pub fn find_let(&self) -> Vec<(String, IrType, Box<IrTerm>)> {
         match self {
             IrTerm::Nil => vec![],
@@ -324,7 +325,50 @@ impl IrTerm {
                 result
             }
             IrTerm::Module { elements } => todo!(),
-            _ => vec![],
+            IrTerm::Func {
+                name,
+                params,
+                result,
+                body,
+            } => todo!(),
+            IrTerm::GlobalLet { name, type_, value } => todo!(),
+            IrTerm::SetField {
+                address,
+                offset,
+                value,
+            } => {
+                let mut result = vec![];
+                result.extend(address.find_let());
+                result.extend(value.find_let());
+                result
+            }
+            IrTerm::GetField { address, offset } => {
+                let mut result = vec![];
+                result.extend(address.find_let());
+                result
+            }
+            IrTerm::PointerAt {
+                type_,
+                address,
+                index,
+            } => {
+                let mut result = vec![];
+                result.extend(address.find_let());
+                result.extend(index.find_let());
+                result
+            }
+            IrTerm::SetPointer { address, value } => {
+                let mut result = vec![];
+                result.extend(address.find_let());
+                result.extend(value.find_let());
+                result
+            }
+            IrTerm::SizeOf { type_ } => vec![],
+            IrTerm::WriteMemory {
+                type_,
+                address,
+                value,
+            } => vec![],
         }
     }
 

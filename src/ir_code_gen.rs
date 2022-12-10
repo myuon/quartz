@@ -438,6 +438,28 @@ impl IrCodeGenerator {
                     args: vec![lhs, rhs],
                 })
             }
+            Expr::Wrap(expr) => {
+                let expr = self.expr(expr)?;
+
+                Ok(IrTerm::Seq {
+                    elements: vec![
+                        IrTerm::Let {
+                            name: "_wrap".to_string(),
+                            type_: IrType::Address,
+                            value: Box::new(IrTerm::Call {
+                                callee: Box::new(IrTerm::Ident("alloc".to_string())),
+                                args: vec![IrTerm::i32(1)],
+                            }),
+                        },
+                        IrTerm::SetField {
+                            address: Box::new(IrTerm::ident("_wrap")),
+                            offset: 0,
+                            value: Box::new(expr),
+                        },
+                        IrTerm::ident("_wrap"),
+                    ],
+                })
+            }
         }
     }
 
