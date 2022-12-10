@@ -5,12 +5,12 @@ use anyhow::{bail, Ok, Result};
 use crate::{
     ast::Type,
     ir::{IrTerm, IrType},
-    util::{ident::Ident, sexpr_writer::SExprWriter},
+    util::{ident::Ident, path::Path, sexpr_writer::SExprWriter},
 };
 
 pub struct Generator {
     pub writer: SExprWriter,
-    pub globals: HashSet<Ident>,
+    pub globals: HashSet<Path>,
     pub types: HashMap<Ident, Type>,
     pub main_signature: Option<(Vec<IrType>, IrType)>,
 }
@@ -25,7 +25,7 @@ impl Generator {
         }
     }
 
-    pub fn set_globals(&mut self, globals: HashSet<Ident>) {
+    pub fn set_globals(&mut self, globals: HashSet<Path>) {
         self.globals = globals;
     }
 
@@ -199,7 +199,7 @@ impl Generator {
                 self.writer.write(&format!("i32.const {}", i));
             }
             IrTerm::Ident(i) => {
-                if self.globals.contains(&Ident(i.clone())) {
+                if self.globals.contains(&Path::ident(Ident(i.clone()))) {
                     self.writer.write(&format!("global.get ${}", i.as_str()));
                 } else {
                     self.writer.write(&format!("local.get ${}", i.as_str()));
@@ -228,7 +228,7 @@ impl Generator {
                 self.expr(rhs)?;
 
                 self.writer.new_statement();
-                if self.globals.contains(&Ident(ident.clone())) {
+                if self.globals.contains(&Path::ident(Ident(ident.clone()))) {
                     self.writer.write("global.set");
                 } else {
                     self.writer.write("local.set");
@@ -396,7 +396,7 @@ impl Generator {
         match expr {
             IrTerm::Ident(i) => {
                 self.writer.new_statement();
-                if self.globals.contains(&Ident(i.clone())) {
+                if self.globals.contains(&Path::ident(Ident(i.clone()))) {
                     self.writer.write("global.set");
                 } else {
                     self.writer.write("local.set");

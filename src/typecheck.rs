@@ -5,15 +5,15 @@ use anyhow::{anyhow, bail, Context, Result};
 use crate::{
     ast::{Decl, Expr, Func, Lit, Module, Statement, Type},
     compiler::ErrorInSource,
-    util::{ident::Ident, source::Source},
+    util::{ident::Ident, path::Path, source::Source},
 };
 
 pub struct TypeChecker {
     omits: Constrains,
     locals: HashMap<Ident, Type>,
-    pub globals: HashMap<Ident, Type>,
+    pub globals: HashMap<Path, Type>,
     pub types: HashMap<Ident, Type>,
-    current_module: Option<Ident>,
+    current_path: Path,
 }
 
 impl TypeChecker {
@@ -71,7 +71,7 @@ impl TypeChecker {
                 ),
             ]
             .into_iter()
-            .map(|(k, v)| (Ident(k.to_string()), v))
+            .map(|(k, v)| (Path::ident(Ident(k.to_string())), v))
             .collect(),
             types: vec![
                 (
@@ -100,53 +100,41 @@ impl TypeChecker {
             .into_iter()
             .map(|(k, v)| (Ident(k.to_string()), v))
             .collect(),
-            current_module: None,
+            current_path: Path::empty(),
         }
     }
 
     pub fn run(&mut self, module: &mut Module) -> Result<()> {
-        self.module(&mut Ident("main".to_string()), module, None)?;
+        self.module(module)?;
 
         Ok(())
     }
 
-    fn module(
-        &mut self,
-        ident: &mut Ident,
-        module: &mut Module,
-        current_module: Option<Ident>,
-    ) -> Result<()> {
-        self.current_module = current_module;
-        self.module_register_for_back_reference(ident, module)?;
-        self.module_typecheck(ident, module)?;
+    fn module(&mut self, module: &mut Module) -> Result<()> {
+        self.module_register_for_back_reference(module)?;
+        self.module_typecheck(module)?;
 
         Ok(())
     }
 
-    fn module_register_for_back_reference(
-        &mut self,
-        ident: &mut Ident,
-        module: &mut Module,
-    ) -> Result<()> {
+    fn module_register_for_back_reference(&mut self, module: &mut Module) -> Result<()> {
         for decl in &mut module.0 {
             match decl {
                 Decl::Func(func) => {
-                    self.globals.insert(
-                        Ident(format!("{}_{}", ident.as_str(), func.name.as_str())),
-                        func.to_type(),
-                    );
+                    self.globals
+                        .insert(self.path_to(&func.name), func.to_type());
                 }
                 Decl::Let(ident, type_, _expr) => {
-                    self.globals.insert(ident.clone(), type_.clone());
+                    self.globals.insert(self.path_to(&ident), type_.clone());
                 }
                 Decl::Type(ident, type_) => {
                     self.types.insert(ident.clone(), type_.clone());
                 }
                 Decl::Module(name, module) => {
-                    self.module_register_for_back_reference(
-                        &mut Ident(format!("{}::{}", ident.as_str(), name.as_str())),
-                        module,
-                    )?;
+                    let path = self.current_path.clone();
+                    self.current_path.push(name.clone());
+                    self.module_register_for_back_reference(module)?;
+                    self.current_path = path;
                 }
             }
         }
@@ -154,20 +142,21 @@ impl TypeChecker {
         Ok(())
     }
 
-    fn module_typecheck(&mut self, ident: &mut Ident, module: &mut Module) -> Result<()> {
+    fn module_typecheck(&mut self, module: &mut Module) -> Result<()> {
         for decl in &mut module.0 {
             self.locals.clear();
-            self.decl(ident, decl)?;
+            self.decl(decl)?;
         }
 
         Ok(())
     }
 
-    fn decl(&mut self, ident: &mut Ident, decl: &mut Decl) -> Result<()> {
+    fn decl(&mut self, decl: &mut Decl) -> Result<()> {
         match decl {
             Decl::Func(func) => {
                 self.func(func)?;
-                self.globals.insert(func.name.clone(), func.to_type());
+                self.globals
+                    .insert(self.path_to(&func.name), func.to_type());
             }
             Decl::Let(ident, type_, expr) => {
                 let mut result = self.expr(expr)?;
@@ -176,17 +165,16 @@ impl TypeChecker {
                     end: expr.end.unwrap_or(0),
                 })?;
 
-                self.globals.insert(ident.clone(), type_.clone());
+                self.globals.insert(self.path_to(&ident), type_.clone());
             }
             Decl::Type(ident, type_) => {
                 self.types.insert(ident.clone(), type_.clone());
             }
             Decl::Module(name, module) => {
-                self.module(
-                    &mut Ident(format!("{}::{}", ident.as_str(), name.as_str())),
-                    module,
-                    Some(name.clone()),
-                )?;
+                let path = self.current_path.clone();
+                self.current_path.push(name.clone());
+                self.module(module)?;
+                self.current_path = path;
             }
         }
 
@@ -378,23 +366,29 @@ impl TypeChecker {
                     }
                 }
 
-                let fields =
-                    self.resolve_record_type(expr_type.clone())
-                        .context(ErrorInSource {
-                            start: expr.start.unwrap_or(0),
-                            end: expr.end.unwrap_or(0),
-                        })?;
-                let type_ = fields
+                let fields = self
+                    .resolve_record_type(expr_type.clone())
+                    .context(ErrorInSource {
+                        start: expr.start.unwrap_or(0),
+                        end: expr.end.unwrap_or(0),
+                    })?
                     .into_iter()
-                    .find(|p| p.0 .0 == label.0)
-                    .ok_or(anyhow!(
-                        "field `{:?}` not found in record `{:?}`",
-                        label,
-                        expr_type
-                    ))?
-                    .1;
+                    .collect::<HashMap<_, _>>();
 
-                Ok(type_.clone())
+                if fields.contains_key(label) {
+                    // field access
+
+                    Ok(fields[label].clone())
+                } else {
+                    // method access
+
+                    let type_ = self
+                        .globals
+                        .get(&self.path_to(&label))
+                        .ok_or(anyhow!("unknown method: {}", label.as_str()))?;
+
+                    Ok(type_.clone())
+                }
             }
             Expr::Make(type_, args) => {
                 assert_eq!(args, &mut vec![]);
@@ -420,12 +414,10 @@ impl TypeChecker {
             }
             Expr::SizeOf(_) => Ok(Type::I32),
             Expr::Self_ => {
-                let module = self
-                    .current_module
-                    .clone()
-                    .ok_or(anyhow!("`self` is not available in this context"))?;
+                assert_eq!(self.current_path.0.len(), 1);
+                let ident = self.current_path.0[0].clone();
 
-                Ok(Type::Ident(module))
+                Ok(Type::Ident(ident))
             }
         }
     }
@@ -449,7 +441,7 @@ impl TypeChecker {
     }
 
     fn ident_global(&mut self, ident: &mut Ident) -> Result<Type> {
-        match self.globals.get(ident) {
+        match self.globals.get(&Path::ident(ident.clone())) {
             Some(type_) => Ok(type_.clone()),
             None => bail!("Ident Not Found: {}", ident.as_str()),
         }
@@ -466,11 +458,15 @@ impl TypeChecker {
     ) -> Result<Type> {
         let (mut arg_types, result_type) = self.expr(caller.as_mut())?.to_func()?;
         if arg_types.len() != args.len() {
-            bail!(
+            return Err(anyhow!(
                 "wrong number of arguments, expected {}, but found {}",
                 arg_types.len(),
                 args.len()
-            );
+            )
+            .context(ErrorInSource {
+                start: caller.start.unwrap_or(0),
+                end: caller.end.unwrap_or(0),
+            }));
         }
 
         for (index, arg) in args.into_iter().enumerate() {
@@ -511,6 +507,13 @@ impl TypeChecker {
             Type::Vec(_) => self.resolve_record_type(Type::Ident(Ident("vec".to_string()))),
             _ => bail!("expected record type, but found {:?}", type_),
         }
+    }
+
+    fn path_to(&self, ident: &Ident) -> Path {
+        let mut path = self.current_path.clone();
+        path.push(ident.clone());
+
+        path
     }
 }
 
