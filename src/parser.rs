@@ -118,10 +118,15 @@ impl Parser {
     fn params(&mut self) -> Result<Vec<(Ident, Type)>> {
         let mut params = vec![];
         while self.peek()?.lexeme != Lexeme::RParen {
-            let name = self.ident()?;
-            self.expect(Lexeme::Colon)?;
-            let type_ = self.type_()?;
-            params.push((name, type_));
+            if self.peek()?.lexeme == Lexeme::Self_ {
+                self.consume()?;
+                params.push((Ident("self".to_string()), self.gen_omit()?));
+            } else {
+                let name = self.ident()?;
+                self.expect(Lexeme::Colon)?;
+                let type_ = self.type_()?;
+                params.push((name, type_));
+            }
 
             if self.peek()?.lexeme == Lexeme::RParen {
                 break;
@@ -398,113 +403,136 @@ impl Parser {
     }
 
     fn term_0(&mut self, with_struct: bool) -> Result<Source<Expr>> {
-        match self.peek()?.lexeme {
+        let position = self.position;
+        let mut current = match self.peek()?.lexeme {
             Lexeme::LParen => {
                 self.consume()?;
                 let expr = self.expr()?;
                 self.expect(Lexeme::RParen)?;
 
-                Ok(expr)
+                expr
             }
             Lexeme::Ident(_) => {
-                let position = self.position;
                 let ident = self.ident()?;
-                let mut current = self.source_from(Expr::Ident(ident.clone()), position);
 
-                loop {
-                    match self.peek()?.lexeme {
-                        Lexeme::LParen => {
-                            self.consume()?;
-                            let mut args = vec![];
-                            while self.peek()?.lexeme != Lexeme::RParen {
-                                args.push(self.expr()?);
+                self.source_from(Expr::Ident(ident.clone()), position)
+            }
+            Lexeme::Self_ => {
+                let position = self.position;
+                self.consume()?;
 
-                                if self.peek()?.lexeme == Lexeme::Comma {
-                                    self.consume()?;
-                                } else {
-                                    break;
-                                }
-                            }
-                            self.consume()?;
-
-                            current =
-                                self.source_from(Expr::Call(Box::new(current), args), position);
-                        }
-                        Lexeme::Dot => {
-                            self.consume()?;
-
-                            let field = self.ident()?;
-                            let omit = self.gen_omit()?;
-                            current = self.source_from(
-                                Expr::Project(Box::new(current), omit, field),
-                                position,
-                            );
-                        }
-                        Lexeme::LBrace if with_struct => {
-                            self.consume()?;
-
-                            let mut fields = vec![];
-                            while self.peek()?.lexeme != Lexeme::RBrace {
-                                let field = self.ident()?;
-                                self.expect(Lexeme::Colon)
-                                    .context("record:initialization")?;
-                                let value = self.expr()?;
-                                fields.push((field, value));
-
-                                if self.peek()?.lexeme == Lexeme::Comma {
-                                    self.consume()?;
-                                } else {
-                                    break;
-                                }
-                            }
-                            self.expect(Lexeme::RBrace)?;
-
-                            current =
-                                self.source_from(Expr::Record(ident.clone(), fields), position);
-                        }
-                        Lexeme::LBracket => {
-                            self.consume()?;
-
-                            let type_ = self.type_()?;
-                            self.expect(Lexeme::RBracket)?;
-
-                            self.expect(Lexeme::LParen)?;
-                            let mut args = vec![];
-                            while self.peek()?.lexeme != Lexeme::RParen {
-                                args.push(self.expr()?);
-
-                                if self.peek()?.lexeme == Lexeme::Comma {
-                                    self.consume()?;
-                                } else {
-                                    break;
-                                }
-                            }
-                            self.expect(Lexeme::RParen)?;
-
-                            match ident.as_str() {
-                                "make" => {
-                                    current = self.source_from(Expr::Make(type_, args), position);
-                                }
-                                "sizeof" => {
-                                    assert_eq!(args.len(), 0);
-
-                                    current = self.source_from(Expr::SizeOf(type_), position);
-                                }
-                                _ => unreachable!(),
-                            }
-                        }
-                        _ => break,
-                    }
-                }
-
-                Ok(current)
+                self.source_from(Expr::Self_, position)
             }
             _ => {
                 let lit = self.lit()?;
 
-                Ok(Source::unknown(Expr::Lit(lit)))
+                Source::unknown(Expr::Lit(lit))
+            }
+        };
+
+        loop {
+            match self.peek()?.lexeme {
+                Lexeme::LParen => {
+                    self.consume()?;
+                    let mut args = vec![];
+                    while self.peek()?.lexeme != Lexeme::RParen {
+                        args.push(self.expr()?);
+
+                        if self.peek()?.lexeme == Lexeme::Comma {
+                            self.consume()?;
+                        } else {
+                            break;
+                        }
+                    }
+                    self.consume()?;
+
+                    current = self.source_from(Expr::Call(Box::new(current), args), position);
+                }
+                Lexeme::Dot => {
+                    self.consume()?;
+
+                    let field = self.ident()?;
+                    let omit = self.gen_omit()?;
+                    current =
+                        self.source_from(Expr::Project(Box::new(current), omit, field), position);
+                }
+                Lexeme::LBrace if with_struct => {
+                    self.consume()?;
+
+                    let ident = match current.data {
+                        Expr::Ident(ident) => ident,
+                        _ => {
+                            bail!(
+                                "Expected identifier for record name, found {:?}",
+                                current.data
+                            )
+                        }
+                    };
+
+                    let mut fields = vec![];
+                    while self.peek()?.lexeme != Lexeme::RBrace {
+                        let field = self.ident()?;
+                        self.expect(Lexeme::Colon)
+                            .context("record:initialization")?;
+                        let value = self.expr()?;
+                        fields.push((field, value));
+
+                        if self.peek()?.lexeme == Lexeme::Comma {
+                            self.consume()?;
+                        } else {
+                            break;
+                        }
+                    }
+                    self.expect(Lexeme::RBrace)?;
+
+                    current = self.source_from(Expr::Record(ident, fields), position);
+                }
+                Lexeme::LBracket => {
+                    self.consume()?;
+
+                    let ident = match current.data {
+                        Expr::Ident(ident) => ident,
+                        _ => {
+                            bail!(
+                                "Expected identifier for record name, found {:?}",
+                                current.data
+                            )
+                        }
+                    };
+
+                    let type_ = self.type_()?;
+                    self.expect(Lexeme::RBracket)?;
+
+                    self.expect(Lexeme::LParen)?;
+                    let mut args = vec![];
+                    while self.peek()?.lexeme != Lexeme::RParen {
+                        args.push(self.expr()?);
+
+                        if self.peek()?.lexeme == Lexeme::Comma {
+                            self.consume()?;
+                        } else {
+                            break;
+                        }
+                    }
+                    self.expect(Lexeme::RParen)?;
+
+                    match ident.as_str() {
+                        "make" => {
+                            current = self.source_from(Expr::Make(type_, args), position);
+                        }
+                        "sizeof" => {
+                            assert_eq!(args.len(), 0);
+
+                            current = self.source_from(Expr::SizeOf(type_), position);
+                        }
+                        _ => unreachable!(),
+                    }
+                }
+                _ => break,
             }
         }
+
+        Ok(current)
     }
 
     fn ident(&mut self) -> Result<Ident> {

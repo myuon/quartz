@@ -15,6 +15,7 @@ pub enum Lexeme {
     For,
     In,
     As,
+    Self_,
     LParen,
     RParen,
     LBrace,
@@ -157,6 +158,7 @@ impl Lexer {
                     ("for", Lexeme::For),
                     ("in", Lexeme::In),
                     ("as", Lexeme::As),
+                    ("self", Lexeme::Self_),
                 ],
             ) {
                 continue;

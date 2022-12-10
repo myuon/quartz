@@ -400,6 +400,7 @@ impl IrCodeGenerator {
                 let type_ = IrType::from_type(type_)?;
                 Ok(IrTerm::SizeOf { type_ })
             }
+            Expr::Self_ => todo!(),
         }
     }
 

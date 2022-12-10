@@ -328,11 +328,11 @@ type Point = {
 };
 
 module Point {
-    fun get_x(): i32 {
+    fun get_x(self): i32 {
         return self.x;
     }
 
-    fun sum(): i32 {
+    fun sum(self): i32 {
         return self.get_x() + self.y;
     }
 

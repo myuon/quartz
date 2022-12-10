@@ -13,6 +13,7 @@ pub struct TypeChecker {
     locals: HashMap<Ident, Type>,
     pub globals: HashMap<Ident, Type>,
     pub types: HashMap<Ident, Type>,
+    current_module: Option<Ident>,
 }
 
 impl TypeChecker {
@@ -99,16 +100,23 @@ impl TypeChecker {
             .into_iter()
             .map(|(k, v)| (Ident(k.to_string()), v))
             .collect(),
+            current_module: None,
         }
     }
 
     pub fn run(&mut self, module: &mut Module) -> Result<()> {
-        self.module(&mut Ident("main".to_string()), module)?;
+        self.module(&mut Ident("main".to_string()), module, None)?;
 
         Ok(())
     }
 
-    fn module(&mut self, ident: &mut Ident, module: &mut Module) -> Result<()> {
+    fn module(
+        &mut self,
+        ident: &mut Ident,
+        module: &mut Module,
+        current_module: Option<Ident>,
+    ) -> Result<()> {
+        self.current_module = current_module;
         self.module_register_for_back_reference(ident, module)?;
         self.module_typecheck(ident, module)?;
 
@@ -174,6 +182,7 @@ impl TypeChecker {
                 self.module(
                     &mut Ident(format!("{}::{}", ident.as_str(), name.as_str())),
                     module,
+                    Some(name.clone()),
                 )?;
             }
         }
@@ -407,6 +416,14 @@ impl TypeChecker {
                 Ok(type_.clone())
             }
             Expr::SizeOf(_) => Ok(Type::I32),
+            Expr::Self_ => {
+                let module = self
+                    .current_module
+                    .clone()
+                    .ok_or(anyhow!("`self` is not available in this context"))?;
+
+                Ok(Type::Ident(module))
+            }
         }
     }
 

@@ -117,6 +117,7 @@ pub enum Lit {
 #[derive(PartialEq, Debug, Clone)]
 pub enum Expr {
     Ident(Ident),
+    Self_,
     Lit(Lit),
     Call(Box<Source<Expr>>, Vec<Source<Expr>>),
     Record(Ident, Vec<(Ident, Source<Expr>)>),
