@@ -429,6 +429,15 @@ impl IrCodeGenerator {
                 let type_ = IrType::from_type(type_)?;
                 Ok(IrTerm::SizeOf { type_ })
             }
+            Expr::Equal(lhs, rhs) => {
+                let lhs = self.expr(lhs)?;
+                let rhs = self.expr(rhs)?;
+
+                Ok(IrTerm::Call {
+                    callee: Box::new(IrTerm::Ident("equal".to_string())),
+                    args: vec![lhs, rhs],
+                })
+            }
         }
     }
 

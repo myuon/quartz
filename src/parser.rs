@@ -257,25 +257,13 @@ impl Parser {
         let position = self.position;
         let mut current = self.term_3(with_struct)?;
 
-        let token_position = self.position;
         let token = self.peek()?;
         match token.lexeme {
             Lexeme::DoubleEqual => {
                 self.consume()?;
-                let token_position_end = self.position;
                 let rhs = self.expr_(with_struct)?;
 
-                current = self.source_from(
-                    Expr::Call(
-                        Box::new(self.source(
-                            Expr::Ident(Ident("equal".to_string())),
-                            token_position,
-                            token_position_end,
-                        )),
-                        vec![current, rhs],
-                    ),
-                    position,
-                );
+                current = self.source_from(Expr::Equal(Box::new(current), Box::new(rhs)), position);
             }
             _ => (),
         }

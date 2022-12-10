@@ -117,6 +117,7 @@ pub enum Expr {
     Range(Box<Source<Expr>>, Box<Source<Expr>>),
     As(Box<Source<Expr>>, Type),
     Path(Path),
+    Equal(Box<Source<Expr>>, Box<Source<Expr>>),
 }
 
 #[derive(PartialEq, Debug, Clone)]

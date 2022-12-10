@@ -427,6 +427,18 @@ impl TypeChecker {
 
                 Ok(Type::Ident(ident))
             }
+            Expr::Equal(lhs, rhs) => {
+                let mut lhs_type = self.expr(lhs)?;
+                let mut rhs_type = self.expr(rhs)?;
+
+                self.unify(&mut lhs_type, &mut rhs_type)
+                    .context(ErrorInSource {
+                        start: lhs.start.unwrap_or(0),
+                        end: lhs.end.unwrap_or(0),
+                    })?;
+
+                Ok(Type::Bool)
+            }
         }
     }
 
@@ -579,7 +591,9 @@ impl Constrains {
                 Ok(Constrains::empty())
             }
             (Type::Nil, Type::Optional(_)) => Ok(Constrains::empty()),
+            (Type::Optional(_), Type::Nil) => Ok(Constrains::empty()),
             (type1, Type::Optional(type2)) => Constrains::unify(type1, type2.as_mut()),
+            (Type::Optional(type1), type2) => Constrains::unify(type1.as_mut(), type2),
             (type1, type2) => {
                 bail!(
                     "type mismatch, expected {}, but found {}",
