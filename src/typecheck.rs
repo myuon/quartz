@@ -56,16 +56,29 @@ impl TypeChecker {
             .into_iter()
             .map(|(k, v)| (Ident(k.to_string()), v))
             .collect(),
-            types: vec![(
-                "string",
-                Type::Record(vec![
-                    (Ident("length".to_string()), Type::I32),
-                    (
-                        Ident("data".to_string()),
-                        Type::Pointer(Box::new(Type::Byte)),
-                    ),
-                ]),
-            )]
+            types: vec![
+                (
+                    "string",
+                    Type::Record(vec![
+                        (Ident("length".to_string()), Type::I32),
+                        (
+                            Ident("data".to_string()),
+                            Type::Pointer(Box::new(Type::Byte)),
+                        ),
+                    ]),
+                ),
+                (
+                    "vec",
+                    Type::Record(vec![
+                        (
+                            Ident("data".to_string()),
+                            Type::Pointer(Box::new(Type::I32)),
+                        ),
+                        (Ident("length".to_string()), Type::I32),
+                        (Ident("capacity".to_string()), Type::I32),
+                    ]),
+                ),
+            ]
             .into_iter()
             .map(|(k, v)| (Ident(k.to_string()), v))
             .collect(),
@@ -285,7 +298,14 @@ impl TypeChecker {
                     },
                     Type::Array(p, _) => match label.as_str() {
                         "at" => Ok(Type::Func(vec![Type::I32], p)),
-                        "len" => Ok(Type::Func(vec![], Box::new(Type::I32))),
+                        "length" => Ok(Type::I32),
+                        _ => bail!("unknown method for {:?}: {}", p, label.as_str()),
+                    },
+                    Type::Vec(p) => match label.as_str() {
+                        "at" => Ok(Type::Func(vec![Type::I32], p)),
+                        "length" => Ok(Type::I32),
+                        "capacity" => Ok(Type::I32),
+                        "push" => Ok(Type::Func(vec![p.as_ref().clone()], Box::new(Type::Nil))),
                         _ => bail!("unknown method for {:?}: {}", p, label.as_str()),
                     },
                     _ => {

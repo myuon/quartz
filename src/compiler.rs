@@ -56,6 +56,24 @@ fun println(s: string) {
         n = n + 1;
     }
 }
+
+fun vec_push(v: vec[i32], e: i32) {
+    if v.length == v.capacity {
+        let new_capacity = v.capacity * 2;
+        let new_data = alloc(new_capacity);
+        copy(v.data, new_data, v.length);
+        free(v.data);
+        v.data = new_data;
+        v.capacity = new_capacity;
+    }
+
+    v.data.at(v.length) = e;
+    v = vec {
+        data: v.data,
+        length: v.length + 1,
+        capacity: v.capacity,
+    };
+}
 "#,
         );
 

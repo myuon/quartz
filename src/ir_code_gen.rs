@@ -236,10 +236,25 @@ impl IrCodeGenerator {
                             offset: Box::new(self.expr(&mut args[0])?),
                         })
                     }
-                    (Type::Array(_, size), "len") => {
-                        assert_eq!(args.len(), 0);
+                    (Type::Vec(_), "at") => {
+                        assert_eq!(args.len(), 1);
 
-                        Ok(IrTerm::I32(*size as i32))
+                        Ok(IrTerm::PointerAt {
+                            address: Box::new(self.expr(expr)?),
+                            offset: Box::new(self.expr(&mut args[0])?),
+                        })
+                    }
+                    (Type::Vec(_), "push") => {
+                        assert_eq!(args.len(), 1);
+
+                        Ok(
+                            self.statement(&mut Statement::Expr(Source::unknown(Expr::Call(
+                                Box::new(Source::unknown(Expr::Ident(Ident(
+                                    "vec_push".to_string(),
+                                )))),
+                                vec![expr.as_ref().clone(), args[0].clone()],
+                            ))))?,
+                        )
                     }
                     _ => {
                         let mut elements = vec![];

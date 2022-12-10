@@ -249,7 +249,7 @@ impl Parser {
             Lexeme::DoubleEqual => {
                 self.consume()?;
                 let token_position_end = self.position;
-                let rhs = self.expr()?;
+                let rhs = self.expr_(with_struct)?;
 
                 current = self.source_from(
                     Expr::Call(
@@ -507,7 +507,7 @@ impl Parser {
                 return Err(
                     anyhow!("Expected literal, got {:?}", current.lexeme).context(ErrorInSource {
                         start: self.input[self.position].position,
-                        end: self.input[self.position + 1].position,
+                        end: self.input[self.position].position,
                     }),
                 )
             }
@@ -536,6 +536,13 @@ impl Parser {
 
                     Ok(Type::Array(Box::new(type_), size as usize))
                 }
+                "vec" => {
+                    self.expect(Lexeme::LBracket)?;
+                    let type_ = self.type_()?;
+                    self.expect(Lexeme::RBracket)?;
+
+                    Ok(Type::Vec(Box::new(type_)))
+                }
                 ident => Ok(Type::Ident(Ident(ident.to_string()))),
             },
             Lexeme::LBrace => {
@@ -556,6 +563,7 @@ impl Parser {
 
                 Ok(Type::Record(fields))
             }
+            Lexeme::Underscore => Ok(self.gen_omit()?),
             _ => bail!("Expected type, got {:?}", current.lexeme),
         }
     }
@@ -587,7 +595,7 @@ impl Parser {
             return Err(
                 anyhow!("Expected {:?}, got {:?}", lexeme, token.lexeme).context(ErrorInSource {
                     start: self.input[self.position].position,
-                    end: self.input[self.position + 1].position,
+                    end: self.input[self.position].position,
                 }),
             );
         }

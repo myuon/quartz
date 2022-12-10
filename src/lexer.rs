@@ -31,6 +31,7 @@ pub enum Lexeme {
     DoubleDot,
     Dot,
     Lt,
+    Underscore,
     Ident(String),
     Int(i32),
     String(String),
@@ -179,6 +180,7 @@ impl Lexer {
                     ("..", Lexeme::DoubleDot),
                     (".", Lexeme::Dot),
                     ("<", Lexeme::Lt),
+                    ("_", Lexeme::Underscore),
                 ],
             ) {
                 continue;

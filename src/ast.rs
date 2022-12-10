@@ -27,6 +27,7 @@ pub enum Type {
     Ident(Ident),
     Pointer(Box<Type>),
     Array(Box<Type>, usize),
+    Vec(Box<Type>),
     Range(Box<Type>),
 }
 
@@ -58,6 +59,7 @@ impl Type {
             Type::Array(type_, size) => format!("array[{}, {}]", type_.to_string(), size),
             Type::Byte => "byte".to_string(),
             Type::Range(type_) => format!("range[{}]", type_.to_string()),
+            Type::Vec(type_) => format!("vec[{}]", type_.to_string()),
         }
     }
 

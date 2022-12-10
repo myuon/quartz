@@ -341,6 +341,7 @@ impl IrType {
             Type::Pointer(_) => Ok(IrType::Address),
             Type::Array(_, _) => Ok(IrType::Address),
             Type::Byte => Ok(IrType::I32),
+            Type::Vec(_) => Ok(IrType::Address),
             _ => bail!("unknown type {}", type_.to_string()),
         }
     }

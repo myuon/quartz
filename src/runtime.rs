@@ -290,6 +290,19 @@ fun main() {
     return sum;
 }
 "#,
+                vec![Value::I32(45)],
+            ),
+            (
+                r#"
+fun main() {
+    let p = make[vec[i32]]();
+    for i in 0..100 {
+        p.push(i);
+    }
+    
+    return p.at(40) + p.at(60);
+}
+"#,
                 vec![Value::I32(40)],
             ),
         ];
