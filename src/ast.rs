@@ -27,6 +27,7 @@ pub enum Type {
     Ident(Ident),
     Pointer(Box<Type>),
     Array(Box<Type>, usize),
+    Range(Box<Type>),
 }
 
 impl Type {
@@ -56,6 +57,7 @@ impl Type {
             Type::Pointer(t) => format!("pointer[{}]", t.to_string()),
             Type::Array(type_, size) => format!("array[{}, {}]", type_.to_string(), size),
             Type::Byte => "byte".to_string(),
+            Type::Range(type_) => format!("range[{}]", type_.to_string()),
         }
     }
 
@@ -93,6 +95,13 @@ impl Type {
             _ => false,
         }
     }
+
+    pub fn as_range_type(&self) -> Result<&Type> {
+        match self {
+            Type::Range(t) => Ok(t),
+            _ => bail!("expected range type, but found {}", self.to_string()),
+        }
+    }
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -109,6 +118,7 @@ pub enum Expr {
     Record(Ident, Vec<(Ident, Source<Expr>)>),
     Project(Box<Source<Expr>>, Type, Ident),
     Make(Type, Vec<Source<Expr>>),
+    Range(Box<Source<Expr>>, Box<Source<Expr>>),
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -119,6 +129,7 @@ pub enum Statement {
     Assign(Box<Source<Expr>>, Box<Source<Expr>>),
     If(Source<Expr>, Type, Vec<Statement>, Option<Vec<Statement>>),
     While(Source<Expr>, Vec<Statement>),
+    For(Ident, Source<Expr>, Vec<Statement>),
 }
 
 #[derive(PartialEq, Debug, Clone)]

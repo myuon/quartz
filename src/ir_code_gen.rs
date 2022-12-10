@@ -51,10 +51,7 @@ impl IrCodeGenerator {
     }
 
     fn func(&mut self, func: &mut Func) -> Result<IrTerm> {
-        let mut elements = vec![];
-        for statement in &mut func.body {
-            elements.push(self.statement(statement)?);
-        }
+        let elements = self.statements(&mut func.body)?;
 
         let mut params = vec![];
         for (ident, type_) in &func.params {
@@ -67,6 +64,14 @@ impl IrCodeGenerator {
             result: Box::new(IrType::from_type(&func.result)?),
             body: vec![IrTerm::Seq { elements }],
         })
+    }
+
+    fn statements(&mut self, statements: &mut Vec<Statement>) -> Result<Vec<IrTerm>> {
+        let mut elements = vec![];
+        for statement in statements {
+            elements.push(self.statement(statement)?);
+        }
+        Ok(elements)
     }
 
     fn statement(&mut self, statement: &mut Statement) -> Result<IrTerm> {
@@ -116,6 +121,39 @@ impl IrCodeGenerator {
                     body: Box::new(IrTerm::Seq { elements }),
                 })
             }
+            Statement::For(ident, range, body) => match &mut range.data {
+                Expr::Range(start, end) => {
+                    let mut elements = self.statements(body)?;
+                    elements.push(IrTerm::Assign {
+                        lhs: ident.0.clone(),
+                        rhs: Box::new(IrTerm::Call {
+                            callee: Box::new(IrTerm::Ident("add".to_string())),
+                            args: vec![IrTerm::Ident(ident.0.clone()), IrTerm::I32(1)],
+                        }),
+                    });
+
+                    Ok(IrTerm::Seq {
+                        elements: vec![
+                            IrTerm::Let {
+                                name: ident.as_str().to_string(),
+                                type_: IrType::I32,
+                                value: Box::new(self.expr(start.as_mut())?),
+                            },
+                            IrTerm::While {
+                                cond: Box::new(IrTerm::Call {
+                                    callee: Box::new(IrTerm::Ident("lt".to_string())),
+                                    args: vec![
+                                        IrTerm::Ident(ident.as_str().to_string()),
+                                        self.expr(end.as_mut())?,
+                                    ],
+                                }),
+                                body: Box::new(IrTerm::Seq { elements }),
+                            },
+                        ],
+                    })
+                }
+                _ => bail!("invalid range expression, {:?}", range),
+            },
         }
     }
 
@@ -322,6 +360,7 @@ impl IrCodeGenerator {
                 }),
                 _ => bail!("unsupported type for make: {:?}", type_),
             },
+            Expr::Range(_, _) => todo!(),
         }
     }
 

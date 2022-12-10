@@ -12,6 +12,8 @@ pub enum Lexeme {
     If,
     Else,
     While,
+    For,
+    In,
     LParen,
     RParen,
     LBrace,
@@ -26,6 +28,7 @@ pub enum Lexeme {
     Minus,
     Star,
     Comma,
+    DoubleDot,
     Dot,
     Lt,
     Ident(String),
@@ -149,6 +152,8 @@ impl Lexer {
                     ("if", Lexeme::If),
                     ("else", Lexeme::Else),
                     ("while", Lexeme::While),
+                    ("for", Lexeme::For),
+                    ("in", Lexeme::In),
                 ],
             ) {
                 continue;
@@ -171,6 +176,7 @@ impl Lexer {
                     ("-", Lexeme::Minus),
                     ("*", Lexeme::Star),
                     (",", Lexeme::Comma),
+                    ("..", Lexeme::DoubleDot),
                     (".", Lexeme::Dot),
                     ("<", Lexeme::Lt),
                 ],

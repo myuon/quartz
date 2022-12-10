@@ -274,6 +274,24 @@ fun main() {
 "#,
                 vec![Value::I32(20)],
             ),
+            (
+                r#"
+fun main() {
+    let p = make[array[i32,20]]();
+    for i in 0..10 {
+        p.at(i) = i;
+    }
+    
+    let sum = 0;
+    for i in 0..10 {
+        sum = sum + p.at(i);
+    }
+
+    return sum;
+}
+"#,
+                vec![Value::I32(40)],
+            ),
         ];
 
         for (input, expected) in cases {

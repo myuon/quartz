@@ -221,6 +221,17 @@ impl TypeChecker {
 
                 Ok(None)
             }
+            Statement::For(ident, range, body) => {
+                let type_ = self.expr(range)?;
+                let element = type_.as_range_type()?;
+
+                self.locals.insert(ident.clone(), element.clone());
+
+                let mut body_type = Type::Omit(0);
+                self.block(body, &mut body_type)?;
+
+                Ok(None)
+            }
         }
     }
 
@@ -302,6 +313,18 @@ impl TypeChecker {
                 assert_eq!(args, &mut vec![]);
 
                 Ok(type_.clone())
+            }
+            Expr::Range(start, end) => {
+                let mut start_type = self.expr(start)?;
+                let mut end_type = self.expr(end)?;
+
+                self.unify(&mut start_type, &mut end_type)
+                    .context(ErrorInSource {
+                        start: start.start.unwrap_or(0),
+                        end: start.end.unwrap_or(0),
+                    })?;
+
+                Ok(Type::Range(Box::new(start_type)))
             }
         }
     }

@@ -178,6 +178,17 @@ impl Parser {
 
                 Ok(Statement::While(condition, body))
             }
+            Lexeme::For => {
+                self.consume()?;
+                let ident = self.ident()?;
+                self.expect(Lexeme::In)?;
+                let range = self.expr_conditional()?;
+                self.expect(Lexeme::LBrace)?;
+                let body = self.block()?;
+                self.expect(Lexeme::RBrace)?;
+
+                Ok(Statement::For(ident, range, body))
+            }
             _ => {
                 let expr = self.expr()?;
 
@@ -281,6 +292,12 @@ impl Parser {
                     ),
                     position,
                 );
+            }
+            Lexeme::DoubleDot => {
+                self.consume()?;
+                let rhs = self.expr_(with_struct)?;
+
+                current = self.source_from(Expr::Range(Box::new(current), Box::new(rhs)), position);
             }
             _ => (),
         }
@@ -489,8 +506,8 @@ impl Parser {
             _ => {
                 return Err(
                     anyhow!("Expected literal, got {:?}", current.lexeme).context(ErrorInSource {
-                        start: self.position,
-                        end: current.position,
+                        start: self.input[self.position].position,
+                        end: self.input[self.position + 1].position,
                     }),
                 )
             }

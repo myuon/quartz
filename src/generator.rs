@@ -132,12 +132,19 @@ impl Generator {
                 .write(&format!("(result {})", result.to_string()));
         }
 
+        let mut used = HashSet::new();
         for term in body.iter() {
             for (name, type_, _) in term.find_let() {
+                if used.contains(&name) {
+                    continue;
+                }
+
                 self.writer.start();
                 self.writer
                     .write(&format!("local ${} {}", name.as_str(), type_.to_string()));
                 self.writer.end();
+
+                used.insert(name);
             }
         }
         for expr in body.iter_mut() {
