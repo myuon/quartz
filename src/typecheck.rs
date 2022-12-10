@@ -78,21 +78,21 @@ impl TypeChecker {
                 (
                     "string",
                     Type::Record(vec![
-                        (Ident("length".to_string()), Type::I32),
                         (
                             Ident("data".to_string()),
                             Type::Pointer(Box::new(Type::Byte)),
                         ),
+                        (Ident("length".to_string()), Type::I32),
                     ]),
                 ),
                 (
                     "array",
                     Type::Record(vec![
-                        (Ident("length".to_string()), Type::I32),
                         (
                             Ident("data".to_string()),
                             Type::Pointer(Box::new(Type::Byte)),
                         ),
+                        (Ident("length".to_string()), Type::I32),
                     ]),
                 ),
                 (
@@ -322,46 +322,52 @@ impl TypeChecker {
                     end: expr.end.unwrap_or(0),
                 })?;
 
-                match expr_type {
-                    // methods for Pointer<_> type
-                    Type::Pointer(p) => match label.as_str() {
-                        "at" => Ok(Type::Func(vec![Type::I32], p)),
-                        _ => bail!("unknown method for {:?}: {}", p, label.as_str()),
-                    },
-                    Type::Array(p, _) => match label.as_str() {
-                        "data" => Ok(Type::Pointer(p)),
-                        "length" => Ok(Type::I32),
-                        "at" => Ok(Type::Func(vec![Type::I32], p)),
-                        _ => bail!("unknown method for {:?}: {}", p, label.as_str()),
-                    },
-                    Type::Vec(p) => match label.as_str() {
-                        "data" => Ok(Type::Pointer(p)),
-                        "length" => Ok(Type::I32),
-                        "capacity" => Ok(Type::I32),
-                        "at" => Ok(Type::Func(vec![Type::I32], p)),
-                        "push" => Ok(Type::Func(vec![p.as_ref().clone()], Box::new(Type::Nil))),
-                        _ => bail!("unknown method for {:?}: {}", p, label.as_str()),
-                    },
-                    _ => {
-                        let fields =
-                            self.resolve_record_type(expr_type.clone())
-                                .context(ErrorInSource {
-                                    start: expr.start.unwrap_or(0),
-                                    end: expr.end.unwrap_or(0),
-                                })?;
-                        let type_ = fields
-                            .into_iter()
-                            .find(|p| p.0 .0 == label.0)
-                            .ok_or(anyhow!(
-                                "field `{:?}` not found in record `{:?}`",
-                                label,
-                                expr_type
-                            ))?
-                            .1;
-
-                        Ok(type_.clone())
+                // methods for builtin types
+                if let Type::Pointer(p) = &mut expr_type {
+                    match label.as_str() {
+                        "at" => {
+                            return Ok(Type::Func(vec![Type::I32], p.clone()));
+                        }
+                        _ => (),
                     }
                 }
+                if let Type::Array(p, _) = &mut expr_type {
+                    match label.as_str() {
+                        "at" => {
+                            return Ok(Type::Func(vec![Type::I32], p.clone()));
+                        }
+                        _ => (),
+                    }
+                }
+                if let Type::Vec(p) = &mut expr_type {
+                    match label.as_str() {
+                        "at" => {
+                            return Ok(Type::Func(vec![Type::I32], p.clone()));
+                        }
+                        "push" => {
+                            return Ok(Type::Func(vec![p.as_ref().clone()], Box::new(Type::Nil)));
+                        }
+                        _ => (),
+                    }
+                }
+
+                let fields =
+                    self.resolve_record_type(expr_type.clone())
+                        .context(ErrorInSource {
+                            start: expr.start.unwrap_or(0),
+                            end: expr.end.unwrap_or(0),
+                        })?;
+                let type_ = fields
+                    .into_iter()
+                    .find(|p| p.0 .0 == label.0)
+                    .ok_or(anyhow!(
+                        "field `{:?}` not found in record `{:?}`",
+                        label,
+                        expr_type
+                    ))?
+                    .1;
+
+                Ok(type_.clone())
             }
             Expr::Make(type_, args) => {
                 assert_eq!(args, &mut vec![]);
@@ -461,6 +467,8 @@ impl TypeChecker {
                 Ok(fields)
             }
             Type::Record(fields) => Ok(fields),
+            Type::Array(_, _) => self.resolve_record_type(Type::Ident(Ident("array".to_string()))),
+            Type::Vec(_) => self.resolve_record_type(Type::Ident(Ident("vec".to_string()))),
             _ => bail!("expected record type, but found {:?}", type_),
         }
     }
