@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 
-use crate::util::{ident::Ident, source::Source};
+use crate::util::{ident::Ident, path::Path, source::Source};
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Type {
@@ -113,6 +113,7 @@ pub enum Expr {
     SizeOf(Type),
     Range(Box<Source<Expr>>, Box<Source<Expr>>),
     As(Box<Source<Expr>>, Type),
+    Path(Path),
 }
 
 #[derive(PartialEq, Debug, Clone)]

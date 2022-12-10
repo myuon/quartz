@@ -4,7 +4,7 @@ use crate::{
     ast::{Decl, Expr, Func, Lit, Module, Statement, Type},
     compiler::ErrorInSource,
     lexer::{Lexeme, Token},
-    util::{ident::Ident, source::Source},
+    util::{ident::Ident, path::Path, source::Source},
 };
 
 pub struct Parser {
@@ -527,6 +527,22 @@ impl Parser {
                         }
                         _ => unreachable!(),
                     }
+                }
+                Lexeme::DoubleColon => {
+                    self.consume()?;
+
+                    let ident = match current.data {
+                        Expr::Ident(ident) => ident,
+                        _ => {
+                            bail!(
+                                "Expected identifier for record name, found {:?}",
+                                current.data
+                            )
+                        }
+                    };
+
+                    let name = self.ident()?;
+                    current = self.source_from(Expr::Path(Path::new(vec![ident, name])), position);
                 }
                 _ => break,
             }

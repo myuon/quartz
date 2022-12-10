@@ -345,7 +345,7 @@ module Point {
 }
 
 fun main() {
-    let p = Point.new(10, 20);
+    let p = Point::new(10, 20);
 
     return p.sum();
 }

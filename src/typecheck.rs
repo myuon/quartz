@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::format};
 
 use anyhow::{anyhow, bail, Context, Result};
 
@@ -299,6 +299,11 @@ impl TypeChecker {
         match &mut expr.data {
             Expr::Lit(lit) => self.lit(lit),
             Expr::Ident(ident) => self.ident(ident),
+            Expr::Path(path) => self
+                .globals
+                .get(path)
+                .cloned()
+                .ok_or(anyhow!("unknown path: {:?}", path)),
             Expr::Call(caller, args) => self.call(caller, args),
             Expr::Record(ident, record) => {
                 let mut field_types = self
@@ -381,11 +386,12 @@ impl TypeChecker {
                     Ok(fields[label].clone())
                 } else {
                     // method access
+                    let path = Path::new(vec![expr_type.clone().to_ident()?, label.clone()]);
 
                     let type_ = self
                         .globals
-                        .get(&self.path_to(&label))
-                        .ok_or(anyhow!("unknown method: {}", label.as_str()))?;
+                        .get(&path)
+                        .ok_or(anyhow!("unknown method: {:?}", path))?;
                     let (mut arg_types, result_type) = type_.clone().to_func()?;
                     self.unify(&mut expr_type, &mut arg_types[0])?;
 

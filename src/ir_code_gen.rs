@@ -190,6 +190,7 @@ impl IrCodeGenerator {
     fn expr(&mut self, expr: &mut Source<Expr>) -> Result<IrTerm> {
         match &mut expr.data {
             Expr::Ident(ident) => Ok(IrTerm::ident(ident.as_str())),
+            Expr::Path(path) => Ok(IrTerm::ident(format!("{}", path.0[1].as_str()))),
             Expr::Lit(lit) => match lit {
                 Lit::I32(i) => Ok(IrTerm::i32(*i)),
                 Lit::String(s) => Ok(IrTerm::Seq {
