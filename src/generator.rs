@@ -79,6 +79,15 @@ impl Generator {
 
     local.get $addr
 )
+
+(func $mem_copy (param $source i32) (param $target i32) (param $length i32)
+    local.get $target
+    local.get $source
+    local.get $length
+    memory.copy
+)
+(func $mem_free (param $address i32)
+)
 "#,
         );
 

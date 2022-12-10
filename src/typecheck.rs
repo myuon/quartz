@@ -52,6 +52,24 @@ impl TypeChecker {
                     "write_stdout",
                     Type::Func(vec![Type::Byte], Box::new(Type::Nil)),
                 ),
+                (
+                    "mem_copy",
+                    Type::Func(
+                        vec![
+                            Type::Pointer(Box::new(Type::I32)),
+                            Type::Pointer(Box::new(Type::I32)),
+                            Type::I32,
+                        ],
+                        Box::new(Type::Nil),
+                    ),
+                ),
+                (
+                    "mem_free",
+                    Type::Func(
+                        vec![Type::Pointer(Box::new(Type::I32))],
+                        Box::new(Type::Nil),
+                    ),
+                ),
             ]
             .into_iter()
             .map(|(k, v)| (Ident(k.to_string()), v))
@@ -168,6 +186,10 @@ impl TypeChecker {
             if let Some(result) = &mut self.statement(statement)? {
                 self.unify(expected, result)?;
             }
+        }
+
+        if expected.is_omit() {
+            self.unify(expected, &mut Type::Nil)?;
         }
 
         Ok(())
@@ -302,9 +324,10 @@ impl TypeChecker {
                         _ => bail!("unknown method for {:?}: {}", p, label.as_str()),
                     },
                     Type::Vec(p) => match label.as_str() {
-                        "at" => Ok(Type::Func(vec![Type::I32], p)),
+                        "data" => Ok(Type::Pointer(p)),
                         "length" => Ok(Type::I32),
                         "capacity" => Ok(Type::I32),
+                        "at" => Ok(Type::Func(vec![Type::I32], p)),
                         "push" => Ok(Type::Func(vec![p.as_ref().clone()], Box::new(Type::Nil))),
                         _ => bail!("unknown method for {:?}: {}", p, label.as_str()),
                     },
@@ -476,6 +499,12 @@ impl Constrains {
             }
             (Type::Pointer(type1), Type::Pointer(type2)) => {
                 Constrains::unify(type1.as_ref(), type2.as_ref())
+            }
+            (Type::Ident(ident), Type::Vec(_)) if ident.as_str() == "vec" => {
+                Ok(Constrains::empty())
+            }
+            (Type::Vec(_), Type::Ident(ident)) if ident.as_str() == "vec" => {
+                Ok(Constrains::empty())
             }
             (type1, type2) => {
                 bail!(

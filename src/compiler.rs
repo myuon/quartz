@@ -55,24 +55,33 @@ fun println(s: string) {
         write_stdout(d.at(n));
         n = n + 1;
     }
+
+    write_stdout(10 as byte);
+}
+
+fun vec_make(init_capacity: i32, size: i32): vec[i32] {
+    let capacity = init_capacity;
+    let length = 0;
+    let data = alloc(capacity * size);
+    return vec {
+        data: data,
+        length: length,
+        capacity: capacity,
+    };
 }
 
 fun vec_push(v: vec[i32], e: i32) {
-    if v.length == v.capacity {
+    if (v.length + 1) == v.capacity {
         let new_capacity = v.capacity * 2;
         let new_data = alloc(new_capacity);
-        copy(v.data, new_data, v.length);
-        free(v.data);
+        mem_copy(v.data, new_data, v.length);
+        mem_free(v.data);
         v.data = new_data;
         v.capacity = new_capacity;
     }
 
     v.data.at(v.length) = e;
-    v = vec {
-        data: v.data,
-        length: v.length + 1,
-        capacity: v.capacity,
-    };
+    v.length = v.length + 1;
 }
 "#,
         );

@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, bail, Context, Result};
 
 use crate::{
     ast::{Decl, Expr, Func, Ident, Lit, Module, Statement, Type},
+    compiler::ErrorInSource,
     ir::{IrTerm, IrType},
     util::source::Source,
 };
@@ -101,7 +102,10 @@ impl IrCodeGenerator {
 
                 Ok(IrTerm::If {
                     cond: Box::new(self.expr(cond)?),
-                    type_: IrType::from_type(type_)?,
+                    type_: IrType::from_type(type_).context(ErrorInSource {
+                        start: cond.start.unwrap_or(0),
+                        end: cond.end.unwrap_or(0),
+                    })?,
                     then: Box::new(IrTerm::Seq {
                         elements: then_elements,
                     }),
@@ -372,6 +376,15 @@ impl IrCodeGenerator {
                             IrTerm::i32(*size as i32),
                         ],
                     }],
+                }),
+                Type::Vec(type_) => Ok(IrTerm::Call {
+                    callee: Box::new(IrTerm::Ident("vec_make".to_string())),
+                    args: vec![
+                        IrTerm::i32(5),
+                        IrTerm::SizeOf {
+                            type_: IrType::from_type(type_)?,
+                        },
+                    ],
                 }),
                 _ => bail!("unsupported type for make: {:?}", type_),
             },

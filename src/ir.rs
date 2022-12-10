@@ -311,6 +311,12 @@ impl IrTerm {
                 result.extend(else_.find_let());
                 result
             }
+            IrTerm::While { cond, body } => {
+                let mut result = vec![];
+                result.extend(cond.find_let());
+                result.extend(body.find_let());
+                result
+            }
             IrTerm::Module { elements } => todo!(),
             _ => vec![],
         }

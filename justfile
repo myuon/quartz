@@ -6,3 +6,6 @@ dump:
 
 compile:
   cargo run -- compile
+
+run:
+  cargo run -- run
