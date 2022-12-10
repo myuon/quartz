@@ -5,6 +5,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use crate::{
     ast::{Decl, Expr, Func, Ident, Lit, Module, Statement, Type},
     compiler::ErrorInSource,
+    ir::{IrTerm, IrType},
     util::source::Source,
 };
 
@@ -63,6 +64,10 @@ impl TypeChecker {
                 (
                     "mem_free",
                     Type::Func(vec![Type::Ptr(Box::new(Type::I32))], Box::new(Type::Nil)),
+                ),
+                (
+                    "debug_i32",
+                    Type::Func(vec![Type::I32], Box::new(Type::Nil)),
                 ),
             ]
             .into_iter()
@@ -376,6 +381,7 @@ impl TypeChecker {
 
                 Ok(type_.clone())
             }
+            Expr::SizeOf(_) => Ok(Type::I32),
         }
     }
 

@@ -122,6 +122,7 @@ pub enum Expr {
     Record(Ident, Vec<(Ident, Source<Expr>)>),
     Project(Box<Source<Expr>>, Type, Ident),
     Make(Type, Vec<Source<Expr>>),
+    SizeOf(Type),
     Range(Box<Source<Expr>>, Box<Source<Expr>>),
     As(Box<Source<Expr>>, Type),
 }

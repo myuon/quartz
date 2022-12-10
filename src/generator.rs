@@ -54,6 +54,11 @@ impl Generator {
         self.writer.end();
 
         self.writer.start();
+        self.writer
+            .write(r#"import "env" "debug_i32" (func $debug_i32 (param i32))"#);
+        self.writer.end();
+
+        self.writer.start();
         self.writer.write(r#"memory 1"#);
         self.writer.end();
 

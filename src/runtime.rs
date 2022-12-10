@@ -315,10 +315,10 @@ fun main() {
         p.push(i);
     }
 
-    return p.at(1);
+    return p.at(40) + p.at(60);
 }
 "#,
-                vec![Value::I32(40)],
+                vec![Value::I32(100)],
             ),
         ];
 

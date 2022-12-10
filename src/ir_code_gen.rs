@@ -395,6 +395,10 @@ impl IrCodeGenerator {
             },
             Expr::Range(_, _) => todo!(),
             Expr::As(expr, _) => self.expr(expr),
+            Expr::SizeOf(type_) => {
+                let type_ = IrType::from_type(type_)?;
+                Ok(IrTerm::SizeOf { type_ })
+            }
         }
     }
 

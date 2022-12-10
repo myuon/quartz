@@ -472,9 +472,17 @@ impl Parser {
                             }
                             self.expect(Lexeme::RParen)?;
 
-                            assert_eq!(ident.as_str(), "make");
+                            match ident.as_str() {
+                                "make" => {
+                                    current = self.source_from(Expr::Make(type_, args), position);
+                                }
+                                "sizeof" => {
+                                    assert_eq!(args.len(), 0);
 
-                            current = self.source_from(Expr::Make(type_, args), position);
+                                    current = self.source_from(Expr::SizeOf(type_), position);
+                                }
+                                _ => unreachable!(),
+                            }
                         }
                         _ => break,
                     }
