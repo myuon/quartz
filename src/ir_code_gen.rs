@@ -178,6 +178,10 @@ impl IrCodeGenerator {
                 offset,
                 value: Box::new(rhs),
             }),
+            IrTerm::Call { .. } => Ok(IrTerm::SetPointer {
+                address: Box::new(lhs),
+                value: Box::new(rhs),
+            }),
             _ => bail!("invalid lhs for assignment: {}", lhs.to_string()),
         }
     }
@@ -225,12 +229,16 @@ impl IrCodeGenerator {
                             index: Box::new(self.expr(&mut args[0])?),
                         })
                     }
-                    (Type::Array(p, _), "at") => {
+                    (Type::Array(p, s), "at") => {
                         assert_eq!(args.len(), 1);
 
                         Ok(IrTerm::PointerAt {
                             type_: IrType::from_type(p)?,
-                            address: Box::new(self.expr(expr)?),
+                            address: Box::new(self.expr(&mut Source::unknown(Expr::Project(
+                                expr.clone(),
+                                Type::Array(p.clone(), *s),
+                                Ident("data".to_string()),
+                            )))?),
                             index: Box::new(self.expr(&mut args[0])?),
                         })
                     }
@@ -239,7 +247,11 @@ impl IrCodeGenerator {
 
                         Ok(IrTerm::PointerAt {
                             type_: IrType::from_type(p)?,
-                            address: Box::new(self.expr(expr)?),
+                            address: Box::new(self.expr(&mut Source::unknown(Expr::Project(
+                                expr.clone(),
+                                Type::Vec(p.clone()),
+                                Ident("data".to_string()),
+                            )))?),
                             index: Box::new(self.expr(&mut args[0])?),
                         })
                     }
@@ -360,18 +372,16 @@ impl IrCodeGenerator {
                 })
             }
             Expr::Make(type_, _) => match type_ {
-                Type::Array(elem, size) => Ok(IrTerm::Call {
-                    callee: Box::new(IrTerm::Ident("alloc".to_string())),
-                    args: vec![IrTerm::Call {
-                        callee: Box::new(IrTerm::Ident("mult".to_string())),
-                        args: vec![
-                            IrTerm::SizeOf {
-                                type_: IrType::from_type(elem)?,
-                            },
-                            IrTerm::i32(*size as i32),
-                        ],
-                    }],
-                }),
+                Type::Array(_elem, size) => Ok(self.expr(&mut Source::unknown(Expr::Record(
+                    Ident("array".to_string()),
+                    vec![(
+                        Ident("data".to_string()),
+                        Source::unknown(Expr::Call(
+                            Box::new(Source::unknown(Expr::Ident(Ident("alloc".to_string())))),
+                            vec![Source::unknown(Expr::Lit(Lit::I32(*size as i32)))],
+                        )),
+                    )],
+                )))?),
                 Type::Vec(type_) => Ok(IrTerm::Call {
                     callee: Box::new(IrTerm::Ident("vec_make".to_string())),
                     args: vec![

@@ -17,8 +17,7 @@ impl Runtime {
         let import_object = imports! {
             "env" => {
                 "write_stdout" => Function::new_typed(&mut store, |ch: u32| {
-                    println!("{:?}", String::from_utf8(ch.to_be_bytes().to_vec()));
-                    std::io::stdout().lock().write(&[ch as u8]).unwrap();
+                        std::io::stdout().lock().write(&[ch as u8]).unwrap();
                 }),
                 "debug_i32" => Function::new_typed(&mut store, |i: i32| {
                     println!("[DEBUG_I32] {}", i);
@@ -312,11 +311,11 @@ fun main() {
                 r#"
 fun main() {
     let p = make[vec[i32]]();
-    for i in 0..1 {
+    for i in 0..100 {
         p.push(i);
     }
 
-    return p.at(40) + p.at(60);
+    return p.at(1);
 }
 "#,
                 vec![Value::I32(40)],

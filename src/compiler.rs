@@ -79,9 +79,6 @@ fun vec_make(init_capacity: i32, size: i32): vec[i32] {
 }
 
 fun vec_push(v: vec[i32], e: i32) {
-    println("vec_push");
-    println(digit_to_string(2));
-
     if (v.length + 1) == v.capacity {
         let new_capacity = v.capacity * 2;
         let new_data = alloc(new_capacity);
