@@ -20,6 +20,9 @@ impl Runtime {
                     println!("{:?}", String::from_utf8(ch.to_be_bytes().to_vec()));
                     std::io::stdout().lock().write(&[ch as u8]).unwrap();
                 }),
+                "debug_i32" => Function::new_typed(&mut store, |i: i32| {
+                    println!("[DEBUG_I32] {}", i);
+                }),
             }
         };
         let instance = Instance::new(&mut store, &module, &import_object)?;
@@ -313,7 +316,7 @@ fun main() {
             let wat = compiler.compile(input).unwrap();
             let result = runtime
                 .run(&wat)
-                .context(format!("\n== SOURCE\n{}\n\n== COMPILED\n{}", input, wat))
+                .context(format!("\n== SOURCE\n{}", input))
                 .unwrap();
             assert_eq!(expected.as_slice(), result.as_ref(), "case: {}", input);
         }

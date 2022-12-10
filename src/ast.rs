@@ -25,7 +25,7 @@ pub enum Type {
     Func(Vec<Type>, Box<Type>),
     Record(Vec<(Ident, Type)>),
     Ident(Ident),
-    Pointer(Box<Type>),
+    Ptr(Box<Type>),
     Array(Box<Type>, usize),
     Vec(Box<Type>),
     Range(Box<Type>),
@@ -55,7 +55,7 @@ impl Type {
                     .join(", ")
             ),
             Type::Ident(name) => format!("{}", name.as_str()),
-            Type::Pointer(t) => format!("pointer[{}]", t.to_string()),
+            Type::Ptr(t) => format!("pointer[{}]", t.to_string()),
             Type::Array(type_, size) => format!("array[{}, {}]", type_.to_string(), size),
             Type::Byte => "byte".to_string(),
             Type::Range(type_) => format!("range[{}]", type_.to_string()),

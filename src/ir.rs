@@ -55,7 +55,7 @@ pub enum IrTerm {
     PointerAt {
         type_: IrType,
         address: Box<IrTerm>,
-        offset: Box<IrTerm>,
+        index: Box<IrTerm>,
     },
     SetPointer {
         address: Box<IrTerm>,
@@ -227,13 +227,13 @@ impl IrTerm {
             IrTerm::PointerAt {
                 type_,
                 address,
-                offset,
+                index,
             } => {
                 writer.start();
                 writer.write("pointer-at");
                 type_.to_term().to_string_writer(writer);
                 address.to_string_writer(writer);
-                offset.to_string_writer(writer);
+                index.to_string_writer(writer);
                 writer.end();
             }
             IrTerm::SetPointer { address, value } => {
@@ -350,7 +350,7 @@ impl IrType {
             Type::I32 => Ok(IrType::I32),
             Type::Record(_) => Ok(IrType::Address),
             Type::Ident(_) => Ok(IrType::Address), // FIXME: could be other types
-            Type::Pointer(_) => Ok(IrType::Address),
+            Type::Ptr(_) => Ok(IrType::Address),
             Type::Array(_, _) => Ok(IrType::Address),
             Type::Byte => Ok(IrType::I32),
             Type::Vec(_) => Ok(IrType::Address),

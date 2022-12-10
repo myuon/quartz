@@ -326,7 +326,7 @@ impl Generator {
             IrTerm::PointerAt {
                 type_,
                 address,
-                offset,
+                index,
             } => {
                 self.writer.new_statement();
                 self.expr(address)?;
@@ -335,7 +335,7 @@ impl Generator {
                 self.expr(&mut IrTerm::Call {
                     callee: Box::new(IrTerm::ident("mult")),
                     args: vec![
-                        offset.as_ref().clone(),
+                        index.as_ref().clone(),
                         IrTerm::SizeOf {
                             type_: type_.clone(),
                         },
@@ -373,7 +373,7 @@ impl Generator {
                         address: Box::new(IrTerm::PointerAt {
                             type_: type_.clone(),
                             address: address.clone(),
-                            offset: Box::new(IrTerm::I32(i as i32)),
+                            index: Box::new(IrTerm::I32(i as i32)),
                         }),
                         value: Box::new(v.clone()),
                     })?;
@@ -399,7 +399,7 @@ impl Generator {
             IrTerm::PointerAt {
                 type_,
                 address,
-                offset,
+                index,
             } => {
                 self.writer.new_statement();
                 self.expr(address)?;
@@ -408,7 +408,7 @@ impl Generator {
                 self.expr(&mut IrTerm::Call {
                     callee: Box::new(IrTerm::ident("mult")),
                     args: vec![
-                        offset.as_ref().clone(),
+                        index.as_ref().clone(),
                         IrTerm::SizeOf {
                             type_: type_.clone(),
                         },

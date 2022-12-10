@@ -43,10 +43,7 @@ impl TypeChecker {
                 ),
                 (
                     "alloc",
-                    Type::Func(
-                        vec![Type::I32],
-                        Box::new(Type::Pointer(Box::new(Type::I32))),
-                    ),
+                    Type::Func(vec![Type::I32], Box::new(Type::Ptr(Box::new(Type::I32)))),
                 ),
                 (
                     "write_stdout",
@@ -56,8 +53,8 @@ impl TypeChecker {
                     "mem_copy",
                     Type::Func(
                         vec![
-                            Type::Pointer(Box::new(Type::I32)),
-                            Type::Pointer(Box::new(Type::I32)),
+                            Type::Ptr(Box::new(Type::I32)),
+                            Type::Ptr(Box::new(Type::I32)),
                             Type::I32,
                         ],
                         Box::new(Type::Nil),
@@ -65,10 +62,7 @@ impl TypeChecker {
                 ),
                 (
                     "mem_free",
-                    Type::Func(
-                        vec![Type::Pointer(Box::new(Type::I32))],
-                        Box::new(Type::Nil),
-                    ),
+                    Type::Func(vec![Type::Ptr(Box::new(Type::I32))], Box::new(Type::Nil)),
                 ),
             ]
             .into_iter()
@@ -78,30 +72,21 @@ impl TypeChecker {
                 (
                     "string",
                     Type::Record(vec![
-                        (
-                            Ident("data".to_string()),
-                            Type::Pointer(Box::new(Type::Byte)),
-                        ),
+                        (Ident("data".to_string()), Type::Ptr(Box::new(Type::Byte))),
                         (Ident("length".to_string()), Type::I32),
                     ]),
                 ),
                 (
                     "array",
                     Type::Record(vec![
-                        (
-                            Ident("data".to_string()),
-                            Type::Pointer(Box::new(Type::Byte)),
-                        ),
+                        (Ident("data".to_string()), Type::Ptr(Box::new(Type::Byte))),
                         (Ident("length".to_string()), Type::I32),
                     ]),
                 ),
                 (
                     "vec",
                     Type::Record(vec![
-                        (
-                            Ident("data".to_string()),
-                            Type::Pointer(Box::new(Type::I32)),
-                        ),
+                        (Ident("data".to_string()), Type::Ptr(Box::new(Type::I32))),
                         (Ident("length".to_string()), Type::I32),
                         (Ident("capacity".to_string()), Type::I32),
                     ]),
@@ -225,7 +210,7 @@ impl TypeChecker {
             }
             Statement::Assign(lhs, rhs) => {
                 let mut lhs_type = self.expr_left_value(lhs)?;
-                let mut rhs_type = Type::Pointer(Box::new(self.expr(rhs)?));
+                let mut rhs_type = Type::Ptr(Box::new(self.expr(rhs)?));
                 self.unify(&mut lhs_type, &mut rhs_type)
                     .context(ErrorInSource {
                         start: lhs.start.unwrap_or(0),
@@ -323,7 +308,7 @@ impl TypeChecker {
                 })?;
 
                 // methods for builtin types
-                if let Type::Pointer(p) = &mut expr_type {
+                if let Type::Ptr(p) = &mut expr_type {
                     match label.as_str() {
                         "at" => {
                             return Ok(Type::Func(vec![Type::I32], p.clone()));
@@ -395,7 +380,7 @@ impl TypeChecker {
     }
 
     fn expr_left_value(&mut self, expr: &mut Source<Expr>) -> Result<Type> {
-        Ok(Type::Pointer(Box::new(self.expr(expr)?)))
+        Ok(Type::Ptr(Box::new(self.expr(expr)?)))
     }
 
     fn lit(&mut self, lit: &mut Lit) -> Result<Type> {
@@ -521,7 +506,7 @@ impl Constrains {
 
                 Ok(constrains)
             }
-            (Type::Pointer(type1), Type::Pointer(type2)) => {
+            (Type::Ptr(type1), Type::Ptr(type2)) => {
                 Constrains::unify(type1.as_ref(), type2.as_ref())
             }
             (Type::Ident(ident), Type::Vec(_)) if ident.as_str() == "vec" => {

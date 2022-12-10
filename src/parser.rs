@@ -549,6 +549,13 @@ impl Parser {
 
                     Ok(Type::Vec(Box::new(type_)))
                 }
+                "ptr" => {
+                    self.expect(Lexeme::LBracket)?;
+                    let type_ = self.type_()?;
+                    self.expect(Lexeme::RBracket)?;
+
+                    Ok(Type::Ptr(Box::new(type_)))
+                }
                 ident => Ok(Type::Ident(Ident(ident.to_string()))),
             },
             Lexeme::LBrace => {

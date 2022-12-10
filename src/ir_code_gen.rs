@@ -192,25 +192,11 @@ impl IrCodeGenerator {
                         self.statement(&mut Statement::Let(
                             Ident("_string".to_string()),
                             self.type_name(&Ident("string".to_string()))?.clone(),
-                            Source::unknown(Expr::Record(
-                                Ident("string".to_string()),
-                                vec![
-                                    (
-                                        Ident("length".to_string()),
-                                        Source::unknown(Expr::Lit(Lit::I32(s.len() as i32))),
-                                    ),
-                                    (
-                                        Ident("data".to_string()),
-                                        Source::unknown(Expr::Call(
-                                            Box::new(Source::unknown(Expr::Ident(Ident(
-                                                "alloc".to_string(),
-                                            )))),
-                                            vec![Source::unknown(Expr::Lit(Lit::I32(
-                                                s.len() as i32
-                                            )))],
-                                        )),
-                                    ),
-                                ],
+                            Source::unknown(Expr::Call(
+                                Box::new(Source::unknown(Expr::Ident(Ident(
+                                    "new_empty_string".to_string(),
+                                )))),
+                                vec![Source::unknown(Expr::Lit(Lit::I32(s.len() as i32)))],
                             )),
                         ))?,
                         IrTerm::WriteMemory {
@@ -230,13 +216,13 @@ impl IrCodeGenerator {
             },
             Expr::Call(callee, args) => match &mut callee.data {
                 Expr::Project(expr, type_, label) => match (type_, label.as_str()) {
-                    (Type::Pointer(p), "at") => {
+                    (Type::Ptr(p), "at") => {
                         assert_eq!(args.len(), 1);
 
                         Ok(IrTerm::PointerAt {
                             type_: IrType::from_type(p)?,
                             address: Box::new(self.expr(expr)?),
-                            offset: Box::new(self.expr(&mut args[0])?),
+                            index: Box::new(self.expr(&mut args[0])?),
                         })
                     }
                     (Type::Array(p, _), "at") => {
@@ -245,7 +231,7 @@ impl IrCodeGenerator {
                         Ok(IrTerm::PointerAt {
                             type_: IrType::from_type(p)?,
                             address: Box::new(self.expr(expr)?),
-                            offset: Box::new(self.expr(&mut args[0])?),
+                            index: Box::new(self.expr(&mut args[0])?),
                         })
                     }
                     (Type::Vec(p), "at") => {
@@ -254,7 +240,7 @@ impl IrCodeGenerator {
                         Ok(IrTerm::PointerAt {
                             type_: IrType::from_type(p)?,
                             address: Box::new(self.expr(expr)?),
-                            offset: Box::new(self.expr(&mut args[0])?),
+                            index: Box::new(self.expr(&mut args[0])?),
                         })
                     }
                     (Type::Vec(_), "push") => {

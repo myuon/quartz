@@ -108,6 +108,13 @@ fun char_to_string(char: byte): string {
         length: s.length,
     };
 }
+
+fun new_empty_string(length: i32): string {
+    return string {
+        data: alloc(length) as ptr[byte],
+        length: length,
+    };
+}
 "#,
         );
 
