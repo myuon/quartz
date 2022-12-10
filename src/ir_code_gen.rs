@@ -190,7 +190,7 @@ impl IrCodeGenerator {
                 Lit::String(s) => Ok(IrTerm::Seq {
                     elements: vec![
                         self.statement(&mut Statement::Let(
-                            Ident("_alloc".to_string()),
+                            Ident("_string".to_string()),
                             self.type_name(&Ident("string".to_string()))?.clone(),
                             Source::unknown(Expr::Record(
                                 Ident("string".to_string()),
@@ -214,36 +214,45 @@ impl IrCodeGenerator {
                             )),
                         ))?,
                         IrTerm::WriteMemory {
-                            type_: IrType::from_type(&Type::Byte)?,
-                            address: Box::new(IrTerm::Ident("_alloc".to_string())),
+                            type_: IrType::I32,
+                            address: Box::new(self.expr(&mut Source::unknown(Expr::Project(
+                                Box::new(Source::unknown(Expr::Ident(Ident(
+                                    "_string".to_string(),
+                                )))),
+                                Type::Ident(Ident("string".to_string())),
+                                Ident("data".to_string()),
+                            )))?),
                             value: s.bytes().map(|b| IrTerm::i32(b as i32)).collect(),
                         },
-                        IrTerm::Ident("_alloc".to_string()),
+                        IrTerm::Ident("_string".to_string()),
                     ],
                 }),
             },
             Expr::Call(callee, args) => match &mut callee.data {
                 Expr::Project(expr, type_, label) => match (type_, label.as_str()) {
-                    (Type::Pointer(_), "at") => {
+                    (Type::Pointer(p), "at") => {
                         assert_eq!(args.len(), 1);
 
                         Ok(IrTerm::PointerAt {
+                            type_: IrType::from_type(p)?,
                             address: Box::new(self.expr(expr)?),
                             offset: Box::new(self.expr(&mut args[0])?),
                         })
                     }
-                    (Type::Array(_, _), "at") => {
+                    (Type::Array(p, _), "at") => {
                         assert_eq!(args.len(), 1);
 
                         Ok(IrTerm::PointerAt {
+                            type_: IrType::from_type(p)?,
                             address: Box::new(self.expr(expr)?),
                             offset: Box::new(self.expr(&mut args[0])?),
                         })
                     }
-                    (Type::Vec(_), "at") => {
+                    (Type::Vec(p), "at") => {
                         assert_eq!(args.len(), 1);
 
                         Ok(IrTerm::PointerAt {
+                            type_: IrType::from_type(p)?,
                             address: Box::new(self.expr(expr)?),
                             offset: Box::new(self.expr(&mut args[0])?),
                         })

@@ -62,8 +62,8 @@ fun println(s: string) {
         n = n + 1;
     }
 
-    // @\newline
-    write_stdout(64 as byte);
+    // $\newline
+    write_stdout(36 as byte);
     write_stdout(10 as byte);
 }
 
@@ -96,7 +96,7 @@ fun vec_push(v: vec[i32], e: i32) {
 }
 
 fun digit_to_string(digit: i32): string {
-    return char_to_string((48 + digit) as byte);
+    return char_to_string(digit as byte);
 }
 
 fun char_to_string(char: byte): string {

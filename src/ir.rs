@@ -53,6 +53,7 @@ pub enum IrTerm {
         offset: usize,
     },
     PointerAt {
+        type_: IrType,
         address: Box<IrTerm>,
         offset: Box<IrTerm>,
     },
@@ -223,9 +224,14 @@ impl IrTerm {
                 body.to_string_writer(writer);
                 writer.end();
             }
-            IrTerm::PointerAt { address, offset } => {
+            IrTerm::PointerAt {
+                type_,
+                address,
+                offset,
+            } => {
                 writer.start();
                 writer.write("pointer-at");
+                type_.to_term().to_string_writer(writer);
                 address.to_string_writer(writer);
                 offset.to_string_writer(writer);
                 writer.end();

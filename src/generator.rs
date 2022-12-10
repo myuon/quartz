@@ -323,7 +323,11 @@ impl Generator {
                 self.writer.end();
                 self.writer.end();
             }
-            IrTerm::PointerAt { address, offset } => {
+            IrTerm::PointerAt {
+                type_,
+                address,
+                offset,
+            } => {
                 self.writer.new_statement();
                 self.expr(address)?;
 
@@ -332,15 +336,17 @@ impl Generator {
                     callee: Box::new(IrTerm::ident("mult")),
                     args: vec![
                         offset.as_ref().clone(),
-                        IrTerm::SizeOf { type_: IrType::I32 },
+                        IrTerm::SizeOf {
+                            type_: type_.clone(),
+                        },
                     ],
                 })?;
 
                 self.writer.new_statement();
-                self.writer.write("i32.add");
+                self.writer.write(&format!("{}.add", type_.to_string()));
 
                 self.writer.new_statement();
-                self.writer.write("i32.load");
+                self.writer.write(&format!("{}.load", type_.to_string()));
             }
             IrTerm::SetPointer { address, value } => {
                 self.writer.new_statement();
@@ -365,16 +371,9 @@ impl Generator {
                     self.writer.new_statement();
                     self.expr(&mut IrTerm::SetPointer {
                         address: Box::new(IrTerm::PointerAt {
+                            type_: type_.clone(),
                             address: address.clone(),
-                            offset: Box::new(IrTerm::Call {
-                                callee: Box::new(IrTerm::Ident("mult".to_string())),
-                                args: vec![
-                                    IrTerm::I32(i as i32),
-                                    IrTerm::SizeOf {
-                                        type_: type_.clone(),
-                                    },
-                                ],
-                            }),
+                            offset: Box::new(IrTerm::I32(i as i32)),
                         }),
                         value: Box::new(v.clone()),
                     })?;
@@ -397,7 +396,11 @@ impl Generator {
                 }
                 self.writer.write(&format!("${}", i.as_str()));
             }
-            IrTerm::PointerAt { address, offset } => {
+            IrTerm::PointerAt {
+                type_,
+                address,
+                offset,
+            } => {
                 self.writer.new_statement();
                 self.expr(address)?;
 
@@ -406,12 +409,14 @@ impl Generator {
                     callee: Box::new(IrTerm::ident("mult")),
                     args: vec![
                         offset.as_ref().clone(),
-                        IrTerm::SizeOf { type_: IrType::I32 },
+                        IrTerm::SizeOf {
+                            type_: type_.clone(),
+                        },
                     ],
                 })?;
 
                 self.writer.new_statement();
-                self.writer.write("i32.add");
+                self.writer.write(&format!("{}.add", type_.to_string()));
             }
             _ => todo!(),
         }
