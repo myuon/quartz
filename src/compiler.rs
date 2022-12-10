@@ -157,5 +157,12 @@ fn find_position(input: &str, position: usize) -> (usize, usize) {
         count += line.len() + 1;
     }
 
-    (line_number, position - count)
+    (
+        line_number,
+        if position > count {
+            position - count
+        } else {
+            0
+        },
+    )
 }

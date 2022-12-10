@@ -436,6 +436,7 @@ impl TypeChecker {
 
     fn lit(&mut self, lit: &mut Lit) -> Result<Type> {
         match lit {
+            Lit::Nil => Ok(Type::Nil),
             Lit::I32(_) => Ok(Type::I32),
             Lit::String(_) => Ok(Type::Ident(Ident("string".to_string()))),
         }
@@ -536,7 +537,7 @@ impl Constrains {
         }
     }
 
-    pub fn unify(type1: &Type, type2: &Type) -> Result<Constrains> {
+    pub fn unify(type1: &mut Type, type2: &mut Type) -> Result<Constrains> {
         match (type1, type2) {
             (type1, type2) if type1 == type2 => Ok(Constrains::empty()),
             (Type::Omit(i), type_) => {
@@ -564,12 +565,12 @@ impl Constrains {
                     constrains.merge(&Constrains::unify(arg1, arg2)?);
                 }
 
-                constrains.merge(&Constrains::unify(ret1.as_ref(), ret2.as_ref())?);
+                constrains.merge(&Constrains::unify(ret1.as_mut(), ret2.as_mut())?);
 
                 Ok(constrains)
             }
             (Type::Ptr(type1), Type::Ptr(type2)) => {
-                Constrains::unify(type1.as_ref(), type2.as_ref())
+                Constrains::unify(type1.as_mut(), type2.as_mut())
             }
             (Type::Ident(ident), Type::Vec(_)) if ident.as_str() == "vec" => {
                 Ok(Constrains::empty())
@@ -577,6 +578,8 @@ impl Constrains {
             (Type::Vec(_), Type::Ident(ident)) if ident.as_str() == "vec" => {
                 Ok(Constrains::empty())
             }
+            (Type::Nil, Type::Optional(_)) => Ok(Constrains::empty()),
+            (type1, Type::Optional(type2)) => Constrains::unify(type1, type2.as_mut()),
             (type1, type2) => {
                 bail!(
                     "type mismatch, expected {}, but found {}",

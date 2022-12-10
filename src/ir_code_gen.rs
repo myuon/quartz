@@ -218,6 +218,7 @@ impl IrCodeGenerator {
                 path.0[1].as_str()
             ))),
             Expr::Lit(lit) => match lit {
+                Lit::Nil => Ok(IrTerm::I32(0)),
                 Lit::I32(i) => Ok(IrTerm::i32(*i)),
                 Lit::String(s) => Ok(IrTerm::Seq {
                     elements: vec![

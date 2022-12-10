@@ -412,10 +412,18 @@ impl Parser {
 
                 expr
             }
-            Lexeme::Ident(_) => {
-                let ident = self.ident()?;
+            Lexeme::Ident(ident) => {
+                let expr = if ident == "nil" {
+                    self.consume()?;
 
-                self.source_from(Expr::Ident(ident.clone()), position)
+                    Expr::Lit(Lit::Nil)
+                } else {
+                    let ident = self.ident()?;
+
+                    Expr::Ident(ident.clone())
+                };
+
+                self.source_from(expr, position)
             }
             Lexeme::Self_ => {
                 let position = self.position;
@@ -583,12 +591,12 @@ impl Parser {
 
     fn type_(&mut self) -> Result<Type> {
         let current = self.consume()?;
-        match current.lexeme {
+        let mut type_ = match current.lexeme {
             Lexeme::Ident(ident) => match ident.as_str() {
-                "nil" => Ok(Type::Nil),
-                "i32" => Ok(Type::I32),
-                "bool" => Ok(Type::Bool),
-                "byte" => Ok(Type::Byte),
+                "nil" => Type::Nil,
+                "i32" => Type::I32,
+                "bool" => Type::Bool,
+                "byte" => Type::Byte,
                 "array" => {
                     self.expect(Lexeme::LBracket)?;
                     let type_ = self.type_()?;
@@ -601,23 +609,23 @@ impl Parser {
 
                     self.expect(Lexeme::RBracket)?;
 
-                    Ok(Type::Array(Box::new(type_), size as usize))
+                    Type::Array(Box::new(type_), size as usize)
                 }
                 "vec" => {
                     self.expect(Lexeme::LBracket)?;
                     let type_ = self.type_()?;
                     self.expect(Lexeme::RBracket)?;
 
-                    Ok(Type::Vec(Box::new(type_)))
+                    Type::Vec(Box::new(type_))
                 }
                 "ptr" => {
                     self.expect(Lexeme::LBracket)?;
                     let type_ = self.type_()?;
                     self.expect(Lexeme::RBracket)?;
 
-                    Ok(Type::Ptr(Box::new(type_)))
+                    Type::Ptr(Box::new(type_))
                 }
-                ident => Ok(Type::Ident(Ident(ident.to_string()))),
+                ident => Type::Ident(Ident(ident.to_string())),
             },
             Lexeme::LBrace => {
                 let mut fields = vec![];
@@ -635,11 +643,18 @@ impl Parser {
                 }
                 self.expect(Lexeme::RBrace)?;
 
-                Ok(Type::Record(fields))
+                Type::Record(fields)
             }
-            Lexeme::Underscore => Ok(self.gen_omit()?),
+            Lexeme::Underscore => self.gen_omit()?,
             _ => bail!("Expected type, got {:?}", current.lexeme),
+        };
+
+        if self.peek()?.lexeme == Lexeme::Question {
+            self.consume()?;
+            type_ = Type::Optional(Box::new(type_));
         }
+
+        Ok(type_)
     }
 
     fn consume(&mut self) -> Result<Token> {

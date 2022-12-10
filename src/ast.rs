@@ -16,6 +16,7 @@ pub enum Type {
     Array(Box<Type>, usize),
     Vec(Box<Type>),
     Range(Box<Type>),
+    Optional(Box<Type>),
 }
 
 impl Type {
@@ -47,6 +48,7 @@ impl Type {
             Type::Byte => "byte".to_string(),
             Type::Range(type_) => format!("range[{}]", type_.to_string()),
             Type::Vec(type_) => format!("vec[{}]", type_.to_string()),
+            Type::Optional(type_) => format!("optional[{}]", type_.to_string()),
         }
     }
 
@@ -97,6 +99,7 @@ impl Type {
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Lit {
+    Nil,
     I32(i32),
     String(String),
 }
