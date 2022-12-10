@@ -206,6 +206,18 @@ fun main() {
             (
                 r#"
 fun main() {
+    let a = alloc(10);
+    let b = alloc(5);
+    let c = alloc(5);
+
+    return alloc(0);
+}
+"#,
+                vec![Value::I32(160)],
+            ),
+            (
+                r#"
+fun main() {
     let str = "Hello, World!";
 
     return println(str);

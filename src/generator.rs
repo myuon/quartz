@@ -78,6 +78,8 @@ impl Generator {
     global.set $_sp
 
     local.get $addr
+    i32.const 8
+    i32.mul
 )
 
 (func $mem_copy (param $source i32) (param $target i32) (param $length i32)
