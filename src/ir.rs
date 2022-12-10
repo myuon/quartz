@@ -347,6 +347,7 @@ impl IrType {
     pub fn from_type(type_: &Type) -> Result<Self> {
         match type_ {
             Type::Nil => Ok(IrType::Nil),
+            Type::Bool => Ok(IrType::I32),
             Type::I32 => Ok(IrType::I32),
             Type::Record(_) => Ok(IrType::Address),
             Type::Ident(_) => Ok(IrType::Address), // FIXME: could be other types
@@ -354,6 +355,7 @@ impl IrType {
             Type::Array(_, _) => Ok(IrType::Address),
             Type::Byte => Ok(IrType::I32),
             Type::Vec(_) => Ok(IrType::Address),
+            Type::Optional(_) => Ok(IrType::Address),
             _ => bail!("unknown type {}", type_.to_string()),
         }
     }

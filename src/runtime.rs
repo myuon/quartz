@@ -359,16 +359,25 @@ type Point = {
     y: i32?,
 };
 
+module Point {
+    fun swap(self) {
+        let tmp = self.x;
+        self.x = self.y;
+        self.y = tmp;
+    }
+}
+
 fun main() {
     let p = Point {
         x: nil,
         y: 10,
     };
+    p.swap();
 
     return p.x == nil;
 }
 "#,
-                vec![Value::I32(30)],
+                vec![Value::I32(0)],
             ),
         ];
 
