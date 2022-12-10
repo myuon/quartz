@@ -386,7 +386,11 @@ impl TypeChecker {
 
                 Ok(Type::Range(Box::new(start_type)))
             }
-            Expr::As(_, type_) => Ok(type_.clone()),
+            Expr::As(expr, type_) => {
+                self.expr(expr)?;
+
+                Ok(type_.clone())
+            }
         }
     }
 

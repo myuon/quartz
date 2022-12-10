@@ -17,7 +17,8 @@ impl Runtime {
         let import_object = imports! {
             "env" => {
                 "write_stdout" => Function::new_typed(&mut store, |ch: u32| {
-                    std::io::stdout().lock().write_all(&ch.to_be_bytes()).unwrap();
+                    println!("ch: {}",ch);
+                    std::io::stdout().lock().write(&ch.to_be_bytes()).unwrap();
                 }),
             }
         };

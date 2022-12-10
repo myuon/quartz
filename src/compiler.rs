@@ -51,11 +51,19 @@ fun println(s: string) {
     let l = s.length;
     let d = s.data;
     let n = 0;
+
+    // >>
+    write_stdout(62 as byte);
+    write_stdout(62 as byte);
+    write_stdout(32 as byte);
+
     while n < l {
         write_stdout(d.at(n));
         n = n + 1;
     }
 
+    // @\newline
+    write_stdout(64 as byte);
     write_stdout(10 as byte);
 }
 
@@ -71,7 +79,9 @@ fun vec_make(init_capacity: i32, size: i32): vec[i32] {
 }
 
 fun vec_push(v: vec[i32], e: i32) {
-    println(char_to_string((48 + v.length) as byte));
+    println("vec_push");
+    println(digit_to_string(2));
+
     if (v.length + 1) == v.capacity {
         let new_capacity = v.capacity * 2;
         let new_data = alloc(new_capacity);
@@ -83,6 +93,10 @@ fun vec_push(v: vec[i32], e: i32) {
 
     v.data.at(v.length) = e;
     v.length = v.length + 1;
+}
+
+fun digit_to_string(digit: i32): string {
+    return char_to_string((48 + digit) as byte);
 }
 
 fun char_to_string(char: byte): string {
