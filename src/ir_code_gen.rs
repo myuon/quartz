@@ -487,6 +487,14 @@ impl IrCodeGenerator {
                     ],
                 })
             }
+            Expr::Unwrap(expr) => {
+                let expr = self.expr(expr)?;
+
+                Ok(IrTerm::GetField {
+                    address: Box::new(expr),
+                    offset: 0,
+                })
+            }
         }
     }
 

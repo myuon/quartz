@@ -626,6 +626,11 @@ impl Parser {
 
                     current = self.source_from(Expr::Wrap(Box::new(current)), position);
                 }
+                Lexeme::Bang => {
+                    self.consume()?;
+
+                    current = self.source_from(Expr::Unwrap(Box::new(current)), position);
+                }
                 _ => break,
             }
         }

@@ -75,6 +75,13 @@ impl Type {
         }
     }
 
+    pub fn to_optional(self) -> Result<Box<Type>> {
+        match self {
+            Type::Optional(t) => Ok(t),
+            _ => bail!("expected optional type, but found {}", self.to_string()),
+        }
+    }
+
     pub fn is_omit(&self) -> bool {
         match self {
             Type::Omit(_) => true,
@@ -121,6 +128,7 @@ pub enum Expr {
     Equal(Box<Source<Expr>>, Box<Source<Expr>>),
     NotEqual(Box<Source<Expr>>, Box<Source<Expr>>),
     Wrap(Box<Source<Expr>>),
+    Unwrap(Box<Source<Expr>>),
 }
 
 #[derive(PartialEq, Debug, Clone)]

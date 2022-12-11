@@ -198,7 +198,7 @@ fun main() {
     println(token.lexeme);
     if token.string_value != nil {
       println("string_value: ");
-      println(token.string_value);
+      println(token.string_value!);
     }
   }
 

@@ -480,6 +480,13 @@ impl TypeChecker {
 
                 Ok(Type::Optional(Box::new(expr_type)))
             }
+            Expr::Unwrap(expr) => {
+                let mut expr_type = self.expr(expr)?;
+                let mut type_ = Type::Optional(Box::new(Type::Omit(0)));
+                self.unify(&mut type_, &mut expr_type)?;
+
+                Ok(type_.to_optional()?.as_ref().clone())
+            }
         }
     }
 
@@ -634,6 +641,9 @@ impl Constrains {
             }
             (Type::Nil, Type::Optional(_)) => Ok(Constrains::empty()),
             (Type::Optional(_), Type::Nil) => Ok(Constrains::empty()),
+            (Type::Optional(type1), Type::Optional(type2)) => {
+                Constrains::unify(type1.as_mut(), type2.as_mut())
+            }
             (type1, type2) => {
                 bail!(
                     "type mismatch, expected {}, but found {}",
