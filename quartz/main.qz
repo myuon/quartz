@@ -1,3 +1,21 @@
+fun string_equal(s1: string, s2: string): bool {
+  if s1.length != s2.length {
+    return false;
+  }
+
+  for i in 0..s1.length {
+    if s1.data.at(i) != s2.data.at(i) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+fun is_space(s: string, n: i32): bool {
+  return s.data.at(n) == 32 as byte;
+}
+
 type Token = {
   lexeme: string,
   position: i32,

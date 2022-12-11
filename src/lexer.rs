@@ -25,6 +25,7 @@ pub enum Lexeme {
     DoubleColon,
     Colon,
     Semicolon,
+    NotEqual,
     DoubleEqual,
     Equal,
     Plus,
@@ -39,6 +40,8 @@ pub enum Lexeme {
     Gt,
     Underscore,
     Question,
+    True,
+    False,
     Ident(String),
     Int(i32),
     String(String),
@@ -164,6 +167,8 @@ impl Lexer {
                     ("in", Lexeme::In),
                     ("as", Lexeme::As),
                     ("self", Lexeme::Self_),
+                    ("true", Lexeme::True),
+                    ("false", Lexeme::False),
                 ],
             ) {
                 continue;
@@ -181,6 +186,7 @@ impl Lexer {
                     ("::", Lexeme::DoubleColon),
                     (":", Lexeme::Colon),
                     (";", Lexeme::Semicolon),
+                    ("!=", Lexeme::NotEqual),
                     ("==", Lexeme::DoubleEqual),
                     ("=", Lexeme::Equal),
                     ("+", Lexeme::Plus),

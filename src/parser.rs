@@ -266,6 +266,13 @@ impl Parser {
 
                 current = self.source_from(Expr::Equal(Box::new(current), Box::new(rhs)), position);
             }
+            Lexeme::NotEqual => {
+                self.consume()?;
+                let rhs = self.expr_(with_struct)?;
+
+                current =
+                    self.source_from(Expr::NotEqual(Box::new(current), Box::new(rhs)), position);
+            }
             _ => (),
         }
 
@@ -624,6 +631,8 @@ impl Parser {
         match current.lexeme {
             Lexeme::Int(int) => Ok(Lit::I32(int)),
             Lexeme::String(string) => Ok(Lit::String(string)),
+            Lexeme::True => Ok(Lit::Bool(true)),
+            Lexeme::False => Ok(Lit::Bool(false)),
             _ => {
                 return Err(
                     anyhow!("Expected literal, got {:?}", current.lexeme).context(ErrorInSource {

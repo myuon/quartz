@@ -468,6 +468,9 @@ impl Generator {
                 "equal" => {
                     self.writer.write("i32.eq");
                 }
+                "not_equal" => {
+                    self.writer.write("i32.ne");
+                }
                 "lt" => {
                     self.writer.write("i32.lt_s");
                 }

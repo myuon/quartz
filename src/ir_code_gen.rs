@@ -219,6 +219,7 @@ impl IrCodeGenerator {
             ))),
             Expr::Lit(lit) => match lit {
                 Lit::Nil => Ok(IrTerm::I32(0)),
+                Lit::Bool(b) => Ok(IrTerm::I32(if *b { 1 } else { 0 })),
                 Lit::I32(i) => Ok(IrTerm::i32(*i)),
                 Lit::String(s) => Ok(IrTerm::Seq {
                     elements: vec![
@@ -435,6 +436,15 @@ impl IrCodeGenerator {
 
                 Ok(IrTerm::Call {
                     callee: Box::new(IrTerm::Ident("equal".to_string())),
+                    args: vec![lhs, rhs],
+                })
+            }
+            Expr::NotEqual(lhs, rhs) => {
+                let lhs = self.expr(lhs)?;
+                let rhs = self.expr(rhs)?;
+
+                Ok(IrTerm::Call {
+                    callee: Box::new(IrTerm::Ident("not_equal".to_string())),
                     args: vec![lhs, rhs],
                 })
             }

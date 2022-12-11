@@ -451,6 +451,18 @@ impl TypeChecker {
 
                 Ok(Type::Bool)
             }
+            Expr::NotEqual(lhs, rhs) => {
+                let mut lhs_type = self.expr(lhs)?;
+                let mut rhs_type = self.expr(rhs)?;
+
+                self.unify(&mut lhs_type, &mut rhs_type)
+                    .context(ErrorInSource {
+                        start: lhs.start.unwrap_or(0),
+                        end: lhs.end.unwrap_or(0),
+                    })?;
+
+                Ok(Type::Bool)
+            }
             Expr::Wrap(expr) => {
                 let expr_type = self.expr(expr)?;
 
@@ -466,6 +478,7 @@ impl TypeChecker {
     fn lit(&mut self, lit: &mut Lit) -> Result<Type> {
         match lit {
             Lit::Nil => Ok(Type::Nil),
+            Lit::Bool(_) => Ok(Type::Bool),
             Lit::I32(_) => Ok(Type::I32),
             Lit::String(_) => Ok(Type::Ident(Ident("string".to_string()))),
         }

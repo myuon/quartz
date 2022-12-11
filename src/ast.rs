@@ -100,6 +100,7 @@ impl Type {
 #[derive(PartialEq, Debug, Clone)]
 pub enum Lit {
     Nil,
+    Bool(bool),
     I32(i32),
     String(String),
 }
@@ -118,6 +119,7 @@ pub enum Expr {
     As(Box<Source<Expr>>, Type),
     Path(Path),
     Equal(Box<Source<Expr>>, Box<Source<Expr>>),
+    NotEqual(Box<Source<Expr>>, Box<Source<Expr>>),
     Wrap(Box<Source<Expr>>),
 }
 
