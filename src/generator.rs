@@ -327,6 +327,7 @@ impl Generator {
 
                 self.writer.start();
                 self.writer.write("loop");
+                self.writer.write("$loop");
 
                 self.expr(cond.as_mut())?;
                 self.writer.new_statement();
@@ -336,7 +337,7 @@ impl Generator {
 
                 self.expr(body.as_mut())?;
                 self.writer.new_statement();
-                self.writer.write("br 0");
+                self.writer.write("br $loop");
 
                 self.writer.end();
                 self.writer.end();
@@ -399,7 +400,7 @@ impl Generator {
             }
             IrTerm::Continue => {
                 self.writer.new_statement();
-                self.writer.write("br 0");
+                self.writer.write("br $loop");
             }
             IrTerm::PointerOffset { address, offset } => {
                 self.writer.new_statement();

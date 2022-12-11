@@ -129,7 +129,7 @@ module Lexer {
         string_value: nil,
         position: self.position,
       });
-      self.position = self.position + 1;
+      self.position = self.position + token.length;
       return true;
     }
 
@@ -188,6 +188,6 @@ fun main() {
   test();
 
   let lexer = Lexer::new();
-  lexer.run("x + y");
+  lexer.run("hoge + piyo");
   debug_i32(lexer.tokens.length);
 }
