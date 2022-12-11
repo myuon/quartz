@@ -230,6 +230,8 @@ impl Generator {
             IrTerm::Return { value } => {
                 self.writer.new_statement();
                 self.expr(value)?;
+                self.writer.new_statement();
+                self.writer.write("return");
             }
             IrTerm::Assign { lhs: ident, rhs } => {
                 self.expr(rhs)?;

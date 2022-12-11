@@ -1,3 +1,30 @@
+type Token = {
+  lexeme: string,
+  position: i32,
+};
+
+type Lexer = {
+  position: i32,
+  tokens: vec[Token],
+};
+
+module Lexer {
+  fun new(): Lexer {
+    return Lexer {
+      position: 0,
+      tokens: make[vec[Token]](),
+    };
+  }
+
+  fun run(self, input: string) {
+    while input.length > self.position {
+      println("ERROR");
+      return nil;
+    }
+  }
+}
+
 fun main() {
-  println("Hello, world!");
+  let lexer = Lexer::new();
+  lexer.run("x + 1");
 }

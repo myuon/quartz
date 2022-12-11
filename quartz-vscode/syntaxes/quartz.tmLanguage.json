@@ -139,7 +139,7 @@
     "types": {
       "patterns": [
         {
-          "match": "\\b(int|bool|float|string|byte|array)\\b",
+          "match": "\\b(nil|i32|bool|float|string|byte|array|ptr|vec)\\b",
           "name": "entity.name.type.primitive.quartz"
         }
       ]
@@ -151,8 +151,12 @@
           "name": "keyword.control.quartz"
         },
         {
-          "match": "\\b(struct)\\b",
-          "name": "keyword.struct.quartz"
+          "match": "\\b(type)\\b",
+          "name": "keyword.type.quartz"
+        },
+        {
+          "match": "\\b(module)\\b",
+          "name": "keyword.module.quartz"
         },
         {
           "match": "\\b(func)\\b",
