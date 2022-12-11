@@ -48,7 +48,8 @@ fun is_included(s: string, n: i32, chars: string): bool {
 }
 
 fun is_space(s: string, n: i32): bool {
-  return s.data.at(n) == 32 || s.data.at(n) == 9 || s.data.at(n) == 10 || s.data.at(n) == 13;
+  let c = s.data.at(n) as i32;
+  return c == 32 || c == 9 || c == 10 || c == 13;
 }
 
 fun is_prefix(s: string, n: i32, prefix: string): bool {

@@ -256,7 +256,37 @@ impl Parser {
     }
 
     fn expr_(&mut self, with_struct: bool) -> Result<Source<Expr>> {
-        self.term_4(with_struct)
+        self.term_5(with_struct)
+    }
+
+    fn term_5(&mut self, with_struct: bool) -> Result<Source<Expr>> {
+        let position = self.position;
+        let mut current = self.term_4(with_struct)?;
+
+        loop {
+            let token = self.peek()?;
+            match token.lexeme {
+                Lexeme::DoublePipe => {
+                    self.consume()?;
+                    let rhs = self.term_4(with_struct)?;
+
+                    current =
+                        self.source_from(
+                            Expr::Call(
+                                Box::new(self.source_from(
+                                    Expr::Ident(Ident("or".to_string())),
+                                    token.position,
+                                )),
+                                vec![current, rhs],
+                            ),
+                            position,
+                        );
+                }
+                _ => break,
+            }
+        }
+
+        Ok(current)
     }
 
     fn term_4(&mut self, with_struct: bool) -> Result<Source<Expr>> {
@@ -267,13 +297,13 @@ impl Parser {
         match token.lexeme {
             Lexeme::DoubleEqual => {
                 self.consume()?;
-                let rhs = self.expr_(with_struct)?;
+                let rhs = self.term_3(with_struct)?;
 
                 current = self.source_from(Expr::Equal(Box::new(current), Box::new(rhs)), position);
             }
             Lexeme::NotEqual => {
                 self.consume()?;
-                let rhs = self.expr_(with_struct)?;
+                let rhs = self.term_3(with_struct)?;
 
                 current =
                     self.source_from(Expr::NotEqual(Box::new(current), Box::new(rhs)), position);
@@ -330,22 +360,6 @@ impl Parser {
                 let rhs = self.expr_(with_struct)?;
 
                 current = self.source_from(Expr::Range(Box::new(current), Box::new(rhs)), position);
-            }
-            Lexeme::DoublePipe => {
-                self.consume()?;
-                let rhs = self.expr_(with_struct)?;
-
-                current = self.source_from(
-                    Expr::Call(
-                        Box::new(self.source(
-                            Expr::Ident(Ident("or".to_string())),
-                            token_position,
-                            token_position,
-                        )),
-                        vec![current, rhs],
-                    ),
-                    position,
-                );
             }
             _ => (),
         }
