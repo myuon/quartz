@@ -84,6 +84,25 @@ fun slice_start(s: string, start: i32): string {
   return slice(s, start, s.length);
 }
 
+module string {
+  fun concat(self, s: string): string {
+    let new_length = self.length + s.length;
+    let new_data = alloc(new_length) as ptr[byte];
+
+    for i in 0..self.length {
+      new_data.at(i) = self.data.at(i);
+    }
+    for i in 0..s.length {
+      new_data.at(self.length + i) = s.data.at(i);
+    }
+
+    return string {
+      data: new_data,
+      length: new_length,
+    };
+  }
+}
+
 type Token = {
   lexeme: string,
   string_value: string?,
@@ -210,6 +229,10 @@ fun test() {
     println("slice_start failed");
     println(slice_start("hoge fuga", 2));
   }
+  if !string_equal("hoge".concat(" fuga"), "hoge fuga") {
+    println("string_concat failed");
+    println("hoge".concat(" fuga"));
+  }
 }
 
 fun main() {
@@ -226,12 +249,9 @@ fun main(): i32 {
   let tokens = lexer.tokens;
   for i in 0..tokens.length {
     let token = tokens.at(i);
-    println("== TOKEN ==");
-    println("lexeme: ");
-    println(token.lexeme);
+    println("lexeme: ".concat(token.lexeme));
     if token.string_value != nil {
-      println("string_value: ");
-      println(token.string_value!);
+      println("string_value: ".concat(token.string_value!));
     }
   }
 
