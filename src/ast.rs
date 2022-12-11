@@ -132,6 +132,7 @@ pub enum Statement {
     If(Source<Expr>, Type, Vec<Statement>, Option<Vec<Statement>>),
     While(Source<Expr>, Vec<Statement>),
     For(Ident, Source<Expr>, Vec<Statement>),
+    Continue,
 }
 
 #[derive(PartialEq, Debug, Clone)]

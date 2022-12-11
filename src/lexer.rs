@@ -18,6 +18,7 @@ pub enum Lexeme {
     Self_,
     True,
     False,
+    Continue,
     LParen,
     RParen,
     LBrace,
@@ -170,6 +171,7 @@ impl Lexer {
                     ("self", Lexeme::Self_),
                     ("true", Lexeme::True),
                     ("false", Lexeme::False),
+                    ("continue", Lexeme::Continue),
                 ],
             ) {
                 continue;

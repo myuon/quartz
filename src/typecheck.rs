@@ -305,6 +305,7 @@ impl TypeChecker {
 
                 Ok(None)
             }
+            Statement::Continue => Ok(None),
         }
     }
 

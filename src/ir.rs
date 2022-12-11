@@ -76,6 +76,7 @@ pub enum IrTerm {
     Module {
         elements: Vec<IrTerm>,
     },
+    Continue,
 }
 
 impl IrTerm {
@@ -267,6 +268,11 @@ impl IrTerm {
                 writer.end();
                 writer.end();
             }
+            IrTerm::Continue => {
+                writer.start();
+                writer.write("continue");
+                writer.end();
+            }
         }
     }
 
@@ -369,6 +375,7 @@ impl IrTerm {
                 address,
                 value,
             } => vec![],
+            IrTerm::Continue => vec![],
         }
     }
 

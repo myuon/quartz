@@ -180,6 +180,7 @@ impl IrCodeGenerator {
                 }
                 _ => bail!("invalid range expression, {:?}", range),
             },
+            Statement::Continue => Ok(IrTerm::Continue),
         }
     }
 

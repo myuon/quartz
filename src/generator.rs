@@ -397,6 +397,10 @@ impl Generator {
                     })?;
                 }
             }
+            IrTerm::Continue => {
+                self.writer.new_statement();
+                self.writer.write("br 0");
+            }
             _ => todo!(),
         }
 
