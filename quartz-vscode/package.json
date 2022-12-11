@@ -19,6 +19,25 @@
         "command": "quartz-vscode.helloWorld",
         "title": "Hello World"
       }
+    ],
+    "languages": [
+      {
+        "id": "quartz",
+        "aliases": [
+          "quartz"
+        ],
+        "extensions": [
+          ".qz"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "quartz",
+        "scopeName": "source.quartz",
+        "path": "./syntaxes/quartz.tmLanguage.json"
+      }
     ]
   },
   "scripts": {

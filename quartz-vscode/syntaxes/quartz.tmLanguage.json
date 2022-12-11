@@ -1,0 +1,267 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "quartz",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#literals"
+    },
+    {
+      "include": "#functions"
+    },
+    {
+      "include": "#types"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#punctuations"
+    },
+    {
+      "include": "#variables"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "match": "\\s*//.*",
+          "name": "comment.line.double-slash.quartz"
+        }
+      ]
+    },
+    "literals": {
+      "patterns": [
+        {
+          "match": "\\b\\d+\\b",
+          "name": "constant.numeric.quartz"
+        },
+        {
+          "match": "\\b(true|false)\\b",
+          "name": "constant.language.bool.quartz"
+        },
+        {
+          "match": "\\b(nil)\\b",
+          "name": "constant.language.nil.quartz"
+        },
+        {
+          "match": "\"(\\\\.|[^\"])*\"",
+          "name": "string.quoted.double.quartz"
+        }
+      ]
+    },
+    "functions": {
+      "patterns": [
+        {
+          "name": "meta.function.definition.quartz",
+          "begin": "\\b(func)\\s+(\\w+)(\\()",
+          "beginCaptures": {
+            "1": {
+              "name": "keyword.other.func.quartz"
+            },
+            "2": {
+              "name": "entity.name.function.quartz"
+            },
+            "3": {
+              "name": "punctuation.arguments.begin.quartz"
+            }
+          },
+          "end": "\\{",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.blocks.end.quartz"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#comments"
+            },
+            {
+              "include": "#literals"
+            },
+            {
+              "include": "#types"
+            },
+            {
+              "include": "#keywords"
+            },
+            {
+              "include": "#punctuations"
+            },
+            {
+              "include": "#variables"
+            }
+          ]
+        },
+        {
+          "name": "meta.method.definition.quartz",
+          "begin": "\\b(method)\\s",
+          "beginCaptures": {
+            "1": {
+              "name": "keyword.other.method.quartz"
+            }
+          },
+          "end": "(\\w+)\\s*(\\()",
+          "endCaptures": {
+            "1": {
+              "name": "entity.name.function.quartz"
+            },
+            "2": {
+              "name": "punctuation.arguments.begin.quartz"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#comments"
+            },
+            {
+              "include": "#literals"
+            },
+            {
+              "include": "#types"
+            },
+            {
+              "include": "#keywords"
+            },
+            {
+              "include": "#punctuations"
+            },
+            {
+              "include": "#variables"
+            }
+          ]
+        },
+        {
+          "name": "meta.function.call.quartz",
+          "begin": "([a-zA-Z_]\\w*)(\\()",
+          "beginCaptures": {
+            "1": {
+              "name": "entity.name.function.quartz"
+            },
+            "2": {
+              "name": "punctuation.arguments.begin.quartz"
+            }
+          },
+          "end": "\\)",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.arguments.end.quartz"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#comments"
+            },
+            {
+              "include": "#literals"
+            },
+            {
+              "include": "#types"
+            },
+            {
+              "include": "#keywords"
+            },
+            {
+              "include": "#punctuations"
+            },
+            {
+              "include": "#variables"
+            }
+          ]
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "match": "\\b(int|bool|float|string|byte|array)\\b",
+          "name": "entity.name.type.primitive.quartz"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "match": "\\b(for|if|while|return|let|continue)\\b",
+          "name": "keyword.control.quartz"
+        },
+        {
+          "match": "\\b(struct)\\b",
+          "name": "keyword.struct.quartz"
+        },
+        {
+          "match": "\\b(func)\\b",
+          "name": "keyword.other.func.quartz"
+        },
+        {
+          "match": "=",
+          "name": "keyword.operator.assignment.quartz"
+        },
+        {
+          "match": ":",
+          "name": "keyword.operator.colon.quartz"
+        },
+        {
+          "match": "\\?",
+          "name": "keyword.operator.question.quartz"
+        },
+        {
+          "match": "\\!",
+          "name": "keyword.operator.exclamation.quartz"
+        },
+        {
+          "match": "\\b(ref|as)\\b",
+          "name": "keyword.other.quartz"
+        },
+        {
+          "match": "\\.",
+          "name": "keyword.operator.dot.quartz"
+        }
+      ]
+    },
+    "punctuations": {
+      "patterns": [
+        {
+          "match": ",",
+          "name": "punctuation.separator.quartz"
+        },
+        {
+          "match": "[{}]",
+          "name": "punctuation.section.curly.quartz"
+        },
+        {
+          "match": "[()]",
+          "name": "punctuation.section.paren.quartz"
+        },
+        {
+          "match": ";",
+          "name": "punctuation.terminator.quartz"
+        },
+        {
+          "match": "[\\[\\]]",
+          "name": "punctuation.section.bracket.quartz"
+        }
+      ]
+    },
+    "variables": {
+      "patterns": [
+        {
+          "match": "\\b(self)\\b",
+          "name": "variable.language.self.quartz"
+        },
+        {
+          "match": "\\b(make)\\b",
+          "name": "variable.language.make.quartz"
+        },
+        {
+          "match": "\\b[a-zA-Z0-9_]\\w*\\b",
+          "name": "variable.other.quartz"
+        }
+      ]
+    }
+  },
+  "scopeName": "source.quartz"
+}
