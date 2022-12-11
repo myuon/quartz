@@ -9,3 +9,6 @@ compile:
 
 run:
   cargo run -- run
+
+run_compiler:
+  cargo run -- run ./quartz/main.qz
