@@ -178,6 +178,10 @@ fun test() {
     println("slice failed");
     println(slice("hoge fuga", 0, 4));
   }
+  if !string_equal(slice_start("hoge fuga", 2), "ge fuga") {
+    println("slice_start failed");
+    println(slice_start("hoge fuga", 2));
+  }
 }
 
 fun main() {
@@ -185,4 +189,5 @@ fun main() {
 
   let lexer = Lexer::new();
   lexer.run("x + y");
+  debug_i32(lexer.tokens.length);
 }
