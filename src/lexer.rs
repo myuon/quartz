@@ -54,6 +54,8 @@ static IDENT_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[a-zA-Z_][a-zA-Z0
 static INT_LITERAL: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[0-9]+").unwrap());
 static STRING_LITERAL: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"^"((([^"]|\\")*[^\\])?)""#).unwrap());
+static RAW_STRING_LITERAL: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r#"^`((([^`]|\\`)*[^\\])?)`"#).unwrap());
 static COMMENT_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^//[^\n]*\n"#).unwrap());
 
 #[derive(PartialEq, Debug, Clone)]
@@ -237,6 +239,18 @@ impl Lexer {
             }
 
             match STRING_LITERAL.captures(&input[self.position..]) {
+                Some(m) => {
+                    self.tokens.push(Token {
+                        lexeme: Lexeme::String(m.get(1).unwrap().as_str().to_string()),
+                        position: self.position,
+                    });
+
+                    self.position += m.get(0).unwrap().end();
+                    continue;
+                }
+                None => (),
+            }
+            match RAW_STRING_LITERAL.captures(&input[self.position..]) {
                 Some(m) => {
                     self.tokens.push(Token {
                         lexeme: Lexeme::String(m.get(1).unwrap().as_str().to_string()),

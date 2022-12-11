@@ -48,7 +48,7 @@ fun is_included(s: string, n: i32, chars: string): bool {
 }
 
 fun is_space(s: string, n: i32): bool {
-  return is_included(s, n, " ");
+  return s.data.at(n) == 32 || s.data.at(n) == 9 || s.data.at(n) == 10 || s.data.at(n) == 13;
 }
 
 fun is_prefix(s: string, n: i32, prefix: string): bool {
@@ -140,6 +140,33 @@ module Lexer {
     while self.position < input.length {
       self.consume_space(input);
 
+      if self.match(input, "fun", "fun") {
+        continue;
+      }
+      if self.match(input, "let", "let") {
+        continue;
+      }
+      if self.match(input, "return", "return") {
+        continue;
+      }
+      if self.match(input, "(", "lparen") {
+        continue;
+      }
+      if self.match(input, ")", "rparen") {
+        continue;
+      }
+      if self.match(input, "{", "lbrace") {
+        continue;
+      }
+      if self.match(input, "}", "rbrace") {
+        continue;
+      }
+      if self.match(input, ":", "colon") {
+        continue;
+      }
+      if self.match(input, ";", "semicolon") {
+        continue;
+      }
       if self.match(input, "+", "plus") {
         continue;
       }
@@ -188,7 +215,12 @@ fun main() {
   test();
 
   let lexer = Lexer::new();
-  lexer.run("hoge + piyo");
+  lexer.run(`
+fun main(): i32 {
+    let x: i32 = 10;
+    return x + 1;
+}
+`);
 
   let tokens = lexer.tokens;
   for i in 0..tokens.length {
