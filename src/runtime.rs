@@ -408,8 +408,6 @@ fun int_to_string(n: i32): string {
     let str = alloc(digit) as ptr[byte];
     tmp = n;
     for i in 0..digit {
-        debug_i32(tmp);
-        debug_i32((digit - i) - 1);
         let d = tmp % 10;
         str.at(digit - i - 1) = ((d + 48) as byte);
         tmp = tmp / 10;
@@ -423,17 +421,11 @@ fun int_to_string(n: i32): string {
 
 fun main() {
     let str = int_to_string(123456);
-    println(str);
 
-    for i in 0..str.length {
-        write_stdout(str.data.at(i));
-        write_stdout(10 as byte);
-    }
-
-    return str.length;
+    return str.data.at(5) as i32 - 48;
 }
 "#,
-                vec![Value::I32(0)],
+                vec![Value::I32(6)],
             ),
         ];
 
