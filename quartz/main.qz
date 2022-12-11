@@ -189,5 +189,18 @@ fun main() {
 
   let lexer = Lexer::new();
   lexer.run("hoge + piyo");
+
+  let tokens = lexer.tokens;
+  for i in 0..tokens.length {
+    let token = tokens.at(i);
+    println("== TOKEN ==");
+    println("lexeme: ");
+    println(token.lexeme);
+    if token.string_value != nil {
+      println("string_value: ");
+      println(token.string_value);
+    }
+  }
+
   debug_i32(lexer.tokens.length);
 }
