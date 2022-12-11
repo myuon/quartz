@@ -1,4 +1,5 @@
 use anyhow::{anyhow, bail, Context, Result};
+use pretty_assertions::assert_eq;
 
 use crate::{
     ast::{Decl, Expr, Func, Lit, Module, Statement, Type},
@@ -329,49 +330,50 @@ impl Parser {
         let mut current = self.term_1(with_struct)?;
 
         let token_position = self.position;
-        let token = self.peek()?;
-        match token.lexeme {
-            Lexeme::Plus => {
-                self.consume()?;
-                let token_position_end = self.position;
-                let rhs = self.expr_(with_struct)?;
+        loop {
+            match self.peek()?.lexeme {
+                Lexeme::Plus => {
+                    self.consume()?;
+                    let token_position_end = self.position;
+                    let rhs = self.term_1(with_struct)?;
 
-                current = self.source_from(
-                    Expr::Call(
-                        Box::new(self.source(
-                            Expr::Ident(Ident("add".to_string())),
-                            token_position,
-                            token_position_end,
-                        )),
-                        vec![current, rhs],
-                    ),
-                    position,
-                );
-            }
-            Lexeme::Minus => {
-                self.consume()?;
-                let token_position_end = self.position;
-                let rhs = self.expr()?;
+                    current = self.source_from(
+                        Expr::Call(
+                            Box::new(self.source(
+                                Expr::Ident(Ident("add".to_string())),
+                                token_position,
+                                token_position_end,
+                            )),
+                            vec![current, rhs],
+                        ),
+                        position,
+                    );
+                }
+                Lexeme::Minus => {
+                    self.consume()?;
+                    let token_position_end = self.position;
+                    let rhs = self.term_1(with_struct)?;
 
-                current = self.source_from(
-                    Expr::Call(
-                        Box::new(self.source(
-                            Expr::Ident(Ident("sub".to_string())),
-                            token_position,
-                            token_position_end,
-                        )),
-                        vec![current, rhs],
-                    ),
-                    position,
-                );
-            }
-            Lexeme::As => {
-                self.consume()?;
-                let type_ = self.type_()?;
+                    current = self.source_from(
+                        Expr::Call(
+                            Box::new(self.source(
+                                Expr::Ident(Ident("sub".to_string())),
+                                token_position,
+                                token_position_end,
+                            )),
+                            vec![current, rhs],
+                        ),
+                        position,
+                    );
+                }
+                Lexeme::As => {
+                    self.consume()?;
+                    let type_ = self.type_()?;
 
-                current = self.source_from(Expr::As(Box::new(current), type_), position);
+                    current = self.source_from(Expr::As(Box::new(current), type_), position);
+                }
+                _ => break,
             }
-            _ => (),
         }
 
         Ok(current)
@@ -743,12 +745,74 @@ impl Parser {
     fn source<T>(&self, data: T, start: usize, end: usize) -> Source<T> {
         Source {
             data,
-            start: Some(self.input[start].position),
-            end: Some(self.input[end].position),
+            start: Some(self.input.get(start).map(|p| p.position).unwrap_or(0)),
+            end: Some(self.input.get(end).map(|p| p.position).unwrap_or(0)),
         }
     }
 
     fn source_from<T>(&self, data: T, start: usize) -> Source<T> {
         self.source(data, start, self.position)
     }
+}
+
+#[test]
+fn test_expr() -> Result<()> {
+    let source = |data: Expr| Source {
+        data,
+        start: Some(0),
+        end: Some(0),
+    };
+
+    let cases = vec![(
+        "a - b - c",
+        vec![
+            Token {
+                lexeme: Lexeme::Ident("a".to_string()),
+                position: 0,
+            },
+            Token {
+                lexeme: Lexeme::Minus,
+                position: 0,
+            },
+            Token {
+                lexeme: Lexeme::Ident("b".to_string()),
+                position: 0,
+            },
+            Token {
+                lexeme: Lexeme::Minus,
+                position: 0,
+            },
+            Token {
+                lexeme: Lexeme::Ident("c".to_string()),
+                position: 0,
+            },
+            Token {
+                lexeme: Lexeme::Semicolon,
+                position: 0,
+            },
+        ],
+        source(Expr::Call(
+            Box::new(source(Expr::Ident(Ident("sub".to_string())))),
+            vec![
+                source(Expr::Call(
+                    Box::new(source(Expr::Ident(Ident("sub".to_string())))),
+                    vec![
+                        source(Expr::Ident(Ident("a".to_string()))),
+                        source(Expr::Ident(Ident("b".to_string()))),
+                    ],
+                )),
+                source(Expr::Ident(Ident("c".to_string()))),
+            ],
+        )),
+    )];
+
+    for (input, tokens, expected) in cases {
+        let mut parser = Parser::new();
+        parser.input = tokens;
+
+        let actual = parser.expr()?;
+        assert_eq!(expected, actual, "{}", input);
+    }
+
+    Ok(())
 }
