@@ -597,7 +597,7 @@ impl Parser {
 
                             current = self.source_from(Expr::SizeOf(type_), position);
                         }
-                        _ => unreachable!(),
+                        _ => bail!("Unknown type constructor: {}", ident.as_str()),
                     }
                 }
                 Lexeme::DoubleColon => {

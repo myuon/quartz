@@ -12,12 +12,55 @@ fun string_equal(s1: string, s2: string): bool {
   return true;
 }
 
+fun i32_to_string(n: i32): string {
+  if n == 0 {
+    return "0";
+  }
+
+  let digit = 0;
+  let tmp = n;
+  while tmp > 0 {
+    tmp = tmp / 10;
+    digit = digit + 1;
+  }
+
+  let str = alloc(digit) as ptr[byte];
+  tmp = n;
+  for i in 0..digit {
+    let d = tmp % 10;
+    str.at(digit - i - 1) = ((d + 48) as byte);
+    tmp = tmp / 10;
+  }
+
+  return string {
+    data: str,
+    length: digit,
+  };
+}
+
+fun is_included(s: string, n: i32, chars: string): bool {
+  for i in 0..chars.length {
+    if s.data.at(n) == chars.data.at(i) {
+      return true;
+    }
+  }
+  return false;
+}
+
 fun is_space(s: string, n: i32): bool {
-  return s.data.at(n) == 32 as byte;
+  return is_included(s, n, " ");
+}
+
+fun vec_byte_to_string(b: vec[byte]): string {
+  return string {
+    data: b.data as ptr[byte],
+    length: b.length,
+  };
 }
 
 type Token = {
   lexeme: string,
+  string_value: string?,
   position: i32,
 };
 
@@ -34,9 +77,43 @@ module Lexer {
     };
   }
 
+  fun consume_space(self, input: string) {
+    while is_space(input, self.position) {
+      self.position = self.position + 1;
+    }
+  }
+
+  fun consume_ident(self, input: string): string? {
+    let ident = make[vec[byte]]();
+    while is_included(input, self.position, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_") {
+      ident.push(input.data.at(self.position));
+      self.position = self.position + 1;
+    }
+
+    if ident.length == 0 {
+      return nil;
+    }
+
+    return vec_byte_to_string(ident)?;
+  }
+
   fun run(self, input: string) {
     while input.length > self.position {
-      println("ERROR");
+      self.consume_space(input);
+
+      let ident = self.consume_ident(input);
+      if ident != nil {
+        self.tokens.push(Token {
+          lexeme: "ident",
+          string_value: ident,
+          position: self.position,
+        });
+        continue;
+      }
+
+      println("== ERROR ==");
+      println("position: ");
+      println(i32_to_string(self.position));
       return nil;
     }
   }
