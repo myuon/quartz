@@ -46,6 +46,12 @@ fun test() {
   if !string_equal("hello", "hello") {
     println("string_equal failed");
   }
+  if string_equal("hello", "world") {
+    println("string_equal failed");
+  }
+  if !is_space("hoge fuga", 4) {
+    println("is_space failed");
+  }
 }
 
 fun main() {
