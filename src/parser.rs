@@ -295,6 +295,23 @@ impl Parser {
                     position,
                 );
             }
+            Lexeme::Gt => {
+                self.consume()?;
+                let token_position_end = self.position;
+                let rhs = self.expr_(with_struct)?;
+
+                current = self.source_from(
+                    Expr::Call(
+                        Box::new(self.source(
+                            Expr::Ident(Ident("gt".to_string())),
+                            token_position,
+                            token_position_end,
+                        )),
+                        vec![current, rhs],
+                    ),
+                    position,
+                );
+            }
             Lexeme::DoubleDot => {
                 self.consume()?;
                 let rhs = self.expr_(with_struct)?;
@@ -376,6 +393,40 @@ impl Parser {
                     Expr::Call(
                         Box::new(self.source(
                             Expr::Ident(Ident("mult".to_string())),
+                            token_position,
+                            token_position_end,
+                        )),
+                        vec![current, rhs],
+                    ),
+                    position,
+                );
+            }
+            Lexeme::Slash => {
+                self.consume()?;
+                let token_position_end = self.position;
+                let rhs = self.term_1(with_struct)?;
+
+                current = self.source_from(
+                    Expr::Call(
+                        Box::new(self.source(
+                            Expr::Ident(Ident("div".to_string())),
+                            token_position,
+                            token_position_end,
+                        )),
+                        vec![current, rhs],
+                    ),
+                    position,
+                );
+            }
+            Lexeme::Percent => {
+                self.consume()?;
+                let token_position_end = self.position;
+                let rhs = self.term_1(with_struct)?;
+
+                current = self.source_from(
+                    Expr::Call(
+                        Box::new(self.source(
+                            Expr::Ident(Ident("mod".to_string())),
                             token_position,
                             token_position_end,
                         )),

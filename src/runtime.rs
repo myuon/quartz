@@ -395,6 +395,46 @@ fun main() {
 "#,
                 vec![Value::I32(0)],
             ),
+            (
+                r#"
+fun int_to_string(n: i32): string {
+    let digit = 0;
+    let tmp = n;
+    while tmp > 0 {
+        tmp = tmp / 10;
+        digit = digit + 1;
+    }
+
+    let str = alloc(digit) as ptr[byte];
+    tmp = n;
+    for i in 0..digit {
+        debug_i32(tmp);
+        debug_i32((digit - i) - 1);
+        let d = tmp % 10;
+        str.at(digit - i - 1) = ((d + 48) as byte);
+        tmp = tmp / 10;
+    }
+
+    return string {
+        data: str,
+        length: digit,
+    };
+}
+
+fun main() {
+    let str = int_to_string(123456);
+    println(str);
+
+    for i in 0..str.length {
+        write_stdout(str.data.at(i));
+        write_stdout(10 as byte);
+    }
+
+    return str.length;
+}
+"#,
+                vec![Value::I32(0)],
+            ),
         ];
 
         for (input, expected) in cases {

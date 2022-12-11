@@ -27,11 +27,19 @@ impl TypeChecker {
                     Type::Func(vec![Type::I32, Type::I32], Box::new(Type::I32)),
                 ),
                 (
+                    "sub",
+                    Type::Func(vec![Type::I32, Type::I32], Box::new(Type::I32)),
+                ),
+                (
                     "mult",
                     Type::Func(vec![Type::I32, Type::I32], Box::new(Type::I32)),
                 ),
                 (
-                    "sub",
+                    "div",
+                    Type::Func(vec![Type::I32, Type::I32], Box::new(Type::I32)),
+                ),
+                (
+                    "mod",
                     Type::Func(vec![Type::I32, Type::I32], Box::new(Type::I32)),
                 ),
                 (
@@ -40,6 +48,10 @@ impl TypeChecker {
                 ),
                 (
                     "lt",
+                    Type::Func(vec![Type::I32, Type::I32], Box::new(Type::Bool)),
+                ),
+                (
+                    "gt",
                     Type::Func(vec![Type::I32, Type::I32], Box::new(Type::Bool)),
                 ),
                 (

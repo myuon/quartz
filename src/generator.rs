@@ -457,11 +457,20 @@ impl Generator {
                 "mult" => {
                     self.writer.write("i32.mul");
                 }
+                "div" => {
+                    self.writer.write("i32.div_s");
+                }
+                "mod" => {
+                    self.writer.write("i32.rem_s");
+                }
                 "equal" => {
                     self.writer.write("i32.eq");
                 }
                 "lt" => {
                     self.writer.write("i32.lt_s");
+                }
+                "gt" => {
+                    self.writer.write("i32.gt_s");
                 }
                 _ => {
                     self.writer.write(&format!("call ${}", ident.as_str()));
