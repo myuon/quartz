@@ -173,6 +173,8 @@ impl Generator {
         for expr in body.iter_mut() {
             self.expr(expr)?;
         }
+        self.writer.new_statement();
+        self.writer.write("return");
 
         self.writer.end();
 
@@ -470,6 +472,9 @@ impl Generator {
                 }
                 "not_equal" => {
                     self.writer.write("i32.ne");
+                }
+                "not" => {
+                    self.writer.write("i32.eqz");
                 }
                 "lt" => {
                     self.writer.write("i32.lt_s");

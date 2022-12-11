@@ -46,6 +46,7 @@ impl TypeChecker {
                     "equal",
                     Type::Func(vec![Type::I32, Type::I32], Box::new(Type::Bool)), // FIXME: support bool
                 ),
+                ("not", Type::Func(vec![Type::Bool], Box::new(Type::Bool))),
                 (
                     "lt",
                     Type::Func(vec![Type::I32, Type::I32], Box::new(Type::Bool)),
@@ -276,9 +277,9 @@ impl TypeChecker {
                     self.block(else_block, &mut then_type)?;
                 }
 
-                self.unify(type_, &mut then_type)?;
+                self.unify(type_, &mut Type::Nil)?;
 
-                Ok(None)
+                Ok(Some(then_type))
             }
             Statement::While(cond, block) => {
                 let mut cond_type = self.expr(cond)?;

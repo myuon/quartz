@@ -134,6 +134,8 @@ fun factorial(n: i32): i32 {
     } else {
         return n * factorial(n - 1);
     }
+
+    return 0;
 }
 
 fun main() {

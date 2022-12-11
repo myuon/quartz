@@ -479,6 +479,22 @@ impl Parser {
 
                 self.source_from(Expr::Self_, position)
             }
+            Lexeme::Bang => {
+                self.consume()?;
+                let expr = self.term_0(with_struct)?;
+
+                self.source_from(
+                    Expr::Call(
+                        Box::new(self.source(
+                            Expr::Ident(Ident("not".to_string())),
+                            position,
+                            position,
+                        )),
+                        vec![expr],
+                    ),
+                    position,
+                )
+            }
             _ => {
                 let lit = self.lit()?;
 

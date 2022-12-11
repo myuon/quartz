@@ -16,6 +16,8 @@ pub enum Lexeme {
     In,
     As,
     Self_,
+    True,
+    False,
     LParen,
     RParen,
     LBrace,
@@ -40,8 +42,7 @@ pub enum Lexeme {
     Gt,
     Underscore,
     Question,
-    True,
-    False,
+    Bang,
     Ident(String),
     Int(i32),
     String(String),
@@ -201,6 +202,7 @@ impl Lexer {
                     (">", Lexeme::Gt),
                     ("_", Lexeme::Underscore),
                     ("?", Lexeme::Question),
+                    ("!", Lexeme::Bang),
                 ],
             ) {
                 continue;

@@ -42,7 +42,15 @@ module Lexer {
   }
 }
 
+fun test() {
+  if !string_equal("hello", "hello") {
+    println("string_equal failed");
+  }
+}
+
 fun main() {
+  test();
+
   let lexer = Lexer::new();
   lexer.run("x + 1");
 }
