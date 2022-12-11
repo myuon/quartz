@@ -11,6 +11,7 @@ mod util;
 
 use std::io::{Read, Write};
 
+use anyhow::Result;
 use clap::{Parser, Subcommand};
 
 use crate::{compiler::Compiler, runtime::Runtime};
@@ -26,9 +27,19 @@ struct Cli {
 #[derive(Subcommand)]
 enum SubCommand {
     #[clap(name = "compile", about = "Compile a file")]
-    Compile,
+    Compile {
+        #[clap(long)]
+        stdin: bool,
+
+        file: Option<String>,
+    },
     #[clap(name = "run", about = "Run a file")]
-    Run,
+    Run {
+        #[clap(long)]
+        stdin: bool,
+
+        file: Option<String>,
+    },
 }
 
 fn read_from_stdin() -> String {
@@ -37,30 +48,44 @@ fn read_from_stdin() -> String {
     buffer
 }
 
-fn main() -> anyhow::Result<()> {
+fn main() -> Result<()> {
     let mut compiler = Compiler::new();
     let mut runtime = Runtime::new();
 
     let cli = Cli::parse();
     match cli.subcmd {
-        SubCommand::Compile => {
-            let wat = compiler.compile(&read_from_stdin())?;
-            println!("{}", wat);
-
-            let file = std::fs::File::create("build/build.wat")?;
-            let mut writer = std::io::BufWriter::new(file);
-            writer.write_all(wat.as_bytes())?;
-
-            let file = std::fs::File::create("build/build.wasm")?;
-            let mut writer = std::io::BufWriter::new(file);
-            writer.write_all(&wat::parse_str(wat)?)?;
+        SubCommand::Compile { stdin, file } => {
+            compile(&mut compiler, stdin, file)?;
         }
-        SubCommand::Run => {
-            let wat = compiler.compile(&read_from_stdin())?;
+        SubCommand::Run { stdin, file } => {
+            let wat = compile(&mut compiler, stdin, file)?;
             let result = runtime.run(&wat)?;
             println!("{:?}", result);
         }
     }
 
     Ok(())
+}
+
+fn compile(compiler: &mut Compiler, stdin: bool, file: Option<String>) -> Result<String> {
+    let input = if stdin {
+        read_from_stdin()
+    } else {
+        let file = file.ok_or(anyhow::anyhow!("No file specified"))?;
+        let mut file = std::fs::File::open(file)?;
+        let mut buffer = String::new();
+        file.read_to_string(&mut buffer)?;
+        buffer
+    };
+    let wat = compiler.compile(&input)?;
+
+    let file = std::fs::File::create("build/build.wat")?;
+    let mut writer = std::io::BufWriter::new(file);
+    writer.write_all(wat.as_bytes())?;
+
+    let file = std::fs::File::create("build/build.wasm")?;
+    let mut writer = std::io::BufWriter::new(file);
+    writer.write_all(&wat::parse_str(&wat)?)?;
+
+    Ok(wat)
 }
