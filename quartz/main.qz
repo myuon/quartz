@@ -51,6 +51,20 @@ fun is_space(s: string, n: i32): bool {
   return is_included(s, n, " ");
 }
 
+fun is_prefix(s: string, n: i32, prefix: string): bool {
+  if s.length < n + prefix.length {
+    return false;
+  }
+
+  for i in 0..prefix.length {
+    if s.data.at(n + i) != prefix.data.at(i) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 fun vec_byte_to_string(b: vec[byte]): string {
   return string {
     data: b.data as ptr[byte],
@@ -97,9 +111,27 @@ module Lexer {
     return vec_byte_to_string(ident)?;
   }
 
+  fun match(input: string, token: string, token_name: string): bool {
+    if is_prefix(input, self.position, token) {
+      self.tokens.push(Token {
+        lexeme: token_name,
+        string_value: nil,
+        position: self.position,
+      });
+      self.position = self.position + 1;
+      return true;
+    }
+
+    return false;
+  }
+
   fun run(self, input: string) {
     while input.length > self.position {
       self.consume_space(input);
+
+      if self.match(input, "+", "plus") {
+        continue;
+      }
 
       let ident = self.consume_ident(input);
       if ident != nil {
@@ -135,5 +167,5 @@ fun main() {
   test();
 
   let lexer = Lexer::new();
-  lexer.run("x + 1");
+  lexer.run("x + y");
 }
