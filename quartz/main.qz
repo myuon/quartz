@@ -72,6 +72,17 @@ fun vec_byte_to_string(b: vec[byte]): string {
   };
 }
 
+fun slice(s: string, start: i32, end: i32): string {
+  return string {
+    data: (s.data as i32 + start) as ptr[byte],
+    length: end - start,
+  };
+}
+
+fun slice_start(s: string, start: i32): string {
+  return slice(s, start, s.length);
+}
+
 type Token = {
   lexeme: string,
   string_value: string?,
@@ -111,7 +122,7 @@ module Lexer {
     return vec_byte_to_string(ident)?;
   }
 
-  fun match(input: string, token: string, token_name: string): bool {
+  fun match(self, input: string, token: string, token_name: string): bool {
     if is_prefix(input, self.position, token) {
       self.tokens.push(Token {
         lexeme: token_name,
@@ -126,7 +137,7 @@ module Lexer {
   }
 
   fun run(self, input: string) {
-    while input.length > self.position {
+    while self.position < input.length {
       self.consume_space(input);
 
       if self.match(input, "+", "plus") {
@@ -140,12 +151,14 @@ module Lexer {
           string_value: ident,
           position: self.position,
         });
+
         continue;
       }
 
       println("== ERROR ==");
       println("position: ");
       println(i32_to_string(self.position));
+
       return nil;
     }
   }
@@ -160,6 +173,10 @@ fun test() {
   }
   if !is_space("hoge fuga", 4) {
     println("is_space failed");
+  }
+  if !string_equal(slice("hoge fuga", 0, 4), "hoge") {
+    println("slice failed");
+    println(slice("hoge fuga", 0, 4));
   }
 }
 

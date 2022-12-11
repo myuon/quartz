@@ -277,7 +277,10 @@ impl TypeChecker {
                     self.block(else_block, &mut then_type)?;
                 }
 
-                self.unify(type_, &mut Type::Nil)?;
+                self.unify(type_, &mut Type::Nil).context(ErrorInSource {
+                    start: cond.start.unwrap_or(0),
+                    end: cond.end.unwrap_or(0),
+                })?;
 
                 Ok(Some(then_type))
             }
@@ -407,7 +410,11 @@ impl TypeChecker {
                         .get(&path)
                         .ok_or(anyhow!("unknown method: {:?}", path))?;
                     let (mut arg_types, result_type) = type_.clone().to_func()?;
-                    self.unify(&mut expr_type, &mut arg_types[0])?;
+                    self.unify(&mut expr_type, &mut arg_types[0])
+                        .context(ErrorInSource {
+                            start: expr.start.unwrap_or(0),
+                            end: expr.end.unwrap_or(0),
+                        })?;
 
                     Ok(Type::Func(arg_types[1..].to_vec(), result_type))
                 }
