@@ -365,6 +365,9 @@ impl TypeChecker {
                         "at" => {
                             return Ok(Type::Func(vec![Type::I32], p.clone()));
                         }
+                        "offset" => {
+                            return Ok(Type::Func(vec![Type::I32], Box::new(Type::Ptr(p.clone()))));
+                        }
                         _ => (),
                     }
                 }

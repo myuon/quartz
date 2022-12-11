@@ -260,6 +260,22 @@ impl IrCodeGenerator {
                             index: Box::new(self.expr(&mut args[0])?),
                         })
                     }
+                    (Type::Ptr(p), "offset") => {
+                        assert_eq!(args.len(), 1);
+
+                        Ok(IrTerm::PointerOffset {
+                            address: Box::new(self.expr(expr)?),
+                            offset: Box::new(IrTerm::Call {
+                                callee: Box::new(IrTerm::Ident("mult".to_string())),
+                                args: vec![
+                                    self.expr(&mut args[0])?,
+                                    IrTerm::SizeOf {
+                                        type_: IrType::from_type(&p)?,
+                                    },
+                                ],
+                            }),
+                        })
+                    }
                     (Type::Array(p, s), "at") => {
                         assert_eq!(args.len(), 1);
 

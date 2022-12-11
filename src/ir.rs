@@ -57,6 +57,10 @@ pub enum IrTerm {
         address: Box<IrTerm>,
         index: Box<IrTerm>,
     },
+    PointerOffset {
+        address: Box<IrTerm>,
+        offset: Box<IrTerm>,
+    },
     SetPointer {
         address: Box<IrTerm>,
         value: Box<IrTerm>,
@@ -273,6 +277,13 @@ impl IrTerm {
                 writer.write("continue");
                 writer.end();
             }
+            IrTerm::PointerOffset { address, offset } => {
+                writer.start();
+                writer.write("pointer-offset");
+                address.to_string_writer(writer);
+                offset.to_string_writer(writer);
+                writer.end();
+            }
         }
     }
 
@@ -376,6 +387,12 @@ impl IrTerm {
                 value,
             } => vec![],
             IrTerm::Continue => vec![],
+            IrTerm::PointerOffset { address, offset } => {
+                let mut result = vec![];
+                result.extend(address.find_let());
+                result.extend(offset.find_let());
+                result
+            }
         }
     }
 

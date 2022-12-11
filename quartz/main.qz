@@ -74,7 +74,7 @@ fun vec_byte_to_string(b: vec[byte]): string {
 
 fun slice(s: string, start: i32, end: i32): string {
   return string {
-    data: (s.data as i32 + start) as ptr[byte],
+    data: s.data.offset(start),
     length: end - start,
   };
 }

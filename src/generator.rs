@@ -401,6 +401,16 @@ impl Generator {
                 self.writer.new_statement();
                 self.writer.write("br 0");
             }
+            IrTerm::PointerOffset { address, offset } => {
+                self.writer.new_statement();
+                self.expr(address)?;
+
+                self.writer.new_statement();
+                self.expr(offset)?;
+
+                self.writer.new_statement();
+                self.writer.write("i32.add");
+            }
             _ => todo!(),
         }
 
