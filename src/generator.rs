@@ -497,6 +497,9 @@ impl Generator {
                 "gt" => {
                     self.writer.write("i32.gt_s");
                 }
+                "or" => {
+                    self.writer.write("i32.or");
+                }
                 _ => {
                     self.writer.write(&format!("call ${}", ident.as_str()));
                 }

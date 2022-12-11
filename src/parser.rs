@@ -331,6 +331,22 @@ impl Parser {
 
                 current = self.source_from(Expr::Range(Box::new(current), Box::new(rhs)), position);
             }
+            Lexeme::DoublePipe => {
+                self.consume()?;
+                let rhs = self.expr_(with_struct)?;
+
+                current = self.source_from(
+                    Expr::Call(
+                        Box::new(self.source(
+                            Expr::Ident(Ident("or".to_string())),
+                            token_position,
+                            token_position,
+                        )),
+                        vec![current, rhs],
+                    ),
+                    position,
+                );
+            }
             _ => (),
         }
 

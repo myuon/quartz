@@ -82,6 +82,10 @@ impl TypeChecker {
                     "debug_i32",
                     Type::Func(vec![Type::I32], Box::new(Type::Nil)),
                 ),
+                (
+                    "or",
+                    Type::Func(vec![Type::Bool, Type::Bool], Box::new(Type::Bool)),
+                ),
             ]
             .into_iter()
             .map(|(k, v)| (Path::ident(Ident(k.to_string())), v))
