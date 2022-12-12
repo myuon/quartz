@@ -1,4 +1,4 @@
-use std::io::Read;
+use std::{collections::HashSet, io::Read};
 
 use anyhow::{Context, Result};
 use thiserror::{Error, __private::PathAsDisplay};
@@ -39,12 +39,18 @@ impl Compiler {
         lexer.run(input).context("lexer phase")?;
         loaded_modules.push(parser.run(lexer.tokens).context("parser phase")?.0);
 
+        let mut visited = HashSet::new();
+
         parser.imports.push(Path::new(vec![
             Ident("quartz".to_string()),
             Ident("std".to_string()),
         ]));
 
         while let Some(path) = parser.imports.pop() {
+            if visited.contains(&path) {
+                continue;
+            }
+
             let mut lexer = Lexer::new();
             let mut parser = Parser::new();
 
@@ -64,6 +70,8 @@ impl Compiler {
 
             lexer.run(&buffer).context("lexer phase")?;
             loaded_modules.push(parser.run(lexer.tokens).context("parser phase")?.0);
+
+            visited.insert(path);
         }
 
         let mut module = Module(loaded_modules.concat());
