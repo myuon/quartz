@@ -1,7 +1,7 @@
 use std::io::Read;
 
 use anyhow::{Context, Result};
-use thiserror::Error;
+use thiserror::{Error, __private::PathAsDisplay};
 
 use crate::{
     generator::Generator, ir::IrTerm, ir_code_gen::IrCodeGenerator, lexer::Lexer, parser::Parser,
@@ -22,7 +22,7 @@ impl Compiler {
         Compiler {}
     }
 
-    fn compile_(&mut self, input: &str) -> Result<String> {
+    fn compile_(&mut self, cwd: &str, input: &str) -> Result<String> {
         let mut lexer = Lexer::new();
         let mut parser = Parser::new();
         let mut typechecker = TypeChecker::new();
@@ -40,8 +40,11 @@ impl Compiler {
 
             assert_eq!(path.0.len(), 1);
 
-            let mut file = std::fs::File::open(format!("{}.rs", path.0[0].clone().as_str()))
-                .context(format!("opening file {}.rs", path.0[0].clone().as_str()))?;
+            let file_path = std::path::Path::new(cwd)
+                .join(path.0[0].clone().as_str())
+                .with_extension("qz");
+            let mut file = std::fs::File::open(&file_path)
+                .context(format!("opening file {}", file_path.as_display()))?;
             let mut buffer = String::new();
             file.read_to_string(&mut buffer).context("reading file")?;
 
@@ -79,7 +82,7 @@ impl Compiler {
         Ok(generator.writer.buffer)
     }
 
-    pub fn compile(&mut self, input: &str) -> Result<String> {
+    pub fn compile(&mut self, cwd: &str, input: &str) -> Result<String> {
         let mut input = input.to_string();
         input.push_str(
             r#"
@@ -151,7 +154,7 @@ fun new_empty_string(length: i32): string {
 "#,
         );
 
-        self.compile_(&input).map_err(|error| {
+        self.compile_(cwd, &input).map_err(|error| {
             if let Some(source) = error.downcast_ref::<ErrorInSource>() {
                 let start = source.start;
                 let end = source.end;

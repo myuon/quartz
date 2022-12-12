@@ -68,16 +68,22 @@ fn main() -> Result<()> {
 }
 
 fn compile(compiler: &mut Compiler, stdin: bool, file: Option<String>) -> Result<String> {
+    let mut cwd = String::new();
     let input = if stdin {
         read_from_stdin()
     } else {
-        let file = file.ok_or(anyhow::anyhow!("No file specified"))?;
-        let mut file = std::fs::File::open(file)?;
+        let path = file.ok_or(anyhow::anyhow!("No file specified"))?;
+        if let Some(parent) = std::path::Path::new(&path).canonicalize()?.parent() {
+            cwd = parent.to_str().unwrap().to_string();
+        }
+
+        let mut file = std::fs::File::open(path)?;
         let mut buffer = String::new();
         file.read_to_string(&mut buffer)?;
+
         buffer
     };
-    let wat = compiler.compile(&input)?;
+    let wat = compiler.compile(&cwd, &input)?;
 
     let file = std::fs::File::create("build/build.wat")?;
     let mut writer = std::io::BufWriter::new(file);

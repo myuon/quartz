@@ -433,7 +433,7 @@ fun main() {
 
         for (input, expected) in cases {
             let mut compiler = Compiler::new();
-            let wat = compiler.compile(input).unwrap();
+            let wat = compiler.compile("", input).unwrap();
             let result = runtime
                 .run(&wat)
                 .context(format!("\n== SOURCE\n{}", input))
