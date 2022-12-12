@@ -12,6 +12,7 @@ pub struct Parser {
     position: usize,
     input: Vec<Token>,
     omit_index: usize,
+    pub imports: Vec<Path>,
 }
 
 impl Parser {
@@ -20,6 +21,7 @@ impl Parser {
             position: 0,
             input: vec![],
             omit_index: 0,
+            imports: vec![],
         }
     }
 
@@ -63,6 +65,8 @@ impl Parser {
                 self.expect(Lexeme::Import)?;
                 let path = self.path()?;
                 self.expect(Lexeme::Semicolon)?;
+
+                self.imports.push(path.clone());
 
                 Ok(Decl::Import(path))
             }

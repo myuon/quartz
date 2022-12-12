@@ -1,8 +1,10 @@
+use std::io::Read;
+
 use anyhow::{Context, Result};
 use thiserror::Error;
 
 use crate::{
-    generator::Generator, ir_code_gen::IrCodeGenerator, lexer::Lexer, parser::Parser,
+    generator::Generator, ir::IrTerm, ir_code_gen::IrCodeGenerator, lexer::Lexer, parser::Parser,
     typecheck::TypeChecker,
 };
 
@@ -27,14 +29,48 @@ impl Compiler {
         let mut generator = Generator::new();
         let mut ir_code_generator = IrCodeGenerator::new();
 
+        let mut loaded_modules = vec![];
+
         lexer.run(input).context("lexer phase")?;
-        let mut ast = parser.run(lexer.tokens).context("parser phase")?;
-        typechecker.run(&mut ast).context("typechecker phase")?;
+        loaded_modules.push(parser.run(lexer.tokens).context("parser phase")?);
+
+        while let Some(path) = parser.imports.pop() {
+            let mut lexer = Lexer::new();
+            let mut parser = Parser::new();
+
+            assert_eq!(path.0.len(), 1);
+
+            let mut file = std::fs::File::open(format!("{}.rs", path.0[0].clone().as_str()))
+                .context(format!("opening file {}.rs", path.0[0].clone().as_str()))?;
+            let mut buffer = String::new();
+            file.read_to_string(&mut buffer).context("reading file")?;
+
+            lexer.run(input).context("lexer phase")?;
+            loaded_modules.push(parser.run(lexer.tokens).context("parser phase")?);
+        }
+
+        loaded_modules.reverse();
+
+        typechecker
+            .run(&mut loaded_modules)
+            .context("typechecker phase")?;
 
         ir_code_generator.set_types(typechecker.types.clone());
-        let mut ir = ir_code_generator
-            .run(&mut ast)
+        let ir = ir_code_generator
+            .run(&mut loaded_modules)
             .context("ir code generator phase")?;
+
+        let mut decls = vec![];
+        for term in ir {
+            match term {
+                IrTerm::Module { elements } => {
+                    decls.extend(elements);
+                }
+                _ => todo!(),
+            }
+        }
+
+        let mut ir = IrTerm::Module { elements: decls };
 
         generator.set_globals(typechecker.globals.keys().into_iter().cloned().collect());
         generator.set_types(typechecker.types);
