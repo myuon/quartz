@@ -4,8 +4,13 @@ use anyhow::{Context, Result};
 use thiserror::{Error, __private::PathAsDisplay};
 
 use crate::{
-    ast::Module, generator::Generator, ir::IrTerm, ir_code_gen::IrCodeGenerator, lexer::Lexer,
-    parser::Parser, typecheck::TypeChecker,
+    ast::Module,
+    generator::Generator,
+    ir_code_gen::IrCodeGenerator,
+    lexer::Lexer,
+    parser::Parser,
+    typecheck::TypeChecker,
+    util::{ident::Ident, path::Path},
 };
 
 #[derive(Debug, Error)]
@@ -34,14 +39,23 @@ impl Compiler {
         lexer.run(input).context("lexer phase")?;
         loaded_modules.push(parser.run(lexer.tokens).context("parser phase")?.0);
 
+        parser.imports.push(Path::new(vec![
+            Ident("quartz".to_string()),
+            Ident("std".to_string()),
+        ]));
+
         while let Some(path) = parser.imports.pop() {
             let mut lexer = Lexer::new();
             let mut parser = Parser::new();
 
-            assert_eq!(path.0.len(), 1);
-
             let file_path = std::path::Path::new(cwd)
-                .join(path.0[0].clone().as_str())
+                .join(
+                    path.0
+                        .iter()
+                        .map(|ident| ident.as_str())
+                        .collect::<Vec<&str>>()
+                        .join("/"),
+                )
                 .with_extension("qz");
             let mut file = std::fs::File::open(&file_path)
                 .context(format!("opening file {}", file_path.as_display()))?;

@@ -1,4 +1,4 @@
-import std;
+import quartz::std;
 
 fun string_equal(s1: string, s2: string): bool {
   if s1.length != s2.length {

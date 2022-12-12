@@ -68,15 +68,11 @@ fn main() -> Result<()> {
 }
 
 fn compile(compiler: &mut Compiler, stdin: bool, file: Option<String>) -> Result<String> {
-    let mut cwd = String::new();
+    let cwd = std::env::current_dir()?.to_str().unwrap().to_string();
     let input = if stdin {
         read_from_stdin()
     } else {
         let path = file.ok_or(anyhow::anyhow!("No file specified"))?;
-        if let Some(parent) = std::path::Path::new(&path).canonicalize()?.parent() {
-            cwd = parent.to_str().unwrap().to_string();
-        }
-
         let mut file = std::fs::File::open(path)?;
         let mut buffer = String::new();
         file.read_to_string(&mut buffer)?;
