@@ -153,6 +153,7 @@ impl TypeChecker {
                     self.module_register_for_back_reference(module)?;
                     self.current_path = path;
                 }
+                Decl::Import(_) => (),
             }
         }
 
@@ -193,6 +194,7 @@ impl TypeChecker {
                 self.module(module)?;
                 self.current_path = path;
             }
+            Decl::Import(_) => (),
         }
 
         Ok(())

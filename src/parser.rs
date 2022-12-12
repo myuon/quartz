@@ -59,8 +59,30 @@ impl Parser {
 
                 Ok(Decl::Module(ident, module))
             }
+            Lexeme::Import => {
+                self.expect(Lexeme::Import)?;
+                let path = self.path()?;
+                self.expect(Lexeme::Semicolon)?;
+
+                Ok(Decl::Import(path))
+            }
             _ => Err(anyhow!("Unexpected token {:?}", self.peek()?.lexeme)),
         }
+    }
+
+    fn path(&mut self) -> Result<Path> {
+        let mut path = vec![self.ident()?];
+        loop {
+            if self.peek()?.lexeme == Lexeme::DoubleColon {
+                self.consume()?;
+            } else {
+                break;
+            }
+
+            path.push(self.ident()?);
+        }
+
+        Ok(Path(path))
     }
 
     fn func(&mut self) -> Result<Func> {

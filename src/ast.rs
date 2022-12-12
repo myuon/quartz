@@ -166,6 +166,7 @@ pub enum Decl {
     Let(Ident, Type, Source<Expr>),
     Type(Ident, Type),
     Module(Ident, Module),
+    Import(Path),
 }
 
 #[derive(PartialEq, Debug, Clone)]
