@@ -50,6 +50,11 @@
         {
           "match": "\"(\\\\.|[^\"])*\"",
           "name": "string.quoted.double.quartz"
+        },
+        {
+          "name": "string.quoted.raw.quartz",
+          "begin": "`",
+          "end": "`"
         }
       ]
     },
