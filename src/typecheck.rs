@@ -121,10 +121,8 @@ impl TypeChecker {
         }
     }
 
-    pub fn run(&mut self, modules: &mut Vec<Module>) -> Result<()> {
-        for module in modules {
-            self.module(module)?;
-        }
+    pub fn run(&mut self, module: &mut Module) -> Result<()> {
+        self.module(module)?;
 
         Ok(())
     }

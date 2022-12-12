@@ -20,7 +20,7 @@ impl Path {
         self.0.push(ident);
     }
 
-    pub fn as_str(&mut self) -> String {
+    pub fn as_str(&self) -> String {
         self.0
             .iter()
             .map(|ident| ident.as_str())

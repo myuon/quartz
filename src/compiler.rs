@@ -4,8 +4,8 @@ use anyhow::{Context, Result};
 use thiserror::{Error, __private::PathAsDisplay};
 
 use crate::{
-    generator::Generator, ir::IrTerm, ir_code_gen::IrCodeGenerator, lexer::Lexer, parser::Parser,
-    typecheck::TypeChecker,
+    ast::Module, generator::Generator, ir::IrTerm, ir_code_gen::IrCodeGenerator, lexer::Lexer,
+    parser::Parser, typecheck::TypeChecker,
 };
 
 #[derive(Debug, Error)]
@@ -32,7 +32,7 @@ impl Compiler {
         let mut loaded_modules = vec![];
 
         lexer.run(input).context("lexer phase")?;
-        loaded_modules.push(parser.run(lexer.tokens).context("parser phase")?);
+        loaded_modules.push(parser.run(lexer.tokens).context("parser phase")?.0);
 
         while let Some(path) = parser.imports.pop() {
             let mut lexer = Lexer::new();
@@ -48,32 +48,18 @@ impl Compiler {
             let mut buffer = String::new();
             file.read_to_string(&mut buffer).context("reading file")?;
 
-            lexer.run(input).context("lexer phase")?;
-            loaded_modules.push(parser.run(lexer.tokens).context("parser phase")?);
+            lexer.run(&buffer).context("lexer phase")?;
+            loaded_modules.push(parser.run(lexer.tokens).context("parser phase")?.0);
         }
 
-        loaded_modules.reverse();
+        let mut module = Module(loaded_modules.concat());
 
-        typechecker
-            .run(&mut loaded_modules)
-            .context("typechecker phase")?;
+        typechecker.run(&mut module).context("typechecker phase")?;
 
         ir_code_generator.set_types(typechecker.types.clone());
-        let ir = ir_code_generator
-            .run(&mut loaded_modules)
+        let mut ir = ir_code_generator
+            .run(&mut module)
             .context("ir code generator phase")?;
-
-        let mut decls = vec![];
-        for term in ir {
-            match term {
-                IrTerm::Module { elements } => {
-                    decls.extend(elements);
-                }
-                _ => todo!(),
-            }
-        }
-
-        let mut ir = IrTerm::Module { elements: decls };
 
         generator.set_globals(typechecker.globals.keys().into_iter().cloned().collect());
         generator.set_types(typechecker.types);
@@ -83,76 +69,7 @@ impl Compiler {
     }
 
     pub fn compile(&mut self, cwd: &str, input: &str) -> Result<String> {
-        let mut input = input.to_string();
-        input.push_str(
-            r#"
-fun println(s: string) {
-    let l = s.length;
-    let d = s.data;
-    let n = 0;
-
-    // >>
-    write_stdout(62 as byte);
-    write_stdout(62 as byte);
-    write_stdout(32 as byte);
-
-    while n < l {
-        write_stdout(d.at(n));
-        n = n + 1;
-    }
-
-    // $\newline
-    write_stdout(36 as byte);
-    write_stdout(10 as byte);
-}
-
-fun vec_make(init_capacity: i32, size: i32): vec[i32] {
-    let capacity = init_capacity;
-    let length = 0;
-    let data = alloc(capacity * size);
-    return vec {
-        data: data,
-        length: length,
-        capacity: capacity,
-    };
-}
-
-fun vec_push(v: vec[i32], e: i32) {
-    if (v.length + 1) == v.capacity {
-        let new_capacity = v.capacity * 2;
-        let new_data = alloc(new_capacity);
-        mem_copy(v.data, new_data, v.length * sizeof[i32]());
-        mem_free(v.data);
-        v.data = new_data;
-        v.capacity = new_capacity;
-    }
-
-    v.data.at(v.length) = e;
-    v.length = v.length + 1;
-}
-
-fun digit_to_string(digit: i32): string {
-    return char_to_string(digit as byte);
-}
-
-fun char_to_string(char: byte): string {
-    let s = make[array[byte,1]]();
-    s.at(0) = char;
-
-    return string {
-        data: s.data,
-        length: s.length,
-    };
-}
-
-fun new_empty_string(length: i32): string {
-    return string {
-        data: alloc(length) as ptr[byte],
-        length: length,
-    };
-}
-"#,
-        );
+        let input = input.to_string();
 
         self.compile_(cwd, &input).map_err(|error| {
             if let Some(source) = error.downcast_ref::<ErrorInSource>() {

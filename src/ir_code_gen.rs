@@ -27,14 +27,8 @@ impl IrCodeGenerator {
         self.types = types;
     }
 
-    pub fn run(&mut self, modules: &mut Vec<Module>) -> Result<Vec<IrTerm>> {
-        let mut elements = vec![];
-
-        for module in modules {
-            elements.push(self.module(module)?);
-        }
-
-        Ok(elements)
+    pub fn run(&mut self, module: &mut Module) -> Result<IrTerm> {
+        self.module(module)
     }
 
     fn module(&mut self, module: &mut Module) -> Result<IrTerm> {
