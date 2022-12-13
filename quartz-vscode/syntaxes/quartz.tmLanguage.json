@@ -168,6 +168,10 @@
           "name": "keyword.other.func.quartz"
         },
         {
+          "match": "\\b(import)\\b",
+          "name": "keyword.other.import.quartz"
+        },
+        {
           "match": "=",
           "name": "keyword.operator.assignment.quartz"
         },
