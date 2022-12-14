@@ -1,261 +1,49 @@
 import quartz::std;
-
-fun string_equal(s1: string, s2: string): bool {
-  if s1.length != s2.length {
-    return false;
-  }
-
-  for i in 0..s1.length {
-    if s1.data.at(i) != s2.data.at(i) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-fun i32_to_string(n: i32): string {
-  if n == 0 {
-    return "0";
-  }
-
-  let digit = 0;
-  let tmp = n;
-  while tmp > 0 {
-    tmp = tmp / 10;
-    digit = digit + 1;
-  }
-
-  let str = alloc(digit) as ptr[byte];
-  tmp = n;
-  for i in 0..digit {
-    let d = tmp % 10;
-    str.at(digit - i - 1) = ((d + 48) as byte);
-    tmp = tmp / 10;
-  }
-
-  return string {
-    data: str,
-    length: digit,
-  };
-}
-
-fun is_included(s: string, n: i32, chars: string): bool {
-  for i in 0..chars.length {
-    if s.data.at(n) == chars.data.at(i) {
-      return true;
-    }
-  }
-  return false;
-}
-
-fun is_space(s: string, n: i32): bool {
-  let c = s.data.at(n) as i32;
-  return c == 32 || c == 9 || c == 10 || c == 13;
-}
-
-fun is_prefix(s: string, n: i32, prefix: string): bool {
-  if s.length < n + prefix.length {
-    return false;
-  }
-
-  for i in 0..prefix.length {
-    if s.data.at(n + i) != prefix.data.at(i) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-fun vec_byte_to_string(b: vec[byte]): string {
-  return string {
-    data: b.data as ptr[byte],
-    length: b.length,
-  };
-}
-
-fun slice(s: string, start: i32, end: i32): string {
-  return string {
-    data: s.data.offset(start),
-    length: end - start,
-  };
-}
-
-fun slice_start(s: string, start: i32): string {
-  return slice(s, start, s.length);
-}
-
-module string {
-  fun concat(self, s: string): string {
-    let new_length = self.length + s.length;
-    let new_data = alloc(new_length) as ptr[byte];
-
-    for i in 0..self.length {
-      new_data.at(i) = self.data.at(i);
-    }
-    for i in 0..s.length {
-      new_data.at(self.length + i) = s.data.at(i);
-    }
-
-    return string {
-      data: new_data,
-      length: new_length,
-    };
-  }
-}
-
-type Token = {
-  lexeme: string,
-  string_value: string?,
-  position: i32,
-};
-
-type Lexer = {
-  position: i32,
-  tokens: vec[Token],
-};
-
-module Lexer {
-  fun new(): Lexer {
-    return Lexer {
-      position: 0,
-      tokens: make[vec[Token]](),
-    };
-  }
-
-  fun consume_space(self, input: string) {
-    while is_space(input, self.position) {
-      self.position = self.position + 1;
-    }
-  }
-
-  fun consume_ident(self, input: string): string? {
-    let ident = make[vec[byte]]();
-    while is_included(input, self.position, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_") {
-      ident.push(input.data.at(self.position));
-      self.position = self.position + 1;
-    }
-
-    if ident.length == 0 {
-      return nil;
-    }
-
-    return vec_byte_to_string(ident)?;
-  }
-
-  fun match(self, input: string, token: string, token_name: string): bool {
-    if is_prefix(input, self.position, token) {
-      self.tokens.push(Token {
-        lexeme: token_name,
-        string_value: nil,
-        position: self.position,
-      });
-      self.position = self.position + token.length;
-      return true;
-    }
-
-    return false;
-  }
-
-  fun run(self, input: string) {
-    while self.position < input.length {
-      self.consume_space(input);
-
-      if self.match(input, "fun", "fun") {
-        continue;
-      }
-      if self.match(input, "let", "let") {
-        continue;
-      }
-      if self.match(input, "return", "return") {
-        continue;
-      }
-      if self.match(input, "(", "lparen") {
-        continue;
-      }
-      if self.match(input, ")", "rparen") {
-        continue;
-      }
-      if self.match(input, "{", "lbrace") {
-        continue;
-      }
-      if self.match(input, "}", "rbrace") {
-        continue;
-      }
-      if self.match(input, ":", "colon") {
-        continue;
-      }
-      if self.match(input, ";", "semicolon") {
-        continue;
-      }
-      if self.match(input, "+", "plus") {
-        continue;
-      }
-
-      let ident = self.consume_ident(input);
-      if ident != nil {
-        self.tokens.push(Token {
-          lexeme: "ident",
-          string_value: ident,
-          position: self.position,
-        });
-
-        continue;
-      }
-
-      println("== ERROR ==");
-      println("position: ");
-      println(i32_to_string(self.position));
-
-      return nil;
-    }
-  }
-}
+import quartz::lexer;
 
 fun test() {
-  if !string_equal("hello", "hello") {
-    println("string_equal failed");
-  }
-  if string_equal("hello", "world") {
-    println("string_equal failed");
-  }
-  if !is_space("hoge fuga", 4) {
-    println("is_space failed");
-  }
-  if !string_equal(slice("hoge fuga", 0, 4), "hoge") {
-    println("slice failed");
-    println(slice("hoge fuga", 0, 4));
-  }
-  if !string_equal(slice_start("hoge fuga", 2), "ge fuga") {
-    println("slice_start failed");
-    println(slice_start("hoge fuga", 2));
-  }
-  if !string_equal("hoge".concat(" fuga"), "hoge fuga") {
-    println("string_concat failed");
-    println("hoge".concat(" fuga"));
-  }
+    if !string_equal("hello", "hello") {
+        println("string_equal failed");
+    }
+    if string_equal("hello", "world") {
+        println("string_equal failed");
+    }
+    if !is_space("hoge fuga", 4) {
+        println("is_space failed");
+    }
+    if !string_equal(slice("hoge fuga", 0, 4), "hoge") {
+        println("slice failed");
+        println(slice("hoge fuga", 0, 4));
+    }
+    if !string_equal(slice_start("hoge fuga", 2), "ge fuga") {
+        println("slice_start failed");
+        println(slice_start("hoge fuga", 2));
+    }
+    if !string_equal("hoge".concat(" fuga"), "hoge fuga") {
+        println("string_concat failed");
+        println("hoge".concat(" fuga"));
+    }
 }
 
 fun main() {
-  test();
+    test();
 
-  let lexer = Lexer::new();
-  lexer.run(`
+    let lexer = Lexer::new();
+    lexer.run(`
 fun main(): i32 {
     let x: i32 = 10;
     return x + 1;
 }
 `);
 
-  let tokens = lexer.tokens;
-  for i in 0..tokens.length {
-    let token = tokens.at(i);
-    println("lexeme: ".concat(token.lexeme));
-    if token.string_value != nil {
-      println("string_value: ".concat(token.string_value!));
+    let tokens = lexer.tokens;
+    for i in 0..tokens.length {
+        let token = tokens.at(i);
+        println("lexeme: ".concat(token.lexeme));
+        if token.string_value != nil {
+            println("string_value: ".concat(token.string_value!));
+        }
     }
-  }
 
-  debug_i32(lexer.tokens.length);
+    debug_i32(lexer.tokens.length);
 }

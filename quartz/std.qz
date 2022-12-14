@@ -63,3 +63,108 @@ fun new_empty_string(length: i32): string {
         length: length,
     };
 }
+
+fun string_equal(s1: string, s2: string): bool {
+    if s1.length != s2.length {
+        return false;
+    }
+
+    for i in 0..s1.length {
+        if s1.data.at(i) != s2.data.at(i) {
+        return false;
+        }
+    }
+
+    return true;
+}
+
+fun i32_to_string(n: i32): string {
+    if n == 0 {
+        return "0";
+    }
+
+    let digit = 0;
+    let tmp = n;
+    while tmp > 0 {
+        tmp = tmp / 10;
+        digit = digit + 1;
+    }
+
+    let str = alloc(digit) as ptr[byte];
+    tmp = n;
+    for i in 0..digit {
+        let d = tmp % 10;
+        str.at(digit - i - 1) = ((d + 48) as byte);
+        tmp = tmp / 10;
+    }
+
+    return string {
+        data: str,
+        length: digit,
+    };
+}
+
+fun is_included(s: string, n: i32, chars: string): bool {
+    for i in 0..chars.length {
+        if s.data.at(n) == chars.data.at(i) {
+        return true;
+        }
+    }
+    return false;
+}
+
+fun is_space(s: string, n: i32): bool {
+    let c = s.data.at(n) as i32;
+    return c == 32 || c == 9 || c == 10 || c == 13;
+}
+
+fun is_prefix(s: string, n: i32, prefix: string): bool {
+    if s.length < n + prefix.length {
+        return false;
+    }
+
+    for i in 0..prefix.length {
+        if s.data.at(n + i) != prefix.data.at(i) {
+        return false;
+        }
+    }
+
+    return true;
+}
+
+fun vec_byte_to_string(b: vec[byte]): string {
+    return string {
+        data: b.data as ptr[byte],
+        length: b.length,
+    };
+}
+
+fun slice(s: string, start: i32, end: i32): string {
+    return string {
+        data: s.data.offset(start),
+        length: end - start,
+    };
+}
+
+fun slice_start(s: string, start: i32): string {
+    return slice(s, start, s.length);
+}
+
+module string {
+    fun concat(self, s: string): string {
+        let new_length = self.length + s.length;
+        let new_data = alloc(new_length) as ptr[byte];
+
+        for i in 0..self.length {
+            new_data.at(i) = self.data.at(i);
+        }
+        for i in 0..s.length {
+            new_data.at(self.length + i) = s.data.at(i);
+        }
+
+        return string {
+            data: new_data,
+            length: new_length,
+        };
+    }
+}

@@ -1,0 +1,107 @@
+type Token = {
+    lexeme: string,
+    string_value: string?,
+    position: i32,
+};
+
+type Lexer = {
+    position: i32,
+    tokens: vec[Token],
+};
+
+module Lexer {
+    fun new(): Lexer {
+        return Lexer {
+            position: 0,
+            tokens: make[vec[Token]](),
+        };
+    }
+
+    fun consume_space(self, input: string) {
+        while is_space(input, self.position) {
+            self.position = self.position + 1;
+        }
+    }
+
+    fun consume_ident(self, input: string): string? {
+        let ident = make[vec[byte]]();
+        while is_included(input, self.position, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_") {
+            ident.push(input.data.at(self.position));
+            self.position = self.position + 1;
+        }
+
+        if ident.length == 0 {
+            return nil;
+        }
+
+        return vec_byte_to_string(ident)?;
+    }
+
+    fun match(self, input: string, token: string, token_name: string): bool {
+        if is_prefix(input, self.position, token) {
+            self.tokens.push(Token {
+                lexeme: token_name,
+                string_value: nil,
+                position: self.position,
+            });
+            self.position = self.position + token.length;
+            return true;
+        }
+
+        return false;
+    }
+
+    fun run(self, input: string) {
+        while self.position < input.length {
+            self.consume_space(input);
+
+            if self.match(input, "fun", "fun") {
+                continue;
+            }
+            if self.match(input, "let", "let") {
+                continue;
+            }
+            if self.match(input, "return", "return") {
+                continue;
+            }
+            if self.match(input, "(", "lparen") {
+                continue;
+            }
+            if self.match(input, ")", "rparen") {
+                continue;
+            }
+            if self.match(input, "{", "lbrace") {
+                continue;
+            }
+            if self.match(input, "}", "rbrace") {
+                continue;
+            }
+            if self.match(input, ":", "colon") {
+                continue;
+            }
+            if self.match(input, ";", "semicolon") {
+                continue;
+            }
+            if self.match(input, "+", "plus") {
+                continue;
+            }
+
+            let ident = self.consume_ident(input);
+            if ident != nil {
+                self.tokens.push(Token {
+                    lexeme: "ident",
+                    string_value: ident,
+                    position: self.position,
+                });
+
+                continue;
+            }
+
+            println("== ERROR ==");
+            println("position: ");
+            println(i32_to_string(self.position));
+
+            return nil;
+        }
+    }
+}
