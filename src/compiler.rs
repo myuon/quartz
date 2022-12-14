@@ -1,4 +1,7 @@
-use std::{collections::HashSet, io::Read};
+use std::{
+    collections::{HashMap, HashSet},
+    io::Read,
+};
 
 use anyhow::{Context, Result};
 use thiserror::{Error, __private::PathAsDisplay};
@@ -20,11 +23,68 @@ pub struct ErrorInSource {
     pub end: usize,
 }
 
-pub struct Compiler {}
+struct SourceLoader {
+    loaded: HashMap<Path, LoadedModule>,
+}
+
+struct LoadedModule {
+    source: String,
+    module: Module,
+}
+
+impl SourceLoader {
+    pub fn new() -> SourceLoader {
+        SourceLoader {
+            loaded: HashMap::new(),
+        }
+    }
+
+    pub fn load_module(&mut self, cwd: &str, path: &Path) -> Result<()> {
+        let file_path = std::path::Path::new(cwd)
+            .join(
+                path.0
+                    .iter()
+                    .map(|ident| ident.as_str())
+                    .collect::<Vec<&str>>()
+                    .join("/"),
+            )
+            .with_extension("qz");
+        let mut file = std::fs::File::open(&file_path)
+            .context(format!("opening file {}", file_path.as_display()))?;
+        let mut buffer = String::new();
+        file.read_to_string(&mut buffer).context("reading file")?;
+
+        let mut lexer = Lexer::new();
+        let mut parser = Parser::new();
+
+        lexer.run(&buffer).context("lexer phase")?;
+        let module = parser.run(lexer.tokens).context("parser phase")?;
+
+        self.loaded.insert(
+            path.clone(),
+            LoadedModule {
+                source: buffer.clone(),
+                module,
+            },
+        );
+
+        Ok(())
+    }
+
+    pub fn get(&self, path: &Path) -> Option<&LoadedModule> {
+        self.loaded.get(path)
+    }
+}
+
+pub struct Compiler {
+    loader: SourceLoader,
+}
 
 impl Compiler {
     pub fn new() -> Compiler {
-        Compiler {}
+        Compiler {
+            loader: SourceLoader::new(),
+        }
     }
 
     fn compile_(&mut self, cwd: &str, input: &str) -> Result<String> {
@@ -34,10 +94,8 @@ impl Compiler {
         let mut generator = Generator::new();
         let mut ir_code_generator = IrCodeGenerator::new();
 
-        let mut loaded_modules = vec![];
-
         lexer.run(input).context("lexer phase")?;
-        loaded_modules.push(parser.run(lexer.tokens).context("parser phase")?.0);
+        let main = parser.run(lexer.tokens).context("parser phase")?;
 
         let mut visited = HashSet::new();
 
@@ -51,15 +109,18 @@ impl Compiler {
                 continue;
             }
 
-            let mut lexer = Lexer::new();
-            let mut parser = Parser::new();
-
-            let buffer = self.load_module(cwd, &path).context("loading module")?;
-            lexer.run(&buffer).context("lexer phase")?;
-            loaded_modules.push(parser.run(lexer.tokens).context("parser phase")?.0);
+            self.loader.load_module(cwd, &path)?;
 
             visited.insert(path);
         }
+
+        let mut loaded_modules = self
+            .loader
+            .loaded
+            .values()
+            .map(|m| m.module.0.clone())
+            .collect::<Vec<_>>();
+        loaded_modules.push(main.0);
 
         let mut module = Module(loaded_modules.concat());
 
@@ -75,24 +136,6 @@ impl Compiler {
         generator.run(&mut ir).context("generator phase")?;
 
         Ok(generator.writer.buffer)
-    }
-
-    fn load_module(&mut self, cwd: &str, path: &Path) -> Result<String> {
-        let file_path = std::path::Path::new(cwd)
-            .join(
-                path.0
-                    .iter()
-                    .map(|ident| ident.as_str())
-                    .collect::<Vec<&str>>()
-                    .join("/"),
-            )
-            .with_extension("qz");
-        let mut file = std::fs::File::open(&file_path)
-            .context(format!("opening file {}", file_path.as_display()))?;
-        let mut buffer = String::new();
-        file.read_to_string(&mut buffer).context("reading file")?;
-
-        Ok(buffer)
     }
 
     pub fn compile(&mut self, cwd: &str, input: &str) -> Result<String> {
