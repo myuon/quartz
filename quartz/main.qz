@@ -1,5 +1,6 @@
 import quartz::std;
 import quartz::lexer;
+import quartz::parser;
 
 fun test() {
     if !string_equal("hello", "hello") {
@@ -44,6 +45,9 @@ fun main(): i32 {
             println("string_value: ".concat(token.string_value!));
         }
     }
+
+    let parser = Parser::new();
+    parser.run(lexer.tokens);
 
     debug_i32(lexer.tokens.length);
 }

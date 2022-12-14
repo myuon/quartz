@@ -1,0 +1,45 @@
+import quartz::lexer;
+
+type Parser = {
+    position: i32,
+    input: vec[Token],
+    omit_index: i32,
+};
+
+module Parser {
+    fun new(): Parser {
+        return Parser {
+            position: 0,
+            input: make[vec[Token]](),
+            omit_index: 0,
+        };
+    }
+
+    fun run(self, input: vec[Token]) {
+        self.input = input;
+        return self.module();
+    }
+
+    fun module(self) {
+        while !self.is_end() {
+            self.decl();
+        }
+    }
+
+    fun decl(self) {
+        if self.peek().lexeme == "fun" {
+            return self.function();
+        }
+
+        panic("Expected function declaration, got ".concat(self.peek().lexeme));
+    }
+
+    fun peek(self): Token {
+        return self.input[self.position];
+    }
+
+    fun is_end(self): bool {
+        return self.position >= self.input.len;
+    }
+}
+
