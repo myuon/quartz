@@ -54,20 +54,7 @@ impl Compiler {
             let mut lexer = Lexer::new();
             let mut parser = Parser::new();
 
-            let file_path = std::path::Path::new(cwd)
-                .join(
-                    path.0
-                        .iter()
-                        .map(|ident| ident.as_str())
-                        .collect::<Vec<&str>>()
-                        .join("/"),
-                )
-                .with_extension("qz");
-            let mut file = std::fs::File::open(&file_path)
-                .context(format!("opening file {}", file_path.as_display()))?;
-            let mut buffer = String::new();
-            file.read_to_string(&mut buffer).context("reading file")?;
-
+            let buffer = self.load_module(cwd, &path).context("loading module")?;
             lexer.run(&buffer).context("lexer phase")?;
             loaded_modules.push(parser.run(lexer.tokens).context("parser phase")?.0);
 
@@ -88,6 +75,24 @@ impl Compiler {
         generator.run(&mut ir).context("generator phase")?;
 
         Ok(generator.writer.buffer)
+    }
+
+    fn load_module(&mut self, cwd: &str, path: &Path) -> Result<String> {
+        let file_path = std::path::Path::new(cwd)
+            .join(
+                path.0
+                    .iter()
+                    .map(|ident| ident.as_str())
+                    .collect::<Vec<&str>>()
+                    .join("/"),
+            )
+            .with_extension("qz");
+        let mut file = std::fs::File::open(&file_path)
+            .context(format!("opening file {}", file_path.as_display()))?;
+        let mut buffer = String::new();
+        file.read_to_string(&mut buffer).context("reading file")?;
+
+        Ok(buffer)
     }
 
     pub fn compile(&mut self, cwd: &str, input: &str) -> Result<String> {
