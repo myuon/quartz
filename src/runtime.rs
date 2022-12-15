@@ -22,6 +22,9 @@ impl Runtime {
                 "debug_i32" => Function::new_typed(&mut store, |i: i32| {
                     println!("[DEBUG_I32] {}", i);
                 }),
+                "abort" => Function::new_typed(&mut store, || {
+                    panic!("[ABORT]");
+                }),
             }
         };
         let instance = Instance::new(&mut store, &module, &import_object)?;

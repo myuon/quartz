@@ -56,6 +56,14 @@ impl TypeChecker {
                     Type::Func(vec![Type::I32, Type::I32], Box::new(Type::Bool)),
                 ),
                 (
+                    "lte",
+                    Type::Func(vec![Type::I32, Type::I32], Box::new(Type::Bool)),
+                ),
+                (
+                    "gte",
+                    Type::Func(vec![Type::I32, Type::I32], Box::new(Type::Bool)),
+                ),
+                (
                     "alloc",
                     Type::Func(vec![Type::I32], Box::new(Type::Ptr(Box::new(Type::I32)))),
                 ),
@@ -86,6 +94,7 @@ impl TypeChecker {
                     "or",
                     Type::Func(vec![Type::Bool, Type::Bool], Box::new(Type::Bool)),
                 ),
+                ("abort", Type::Func(vec![], Box::new(Type::Nil))),
             ]
             .into_iter()
             .map(|(k, v)| (Path::ident(Ident(k.to_string())), v))

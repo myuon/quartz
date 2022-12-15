@@ -168,3 +168,8 @@ module string {
         };
     }
 }
+
+fun panic(s: string) {
+    println(s);
+    abort();
+}

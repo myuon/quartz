@@ -384,6 +384,40 @@ impl Parser {
                     position,
                 );
             }
+            Lexeme::Gte => {
+                self.consume()?;
+                let token_position_end = self.position;
+                let rhs = self.expr_(with_struct)?;
+
+                current = self.source_from(
+                    Expr::Call(
+                        Box::new(self.source(
+                            Expr::Ident(Ident("gte".to_string())),
+                            token_position,
+                            token_position_end,
+                        )),
+                        vec![current, rhs],
+                    ),
+                    position,
+                );
+            }
+            Lexeme::Lte => {
+                self.consume()?;
+                let token_position_end = self.position;
+                let rhs = self.expr_(with_struct)?;
+
+                current = self.source_from(
+                    Expr::Call(
+                        Box::new(self.source(
+                            Expr::Ident(Ident("lte".to_string())),
+                            token_position,
+                            token_position_end,
+                        )),
+                        vec![current, rhs],
+                    ),
+                    position,
+                );
+            }
             Lexeme::DoubleDot => {
                 self.consume()?;
                 let rhs = self.expr_(with_struct)?;

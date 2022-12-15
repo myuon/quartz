@@ -59,6 +59,10 @@ impl Generator {
         self.writer.end();
 
         self.writer.start();
+        self.writer.write(r#"import "env" "abort" (func $abort)"#);
+        self.writer.end();
+
+        self.writer.start();
         self.writer.write(r#"memory 1"#);
         self.writer.end();
 
@@ -496,6 +500,12 @@ impl Generator {
                 }
                 "gt" => {
                     self.writer.write("i32.gt_s");
+                }
+                "lte" => {
+                    self.writer.write("i32.le_s");
+                }
+                "gte" => {
+                    self.writer.write("i32.ge_s");
                 }
                 "or" => {
                     self.writer.write("i32.or");

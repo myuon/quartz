@@ -34,12 +34,14 @@ module Parser {
         panic("Expected function declaration, got ".concat(self.peek().lexeme));
     }
 
+    fun function(self) {
+    }
+
     fun peek(self): Token {
-        return self.input[self.position];
+        return self.input.at(self.position);
     }
 
     fun is_end(self): bool {
-        return self.position >= self.input.len;
+        return self.position >= self.input.length;
     }
 }
-
