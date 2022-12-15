@@ -179,6 +179,7 @@ impl TypeChecker {
             Decl::Let(ident, type_, expr) => {
                 let mut result = self.expr(expr)?;
                 self.unify(type_, &mut result).context(ErrorInSource {
+                    path: None,
                     start: expr.start.unwrap_or(0),
                     end: expr.end.unwrap_or(0),
                 })?;
@@ -244,6 +245,7 @@ impl TypeChecker {
             Statement::Let(val, type_, expr) => {
                 let mut result = self.expr(expr)?;
                 self.unify(type_, &mut result).context(ErrorInSource {
+                    path: None,
                     start: expr.start.unwrap_or(0),
                     end: expr.end.unwrap_or(0),
                 })?;
@@ -262,6 +264,7 @@ impl TypeChecker {
                 let mut rhs_type = Type::Ptr(Box::new(self.expr(rhs)?));
                 self.unify(&mut lhs_type, &mut rhs_type)
                     .context(ErrorInSource {
+                        path: None,
                         start: lhs.start.unwrap_or(0),
                         end: lhs.end.unwrap_or(0),
                     })?;
@@ -272,6 +275,7 @@ impl TypeChecker {
                 let mut cond_type = self.expr(cond)?;
                 self.unify(&mut cond_type, &mut Type::Bool)
                     .context(ErrorInSource {
+                        path: None,
                         start: cond.start.unwrap_or(0),
                         end: cond.end.unwrap_or(0),
                     })?;
@@ -284,6 +288,7 @@ impl TypeChecker {
                 }
 
                 self.unify(type_, &mut Type::Nil).context(ErrorInSource {
+                    path: None,
                     start: cond.start.unwrap_or(0),
                     end: cond.end.unwrap_or(0),
                 })?;
@@ -294,6 +299,7 @@ impl TypeChecker {
                 let mut cond_type = self.expr(cond)?;
                 self.unify(&mut cond_type, &mut Type::Bool)
                     .context(ErrorInSource {
+                        path: None,
                         start: cond.start.unwrap_or(0),
                         end: cond.end.unwrap_or(0),
                     })?;
@@ -332,6 +338,7 @@ impl TypeChecker {
                 let mut field_types = self
                     .resolve_record_type(Type::Ident(ident.clone()))
                     .context(ErrorInSource {
+                        path: None,
                         start: expr.start.unwrap_or(0),
                         end: expr.end.unwrap_or(0),
                     })?
@@ -351,6 +358,7 @@ impl TypeChecker {
                             .ok_or(anyhow!("unknown field: {}", field.as_str()))?,
                     )
                     .context(ErrorInSource {
+                        path: None,
                         start: expr.start.unwrap_or(0),
                         end: expr.end.unwrap_or(0),
                     })?;
@@ -361,6 +369,7 @@ impl TypeChecker {
             Expr::Project(expr, type_, label) => {
                 let mut expr_type = self.expr(expr)?;
                 self.unify(type_, &mut expr_type).context(ErrorInSource {
+                    path: None,
                     start: expr.start.unwrap_or(0),
                     end: expr.end.unwrap_or(0),
                 })?;
@@ -400,6 +409,7 @@ impl TypeChecker {
                 let fields = self
                     .resolve_record_type(expr_type.clone())
                     .context(ErrorInSource {
+                        path: None,
                         start: expr.start.unwrap_or(0),
                         end: expr.end.unwrap_or(0),
                     })?
@@ -421,6 +431,7 @@ impl TypeChecker {
                     let (mut arg_types, result_type) = type_.clone().to_func()?;
                     self.unify(&mut expr_type, &mut arg_types[0])
                         .context(ErrorInSource {
+                            path: None,
                             start: expr.start.unwrap_or(0),
                             end: expr.end.unwrap_or(0),
                         })?;
@@ -439,6 +450,7 @@ impl TypeChecker {
 
                 self.unify(&mut start_type, &mut end_type)
                     .context(ErrorInSource {
+                        path: None,
                         start: start.start.unwrap_or(0),
                         end: start.end.unwrap_or(0),
                     })?;
@@ -463,6 +475,7 @@ impl TypeChecker {
 
                 self.unify(&mut lhs_type, &mut rhs_type)
                     .context(ErrorInSource {
+                        path: None,
                         start: lhs.start.unwrap_or(0),
                         end: lhs.end.unwrap_or(0),
                     })?;
@@ -475,6 +488,7 @@ impl TypeChecker {
 
                 self.unify(&mut lhs_type, &mut rhs_type)
                     .context(ErrorInSource {
+                        path: None,
                         start: lhs.start.unwrap_or(0),
                         end: lhs.end.unwrap_or(0),
                     })?;
@@ -540,6 +554,7 @@ impl TypeChecker {
                 args.len()
             )
             .context(ErrorInSource {
+                path: None,
                 start: caller.start.unwrap_or(0),
                 end: caller.end.unwrap_or(0),
             }));
@@ -549,6 +564,7 @@ impl TypeChecker {
             let mut arg_type = self.expr(arg)?;
             self.unify(&mut arg_types[index], &mut arg_type)
                 .context(ErrorInSource {
+                    path: None,
                     start: arg.start.unwrap_or(0),
                     end: arg.end.unwrap_or(0),
                 })?

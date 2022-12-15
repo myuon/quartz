@@ -126,6 +126,7 @@ impl IrCodeGenerator {
                 Ok(IrTerm::If {
                     cond: Box::new(self.expr(cond)?),
                     type_: IrType::from_type(type_).context(ErrorInSource {
+                        path: None,
                         start: cond.start.unwrap_or(0),
                         end: cond.end.unwrap_or(0),
                     })?,

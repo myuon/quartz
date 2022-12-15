@@ -19,6 +19,7 @@ use crate::{
 #[derive(Debug, Error)]
 #[error("Found error in span ({start:?},{end:?})")]
 pub struct ErrorInSource {
+    pub path: Option<Path>,
     pub start: usize,
     pub end: usize,
 }
@@ -54,11 +55,21 @@ impl SourceLoader {
         let mut buffer = String::new();
         file.read_to_string(&mut buffer).context("reading file")?;
 
+        self.loaded.insert(
+            path.clone(),
+            LoadedModule {
+                source: buffer.clone(),
+                module: Module(vec![]),
+            },
+        );
+
         let mut lexer = Lexer::new();
         let mut parser = Parser::new();
 
         lexer.run(&buffer, path.clone()).context("lexer phase")?;
-        let module = parser.run(lexer.tokens).context("parser phase")?;
+        let module = parser
+            .run(lexer.tokens, path.clone())
+            .context("parser phase")?;
 
         self.loaded.insert(
             path,
@@ -94,10 +105,11 @@ impl Compiler {
         let mut generator = Generator::new();
         let mut ir_code_generator = IrCodeGenerator::new();
 
-        lexer
-            .run(input, Path::ident(Ident("main".to_string())))
-            .context("lexer phase")?;
-        let main = parser.run(lexer.tokens).context("parser phase")?;
+        let main_path = Path::ident(Ident("main".to_string()));
+        lexer.run(input, main_path.clone()).context("lexer phase")?;
+        let main = parser
+            .run(lexer.tokens, main_path.clone())
+            .context("parser phase")?;
 
         let mut visited = HashSet::new();
 
@@ -145,6 +157,12 @@ impl Compiler {
 
         self.compile_(cwd, &input).map_err(|error| {
             if let Some(source) = error.downcast_ref::<ErrorInSource>() {
+                let input = if let Some(path) = &source.path {
+                    self.loader.get(path).unwrap().source.clone()
+                } else {
+                    input
+                };
+
                 let start = source.start;
                 let end = source.end;
 

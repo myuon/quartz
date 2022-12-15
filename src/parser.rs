@@ -13,6 +13,7 @@ pub struct Parser {
     input: Vec<Token>,
     omit_index: usize,
     pub imports: Vec<Path>,
+    current_path: Path,
 }
 
 impl Parser {
@@ -22,11 +23,13 @@ impl Parser {
             input: vec![],
             omit_index: 0,
             imports: vec![],
+            current_path: Path::empty(),
         }
     }
 
-    pub fn run(&mut self, input: Vec<Token>) -> Result<Module> {
+    pub fn run(&mut self, input: Vec<Token>, path: Path) -> Result<Module> {
         self.input = input;
+        self.current_path = path;
         self.module()
     }
 
@@ -701,6 +704,7 @@ impl Parser {
         } else {
             Err(
                 anyhow!("Expected identifier, got {:?}", current.lexeme).context(ErrorInSource {
+                    path: Some(self.current_path.clone()),
                     start: self.input[self.position].position,
                     end: self.input[self.position + 1].position,
                 }),
@@ -718,6 +722,7 @@ impl Parser {
             _ => {
                 return Err(
                     anyhow!("Expected literal, got {:?}", current.lexeme).context(ErrorInSource {
+                        path: Some(self.current_path.clone()),
                         start: self.input[self.position].position,
                         end: self.input[self.position].position,
                     }),
@@ -820,6 +825,7 @@ impl Parser {
         } else {
             return Err(
                 anyhow!("Expected {:?}, got {:?}", lexeme, token.lexeme).context(ErrorInSource {
+                    path: Some(self.current_path.clone()),
                     start: self.input[self.position].position,
                     end: self.input[self.position].position,
                 }),
