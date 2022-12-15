@@ -64,20 +64,6 @@ fun new_empty_string(length: i32): string {
     };
 }
 
-fun string_equal(s1: string, s2: string): bool {
-    if s1.length != s2.length {
-        return false;
-    }
-
-    for i in 0..s1.length {
-        if s1.data.at(i) != s2.data.at(i) {
-        return false;
-        }
-    }
-
-    return true;
-}
-
 fun i32_to_string(n: i32): string {
     if n == 0 {
         return "0";
@@ -139,17 +125,6 @@ fun vec_byte_to_string(b: vec[byte]): string {
     };
 }
 
-fun slice(s: string, start: i32, end: i32): string {
-    return string {
-        data: s.data.offset(start),
-        length: end - start,
-    };
-}
-
-fun slice_start(s: string, start: i32): string {
-    return slice(s, start, s.length);
-}
-
 module string {
     fun concat(self, s: string): string {
         let new_length = self.length + s.length;
@@ -166,6 +141,31 @@ module string {
             data: new_data,
             length: new_length,
         };
+    }
+
+    fun equal(self, other: string): bool {
+        if self.length != other.length {
+            return false;
+        }
+
+        for i in 0..self.length {
+            if self.data.at(i) != other.data.at(i) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    fun slice(self, start: i32, end: i32): string {
+        return string {
+            data: self.data.offset(start),
+            length: end - start,
+        };
+    }
+
+    fun slice_start(self, start: i32): string {
+        return self.slice(start, self.length);
     }
 }
 

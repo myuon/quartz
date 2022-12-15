@@ -17,10 +17,14 @@ module Lexer {
         };
     }
 
-    fun consume_space(self, input: string) {
+    fun consume_space(self, input: string): i32 {
+        let consumed = 0;
         while is_space(input, self.position) {
             self.position = self.position + 1;
+            consumed = consumed + 1;
         }
+
+        return consumed;
     }
 
     fun consume_ident(self, input: string): string? {
@@ -53,7 +57,10 @@ module Lexer {
 
     fun run(self, input: string) {
         while self.position < input.length {
-            self.consume_space(input);
+            let p = self.consume_space(input);
+            if p > 0 {
+                continue;
+            }
 
             if self.match(input, "fun", "fun") {
                 continue;
@@ -85,6 +92,9 @@ module Lexer {
             if self.match(input, "+", "plus") {
                 continue;
             }
+            if self.match(input, "=", "equal") {
+                continue;
+            }
 
             let ident = self.consume_ident(input);
             if ident != nil {
@@ -97,9 +107,7 @@ module Lexer {
                 continue;
             }
 
-            println("== ERROR ==");
-            println("position: ");
-            println(i32_to_string(self.position));
+            panic("== Abort ==\nposition: ".concat(i32_to_string(self.position)).concat("\ninput: ").concat(input.slice_start(self.position)));
 
             return nil;
         }

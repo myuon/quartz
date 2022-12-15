@@ -3,24 +3,22 @@ import quartz::lexer;
 import quartz::parser;
 
 fun test() {
-    if !string_equal("hello", "hello") {
+    if !"hello".equal("hello") {
         println("string_equal failed");
     }
-    if string_equal("hello", "world") {
+    if "hello".equal("world") {
         println("string_equal failed");
     }
     if !is_space("hoge fuga", 4) {
         println("is_space failed");
     }
-    if !string_equal(slice("hoge fuga", 0, 4), "hoge") {
+    if !"hoge fuga".slice(0, 4).equal("hoge") {
         println("slice failed");
-        println(slice("hoge fuga", 0, 4));
     }
-    if !string_equal(slice_start("hoge fuga", 2), "ge fuga") {
+    if !"hoge fuga".slice_start(2).equal("ge fuga") {
         println("slice_start failed");
-        println(slice_start("hoge fuga", 2));
     }
-    if !string_equal("hoge".concat(" fuga"), "hoge fuga") {
+    if !"hoge".concat(" fuga").equal("hoge fuga") {
         println("string_concat failed");
         println("hoge".concat(" fuga"));
     }

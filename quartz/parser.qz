@@ -27,14 +27,16 @@ module Parser {
     }
 
     fun decl(self) {
-        if self.peek().lexeme == "fun" {
+        let token = self.peek();
+        if token.lexeme.equal("fun") {
             return self.function();
         }
 
-        panic("Expected function declaration, got ".concat(self.peek().lexeme));
+        panic("Expected function declaration, got ".concat(token.lexeme).concat("{").concat(token.string_value!).concat("}"));
     }
 
     fun function(self) {
+        self.consume();
     }
 
     fun peek(self): Token {
@@ -43,5 +45,9 @@ module Parser {
 
     fun is_end(self): bool {
         return self.position >= self.input.length;
+    }
+
+    fun consume(self) {
+        self.position = self.position + 1;
     }
 }
