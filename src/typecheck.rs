@@ -147,7 +147,7 @@ impl TypeChecker {
                 Decl::Type(ident, type_) => {
                     self.types.insert(ident.clone(), type_.clone());
                 }
-                Decl::Module(name, module) => {
+                Decl::Module(name, _, module) => {
                     let path = self.current_path.clone();
                     self.current_path.push(name.clone());
                     self.module_register_for_back_reference(module)?;
@@ -188,7 +188,7 @@ impl TypeChecker {
             Decl::Type(ident, type_) => {
                 self.types.insert(ident.clone(), type_.clone());
             }
-            Decl::Module(name, module) => {
+            Decl::Module(name, _, module) => {
                 let path = self.current_path.clone();
                 self.current_path.push(name.clone());
                 self.module(module)?;

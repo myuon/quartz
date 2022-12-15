@@ -52,14 +52,14 @@ impl Parser {
                 let (ident, type_) = self.type_decl()?;
                 Ok(Decl::Type(ident, type_))
             }
-            Lexeme::Module => {
-                self.expect(Lexeme::Module)?;
+            Lexeme::Module(path) => {
+                self.consume()?;
                 let ident = self.ident()?;
                 self.expect(Lexeme::LBrace)?;
                 let module = self.module()?;
                 self.expect(Lexeme::RBrace)?;
 
-                Ok(Decl::Module(ident, module))
+                Ok(Decl::Module(ident, path, module))
             }
             Lexeme::Import => {
                 self.expect(Lexeme::Import)?;

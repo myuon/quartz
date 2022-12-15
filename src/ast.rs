@@ -165,7 +165,7 @@ pub enum Decl {
     Func(Func),
     Let(Ident, Type, Source<Expr>),
     Type(Ident, Type),
-    Module(Ident, Module),
+    Module(Ident, Path, Module),
     Import(Path),
 }
 

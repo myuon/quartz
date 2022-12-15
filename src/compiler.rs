@@ -39,7 +39,7 @@ impl SourceLoader {
         }
     }
 
-    pub fn load_module(&mut self, cwd: &str, path: &Path) -> Result<()> {
+    pub fn load_module(&mut self, cwd: &str, path: Path) -> Result<()> {
         let file_path = std::path::Path::new(cwd)
             .join(
                 path.0
@@ -57,11 +57,11 @@ impl SourceLoader {
         let mut lexer = Lexer::new();
         let mut parser = Parser::new();
 
-        lexer.run(&buffer).context("lexer phase")?;
+        lexer.run(&buffer, path.clone()).context("lexer phase")?;
         let module = parser.run(lexer.tokens).context("parser phase")?;
 
         self.loaded.insert(
-            path.clone(),
+            path,
             LoadedModule {
                 source: buffer.clone(),
                 module,
@@ -94,7 +94,9 @@ impl Compiler {
         let mut generator = Generator::new();
         let mut ir_code_generator = IrCodeGenerator::new();
 
-        lexer.run(input).context("lexer phase")?;
+        lexer
+            .run(input, Path::ident(Ident("main".to_string())))
+            .context("lexer phase")?;
         let main = parser.run(lexer.tokens).context("parser phase")?;
 
         let mut visited = HashSet::new();
@@ -109,7 +111,7 @@ impl Compiler {
                 continue;
             }
 
-            self.loader.load_module(cwd, &path)?;
+            self.loader.load_module(cwd, path.clone())?;
 
             visited.insert(path);
         }

@@ -2,9 +2,11 @@ use anyhow::Result;
 use once_cell::sync::Lazy;
 use regex::Regex;
 
+use crate::util::path::Path;
+
 #[derive(PartialEq, Debug, Clone)]
 pub enum Lexeme {
-    Module,
+    Module(Path),
     Fun,
     Let,
     Type,
@@ -76,6 +78,7 @@ fn is_term_boundary(s: &str) -> bool {
 }
 
 pub struct Lexer {
+    current_path: Path,
     position: usize,
     pub tokens: Vec<Token>,
 }
@@ -83,6 +86,7 @@ pub struct Lexer {
 impl Lexer {
     pub fn new() -> Lexer {
         Lexer {
+            current_path: Path::new(vec![]),
             position: 0,
             tokens: vec![],
         }
@@ -138,7 +142,9 @@ impl Lexer {
         false
     }
 
-    pub fn run(&mut self, input: &str) -> Result<()> {
+    pub fn run(&mut self, input: &str, path: Path) -> Result<()> {
+        self.current_path = path;
+
         while input.len() > self.position {
             match SPACE_PATTERN.find(&input[self.position..]) {
                 Some(m) => {
@@ -161,7 +167,7 @@ impl Lexer {
             if self.matches_any_term(
                 input,
                 vec![
-                    ("module", Lexeme::Module),
+                    ("module", Lexeme::Module(self.current_path.clone())),
                     ("fun", Lexeme::Fun),
                     ("let", Lexeme::Let),
                     ("type", Lexeme::Type),
