@@ -14,6 +14,7 @@ pub struct TypeChecker {
     pub globals: HashMap<Path, Type>,
     pub types: HashMap<Ident, Type>,
     current_path: Path,
+    module_path: Path,
 }
 
 impl TypeChecker {
@@ -127,6 +128,7 @@ impl TypeChecker {
             .map(|(k, v)| (Ident(k.to_string()), v))
             .collect(),
             current_path: Path::empty(),
+            module_path: Path::empty(),
         }
     }
 
@@ -158,9 +160,9 @@ impl TypeChecker {
                 }
                 Decl::Module(name, _, module) => {
                     let path = self.current_path.clone();
-                    self.current_path.push(name.clone());
+                    self.module_path.push(name.clone());
                     self.module_register_for_back_reference(module)?;
-                    self.current_path = path;
+                    self.module_path = path;
                 }
                 Decl::Import(_) => (),
             }
@@ -188,7 +190,7 @@ impl TypeChecker {
             Decl::Let(ident, type_, expr) => {
                 let mut result = self.expr(expr)?;
                 self.unify(type_, &mut result).context(ErrorInSource {
-                    path: None,
+                    path: Some(self.current_path.clone()),
                     start: expr.start.unwrap_or(0),
                     end: expr.end.unwrap_or(0),
                 })?;
@@ -199,10 +201,10 @@ impl TypeChecker {
                 self.types.insert(ident.clone(), type_.clone());
             }
             Decl::Module(name, _, module) => {
-                let path = self.current_path.clone();
+                let module_path = self.module_path.clone();
                 self.current_path.push(name.clone());
                 self.module(module)?;
-                self.current_path = path;
+                self.current_path = module_path;
             }
             Decl::Import(_) => (),
         }
@@ -254,7 +256,7 @@ impl TypeChecker {
             Statement::Let(val, type_, expr) => {
                 let mut result = self.expr(expr)?;
                 self.unify(type_, &mut result).context(ErrorInSource {
-                    path: None,
+                    path: Some(self.current_path.clone()),
                     start: expr.start.unwrap_or(0),
                     end: expr.end.unwrap_or(0),
                 })?;
@@ -273,7 +275,7 @@ impl TypeChecker {
                 let mut rhs_type = Type::Ptr(Box::new(self.expr(rhs)?));
                 self.unify(&mut lhs_type, &mut rhs_type)
                     .context(ErrorInSource {
-                        path: None,
+                        path: Some(self.current_path.clone()),
                         start: lhs.start.unwrap_or(0),
                         end: lhs.end.unwrap_or(0),
                     })?;
@@ -284,7 +286,7 @@ impl TypeChecker {
                 let mut cond_type = self.expr(cond)?;
                 self.unify(&mut cond_type, &mut Type::Bool)
                     .context(ErrorInSource {
-                        path: None,
+                        path: Some(self.current_path.clone()),
                         start: cond.start.unwrap_or(0),
                         end: cond.end.unwrap_or(0),
                     })?;
@@ -297,7 +299,7 @@ impl TypeChecker {
                 }
 
                 self.unify(type_, &mut Type::Nil).context(ErrorInSource {
-                    path: None,
+                    path: Some(self.current_path.clone()),
                     start: cond.start.unwrap_or(0),
                     end: cond.end.unwrap_or(0),
                 })?;
@@ -308,7 +310,7 @@ impl TypeChecker {
                 let mut cond_type = self.expr(cond)?;
                 self.unify(&mut cond_type, &mut Type::Bool)
                     .context(ErrorInSource {
-                        path: None,
+                        path: Some(self.current_path.clone()),
                         start: cond.start.unwrap_or(0),
                         end: cond.end.unwrap_or(0),
                     })?;
@@ -336,7 +338,11 @@ impl TypeChecker {
     fn expr(&mut self, expr: &mut Source<Expr>) -> Result<Type> {
         match &mut expr.data {
             Expr::Lit(lit) => self.lit(lit),
-            Expr::Ident(ident) => self.ident(ident),
+            Expr::Ident(ident) => self.ident(ident).context(ErrorInSource {
+                path: Some(self.current_path.clone()),
+                start: expr.start.unwrap_or(0),
+                end: expr.end.unwrap_or(0),
+            }),
             Expr::Path(path) => self
                 .globals
                 .get(path)
@@ -347,7 +353,7 @@ impl TypeChecker {
                 let mut field_types = self
                     .resolve_record_type(Type::Ident(ident.clone()))
                     .context(ErrorInSource {
-                        path: None,
+                        path: Some(self.current_path.clone()),
                         start: expr.start.unwrap_or(0),
                         end: expr.end.unwrap_or(0),
                     })?
@@ -367,7 +373,7 @@ impl TypeChecker {
                             .ok_or(anyhow!("unknown field: {}", field.as_str()))?,
                     )
                     .context(ErrorInSource {
-                        path: None,
+                        path: Some(self.current_path.clone()),
                         start: expr.start.unwrap_or(0),
                         end: expr.end.unwrap_or(0),
                     })?;
@@ -378,7 +384,7 @@ impl TypeChecker {
             Expr::Project(expr, type_, label) => {
                 let mut expr_type = self.expr(expr)?;
                 self.unify(type_, &mut expr_type).context(ErrorInSource {
-                    path: None,
+                    path: Some(self.current_path.clone()),
                     start: expr.start.unwrap_or(0),
                     end: expr.end.unwrap_or(0),
                 })?;
@@ -418,7 +424,7 @@ impl TypeChecker {
                 let fields = self
                     .resolve_record_type(expr_type.clone())
                     .context(ErrorInSource {
-                        path: None,
+                        path: Some(self.current_path.clone()),
                         start: expr.start.unwrap_or(0),
                         end: expr.end.unwrap_or(0),
                     })?
@@ -440,7 +446,7 @@ impl TypeChecker {
                     let (mut arg_types, result_type) = type_.clone().to_func()?;
                     self.unify(&mut expr_type, &mut arg_types[0])
                         .context(ErrorInSource {
-                            path: None,
+                            path: Some(self.current_path.clone()),
                             start: expr.start.unwrap_or(0),
                             end: expr.end.unwrap_or(0),
                         })?;
@@ -459,7 +465,7 @@ impl TypeChecker {
 
                 self.unify(&mut start_type, &mut end_type)
                     .context(ErrorInSource {
-                        path: None,
+                        path: Some(self.current_path.clone()),
                         start: start.start.unwrap_or(0),
                         end: start.end.unwrap_or(0),
                     })?;
@@ -473,8 +479,8 @@ impl TypeChecker {
             }
             Expr::SizeOf(_) => Ok(Type::I32),
             Expr::Self_ => {
-                assert_eq!(self.current_path.0.len(), 1);
-                let ident = self.current_path.0[0].clone();
+                assert_eq!(self.module_path.0.len(), 1);
+                let ident = self.module_path.0[0].clone();
 
                 Ok(Type::Ident(ident))
             }
@@ -484,7 +490,7 @@ impl TypeChecker {
 
                 self.unify(&mut lhs_type, &mut rhs_type)
                     .context(ErrorInSource {
-                        path: None,
+                        path: Some(self.current_path.clone()),
                         start: lhs.start.unwrap_or(0),
                         end: lhs.end.unwrap_or(0),
                     })?;
@@ -497,7 +503,7 @@ impl TypeChecker {
 
                 self.unify(&mut lhs_type, &mut rhs_type)
                     .context(ErrorInSource {
-                        path: None,
+                        path: Some(self.current_path.clone()),
                         start: lhs.start.unwrap_or(0),
                         end: lhs.end.unwrap_or(0),
                     })?;
@@ -563,7 +569,7 @@ impl TypeChecker {
                 args.len()
             )
             .context(ErrorInSource {
-                path: None,
+                path: Some(self.current_path.clone()),
                 start: caller.start.unwrap_or(0),
                 end: caller.end.unwrap_or(0),
             }));
@@ -573,7 +579,7 @@ impl TypeChecker {
             let mut arg_type = self.expr(arg)?;
             self.unify(&mut arg_types[index], &mut arg_type)
                 .context(ErrorInSource {
-                    path: None,
+                    path: Some(self.current_path.clone()),
                     start: arg.start.unwrap_or(0),
                     end: arg.end.unwrap_or(0),
                 })?
@@ -611,7 +617,7 @@ impl TypeChecker {
     }
 
     fn path_to(&self, ident: &Ident) -> Path {
-        let mut path = self.current_path.clone();
+        let mut path = self.module_path.clone();
         path.push(ident.clone());
 
         path

@@ -111,6 +111,14 @@ impl Compiler {
             .run(lexer.tokens, main_path.clone())
             .context("parser phase")?;
 
+        self.loader.loaded.insert(
+            main_path.clone(),
+            LoadedModule {
+                source: input.to_string(),
+                module: main.clone(),
+            },
+        );
+
         let mut visited = HashSet::new();
 
         parser.imports.push(Path::new(vec![

@@ -64,32 +64,6 @@ fun new_empty_string(length: i32): string {
     };
 }
 
-fun i32_to_string(n: i32): string {
-    if n == 0 {
-        return "0";
-    }
-
-    let digit = 0;
-    let tmp = n;
-    while tmp > 0 {
-        tmp = tmp / 10;
-        digit = digit + 1;
-    }
-
-    let str = alloc(digit) as ptr[byte];
-    tmp = n;
-    for i in 0..digit {
-        let d = tmp % 10;
-        str.at(digit - i - 1) = ((d + 48) as byte);
-        tmp = tmp / 10;
-    }
-
-    return string {
-        data: str,
-        length: digit,
-    };
-}
-
 fun is_included(s: string, n: i32, chars: string): bool {
     for i in 0..chars.length {
         if s.data.at(n) == chars.data.at(i) {
@@ -123,6 +97,34 @@ fun vec_byte_to_string(b: vec[byte]): string {
         data: b.data as ptr[byte],
         length: b.length,
     };
+}
+
+module i32 {
+    fun to_string(self): string {
+        if self == 0 {
+            return "0";
+        }
+
+        let digit = 0;
+        let tmp = self;
+        while tmp > 0 {
+            tmp = tmp / 10;
+            digit = digit + 1;
+        }
+
+        let str = alloc(digit) as ptr[byte];
+        tmp = self;
+        for i in 0..digit {
+            let d = tmp % 10;
+            str.at(digit - i - 1) = ((d + 48) as byte);
+            tmp = tmp / 10;
+        }
+
+        return string {
+            data: str,
+            length: digit,
+        };
+    }
 }
 
 module string {
