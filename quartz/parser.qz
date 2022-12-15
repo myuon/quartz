@@ -17,10 +17,10 @@ module Parser {
 
     fun run(self, input: vec[Token]) {
         self.input = input;
-        return self.module();
+        return self.module_();
     }
 
-    fun module(self) {
+    fun module_(self) {
         while !self.is_end() {
             self.decl();
         }

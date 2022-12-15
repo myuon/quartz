@@ -165,6 +165,7 @@ impl Compiler {
 
                 let start = source.start;
                 let end = source.end;
+                let source_path = source.path.clone();
 
                 let (start_line_number, start_column_index) = find_position(&input, start);
                 let start_line = input.lines().nth(start_line_number).unwrap();
@@ -174,7 +175,10 @@ impl Compiler {
                 let line_number_gutter = format!("{}: ", start_line_number);
 
                 error.context(format!(
-                    "Error at (line.{}:{}) to (line.{}:{})\n{}{}\n{}{}",
+                    "Error at {}, (line.{}:{}) to (line.{}:{})\n{}{}\n{}{}",
+                    source_path
+                        .unwrap_or(Path::ident(Ident("main".to_string())))
+                        .as_str(),
                     start_line_number,
                     start_column_index,
                     end_line_number,

@@ -598,10 +598,15 @@ impl Parser {
                     let ident = match current.data {
                         Expr::Ident(ident) => ident,
                         _ => {
-                            bail!(
+                            return Err(anyhow!(
                                 "Expected identifier for record name, found {:?}",
                                 current.data
                             )
+                            .context(ErrorInSource {
+                                path: None,
+                                start: current.start.unwrap_or(0),
+                                end: current.end.unwrap_or(0),
+                            }));
                         }
                     };
 
@@ -629,10 +634,15 @@ impl Parser {
                     let ident = match current.data {
                         Expr::Ident(ident) => ident,
                         _ => {
-                            bail!(
+                            return Err(anyhow!(
                                 "Expected identifier for record name, found {:?}",
                                 current.data
                             )
+                            .context(ErrorInSource {
+                                path: Some(self.current_path.clone()),
+                                start: current.start.unwrap_or(0),
+                                end: current.end.unwrap_or(0),
+                            }));
                         }
                     };
 
