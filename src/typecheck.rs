@@ -158,7 +158,7 @@ impl TypeChecker {
                 Decl::Type(ident, type_) => {
                     self.types.insert(ident.clone(), type_.clone());
                 }
-                Decl::Module(name, _, module) => {
+                Decl::Module(name, module) => {
                     let path = self.current_path.clone();
                     self.module_path.push(name.clone());
                     self.module_register_for_back_reference(module)?;
@@ -200,7 +200,7 @@ impl TypeChecker {
             Decl::Type(ident, type_) => {
                 self.types.insert(ident.clone(), type_.clone());
             }
-            Decl::Module(name, _, module) => {
+            Decl::Module(name, module) => {
                 let module_path = self.module_path.clone();
                 self.current_path.push(name.clone());
                 self.module(module)?;
@@ -479,7 +479,15 @@ impl TypeChecker {
             }
             Expr::SizeOf(_) => Ok(Type::I32),
             Expr::Self_ => {
-                assert_eq!(self.module_path.0.len(), 1);
+                if self.module_path.0.len() != 1 {
+                    return Err(anyhow!("invalid self in empty module_path").context(
+                        ErrorInSource {
+                            path: Some(self.current_path.clone()),
+                            start: expr.start.unwrap_or(0),
+                            end: expr.end.unwrap_or(0),
+                        },
+                    ));
+                }
                 let ident = self.module_path.0[0].clone();
 
                 Ok(Type::Ident(ident))

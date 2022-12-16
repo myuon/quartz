@@ -7,7 +7,7 @@ use anyhow::{Context, Result};
 use thiserror::{Error, __private::PathAsDisplay};
 
 use crate::{
-    ast::Module,
+    ast::{Decl, Module},
     generator::Generator,
     ir_code_gen::IrCodeGenerator,
     lexer::Lexer,
@@ -136,15 +136,25 @@ impl Compiler {
             visited.insert(path);
         }
 
-        let mut loaded_modules = self
-            .loader
-            .loaded
-            .values()
-            .map(|m| m.module.0.clone())
-            .collect::<Vec<_>>();
-        loaded_modules.push(main.0);
-
-        let mut module = Module(loaded_modules.concat());
+        let mut module = Module(
+            self.loader
+                .loaded
+                .iter()
+                .map(|(k, v)| {
+                    Decl::Module(
+                        Ident(
+                            k.0.iter()
+                                .map(|v| v.as_str())
+                                .collect::<Vec<_>>()
+                                .join("_")
+                                .to_string(),
+                        ),
+                        v.module.clone(),
+                    )
+                })
+                .collect::<Vec<_>>(),
+        );
+        module.0.push(Decl::Module(Ident("main".to_string()), main));
 
         typechecker.run(&mut module).context("typechecker phase")?;
 

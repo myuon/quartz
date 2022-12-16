@@ -47,7 +47,7 @@ impl IrCodeGenerator {
                     });
                 }
                 Decl::Type(_, _) => (),
-                Decl::Module(ident, _, module) => {
+                Decl::Module(ident, module) => {
                     let path = self.current_path.clone();
                     self.current_path.push(ident.clone());
                     elements.push(self.module(module)?);
