@@ -25,19 +25,18 @@ pub struct ErrorInSource {
 }
 
 struct SourceLoader {
-    loaded: HashMap<Path, LoadedModule>,
+    loaded: Vec<LoadedModule>,
 }
 
 struct LoadedModule {
+    path: Path,
     source: String,
     module: Module,
 }
 
 impl SourceLoader {
     pub fn new() -> SourceLoader {
-        SourceLoader {
-            loaded: HashMap::new(),
-        }
+        SourceLoader { loaded: vec![] }
     }
 
     pub fn load_module(&mut self, cwd: &str, path: Path) -> Result<()> {
@@ -55,13 +54,11 @@ impl SourceLoader {
         let mut buffer = String::new();
         file.read_to_string(&mut buffer).context("reading file")?;
 
-        self.loaded.insert(
-            path.clone(),
-            LoadedModule {
-                source: buffer.clone(),
-                module: Module(vec![]),
-            },
-        );
+        self.loaded.push(LoadedModule {
+            path: path.clone(),
+            source: buffer.clone(),
+            module: Module(vec![]),
+        });
 
         let mut lexer = Lexer::new();
         let mut parser = Parser::new();
@@ -71,19 +68,17 @@ impl SourceLoader {
             .run(lexer.tokens, path.clone())
             .context("parser phase")?;
 
-        self.loaded.insert(
+        self.loaded.push(LoadedModule {
             path,
-            LoadedModule {
-                source: buffer.clone(),
-                module,
-            },
-        );
+            source: buffer.clone(),
+            module,
+        });
 
         Ok(())
     }
 
     pub fn get(&self, path: &Path) -> Option<&LoadedModule> {
-        self.loaded.get(path)
+        self.loaded.iter().find(|v| v.path == *path)
     }
 }
 
@@ -111,13 +106,11 @@ impl Compiler {
             .run(lexer.tokens, main_path.clone())
             .context("parser phase")?;
 
-        self.loader.loaded.insert(
-            main_path.clone(),
-            LoadedModule {
-                source: input.to_string(),
-                module: main.clone(),
-            },
-        );
+        self.loader.loaded.push(LoadedModule {
+            path: main_path.clone(),
+            source: input.to_string(),
+            module: main.clone(),
+        });
 
         let mut visited = HashSet::new();
 
@@ -140,10 +133,12 @@ impl Compiler {
             self.loader
                 .loaded
                 .iter()
-                .map(|(k, v)| {
+                .map(|v| {
                     Decl::Module(
                         Ident(
-                            k.0.iter()
+                            v.path
+                                .0
+                                .iter()
                                 .map(|v| v.as_str())
                                 .collect::<Vec<_>>()
                                 .join("_")
