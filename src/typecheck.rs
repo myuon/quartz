@@ -489,7 +489,7 @@ impl TypeChecker {
             }
             Expr::SizeOf(_) => Ok(Type::I32),
             Expr::Self_ => {
-                if self.module_path.0.len() != 1 {
+                if self.current_path.0.len() == 0 {
                     return Err(anyhow!("invalid self in empty module_path").context(
                         ErrorInSource {
                             path: Some(self.current_path.clone()),
@@ -498,9 +498,13 @@ impl TypeChecker {
                         },
                     ));
                 }
-                let ident = self.module_path.0[0].clone();
+                let ident = self.current_path.0.last().unwrap();
 
-                Ok(Type::Ident(ident))
+                // FIXME: adhoc type convertion
+                Ok(match ident.as_str() {
+                    "i32" => Type::I32,
+                    _ => Type::Ident(ident.clone()),
+                })
             }
             Expr::Equal(lhs, rhs) => {
                 let mut lhs_type = self.expr(lhs)?;
