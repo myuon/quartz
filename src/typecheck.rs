@@ -346,11 +346,21 @@ impl TypeChecker {
     fn expr(&mut self, expr: &mut Source<Expr>) -> Result<Type> {
         match &mut expr.data {
             Expr::Lit(lit) => self.lit(lit),
-            Expr::Ident(ident) => self.ident(ident).context(ErrorInSource {
-                path: Some(self.current_path.clone()),
-                start: expr.start.unwrap_or(0),
-                end: expr.end.unwrap_or(0),
-            }),
+            Expr::Ident(ident) => {
+                if let Ok((path, type_)) = self.ident_path(ident) {
+                    expr.data = Expr::Path(path);
+
+                    return Ok(type_);
+                } else {
+                    self.ident_local(ident)
+                        .or(self.ident_global(ident))
+                        .context(ErrorInSource {
+                            path: Some(self.current_path.clone()),
+                            start: expr.start.unwrap_or(0),
+                            end: expr.end.unwrap_or(0),
+                        })
+                }
+            }
             Expr::Path(path) => self
                 .globals
                 .get(path)
@@ -570,17 +580,20 @@ impl TypeChecker {
     }
 
     fn ident_global(&mut self, ident: &mut Ident) -> Result<Type> {
-        let mut path = self.current_path.clone();
-        path.push(ident.clone());
-
-        match (self.globals.get(&Path::ident(ident.clone()))).or(self.globals.get(&path)) {
+        match self.globals.get(&Path::ident(ident.clone())) {
             Some(type_) => Ok(type_.clone()),
             None => bail!("Ident Not Found: {}", ident.as_str()),
         }
     }
 
-    fn ident(&mut self, ident: &mut Ident) -> Result<Type> {
-        self.ident_local(ident).or(self.ident_global(ident))
+    fn ident_path(&mut self, ident: &mut Ident) -> Result<(Path, Type)> {
+        let mut path = self.current_path.clone();
+        path.push(ident.clone());
+
+        match self.globals.get(&path) {
+            Some(type_) => Ok((path, type_.clone())),
+            None => bail!("Ident Not Found: {}", ident.as_str()),
+        }
     }
 
     fn call(
