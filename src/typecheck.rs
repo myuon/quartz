@@ -566,7 +566,10 @@ impl TypeChecker {
     }
 
     fn ident_global(&mut self, ident: &mut Ident) -> Result<Type> {
-        match self.globals.get(&Path::ident(ident.clone())) {
+        let mut path = self.current_path.clone();
+        path.push(ident.clone());
+
+        match (self.globals.get(&Path::ident(ident.clone()))).or(self.globals.get(&path)) {
             Some(type_) => Ok(type_.clone()),
             None => bail!("Ident Not Found: {}", ident.as_str()),
         }
