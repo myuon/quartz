@@ -14,7 +14,6 @@ pub struct TypeChecker {
     pub globals: HashMap<Path, Type>,
     pub types: HashMap<Ident, Type>,
     current_path: Path,
-    module_path: Path,
 }
 
 impl TypeChecker {
@@ -128,7 +127,6 @@ impl TypeChecker {
             .map(|(k, v)| (Ident(k.to_string()), v))
             .collect(),
             current_path: Path::empty(),
-            module_path: Path::empty(),
         }
     }
 
@@ -160,9 +158,9 @@ impl TypeChecker {
                 }
                 Decl::Module(name, module) => {
                     let path = self.current_path.clone();
-                    self.module_path.extend(name);
+                    self.current_path.extend(name);
                     self.module_register_for_back_reference(module)?;
-                    self.module_path = path;
+                    self.current_path = path;
                 }
                 Decl::Import(path) => {
                     let mut exports = vec![];
@@ -211,7 +209,7 @@ impl TypeChecker {
                 self.types.insert(ident.clone(), type_.clone());
             }
             Decl::Module(name, module) => {
-                let module_path = self.module_path.clone();
+                let module_path = self.current_path.clone();
                 self.current_path.extend(name);
                 self.module(module)?;
                 self.current_path = module_path;
@@ -639,7 +637,7 @@ impl TypeChecker {
     }
 
     fn path_to(&self, ident: &Ident) -> Path {
-        let mut path = self.module_path.clone();
+        let mut path = self.current_path.clone();
         path.push(ident.clone());
 
         path
