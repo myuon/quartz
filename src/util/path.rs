@@ -20,6 +20,10 @@ impl Path {
         self.0.push(ident);
     }
 
+    pub fn extend(&mut self, other: &Path) {
+        self.0.extend(other.0.clone());
+    }
+
     pub fn as_str(&self) -> String {
         self.0
             .iter()

@@ -1,7 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    io::Read,
-};
+use std::{collections::HashSet, io::Read};
 
 use anyhow::{Context, Result};
 use thiserror::{Error, __private::PathAsDisplay};
@@ -133,23 +130,12 @@ impl Compiler {
             self.loader
                 .loaded
                 .iter()
-                .map(|v| {
-                    Decl::Module(
-                        Ident(
-                            v.path
-                                .0
-                                .iter()
-                                .map(|v| v.as_str())
-                                .collect::<Vec<_>>()
-                                .join("_")
-                                .to_string(),
-                        ),
-                        v.module.clone(),
-                    )
-                })
+                .map(|v| Decl::Module(v.path.clone(), v.module.clone()))
                 .collect::<Vec<_>>(),
         );
-        module.0.push(Decl::Module(Ident("main".to_string()), main));
+        module
+            .0
+            .push(Decl::Module(Path::ident(Ident("main".to_string())), main));
 
         typechecker.run(&mut module).context("typechecker phase")?;
 

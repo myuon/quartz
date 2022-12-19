@@ -160,7 +160,7 @@ impl TypeChecker {
                 }
                 Decl::Module(name, module) => {
                     let path = self.current_path.clone();
-                    self.module_path.push(name.clone());
+                    self.module_path.extend(name);
                     self.module_register_for_back_reference(module)?;
                     self.module_path = path;
                 }
@@ -221,7 +221,7 @@ impl TypeChecker {
             }
             Decl::Module(name, module) => {
                 let module_path = self.module_path.clone();
-                self.current_path.push(name.clone());
+                self.current_path.extend(name);
                 self.module(module)?;
                 self.current_path = module_path;
             }

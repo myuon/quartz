@@ -62,7 +62,7 @@ impl Parser {
                 let module = self.module()?;
                 self.expect(Lexeme::RBrace)?;
 
-                Ok(Decl::Module(ident, module))
+                Ok(Decl::Module(Path::ident(ident), module))
             }
             Lexeme::Import => {
                 self.expect(Lexeme::Import)?;
