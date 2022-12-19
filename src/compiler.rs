@@ -21,10 +21,12 @@ pub struct ErrorInSource {
     pub end: usize,
 }
 
+#[derive(Debug, Clone)]
 struct SourceLoader {
     loaded: Vec<LoadedModule>,
 }
 
+#[derive(Debug, Clone)]
 struct LoadedModule {
     path: Path,
     source: String,
@@ -74,8 +76,8 @@ impl SourceLoader {
         Ok(())
     }
 
-    pub fn get(&self, path: &Path) -> Option<&LoadedModule> {
-        self.loaded.iter().find(|v| v.path == *path)
+    pub fn matches(&self, path: &Path) -> Option<&LoadedModule> {
+        self.loaded.iter().find(|v| path.starts_with(&v.path))
     }
 }
 
@@ -157,7 +159,7 @@ impl Compiler {
         self.compile_(cwd, &input).map_err(|error| {
             if let Some(source) = error.downcast_ref::<ErrorInSource>() {
                 let input = if let Some(path) = &source.path {
-                    self.loader.get(path).unwrap().source.clone()
+                    self.loader.matches(path).unwrap().source.clone()
                 } else {
                     input
                 };

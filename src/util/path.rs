@@ -24,11 +24,23 @@ impl Path {
         self.0.extend(other.0.clone());
     }
 
+    pub fn starts_with(&self, other: &Path) -> bool {
+        self.0.starts_with(&other.0)
+    }
+
     pub fn as_str(&self) -> String {
         self.0
             .iter()
             .map(|ident| ident.as_str())
             .collect::<Vec<&str>>()
             .join("::")
+    }
+
+    pub fn remove_prefix(&self, prefix: &Path) -> Path {
+        if !self.starts_with(prefix) {
+            panic!("Tried to remove prefix from path that doesn't start with it");
+        }
+
+        Path(self.0[prefix.0.len()..].to_vec())
     }
 }

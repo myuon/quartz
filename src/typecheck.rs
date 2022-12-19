@@ -165,20 +165,11 @@ impl TypeChecker {
                     self.module_path = path;
                 }
                 Decl::Import(path) => {
-                    // FIXME: use structured path
-                    let path_name = path
-                        .0
-                        .iter()
-                        .map(|t| t.0.as_str())
-                        .collect::<Vec<_>>()
-                        .join("_");
-
                     let mut exports = vec![];
                     for key in self.globals.keys() {
-                        if key.as_str().starts_with(&path_name) {
+                        if key.starts_with(&path) {
                             // export
-                            exports
-                                .push((Path::new(key.0[1..].to_vec()), self.globals[key].clone()));
+                            exports.push((key.remove_prefix(&path), self.globals[key].clone()));
                         }
                     }
 
