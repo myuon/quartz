@@ -442,7 +442,14 @@ impl TypeChecker {
                     Ok(fields[label].clone())
                 } else {
                     // method access
-                    let path = Path::new(vec![expr_type.clone().to_ident()?, label.clone()]);
+                    let path = Path::new(vec![
+                        expr_type.clone().to_ident().context(ErrorInSource {
+                            path: Some(self.current_path.clone()),
+                            start: expr.start.unwrap_or(0),
+                            end: expr.end.unwrap_or(0),
+                        })?,
+                        label.clone(),
+                    ]);
 
                     let type_ = self
                         .globals

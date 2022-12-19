@@ -330,6 +330,20 @@ impl IrCodeGenerator {
                             args: elements,
                         })
                     }
+                    (Type::I32, label) => {
+                        let mut elements = vec![];
+                        elements.push(self.expr(expr)?);
+                        for arg in args {
+                            elements.push(self.expr(arg)?);
+                        }
+
+                        Ok(IrTerm::Call {
+                            callee: Box::new(self.expr(&mut Source::unknown(Expr::Path(
+                                Path::new(vec![Ident("i32".to_string()), Ident(label.to_string())]),
+                            )))?),
+                            args: elements,
+                        })
+                    }
                     _ => bail!("invalid project: {:?}", expr),
                 },
                 _ => {

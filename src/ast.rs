@@ -69,8 +69,10 @@ impl Type {
     pub fn to_ident(self) -> Result<Ident> {
         match self {
             Type::Ident(name) => Ok(name),
+            // FIXME: how to handle methods for primitive types naturally?
             Type::Array(_, _) => Ok(Ident("array".to_string())),
             Type::Vec(_) => Ok(Ident("vec".to_string())),
+            Type::I32 => Ok(Ident("i32".to_string())),
             _ => bail!("expected identifier type, but found {}", self.to_string()),
         }
     }
