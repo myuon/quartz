@@ -76,14 +76,17 @@ impl IrCodeGenerator {
             }
         }
 
-        let name = func.name.0.clone();
+        let mut path = self.current_path.clone();
+        path.push(func.name.clone());
+
+        // FIXME: strip std
+        let std_path = Path::new(vec![Ident("quartz".to_string()), Ident("std".to_string())]);
+        if path.starts_with(&std_path) {
+            path = path.remove_prefix(&std_path);
+        }
 
         Ok(IrTerm::Func {
-            name: if self.current_path.0.is_empty() {
-                name
-            } else {
-                format!("{}_{}", self.current_path.0[0].as_str(), name)
-            },
+            name: path.as_joined_str("_"),
             params,
             result: Box::new(IrType::from_type(&func.result)?),
             body: vec![IrTerm::Seq { elements }],

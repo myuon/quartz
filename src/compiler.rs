@@ -135,7 +135,6 @@ impl Compiler {
                 .map(|v| Decl::Module(v.path.clone(), v.module.clone()))
                 .collect::<Vec<_>>(),
         );
-        module.0.push(Decl::Module(main_path.clone(), main));
 
         typechecker.run(&mut module).context("typechecker phase")?;
 

@@ -43,4 +43,12 @@ impl Path {
 
         Path(self.0[prefix.0.len()..].to_vec())
     }
+
+    pub fn as_joined_str(&self, delimiter: &str) -> String {
+        self.0
+            .iter()
+            .map(|ident| ident.as_str())
+            .collect::<Vec<&str>>()
+            .join(delimiter)
+    }
 }
