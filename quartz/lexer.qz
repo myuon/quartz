@@ -107,7 +107,7 @@ module Lexer {
                 continue;
             }
 
-            panic("== Abort ==\nposition: ".concat(i32_to_string(self.position)).concat("\ninput: ").concat(input.slice_start(self.position)));
+            panic("== Abort ==\nposition: ".concat(self.position.to_string()).concat("\ninput: ").concat(input.slice_start(self.position)));
 
             return nil;
         }

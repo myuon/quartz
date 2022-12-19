@@ -429,15 +429,12 @@ impl TypeChecker {
                     }
                 }
 
+                // allow non-record type here
+                // (some types only have methods, no fields)
                 let fields = self
                     .resolve_record_type(expr_type.clone())
-                    .context(ErrorInSource {
-                        path: Some(self.current_path.clone()),
-                        start: expr.start.unwrap_or(0),
-                        end: expr.end.unwrap_or(0),
-                    })?
-                    .into_iter()
-                    .collect::<HashMap<_, _>>();
+                    .map(|v| v.into_iter().collect::<HashMap<_, _>>())
+                    .unwrap_or(HashMap::new());
 
                 if fields.contains_key(label) {
                     // field access
@@ -635,7 +632,7 @@ impl TypeChecker {
             Type::Record(fields) => Ok(fields),
             Type::Array(_, _) => self.resolve_record_type(Type::Ident(Ident("array".to_string()))),
             Type::Vec(_) => self.resolve_record_type(Type::Ident(Ident("vec".to_string()))),
-            _ => bail!("expected record type, but found {:?}", type_),
+            _ => bail!("expected record type, but found {}", type_.to_string()),
         }
     }
 
