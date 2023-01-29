@@ -54,7 +54,7 @@ impl IrCodeGenerator {
 
                     self.current_path = path;
                 }
-                Decl::Import(_) => (),
+                Decl::Import(_) => {}
             }
         }
 

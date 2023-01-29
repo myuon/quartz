@@ -162,17 +162,7 @@ impl TypeChecker {
                     self.module_register_for_back_reference(module)?;
                     self.current_path = path;
                 }
-                Decl::Import(path) => {
-                    let mut exports = vec![];
-                    for key in self.globals.keys() {
-                        if key.starts_with(&path) {
-                            // export
-                            exports.push((key.remove_prefix(&path), self.globals[key].clone()));
-                        }
-                    }
-
-                    self.globals.extend(exports);
-                }
+                Decl::Import(_) => {}
             }
         }
 
@@ -361,11 +351,18 @@ impl TypeChecker {
                         })
                 }
             }
-            Expr::Path(path) => self
-                .globals
-                .get(path)
-                .cloned()
-                .ok_or(anyhow!("unknown path: {:?}", path)),
+            Expr::Path(path) => {
+                let mut full_path = path.clone();
+                if self.current_path.0.last() == path.0.first() {
+                    full_path =
+                        Path::new(vec![self.current_path.0.clone(), path.0[1..].to_vec()].concat());
+                }
+
+                self.globals
+                    .get(&full_path)
+                    .cloned()
+                    .ok_or(anyhow!("unknown path: {:?}", path))
+            }
             Expr::Call(caller, args) => self.call(caller, args),
             Expr::Record(ident, record) => {
                 let mut field_types = self
@@ -460,11 +457,9 @@ impl TypeChecker {
                         })?,
                         label.clone(),
                     ]);
+                    let path_expr = Expr::Path(path.clone());
+                    let type_ = self.expr(&mut Source::unknown(path_expr))?;
 
-                    let type_ = self
-                        .globals
-                        .get(&path)
-                        .ok_or(anyhow!("unknown method: {:?}", path))?;
                     let (mut arg_types, result_type) = type_.clone().to_func()?;
                     self.unify(&mut expr_type, &mut arg_types[0])
                         .context(ErrorInSource {
