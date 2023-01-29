@@ -132,7 +132,13 @@ impl Compiler {
             self.loader
                 .loaded
                 .iter()
-                .map(|v| Decl::Module(v.path.clone(), v.module.clone()))
+                .map(|v| {
+                    // HACK: Add import quartz::std to the top of the file
+                    let mut decls = vec![Decl::Import(v.path.clone())];
+                    decls.extend(v.module.0.clone());
+
+                    Decl::Module(v.path.clone(), Module(decls))
+                })
                 .collect::<Vec<_>>(),
         );
 

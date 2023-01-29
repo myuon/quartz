@@ -14,6 +14,7 @@ pub struct TypeChecker {
     pub globals: HashMap<Path, Type>,
     pub types: HashMap<Ident, Type>,
     current_path: Path,
+    imported: Vec<Path>,
 }
 
 impl TypeChecker {
@@ -127,6 +128,7 @@ impl TypeChecker {
             .map(|(k, v)| (Ident(k.to_string()), v))
             .collect(),
             current_path: Path::empty(),
+            imported: vec![],
         }
     }
 
@@ -162,7 +164,9 @@ impl TypeChecker {
                     self.module_register_for_back_reference(module)?;
                     self.current_path = path;
                 }
-                Decl::Import(_) => {}
+                Decl::Import(path) => {
+                    self.imported.push(path.clone());
+                }
             }
         }
 
@@ -337,19 +341,27 @@ impl TypeChecker {
         match &mut expr.data {
             Expr::Lit(lit) => self.lit(lit),
             Expr::Ident(ident) => {
-                if let Ok((path, type_)) = self.ident_path(ident) {
-                    expr.data = Expr::Path(path);
+                let mut candidates = self.imported.clone();
+                candidates.push(self.current_path.clone());
 
-                    return Ok(type_);
-                } else {
-                    self.ident_local(ident)
-                        .or(self.ident_global(ident))
-                        .context(ErrorInSource {
-                            path: Some(self.current_path.clone()),
-                            start: expr.start.unwrap_or(0),
-                            end: expr.end.unwrap_or(0),
-                        })
+                for path_prefix in candidates {
+                    let mut path = path_prefix.clone();
+                    path.push(ident.clone());
+
+                    if let Ok(type_) = self.ident_path(&path) {
+                        expr.data = Expr::Path(path);
+
+                        return Ok(type_);
+                    }
                 }
+
+                self.ident_local(ident)
+                    .or(self.ident_global(ident))
+                    .context(ErrorInSource {
+                        path: Some(self.current_path.clone()),
+                        start: expr.start.unwrap_or(0),
+                        end: expr.end.unwrap_or(0),
+                    })
             }
             Expr::Path(path) => {
                 let mut full_path = path.clone();
@@ -588,13 +600,10 @@ impl TypeChecker {
         }
     }
 
-    fn ident_path(&mut self, ident: &mut Ident) -> Result<(Path, Type)> {
-        let mut path = self.current_path.clone();
-        path.push(ident.clone());
-
-        match self.globals.get(&path) {
-            Some(type_) => Ok((path, type_.clone())),
-            None => bail!("Ident Not Found: {}", ident.as_str()),
+    fn ident_path(&mut self, path: &Path) -> Result<Type> {
+        match self.globals.get(path) {
+            Some(type_) => Ok(type_.clone()),
+            None => bail!("Path Not Found: {}", path.as_str()),
         }
     }
 
