@@ -314,8 +314,11 @@ impl IrCodeGenerator {
 
                                 Ok(self.statement(&mut Statement::Expr(Source::unknown(
                                     Expr::Call(
-                                        Box::new(Source::unknown(Expr::Ident(Ident(
-                                            "vec_push".to_string(),
+                                        Box::new(Source::unknown(Expr::Path(Path::new(
+                                            vec!["quartz", "std", "vec_push"]
+                                                .into_iter()
+                                                .map(|t| Ident(t.to_string()))
+                                                .collect(),
                                         )))),
                                         vec![expr.as_ref().clone(), args[0].clone()],
                                     ),
@@ -456,7 +459,15 @@ impl IrCodeGenerator {
                     )],
                 )))?),
                 Type::Vec(type_) => Ok(IrTerm::Call {
-                    callee: Box::new(IrTerm::Ident("vec_make".to_string())),
+                    callee: Box::new(IrTerm::Ident(
+                        Path::new(
+                            vec!["quartz", "std", "vec_make"]
+                                .into_iter()
+                                .map(|s| Ident(s.to_string()))
+                                .collect(),
+                        )
+                        .as_joined_str("_"),
+                    )),
                     args: vec![
                         IrTerm::i32(5),
                         IrTerm::SizeOf {
