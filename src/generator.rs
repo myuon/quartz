@@ -225,7 +225,7 @@ impl Generator {
             IrTerm::I32(i) => {
                 self.writer.write(&format!("i32.const {}", i));
             }
-            IrTerm::Path(i) => {
+            IrTerm::Ident(i) => {
                 if self.globals.contains(&Path::ident(Ident(i.clone()))) {
                     self.writer.write(&format!("global.get ${}", i.as_str()));
                 } else {
@@ -245,7 +245,7 @@ impl Generator {
             } => {
                 self.writer.new_statement();
                 self.expr(value)?;
-                self.expr_left_value(&mut IrTerm::Path(name.clone()))?;
+                self.expr_left_value(&mut IrTerm::Ident(name.clone()))?;
             }
             IrTerm::Return { value } => {
                 self.writer.new_statement();
@@ -438,7 +438,7 @@ impl Generator {
 
     fn expr_left_value(&mut self, expr: &mut IrTerm) -> Result<()> {
         match expr {
-            IrTerm::Path(i) => {
+            IrTerm::Ident(i) => {
                 self.writer.new_statement();
                 if self.globals.contains(&Path::ident(Ident(i.clone()))) {
                     self.writer.write("global.set");
@@ -484,7 +484,7 @@ impl Generator {
         self.writer.new_statement();
 
         match caller.as_ref() {
-            IrTerm::Path(ident) => match ident.as_str() {
+            IrTerm::Ident(ident) => match ident.as_str() {
                 "add" => {
                     self.writer.write("i32.add");
                 }

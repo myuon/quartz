@@ -155,8 +155,8 @@ impl IrCodeGenerator {
                     elements.push(IrTerm::Assign {
                         lhs: ident.0.clone(),
                         rhs: Box::new(IrTerm::Call {
-                            callee: Box::new(IrTerm::Path("add".to_string())),
-                            args: vec![IrTerm::Path(ident.0.clone()), IrTerm::I32(1)],
+                            callee: Box::new(IrTerm::Ident("add".to_string())),
+                            args: vec![IrTerm::Ident(ident.0.clone()), IrTerm::I32(1)],
                         }),
                     });
 
@@ -169,9 +169,9 @@ impl IrCodeGenerator {
                             },
                             IrTerm::While {
                                 cond: Box::new(IrTerm::Call {
-                                    callee: Box::new(IrTerm::Path("lt".to_string())),
+                                    callee: Box::new(IrTerm::Ident("lt".to_string())),
                                     args: vec![
-                                        IrTerm::Path(ident.as_str().to_string()),
+                                        IrTerm::Ident(ident.as_str().to_string()),
                                         self.expr(end.as_mut())?,
                                     ],
                                 }),
@@ -190,7 +190,7 @@ impl IrCodeGenerator {
         let lhs = self.expr(lhs)?;
         let rhs = self.expr(rhs)?;
         match lhs {
-            IrTerm::Path(ident) => Ok(IrTerm::Assign {
+            IrTerm::Ident(ident) => Ok(IrTerm::Assign {
                 lhs: ident,
                 rhs: Box::new(rhs),
             }),
@@ -214,7 +214,7 @@ impl IrCodeGenerator {
     fn expr(&mut self, expr: &mut Source<Expr>) -> Result<IrTerm> {
         match &mut expr.data {
             Expr::Ident(ident) => Ok(IrTerm::ident(ident.as_str())),
-            Expr::Self_ => Ok(IrTerm::Path("self".to_string())),
+            Expr::Self_ => Ok(IrTerm::Ident("self".to_string())),
             Expr::Path(path) => Ok(IrTerm::ident(path.as_joined_str("_"))),
             Expr::Lit(lit) => match lit {
                 Lit::Nil => Ok(IrTerm::I32(0)),
@@ -246,7 +246,7 @@ impl IrCodeGenerator {
                             )))?),
                             value: s.bytes().map(|b| IrTerm::i32(b as i32)).collect(),
                         },
-                        IrTerm::Path("_string".to_string()),
+                        IrTerm::Ident("_string".to_string()),
                     ],
                 }),
             },
@@ -269,7 +269,7 @@ impl IrCodeGenerator {
                                 Ok(IrTerm::PointerOffset {
                                     address: Box::new(self.expr(expr)?),
                                     offset: Box::new(IrTerm::Call {
-                                        callee: Box::new(IrTerm::Path("mult".to_string())),
+                                        callee: Box::new(IrTerm::Ident("mult".to_string())),
                                         args: vec![
                                             self.expr(&mut args[0])?,
                                             IrTerm::SizeOf {
@@ -393,7 +393,7 @@ impl IrCodeGenerator {
                     name: var.to_string(),
                     type_: IrType::Address,
                     value: Box::new(IrTerm::Call {
-                        callee: Box::new(IrTerm::Path("alloc".to_string())),
+                        callee: Box::new(IrTerm::Ident("alloc".to_string())),
                         args: vec![IrTerm::i32(record_type.len() as i32)],
                     }),
                 });
@@ -456,7 +456,7 @@ impl IrCodeGenerator {
                     )],
                 )))?),
                 Type::Vec(type_) => Ok(IrTerm::Call {
-                    callee: Box::new(IrTerm::Path("vec_make".to_string())),
+                    callee: Box::new(IrTerm::Ident("vec_make".to_string())),
                     args: vec![
                         IrTerm::i32(5),
                         IrTerm::SizeOf {
@@ -477,7 +477,7 @@ impl IrCodeGenerator {
                 let rhs = self.expr(rhs)?;
 
                 Ok(IrTerm::Call {
-                    callee: Box::new(IrTerm::Path("equal".to_string())),
+                    callee: Box::new(IrTerm::Ident("equal".to_string())),
                     args: vec![lhs, rhs],
                 })
             }
@@ -486,7 +486,7 @@ impl IrCodeGenerator {
                 let rhs = self.expr(rhs)?;
 
                 Ok(IrTerm::Call {
-                    callee: Box::new(IrTerm::Path("not_equal".to_string())),
+                    callee: Box::new(IrTerm::Ident("not_equal".to_string())),
                     args: vec![lhs, rhs],
                 })
             }
@@ -499,7 +499,7 @@ impl IrCodeGenerator {
                             name: "_wrap".to_string(),
                             type_: IrType::Address,
                             value: Box::new(IrTerm::Call {
-                                callee: Box::new(IrTerm::Path("alloc".to_string())),
+                                callee: Box::new(IrTerm::Ident("alloc".to_string())),
                                 args: vec![IrTerm::i32(1)],
                             }),
                         },

@@ -6,7 +6,7 @@ use crate::{ast::Type, util::sexpr_writer::SExprWriter};
 pub enum IrTerm {
     Nil,
     I32(i32),
-    Path(String),
+    Ident(String),
     Func {
         name: String,
         params: Vec<(String, IrType)>,
@@ -89,7 +89,7 @@ impl IrTerm {
     }
 
     pub fn ident(name: impl Into<String>) -> Self {
-        IrTerm::Path(name.into())
+        IrTerm::Ident(name.into())
     }
 
     pub fn i32(value: i32) -> Self {
@@ -104,7 +104,7 @@ impl IrTerm {
             IrTerm::I32(i) => {
                 writer.write(&i.to_string());
             }
-            IrTerm::Path(p) => {
+            IrTerm::Ident(p) => {
                 writer.write(p);
             }
             IrTerm::Func {
@@ -292,7 +292,7 @@ impl IrTerm {
         match self {
             IrTerm::Nil => vec![],
             IrTerm::I32(_) => vec![],
-            IrTerm::Path(_) => vec![],
+            IrTerm::Ident(_) => vec![],
             IrTerm::Call { callee: _, args } => {
                 let mut result = vec![];
                 for arg in args {
@@ -431,8 +431,8 @@ impl IrType {
     pub fn to_term(&self) -> IrTerm {
         match self {
             IrType::Nil => IrTerm::nil(),
-            IrType::I32 => IrTerm::Path("i32".to_string()),
-            IrType::Address => IrTerm::Path("i32".to_string()),
+            IrType::I32 => IrTerm::Ident("i32".to_string()),
+            IrType::Address => IrTerm::Ident("i32".to_string()),
         }
     }
 
