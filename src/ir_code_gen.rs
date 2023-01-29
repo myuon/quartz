@@ -79,12 +79,6 @@ impl IrCodeGenerator {
         let mut path = self.current_path.clone();
         path.push(func.name.clone());
 
-        // FIXME: strip std
-        let std_path = Path::new(vec![Ident("quartz".to_string()), Ident("std".to_string())]);
-        if path.starts_with(&std_path) {
-            path = path.remove_prefix(&std_path);
-        }
-
         Ok(IrTerm::Func {
             name: path.as_joined_str("_"),
             params,
@@ -218,11 +212,13 @@ impl IrCodeGenerator {
         match &mut expr.data {
             Expr::Ident(ident) => Ok(IrTerm::ident(ident.as_str())),
             Expr::Self_ => Ok(IrTerm::Ident("self".to_string())),
-            Expr::Path(path) => Ok(IrTerm::ident(format!(
-                "{}_{}",
-                path.0[0].as_str(),
-                path.0[1].as_str()
-            ))),
+            Expr::Path(path) => Ok(IrTerm::ident(
+                path.0
+                    .iter()
+                    .map(|s| s.as_str())
+                    .collect::<Vec<_>>()
+                    .join("_"),
+            )),
             Expr::Lit(lit) => match lit {
                 Lit::Nil => Ok(IrTerm::I32(0)),
                 Lit::Bool(b) => Ok(IrTerm::I32(if *b { 1 } else { 0 })),
@@ -233,8 +229,11 @@ impl IrCodeGenerator {
                             Ident("_string".to_string()),
                             self.type_name(&Ident("string".to_string()))?.clone(),
                             Source::unknown(Expr::Call(
-                                Box::new(Source::unknown(Expr::Ident(Ident(
-                                    "new_empty_string".to_string(),
+                                Box::new(Source::unknown(Expr::Path(Path::new(
+                                    vec!["quartz", "std", "new_empty_string"]
+                                        .into_iter()
+                                        .map(|t| Ident(t.to_string()))
+                                        .collect(),
                                 )))),
                                 vec![Source::unknown(Expr::Lit(Lit::I32(s.len() as i32)))],
                             )),
