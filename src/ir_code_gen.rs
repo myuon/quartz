@@ -40,8 +40,11 @@ impl IrCodeGenerator {
                     elements.push(self.func(func)?);
                 }
                 Decl::Let(ident, type_, expr) => {
+                    let mut path = self.current_path.clone();
+                    path.push(ident.clone());
+
                     elements.push(IrTerm::GlobalLet {
-                        name: ident.0.clone(),
+                        name: path.as_joined_str("_"),
                         type_: IrType::from_type(type_)?,
                         value: Box::new(self.expr(expr)?),
                     });
@@ -212,13 +215,7 @@ impl IrCodeGenerator {
         match &mut expr.data {
             Expr::Ident(ident) => Ok(IrTerm::ident(ident.as_str())),
             Expr::Self_ => Ok(IrTerm::Ident("self".to_string())),
-            Expr::Path(path) => Ok(IrTerm::ident(
-                path.0
-                    .iter()
-                    .map(|s| s.as_str())
-                    .collect::<Vec<_>>()
-                    .join("_"),
-            )),
+            Expr::Path(path) => Ok(IrTerm::ident(path.as_joined_str("_"))),
             Expr::Lit(lit) => match lit {
                 Lit::Nil => Ok(IrTerm::I32(0)),
                 Lit::Bool(b) => Ok(IrTerm::I32(if *b { 1 } else { 0 })),
@@ -245,7 +242,7 @@ impl IrCodeGenerator {
                                     "_string".to_string(),
                                 )))),
                                 Type::Ident(Ident("string".to_string())),
-                                Ident("data".to_string()),
+                                Path::ident(Ident("data".to_string())),
                             )))?),
                             value: s.bytes().map(|b| IrTerm::i32(b as i32)).collect(),
                         },
@@ -254,71 +251,96 @@ impl IrCodeGenerator {
                 }),
             },
             Expr::Call(callee, args) => match &mut callee.data {
-                Expr::Project(expr, type_, label) => match (type_, label.as_str()) {
-                    (Type::Ptr(p), "at") => {
-                        assert_eq!(args.len(), 1);
+                Expr::Project(expr, type_, label) => {
+                    if label.0.len() == 1 {
+                        match (type_, label.0[0].as_str()) {
+                            (Type::Ptr(p), "at") => {
+                                assert_eq!(args.len(), 1);
 
-                        Ok(IrTerm::PointerAt {
-                            type_: IrType::from_type(p)?,
-                            address: Box::new(self.expr(expr)?),
-                            index: Box::new(self.expr(&mut args[0])?),
-                        })
-                    }
-                    (Type::Ptr(p), "offset") => {
-                        assert_eq!(args.len(), 1);
+                                Ok(IrTerm::PointerAt {
+                                    type_: IrType::from_type(p)?,
+                                    address: Box::new(self.expr(expr)?),
+                                    index: Box::new(self.expr(&mut args[0])?),
+                                })
+                            }
+                            (Type::Ptr(p), "offset") => {
+                                assert_eq!(args.len(), 1);
 
-                        Ok(IrTerm::PointerOffset {
-                            address: Box::new(self.expr(expr)?),
-                            offset: Box::new(IrTerm::Call {
-                                callee: Box::new(IrTerm::Ident("mult".to_string())),
-                                args: vec![
-                                    self.expr(&mut args[0])?,
-                                    IrTerm::SizeOf {
-                                        type_: IrType::from_type(&p)?,
-                                    },
-                                ],
-                            }),
-                        })
-                    }
-                    (Type::Array(p, s), "at") => {
-                        assert_eq!(args.len(), 1);
+                                Ok(IrTerm::PointerOffset {
+                                    address: Box::new(self.expr(expr)?),
+                                    offset: Box::new(IrTerm::Call {
+                                        callee: Box::new(IrTerm::Ident("mult".to_string())),
+                                        args: vec![
+                                            self.expr(&mut args[0])?,
+                                            IrTerm::SizeOf {
+                                                type_: IrType::from_type(&p)?,
+                                            },
+                                        ],
+                                    }),
+                                })
+                            }
+                            (Type::Array(p, s), "at") => {
+                                assert_eq!(args.len(), 1);
 
-                        Ok(IrTerm::PointerAt {
-                            type_: IrType::from_type(p)?,
-                            address: Box::new(self.expr(&mut Source::unknown(Expr::Project(
-                                expr.clone(),
-                                Type::Array(p.clone(), *s),
-                                Ident("data".to_string()),
-                            )))?),
-                            index: Box::new(self.expr(&mut args[0])?),
-                        })
-                    }
-                    (Type::Vec(p), "at") => {
-                        assert_eq!(args.len(), 1);
+                                Ok(IrTerm::PointerAt {
+                                    type_: IrType::from_type(p)?,
+                                    address: Box::new(self.expr(&mut Source::unknown(
+                                        Expr::Project(
+                                            expr.clone(),
+                                            Type::Array(p.clone(), *s),
+                                            Path::ident(Ident("data".to_string())),
+                                        ),
+                                    ))?),
+                                    index: Box::new(self.expr(&mut args[0])?),
+                                })
+                            }
+                            (Type::Vec(p), "at") => {
+                                assert_eq!(args.len(), 1);
 
-                        Ok(IrTerm::PointerAt {
-                            type_: IrType::from_type(p)?,
-                            address: Box::new(self.expr(&mut Source::unknown(Expr::Project(
-                                expr.clone(),
-                                Type::Vec(p.clone()),
-                                Ident("data".to_string()),
-                            )))?),
-                            index: Box::new(self.expr(&mut args[0])?),
-                        })
-                    }
-                    (Type::Vec(_), "push") => {
-                        assert_eq!(args.len(), 1);
+                                Ok(IrTerm::PointerAt {
+                                    type_: IrType::from_type(p)?,
+                                    address: Box::new(self.expr(&mut Source::unknown(
+                                        Expr::Project(
+                                            expr.clone(),
+                                            Type::Vec(p.clone()),
+                                            Path::ident(Ident("data".to_string())),
+                                        ),
+                                    ))?),
+                                    index: Box::new(self.expr(&mut args[0])?),
+                                })
+                            }
+                            (Type::Vec(_), "push") => {
+                                assert_eq!(args.len(), 1);
 
-                        Ok(
-                            self.statement(&mut Statement::Expr(Source::unknown(Expr::Call(
-                                Box::new(Source::unknown(Expr::Ident(Ident(
-                                    "vec_push".to_string(),
-                                )))),
-                                vec![expr.as_ref().clone(), args[0].clone()],
-                            ))))?,
-                        )
-                    }
-                    (Type::Ident(module_name), label) => {
+                                Ok(self.statement(&mut Statement::Expr(Source::unknown(
+                                    Expr::Call(
+                                        Box::new(Source::unknown(Expr::Ident(Ident(
+                                            "vec_push".to_string(),
+                                        )))),
+                                        vec![expr.as_ref().clone(), args[0].clone()],
+                                    ),
+                                )))?)
+                            }
+                            (Type::I32, label) => {
+                                let mut elements = vec![];
+                                elements.push(self.expr(expr)?);
+                                for arg in args {
+                                    elements.push(self.expr(arg)?);
+                                }
+
+                                Ok(IrTerm::Call {
+                                    callee: Box::new(self.expr(&mut Source::unknown(
+                                        Expr::Path(Path::new(vec![
+                                            Ident("i32".to_string()),
+                                            Ident(label.to_string()),
+                                        ])),
+                                    ))?),
+                                    args: elements,
+                                })
+                            }
+                            _ => bail!("invalid project: {:?}", expr),
+                        }
+                    } else {
                         let mut elements = vec![];
                         elements.push(self.expr(expr)?);
                         for arg in args {
@@ -326,28 +348,13 @@ impl IrCodeGenerator {
                         }
 
                         Ok(IrTerm::Call {
-                            callee: Box::new(self.expr(&mut Source::unknown(Expr::Path(
-                                Path::new(vec![module_name.clone(), Ident(label.to_string())]),
-                            )))?),
+                            callee: Box::new(
+                                self.expr(&mut Source::unknown(Expr::Path(label.clone())))?,
+                            ),
                             args: elements,
                         })
                     }
-                    (Type::I32, label) => {
-                        let mut elements = vec![];
-                        elements.push(self.expr(expr)?);
-                        for arg in args {
-                            elements.push(self.expr(arg)?);
-                        }
-
-                        Ok(IrTerm::Call {
-                            callee: Box::new(self.expr(&mut Source::unknown(Expr::Path(
-                                Path::new(vec![Ident("i32".to_string()), Ident(label.to_string())]),
-                            )))?),
-                            args: elements,
-                        })
-                    }
-                    _ => bail!("invalid project: {:?}", expr),
-                },
+                }
                 _ => {
                     let mut elements = vec![];
                     for arg in args {
@@ -420,7 +427,7 @@ impl IrCodeGenerator {
 
                 let index = record_type
                     .iter()
-                    .position(|(f, _)| f == label)
+                    .position(|(f, _)| &Path::ident(f.clone()) == label)
                     .ok_or(anyhow!("Field not found: {:?} in {:?}", label, record_type))?;
 
                 let mut offset = 0;

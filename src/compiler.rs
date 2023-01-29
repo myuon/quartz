@@ -143,6 +143,7 @@ impl Compiler {
             .run(&mut module)
             .context("ir code generator phase")?;
 
+        generator.set_cwd(Path::ident(Ident("main".to_string())));
         generator.set_globals(typechecker.globals.keys().into_iter().cloned().collect());
         generator.set_types(typechecker.types);
         generator.run(&mut ir).context("generator phase")?;

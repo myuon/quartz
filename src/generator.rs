@@ -13,6 +13,7 @@ pub struct Generator {
     pub globals: HashSet<Path>,
     pub types: HashMap<Ident, Type>,
     pub main_signature: Option<(Vec<IrType>, IrType)>,
+    pub cwd: Path,
 }
 
 impl Generator {
@@ -22,6 +23,7 @@ impl Generator {
             globals: HashSet::new(),
             types: HashMap::new(),
             main_signature: None,
+            cwd: Path::new(vec![]),
         }
     }
 
@@ -31,6 +33,10 @@ impl Generator {
 
     pub fn set_types(&mut self, types: HashMap<Ident, Type>) {
         self.types = types;
+    }
+
+    pub fn set_cwd(&mut self, cwd: Path) {
+        self.cwd = cwd;
     }
 
     pub fn run(&mut self, module: &mut IrTerm) -> Result<()> {
@@ -103,7 +109,15 @@ impl Generator {
         );
 
         self.writer.start();
-        self.writer.write(r#"export "main" (func $main)"#);
+        self.writer.write(&format!(
+            r#"export "main" (func ${}_main)"#,
+            self.cwd
+                .0
+                .iter()
+                .map(|i| i.as_str())
+                .collect::<Vec<_>>()
+                .join("_")
+        ));
         self.writer.end();
         self.writer.end();
 

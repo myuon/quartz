@@ -121,7 +121,7 @@ pub enum Expr {
     Lit(Lit),
     Call(Box<Source<Expr>>, Vec<Source<Expr>>),
     Record(Ident, Vec<(Ident, Source<Expr>)>),
-    Project(Box<Source<Expr>>, Type, Ident),
+    Project(Box<Source<Expr>>, Type, Path),
     Make(Type, Vec<Source<Expr>>),
     SizeOf(Type),
     Range(Box<Source<Expr>>, Box<Source<Expr>>),
@@ -131,6 +131,15 @@ pub enum Expr {
     NotEqual(Box<Source<Expr>>, Box<Source<Expr>>),
     Wrap(Box<Source<Expr>>),
     Unwrap(Box<Source<Expr>>),
+}
+
+impl Expr {
+    pub fn as_path(&self) -> Result<&Path> {
+        match self {
+            Expr::Path(path) => Ok(path),
+            _ => bail!("expected path, but found {:?}", self),
+        }
+    }
 }
 
 #[derive(PartialEq, Debug, Clone)]

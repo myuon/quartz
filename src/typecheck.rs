@@ -358,10 +358,14 @@ impl TypeChecker {
                         Path::new(vec![self.current_path.0.clone(), path.0[1..].to_vec()].concat());
                 }
 
-                self.globals
+                let type_ = self
+                    .globals
                     .get(&full_path)
                     .cloned()
-                    .ok_or(anyhow!("unknown path: {:?}", path))
+                    .ok_or(anyhow!("unknown path: {:?}", path))?;
+                *path = full_path;
+
+                Ok(type_)
             }
             Expr::Call(caller, args) => self.call(caller, args),
             Expr::Record(ident, record) => {
@@ -396,13 +400,15 @@ impl TypeChecker {
 
                 Ok(Type::Ident(ident.clone()))
             }
-            Expr::Project(expr, type_, label) => {
+            Expr::Project(expr, type_, label_path) => {
                 let mut expr_type = self.expr(expr)?;
                 self.unify(type_, &mut expr_type).context(ErrorInSource {
                     path: Some(self.current_path.clone()),
                     start: expr.start.unwrap_or(0),
                     end: expr.end.unwrap_or(0),
                 })?;
+
+                let label = label_path.0.last().unwrap();
 
                 // methods for builtin types
                 if let Type::Ptr(p) = &mut expr_type {
@@ -443,10 +449,10 @@ impl TypeChecker {
                     .map(|v| v.into_iter().collect::<HashMap<_, _>>())
                     .unwrap_or(HashMap::new());
 
-                if fields.contains_key(label) {
+                if fields.contains_key(&label) {
                     // field access
 
-                    Ok(fields[label].clone())
+                    Ok(fields[&label].clone())
                 } else {
                     // method access
                     let path = Path::new(vec![
@@ -457,8 +463,9 @@ impl TypeChecker {
                         })?,
                         label.clone(),
                     ]);
-                    let path_expr = Expr::Path(path.clone());
-                    let type_ = self.expr(&mut Source::unknown(path_expr))?;
+                    let mut path_expr = Source::unknown(Expr::Path(path.clone()));
+                    let type_ = self.expr(&mut path_expr)?;
+                    *label_path = path_expr.data.as_path().unwrap().clone();
 
                     let (mut arg_types, result_type) = type_.clone().to_func()?;
                     self.unify(&mut expr_type, &mut arg_types[0])
