@@ -1,12 +1,15 @@
 use anyhow::{bail, Result};
 
-use crate::{ast::Type, util::sexpr_writer::SExprWriter};
+use crate::{
+    ast::Type,
+    util::{ident::Ident, path::Path, sexpr_writer::SExprWriter},
+};
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum IrTerm {
     Nil,
     I32(i32),
-    Path(String),
+    Path(Path),
     Func {
         name: String,
         params: Vec<(String, IrType)>,
@@ -89,7 +92,7 @@ impl IrTerm {
     }
 
     pub fn ident(name: impl Into<String>) -> Self {
-        IrTerm::Path(name.into())
+        IrTerm::Path(Path::ident(Ident(name.into())))
     }
 
     pub fn i32(value: i32) -> Self {
@@ -105,7 +108,7 @@ impl IrTerm {
                 writer.write(&i.to_string());
             }
             IrTerm::Path(p) => {
-                writer.write(p);
+                writer.write(&p.as_joined_str("_"));
             }
             IrTerm::Func {
                 name,
@@ -431,8 +434,8 @@ impl IrType {
     pub fn to_term(&self) -> IrTerm {
         match self {
             IrType::Nil => IrTerm::nil(),
-            IrType::I32 => IrTerm::Path("i32".to_string()),
-            IrType::Address => IrTerm::Path("i32".to_string()),
+            IrType::I32 => IrTerm::Path(Path::ident(Ident("i32".to_string()))),
+            IrType::Address => IrTerm::Path(Path::ident(Ident("i32".to_string()))),
         }
     }
 

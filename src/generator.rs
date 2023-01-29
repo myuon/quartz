@@ -225,11 +225,13 @@ impl Generator {
             IrTerm::I32(i) => {
                 self.writer.write(&format!("i32.const {}", i));
             }
-            IrTerm::Path(i) => {
-                if self.globals.contains(&Path::ident(Ident(i.clone()))) {
-                    self.writer.write(&format!("global.get ${}", i.as_str()));
+            IrTerm::Path(path) => {
+                if self.globals.contains(&path) {
+                    self.writer
+                        .write(&format!("global.get ${}", path.as_joined_str("_")));
                 } else {
-                    self.writer.write(&format!("local.get ${}", i.as_str()));
+                    self.writer
+                        .write(&format!("local.get ${}", path.as_joined_str("_")));
                 }
             }
             IrTerm::Call { callee, args } => self.call(callee, args)?,
@@ -245,7 +247,7 @@ impl Generator {
             } => {
                 self.writer.new_statement();
                 self.expr(value)?;
-                self.expr_left_value(&mut IrTerm::Path(name.clone()))?;
+                self.expr_left_value(&mut IrTerm::ident(name.clone()))?;
             }
             IrTerm::Return { value } => {
                 self.writer.new_statement();
@@ -438,14 +440,14 @@ impl Generator {
 
     fn expr_left_value(&mut self, expr: &mut IrTerm) -> Result<()> {
         match expr {
-            IrTerm::Path(i) => {
+            IrTerm::Path(path) => {
                 self.writer.new_statement();
-                if self.globals.contains(&Path::ident(Ident(i.clone()))) {
+                if self.globals.contains(&path) {
                     self.writer.write("global.set");
                 } else {
                     self.writer.write("local.set");
                 }
-                self.writer.write(&format!("${}", i.as_str()));
+                self.writer.write(&format!("${}", path.as_joined_str("_")));
             }
             IrTerm::PointerAt {
                 type_,
@@ -484,7 +486,7 @@ impl Generator {
         self.writer.new_statement();
 
         match caller.as_ref() {
-            IrTerm::Path(ident) => match ident.as_str() {
+            IrTerm::Path(ident) => match ident.as_joined_str("_").as_str() {
                 "add" => {
                     self.writer.write("i32.add");
                 }
