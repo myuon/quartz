@@ -337,6 +337,22 @@ impl TypeChecker {
         }
     }
 
+    fn resolve_path(&mut self, user_specified_path: &mut Path) -> Result<Type> {
+        let mut candidates = self.imported.clone();
+        candidates.push(self.current_path.clone());
+
+        for path_prefix in candidates {
+            let mut path = path_prefix.clone();
+            path.extend(user_specified_path);
+
+            if let Ok(type_) = self.ident_path(&path) {
+                return Ok(type_);
+            }
+        }
+
+        bail!("Could not resolve path: {:?}", user_specified_path)
+    }
+
     fn expr(&mut self, expr: &mut Source<Expr>) -> Result<Type> {
         match &mut expr.data {
             Expr::Lit(lit) => self.lit(lit),
@@ -349,8 +365,6 @@ impl TypeChecker {
                     path.push(ident.clone());
 
                     if let Ok(type_) = self.ident_path(&path) {
-                        expr.data = Expr::Path(path);
-
                         return Ok(type_);
                     }
                 }
@@ -363,22 +377,7 @@ impl TypeChecker {
                         end: expr.end.unwrap_or(0),
                     })
             }
-            Expr::Path(path) => {
-                let mut full_path = path.clone();
-                if self.current_path.0.last() == path.0.first() {
-                    full_path =
-                        Path::new(vec![self.current_path.0.clone(), path.0[1..].to_vec()].concat());
-                }
-
-                let type_ = self
-                    .globals
-                    .get(&full_path)
-                    .cloned()
-                    .ok_or(anyhow!("unknown path: {:?}", path))?;
-                *path = full_path;
-
-                Ok(type_)
-            }
+            Expr::Path(path) => Ok(self.resolve_path(path)?),
             Expr::Call(caller, args) => self.call(caller, args),
             Expr::Record(ident, record) => {
                 let mut field_types = self
