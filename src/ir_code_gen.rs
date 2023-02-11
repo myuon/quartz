@@ -90,7 +90,7 @@ impl IrCodeGenerator {
         })
     }
 
-    fn statements(&mut self, statements: &mut Vec<Statement>) -> Result<Vec<IrTerm>> {
+    fn statements(&mut self, statements: &mut Vec<Source<Statement>>) -> Result<Vec<IrTerm>> {
         let mut elements = vec![];
         for statement in statements {
             elements.push(self.statement(statement)?);
@@ -98,8 +98,8 @@ impl IrCodeGenerator {
         Ok(elements)
     }
 
-    fn statement(&mut self, statement: &mut Statement) -> Result<IrTerm> {
-        match statement {
+    fn statement(&mut self, statement: &mut Source<Statement>) -> Result<IrTerm> {
+        match &mut statement.data {
             Statement::Let(ident, type_, expr) => Ok(IrTerm::Let {
                 name: ident.0.clone(),
                 type_: IrType::from_type(type_)?,
@@ -236,7 +236,7 @@ impl IrCodeGenerator {
                 Lit::I32(i) => Ok(IrTerm::i32(*i)),
                 Lit::String(s) => Ok(IrTerm::Seq {
                     elements: vec![
-                        self.statement(&mut Statement::Let(
+                        self.statement(&mut Source::unknown(Statement::Let(
                             Ident("_string".to_string()),
                             self.type_name(&Ident("string".to_string()))?.clone(),
                             Source::unknown(Expr::Call(
@@ -248,7 +248,7 @@ impl IrCodeGenerator {
                                 )))),
                                 vec![Source::unknown(Expr::Lit(Lit::I32(s.len() as i32)))],
                             )),
-                        ))?,
+                        )))?,
                         IrTerm::WriteMemory {
                             type_: IrType::I32,
                             address: Box::new(self.expr(&mut Source::unknown(Expr::Project(
@@ -326,8 +326,8 @@ impl IrCodeGenerator {
                             (Type::Vec(_), "push") => {
                                 assert_eq!(args.len(), 1);
 
-                                Ok(self.statement(&mut Statement::Expr(Source::unknown(
-                                    Expr::Call(
+                                Ok(self.statement(&mut Source::unknown(Statement::Expr(
+                                    Source::unknown(Expr::Call(
                                         Box::new(Source::unknown(Expr::path(Path::new(
                                             vec!["quartz", "std", "vec_push"]
                                                 .into_iter()
@@ -335,7 +335,7 @@ impl IrCodeGenerator {
                                                 .collect(),
                                         )))),
                                         vec![expr.as_ref().clone(), args[0].clone()],
-                                    ),
+                                    )),
                                 )))?)
                             }
                             (Type::I32, label) => {

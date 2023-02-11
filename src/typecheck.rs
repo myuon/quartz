@@ -239,10 +239,18 @@ impl TypeChecker {
         Ok(())
     }
 
-    fn block(&mut self, statements: &mut Vec<Statement>, expected: &mut Type) -> Result<()> {
+    fn block(
+        &mut self,
+        statements: &mut Vec<Source<Statement>>,
+        expected: &mut Type,
+    ) -> Result<()> {
         for statement in statements {
             if let Some(result) = &mut self.statement(statement)? {
-                self.unify(expected, result)?;
+                self.unify(expected, result).context(ErrorInSource {
+                    path: Some(self.current_path.clone()),
+                    start: statement.start.unwrap_or(0),
+                    end: statement.end.unwrap_or(0),
+                })?;
             }
         }
 
@@ -253,8 +261,8 @@ impl TypeChecker {
         Ok(())
     }
 
-    fn statement(&mut self, statement: &mut Statement) -> Result<Option<Type>> {
-        match statement {
+    fn statement(&mut self, statement: &mut Source<Statement>) -> Result<Option<Type>> {
+        match &mut statement.data {
             Statement::Let(val, type_, expr) => {
                 let mut result = self.expr(expr)?;
                 self.unify(type_, &mut result).context(ErrorInSource {
@@ -584,7 +592,12 @@ impl TypeChecker {
             Expr::Unwrap(expr) => {
                 let mut expr_type = self.expr(expr)?;
                 let mut type_ = Type::Optional(Box::new(Type::Omit(0)));
-                self.unify(&mut type_, &mut expr_type)?;
+                self.unify(&mut type_, &mut expr_type)
+                    .context(ErrorInSource {
+                        path: Some(self.current_path.clone()),
+                        start: expr.start.unwrap_or(0),
+                        end: expr.end.unwrap_or(0),
+                    })?;
 
                 Ok(type_.to_optional()?.as_ref().clone())
             }

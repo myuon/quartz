@@ -161,9 +161,14 @@ pub enum Statement {
     Return(Source<Expr>),
     Expr(Source<Expr>),
     Assign(Box<Source<Expr>>, Box<Source<Expr>>),
-    If(Source<Expr>, Type, Vec<Statement>, Option<Vec<Statement>>),
-    While(Source<Expr>, Vec<Statement>),
-    For(Ident, Source<Expr>, Vec<Statement>),
+    If(
+        Source<Expr>,
+        Type,
+        Vec<Source<Statement>>,
+        Option<Vec<Source<Statement>>>,
+    ),
+    While(Source<Expr>, Vec<Source<Statement>>),
+    For(Ident, Source<Expr>, Vec<Source<Statement>>),
     Continue,
 }
 
@@ -172,7 +177,7 @@ pub struct Func {
     pub name: Ident,
     pub params: Vec<(Ident, Type)>,
     pub result: Type,
-    pub body: Vec<Statement>,
+    pub body: Vec<Source<Statement>>,
 }
 
 impl Func {

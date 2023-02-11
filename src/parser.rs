@@ -168,10 +168,12 @@ impl Parser {
         Ok(params)
     }
 
-    fn block(&mut self) -> Result<Vec<Statement>> {
+    fn block(&mut self) -> Result<Vec<Source<Statement>>> {
         let mut statements = vec![];
         while !self.is_end() && self.peek()?.lexeme != Lexeme::RBrace {
-            statements.push(self.statement()?);
+            let position = self.position;
+            let statement = self.statement()?;
+            statements.push(self.source_from(statement, position));
         }
         Ok(statements)
     }
