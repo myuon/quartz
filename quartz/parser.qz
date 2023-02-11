@@ -27,12 +27,7 @@ module Parser {
     }
 
     fun decl(self) {
-        let token = self.peek();
-        if token.lexeme.equal("fun") {
-            return self.function();
-        }
-
-        panic("Expected function declaration, got ".concat(token.lexeme).concat("{").concat(token.string_value!).concat("}"));
+        self.expect("fun");
     }
 
     fun function(self) {
@@ -47,7 +42,30 @@ module Parser {
         return self.position >= self.input.length;
     }
 
-    fun consume(self) {
+    fun consume(self): Token {
+        let token = self.peek();
         self.position = self.position + 1;
+
+        return token;
+    }
+
+    fun ident(self): string {
+        let token = self.peek();
+        if token.lexeme == "ident" {
+            let t = self.consume();
+            return t.string_value!;
+        } else {
+            panic("Expected IDENT, got ".concat(token.lexeme).concat("{").concat(token.string_value!).concat("}"));
+            return "";
+        }
+    }
+
+    fun expect(self, lexeme: string) {
+        let token = self.peek();
+        if token.lexeme.equal(lexeme) {
+            return token;
+        } else {
+            panic("Expected ".concat(lexeme).concat(", got ").concat(token.lexeme).concat("{").concat(token.string_value!).concat("}"));
+        }
     }
 }
