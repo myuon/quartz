@@ -1,0 +1,30 @@
+type Function = {
+    name: string,
+    result_type: string,
+    body: Block,
+};
+
+module Function {
+    fun to_string(self) {
+        return "fun ".concat(self.name);
+    }
+}
+
+type Block = {
+    block: vec[Statement],
+};
+
+type Statement = {
+    t: string,
+    name: string?,
+    name_type: string?,
+    expr: Expression,
+};
+
+type Expression = {
+    t: string,
+    left: Expression?,
+    right: Expression?,
+    value: string?,
+    operator: string?,
+};

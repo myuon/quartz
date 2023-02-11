@@ -1,34 +1,10 @@
 import quartz::lexer;
+import quartz::ast;
 
 type Parser = {
     position: i32,
     input: vec[Token],
     omit_index: i32,
-};
-
-type Function = {
-    name: string,
-    result_type: string,
-    body: Block,
-};
-
-type Block = {
-    block: vec[Statement],
-};
-
-type Statement = {
-    t: string,
-    name: string?,
-    name_type: string?,
-    expr: Expression,
-};
-
-type Expression = {
-    t: string,
-    left: Expression?,
-    right: Expression?,
-    value: string?,
-    operator: string?,
 };
 
 module Parser {

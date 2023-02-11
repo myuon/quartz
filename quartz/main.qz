@@ -1,6 +1,7 @@
 import quartz::std;
 import quartz::lexer;
 import quartz::parser;
+import quartz::ast;
 
 fun test() {
     if !"hello".equal("hello") {
