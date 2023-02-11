@@ -427,7 +427,11 @@ impl IrType {
             Type::Byte => Ok(IrType::I32),
             Type::Vec(_) => Ok(IrType::Address),
             Type::Optional(_) => Ok(IrType::Address),
-            _ => bail!("unknown type {}", type_.to_string()),
+            Type::Func(_, _) => todo!(),
+            Type::Range(_) => todo!(),
+            Type::Omit(_) => {
+                bail!("Found omit type in IrType::from_type");
+            }
         }
     }
 

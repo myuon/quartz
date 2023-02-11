@@ -45,7 +45,7 @@ impl IrCodeGenerator {
 
                     elements.push(IrTerm::GlobalLet {
                         name: path.as_joined_str("_"),
-                        type_: IrType::from_type(type_)?,
+                        type_: IrType::from_type(type_).context("globalLet")?,
                         value: Box::new(self.expr(expr)?),
                     });
                 }
@@ -72,10 +72,14 @@ impl IrCodeGenerator {
             if ident.as_str() == "self" {
                 params.push((
                     ident.0.clone(),
-                    IrType::from_type(&Type::Ident(self.current_path.0[0].clone()))?,
+                    IrType::from_type(&Type::Ident(self.current_path.0[0].clone()))
+                        .context("func:params self")?,
                 ));
             } else {
-                params.push((ident.0.clone(), IrType::from_type(type_)?));
+                params.push((
+                    ident.0.clone(),
+                    IrType::from_type(type_).context("func:params")?,
+                ));
             }
         }
 
@@ -85,7 +89,7 @@ impl IrCodeGenerator {
         Ok(IrTerm::Func {
             name: path.as_joined_str("_"),
             params,
-            result: Box::new(IrType::from_type(&func.result)?),
+            result: Box::new(IrType::from_type(&func.result).context("func:result")?),
             body: vec![IrTerm::Seq { elements }],
         })
     }
@@ -102,7 +106,11 @@ impl IrCodeGenerator {
         match &mut statement.data {
             Statement::Let(ident, type_, expr) => Ok(IrTerm::Let {
                 name: ident.0.clone(),
-                type_: IrType::from_type(type_)?,
+                type_: IrType::from_type(type_).context(ErrorInSource {
+                    path: Some(self.current_path.clone()),
+                    start: statement.start.unwrap_or(0),
+                    end: statement.end.unwrap_or(0),
+                })?,
                 value: Box::new(self.expr(expr)?),
             }),
             Statement::Return(expr) => Ok(IrTerm::Return {
@@ -274,7 +282,7 @@ impl IrCodeGenerator {
                                 assert_eq!(args.len(), 1);
 
                                 Ok(IrTerm::PointerAt {
-                                    type_: IrType::from_type(p)?,
+                                    type_: IrType::from_type(p).context("method:ptr.at")?,
                                     address: Box::new(self.expr(expr)?),
                                     index: Box::new(self.expr(&mut args[0])?),
                                 })
@@ -289,7 +297,8 @@ impl IrCodeGenerator {
                                         args: vec![
                                             self.expr(&mut args[0])?,
                                             IrTerm::SizeOf {
-                                                type_: IrType::from_type(&p)?,
+                                                type_: IrType::from_type(&p)
+                                                    .context("method:ptr.offset")?,
                                             },
                                         ],
                                         source: None,
@@ -300,7 +309,7 @@ impl IrCodeGenerator {
                                 assert_eq!(args.len(), 1);
 
                                 Ok(IrTerm::PointerAt {
-                                    type_: IrType::from_type(p)?,
+                                    type_: IrType::from_type(p).context("method:array.at")?,
                                     address: Box::new(self.expr(&mut Source::unknown(
                                         Expr::Project(
                                             expr.clone(),

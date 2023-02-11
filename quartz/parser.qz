@@ -18,17 +18,17 @@ type Block = {
 
 type Statement = {
     t: string,
-    name: string,
-    name_type: string,
+    name: string?,
+    name_type: string?,
     expr: Expression,
 };
 
 type Expression = {
     t: string,
-    left: Expression,
-    right: Expression,
-    value: string,
-    operator: string,
+    left: Expression?,
+    right: Expression?,
+    value: string?,
+    operator: string?,
 };
 
 module Parser {
@@ -138,7 +138,7 @@ module Parser {
         }
     }
 
-    fun let_statement(self) {
+    fun let_statement(self): Statement {
         self.consume();
         let name = self.ident();
         self.expect("colon");
@@ -149,30 +149,35 @@ module Parser {
 
         return Statement {
             t: "let",
-            name: name,
-            name_type: t,
+            name: name?,
+            name_type: t?,
             expr: value,
         };
     }
 
-    fun return_statement(self) {
+    fun return_statement(self): Statement {
         self.consume();
         let value = self.expression();
         self.expect("semicolon");
 
         return Statement {
             t: "return",
+            name: nil,
+            name_type: nil,
             expr: value,
         };
     }
 
-    fun expression(self) {
+    fun expression(self): Expression {
         let token = self.peek();
 
         if token.lexeme.equal("number") {
             return Expression {
                 t: "number",
-                value: token.string_value!,
+                value: token.string_value,
+                left: nil,
+                right: nil,
+                operator: nil,
             };
         }
 
