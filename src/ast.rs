@@ -153,13 +153,6 @@ impl Expr {
             resolved_path: None,
         }
     }
-
-    pub fn as_path(&self) -> Result<&Path> {
-        match self {
-            Expr::Path { path, .. } => Ok(path),
-            _ => bail!("expected path, but found {:?}", self),
-        }
-    }
 }
 
 #[derive(PartialEq, Debug, Clone)]

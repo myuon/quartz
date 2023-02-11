@@ -213,9 +213,23 @@ impl IrCodeGenerator {
 
     fn expr(&mut self, expr: &mut Source<Expr>) -> Result<IrTerm> {
         match &mut expr.data {
-            Expr::Ident { ident, .. } => Ok(IrTerm::ident(ident.as_str())),
+            Expr::Ident {
+                ident,
+                resolved_path,
+            } => {
+                let resolved_path = resolved_path.clone().unwrap_or(Path::ident(ident.clone()));
+
+                Ok(IrTerm::ident(resolved_path.as_joined_str("_")))
+            }
             Expr::Self_ => Ok(IrTerm::Ident("self".to_string())),
-            Expr::Path { path, .. } => Ok(IrTerm::ident(path.as_joined_str("_"))),
+            Expr::Path {
+                path,
+                resolved_path,
+            } => {
+                let resolved_path = resolved_path.clone().unwrap_or(path.clone());
+
+                Ok(IrTerm::ident(resolved_path.as_joined_str("_")))
+            }
             Expr::Lit(lit) => match lit {
                 Lit::Nil => Ok(IrTerm::I32(0)),
                 Lit::Bool(b) => Ok(IrTerm::I32(if *b { 1 } else { 0 })),

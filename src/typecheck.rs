@@ -489,7 +489,13 @@ impl TypeChecker {
                     ]);
                     let mut path_expr = Source::unknown(Expr::path(path.clone()));
                     let type_ = self.expr(&mut path_expr)?;
-                    *label_path = path_expr.data.as_path().unwrap().clone();
+
+                    match path_expr.data {
+                        Expr::Path { resolved_path, .. } => {
+                            *label_path = resolved_path.unwrap();
+                        }
+                        _ => unreachable!(),
+                    }
 
                     let (mut arg_types, result_type) = type_.clone().to_func()?;
                     self.unify(&mut expr_type, &mut arg_types[0])
