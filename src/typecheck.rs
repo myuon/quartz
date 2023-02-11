@@ -515,7 +515,12 @@ impl TypeChecker {
                         _ => unreachable!(),
                     }
 
-                    let (mut arg_types, result_type) = type_.clone().to_func()?;
+                    let (mut arg_types, result_type) =
+                        type_.clone().to_func().context(ErrorInSource {
+                            path: Some(self.current_path.clone()),
+                            start: expr.start.unwrap_or(0),
+                            end: expr.end.unwrap_or(0),
+                        })?;
                     self.unify(&mut expr_type, &mut arg_types[0])
                         .context(ErrorInSource {
                             path: Some(self.current_path.clone()),
@@ -653,7 +658,14 @@ impl TypeChecker {
         caller: &mut Box<Source<Expr>>,
         args: &mut Vec<Source<Expr>>,
     ) -> Result<Type> {
-        let (mut arg_types, result_type) = self.expr(caller.as_mut())?.to_func()?;
+        let (mut arg_types, result_type) =
+            self.expr(caller.as_mut())?
+                .to_func()
+                .context(ErrorInSource {
+                    path: Some(self.current_path.clone()),
+                    start: caller.start.unwrap_or(0),
+                    end: caller.end.unwrap_or(0),
+                })?;
         if arg_types.len() != args.len() {
             return Err(anyhow!(
                 "wrong number of arguments, expected {}, but found {}",

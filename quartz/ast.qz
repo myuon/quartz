@@ -6,13 +6,25 @@ type Function = {
 
 module Function {
     fun to_string(self) {
-        return "fun ".concat(self.name);
+        return "fun ".concat(self.name).concat("() {\n").concat(self.body.to_string()).concat("}\n");
     }
 }
 
 type Block = {
     block: vec[Statement],
 };
+
+module Block {
+    fun to_string(self) {
+        let result = "";
+
+        for i in 0..self.block.length {
+            result = result.concat(self.block.at(i).to_string());
+        }
+
+        return result;
+    }
+}
 
 type Statement = {
     t: string,
@@ -21,6 +33,19 @@ type Statement = {
     expr: Expression,
 };
 
+module Statement {
+    fun to_string(self) {
+        if self.t.equal("let") {
+            return "let ".concat(self.name!).concat(": ").concat(self.name_type!).concat(" = ").concat(self.expr.to_string()).concat(";\n");
+        }
+        if self.t.equal("return") {
+            return "return ".concat(self.expr.to_string()).concat(";\n");
+        }
+
+        panic("Unknown statement type: ".concat(self.t));
+    }
+}
+
 type Expression = {
     t: string,
     left: Expression?,
@@ -28,3 +53,19 @@ type Expression = {
     value: string?,
     operator: string?,
 };
+
+module Expression {
+    fun to_string(self): string {
+        if self.t.equal("ident") {
+            return self.value!;
+        }
+        if self.t.equal("number") {
+            return self.value!;
+        }
+        if self.t.equal("plus") {
+            return (self.left!.to_string()).concat(" + ").concat(self.right!.to_string());
+        }
+
+        panic("Unknown expression type: ".concat(self.t));
+    }
+}
