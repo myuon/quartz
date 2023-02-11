@@ -213,9 +213,9 @@ impl IrCodeGenerator {
 
     fn expr(&mut self, expr: &mut Source<Expr>) -> Result<IrTerm> {
         match &mut expr.data {
-            Expr::Ident(ident) => Ok(IrTerm::ident(ident.as_str())),
+            Expr::Ident { ident, .. } => Ok(IrTerm::ident(ident.as_str())),
             Expr::Self_ => Ok(IrTerm::Ident("self".to_string())),
-            Expr::Path(path) => Ok(IrTerm::ident(path.as_joined_str("_"))),
+            Expr::Path { path, .. } => Ok(IrTerm::ident(path.as_joined_str("_"))),
             Expr::Lit(lit) => match lit {
                 Lit::Nil => Ok(IrTerm::I32(0)),
                 Lit::Bool(b) => Ok(IrTerm::I32(if *b { 1 } else { 0 })),
@@ -226,7 +226,7 @@ impl IrCodeGenerator {
                             Ident("_string".to_string()),
                             self.type_name(&Ident("string".to_string()))?.clone(),
                             Source::unknown(Expr::Call(
-                                Box::new(Source::unknown(Expr::Path(Path::new(
+                                Box::new(Source::unknown(Expr::path(Path::new(
                                     vec!["quartz", "std", "new_empty_string"]
                                         .into_iter()
                                         .map(|t| Ident(t.to_string()))
@@ -238,7 +238,7 @@ impl IrCodeGenerator {
                         IrTerm::WriteMemory {
                             type_: IrType::I32,
                             address: Box::new(self.expr(&mut Source::unknown(Expr::Project(
-                                Box::new(Source::unknown(Expr::Ident(Ident(
+                                Box::new(Source::unknown(Expr::ident(Ident(
                                     "_string".to_string(),
                                 )))),
                                 Type::Ident(Ident("string".to_string())),
@@ -314,7 +314,7 @@ impl IrCodeGenerator {
 
                                 Ok(self.statement(&mut Statement::Expr(Source::unknown(
                                     Expr::Call(
-                                        Box::new(Source::unknown(Expr::Path(Path::new(
+                                        Box::new(Source::unknown(Expr::path(Path::new(
                                             vec!["quartz", "std", "vec_push"]
                                                 .into_iter()
                                                 .map(|t| Ident(t.to_string()))
@@ -333,7 +333,7 @@ impl IrCodeGenerator {
 
                                 Ok(IrTerm::Call {
                                     callee: Box::new(self.expr(&mut Source::unknown(
-                                        Expr::Path(Path::new(vec![
+                                        Expr::path(Path::new(vec![
                                             Ident("i32".to_string()),
                                             Ident(label.to_string()),
                                         ])),
@@ -352,7 +352,7 @@ impl IrCodeGenerator {
 
                         Ok(IrTerm::Call {
                             callee: Box::new(
-                                self.expr(&mut Source::unknown(Expr::Path(label.clone())))?,
+                                self.expr(&mut Source::unknown(Expr::path(label.clone())))?,
                             ),
                             args: elements,
                         })
@@ -453,7 +453,7 @@ impl IrCodeGenerator {
                     vec![(
                         Ident("data".to_string()),
                         Source::unknown(Expr::Call(
-                            Box::new(Source::unknown(Expr::Ident(Ident("alloc".to_string())))),
+                            Box::new(Source::unknown(Expr::ident(Ident("alloc".to_string())))),
                             vec![Source::unknown(Expr::Lit(Lit::I32(*size as i32)))],
                         )),
                     )],

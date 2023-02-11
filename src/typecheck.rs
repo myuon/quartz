@@ -337,7 +337,7 @@ impl TypeChecker {
         }
     }
 
-    fn resolve_path(&mut self, user_specified_path: &mut Path) -> Result<Type> {
+    fn resolve_path(&mut self, user_specified_path: &mut Path) -> Result<(Path, Type)> {
         let mut candidates = self.imported.clone();
         candidates.push(self.current_path.clone());
 
@@ -346,7 +346,7 @@ impl TypeChecker {
             path.extend(user_specified_path);
 
             if let Ok(type_) = self.ident_path(&path) {
-                return Ok(type_);
+                return Ok((path, type_));
             }
         }
 
@@ -356,7 +356,10 @@ impl TypeChecker {
     fn expr(&mut self, expr: &mut Source<Expr>) -> Result<Type> {
         match &mut expr.data {
             Expr::Lit(lit) => self.lit(lit),
-            Expr::Ident(ident) => {
+            Expr::Ident {
+                ident,
+                resolved_path,
+            } => {
                 let mut candidates = self.imported.clone();
                 candidates.push(self.current_path.clone());
 
@@ -365,6 +368,8 @@ impl TypeChecker {
                     path.push(ident.clone());
 
                     if let Ok(type_) = self.ident_path(&path) {
+                        *resolved_path = Some(path);
+
                         return Ok(type_);
                     }
                 }
@@ -377,7 +382,15 @@ impl TypeChecker {
                         end: expr.end.unwrap_or(0),
                     })
             }
-            Expr::Path(path) => Ok(self.resolve_path(path)?),
+            Expr::Path {
+                path,
+                resolved_path,
+            } => {
+                let (r, t) = self.resolve_path(path)?;
+                *resolved_path = Some(r);
+
+                Ok(t)
+            }
             Expr::Call(caller, args) => self.call(caller, args),
             Expr::Record(ident, record) => {
                 let mut field_types = self
@@ -474,7 +487,7 @@ impl TypeChecker {
                         })?,
                         label.clone(),
                     ]);
-                    let mut path_expr = Source::unknown(Expr::Path(path.clone()));
+                    let mut path_expr = Source::unknown(Expr::path(path.clone()));
                     let type_ = self.expr(&mut path_expr)?;
                     *label_path = path_expr.data.as_path().unwrap().clone();
 

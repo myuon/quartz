@@ -303,7 +303,7 @@ impl Parser {
                         self.source_from(
                             Expr::Call(
                                 Box::new(self.source_from(
-                                    Expr::Ident(Ident("or".to_string())),
+                                    Expr::ident(Ident("or".to_string())),
                                     token.position,
                                 )),
                                 vec![current, rhs],
@@ -358,7 +358,7 @@ impl Parser {
                 current = self.source_from(
                     Expr::Call(
                         Box::new(self.source(
-                            Expr::Ident(Ident("lt".to_string())),
+                            Expr::ident(Ident("lt".to_string())),
                             token_position,
                             token_position_end,
                         )),
@@ -375,7 +375,7 @@ impl Parser {
                 current = self.source_from(
                     Expr::Call(
                         Box::new(self.source(
-                            Expr::Ident(Ident("gt".to_string())),
+                            Expr::ident(Ident("gt".to_string())),
                             token_position,
                             token_position_end,
                         )),
@@ -392,7 +392,7 @@ impl Parser {
                 current = self.source_from(
                     Expr::Call(
                         Box::new(self.source(
-                            Expr::Ident(Ident("gte".to_string())),
+                            Expr::ident(Ident("gte".to_string())),
                             token_position,
                             token_position_end,
                         )),
@@ -409,7 +409,7 @@ impl Parser {
                 current = self.source_from(
                     Expr::Call(
                         Box::new(self.source(
-                            Expr::Ident(Ident("lte".to_string())),
+                            Expr::ident(Ident("lte".to_string())),
                             token_position,
                             token_position_end,
                         )),
@@ -445,7 +445,7 @@ impl Parser {
                     current = self.source_from(
                         Expr::Call(
                             Box::new(self.source(
-                                Expr::Ident(Ident("add".to_string())),
+                                Expr::ident(Ident("add".to_string())),
                                 token_position,
                                 token_position_end,
                             )),
@@ -462,7 +462,7 @@ impl Parser {
                     current = self.source_from(
                         Expr::Call(
                             Box::new(self.source(
-                                Expr::Ident(Ident("sub".to_string())),
+                                Expr::ident(Ident("sub".to_string())),
                                 token_position,
                                 token_position_end,
                             )),
@@ -499,7 +499,7 @@ impl Parser {
                 current = self.source_from(
                     Expr::Call(
                         Box::new(self.source(
-                            Expr::Ident(Ident("mult".to_string())),
+                            Expr::ident(Ident("mult".to_string())),
                             token_position,
                             token_position_end,
                         )),
@@ -516,7 +516,7 @@ impl Parser {
                 current = self.source_from(
                     Expr::Call(
                         Box::new(self.source(
-                            Expr::Ident(Ident("div".to_string())),
+                            Expr::ident(Ident("div".to_string())),
                             token_position,
                             token_position_end,
                         )),
@@ -533,7 +533,7 @@ impl Parser {
                 current = self.source_from(
                     Expr::Call(
                         Box::new(self.source(
-                            Expr::Ident(Ident("mod".to_string())),
+                            Expr::ident(Ident("mod".to_string())),
                             token_position,
                             token_position_end,
                         )),
@@ -566,7 +566,7 @@ impl Parser {
                 } else {
                     let ident = self.ident()?;
 
-                    Expr::Ident(ident.clone())
+                    Expr::ident(ident.clone())
                 };
 
                 self.source_from(expr, position)
@@ -584,7 +584,7 @@ impl Parser {
                 self.source_from(
                     Expr::Call(
                         Box::new(self.source(
-                            Expr::Ident(Ident("not".to_string())),
+                            Expr::ident(Ident("not".to_string())),
                             position,
                             position,
                         )),
@@ -632,7 +632,7 @@ impl Parser {
                     self.consume()?;
 
                     let ident = match current.data {
-                        Expr::Ident(ident) => ident,
+                        Expr::Ident { ident, .. } => ident,
                         _ => {
                             return Err(anyhow!(
                                 "Expected identifier for record name, found {:?}",
@@ -668,7 +668,7 @@ impl Parser {
                     self.consume()?;
 
                     let ident = match current.data {
-                        Expr::Ident(ident) => ident,
+                        Expr::Ident { ident, .. } => ident,
                         _ => {
                             return Err(anyhow!(
                                 "Expected identifier for record name, found {:?}",
@@ -714,7 +714,7 @@ impl Parser {
                     self.consume()?;
 
                     let ident = match current.data {
-                        Expr::Ident(ident) => ident,
+                        Expr::Ident { ident, .. } => ident,
                         _ => {
                             bail!(
                                 "Expected identifier for record name, found {:?}",
@@ -724,7 +724,7 @@ impl Parser {
                     };
 
                     let name = self.ident()?;
-                    current = self.source_from(Expr::Path(Path::new(vec![ident, name])), position);
+                    current = self.source_from(Expr::path(Path::new(vec![ident, name])), position);
                 }
                 Lexeme::Question => {
                     self.consume()?;
@@ -935,16 +935,16 @@ fn test_expr() -> Result<()> {
             },
         ],
         source(Expr::Call(
-            Box::new(source(Expr::Ident(Ident("sub".to_string())))),
+            Box::new(source(Expr::ident(Ident("sub".to_string())))),
             vec![
                 source(Expr::Call(
-                    Box::new(source(Expr::Ident(Ident("sub".to_string())))),
+                    Box::new(source(Expr::ident(Ident("sub".to_string())))),
                     vec![
-                        source(Expr::Ident(Ident("a".to_string()))),
-                        source(Expr::Ident(Ident("b".to_string()))),
+                        source(Expr::ident(Ident("a".to_string()))),
+                        source(Expr::ident(Ident("b".to_string()))),
                     ],
                 )),
-                source(Expr::Ident(Ident("c".to_string()))),
+                source(Expr::ident(Ident("c".to_string()))),
             ],
         )),
     )];

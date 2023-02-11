@@ -116,7 +116,10 @@ pub enum Lit {
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Expr {
-    Ident(Ident),
+    Ident {
+        ident: Ident,
+        resolved_path: Option<Path>,
+    },
     Self_,
     Lit(Lit),
     Call(Box<Source<Expr>>, Vec<Source<Expr>>),
@@ -126,7 +129,10 @@ pub enum Expr {
     SizeOf(Type),
     Range(Box<Source<Expr>>, Box<Source<Expr>>),
     As(Box<Source<Expr>>, Type),
-    Path(Path),
+    Path {
+        path: Path,
+        resolved_path: Option<Path>,
+    },
     Equal(Box<Source<Expr>>, Box<Source<Expr>>),
     NotEqual(Box<Source<Expr>>, Box<Source<Expr>>),
     Wrap(Box<Source<Expr>>),
@@ -134,9 +140,23 @@ pub enum Expr {
 }
 
 impl Expr {
+    pub fn ident(ident: Ident) -> Self {
+        Expr::Ident {
+            ident,
+            resolved_path: None,
+        }
+    }
+
+    pub fn path(path: Path) -> Self {
+        Expr::Path {
+            path,
+            resolved_path: None,
+        }
+    }
+
     pub fn as_path(&self) -> Result<&Path> {
         match self {
-            Expr::Path(path) => Ok(path),
+            Expr::Path { path, .. } => Ok(path),
             _ => bail!("expected path, but found {:?}", self),
         }
     }
