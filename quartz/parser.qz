@@ -21,13 +21,20 @@ module Parser {
     }
 
     fun module_(self) {
-        while !self.is_end() {
-            self.decl();
-        }
+        self.decl();
     }
 
     fun decl(self) {
-        self.expect("fun");
+        self.expect_ident("fun");
+        let name = self.ident();
+        self.expect("(");
+        self.expect(")");
+
+        self.expect(":");
+        let result_type = self.ident();
+
+        self.expect("{");
+        self.expect("}");
     }
 
     fun function(self) {
@@ -55,7 +62,7 @@ module Parser {
             let t = self.consume();
             return t.string_value!;
         } else {
-            return panic("Expected IDENT, got ".concat(token.lexeme).concat("{").concat(token.string_value!).concat("}")) as string;
+            panic("Expected IDENT, got ".concat(token.lexeme).concat("{").concat(token.string_value!).concat("}"));
         }
     }
 
@@ -65,6 +72,13 @@ module Parser {
             return token;
         } else {
             panic("Expected ".concat(lexeme).concat(", got ").concat(token.lexeme).concat("{").concat(token.string_value!).concat("}"));
+        }
+    }
+
+    fun expect_ident(self, expected: string) {
+        let i = self.ident();
+        if !i.equal(expected) {
+            panic("Expected ".concat(expected).concat(", got ").concat(i));
         }
     }
 }
