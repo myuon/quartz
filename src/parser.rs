@@ -313,6 +313,21 @@ impl Parser {
                             position,
                         );
                 }
+                Lexeme::DoubleAmp => {
+                    self.consume()?;
+                    let rhs = self.term_4(with_struct)?;
+
+                    current = self.source_from(
+                        Expr::Call(
+                            Box::new(self.source_from(
+                                Expr::ident(Ident("and".to_string())),
+                                token.position,
+                            )),
+                            vec![current, rhs],
+                        ),
+                        position,
+                    );
+                }
                 _ => break,
             }
         }

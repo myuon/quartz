@@ -49,6 +49,7 @@ pub enum Lexeme {
     Underscore,
     Question,
     Bang,
+    DoubleAmp,
     DoublePipe,
     Ident(String),
     Int(i32),
@@ -220,6 +221,7 @@ impl Lexer {
                     ("_", Lexeme::Underscore),
                     ("?", Lexeme::Question),
                     ("!", Lexeme::Bang),
+                    ("&&", Lexeme::DoubleAmp),
                     ("||", Lexeme::DoublePipe),
                 ],
             ) {

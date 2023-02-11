@@ -6,6 +6,31 @@ type Parser = {
     omit_index: i32,
 };
 
+type Function = {
+    name: string,
+    result_type: string,
+    body: Block,
+};
+
+type Block = {
+    block: vec[Statement],
+};
+
+type Statement = {
+    t: string,
+    name: string,
+    name_type: string,
+    expr: Expression,
+};
+
+type Expression = {
+    t: string,
+    left: Expression,
+    right: Expression,
+    value: string,
+    operator: string,
+};
+
 module Parser {
     fun new(): Parser {
         return Parser {
@@ -25,16 +50,23 @@ module Parser {
     }
 
     fun decl(self) {
-        self.expect_ident("fun");
+        self.expect("fun");
         let name = self.ident();
-        self.expect("(");
-        self.expect(")");
+        self.expect("lparen");
+        self.expect("rparen");
 
-        self.expect(":");
+        self.expect("colon");
         let result_type = self.ident();
 
-        self.expect("{");
-        self.expect("}");
+        self.expect("lbrace");
+        let body = self.block();
+        self.expect("rbrace");
+
+        return Function {
+            name: name,
+            result_type: result_type,
+            body: body,
+        };
     }
 
     fun function(self) {
@@ -57,17 +89,16 @@ module Parser {
     }
 
     fun ident(self): string {
-        let token = self.peek();
-        if token.lexeme == "ident" {
-            let t = self.consume();
-            return t.string_value!;
+        let token = self.consume();
+        if token.lexeme.equal("ident") {
+            return token.string_value!;
         } else {
             panic("Expected IDENT, got ".concat(token.lexeme).concat("{").concat(token.string_value!).concat("}"));
         }
     }
 
     fun expect(self, lexeme: string) {
-        let token = self.peek();
+        let token = self.consume();
         if token.lexeme.equal(lexeme) {
             return token;
         } else {
@@ -80,5 +111,71 @@ module Parser {
         if !i.equal(expected) {
             panic("Expected ".concat(expected).concat(", got ").concat(i));
         }
+    }
+
+    fun block(self) {
+        let statements = make[vec[Statement]]();
+
+        while !self.is_end() && !self.peek().lexeme.equal("rbrace") {
+            statements.push(self.statement());
+        }
+
+        return Block {
+            block: statements,
+        };
+    }
+
+    fun statement(self) {
+        let token = self.peek();
+        if token.lexeme.equal("let") {
+            return self.let_statement();
+        } else {
+            if token.lexeme.equal("return") {
+                return self.return_statement();
+            } else {
+                panic("Unexpected token ".concat(token.lexeme).concat("{").concat(token.string_value!).concat("}"));
+            }
+        }
+    }
+
+    fun let_statement(self) {
+        self.consume();
+        let name = self.ident();
+        self.expect("colon");
+        let t = self.ident();
+        self.expect("equal");
+        let value = self.expression();
+        self.expect("semicolon");
+
+        return Statement {
+            t: "let",
+            name: name,
+            name_type: t,
+            expr: value,
+        };
+    }
+
+    fun return_statement(self) {
+        self.consume();
+        let value = self.expression();
+        self.expect("semicolon");
+
+        return Statement {
+            t: "return",
+            expr: value,
+        };
+    }
+
+    fun expression(self) {
+        let token = self.peek();
+
+        if token.lexeme.equal("number") {
+            return Expression {
+                t: "number",
+                value: token.string_value!,
+            };
+        }
+
+        panic("Unexpected token ".concat(token.lexeme).concat("{").concat(token.string_value!).concat("}"));
     }
 }

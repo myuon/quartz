@@ -93,6 +93,10 @@ impl TypeChecker {
                     "or",
                     Type::Func(vec![Type::Bool, Type::Bool], Box::new(Type::Bool)),
                 ),
+                (
+                    "and",
+                    Type::Func(vec![Type::Bool, Type::Bool], Box::new(Type::Bool)),
+                ),
                 ("abort", Type::Func(vec![], Box::new(Type::Nil))),
             ]
             .into_iter()
