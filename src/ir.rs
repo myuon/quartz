@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 
-use crate::{ast::Type, util::sexpr_writer::SExprWriter};
+use crate::{ast::Type, compiler::SourcePosition, util::sexpr_writer::SExprWriter};
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum IrTerm {
@@ -21,6 +21,7 @@ pub enum IrTerm {
     Call {
         callee: Box<IrTerm>,
         args: Vec<IrTerm>,
+        source: Option<SourcePosition>,
     },
     Seq {
         elements: Vec<IrTerm>,
@@ -143,7 +144,7 @@ impl IrTerm {
                 value.to_string_writer(writer);
                 writer.end();
             }
-            IrTerm::Call { callee, args } => {
+            IrTerm::Call { callee, args, .. } => {
                 writer.start();
                 writer.write("call");
                 callee.to_string_writer(writer);
@@ -293,7 +294,9 @@ impl IrTerm {
             IrTerm::Nil => vec![],
             IrTerm::I32(_) => vec![],
             IrTerm::Ident(_) => vec![],
-            IrTerm::Call { callee: _, args } => {
+            IrTerm::Call {
+                callee: _, args, ..
+            } => {
                 let mut result = vec![];
                 for arg in args {
                     result.extend(arg.find_let());

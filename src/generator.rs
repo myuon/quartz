@@ -250,7 +250,7 @@ impl Generator {
                     self.writer.write(&format!("local.get ${}", i.as_str()));
                 }
             }
-            IrTerm::Call { callee, args } => self.call(callee, args)?,
+            IrTerm::Call { callee, args, .. } => self.call(callee, args)?,
             IrTerm::Seq { elements } => {
                 for element in elements {
                     self.expr(element)?;
@@ -395,6 +395,7 @@ impl Generator {
                             type_: type_.clone(),
                         },
                     ],
+                    source: None,
                 })?;
 
                 self.writer.new_statement();
@@ -482,6 +483,7 @@ impl Generator {
                             type_: type_.clone(),
                         },
                     ],
+                    source: None,
                 })?;
 
                 self.writer.new_statement();

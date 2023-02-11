@@ -4,7 +4,7 @@ use anyhow::{anyhow, bail, Context, Result};
 
 use crate::{
     ast::{Decl, Expr, Func, Lit, Module, Statement, Type},
-    compiler::ErrorInSource,
+    compiler::{ErrorInSource, SourcePosition},
     ir::{IrTerm, IrType},
     util::{ident::Ident, path::Path, source::Source},
 };
@@ -157,6 +157,7 @@ impl IrCodeGenerator {
                         rhs: Box::new(IrTerm::Call {
                             callee: Box::new(IrTerm::Ident("add".to_string())),
                             args: vec![IrTerm::Ident(ident.0.clone()), IrTerm::I32(1)],
+                            source: None,
                         }),
                     });
 
@@ -174,6 +175,7 @@ impl IrCodeGenerator {
                                         IrTerm::Ident(ident.as_str().to_string()),
                                         self.expr(end.as_mut())?,
                                     ],
+                                    source: None,
                                 }),
                                 body: Box::new(IrTerm::Seq { elements }),
                             },
@@ -290,6 +292,7 @@ impl IrCodeGenerator {
                                                 type_: IrType::from_type(&p)?,
                                             },
                                         ],
+                                        source: None,
                                     }),
                                 })
                             }
@@ -353,6 +356,7 @@ impl IrCodeGenerator {
                                         ])),
                                     ))?),
                                     args: elements,
+                                    source: None,
                                 })
                             }
                             _ => bail!("invalid project: {:?}", expr),
@@ -369,6 +373,7 @@ impl IrCodeGenerator {
                                 self.expr(&mut Source::unknown(Expr::path(label.clone())))?,
                             ),
                             args: elements,
+                            source: None,
                         })
                     }
                 }
@@ -381,6 +386,11 @@ impl IrCodeGenerator {
                     Ok(IrTerm::Call {
                         callee: Box::new(self.expr(callee.as_mut())?),
                         args: elements,
+                        source: Some(SourcePosition {
+                            path: self.current_path.clone(),
+                            start: callee.start.unwrap_or(0),
+                            end: callee.end.unwrap_or(0),
+                        }),
                     })
                 }
             },
@@ -412,6 +422,7 @@ impl IrCodeGenerator {
                     value: Box::new(IrTerm::Call {
                         callee: Box::new(IrTerm::Ident("alloc".to_string())),
                         args: vec![IrTerm::i32(record_type.len() as i32)],
+                        source: None,
                     }),
                 });
 
@@ -488,6 +499,7 @@ impl IrCodeGenerator {
                             type_: IrType::from_type(type_)?,
                         },
                     ],
+                    source: None,
                 }),
                 _ => bail!("unsupported type for make: {:?}", type_),
             },
@@ -504,6 +516,7 @@ impl IrCodeGenerator {
                 Ok(IrTerm::Call {
                     callee: Box::new(IrTerm::Ident("equal".to_string())),
                     args: vec![lhs, rhs],
+                    source: None,
                 })
             }
             Expr::NotEqual(lhs, rhs) => {
@@ -513,6 +526,7 @@ impl IrCodeGenerator {
                 Ok(IrTerm::Call {
                     callee: Box::new(IrTerm::Ident("not_equal".to_string())),
                     args: vec![lhs, rhs],
+                    source: None,
                 })
             }
             Expr::Wrap(expr) => {
@@ -526,6 +540,7 @@ impl IrCodeGenerator {
                             value: Box::new(IrTerm::Call {
                                 callee: Box::new(IrTerm::Ident("alloc".to_string())),
                                 args: vec![IrTerm::i32(1)],
+                                source: None,
                             }),
                         },
                         IrTerm::SetField {

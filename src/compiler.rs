@@ -13,6 +13,13 @@ use crate::{
     util::{ident::Ident, path::Path},
 };
 
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct SourcePosition {
+    pub path: Path,
+    pub start: usize,
+    pub end: usize,
+}
+
 #[derive(Debug, Error)]
 #[error("Found error in span ({start:?},{end:?})")]
 pub struct ErrorInSource {
