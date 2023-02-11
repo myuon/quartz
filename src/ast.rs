@@ -2,7 +2,7 @@ use anyhow::{bail, Result};
 
 use crate::util::{ident::Ident, path::Path, source::Source};
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Eq)]
 pub enum Type {
     Omit(usize),
     Nil,

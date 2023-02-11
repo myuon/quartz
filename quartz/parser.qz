@@ -55,8 +55,7 @@ module Parser {
             let t = self.consume();
             return t.string_value!;
         } else {
-            panic("Expected IDENT, got ".concat(token.lexeme).concat("{").concat(token.string_value!).concat("}"));
-            return "";
+            return panic("Expected IDENT, got ".concat(token.lexeme).concat("{").concat(token.string_value!).concat("}")) as string;
         }
     }
 

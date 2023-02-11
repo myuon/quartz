@@ -432,6 +432,26 @@ fun main() {
 "#,
                 vec![Value::I32(6)],
             ),
+            (
+                r#"
+fun f(): string {
+    let s = "foo" as string?;
+
+    if true {
+        return s!;
+    } else {
+        return "";
+    }
+
+    return "";
+}
+
+fun main(): i32 {
+    return 0;
+}
+"#,
+                vec![Value::I32(0)],
+            ),
         ];
 
         for (input, expected) in cases {

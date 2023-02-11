@@ -9,7 +9,6 @@ use crate::{
 };
 
 pub struct TypeChecker {
-    omits: Constrains,
     locals: HashMap<Ident, Type>,
     pub globals: HashMap<Path, Type>,
     pub types: HashMap<Ident, Type>,
@@ -20,7 +19,6 @@ pub struct TypeChecker {
 impl TypeChecker {
     pub fn new() -> TypeChecker {
         TypeChecker {
-            omits: Constrains::empty(),
             locals: HashMap::new(),
             globals: vec![
                 (
@@ -302,17 +300,21 @@ impl TypeChecker {
                     })?;
 
                 let mut then_type = Type::Omit(0);
-                self.block(then_block, &mut then_type)?;
+                self.block(then_block, &mut then_type)
+                    .context("then block")?;
 
                 if let Some(else_block) = else_block {
-                    self.block(else_block, &mut then_type)?;
+                    self.block(else_block, &mut then_type)
+                        .context("else block")?;
                 }
 
-                self.unify(type_, &mut Type::Nil).context(ErrorInSource {
-                    path: Some(self.current_path.clone()),
-                    start: cond.start.unwrap_or(0),
-                    end: cond.end.unwrap_or(0),
-                })?;
+                self.unify(type_, &mut Type::Nil)
+                    .context("if::type_")
+                    .context(ErrorInSource {
+                        path: Some(self.current_path.clone()),
+                        start: cond.start.unwrap_or(0),
+                        end: cond.end.unwrap_or(0),
+                    })?;
 
                 Ok(Some(then_type))
             }
@@ -672,8 +674,6 @@ impl TypeChecker {
 
     fn unify(&mut self, type1: &mut Type, type2: &mut Type) -> Result<()> {
         let cs = Constrains::unify(type1, type2)?;
-        self.omits.merge(&cs);
-
         cs.apply(type1);
         cs.apply(type2);
 
@@ -706,6 +706,7 @@ impl TypeChecker {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct Constrains {
     constrains: HashMap<usize, Type>,
 }
@@ -773,6 +774,10 @@ impl Constrains {
         }
     }
 
+    pub fn new_from_hashmap(constrains: HashMap<usize, Type>) -> Constrains {
+        Constrains { constrains }
+    }
+
     fn merge(&mut self, other: &Constrains) {
         for (i, type_) in other.constrains.iter() {
             self.constrains.insert(*i, type_.clone());
@@ -792,7 +797,56 @@ impl Constrains {
                 }
                 self.apply(ret.as_mut());
             }
-            _ => {}
+            Type::Nil => {}
+            Type::Bool => {}
+            Type::I32 => {}
+            Type::Byte => {}
+            Type::Record(r) => {
+                for (_, type_) in r {
+                    self.apply(type_);
+                }
+            }
+            Type::Ident(_) => {}
+            Type::Ptr(p) => {
+                self.apply(p);
+            }
+            Type::Array(t, _) => {
+                self.apply(t);
+            }
+            Type::Vec(v) => {
+                self.apply(v);
+            }
+            Type::Range(r) => {
+                self.apply(r);
+            }
+            Type::Optional(t) => {
+                self.apply(t);
+            }
         }
+    }
+}
+
+#[test]
+fn test_unify() {
+    let cases = vec![
+        (
+            Type::Optional(Box::new(Type::I32)),
+            Type::Optional(Box::new(Type::Omit(0))),
+            vec![(0, Type::I32)],
+        ),
+        (
+            Type::Optional(Box::new(Type::Ident(Ident("foo".to_string())))),
+            Type::Optional(Box::new(Type::Omit(0))),
+            vec![(0, Type::Ident(Ident("foo".to_string())))],
+        ),
+    ];
+
+    for (mut type1, mut type2, result) in cases {
+        let cs = Constrains::unify(&mut type1, &mut type2).unwrap();
+
+        assert_eq!(
+            cs,
+            Constrains::new_from_hashmap(result.into_iter().collect())
+        );
     }
 }
