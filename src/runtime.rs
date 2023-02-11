@@ -442,8 +442,6 @@ fun f(): string {
     } else {
         return "";
     }
-
-    return "";
 }
 
 fun main(): i32 {

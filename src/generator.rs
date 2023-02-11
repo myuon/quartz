@@ -194,6 +194,21 @@ impl Generator {
         for expr in body.iter_mut() {
             self.expr(expr)?;
         }
+
+        // In WASM, even if you have exhaustive return in if block, you must provide explicit return at the end of the function
+        // so we add a return here for some random value
+        match result {
+            IrType::Nil => {}
+            IrType::I32 => {
+                self.writer.new_statement();
+                self.writer.write("i32.const 0");
+            }
+            IrType::Address => {
+                self.writer.new_statement();
+                self.writer.write("i32.const 0");
+            }
+        }
+
         self.writer.new_statement();
         self.writer.write("return");
 
