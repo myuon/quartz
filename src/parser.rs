@@ -679,7 +679,17 @@ impl Parser {
                     }
                     self.expect(Lexeme::RBrace)?;
 
-                    current = self.source_from(Expr::Record(ident, fields), position);
+                    current = self.source_from(
+                        Expr::Record(
+                            Source::new(
+                                ident,
+                                current.start.unwrap_or(0),
+                                current.end.unwrap_or(0),
+                            ),
+                            fields,
+                        ),
+                        position,
+                    );
                 }
                 Lexeme::LBracket => {
                     self.consume()?;

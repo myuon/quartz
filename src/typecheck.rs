@@ -408,7 +408,7 @@ impl TypeChecker {
             Expr::Call(caller, args) => self.call(caller, args),
             Expr::Record(ident, record) => {
                 let mut field_types = self
-                    .resolve_record_type(Type::Ident(ident.clone()))
+                    .resolve_record_type(Type::Ident(ident.data.clone()))
                     .context(ErrorInSource {
                         path: Some(self.current_path.clone()),
                         start: expr.start.unwrap_or(0),
@@ -418,7 +418,11 @@ impl TypeChecker {
                     .collect::<HashMap<_, _>>();
 
                 if field_types.len() != record.len() {
-                    bail!("invalid number of fields");
+                    return Err(anyhow!("invalid number of fields").context(ErrorInSource {
+                        path: Some(self.current_path.clone()),
+                        start: expr.start.unwrap_or(0),
+                        end: expr.end.unwrap_or(0),
+                    }));
                 }
 
                 for (field, expr) in record {
@@ -436,7 +440,7 @@ impl TypeChecker {
                     })?;
                 }
 
-                Ok(Type::Ident(ident.clone()))
+                Ok(Type::Ident(ident.data.clone()))
             }
             Expr::Project(expr, type_, label_path) => {
                 let mut expr_type = self.expr(expr)?;

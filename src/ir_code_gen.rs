@@ -408,7 +408,7 @@ impl IrCodeGenerator {
 
                 let record_type = self
                     .types
-                    .get(ident)
+                    .get(&ident.data)
                     .ok_or(anyhow!("Type not found: {:?}", ident))?
                     .clone()
                     .to_record()?;
@@ -474,7 +474,7 @@ impl IrCodeGenerator {
             }
             Expr::Make(type_, _) => match type_ {
                 Type::Array(_elem, size) => Ok(self.expr(&mut Source::unknown(Expr::Record(
-                    Ident("array".to_string()),
+                    Source::unknown(Ident("array".to_string())),
                     vec![(
                         Ident("data".to_string()),
                         Source::unknown(Expr::Call(
