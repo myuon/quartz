@@ -41,6 +41,20 @@ module Lexer {
         return vec_byte_to_string(ident)?;
     }
 
+    fun consume_number(self, input: string): string? {
+        let number = make[vec[byte]]();
+        while is_included(input, self.position, "0123456789") {
+            number.push(input.data.at(self.position));
+            self.position = self.position + 1;
+        }
+
+        if number.length == 0 {
+            return nil;
+        }
+
+        return vec_byte_to_string(number)?;
+    }
+
     fun match(self, input: string, token: string, token_name: string): bool {
         if is_prefix(input, self.position, token) {
             self.tokens.push(Token {
@@ -93,6 +107,17 @@ module Lexer {
                 continue;
             }
             if self.match(input, "=", "equal") {
+                continue;
+            }
+
+            let number = self.consume_number(input);
+            if number != nil {
+                self.tokens.push(Token {
+                    lexeme: "number",
+                    string_value: number,
+                    position: self.position,
+                });
+
                 continue;
             }
 

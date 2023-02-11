@@ -544,6 +544,9 @@ impl Generator {
                 "or" => {
                     self.writer.write("i32.or");
                 }
+                "and" => {
+                    self.writer.write("i32.and");
+                }
                 _ => {
                     self.writer.write(&format!("call ${}", ident.as_str()));
                 }

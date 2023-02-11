@@ -40,16 +40,20 @@ module Parser {
         };
     }
 
-    fun run(self, input: vec[Token]) {
+    fun run(self, input: vec[Token]): Function {
         self.input = input;
         return self.module_();
     }
 
-    fun module_(self) {
-        self.decl();
+    fun module_(self): Function {
+        return self.decl();
     }
 
-    fun decl(self) {
+    fun decl(self): Function {
+        return self.function();
+    }
+
+    fun function(self) {
         self.expect("fun");
         let name = self.ident();
         self.expect("lparen");
@@ -67,10 +71,6 @@ module Parser {
             result_type: result_type,
             body: body,
         };
-    }
-
-    fun function(self) {
-        self.consume();
     }
 
     fun peek(self): Token {
@@ -113,7 +113,7 @@ module Parser {
         }
     }
 
-    fun block(self) {
+    fun block(self): Block {
         let statements = make[vec[Statement]]();
 
         while !self.is_end() && !self.peek().lexeme.equal("rbrace") {
@@ -169,7 +169,7 @@ module Parser {
     }
 
     fun expression(self): Expression {
-        let token = self.peek();
+        let token = self.consume();
 
         if token.lexeme.equal("number") {
             return Expression {
@@ -179,6 +179,26 @@ module Parser {
                 right: nil,
                 operator: nil,
             };
+        }
+        if token.lexeme.equal("ident") {
+            let expr = Expression {
+                t: "ident",
+                value: token.string_value,
+                left: nil,
+                right: nil,
+                operator: nil,
+            };
+
+            if self.peek().lexeme.equal("plus") {
+                self.consume();
+                return Expression {
+                    t: "plus",
+                    value: nil,
+                    left: expr?,
+                    right: self.expression()?,
+                    operator: nil,
+                };
+            }
         }
 
         panic("Unexpected token ".concat(token.lexeme).concat("{").concat(token.string_value!).concat("}"));

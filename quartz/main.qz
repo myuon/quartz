@@ -36,7 +36,8 @@ fun main(): i32 {
 `);
 
     let parser = Parser::new();
-    parser.run(lexer.tokens);
+    let result = parser.run(lexer.tokens);
+    println(result.name);
 
     debug_i32(lexer.tokens.length);
 }
