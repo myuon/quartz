@@ -152,7 +152,7 @@ impl Generator {
 
         for (i, string) in self.strings.clone().iter().enumerate() {
             self.writer.new_statement();
-            self.writer.write(format!(";; {}", string));
+            self.writer.write(format!(";; {:?}", string));
 
             self.writer.new_statement();
             self.writer.write(format!(
