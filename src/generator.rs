@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use anyhow::{bail, Ok, Result};
+use anyhow::{anyhow, bail, Ok, Result};
 
 use crate::{
     ast::Type,
@@ -14,6 +14,8 @@ pub struct Generator {
     pub types: HashMap<Ident, Type>,
     pub main_signature: Option<(Vec<IrType>, IrType)>,
     pub cwd: Path,
+    pub strings: Vec<String>,
+    pub entrypoint_symbol: String,
 }
 
 impl Generator {
@@ -24,6 +26,8 @@ impl Generator {
             types: HashMap::new(),
             main_signature: None,
             cwd: Path::new(vec![]),
+            strings: vec![],
+            entrypoint_symbol: String::new(),
         }
     }
 
@@ -42,6 +46,10 @@ impl Generator {
         self.cwd = cwd;
     }
 
+    pub fn set_strings(&mut self, strings: Vec<String>) {
+        self.strings = strings;
+    }
+
     pub fn run(&mut self, module: &mut IrTerm) -> Result<()> {
         match module {
             IrTerm::Module { elements } => {
@@ -54,6 +62,16 @@ impl Generator {
     }
 
     fn module(&mut self, elements: &mut Vec<IrTerm>) -> Result<()> {
+        self.entrypoint_symbol = format!(
+            "{}_main",
+            self.cwd
+                .0
+                .iter()
+                .map(|i| i.as_str())
+                .collect::<Vec<_>>()
+                .join("_")
+        );
+
         self.writer.start();
         self.writer.write("module");
 
@@ -111,16 +129,93 @@ impl Generator {
 "#,
         );
 
+        // prepare strings
+        self.writer.new_statement();
+        self.writer
+            .write("(global $_strings (mut i32) (i32.const 0))");
+
         self.writer.start();
+        self.writer.write("func $prepare_strings");
+
+        self.writer.new_statement();
+        self.writer.write("(local $p i32)");
+
+        self.writer.new_statement();
+        self.writer
+            .write(format!("i32.const {}", self.strings.len()));
+
+        self.writer.new_statement();
+        self.writer.write("call $alloc");
+
+        self.writer.new_statement();
+        self.writer.write("global.set $_strings");
+
+        for (i, string) in self.strings.clone().iter().enumerate() {
+            self.writer.new_statement();
+            self.writer.write(format!(
+                "(call $quartz_std_new_empty_string (i32.const {}))",
+                string.len()
+            ));
+
+            self.writer.new_statement();
+            self.writer.write("local.set $p");
+
+            self.expr(&mut IrTerm::WriteMemory {
+                type_: IrType::I32,
+                address: Box::new(IrTerm::GetField {
+                    address: Box::new(IrTerm::ident("p")),
+                    offset: 0,
+                }),
+                value: string.bytes().map(|b| IrTerm::i32(b as i32)).collect(),
+            })?;
+
+            self.writer.new_statement();
+            self.writer.write("local.get $p");
+
+            self.writer.new_statement();
+            self.writer.write("global.get $_strings");
+
+            self.writer.new_statement();
+            self.writer.write(format!("i32.const {}", i));
+
+            self.writer.new_statement();
+            self.writer.write("i32.add");
+
+            self.writer.new_statement();
+            self.writer.write("i32.store");
+        }
+        self.writer.end();
+
+        self.writer.write(
+            r#"
+(func $load_string (param $index i32) (result i32)
+    global.get $_strings
+    local.get $index
+    i32.add
+    i32.load
+)
+"#,
+        );
+
+        let (_, result) = self.main_signature.clone().unwrap();
+
         self.writer.write(&format!(
-            r#"export "main" (func ${}_main)"#,
-            self.cwd
-                .0
-                .iter()
-                .map(|i| i.as_str())
-                .collect::<Vec<_>>()
-                .join("_")
+            r#"
+(func $start {}
+    call $prepare_strings
+    call ${}
+)
+"#,
+            if result.is_nil() {
+                "".to_string()
+            } else {
+                format!("(result {})", result.to_string())
+            },
+            self.entrypoint_symbol
         ));
+
+        self.writer.start();
+        self.writer.write(r#"export "main" (func $start)"#);
         self.writer.end();
         self.writer.end();
 
@@ -156,7 +251,7 @@ impl Generator {
         result: &mut IrType,
         body: &mut Vec<IrTerm>,
     ) -> Result<()> {
-        if name == "main" {
+        if name == &self.entrypoint_symbol {
             self.main_signature = Some((
                 params.iter().map(|(_, t)| t.clone()).collect(),
                 result.clone(),
@@ -249,6 +344,9 @@ impl Generator {
                 } else {
                     self.writer.write(&format!("local.get ${}", i.as_str()));
                 }
+            }
+            IrTerm::String(p) => {
+                self.writer.write(&format!("i32.const {}", p));
             }
             IrTerm::Call { callee, args, .. } => self.call(callee, args)?,
             IrTerm::Seq { elements } => {

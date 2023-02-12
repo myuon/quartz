@@ -13,7 +13,7 @@ impl SExprWriter {
         }
     }
 
-    pub fn write(&mut self, text: &str) {
+    pub fn write(&mut self, text: impl std::fmt::Display) {
         self.buffer.push_str(&format!(
             "{}{}",
             if self.index == 0 { "" } else { " " },

@@ -7,6 +7,7 @@ pub enum IrTerm {
     Nil,
     I32(i32),
     Ident(String),
+    String(usize),
     Func {
         name: String,
         params: Vec<(String, IrType)>,
@@ -107,6 +108,9 @@ impl IrTerm {
             }
             IrTerm::Ident(p) => {
                 writer.write(p);
+            }
+            IrTerm::String(p) => {
+                writer.write(&p.to_string());
             }
             IrTerm::Func {
                 name,
@@ -294,6 +298,7 @@ impl IrTerm {
             IrTerm::Nil => vec![],
             IrTerm::I32(_) => vec![],
             IrTerm::Ident(_) => vec![],
+            IrTerm::String(_) => vec![],
             IrTerm::Call {
                 callee: _, args, ..
             } => {

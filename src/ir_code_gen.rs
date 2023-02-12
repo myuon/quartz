@@ -13,6 +13,7 @@ use crate::{
 pub struct IrCodeGenerator {
     types: HashMap<Ident, Type>,
     current_path: Path,
+    pub strings: Vec<String>,
 }
 
 impl IrCodeGenerator {
@@ -20,6 +21,7 @@ impl IrCodeGenerator {
         IrCodeGenerator {
             types: HashMap::new(),
             current_path: Path::empty(),
+            strings: vec![],
         }
     }
 
@@ -244,35 +246,12 @@ impl IrCodeGenerator {
                 Lit::Nil => Ok(IrTerm::I32(0)),
                 Lit::Bool(b) => Ok(IrTerm::I32(if *b { 1 } else { 0 })),
                 Lit::I32(i) => Ok(IrTerm::i32(*i)),
-                Lit::String(s) => Ok(IrTerm::Seq {
-                    elements: vec![
-                        self.statement(&mut Source::unknown(Statement::Let(
-                            Ident("_string".to_string()),
-                            self.type_name(&Ident("string".to_string()))?.clone(),
-                            Source::unknown(Expr::Call(
-                                Box::new(Source::unknown(Expr::path(Path::new(
-                                    vec!["quartz", "std", "new_empty_string"]
-                                        .into_iter()
-                                        .map(|t| Ident(t.to_string()))
-                                        .collect(),
-                                )))),
-                                vec![Source::unknown(Expr::Lit(Lit::I32(s.len() as i32)))],
-                            )),
-                        )))?,
-                        IrTerm::WriteMemory {
-                            type_: IrType::I32,
-                            address: Box::new(self.expr(&mut Source::unknown(Expr::Project(
-                                Box::new(Source::unknown(Expr::ident(Ident(
-                                    "_string".to_string(),
-                                )))),
-                                Type::Ident(Ident("string".to_string())),
-                                Path::ident(Ident("data".to_string())),
-                            )))?),
-                            value: s.bytes().map(|b| IrTerm::i32(b as i32)).collect(),
-                        },
-                        IrTerm::Ident("_string".to_string()),
-                    ],
-                }),
+                Lit::String(s) => {
+                    self.strings.push(s.clone());
+                    let index = self.strings.len();
+
+                    Ok(IrTerm::String(index))
+                }
             },
             Expr::Call(callee, args) => match &mut callee.data {
                 Expr::Project(expr, type_, label) => {

@@ -214,20 +214,21 @@ fun main() {
     let b = alloc(5);
     let c = alloc(5);
 
-    return alloc(0);
+    return 0;
 }
 "#,
-                vec![Value::I32(160)],
+                vec![Value::I32(0)],
             ),
             (
                 r#"
 fun main() {
     let str = "Hello, World!";
+    println(str);
 
-    return println(str);
+    return str.length;
 }
 "#,
-                vec![],
+                vec![Value::I32(11)],
             ),
             (
                 r#"

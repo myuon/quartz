@@ -159,6 +159,7 @@ impl Compiler {
         generator.set_cwd(Path::ident(Ident("main".to_string())));
         generator.set_globals(typechecker.globals.keys().into_iter().cloned().collect());
         generator.set_types(typechecker.types);
+        generator.set_strings(ir_code_generator.strings);
         generator.run(&mut ir).context("generator phase")?;
 
         Ok(generator.writer.buffer)
