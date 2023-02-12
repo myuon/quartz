@@ -401,11 +401,11 @@ impl IrCodeGenerator {
                     .clone()
                     .to_record()?;
 
-                let var = "_record";
+                let var = format!("_record_{}", ident.start.unwrap_or(0));
 
                 let mut elements = vec![];
                 elements.push(IrTerm::Let {
-                    name: var.to_string(),
+                    name: var.clone(),
                     type_: IrType::Address,
                     value: Box::new(IrTerm::Call {
                         callee: Box::new(IrTerm::Ident("alloc".to_string())),
@@ -421,7 +421,7 @@ impl IrCodeGenerator {
                         .find(|(f, _)| f == field)
                         .ok_or(anyhow!("Field not found: {:?} in {:?}", field, record_type))?;
                     elements.push(IrTerm::SetField {
-                        address: Box::new(IrTerm::ident(var)),
+                        address: Box::new(IrTerm::ident(var.clone())),
                         offset,
                         value: Box::new(self.expr(expr)?),
                     });
@@ -518,12 +518,13 @@ impl IrCodeGenerator {
                 })
             }
             Expr::Wrap(expr) => {
+                let var = format!("_wrap_{}", expr.start.unwrap_or(0));
                 let expr = self.expr(expr)?;
 
                 Ok(IrTerm::Seq {
                     elements: vec![
                         IrTerm::Let {
-                            name: "_wrap".to_string(),
+                            name: var.clone(),
                             type_: IrType::Address,
                             value: Box::new(IrTerm::Call {
                                 callee: Box::new(IrTerm::Ident("alloc".to_string())),
@@ -532,11 +533,11 @@ impl IrCodeGenerator {
                             }),
                         },
                         IrTerm::SetField {
-                            address: Box::new(IrTerm::ident("_wrap")),
+                            address: Box::new(IrTerm::ident(var.clone())),
                             offset: 0,
                             value: Box::new(expr),
                         },
-                        IrTerm::ident("_wrap"),
+                        IrTerm::ident(var),
                     ],
                 })
             }
