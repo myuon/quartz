@@ -152,6 +152,9 @@ impl Generator {
 
         for (i, string) in self.strings.clone().iter().enumerate() {
             self.writer.new_statement();
+            self.writer.write(format!(";; {}", string));
+
+            self.writer.new_statement();
             self.writer.write(format!(
                 "(call $quartz_std_new_empty_string (i32.const {}))",
                 string.len()
@@ -170,20 +173,27 @@ impl Generator {
             })?;
 
             self.writer.new_statement();
-            self.writer.write("local.get $p");
-
-            self.writer.new_statement();
             self.writer.write("global.get $_strings");
 
             self.writer.new_statement();
             self.writer.write(format!("i32.const {}", i));
 
             self.writer.new_statement();
+            self.writer.write("i32.const 8");
+
+            self.writer.new_statement();
+            self.writer.write("i32.mul");
+
+            self.writer.new_statement();
             self.writer.write("i32.add");
+
+            self.writer.new_statement();
+            self.writer.write("local.get $p");
 
             self.writer.new_statement();
             self.writer.write("i32.store");
         }
+
         self.writer.end();
 
         self.writer.write(
@@ -346,7 +356,11 @@ impl Generator {
                 }
             }
             IrTerm::String(p) => {
+                self.writer.new_statement();
                 self.writer.write(&format!("i32.const {}", p));
+
+                self.writer.new_statement();
+                self.writer.write("call $load_string");
             }
             IrTerm::Call { callee, args, .. } => self.call(callee, args)?,
             IrTerm::Seq { elements } => {

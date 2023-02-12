@@ -228,7 +228,7 @@ fun main() {
     return str.length;
 }
 "#,
-                vec![Value::I32(11)],
+                vec![Value::I32(13)],
             ),
             (
                 r#"

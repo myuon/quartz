@@ -247,8 +247,8 @@ impl IrCodeGenerator {
                 Lit::Bool(b) => Ok(IrTerm::I32(if *b { 1 } else { 0 })),
                 Lit::I32(i) => Ok(IrTerm::i32(*i)),
                 Lit::String(s) => {
-                    self.strings.push(s.clone());
                     let index = self.strings.len();
+                    self.strings.push(s.clone());
 
                     Ok(IrTerm::String(index))
                 }
