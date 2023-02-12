@@ -201,6 +201,8 @@ impl Generator {
 (func $load_string (param $index i32) (result i32)
     global.get $_strings
     local.get $index
+    i32.const 8
+    i32.mul
     i32.add
     i32.load
 )

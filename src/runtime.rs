@@ -451,6 +451,18 @@ fun main(): i32 {
 "#,
                 vec![Value::I32(0)],
             ),
+            (
+                r#"
+fun main() {
+    if "hello".equal("hello") {
+        return 0;
+    } else {
+        return 1;
+    }
+}
+"#,
+                vec![Value::I32(0)],
+            ),
         ];
 
         for (input, expected) in cases {
