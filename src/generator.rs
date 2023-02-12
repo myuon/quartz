@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use anyhow::{anyhow, bail, Ok, Result};
+use anyhow::{bail, Ok, Result};
 
 use crate::{
     ast::Type,
@@ -114,7 +114,7 @@ impl Generator {
     global.set $_sp
 
     local.get $addr
-    i32.const 8
+    i32.const 4
     i32.mul
 )
 
@@ -179,7 +179,7 @@ impl Generator {
             self.writer.write(format!("i32.const {}", i));
 
             self.writer.new_statement();
-            self.writer.write("i32.const 8");
+            self.writer.write("i32.const 4");
 
             self.writer.new_statement();
             self.writer.write("i32.mul");
@@ -201,7 +201,7 @@ impl Generator {
 (func $load_string (param $index i32) (result i32)
     global.get $_strings
     local.get $index
-    i32.const 8
+    i32.const 4
     i32.mul
     i32.add
     i32.load
