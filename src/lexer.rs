@@ -257,7 +257,9 @@ impl Lexer {
             match STRING_LITERAL.captures(&input[self.position..]) {
                 Some(m) => {
                     self.tokens.push(Token {
-                        lexeme: Lexeme::String(m.get(1).unwrap().as_str().to_string()),
+                        lexeme: Lexeme::String(
+                            m.get(1).unwrap().as_str().to_string().replace("\\n", "\n"),
+                        ),
                         position: self.position,
                     });
 

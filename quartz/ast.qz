@@ -19,7 +19,7 @@ module Block {
         let result = "";
 
         for i in 0..self.block.length {
-            result = result.concat(self.block.at(i).to_string());
+            result = result.concat("    ").concat(self.block.at(i).to_string());
         }
 
         return result;
