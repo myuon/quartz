@@ -177,13 +177,14 @@ fun panic(s: string) {
 }
 
 // used in compiler
-let strings = 0;
+let strings_ptr = 0;
+let strings_count = 0;
 
 fun dump_strings() {
-    println("strings: ".concat(strings.to_string()));
+    println("[dump_strings]");
 
-    for i in 0..105 {
-        let s = strings as ptr[string];
-        println((i.to_string()).concat("[").concat((s.at(i) as i32).to_string()).concat("]: ").concat((strings as ptr[string]).at(i)));
+    for i in 0..strings_count {
+        let s = strings_ptr as ptr[string];
+        println((i.to_string()).concat("[").concat((s.at(i) as i32).to_string()).concat("]: ").concat((strings_ptr as ptr[string]).at(i)));
     }
 }

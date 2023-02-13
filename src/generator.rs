@@ -130,7 +130,7 @@ impl Generator {
         );
 
         // prepare strings
-        let var_strings = "quartz_std_strings";
+        let var_strings = "quartz_std_strings_ptr";
 
         self.writer.start();
         self.writer.write("func $prepare_strings");
@@ -213,6 +213,9 @@ impl Generator {
         self.writer.write(&format!(
             r#"
 (func $start {}
+    i32.const {}
+    global.set ${}
+
     call $prepare_strings
     call ${}
 )
@@ -222,6 +225,8 @@ impl Generator {
             } else {
                 format!("(result {})", result.to_string())
             },
+            self.strings.len(),
+            "quartz_std_strings_count",
             self.entrypoint_symbol
         ));
 
