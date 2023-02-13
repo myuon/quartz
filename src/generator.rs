@@ -130,9 +130,7 @@ impl Generator {
         );
 
         // prepare strings
-        self.writer.new_statement();
-        self.writer
-            .write("(global $_strings (mut i32) (i32.const 0))");
+        let var_strings = "quartz_std_strings";
 
         self.writer.start();
         self.writer.write("func $prepare_strings");
@@ -148,7 +146,7 @@ impl Generator {
         self.writer.write("call $alloc");
 
         self.writer.new_statement();
-        self.writer.write("global.set $_strings");
+        self.writer.write(format!("global.set ${}", var_strings));
 
         for (i, string) in self.strings.clone().iter().enumerate() {
             self.writer.new_statement();
@@ -173,7 +171,7 @@ impl Generator {
             })?;
 
             self.writer.new_statement();
-            self.writer.write("global.get $_strings");
+            self.writer.write(format!("global.get ${}", var_strings));
 
             self.writer.new_statement();
             self.writer.write(format!("i32.const {}", i));
@@ -196,10 +194,10 @@ impl Generator {
 
         self.writer.end();
 
-        self.writer.write(
+        self.writer.write(format!(
             r#"
 (func $load_string (param $index i32) (result i32)
-    global.get $_strings
+    global.get ${}
     local.get $index
     i32.const 4
     i32.mul
@@ -207,7 +205,8 @@ impl Generator {
     i32.load
 )
 "#,
-        );
+            var_strings,
+        ));
 
         let (_, result) = self.main_signature.clone().unwrap();
 

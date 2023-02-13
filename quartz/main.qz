@@ -25,6 +25,8 @@ fun test() {
 }
 
 fun main() {
+    dump_strings();
+
     test();
 
     let lexer = Lexer::new();

@@ -98,6 +98,14 @@ impl TypeChecker {
                     Type::Func(vec![Type::Bool, Type::Bool], Box::new(Type::Bool)),
                 ),
                 ("abort", Type::Func(vec![], Box::new(Type::Nil))),
+                (
+                    "load_global",
+                    // result type should be any
+                    Type::Func(
+                        vec![Type::Ident(Ident("string".to_string()))],
+                        Box::new(Type::Nil),
+                    ),
+                ),
             ]
             .into_iter()
             .map(|(k, v)| (Path::ident(Ident(k.to_string())), v))

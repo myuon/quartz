@@ -175,3 +175,15 @@ fun panic(s: string) {
     println(s);
     abort();
 }
+
+// used in compiler
+let strings = 0;
+
+fun dump_strings() {
+    println("strings: ".concat(strings.to_string()));
+
+    for i in 0..105 {
+        let s = strings as ptr[string];
+        println((i.to_string()).concat("[").concat((s.at(i) as i32).to_string()).concat("]: ").concat((strings as ptr[string]).at(i)));
+    }
+}
