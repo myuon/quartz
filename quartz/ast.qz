@@ -66,6 +66,6 @@ module Expression {
             return (self.left!.to_string()).concat(" + ").concat(self.right!.to_string());
         }
 
-        panic("Unknown expression type: ".concat(self.t));
+        panic("Unknown expression type: ".concat(self.t).concat("@").concat((self.t as i32).to_string()));
     }
 }

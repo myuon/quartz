@@ -788,6 +788,8 @@ impl Constrains {
             (Type::Optional(type1), Type::Optional(type2)) => {
                 Constrains::unify(type1.as_mut(), type2.as_mut())
             }
+            (Type::Bool, Type::Ident(ident)) if ident.as_str() == "bool" => Ok(Constrains::empty()),
+            (Type::Ident(ident), Type::Bool) if ident.as_str() == "bool" => Ok(Constrains::empty()),
             (type1, type2) => {
                 bail!(
                     "type mismatch, expected {}, but found {}",

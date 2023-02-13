@@ -100,8 +100,8 @@ impl Generator {
         // builtin functions here
         self.writer.write(
             r#"
-(global $_sp (mut i32) (i32.const 0))
-(global $_bp (mut i32) (i32.const 0))
+;; avoid using address 0, this is for null pointers
+(global $_sp (mut i32) (i32.const 4))
 
 (func $alloc (param $size i32) (result i32)
     (local $addr i32)

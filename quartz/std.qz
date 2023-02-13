@@ -99,6 +99,16 @@ fun vec_byte_to_string(b: vec[byte]): string {
     };
 }
 
+module bool {
+    fun to_string(self): string {
+        if self {
+            return "true";
+        } else {
+            return "false";
+        }
+    }
+}
+
 module i32 {
     fun to_string(self): string {
         if self == 0 {

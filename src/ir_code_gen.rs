@@ -415,18 +415,21 @@ impl IrCodeGenerator {
                 });
 
                 let mut offset = 0;
-                for (field, expr) in fields {
-                    let (_, type_) = record_type
-                        .iter()
-                        .find(|(f, _)| f == field)
-                        .ok_or(anyhow!("Field not found: {:?} in {:?}", field, record_type))?;
+                for (i, type_) in record_type {
+                    let (_, expr) = fields.iter_mut().find(|(f, _)| f == &i).ok_or(
+                        anyhow!("Field not found: {:?}", i).context(ErrorInSource {
+                            path: Some(self.current_path.clone()),
+                            start: expr.start.unwrap_or(0),
+                            end: expr.end.unwrap_or(0),
+                        }),
+                    )?;
                     elements.push(IrTerm::SetField {
                         address: Box::new(IrTerm::ident(var.clone())),
                         offset,
                         value: Box::new(self.expr(expr)?),
                     });
 
-                    offset += IrType::from_type(type_)?.sizeof();
+                    offset += IrType::from_type(&type_)?.sizeof();
                 }
 
                 elements.push(IrTerm::ident(var));
@@ -463,13 +466,19 @@ impl IrCodeGenerator {
             Expr::Make(type_, _) => match type_ {
                 Type::Array(_elem, size) => Ok(self.expr(&mut Source::unknown(Expr::Record(
                     Source::unknown(Ident("array".to_string())),
-                    vec![(
-                        Ident("data".to_string()),
-                        Source::unknown(Expr::Call(
-                            Box::new(Source::unknown(Expr::ident(Ident("alloc".to_string())))),
-                            vec![Source::unknown(Expr::Lit(Lit::I32(*size as i32)))],
-                        )),
-                    )],
+                    vec![
+                        (
+                            Ident("data".to_string()),
+                            Source::unknown(Expr::Call(
+                                Box::new(Source::unknown(Expr::ident(Ident("alloc".to_string())))),
+                                vec![Source::unknown(Expr::Lit(Lit::I32(*size as i32)))],
+                            )),
+                        ),
+                        (
+                            Ident("length".to_string()),
+                            Source::unknown(Expr::Lit(Lit::I32(*size as i32))),
+                        ),
+                    ],
                 )))?),
                 Type::Vec(type_) => Ok(IrTerm::Call {
                     callee: Box::new(IrTerm::Ident(
