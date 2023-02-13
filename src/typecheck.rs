@@ -256,10 +256,6 @@ impl TypeChecker {
             }
         }
 
-        if expected.is_omit() {
-            self.unify(expected, &mut Type::Nil)?;
-        }
-
         Ok(())
     }
 

@@ -5,23 +5,22 @@ import quartz::ast;
 
 fun test() {
     if !"hello".equal("hello") {
-        println("string_equal failed");
+        panic("string_equal failed: hello vs hello");
     }
     if "hello".equal("world") {
-        println("string_equal failed");
+        panic("string_equal failed: hello vs world");
     }
     if !is_space("hoge fuga", 4) {
-        println("is_space failed");
+        panic("is_space failed");
     }
     if !"hoge fuga".slice(0, 4).equal("hoge") {
-        println("slice failed");
+        panic("slice failed");
     }
     if !"hoge fuga".slice_start(2).equal("ge fuga") {
-        println("slice_start failed");
+        panic("slice_start failed");
     }
     if !"hoge".concat(" fuga").equal("hoge fuga") {
-        println("string_concat failed");
-        println("hoge".concat(" fuga"));
+        panic("string_concat failed");
     }
 }
 

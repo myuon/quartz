@@ -175,6 +175,8 @@ module Parser {
                     operator: nil,
                 };
             }
+
+            return expr;
         }
 
         panic("Unexpected token ".concat(token.lexeme).concat("{").concat(token.string_value!).concat("}"));

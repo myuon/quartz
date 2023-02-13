@@ -463,6 +463,31 @@ fun main() {
 "#,
                 vec![Value::I32(0)],
             ),
+            (
+                r#"
+fun main() {
+    let t = "hello".concat("world");
+    println(t);
+
+    return t.equal("helloworld");
+}
+"#,
+                vec![Value::I32(1)],
+            ),
+            (
+                r#"
+fun hoge(): string? {
+    return "hoge"?;
+}
+
+fun main() {
+    let t = hoge();
+
+    return t != nil;
+}
+"#,
+                vec![Value::I32(1)],
+            ),
         ];
 
         for (input, expected) in cases {
