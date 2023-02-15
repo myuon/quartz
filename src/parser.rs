@@ -186,9 +186,17 @@ impl Parser {
             }
             Lexeme::Return => {
                 self.consume()?;
-                let value = self.expr()?;
-                self.expect(Lexeme::Semicolon)?;
-                Ok(Statement::Return(value))
+
+                if self.peek()?.lexeme == Lexeme::Semicolon {
+                    self.consume()?;
+
+                    Ok(Statement::Return(Source::unknown(Expr::Lit(Lit::Nil))))
+                } else {
+                    let value = self.expr()?;
+                    self.expect(Lexeme::Semicolon)?;
+
+                    Ok(Statement::Return(value))
+                }
             }
             Lexeme::If => {
                 self.consume()?;

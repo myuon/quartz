@@ -1,0 +1,109 @@
+type Generator = {
+    writer: string,
+};
+
+module Generator {
+    fun new(): Generator {
+        return Generator {
+            writer: "",
+        };
+    }
+
+    fun generate(self): string {
+        return self.writer;
+    }
+
+    fun start(self) {
+        self.writer = self.writer.concat("(");
+    }
+
+    fun end(self) {
+        self.writer = self.writer.concat(")");
+    }
+
+    fun write(self, str: string) {
+        self.writer = self.writer.concat(" ").concat(str);
+    }
+
+    fun new_statement(self) {
+        self.writer = self.writer.concat("\n");
+    }
+
+    fun function(self, func: IrFunc): Generator {
+        self.start();
+        self.write("func");
+        self.write("$".concat(func.name));
+
+        for i in 0..func.body.length {
+            self.expression(func.body.at(i));
+        }
+        
+        self.end();
+
+        return self;
+    }
+
+    fun expression(self, expr: IrTerm) {
+        if expr.ir_ident != nil {
+            self.write("local.get $".concat(expr.ir_ident!));
+            return;
+        }
+        if expr.ir_i32 != nil {
+            self.write("i32.const ".concat(expr.ir_i32!));
+            return;
+        }
+        if expr.ir_let != nil {
+            self.new_statement();
+            self.expression(expr.ir_let!.value);
+            self.expression_left_value(IrTerm {
+                ir_ident: expr.ir_let!.name?,
+                ..nil,
+            });
+            return;
+        }
+        if expr.ir_return != nil {
+            self.new_statement();
+            self.expression(expr.ir_return!.value);
+
+            self.new_statement();
+            self.write("return");
+            return;
+        }
+        if expr.ir_call != nil {
+            for i in 0..expr.ir_call!.args.length {
+                self.new_statement();
+                self.expression(expr.ir_call!.args.at(i));
+            }
+
+            self.new_statement();
+
+            let callee = expr.ir_call!.callee;
+            if callee.ir_ident != nil {
+                let ident = callee.ir_ident!;
+                if ident.equal("add") {
+                    self.write("i32.add");
+                    return;
+                } else {
+                    self.write("call $".concat(ident));
+                    return;
+                }
+            } else {
+                panic("not implemented");
+            }
+
+            return;
+        }
+
+        panic("not implemented");
+    }
+
+    fun expression_left_value(self, expr: IrTerm) {
+        if expr.ir_ident != nil {
+            self.new_statement();
+            self.write("local.set $".concat(expr.ir_ident!));
+            return;
+        }
+
+        panic("not implemented");
+    }
+}
