@@ -1,0 +1,30 @@
+import quartz::ast;
+import quartz::ir;
+
+type IrCodeGenerator = {
+};
+
+module IrCodeGenerator {
+    fun new(): IrCodeGenerator {
+        return IrCodeGenerator {
+        };
+    }
+
+    fun function(self, func: Function): IrTerm {
+        self.block(func.body);
+    }
+    
+    fun block(self, b: Block): IrTerm {
+        for statement in b.block {
+            self.statement(statement);
+        }
+    }
+
+    fun statements(self, statement: Statement): IrTerm {
+        if statement.t.equal("let") {
+            panic("let");
+        }
+
+        panic("statement exhausted");
+    }
+}

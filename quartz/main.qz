@@ -2,6 +2,7 @@ import quartz::std;
 import quartz::lexer;
 import quartz::parser;
 import quartz::ast;
+import quartz::ir_code_gen;
 
 fun test() {
     if !"hello".equal("hello") {
@@ -39,6 +40,9 @@ fun main(): i32 {
     let parser = Parser::new();
     let result = parser.run(lexer.tokens);
     println(result.to_string());
+
+    let irgen = IrCodeGenerator::new();
+    irgen.function(result);
 
     debug_i32(lexer.tokens.length);
 }
