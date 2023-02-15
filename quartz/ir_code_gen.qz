@@ -15,16 +15,38 @@ module IrCodeGenerator {
     }
     
     fun block(self, b: Block): IrTerm {
-        for statement in b.block {
-            self.statement(statement);
+        for i in 0..b.block.length {
+            self.statement(b.block.at(i));
         }
     }
 
-    fun statements(self, statement: Statement): IrTerm {
-        if statement.t.equal("let") {
-            panic("let");
+    fun statement(self, stm: Statement): IrTerm {
+        if stm.t.equal("let") {
+            let term = IrTerm {
+                t: "let",
+                name: stm.name,
+                value: self.expression(stm.expr)?,
+                i32_value: nil,
+            };
+
+            return term;
         }
 
         panic("statement exhausted");
+    }
+
+    fun expression(self, expr: Expression): IrTerm {
+        if expr.t.equal("i32") {
+            let term = IrTerm {
+                t: "i32",
+                name: nil,
+                value: nil,
+                i32_value: expr.value,
+            };
+
+            return term;
+        }
+
+        panic("expression exhausted");
     }
 }

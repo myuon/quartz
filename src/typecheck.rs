@@ -342,7 +342,11 @@ impl TypeChecker {
             }
             Statement::For(ident, range, body) => {
                 let type_ = self.expr(range)?;
-                let element = type_.as_range_type()?;
+                let element = type_.as_range_type().context(ErrorInSource {
+                    path: Some(self.current_path.clone()),
+                    start: range.start.unwrap_or(0),
+                    end: range.end.unwrap_or(0),
+                })?;
 
                 self.locals.insert(ident.clone(), element.clone());
 

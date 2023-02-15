@@ -2,6 +2,7 @@ import quartz::std;
 import quartz::lexer;
 import quartz::parser;
 import quartz::ast;
+import quartz::ir;
 import quartz::ir_code_gen;
 
 fun test() {

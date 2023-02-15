@@ -1,3 +1,6 @@
 type IrTerm = {
   t: string,
+  name: string?,
+  value: IrTerm?,
+  i32_value: string?,
 };
