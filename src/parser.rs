@@ -664,6 +664,7 @@ impl Parser {
                     };
 
                     let mut fields = vec![];
+                    let mut expansion = None;
                     while self.peek()?.lexeme != Lexeme::RBrace {
                         let field = self.ident()?;
                         self.expect(Lexeme::Colon)
@@ -673,6 +674,17 @@ impl Parser {
 
                         if self.peek()?.lexeme == Lexeme::Comma {
                             self.consume()?;
+
+                            if self.peek()?.lexeme == Lexeme::DoubleDot {
+                                self.consume()?;
+                                expansion = Some(Box::new(self.expr()?));
+
+                                if self.peek()?.lexeme == Lexeme::Comma {
+                                    self.consume()?;
+                                }
+
+                                break;
+                            }
                         } else {
                             break;
                         }
@@ -687,6 +699,7 @@ impl Parser {
                                 current.end.unwrap_or(0),
                             ),
                             fields,
+                            expansion,
                         ),
                         position,
                     );

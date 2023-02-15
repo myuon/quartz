@@ -414,8 +414,8 @@ impl TypeChecker {
                 Ok(t)
             }
             Expr::Call(caller, args) => self.call(caller, args),
-            Expr::Record(ident, record) => {
-                let mut field_types = self
+            Expr::Record(ident, record, expansion) => {
+                let mut record_types = self
                     .resolve_record_type(Type::Ident(ident.data.clone()))
                     .context(ErrorInSource {
                         path: Some(self.current_path.clone()),
@@ -425,27 +425,32 @@ impl TypeChecker {
                     .into_iter()
                     .collect::<HashMap<_, _>>();
 
-                if field_types.len() != record.len() {
-                    return Err(anyhow!("invalid number of fields").context(ErrorInSource {
-                        path: Some(self.current_path.clone()),
-                        start: expr.start.unwrap_or(0),
-                        end: expr.end.unwrap_or(0),
-                    }));
-                }
-
-                for (field, expr) in record {
-                    let mut expr_type = self.expr(expr)?;
-                    self.unify(
-                        &mut expr_type,
-                        field_types
-                            .get_mut(field)
-                            .ok_or(anyhow!("unknown field: {}", field.as_str()))?,
-                    )
-                    .context(ErrorInSource {
-                        path: Some(self.current_path.clone()),
-                        start: expr.start.unwrap_or(0),
-                        end: expr.end.unwrap_or(0),
-                    })?;
+                for (field, type_) in &mut record_types {
+                    if let Some((_, expr)) = record.iter_mut().find(|(f, _)| f == field) {
+                        let mut expr_type = self.expr(expr)?;
+                        self.unify(type_, &mut expr_type).context(ErrorInSource {
+                            path: Some(self.current_path.clone()),
+                            start: expr.start.unwrap_or(0),
+                            end: expr.end.unwrap_or(0),
+                        })?;
+                    } else {
+                        if let Some(expansion) = expansion {
+                            let mut expr_type = self.expr(expansion)?;
+                            self.unify(type_, &mut expr_type).context(ErrorInSource {
+                                path: Some(self.current_path.clone()),
+                                start: expansion.start.unwrap_or(0),
+                                end: expansion.end.unwrap_or(0),
+                            })?;
+                        } else {
+                            return Err(anyhow!("missing field: {}", field.as_str()).context(
+                                ErrorInSource {
+                                    path: Some(self.current_path.clone()),
+                                    start: expr.start.unwrap_or(0),
+                                    end: expr.end.unwrap_or(0),
+                                },
+                            ));
+                        }
+                    }
                 }
 
                 Ok(Type::Ident(ident.data.clone()))

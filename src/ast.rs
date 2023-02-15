@@ -124,7 +124,11 @@ pub enum Expr {
     Self_,
     Lit(Lit),
     Call(Box<Source<Expr>>, Vec<Source<Expr>>),
-    Record(Source<Ident>, Vec<(Ident, Source<Expr>)>),
+    Record(
+        Source<Ident>,
+        Vec<(Ident, Source<Expr>)>,
+        Option<Box<Source<Expr>>>,
+    ),
     Project(Box<Source<Expr>>, Type, Path),
     Make(Type, Vec<Source<Expr>>),
     SizeOf(Type),

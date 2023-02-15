@@ -382,7 +382,7 @@ impl IrCodeGenerator {
                     })
                 }
             },
-            Expr::Record(ident, fields) => {
+            Expr::Record(ident, fields, expansion) => {
                 /* example
                     let x = Point { x: 10, y: 20 };
 
@@ -416,18 +416,29 @@ impl IrCodeGenerator {
 
                 let mut offset = 0;
                 for (i, type_) in record_type {
-                    let (_, expr) = fields.iter_mut().find(|(f, _)| f == &i).ok_or(
-                        anyhow!("Field not found: {:?}", i).context(ErrorInSource {
-                            path: Some(self.current_path.clone()),
-                            start: expr.start.unwrap_or(0),
-                            end: expr.end.unwrap_or(0),
-                        }),
-                    )?;
-                    elements.push(IrTerm::SetField {
-                        address: Box::new(IrTerm::ident(var.clone())),
-                        offset,
-                        value: Box::new(self.expr(expr)?),
-                    });
+                    if let Some((_, expr)) = fields.iter_mut().find(|(f, _)| f == &i) {
+                        elements.push(IrTerm::SetField {
+                            address: Box::new(IrTerm::ident(var.clone())),
+                            offset,
+                            value: Box::new(self.expr(expr)?),
+                        });
+                    } else {
+                        if let Some(expansion) = expansion {
+                            elements.push(IrTerm::SetField {
+                                address: Box::new(IrTerm::ident(var.clone())),
+                                offset,
+                                value: Box::new(self.expr(expansion)?),
+                            });
+                        } else {
+                            return Err(anyhow!("Field not found: {:?}", i).context(
+                                ErrorInSource {
+                                    path: Some(self.current_path.clone()),
+                                    start: expr.start.unwrap_or(0),
+                                    end: expr.end.unwrap_or(0),
+                                },
+                            ));
+                        }
+                    }
 
                     offset += IrType::from_type(&type_)?.sizeof();
                 }
@@ -479,6 +490,7 @@ impl IrCodeGenerator {
                             Source::unknown(Expr::Lit(Lit::I32(*size as i32))),
                         ),
                     ],
+                    None,
                 )))?),
                 Type::Vec(type_) => Ok(IrTerm::Call {
                     callee: Box::new(IrTerm::Ident(

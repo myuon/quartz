@@ -26,7 +26,7 @@ module IrCodeGenerator {
                 t: "let",
                 name: stm.name,
                 value: self.expression(stm.expr)?,
-                i32_value: nil,
+                ..nil,
             };
 
             return term;
@@ -34,9 +34,8 @@ module IrCodeGenerator {
         if stm.t.equal("return") {
             let term = IrTerm {
                 t: "return",
-                name: nil,
                 value: self.expression(stm.expr)?,
-                i32_value: nil,
+                ..nil,
             };
 
             return term;
@@ -49,9 +48,8 @@ module IrCodeGenerator {
         if expr.t.equal("number") {
             let term = IrTerm {
                 t: "i32",
-                name: nil,
-                value: nil,
                 i32_value: expr.value,
+                ..nil,
             };
 
             return term;
@@ -59,14 +57,12 @@ module IrCodeGenerator {
         if expr.t.equal("plus") {
             let term = IrTerm {
                 t: "call",
-                name: nil,
-                value: nil,
-                i32_value: nil,
                 args: make[vec[IrTerm]]()?,
+                ..nil,
             };
 
-            term.args.push(self.expression(expr.left)?);
-            term.args.push(self.expression(expr.right)?);
+            term.args!.push(self.expression(expr.left!));
+            term.args!.push(self.expression(expr.right!));
 
             return term;
         }
