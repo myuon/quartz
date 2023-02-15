@@ -181,25 +181,57 @@ impl Compiler {
                 let source_path = source.path.clone();
 
                 let (start_line_number, start_column_index) = find_position(&input, start);
-                let start_line = input.lines().nth(start_line_number).unwrap();
-
                 let (end_line_number, end_column_index) = find_position(&input, end);
 
-                let line_number_gutter = format!("{}: ", start_line_number);
+                let mut result = String::new();
+
+                for (index, line) in input.lines().collect::<Vec<_>>()
+                    [start_line_number..end_line_number]
+                    .into_iter()
+                    .enumerate()
+                {
+                    let line_number_gutter = format!("{}: ", start_line_number + index + 1);
+                    result += &format!(
+                        "{}{}\n{}\n",
+                        line_number_gutter,
+                        line,
+                        if index == 0 {
+                            format!(
+                                "{}{}",
+                                " ".repeat(line_number_gutter.len() + start_column_index),
+                                "^".repeat(line.len() - start_column_index)
+                            )
+                        } else {
+                            format!(
+                                "{}{}",
+                                " ".repeat(line_number_gutter.len()),
+                                "^".repeat(line.len())
+                            )
+                        }
+                    );
+                }
+                let line_number_gutter = format!("{}: ", end_line_number + 1);
+                result += &format!(
+                    "{}{}\n{}\n",
+                    line_number_gutter,
+                    input.lines().nth(end_line_number).unwrap(),
+                    format!(
+                        "{}{}",
+                        " ".repeat(line_number_gutter.len()),
+                        "^".repeat(end_column_index)
+                    )
+                );
 
                 error.context(format!(
-                    "Error at {}, (line.{}:{}) to (line.{}:{})\n{}{}\n{}{}",
+                    "Error at {}, (line.{}:{}) to (line.{}:{})\n{}",
                     source_path
                         .unwrap_or(Path::ident(Ident("main".to_string())))
                         .as_str(),
-                    start_line_number,
+                    start_line_number + 1,
                     start_column_index,
-                    end_line_number,
+                    end_line_number + 1,
                     end_column_index,
-                    line_number_gutter,
-                    start_line,
-                    " ".repeat(line_number_gutter.len() + start_column_index),
-                    "^".repeat(end - start)
+                    result,
                 ))
             } else {
                 error

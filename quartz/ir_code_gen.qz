@@ -31,12 +31,22 @@ module IrCodeGenerator {
 
             return term;
         }
+        if stm.t.equal("return") {
+            let term = IrTerm {
+                t: "return",
+                name: nil,
+                value: self.expression(stm.expr)?,
+                i32_value: nil,
+            };
 
-        panic("statement exhausted");
+            return term;
+        }
+
+        panic("statement exhausted: ".concat(stm.t));
     }
 
     fun expression(self, expr: Expression): IrTerm {
-        if expr.t.equal("i32") {
+        if expr.t.equal("number") {
             let term = IrTerm {
                 t: "i32",
                 name: nil,
@@ -46,7 +56,21 @@ module IrCodeGenerator {
 
             return term;
         }
+        if expr.t.equal("plus") {
+            let term = IrTerm {
+                t: "call",
+                name: nil,
+                value: nil,
+                i32_value: nil,
+                args: make[vec[IrTerm]]()?,
+            };
 
-        panic("expression exhausted");
+            term.args.push(self.expression(expr.left)?);
+            term.args.push(self.expression(expr.right)?);
+
+            return term;
+        }
+
+        panic("expression exhausted: ".concat(expr.t));
     }
 }

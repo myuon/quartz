@@ -3,4 +3,5 @@ type IrTerm = {
   name: string?,
   value: IrTerm?,
   i32_value: string?,
+  args: vec[IrTerm]?,
 };
