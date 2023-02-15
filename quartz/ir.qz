@@ -1,7 +1,92 @@
 type IrTerm = {
-  t: string,
-  name: string?,
-  value: IrTerm?,
-  i32_value: string?,
-  args: vec[IrTerm]?,
+    ir_nil: bool?,
+    ir_i32: string?,
+    ir_ident: string?,
+    ir_func: IrFunc?,
+    ir_call: IrCall?,
+    ir_let: IrLet?,
+    ir_return: IrReturn?,
+};
+
+module IrTerm {
+    fun to_string(self) {
+        if self.ir_nil != nil {
+            return "nil";
+        } else {
+            if self.ir_i32 != nil {
+                return self.ir_i32!;
+            } else {
+                if self.ir_ident != nil {
+                    return self.ir_ident!;
+                } else {
+                    if self.ir_func != nil {
+                        let t = "func\n";
+
+                        for i in 0..self.ir_func!.body.length {
+                            t = t.concat(self.ir_func!.body.at(i).to_string()).concat(" ");
+                        }
+
+                        return t;
+                    } else {
+                        if self.ir_call != nil {
+                            let t = "call ".concat(self.ir_call!.callee.to_string()).concat(" ");
+                            for i in 0..2 {
+                                t = t.concat(self.ir_call!.args.at(i).to_string()).concat(" ");
+                            }
+
+                            return t;
+                        } else {
+                            if self.ir_let != nil {
+                                let t = "let ";
+
+                                t = t.concat(self.ir_let!.name).concat(" ");
+                                t = t.concat(self.ir_let!.value.to_string()).concat(" \n");
+
+                                return t;
+                            } else {
+                                if self.ir_return != nil {
+                                    let t = "return ";
+                                    t = t.concat(self.ir_return!.value.to_string()).concat(" \n");
+
+                                    return t;
+                                } else {
+                                    return "unknown";
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+type IrFunc = {
+    name: string,
+    params: vec[ParamPair],
+    body: vec[IrTerm],
+};
+
+type IrCall = {
+    callee: IrTerm,
+    args: vec[IrTerm],
+};
+
+type IrLet = {
+    name: string,
+    type_: IrType,
+    value: IrTerm,
+};
+
+type IrReturn = {
+    value: IrTerm,
+};
+
+type ParamPair = {
+    name: string,
+    type_: IrType,
+};
+
+type IrType = {
+    ir_i32: bool?,
 };

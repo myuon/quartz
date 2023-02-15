@@ -453,6 +453,18 @@ impl TypeChecker {
                     }
                 }
 
+                for (field, expr) in record {
+                    if !record_types.contains_key(&field) {
+                        return Err(anyhow!("unknown field: {}", field.as_str()).context(
+                            ErrorInSource {
+                                path: Some(self.current_path.clone()),
+                                start: expr.start.unwrap_or(0),
+                                end: expr.end.unwrap_or(0),
+                            },
+                        ));
+                    }
+                }
+
                 Ok(Type::Ident(ident.data.clone()))
             }
             Expr::Project(expr, type_, label_path) => {

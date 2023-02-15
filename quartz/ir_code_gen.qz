@@ -11,21 +11,38 @@ module IrCodeGenerator {
     }
 
     fun function(self, func: Function): IrTerm {
-        self.block(func.body);
+        let body = self.block(func.body);
+
+        return IrTerm {
+            ir_func: IrFunc {
+                name: func.name,
+                params: make[vec[ParamPair]](),
+                body: body,
+            }?,
+            ..nil,
+        };
     }
     
-    fun block(self, b: Block): IrTerm {
+    fun block(self, b: Block): vec[IrTerm] {
+        let elements = make[vec[IrTerm]]();
+
         for i in 0..b.block.length {
-            self.statement(b.block.at(i));
+            elements.push(self.statement(b.block.at(i)));
         }
+
+        return elements;
     }
 
     fun statement(self, stm: Statement): IrTerm {
         if stm.t.equal("let") {
             let term = IrTerm {
-                t: "let",
-                name: stm.name,
-                value: self.expression(stm.expr)?,
+                ir_let: IrLet {
+                    name: stm.name!,
+                    type_: IrType {
+                        ir_i32: true?,
+                    },
+                    value: self.expression(stm.expr),
+                }?,
                 ..nil,
             };
 
@@ -33,8 +50,9 @@ module IrCodeGenerator {
         }
         if stm.t.equal("return") {
             let term = IrTerm {
-                t: "return",
-                value: self.expression(stm.expr)?,
+                ir_return: IrReturn {
+                    value: self.expression(stm.expr),
+                }?,
                 ..nil,
             };
 
@@ -47,8 +65,7 @@ module IrCodeGenerator {
     fun expression(self, expr: Expression): IrTerm {
         if expr.t.equal("number") {
             let term = IrTerm {
-                t: "i32",
-                i32_value: expr.value,
+                ir_i32: expr.value,
                 ..nil,
             };
 
@@ -56,13 +73,26 @@ module IrCodeGenerator {
         }
         if expr.t.equal("plus") {
             let term = IrTerm {
-                t: "call",
-                args: make[vec[IrTerm]]()?,
+                ir_call: IrCall {
+                    callee: IrTerm {
+                        ir_ident: "plus"?,
+                        ..nil,
+                    },
+                    args: make[vec[IrTerm]](),
+                }?,
                 ..nil,
             };
 
-            term.args!.push(self.expression(expr.left!));
-            term.args!.push(self.expression(expr.right!));
+            term.ir_call!.args.push(self.expression(expr.left!));
+            term.ir_call!.args.push(self.expression(expr.right!));
+
+            return term;
+        }
+        if expr.t.equal("ident") {
+            let term = IrTerm {
+                ir_ident: expr.value,
+                ..nil,
+            };
 
             return term;
         }
