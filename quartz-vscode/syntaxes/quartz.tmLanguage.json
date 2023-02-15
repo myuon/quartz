@@ -152,7 +152,7 @@
     "keywords": {
       "patterns": [
         {
-          "match": "\\b(for|if|while|return|let|continue)\\b",
+          "match": "\\b(for|if|while|return|let|continue|in)\\b",
           "name": "keyword.control.quartz"
         },
         {
@@ -162,10 +162,6 @@
         {
           "match": "\\b(module)\\b",
           "name": "keyword.module.quartz"
-        },
-        {
-          "match": "\\b(func)\\b",
-          "name": "keyword.other.func.quartz"
         },
         {
           "match": "\\b(import)\\b",
