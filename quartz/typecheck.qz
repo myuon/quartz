@@ -1,0 +1,45 @@
+import quartz::ast;
+
+type Typechecker = {
+};
+
+module Typechecker {
+    fun new(): Typechecker {
+        return Typechecker {};
+    }
+
+    fun function(self, f: Function) {
+        self.block(f.body, f.result_type);
+    }
+
+    fun block(self, b: Block, expected: Type) {
+        for i in 0..b.block.length {
+            let result = self.statement(b.block.at(i));
+            unify(expected, result);
+        }
+    }
+
+    fun statement(self, s: Statement): Type {
+        if s.t.equal("let") {
+            return self.expression(s.expr);
+        }
+
+        panic("unimplemented");
+    }
+
+    fun expression(self, expr: Expression): Type {
+        panic("unimplemented");
+    }
+}
+
+type Type = {
+    t_i32: bool?,
+};
+
+fun unify(type1: Type, type2: Type) {
+    if type1.t_i32 != nil && type2.t_i32 != nil {
+        return;
+    }
+
+    panic("unification failed");
+}

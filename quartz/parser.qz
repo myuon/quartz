@@ -36,7 +36,7 @@ module Parser {
         self.expect("rparen");
 
         self.expect("colon");
-        let result_type = self.ident();
+        let result_type = self.type_();
 
         self.expect("lbrace");
         let body = self.block();
@@ -47,6 +47,21 @@ module Parser {
             result_type: result_type,
             body: body,
         };
+    }
+
+    fun type_(self): Type {
+        let token = self.consume();
+        if token.lexeme.equal("ident") {
+            if token.string_value!.equal("i32") {
+                return Type {
+                    t_i32: true?,
+                };
+            }
+            
+            panic("Unknown type ".concat(token.string_value!));
+        }
+
+        panic("Expected IDENT, got ".concat(token.lexeme).concat("{").concat(token.string_value!).concat("}"));
     }
 
     fun peek(self): Token {

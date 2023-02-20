@@ -488,6 +488,27 @@ fun main() {
 "#,
                 vec![Value::I32(1)],
             ),
+            (
+                r#"
+type P = {
+    x: i32,
+};
+
+fun modify_p(p: P) {
+    p.x = 10;
+}
+
+fun main() {
+    let p = P {
+        x: 0,
+    };
+    modify_p(p);
+
+    return p.x;
+}
+"#,
+                vec![Value::I32(10)],
+            ),
         ];
 
         for (input, expected) in cases {

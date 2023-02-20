@@ -5,6 +5,7 @@ import quartz::ast;
 import quartz::ir;
 import quartz::ir_code_gen;
 import quartz::generator;
+import quartz::typecheck;
 
 fun test() {
     if !"hello".equal("hello") {
@@ -42,6 +43,9 @@ fun main(): i32 {
     let parser = Parser::new();
     let result = parser.run(lexer.tokens);
     println(result.to_string());
+
+    let typechecker = Typechecker::new();
+    typechecker.function(result);
 
     let irgen = IrCodeGenerator::new();
     let term = irgen.function(result);

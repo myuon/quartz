@@ -1,6 +1,8 @@
+import quartz::ast;
+
 type Function = {
     name: string,
-    result_type: string,
+    result_type: Type,
     body: Block,
 };
 
