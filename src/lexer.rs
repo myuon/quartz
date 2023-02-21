@@ -52,7 +52,7 @@ pub enum Lexeme {
     DoubleAmp,
     DoublePipe,
     Ident(String),
-    Int(i32),
+    Int(i64),
     String(String),
 }
 
@@ -244,7 +244,7 @@ impl Lexer {
             match INT_LITERAL.find(&input[self.position..]) {
                 Some(m) => {
                     self.tokens.push(Token {
-                        lexeme: Lexeme::Int(m.as_str().parse::<i32>().unwrap()),
+                        lexeme: Lexeme::Int(m.as_str().parse::<i64>().unwrap()),
                         position: self.position,
                     });
 

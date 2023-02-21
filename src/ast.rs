@@ -8,6 +8,7 @@ pub enum Type {
     Nil,
     Bool,
     I32,
+    I64,
     Byte,
     Func(Vec<Type>, Box<Type>),
     Record(Vec<(Ident, Type)>),
@@ -17,6 +18,7 @@ pub enum Type {
     Vec(Box<Type>),
     Range(Box<Type>),
     Optional(Box<Type>),
+    Map(Box<Type>, Box<Type>),
 }
 
 impl Type {
@@ -26,6 +28,7 @@ impl Type {
             Type::Nil => "nil".to_string(),
             Type::Bool => "bool".to_string(),
             Type::I32 => "i32".to_string(),
+            Type::I64 => "i64".to_string(),
             Type::Func(args, ret) => format!(
                 "({}) -> {}",
                 args.iter()
@@ -49,6 +52,7 @@ impl Type {
             Type::Range(type_) => format!("range[{}]", type_.to_string()),
             Type::Vec(type_) => format!("vec[{}]", type_.to_string()),
             Type::Optional(type_) => format!("optional[{}]", type_.to_string()),
+            Type::Map(key, value) => format!("map[{}, {}]", key.to_string(), value.to_string()),
         }
     }
 
@@ -112,6 +116,7 @@ pub enum Lit {
     Nil,
     Bool(bool),
     I32(i32),
+    I64(i64),
     String(String),
 }
 

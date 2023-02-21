@@ -171,7 +171,11 @@ impl Compiler {
         self.compile_(cwd, &input).map_err(|error| {
             if let Some(source) = error.downcast_ref::<ErrorInSource>() {
                 let input = if let Some(path) = &source.path {
-                    self.loader.matches(path).unwrap().source.clone()
+                    let Some(loaded) = self.loader.matches(path) else {
+                        return error
+                    };
+
+                    loaded.source.clone()
                 } else {
                     input
                 };

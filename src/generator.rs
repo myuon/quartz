@@ -314,6 +314,10 @@ impl Generator {
                 self.writer.new_statement();
                 self.writer.write("i32.const 0");
             }
+            IrType::I64 => {
+                self.writer.new_statement();
+                self.writer.write("i64.const 0");
+            }
             IrType::Address => {
                 self.writer.new_statement();
                 self.writer.write("i32.const 0");

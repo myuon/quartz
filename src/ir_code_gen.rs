@@ -246,6 +246,7 @@ impl IrCodeGenerator {
                 Lit::Nil => Ok(IrTerm::I32(0)),
                 Lit::Bool(b) => Ok(IrTerm::I32(if *b { 1 } else { 0 })),
                 Lit::I32(i) => Ok(IrTerm::i32(*i)),
+                Lit::I64(i) => Ok(IrTerm::i64(*i)),
                 Lit::String(s) => {
                     let index = self.strings.len();
                     self.strings.push(s.clone());
@@ -328,6 +329,40 @@ impl IrCodeGenerator {
                                         vec![expr.as_ref().clone(), args[0].clone()],
                                     )),
                                 )))?)
+                            }
+                            (Type::Map(_, _), "insert") => {
+                                assert_eq!(args.len(), 2);
+
+                                Ok(self.statement(&mut Source::unknown(Statement::Expr(
+                                    Source::unknown(Expr::Call(
+                                        Box::new(Source::unknown(Expr::path(Path::new(
+                                            vec!["quartz", "std", "map_insert"]
+                                                .into_iter()
+                                                .map(|t| Ident(t.to_string()))
+                                                .collect(),
+                                        )))),
+                                        vec![
+                                            expr.as_ref().clone(),
+                                            args[0].clone(),
+                                            args[1].clone(),
+                                        ],
+                                    )),
+                                )))?)
+                            }
+                            (Type::Map(_, _), "at") => {
+                                assert_eq!(args.len(), 1);
+
+                                Ok(IrTerm::Call {
+                                    callee: Box::new(self.expr(&mut Source::unknown(
+                                        Expr::path(Path::new(vec![
+                                            Ident("quartz".to_string()),
+                                            Ident("std".to_string()),
+                                            Ident("map_at".to_string()),
+                                        ])),
+                                    ))?),
+                                    args: vec![self.expr(expr)?, self.expr(&mut args[0])?],
+                                    source: None,
+                                })
                             }
                             (Type::I32, label) => {
                                 let mut elements = vec![];
@@ -508,6 +543,19 @@ impl IrCodeGenerator {
                             type_: IrType::from_type(type_)?,
                         },
                     ],
+                    source: None,
+                }),
+                Type::Map(_, _) => Ok(IrTerm::Call {
+                    callee: Box::new(IrTerm::Ident(
+                        Path::new(
+                            vec!["quartz", "std", "map_make"]
+                                .into_iter()
+                                .map(|s| Ident(s.to_string()))
+                                .collect(),
+                        )
+                        .as_joined_str("_"),
+                    )),
+                    args: vec![],
                     source: None,
                 }),
                 _ => bail!("unsupported type for make: {:?}", type_),

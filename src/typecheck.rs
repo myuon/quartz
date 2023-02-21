@@ -508,6 +508,20 @@ impl TypeChecker {
                         _ => (),
                     }
                 }
+                if let Type::Map(key, value) = &mut expr_type {
+                    match label.as_str() {
+                        "insert" => {
+                            return Ok(Type::Func(
+                                vec![key.as_ref().clone(), value.as_ref().clone()],
+                                Box::new(Type::Nil),
+                            ));
+                        }
+                        "at" => {
+                            return Ok(Type::Func(vec![key.as_ref().clone()], value.clone()));
+                        }
+                        _ => (),
+                    }
+                }
 
                 // allow non-record type here
                 // (some types only have methods, no fields)
@@ -653,6 +667,7 @@ impl TypeChecker {
             Lit::Nil => Ok(Type::Nil),
             Lit::Bool(_) => Ok(Type::Bool),
             Lit::I32(_) => Ok(Type::I32),
+            Lit::I64(_) => Ok(Type::I64),
             Lit::String(_) => Ok(Type::Ident(Ident("string".to_string()))),
         }
     }
@@ -847,6 +862,7 @@ impl Constrains {
             Type::Nil => {}
             Type::Bool => {}
             Type::I32 => {}
+            Type::I64 => {}
             Type::Byte => {}
             Type::Record(r) => {
                 for (_, type_) in r {
@@ -868,6 +884,10 @@ impl Constrains {
             }
             Type::Optional(t) => {
                 self.apply(t);
+            }
+            Type::Map(k, v) => {
+                self.apply(k);
+                self.apply(v);
             }
         }
     }

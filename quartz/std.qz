@@ -179,6 +179,10 @@ module string {
     fun slice_start(self, start: i32): string {
         return self.slice(start, self.length);
     }
+
+    fun at(self, n: i32): string {
+        return char_to_string(self.data.at(n));
+    }
 }
 
 fun panic(s: string) {
@@ -197,4 +201,38 @@ fun dump_strings() {
         let s = strings_ptr as ptr[string];
         println((i.to_string()).concat("[").concat((s.at(i) as i32).to_string()).concat("]: ").concat((strings_ptr as ptr[string]).at(i)));
     }
+}
+
+type MapEntry = {
+    key: string?,
+    value: any,
+};
+
+type Map = {
+    count: i32,
+    capacity: i32,
+    entries: vec[MapEntry]
+};
+
+fun map_make() {
+    return Map {
+        count: 0,
+        capacity: 0,
+        entries: make[vec[MapEntry]](),
+    };
+}
+
+fun map_at() {
+}
+
+fun map_insert() {
+}
+
+fun hash_string(key: string, length: i32): u32 {
+    let hash = 2166136261;
+    for i in 0..length {
+        hash = xor(hash, (key.data.at(i) as i32));
+        hash = hash * 16777619;
+    }
+    return hash;
 }

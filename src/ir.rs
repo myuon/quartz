@@ -6,6 +6,7 @@ use crate::{ast::Type, compiler::SourcePosition, util::sexpr_writer::SExprWriter
 pub enum IrTerm {
     Nil,
     I32(i32),
+    I64(i64),
     Ident(String),
     String(usize),
     Func {
@@ -98,12 +99,19 @@ impl IrTerm {
         IrTerm::I32(value)
     }
 
+    pub fn i64(value: i64) -> Self {
+        IrTerm::I64(value)
+    }
+
     fn to_string_writer(&self, writer: &mut SExprWriter) {
         match self {
             IrTerm::Nil => {
                 writer.write("nil");
             }
             IrTerm::I32(i) => {
+                writer.write(&i.to_string());
+            }
+            IrTerm::I64(i) => {
                 writer.write(&i.to_string());
             }
             IrTerm::Ident(p) => {
@@ -297,6 +305,7 @@ impl IrTerm {
         match self {
             IrTerm::Nil => vec![],
             IrTerm::I32(_) => vec![],
+            IrTerm::I64(_) => vec![],
             IrTerm::Ident(_) => vec![],
             IrTerm::String(_) => vec![],
             IrTerm::Call {
@@ -416,6 +425,7 @@ impl IrTerm {
 pub enum IrType {
     Nil,
     I32,
+    I64,
     Address,
 }
 
@@ -425,6 +435,7 @@ impl IrType {
             Type::Nil => Ok(IrType::Nil),
             Type::Bool => Ok(IrType::I32),
             Type::I32 => Ok(IrType::I32),
+            Type::I64 => Ok(IrType::I64),
             Type::Record(_) => Ok(IrType::Address),
             Type::Ident(_) => Ok(IrType::Address), // FIXME: could be other types
             Type::Ptr(_) => Ok(IrType::Address),
@@ -437,6 +448,7 @@ impl IrType {
             Type::Omit(_) => {
                 bail!("Found omit type in IrType::from_type");
             }
+            Type::Map(_, _) => Ok(IrType::Address),
         }
     }
 
@@ -444,6 +456,7 @@ impl IrType {
         match self {
             IrType::Nil => IrTerm::nil(),
             IrType::I32 => IrTerm::Ident("i32".to_string()),
+            IrType::I64 => IrTerm::Ident("i64".to_string()),
             IrType::Address => IrTerm::Ident("i32".to_string()),
         }
     }
@@ -463,6 +476,7 @@ impl IrType {
         match self {
             IrType::Nil => 4,
             IrType::I32 => 4,
+            IrType::I64 => 8,
             IrType::Address => 4,
         }
     }

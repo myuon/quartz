@@ -809,7 +809,8 @@ impl Parser {
     fn lit(&mut self) -> Result<Lit> {
         let current = self.consume()?;
         match current.lexeme {
-            Lexeme::Int(int) => Ok(Lit::I32(int)),
+            Lexeme::Int(int) if int <= i32::MAX as i64 => Ok(Lit::I32(int as i32)),
+            Lexeme::Int(int) => Ok(Lit::I64(int)),
             Lexeme::String(string) => Ok(Lit::String(string)),
             Lexeme::True => Ok(Lit::Bool(true)),
             Lexeme::False => Ok(Lit::Bool(false)),
@@ -860,6 +861,15 @@ impl Parser {
                     self.expect(Lexeme::RBracket)?;
 
                     Type::Ptr(Box::new(type_))
+                }
+                "map" => {
+                    self.expect(Lexeme::LBracket)?;
+                    let key = self.type_()?;
+                    self.expect(Lexeme::Comma)?;
+                    let value = self.type_()?;
+                    self.expect(Lexeme::RBracket)?;
+
+                    Type::Map(Box::new(key), Box::new(value))
                 }
                 ident => Type::Ident(Ident(ident.to_string())),
             },
