@@ -228,10 +228,10 @@ fun map_at() {
 fun map_insert() {
 }
 
-fun hash_string(key: string, length: i32): u32 {
+fun hash_string(key: string, length: i32): i64 {
     let hash = 2166136261;
     for i in 0..length {
-        hash = xor(hash, (key.data.at(i) as i32));
+        hash = xor_i64(hash, (key.data.at(i) as i64));
         hash = hash * 16777619;
     }
     return hash;

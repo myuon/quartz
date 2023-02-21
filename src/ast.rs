@@ -25,10 +25,10 @@ impl Type {
     pub fn to_string(&self) -> String {
         match self {
             Type::Omit(i) => format!("?{}", i),
-            Type::Nil => "nil".to_string(),
-            Type::Bool => "bool".to_string(),
-            Type::I32 => "i32".to_string(),
-            Type::I64 => "i64".to_string(),
+            Type::Nil => "[nil]".to_string(),
+            Type::Bool => "[bool]".to_string(),
+            Type::I32 => "[i32]".to_string(),
+            Type::I64 => "[i64]".to_string(),
             Type::Func(args, ret) => format!(
                 "({}) -> {}",
                 args.iter()

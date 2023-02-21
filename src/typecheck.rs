@@ -97,6 +97,10 @@ impl TypeChecker {
                     "and",
                     Type::Func(vec![Type::Bool, Type::Bool], Box::new(Type::Bool)),
                 ),
+                (
+                    "xor_i64",
+                    Type::Func(vec![Type::I64, Type::I64], Box::new(Type::I64)),
+                ),
                 ("abort", Type::Func(vec![], Box::new(Type::Nil))),
                 (
                     "load_global",
@@ -791,7 +795,6 @@ impl Constrains {
                 constrains.constrains.insert(*i, type_.clone());
                 Ok(constrains)
             }
-            (Type::I32, Type::I32) => Ok(Constrains::empty()),
             (Type::Func(args1, ret1), Type::Func(args2, ret2)) => {
                 if args1.len() != args2.len() {
                     bail!(
@@ -826,6 +829,8 @@ impl Constrains {
             }
             (Type::Bool, Type::Ident(ident)) if ident.as_str() == "bool" => Ok(Constrains::empty()),
             (Type::Ident(ident), Type::Bool) if ident.as_str() == "bool" => Ok(Constrains::empty()),
+            (Type::I64, Type::Ident(ident)) if ident.as_str() == "i64" => Ok(Constrains::empty()),
+            (Type::Ident(ident), Type::I64) if ident.as_str() == "i64" => Ok(Constrains::empty()),
             (type1, type2) => {
                 bail!(
                     "type mismatch, expected {}, but found {}",
