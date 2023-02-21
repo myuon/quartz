@@ -2,7 +2,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use pretty_assertions::assert_eq;
 
 use crate::{
-    ast::{Decl, Expr, Func, Lit, Module, Statement, Type},
+    ast::{BinOp, Decl, Expr, Func, Lit, Module, Statement, Type},
     compiler::ErrorInSource,
     lexer::{Lexeme, Token},
     util::{ident::Ident, path::Path, source::Source},
@@ -518,18 +518,10 @@ impl Parser {
         match token.lexeme {
             Lexeme::Star => {
                 self.consume()?;
-                let token_position_end = self.position;
                 let rhs = self.term_1(with_struct)?;
 
                 current = self.source_from(
-                    Expr::Call(
-                        Box::new(self.source(
-                            Expr::ident(Ident("mult".to_string())),
-                            token_position,
-                            token_position_end,
-                        )),
-                        vec![current, rhs],
-                    ),
+                    Expr::BinOp(BinOp::Mul, Type::Omit(0), Box::new(current), Box::new(rhs)),
                     position,
                 );
             }
@@ -832,6 +824,7 @@ impl Parser {
             Lexeme::Ident(ident) => match ident.as_str() {
                 "nil" => Type::Nil,
                 "i32" => Type::I32,
+                "i64" => Type::I64,
                 "bool" => Type::Bool,
                 "byte" => Type::Byte,
                 "array" => {

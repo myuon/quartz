@@ -358,6 +358,9 @@ impl Generator {
             IrTerm::I32(i) => {
                 self.writer.write(&format!("i32.const {}", i));
             }
+            IrTerm::I64(i) => {
+                self.writer.write(&format!("i64.const {}", i));
+            }
             IrTerm::Ident(i) => {
                 if self.globals.contains(&i.clone()) {
                     self.writer.write(&format!("global.get ${}", i.as_str()));
@@ -571,7 +574,7 @@ impl Generator {
                 self.writer.new_statement();
                 self.writer.write("i32.add");
             }
-            _ => todo!(),
+            _ => todo!("{:?}", expr),
         }
 
         Ok(())
@@ -636,6 +639,9 @@ impl Generator {
                 "mult" => {
                     self.writer.write("i32.mul");
                 }
+                "mult_i64" => {
+                    self.writer.write("i64.mul");
+                }
                 "div" => {
                     self.writer.write("i32.div_s");
                 }
@@ -668,6 +674,12 @@ impl Generator {
                 }
                 "and" => {
                     self.writer.write("i32.and");
+                }
+                "xor_i64" => {
+                    self.writer.write("i64.xor");
+                }
+                "i32_to_i64" => {
+                    self.writer.write("i64.extend_i32_s");
                 }
                 _ => {
                     self.writer.write(&format!("call ${}", ident.as_str()));

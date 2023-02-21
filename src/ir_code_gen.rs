@@ -254,6 +254,31 @@ impl IrCodeGenerator {
                     Ok(IrTerm::String(index))
                 }
             },
+            Expr::BinOp(op, type_, arg1, arg2) => {
+                use crate::ast::BinOp::*;
+
+                match op {
+                    Mul => {
+                        let arg1 = self.expr(arg1)?;
+                        let arg2 = self.expr(arg2)?;
+
+                        Ok(IrTerm::Call {
+                            callee: Box::new(IrTerm::Ident(
+                                if matches!(type_, Type::I32) {
+                                    "mult"
+                                } else if matches!(type_, Type::I64) {
+                                    "mult_i64"
+                                } else {
+                                    bail!("invalid type for mul: {:?}", type_)
+                                }
+                                .to_string(),
+                            )),
+                            args: vec![arg1, arg2],
+                            source: None,
+                        })
+                    }
+                }
+            }
             Expr::Call(callee, args) => match &mut callee.data {
                 Expr::Project(expr, type_, label) => {
                     if label.0.len() == 1 {

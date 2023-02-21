@@ -109,6 +109,13 @@ impl Type {
             _ => bail!("expected range type, but found {}", self.to_string()),
         }
     }
+
+    pub fn is_integer_type(&self) -> bool {
+        match self {
+            Type::I32 | Type::I64 => true,
+            _ => false,
+        }
+    }
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -121,6 +128,11 @@ pub enum Lit {
 }
 
 #[derive(PartialEq, Debug, Clone)]
+pub enum BinOp {
+    Mul,
+}
+
+#[derive(PartialEq, Debug, Clone)]
 pub enum Expr {
     Ident {
         ident: Ident,
@@ -129,6 +141,7 @@ pub enum Expr {
     Self_,
     Lit(Lit),
     Call(Box<Source<Expr>>, Vec<Source<Expr>>),
+    BinOp(BinOp, Type, Box<Source<Expr>>, Box<Source<Expr>>),
     Record(
         Source<Ident>,
         Vec<(Ident, Source<Expr>)>,
