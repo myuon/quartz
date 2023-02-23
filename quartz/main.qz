@@ -31,17 +31,23 @@ fun test() {
     }
 }
 
+// example input:
+//
+// fun main(): i32 {
+//     let x: i32 = 10;
+//     return x + 1;
+// }
+
 fun main() {
     // dump_strings();
     test();
 
-    let lexer = Lexer::new();
-    lexer.run(`
-fun main(): i32 {
-    let x: i32 = 10;
-    return x + 1;
+    println(run(stdin()));
 }
-`);
+
+fun run(input: string): string {
+    let lexer = Lexer::new();
+    lexer.run(input);
 
     let parser = Parser::new();
     let result = parser.run(lexer.tokens);
@@ -54,5 +60,6 @@ fun main(): i32 {
 
     let gen = Generator::new();
     let code = gen.run(term);
-    println(code);
+
+    return code;
 }

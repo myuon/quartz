@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::io::{Read, Write};
 
 use anyhow::{anyhow, Result};
 use wasmer::{imports, Instance, Module, Store};
@@ -24,6 +24,11 @@ impl Runtime {
                 }),
                 "abort" => Function::new_typed(&mut store, || {
                     panic!("[ABORT]");
+                }),
+                "read_stdin" => Function::new_typed(&mut store, || {
+                    let mut buffer = [0u8; 1];
+                    std::io::stdin().lock().read(&mut buffer).unwrap();
+                    buffer[0] as i32
                 }),
             }
         };

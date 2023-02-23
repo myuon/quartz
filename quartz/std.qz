@@ -311,3 +311,16 @@ fun hash_string(key: string, length: i32): i64 {
     }
     return hash;
 }
+
+fun stdin(): string {
+    let str = make[vec[byte]]();
+
+    let b = read_stdin();
+    while b as i32 != 0 {
+        str.push(b);
+
+        b = read_stdin();
+    }
+
+    return vec_byte_to_string(str);
+}

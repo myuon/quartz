@@ -62,6 +62,7 @@ impl TypeChecker {
                     "write_stdout",
                     Type::Func(vec![Type::Byte], Box::new(Type::Nil)),
                 ),
+                ("read_stdin", Type::Func(vec![], Box::new(Type::Byte))),
                 (
                     "mem_copy",
                     Type::Func(

@@ -86,6 +86,11 @@ impl Generator {
         self.writer.end();
 
         self.writer.start();
+        self.writer
+            .write(r#"import "env" "read_stdin" (func $read_stdin (result i32))"#);
+        self.writer.end();
+
+        self.writer.start();
         self.writer.write(r#"import "env" "abort" (func $abort)"#);
         self.writer.end();
 

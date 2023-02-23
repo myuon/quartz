@@ -68,7 +68,9 @@ fn main() -> Result<()> {
             let wat = compile(&mut compiler, stdin, file)?;
             let result = runtime.run(&wat)?;
             if !result.is_empty() {
-                println!("{:?}", result);
+                for r in result.iter() {
+                    println!("{}", r.to_string());
+                }
             }
         }
         SubCommand::RunWat { stdin, file } => {
