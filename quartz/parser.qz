@@ -140,10 +140,12 @@ module Parser {
         self.expect("semicolon");
 
         return Statement {
-            t: "let",
-            name: name?,
-            name_type: t?,
-            expr: value,
+            t_let: struct {
+                name: name,
+                name_type: t,
+                expr: value,
+            }?,
+            ..nil,
         };
     }
 
@@ -153,10 +155,10 @@ module Parser {
         self.expect("semicolon");
 
         return Statement {
-            t: "return",
-            name: nil,
-            name_type: nil,
-            expr: value,
+            t_return: struct {
+                expr: value,
+            }?,
+            ..nil,
         };
     }
 

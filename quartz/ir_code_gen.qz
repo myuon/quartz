@@ -35,25 +35,25 @@ module IrCodeGenerator {
     }
 
     fun statement(self, stm: Statement): IrTerm {
-        if stm.t.equal("let") {
+        if stm.t_let != nil {
             let term = IrTerm {
                 ir_let: IrLet {
-                    name: stm.name!,
+                    name: stm.t_let!.name,
                     type_: IrType {
                         ir_i32: true?,
                     },
-                    value: self.expression(stm.expr),
+                    value: self.expression(stm.t_let!.expr),
                 }?,
                 ..nil,
             };
-            self.locals.push(stm.name!);
+            self.locals.push(stm.t_let!.name);
 
             return term;
         }
-        if stm.t.equal("return") {
+        if stm.t_return != nil {
             let term = IrTerm {
                 ir_return: IrReturn {
-                    value: self.expression(stm.expr),
+                    value: self.expression(stm.t_return!.expr),
                 }?,
                 ..nil,
             };
@@ -61,7 +61,7 @@ module IrCodeGenerator {
             return term;
         }
 
-        panic("statement exhausted: ".concat(stm.t));
+        panic("statement exhausted");
     }
 
     fun expression(self, expr: Expression): IrTerm {

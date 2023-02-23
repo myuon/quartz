@@ -29,22 +29,26 @@ module Block {
 }
 
 type Statement = {
-    t: string,
-    name: string?,
-    name_type: string?,
-    expr: Expression,
+    t_let: struct {
+        name: string,
+        name_type: string,
+        expr: Expression,
+    }?,
+    t_return: struct {
+        expr: Expression,
+    }?,
 };
 
 module Statement {
     fun to_string(self) {
-        if self.t.equal("let") {
-            return "let ".concat(self.name!).concat(": ").concat(self.name_type!).concat(" = ").concat(self.expr.to_string()).concat(";\n");
+        if self.t_let != nil {
+            return "let ".concat(self.t_let!.name).concat(": ").concat(self.t_let!.name_type).concat(" = ").concat(self.t_let!.expr.to_string()).concat(";\n");
         }
-        if self.t.equal("return") {
-            return "return ".concat(self.expr.to_string()).concat(";\n");
+        if self.t_return != nil {
+            return "return ".concat(self.t_return!.expr.to_string()).concat(";\n");
         }
 
-        panic("Unknown statement type: ".concat(self.t));
+        panic("Unknown statement type");
     }
 }
 

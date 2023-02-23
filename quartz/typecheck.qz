@@ -26,18 +26,17 @@ module Typechecker {
     }
 
     fun statement(self, s: Statement, result_type: Type) {
-        if s.t.equal("let") {
-            let t = self.expression(s.expr);
+        if s.t_let != nil {
+            let t = self.expression(s.t_let!.expr);
 
-            self.locals.insert(s.name!, t);
+            self.locals.insert(s.t_let!.name, t);
             return;
         }
-        if s.t.equal("return") {
-            unify(self.expression(s.expr), result_type);
+        if s.t_return != nil {
+            unify(self.expression(s.t_return!.expr), result_type);
             return;
         }
 
-        println(s.t);
         panic("unimplemented");
     }
 
