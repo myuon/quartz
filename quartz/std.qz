@@ -222,10 +222,72 @@ fun map_make() {
     };
 }
 
-fun map_at() {
+fun map_at(map: Map, key: string): any {
+    if map.count == 0 {
+        return nil as any;
+    }
+
+    let entry = map_find_entry(map, key);
+    if entry.key == nil {
+        return nil as any;
+    } else {
+        return entry.value;
+    }
 }
 
-fun map_insert() {
+fun map_insert(map: Map, key: string, value: any) {
+    if (map.count + 1) * 2 > map.capacity {
+        let new_capacity = map.capacity * 2;
+        if map.capacity == 0 {
+            new_capacity = 8;
+        }
+        let new_entries = make[vec[MapEntry]](new_capacity);
+
+        for i in 0..map.capacity {
+            let entry = map.entries.at(i);
+            if entry.key != nil {
+                let hash = hash_string(entry.key!, entry.key!.length);
+                let index = i64_to_i32(hash % i32_to_i64(new_capacity));
+
+                let new_entry = new_entries.at(index);
+                while new_entry.key != nil {
+                    index = (index + 1) % new_capacity;
+                    new_entry = new_entries.at(index);
+                }
+
+                new_entry.key = entry.key;
+                new_entry.value = entry.value;
+            }
+        }
+
+        map.capacity = new_capacity;
+        map.entries = new_entries;
+    }
+
+    let entry = map_find_entry(map, key);
+    if entry.key == nil {
+        entry.key = key?;
+        entry.value = value;
+        map.count = map.count + 1;
+    } else {
+        entry.value = value;
+    }
+}
+
+fun map_find_entry(map: Map, key: string): MapEntry {
+    let hash = hash_string(key, key.length);
+    let index = i64_to_i32(hash % i32_to_i64(map.capacity));
+
+    let entry = map.entries.at(index);
+    while entry.key != nil {
+        if entry.key!.equal(key) {
+            return entry;
+        }
+        index = (index + 1) % map.capacity;
+        entry = map.entries.at(index);
+    }
+
+    return entry;
 }
 
 fun hash_string(key: string, length: i32): i64 {

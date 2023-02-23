@@ -277,6 +277,25 @@ impl IrCodeGenerator {
                             source: None,
                         })
                     }
+                    Mod => {
+                        let arg1 = self.expr(arg1)?;
+                        let arg2 = self.expr(arg2)?;
+
+                        Ok(IrTerm::Call {
+                            callee: Box::new(IrTerm::Ident(
+                                if matches!(type_, Type::I32) {
+                                    "mod"
+                                } else if matches!(type_, Type::I64) {
+                                    "mod_i64"
+                                } else {
+                                    bail!("invalid type for mod: {:?}", type_)
+                                }
+                                .to_string(),
+                            )),
+                            args: vec![arg1, arg2],
+                            source: None,
+                        })
+                    }
                 }
             }
             Expr::Call(callee, args) => match &mut callee.data {
@@ -534,7 +553,7 @@ impl IrCodeGenerator {
                     offset,
                 })
             }
-            Expr::Make(type_, _) => match type_ {
+            Expr::Make(type_, args) => match type_ {
                 Type::Array(_elem, size) => Ok(self.expr(&mut Source::unknown(Expr::Record(
                     Source::unknown(Ident("array".to_string())),
                     vec![
@@ -552,24 +571,32 @@ impl IrCodeGenerator {
                     ],
                     None,
                 )))?),
-                Type::Vec(type_) => Ok(IrTerm::Call {
-                    callee: Box::new(IrTerm::Ident(
-                        Path::new(
-                            vec!["quartz", "std", "vec_make"]
-                                .into_iter()
-                                .map(|s| Ident(s.to_string()))
-                                .collect(),
-                        )
-                        .as_joined_str("_"),
-                    )),
-                    args: vec![
-                        IrTerm::i32(5),
-                        IrTerm::SizeOf {
-                            type_: IrType::from_type(type_)?,
-                        },
-                    ],
-                    source: None,
-                }),
+                Type::Vec(type_) => {
+                    let cap = if args.is_empty() {
+                        IrTerm::i32(5)
+                    } else {
+                        self.expr(&mut args[0])?
+                    };
+
+                    Ok(IrTerm::Call {
+                        callee: Box::new(IrTerm::Ident(
+                            Path::new(
+                                vec!["quartz", "std", "vec_make"]
+                                    .into_iter()
+                                    .map(|s| Ident(s.to_string()))
+                                    .collect(),
+                            )
+                            .as_joined_str("_"),
+                        )),
+                        args: vec![
+                            cap,
+                            IrTerm::SizeOf {
+                                type_: IrType::from_type(type_)?,
+                            },
+                        ],
+                        source: None,
+                    })
+                }
                 Type::Map(_, _) => Ok(IrTerm::Call {
                     callee: Box::new(IrTerm::Ident(
                         Path::new(

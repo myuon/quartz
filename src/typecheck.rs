@@ -34,10 +34,6 @@ impl TypeChecker {
                     Type::Func(vec![Type::I32, Type::I32], Box::new(Type::I32)),
                 ),
                 (
-                    "mod",
-                    Type::Func(vec![Type::I32, Type::I32], Box::new(Type::I32)),
-                ),
-                (
                     "equal",
                     Type::Func(vec![Type::I32, Type::I32], Box::new(Type::Bool)), // FIXME: support bool
                 ),
@@ -100,6 +96,10 @@ impl TypeChecker {
                 (
                     "i32_to_i64",
                     Type::Func(vec![Type::I32], Box::new(Type::I64)),
+                ),
+                (
+                    "i64_to_i32",
+                    Type::Func(vec![Type::I64], Box::new(Type::I32)),
                 ),
                 ("abort", Type::Func(vec![], Box::new(Type::Nil))),
                 (
@@ -440,6 +440,24 @@ impl TypeChecker {
 
                         Ok(arg1_type)
                     }
+                    Mod => {
+                        let mut arg1_type = self.expr(arg1)?;
+                        let mut arg2_type = self.expr(arg2)?;
+
+                        self.unify(&mut arg1_type, &mut arg2_type)
+                            .context(ErrorInSource {
+                                path: Some(self.current_path.clone()),
+                                start: arg1.start.unwrap_or(0),
+                                end: arg1.end.unwrap_or(0),
+                            })?;
+                        if !arg1_type.is_integer_type() {
+                            bail!("Expected integer type, got {:?}", arg1_type)
+                        }
+
+                        *type_ = arg1_type.clone();
+
+                        Ok(arg1_type)
+                    }
                 }
             }
             Expr::Record(ident, record, expansion) => {
@@ -599,7 +617,11 @@ impl TypeChecker {
                 }
             }
             Expr::Make(type_, args) => {
-                assert_eq!(args, &mut vec![]);
+                assert!(args.len() <= 1);
+                if args.len() == 1 {
+                    let mut type_ = self.expr(&mut args[0])?;
+                    self.unify(&mut type_, &mut Type::I32)?;
+                }
 
                 Ok(type_.clone())
             }

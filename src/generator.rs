@@ -648,6 +648,9 @@ impl Generator {
                 "mod" => {
                     self.writer.write("i32.rem_s");
                 }
+                "mod_i64" => {
+                    self.writer.write("i64.rem_s");
+                }
                 "equal" => {
                     self.writer.write("i32.eq");
                 }
@@ -680,6 +683,9 @@ impl Generator {
                 }
                 "i32_to_i64" => {
                     self.writer.write("i64.extend_i32_s");
+                }
+                "i64_to_i32" => {
+                    self.writer.write("i32.wrap_i64");
                 }
                 _ => {
                     self.writer.write(&format!("call ${}", ident.as_str()));
