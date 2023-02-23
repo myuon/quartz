@@ -344,20 +344,18 @@ impl IrCodeGenerator {
                                     index: Box::new(self.expr(&mut args[0])?),
                                 })
                             }
-                            (Type::Vec(p), "at") => {
+                            (Type::Vec(_), "at") => {
                                 assert_eq!(args.len(), 1);
 
-                                Ok(IrTerm::PointerAt {
-                                    type_: IrType::from_type(p)?,
-                                    address: Box::new(self.expr(&mut Source::unknown(
-                                        Expr::Project(
-                                            expr.clone(),
-                                            Type::Vec(p.clone()),
-                                            Path::ident(Ident("data".to_string())),
-                                        ),
-                                    ))?),
-                                    index: Box::new(self.expr(&mut args[0])?),
-                                })
+                                Ok(self.expr(&mut Source::unknown(Expr::Call(
+                                    Box::new(Source::unknown(Expr::path(Path::new(
+                                        vec!["quartz", "std", "vec_at"]
+                                            .into_iter()
+                                            .map(|t| Ident(t.to_string()))
+                                            .collect(),
+                                    )))),
+                                    vec![expr.as_ref().clone(), args[0].clone()],
+                                )))?)
                             }
                             (Type::Vec(_), "push") => {
                                 assert_eq!(args.len(), 1);

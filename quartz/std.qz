@@ -43,6 +43,14 @@ fun vec_push(v: vec[i32], e: i32) {
     v.length = v.length + 1;
 }
 
+fun vec_at(v: vec[i32], n: i32): i32 {
+    if n >= v.length {
+        panic("vec_at: out of range: ".concat(n.to_string()));
+    }
+
+    return v.data.at(n);
+}
+
 fun digit_to_string(digit: i32): string {
     return char_to_string(digit as byte);
 }
