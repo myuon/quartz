@@ -185,6 +185,22 @@ module string {
     fun at(self, n: i32): string {
         return char_to_string(self.data.at(n));
     }
+
+    fun repeat(self, n: i32): string {
+        let new_length = self.length * n;
+        let new_data = alloc(new_length) as ptr[byte];
+
+        for i in 0..n {
+            for j in 0..self.length {
+                new_data.at(i * self.length + j) = self.data.at(j);
+            }
+        }
+
+        return string {
+            data: new_data,
+            length: new_length,
+        };
+    }
 }
 
 fun panic(s: string) {

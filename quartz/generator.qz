@@ -37,7 +37,7 @@ module Generator {
 
     fun new_statement(self) {
         if self.index > 0 {
-            self.writer = self.writer.concat("\n");
+            self.writer = self.writer.concat("\n").concat(" ".repeat(self.depth * 2));
         }
         self.index = 0;
     }
@@ -66,9 +66,7 @@ module Generator {
         self.write("func");
         self.write("$".concat(func.name));
 
-        self.start();
-        self.write("result ".concat(func.result_type.to_string()).concat(""));
-        self.end();
+        self.write("(result ".concat(func.result_type.to_string()).concat(")"));
 
         for i in 0..func.locals.length {
             self.new_statement();

@@ -26,6 +26,9 @@ fun test() {
     if !"hoge".concat(" fuga").equal("hoge fuga") {
         panic("string_concat failed");
     }
+    if !"hoge".repeat(3).equal("hogehogehoge") {
+        panic("string_repeat failed");
+    }
 }
 
 fun main() {
