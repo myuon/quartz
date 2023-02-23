@@ -165,30 +165,29 @@ module Parser {
 
         if token.lexeme.equal("number") {
             return Expression {
-                t: "number",
-                value: token.string_value,
-                left: nil,
-                right: nil,
-                operator: nil,
+                t_number: struct {
+                    value: token.string_value!,
+                }?,
+                ..nil,
             };
         }
         if token.lexeme.equal("ident") {
             let expr = Expression {
-                t: "ident",
-                value: token.string_value,
-                left: nil,
-                right: nil,
-                operator: nil,
+                t_ident: struct {
+                    name: token.string_value!,
+                }?,
+                ..nil,
             };
 
             if self.peek().lexeme.equal("plus") {
                 self.consume();
                 return Expression {
-                    t: "plus",
-                    value: nil,
-                    left: expr?,
-                    right: self.expression()?,
-                    operator: nil,
+                    t_binop: struct {
+                        binop: "plus",
+                        left: expr,
+                        right: self.expression(),
+                    }?,
+                    ..nil,
                 };
             }
 

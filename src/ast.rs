@@ -169,7 +169,7 @@ pub enum Expr {
     Range(Box<Source<Expr>>, Box<Source<Expr>>),
     As(Box<Source<Expr>>, Type),
     Path {
-        path: Path,
+        path: Source<Path>,
         resolved_path: Option<Path>,
     },
     Equal(Box<Source<Expr>>, Box<Source<Expr>>),
@@ -188,7 +188,7 @@ impl Expr {
 
     pub fn path(path: Path) -> Self {
         Expr::Path {
-            path,
+            path: Source::unknown(path),
             resolved_path: None,
         }
     }

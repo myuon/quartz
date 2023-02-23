@@ -412,7 +412,11 @@ impl TypeChecker {
                 path,
                 resolved_path,
             } => {
-                let (r, t) = self.resolve_path(path)?;
+                let (r, t) = self.resolve_path(&mut path.data).context(ErrorInSource {
+                    path: Some(self.current_path.clone()),
+                    start: path.start.unwrap_or(0),
+                    end: path.end.unwrap_or(0),
+                })?;
                 *resolved_path = Some(r);
 
                 Ok(t)
@@ -602,7 +606,11 @@ impl TypeChecker {
                         })?,
                         label.clone(),
                     ]);
-                    let mut path_expr = Source::unknown(Expr::path(path.clone()));
+                    let mut path_expr = Source::new(
+                        Expr::path(path.clone()),
+                        expr.start.unwrap_or(0),
+                        expr.end.unwrap_or(0),
+                    );
                     let type_ = self.expr(&mut path_expr)?;
 
                     match path_expr.data {

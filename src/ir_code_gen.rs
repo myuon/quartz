@@ -238,7 +238,7 @@ impl IrCodeGenerator {
                 path,
                 resolved_path,
             } => {
-                let resolved_path = resolved_path.clone().unwrap_or(path.clone());
+                let resolved_path = resolved_path.clone().unwrap_or(path.data.clone());
 
                 Ok(IrTerm::ident(resolved_path.as_joined_str("_")))
             }

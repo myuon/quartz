@@ -49,11 +49,17 @@ module Statement {
 }
 
 type Expression = {
-    t: string,
-    left: Expression?,
-    right: Expression?,
-    value: string?,
-    operator: string?,
+    t_ident: struct {
+        name: string,
+    }?,
+    t_binop: struct {
+        binop: string,
+        left: Expression,
+        right: Expression,
+    }?,
+    t_number: struct {
+        value: string,
+    }?,
 };
 
 module Expression {

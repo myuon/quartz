@@ -777,8 +777,16 @@ impl Parser {
                         }
                     };
 
+                    let ident_position = self.position;
+
                     let name = self.ident()?;
-                    current = self.source_from(Expr::path(Path::new(vec![ident, name])), position);
+                    current = self.source_from(
+                        Expr::Path {
+                            path: self.source_from(Path::new(vec![ident, name]), ident_position),
+                            resolved_path: None,
+                        },
+                        position,
+                    );
                 }
                 Lexeme::Question => {
                     self.consume()?;
