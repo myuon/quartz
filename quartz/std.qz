@@ -219,14 +219,14 @@ type MapEntry = {
 type Map = {
     count: i32,
     capacity: i32,
-    entries: vec[MapEntry]
+    entries: ptr[MapEntry]
 };
 
 fun map_make() {
     return Map {
         count: 0,
         capacity: 0,
-        entries: make[vec[MapEntry]](),
+        entries: nil as ptr[MapEntry],
     };
 }
 
@@ -246,30 +246,24 @@ fun map_at(map: Map, key: string): any {
 fun map_insert(map: Map, key: string, value: any) {
     if (map.count + 1) * 2 > map.capacity {
         let new_capacity = map.capacity * 2;
-        if map.capacity == 0 {
+        if new_capacity == 0 {
             new_capacity = 8;
         }
-        let new_entries = make[vec[MapEntry]](new_capacity);
 
-        for i in 0..map.capacity {
-            let entry = map.entries.at(i);
-            if entry.key != nil {
-                let hash = hash_string(entry.key!, entry.key!.length);
-                let index = i64_to_i32(hash % i32_to_i64(new_capacity));
+        map.entries = alloc(new_capacity) as ptr[MapEntry];
 
-                let new_entry = new_entries.at(index);
-                while new_entry.key != nil {
-                    index = (index + 1) % new_capacity;
-                    new_entry = new_entries.at(index);
-                }
-
-                new_entry.key = entry.key;
-                new_entry.value = entry.value;
+        for i in 0..new_capacity {
+            if i < map.capacity {
+                map.entries.at(i) = map.entries.at(i);
+            } else {
+                map.entries.at(i) = MapEntry {
+                    key: nil,
+                    value: nil as any,
+                };
             }
         }
 
         map.capacity = new_capacity;
-        map.entries = new_entries;
     }
 
     let entry = map_find_entry(map, key);
