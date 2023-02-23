@@ -42,7 +42,6 @@ fun main(): i32 {
 
     let parser = Parser::new();
     let result = parser.run(lexer.tokens);
-    println(result.to_string());
 
     let typechecker = Typechecker::new();
     typechecker.function(result);

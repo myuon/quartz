@@ -3,18 +3,12 @@ fun println(s: string) {
     let d = s.data;
     let n = 0;
 
-    // >>
-    write_stdout(62 as byte);
-    write_stdout(62 as byte);
-    write_stdout(32 as byte);
-
     while n < l {
         write_stdout(d.at(n));
         n = n + 1;
     }
 
-    // $\newline
-    write_stdout(36 as byte);
+    // \newline
     write_stdout(10 as byte);
 }
 

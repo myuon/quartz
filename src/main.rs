@@ -60,7 +60,9 @@ fn main() -> Result<()> {
         SubCommand::Run { stdin, file } => {
             let wat = compile(&mut compiler, stdin, file)?;
             let result = runtime.run(&wat)?;
-            println!("{:?}", result);
+            if !result.is_empty() {
+                println!("{:?}", result);
+            }
         }
     }
 
