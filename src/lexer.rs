@@ -22,6 +22,7 @@ pub enum Lexeme {
     False,
     Continue,
     Import,
+    Struct,
     LParen,
     RParen,
     LBrace,
@@ -186,6 +187,7 @@ impl Lexer {
                     ("false", Lexeme::False),
                     ("continue", Lexeme::Continue),
                     ("import", Lexeme::Import),
+                    ("struct", Lexeme::Struct),
                 ],
             ) {
                 continue;

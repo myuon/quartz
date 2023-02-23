@@ -116,6 +116,20 @@ impl Type {
             _ => false,
         }
     }
+
+    pub fn as_record_type(&self) -> Result<&Vec<(Ident, Type)>> {
+        match self {
+            Type::Record(fields) => Ok(fields),
+            _ => bail!("expected record type, but found {}", self.to_string()),
+        }
+    }
+
+    pub fn as_ident_type(&self) -> Result<&Ident> {
+        match self {
+            Type::Ident(name) => Ok(name),
+            _ => bail!("expected identifier type, but found {}", self.to_string()),
+        }
+    }
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -148,6 +162,7 @@ pub enum Expr {
         Vec<(Ident, Source<Expr>)>,
         Option<Box<Source<Expr>>>,
     ),
+    AnonymousRecord(Vec<(Ident, Source<Expr>)>, Type),
     Project(Box<Source<Expr>>, Type, Path),
     Make(Type, Vec<Source<Expr>>),
     SizeOf(Type),

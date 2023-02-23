@@ -524,13 +524,59 @@ impl IrCodeGenerator {
 
                 Ok(IrTerm::Seq { elements })
             }
+            Expr::AnonymousRecord(fields, type_) => {
+                let mut elements = vec![];
+                elements.push(IrTerm::Let {
+                    name: "_record".to_string(),
+                    type_: IrType::Address,
+                    value: Box::new(IrTerm::Call {
+                        callee: Box::new(IrTerm::Ident("alloc".to_string())),
+                        args: vec![IrTerm::i32(fields.len() as i32)],
+                        source: None,
+                    }),
+                });
+
+                let mut offset = 0;
+                for (label, type_) in type_.as_record_type().unwrap() {
+                    elements.push(IrTerm::SetField {
+                        address: Box::new(IrTerm::ident("_record".to_string())),
+                        offset,
+                        value: Box::new(
+                            self.expr(
+                                &mut fields
+                                    .iter_mut()
+                                    .find(|(f, _)| f == label)
+                                    .ok_or(anyhow!("Field not found: {:?}", label))?
+                                    .1,
+                            )?,
+                        ),
+                    });
+
+                    offset += IrType::from_type(&type_)?.sizeof();
+                }
+
+                elements.push(IrTerm::ident("_record".to_string()));
+
+                Ok(IrTerm::Seq { elements })
+            }
             Expr::Project(expr, type_, label) => {
-                let record_type = self
-                    .types
-                    .get(&type_.clone().to_ident()?)
-                    .ok_or(anyhow!("Type not found: {:?}", type_))?
-                    .clone()
-                    .to_record()?;
+                let record_type = if let Ok(record) = type_.as_record_type() {
+                    record.clone()
+                } else if let Ok(ident) = type_.clone().to_ident() {
+                    self.types
+                        .get(&ident)
+                        .ok_or(anyhow!("Type not found: {:?}", type_))?
+                        .clone()
+                        .to_record()?
+                } else {
+                    return Err(
+                        anyhow!("invalid project: {:?}", expr).context(ErrorInSource {
+                            path: Some(self.current_path.clone()),
+                            start: expr.start.unwrap_or(0),
+                            end: expr.end.unwrap_or(0),
+                        }),
+                    );
+                };
 
                 let index = record_type
                     .iter()

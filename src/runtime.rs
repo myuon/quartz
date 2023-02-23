@@ -530,6 +530,28 @@ fun main() {
                         .count() as i32,
                 )],
             ),
+            (
+                r#"
+type Nested = {
+    child: struct {
+        x: i32,
+        y: string,
+    }
+};
+
+fun main() {
+    let n = Nested {
+        child: struct {
+            x: 10,
+            y: "hello",
+        },
+    };
+
+    return n.child.y.length;
+}
+"#,
+                vec![Value::I32(5)],
+            ),
         ];
 
         for (input, expected) in cases {

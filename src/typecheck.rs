@@ -513,6 +513,18 @@ impl TypeChecker {
 
                 Ok(Type::Ident(ident.data.clone()))
             }
+            Expr::AnonymousRecord(record, type_) => {
+                let mut record_types = vec![];
+
+                for (field, expr) in record {
+                    let type_ = self.expr(expr)?;
+                    record_types.push((field.clone(), type_));
+                }
+
+                *type_ = Type::Record(record_types);
+
+                Ok(type_.clone())
+            }
             Expr::Project(expr, type_, label_path) => {
                 let mut expr_type = self.expr(expr)?;
                 self.unify(type_, &mut expr_type).context(ErrorInSource {

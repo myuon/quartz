@@ -602,6 +602,28 @@ impl Parser {
                     position,
                 )
             }
+            Lexeme::Struct => {
+                self.consume()?;
+                self.expect(Lexeme::LBrace)?;
+
+                let mut fields = vec![];
+                while self.peek()?.lexeme != Lexeme::RBrace {
+                    let ident = self.ident()?;
+                    self.expect(Lexeme::Colon)?;
+                    let expr = self.expr()?;
+
+                    fields.push((ident, expr));
+
+                    if self.peek()?.lexeme == Lexeme::Comma {
+                        self.consume()?;
+                    } else {
+                        break;
+                    }
+                }
+                self.expect(Lexeme::RBrace)?;
+
+                self.source_from(Expr::AnonymousRecord(fields, Type::Omit(0)), position)
+            }
             _ => {
                 let lit = self.lit()?;
 
@@ -877,6 +899,25 @@ impl Parser {
                 Type::Record(fields)
             }
             Lexeme::Underscore => self.gen_omit()?,
+            Lexeme::Struct => {
+                self.expect(Lexeme::LBrace)?;
+                let mut fields = vec![];
+                while self.peek()?.lexeme != Lexeme::RBrace {
+                    let ident = self.ident()?;
+                    self.expect(Lexeme::Colon)?;
+                    let type_ = self.type_()?;
+                    fields.push((ident, type_));
+
+                    if self.peek()?.lexeme == Lexeme::Comma {
+                        self.consume()?;
+                    } else {
+                        break;
+                    }
+                }
+                self.expect(Lexeme::RBrace)?;
+
+                Type::Record(fields)
+            }
             _ => bail!("Expected type, got {:?}", current.lexeme),
         };
 
