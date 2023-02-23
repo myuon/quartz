@@ -65,40 +65,44 @@ module IrCodeGenerator {
     }
 
     fun expression(self, expr: Expression): IrTerm {
-        if expr.t.equal("number") {
+        if expr.t_number != nil {
             let term = IrTerm {
-                ir_i32: expr.value,
+                ir_i32: expr.t_number!.value?,
                 ..nil,
             };
 
             return term;
         }
-        if expr.t.equal("plus") {
+        if expr.t_binop != nil {
+            if expr.t_binop!.binop.equal("plus") {
+                let term = IrTerm {
+                    ir_call: IrCall {
+                        callee: IrTerm {
+                            ir_ident: "add"?,
+                            ..nil,
+                        },
+                        args: make[vec[IrTerm]](),
+                    }?,
+                    ..nil,
+                };
+
+                term.ir_call!.args.push(self.expression(expr.t_binop!.left));
+                term.ir_call!.args.push(self.expression(expr.t_binop!.right));
+
+                return term;
+            }
+
+            panic("binop exhausted: ".concat(expr.t_binop!.binop));
+        }
+        if expr.t_ident != nil {
             let term = IrTerm {
-                ir_call: IrCall {
-                    callee: IrTerm {
-                        ir_ident: "add"?,
-                        ..nil,
-                    },
-                    args: make[vec[IrTerm]](),
-                }?,
+                ir_ident: expr.t_ident!.name?,
                 ..nil,
             };
 
-            term.ir_call!.args.push(self.expression(expr.left!));
-            term.ir_call!.args.push(self.expression(expr.right!));
-
-            return term;
-        }
-        if expr.t.equal("ident") {
-            let term = IrTerm {
-                ir_ident: expr.value,
-                ..nil,
-            };
-
             return term;
         }
 
-        panic("expression exhausted: ".concat(expr.t));
+        panic("expression exhausted: ");
     }
 }

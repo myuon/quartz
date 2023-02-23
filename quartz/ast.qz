@@ -64,16 +64,16 @@ type Expression = {
 
 module Expression {
     fun to_string(self): string {
-        if self.t.equal("ident") {
-            return self.value!;
+        if self.t_ident != nil {
+            return self.t_ident!.name;
         }
-        if self.t.equal("number") {
-            return self.value!;
+        if self.t_binop != nil {
+            return self.t_binop!.left.to_string().concat(" ").concat(self.t_binop!.binop).concat(" ").concat(self.t_binop!.right.to_string());
         }
-        if self.t.equal("plus") {
-            return (self.left!.to_string()).concat(" + ").concat(self.right!.to_string());
+        if self.t_number != nil {
+            return self.t_number!.value;
         }
 
-        panic("Unknown expression type: ".concat(self.t).concat("@").concat((self.t as i32).to_string()));
+        panic("Unknown expression type");
     }
 }

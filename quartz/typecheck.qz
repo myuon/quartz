@@ -42,34 +42,38 @@ module Typechecker {
     }
 
     fun expression(self, expr: Expression): Type {
-        if expr.t.equal("number") {
+        if expr.t_number != nil {
             return Type {
                 t_i32: true?,
                 ..nil,
             };
         }
-        if expr.t.equal("plus") {
-            let t1 = self.expression(expr.left!);
-            unify(t1, Type {
-                t_i32: true?,
-                ..nil,
-            });
+        if expr.t_binop != nil {
+            if expr.t_binop!.binop.equal("plus") {
+                let t1 = self.expression(expr.t_binop!.left);
+                unify(t1, Type {
+                    t_i32: true?,
+                    ..nil,
+                });
 
-            let t2 = self.expression(expr.right!);
-            unify(t2, Type {
-                t_i32: true?,
-                ..nil,
-            });
+                let t2 = self.expression(expr.t_binop!.right);
+                unify(t2, Type {
+                    t_i32: true?,
+                    ..nil,
+                });
 
-            return t1;
+                return t1;
+            }
+
+            println(expr.t_binop!.binop);
+            panic("unimplemented");
         }
-        if expr.t.equal("ident") {
-            let t = self.locals.at(expr.value!);
+        if expr.t_ident != nil {
+            let t = self.locals.at(expr.t_ident!.name);
 
             return t;
         }
 
-        println(expr.t);
         panic("unimplemented");
     }
 }
