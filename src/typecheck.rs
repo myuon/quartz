@@ -606,6 +606,14 @@ impl TypeChecker {
                             start: expr.start.unwrap_or(0),
                             end: expr.end.unwrap_or(0),
                         })?;
+                    if arg_types.is_empty() {
+                        return Err(anyhow!("method {} has no arguments", label_path.as_str())
+                            .context(ErrorInSource {
+                                path: Some(self.current_path.clone()),
+                                start: expr.start.unwrap_or(0),
+                                end: expr.end.unwrap_or(0),
+                            }));
+                    }
                     self.unify(&mut expr_type, &mut arg_types[0])
                         .context(ErrorInSource {
                             path: Some(self.current_path.clone()),

@@ -34,6 +34,10 @@ module Generator {
         self.write("func");
         self.write("$".concat(func.name));
 
+        self.start();
+        self.write("result ".concat(func.result_type.to_string()).concat(""));
+        self.end();
+
         for i in 0..func.body.length {
             self.expression(func.body.at(i));
         }

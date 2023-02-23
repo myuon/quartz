@@ -17,6 +17,7 @@ module IrCodeGenerator {
             name: func.name,
             params: make[vec[ParamPair]](),
             body: body,
+            result_type: IrType::new(func.result_type),
         };
     }
     

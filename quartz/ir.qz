@@ -65,6 +65,7 @@ type IrFunc = {
     name: string,
     params: vec[ParamPair],
     body: vec[IrTerm],
+    result_type: IrType,
 };
 
 type IrCall = {
@@ -90,3 +91,24 @@ type ParamPair = {
 type IrType = {
     ir_i32: bool?,
 };
+
+module IrType {
+    fun new(t: Type): IrType {
+        if t.t_i32 != nil {
+            return IrType{
+                ir_i32: true?,
+                ..nil,
+            };
+        }
+
+        panic("unknown type");
+    }
+
+    fun to_string(self): string {
+        if self.ir_i32 != nil {
+            return "i32";
+        }
+
+        panic("unknown type");
+    }
+}
