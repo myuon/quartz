@@ -2,11 +2,13 @@ import quartz::ast;
 import quartz::ir;
 
 type IrCodeGenerator = {
+    locals: vec[string],
 };
 
 module IrCodeGenerator {
     fun new(): IrCodeGenerator {
         return IrCodeGenerator {
+            locals: make[vec[string]](),
         };
     }
 
@@ -18,6 +20,7 @@ module IrCodeGenerator {
             params: make[vec[ParamPair]](),
             body: body,
             result_type: IrType::new(func.result_type),
+            locals: self.locals,
         };
     }
     
@@ -43,6 +46,7 @@ module IrCodeGenerator {
                 }?,
                 ..nil,
             };
+            self.locals.push(stm.name!);
 
             return term;
         }

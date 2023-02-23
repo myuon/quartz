@@ -50,6 +50,6 @@ fun main(): i32 {
     let term = irgen.function(result);
 
     let gen = Generator::new();
-    let code = gen.function(term).generate();
+    let code = gen.run(term);
     println(code);
 }

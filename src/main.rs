@@ -40,6 +40,13 @@ enum SubCommand {
 
         file: Option<String>,
     },
+    #[clap(name = "run-wat", about = "Run a wat file")]
+    RunWat {
+        #[clap(long)]
+        stdin: bool,
+
+        file: Option<String>,
+    },
 }
 
 fn read_from_stdin() -> String {
@@ -59,6 +66,23 @@ fn main() -> Result<()> {
         }
         SubCommand::Run { stdin, file } => {
             let wat = compile(&mut compiler, stdin, file)?;
+            let result = runtime.run(&wat)?;
+            if !result.is_empty() {
+                println!("{:?}", result);
+            }
+        }
+        SubCommand::RunWat { stdin, file } => {
+            let wat = if stdin {
+                read_from_stdin()
+            } else {
+                let path = file.ok_or(anyhow::anyhow!("No file specified"))?;
+                let mut file = std::fs::File::open(path)?;
+                let mut buffer = String::new();
+                file.read_to_string(&mut buffer)?;
+
+                buffer
+            };
+
             let result = runtime.run(&wat)?;
             if !result.is_empty() {
                 println!("{:?}", result);

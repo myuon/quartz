@@ -13,6 +13,21 @@ module Generator {
         return self.writer;
     }
 
+    fun run(self, func: IrFunc): string {
+        self.start();
+        self.write("module");
+
+        self.function(func);
+        
+        self.start();
+        self.write("export \"main\" (func $main)");
+        self.end();
+
+        self.end();
+
+        return self.generate();
+    }
+
     fun start(self) {
         self.writer = self.writer.concat("(");
     }
@@ -37,6 +52,13 @@ module Generator {
         self.start();
         self.write("result ".concat(func.result_type.to_string()).concat(""));
         self.end();
+
+        for i in 0..func.locals.length {
+            self.new_statement();
+            self.start();
+            self.write("local $".concat(func.locals.at(i)).concat(" i32"));
+            self.end();
+        }
 
         for i in 0..func.body.length {
             self.expression(func.body.at(i));

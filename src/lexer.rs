@@ -258,7 +258,12 @@ impl Lexer {
                 Some(m) => {
                     self.tokens.push(Token {
                         lexeme: Lexeme::String(
-                            m.get(1).unwrap().as_str().to_string().replace("\\n", "\n"),
+                            m.get(1)
+                                .unwrap()
+                                .as_str()
+                                .to_string()
+                                .replace("\\n", "\n")
+                                .replace("\\\"", "\""),
                         ),
                         position: self.position,
                     });

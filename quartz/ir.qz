@@ -66,6 +66,7 @@ type IrFunc = {
     params: vec[ParamPair],
     body: vec[IrTerm],
     result_type: IrType,
+    locals: vec[string],
 };
 
 type IrCall = {
