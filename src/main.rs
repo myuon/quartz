@@ -87,7 +87,9 @@ fn main() -> Result<()> {
 
             let result = runtime.run(&wat)?;
             if !result.is_empty() {
-                println!("{:?}", result);
+                for r in result.iter() {
+                    println!("{}", r.to_string());
+                }
             }
         }
     }

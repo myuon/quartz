@@ -1,32 +1,52 @@
 use std::io::Write;
 
-#[test]
-fn test_compile_run() {
-    let mut cmd = std::process::Command::new("cargo");
-    cmd.arg("run").arg("--").arg("run").arg("--stdin");
+fn run_command(command: &str, args: &[&str], stdin: &[u8]) -> Option<String> {
+    let mut cmd = std::process::Command::new(command);
+    cmd.args(args);
 
     let mut child = cmd
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .spawn()
         .unwrap();
-    child
-        .stdin
-        .as_mut()
-        .unwrap()
-        .write_all(
-            b"
+    child.stdin.as_mut().unwrap().write_all(stdin).unwrap();
+
+    let output = child.wait_with_output().unwrap();
+    if !output.status.success() {
+        return None;
+    }
+
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    Some(stdout)
+}
+
+#[test]
+fn test_compile_run() {
+    let cases = vec![
+        r#"
 fun main(): i32 {
     let x: i32 = 20;
     return x + 1;
 }
-",
+"#,
+    ];
+
+    for input in cases {
+        let stdout_gen0 =
+            run_command("cargo", &["run", "--", "run", "--stdin"], input.as_bytes()).unwrap();
+
+        let stdout = run_command(
+            "cargo",
+            &["run", "--", "run", "./quartz/main.qz"],
+            input.as_bytes(),
         )
         .unwrap();
-
-    let output = child.wait_with_output().unwrap();
-    assert!(output.status.success());
-
-    let stdout = String::from_utf8(output.stdout).unwrap();
-    assert_eq!(stdout.trim(), "21");
+        let stdout_gen1 = run_command(
+            "cargo",
+            &["run", "--", "run-wat", "--stdin"],
+            stdout.as_bytes(),
+        )
+        .unwrap();
+        assert_eq!(stdout_gen0, stdout_gen1);
+    }
 }
