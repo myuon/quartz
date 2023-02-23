@@ -1,12 +1,45 @@
 type Generator = {
     writer: string,
+    depth: i32,
+    index: i32,
 };
 
 module Generator {
     fun new(): Generator {
         return Generator {
             writer: "",
+            depth: 0,
+            index: 0,
         };
+    }
+
+    fun start(self) {
+        self.new_statement();
+        self.write("(");
+        self.depth = self.depth + 1;
+        self.index = 0;
+    }
+
+    fun end(self) {
+        self.depth = self.depth - 1;
+        self.index = 0;
+        self.write(")");
+    }
+
+    fun write(self, str: string) {
+        if self.index == 0 {
+            self.writer = self.writer.concat(str);
+        } else {
+            self.writer = self.writer.concat(" ").concat(str);
+        }
+        self.index = self.index + 1;
+    }
+
+    fun new_statement(self) {
+        if self.index > 0 {
+            self.writer = self.writer.concat("\n");
+        }
+        self.index = 0;
     }
 
     fun generate(self): string {
@@ -26,22 +59,6 @@ module Generator {
         self.end();
 
         return self.generate();
-    }
-
-    fun start(self) {
-        self.writer = self.writer.concat("(");
-    }
-
-    fun end(self) {
-        self.writer = self.writer.concat(")");
-    }
-
-    fun write(self, str: string) {
-        self.writer = self.writer.concat(" ").concat(str);
-    }
-
-    fun new_statement(self) {
-        self.writer = self.writer.concat("\n");
     }
 
     fun function(self, func: IrFunc): Generator {
