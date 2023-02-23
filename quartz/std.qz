@@ -250,19 +250,20 @@ fun map_insert(map: Map, key: string, value: any) {
             new_capacity = 8;
         }
 
-        map.entries = alloc(new_capacity) as ptr[MapEntry];
+        let entries = alloc(new_capacity) as ptr[MapEntry];
 
         for i in 0..new_capacity {
             if i < map.capacity {
-                map.entries.at(i) = map.entries.at(i);
+                entries.at(i) = map.entries.at(i);
             } else {
-                map.entries.at(i) = MapEntry {
+                entries.at(i) = MapEntry {
                     key: nil,
                     value: nil as any,
                 };
             }
         }
 
+        map.entries = entries;
         map.capacity = new_capacity;
     }
 
