@@ -1,11 +1,14 @@
 import quartz::ast;
 
 type Typechecker = {
+    locals: map[string, Type],
 };
 
 module Typechecker {
     fun new(): Typechecker {
-        return Typechecker {};
+        return Typechecker {
+            locals: make[map[string, Type]](),
+        };
     }
 
     fun function(self, f: Function) {
@@ -14,32 +17,98 @@ module Typechecker {
 
     fun block(self, b: Block, expected: Type) {
         for i in 0..b.block.length {
-            let result = self.statement(b.block.at(i));
-            unify(expected, result);
+            let result = Type {
+                t_omit: true?,
+                ..nil,
+            };
+            self.statement(b.block.at(i), result);
         }
     }
 
-    fun statement(self, s: Statement): Type {
+    fun statement(self, s: Statement, result_type: Type) {
         if s.t.equal("let") {
-            return self.expression(s.expr);
+            let t = self.expression(s.expr);
+
+            self.locals.insert(s.name!, t);
+            return;
+        }
+        if s.t.equal("return") {
+            unify(self.expression(s.expr), result_type);
+            return;
         }
 
+        println(s.t);
         panic("unimplemented");
     }
 
     fun expression(self, expr: Expression): Type {
+        if expr.t.equal("number") {
+            return Type {
+                t_i32: true?,
+                ..nil,
+            };
+        }
+        if expr.t.equal("plus") {
+            let t1 = self.expression(expr.left!);
+            unify(t1, Type {
+                t_i32: true?,
+                ..nil,
+            });
+
+            let t2 = self.expression(expr.right!);
+            unify(t2, Type {
+                t_i32: true?,
+                ..nil,
+            });
+
+            return t1;
+        }
+        if expr.t.equal("ident") {
+            let t = self.locals.at(expr.value!);
+
+            return t;
+        }
+
+        println(expr.t);
         panic("unimplemented");
     }
 }
 
 type Type = {
+    t_omit: bool?, // for unification
+    t_nil: bool?,
     t_i32: bool?,
 };
+
+module Type {
+    fun to_string(self): string {
+        if self.t_omit != nil {
+            return "omit";
+        }
+        if self.t_nil != nil {
+            return "nil";
+        }
+        if self.t_i32 != nil {
+            return "i32";
+        }
+
+        panic("unimplemented");
+    }
+}
 
 fun unify(type1: Type, type2: Type) {
     if type1.t_i32 != nil && type2.t_i32 != nil {
         return;
     }
+    if type1.t_nil != nil && type2.t_nil != nil {
+        return;
+    }
+    if type1.t_omit != nil {
+        return;
+    }
+    if type2.t_omit != nil {
+        return;
+    }
 
-    panic("unification failed");
+    panic("unification failed: ".concat(type1.to_string()).concat(" != ").concat(type2.to_string()));
 }
