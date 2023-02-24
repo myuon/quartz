@@ -13,6 +13,8 @@ fn run_command(command: &str, args: &[&str], stdin: &[u8]) -> Option<String> {
 
     let output = child.wait_with_output().unwrap();
     if !output.status.success() {
+        println!("[stdout] {}", String::from_utf8(output.stdout).unwrap());
+        println!("[stderr] {}", String::from_utf8(output.stderr).unwrap());
         return None;
     }
 
@@ -26,6 +28,12 @@ fn test_compile_run() {
         r#"
 fun main(): i32 {
     let x: i32 = 20;
+    return x + 1;
+}
+"#,
+        r#"
+fun main() {
+    let x = 10;
     return x + 1;
 }
 "#,
@@ -47,6 +55,6 @@ fun main(): i32 {
             stdout.as_bytes(),
         )
         .unwrap();
-        assert_eq!(stdout_gen0, stdout_gen1);
+        assert_eq!(stdout_gen0, stdout_gen1, "[INPUT]\n{}\n", input);
     }
 }

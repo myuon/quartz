@@ -35,8 +35,14 @@ module Parser {
         self.expect("lparen");
         self.expect("rparen");
 
-        self.expect("colon");
-        let result_type = self.type_();
+        let result_type = Type {
+            t_omit: true?,
+            ..nil,
+        };
+        if self.peek().lexeme.equal("colon") {
+            self.consume();
+            result_type = self.type_();
+        }
 
         self.expect("lbrace");
         let body = self.block();
