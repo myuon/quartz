@@ -37,7 +37,7 @@ module Typechecker {
             return;
         }
 
-        panic("unimplemented");
+        panic("unimplemented: statement");
     }
 
     fun expression(self, expr: Expression): Type {
@@ -65,7 +65,7 @@ module Typechecker {
             }
 
             println(expr.t_binop!.binop);
-            panic("unimplemented");
+            panic("unimplemented: binop");
         }
         if expr.t_ident != nil {
             let t = self.locals.at(expr.t_ident!.name);
@@ -73,7 +73,7 @@ module Typechecker {
             return t;
         }
 
-        panic("unimplemented");
+        panic("unimplemented: expression");
     }
 }
 
@@ -95,7 +95,7 @@ module Type {
             return "i32";
         }
 
-        panic("unimplemented");
+        panic("unimplemented: type.to_string");
     }
 }
 

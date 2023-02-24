@@ -35,7 +35,7 @@ module Block {
 type Statement = {
     t_let: struct {
         name: string,
-        name_type: string,
+        name_type: Type,
         expr: Expression,
     }?,
     t_return: struct {
@@ -46,7 +46,7 @@ type Statement = {
 module Statement {
     fun to_string(self): string {
         if self.t_let != nil {
-            return "let ".concat(self.t_let!.name).concat(": ").concat(self.t_let!.name_type).concat(" = ").concat(self.t_let!.expr.to_string()).concat(";\n");
+            return "let ".concat(self.t_let!.name).concat(": ").concat(self.t_let!.name_type.to_string()).concat(" = ").concat(self.t_let!.expr.to_string()).concat(";\n");
         }
         if self.t_return != nil {
             return "return ".concat(self.t_return!.expr.to_string()).concat(";\n");

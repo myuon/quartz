@@ -168,8 +168,16 @@ module Parser {
     fun let_statement(self): Statement {
         self.consume();
         let name = self.ident();
-        self.expect("colon");
-        let t = self.ident();
+
+        let t = Type {
+            t_omit: true?,
+            ..nil,
+        };
+        if self.peek().lexeme.equal("colon") {
+            self.expect("colon");
+            t = self.type_();
+        }
+
         self.expect("equal");
         let value = self.expression();
         self.expect("semicolon");
