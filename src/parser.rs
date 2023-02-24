@@ -254,7 +254,7 @@ impl Parser {
                 match self.peek()?.lexeme {
                     Lexeme::Semicolon => {
                         self.consume()?;
-                        Ok(Statement::Expr(expr))
+                        Ok(Statement::Expr(expr, Type::Omit(0)))
                     }
                     Lexeme::Equal => {
                         self.consume()?;

@@ -198,7 +198,7 @@ impl Expr {
 pub enum Statement {
     Let(Ident, Type, Source<Expr>),
     Return(Source<Expr>),
-    Expr(Source<Expr>),
+    Expr(Source<Expr>, Type),
     Assign(Box<Source<Expr>>, Box<Source<Expr>>),
     If(
         Source<Expr>,

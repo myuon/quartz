@@ -287,8 +287,9 @@ impl TypeChecker {
                 Ok(None)
             }
             Statement::Return(expr) => Ok(Some(self.expr(expr)?)),
-            Statement::Expr(expr) => {
-                self.expr(expr)?;
+            Statement::Expr(expr, type_) => {
+                *type_ = self.expr(expr)?;
+
                 Ok(None)
             }
             Statement::Assign(lhs, rhs) => {

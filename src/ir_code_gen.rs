@@ -118,7 +118,17 @@ impl IrCodeGenerator {
             Statement::Return(expr) => Ok(IrTerm::Return {
                 value: Box::new(self.expr(expr)?),
             }),
-            Statement::Expr(expr) => Ok(self.expr(expr)?),
+            Statement::Expr(expr, type_) => {
+                let expr = self.expr(expr)?;
+
+                Ok(if type_.is_nil() {
+                    expr
+                } else {
+                    IrTerm::Discard {
+                        element: Box::new(expr),
+                    }
+                })
+            }
             Statement::Assign(lhs, rhs) => self.assign(lhs, rhs),
             Statement::If(cond, type_, then_block, else_block) => {
                 let mut then_elements = vec![];
@@ -370,6 +380,7 @@ impl IrCodeGenerator {
                                         )))),
                                         vec![expr.as_ref().clone(), args[0].clone()],
                                     )),
+                                    Type::Nil,
                                 )))?)
                             }
                             (Type::Map(_, _), "insert") => {
@@ -389,6 +400,7 @@ impl IrCodeGenerator {
                                             args[1].clone(),
                                         ],
                                     )),
+                                    Type::Nil,
                                 )))?)
                             }
                             (Type::Map(_, _), "at") => {

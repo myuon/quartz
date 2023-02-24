@@ -84,6 +84,9 @@ pub enum IrTerm {
         elements: Vec<IrTerm>,
     },
     Continue,
+    Discard {
+        element: Box<IrTerm>,
+    },
 }
 
 impl IrTerm {
@@ -297,6 +300,12 @@ impl IrTerm {
                 offset.to_string_writer(writer);
                 writer.end();
             }
+            IrTerm::Discard { element } => {
+                writer.start();
+                writer.write("discard");
+                element.to_string_writer(writer);
+                writer.end();
+            }
         }
     }
 
@@ -408,6 +417,11 @@ impl IrTerm {
                 let mut result = vec![];
                 result.extend(address.find_let());
                 result.extend(offset.find_let());
+                result
+            }
+            IrTerm::Discard { element } => {
+                let mut result = vec![];
+                result.extend(element.find_let());
                 result
             }
         }
