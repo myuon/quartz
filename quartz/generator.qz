@@ -66,6 +66,11 @@ module Generator {
         self.write("func");
         self.write("$".concat(func.name));
 
+        for i in 0..func.params.length {
+            let p = func.params.at(i);
+            self.write("(param $".concat(p.name).concat(" ").concat(p.type_.to_string()).concat(")"));
+        }
+
         self.write("(result ".concat(func.result_type.to_string()).concat(")"));
 
         for i in 0..func.locals.length {
