@@ -121,6 +121,15 @@ impl IrCodeGenerator {
             Statement::Expr(expr, type_) => {
                 let expr = self.expr(expr)?;
 
+                if type_.is_omit() {
+                    return Err(anyhow!("omit type ({}) is not allowed", type_.to_string())
+                        .context(ErrorInSource {
+                            path: Some(self.current_path.clone()),
+                            start: statement.start.unwrap_or(0),
+                            end: statement.end.unwrap_or(0),
+                        }));
+                }
+
                 Ok(if type_.is_nil() {
                     expr
                 } else {
