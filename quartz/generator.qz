@@ -46,12 +46,25 @@ module Generator {
         return self.writer;
     }
 
-    fun run(self, func: IrFunc): string {
+    fun run(self, m: IrTerm): string {
         self.start();
         self.write("module");
 
-        self.function(func);
-        
+        if m.ir_module != nil {
+            for i in 0..m.ir_module!.elements.length {
+                let element = m.ir_module!.elements.at(i);
+
+                if element.ir_func != nil {
+                    self.function(element.ir_func!);
+                    continue;
+                }
+
+                panic("expected function");
+            }
+        } else {
+            panic("expected module");
+        }
+
         self.start();
         self.write("export \"main\" (func $main)");
         self.end();

@@ -6,6 +6,9 @@ type IrTerm = {
     ir_call: IrCall?,
     ir_let: IrLet?,
     ir_return: IrReturn?,
+    ir_module: struct {
+        elements: vec[IrTerm],
+    }?,
 };
 
 module IrTerm {

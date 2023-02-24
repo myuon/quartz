@@ -1,5 +1,13 @@
 import quartz::ast;
 
+type Module = {
+    decls: vec[Decl],
+};
+
+type Decl = {
+    t_func: Function?,
+};
+
 type Function = {
     name: string,
     result_type: Type,

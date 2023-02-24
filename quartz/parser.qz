@@ -16,17 +16,30 @@ module Parser {
         };
     }
 
-    fun run(self, input: vec[Token]): Function {
+    fun run(self, input: vec[Token]): Module {
         self.input = input;
         return self.module_();
     }
 
-    fun module_(self): Function {
-        return self.decl();
+    fun module_(self): Module {
+        let decls = make[vec[Decl]]();
+
+        while !self.is_end() && !self.peek().lexeme.equal("rbrace") {
+            decls.push(self.decl());
+        }
+
+        return Module {
+            decls: decls,
+        };
     }
 
-    fun decl(self): Function {
-        return self.function();
+    fun decl(self): Decl {
+        let func = self.function();
+
+        return Decl {
+            t_func: func?,
+            ..nil,
+        };
     }
 
     fun function(self): Function {

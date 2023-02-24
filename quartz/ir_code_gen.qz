@@ -12,6 +12,31 @@ module IrCodeGenerator {
         };
     }
 
+    fun module_(self, m: Module): IrTerm {
+        let elements = make[vec[IrTerm]]();
+
+        for i in 0..m.decls.length {
+            let f = m.decls.at(i);
+
+            if f.t_func != nil {
+                elements.push(IrTerm {
+                    ir_func: self.function(f.t_func!)?,
+                    ..nil,
+                });
+                continue;
+            }
+
+            panic("module_ exhausted");
+        }
+
+        return IrTerm {
+            ir_module: struct {
+                elements: elements,
+            }?,
+            ..nil
+        };
+    }
+
     fun function(self, func: Function): IrFunc {
         let body = self.block(func.body);
 

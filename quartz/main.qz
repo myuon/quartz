@@ -53,10 +53,10 @@ fun run(input: string): string {
     let result = parser.run(lexer.tokens);
 
     let typechecker = Typechecker::new();
-    typechecker.function(result);
+    typechecker.module_(result);
 
     let irgen = IrCodeGenerator::new();
-    let term = irgen.function(result);
+    let term = irgen.module_(result);
 
     let gen = Generator::new();
     let code = gen.run(term);

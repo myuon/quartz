@@ -11,6 +11,19 @@ module Typechecker {
         };
     }
 
+    fun module_(self, m: Module) {
+        for i in 0..m.decls.length {
+            let f = m.decls.at(i);
+
+            if f.t_func != nil {
+                self.function(f.t_func!);
+                continue;
+            }
+
+            panic("unimplemented: decl");
+        }
+    }
+
     fun function(self, f: Function) {
         let locals = self.locals;
 
