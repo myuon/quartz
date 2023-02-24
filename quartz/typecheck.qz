@@ -12,7 +12,16 @@ module Typechecker {
     }
 
     fun function(self, f: Function) {
+        let locals = self.locals;
+
+        for i in 0..f.params.length {
+            let p = f.params.at(i);
+            self.locals.insert(p.name, p.type_);
+        }
+
         self.block(f.body, f.result_type);
+
+        self.locals = locals;
     }
 
     fun block(self, b: Block, expected: Type) {
@@ -33,7 +42,8 @@ module Typechecker {
             return;
         }
         if s.t_return != nil {
-            unify(self.expression(s.t_return!.expr), result_type);
+            let t = self.expression(s.t_return!.expr);
+            unify(t, result_type);
             return;
         }
 
