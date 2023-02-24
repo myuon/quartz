@@ -63,7 +63,10 @@ module IrTerm {
 
 type IrFunc = {
     name: string,
-    params: vec[ParamPair],
+    params: vec[struct {
+        name: string,
+        type_: IrType,
+    }],
     body: vec[IrTerm],
     result_type: IrType,
     locals: vec[string],
@@ -82,11 +85,6 @@ type IrLet = {
 
 type IrReturn = {
     value: IrTerm,
-};
-
-type ParamPair = {
-    name: string,
-    type_: IrType,
 };
 
 type IrType = {

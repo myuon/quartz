@@ -33,6 +33,7 @@ module Parser {
         self.expect("fun");
         let name = self.ident();
         self.expect("lparen");
+        let params = self.parameters();
         self.expect("rparen");
 
         let result_type = Type {
@@ -52,7 +53,35 @@ module Parser {
             name: name,
             result_type: result_type,
             body: body,
+            params: params,
         };
+    }
+
+    fun parameters(self): vec[struct {
+        name: string,
+        type_: Type,
+    }] {
+        let params = make[vec[struct {
+            name: string,
+            type_: Type,
+        }]]();
+
+        while !self.is_end() && !self.peek().lexeme.equal("rparen") {
+            let name = self.ident();
+            self.expect("colon");
+            let t = self.type_();
+
+            params.push(struct {
+                name: name,
+                type_: t,
+            });
+
+            if self.peek().lexeme.equal("comma") {
+                self.consume();
+            }
+        }
+
+        return params;
     }
 
     fun type_(self): Type {

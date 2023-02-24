@@ -4,11 +4,15 @@ type Function = {
     name: string,
     result_type: Type,
     body: Block,
+    params: vec[struct {
+        name: string,
+        type_: Type,
+    }],
 };
 
 module Function {
     fun to_string(self): string {
-        return "fun ".concat(self.name).concat("() {\n").concat(self.body.to_string()).concat("}\n");
+        return "fun ".concat(self.name).concat("(??) {\n").concat(self.body.to_string()).concat("}\n");
     }
 }
 

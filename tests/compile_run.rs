@@ -31,6 +31,17 @@ fun main(): i32 {
     return x + 1;
 }
 "#,
+        r#"
+fun calc(b: i32): i32 {
+    let a = 1;
+    let z = 10;
+    return z + a + b;
+}
+
+fun main(): i32 {
+    return calc(2);
+}
+"#,
     ];
 
     for input in cases {

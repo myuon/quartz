@@ -15,9 +15,22 @@ module IrCodeGenerator {
     fun function(self, func: Function): IrFunc {
         let body = self.block(func.body);
 
+        let params = make[vec[struct {
+            name: string,
+            type_: IrType,
+        }]]();
+        for i in 0..func.params.length {
+            let p = func.params.at(i);
+
+            params.push(struct {
+                name: p.name,
+                type_: IrType::new(p.type_),
+            });
+        }
+
         return IrFunc {
             name: func.name,
-            params: make[vec[ParamPair]](),
+            params: params,
             body: body,
             result_type: IrType::new(func.result_type),
             locals: self.locals,
