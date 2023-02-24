@@ -9,7 +9,7 @@ type IrTerm = {
 };
 
 module IrTerm {
-    fun to_string(self) {
+    fun to_string(self): string {
         if self.ir_nil != nil {
             return "nil";
         } else {

@@ -98,22 +98,13 @@ fun main(): i32 {
             ),
             (
                 r#"
-fun main() {
-    let x = 10;
-    return x + 1;
-}
-"#,
-                vec![Value::I32(11)],
-            ),
-            (
-                r#"
 fun calc(b: i32): i32 {
     let a = 1;
     let z = 10;
     return z + a + b;
 }
 
-fun main() {
+fun main(): i32 {
     return calc(2);
 }
 "#,
@@ -127,7 +118,7 @@ fun f() {
     a = a + 10;
 }
 
-fun main() {
+fun main(): i32 {
     f();
     return a;
 }
@@ -146,7 +137,7 @@ fun factorial(n: i32): i32 {
     return 0;
 }
 
-fun main() {
+fun main(): i32 {
     return factorial(5);
 }
 "#,
@@ -154,7 +145,7 @@ fun main() {
             ),
             (
                 r#"
-fun main() {
+fun main(): i32 {
     let x = 10;
     let n = 0;
     while n < 10 {
@@ -174,7 +165,7 @@ type Point = {
     y: i32,
 };
 
-fun main() {
+fun main(): i32 {
     let p = Point { x: 10, y: 20 };
 
     return p.y;
@@ -190,7 +181,7 @@ type Point = {
     z: i32,
 };
 
-fun main() {
+fun main(): i32 {
     let p = Point { x: 10, y: 20, z: 0 };
     p.z = p.x + p.y;
 
@@ -201,7 +192,7 @@ fun main() {
             ),
             (
                 r#"
-fun main() {
+fun main(): i32 {
     let p = make[array[i32,20]]();
     p.at(0) = 10;
     p.at(1) = 20;
@@ -214,7 +205,7 @@ fun main() {
             ),
             (
                 r#"
-fun main() {
+fun main(): i32 {
     let a = alloc(10);
     let b = alloc(5);
     let c = alloc(5);
@@ -226,7 +217,7 @@ fun main() {
             ),
             (
                 r#"
-fun main() {
+fun main(): i32 {
     let str = "Hello, World!";
     println(str);
 
@@ -253,7 +244,7 @@ fun f(b: i32): i32 {
     return g(b) + a;
 }
 
-fun main() {
+fun main(): i32 {
     let a = 5;
     return f(a);
 }
@@ -271,7 +262,7 @@ fun get_x(p: Point): i32 {
     return p.x;
 }
 
-fun main() {
+fun main(): i32 {
     return get_x(Point {
         x: 10,
         y: 20,
@@ -294,7 +285,7 @@ fun point(x: i32, y: i32): Point {
     };
 }
 
-fun main() {
+fun main(): i32 {
     return point(10, 20).y;
 }
 "#,
@@ -302,7 +293,7 @@ fun main() {
             ),
             (
                 r#"
-fun main() {
+fun main(): i32 {
     let p = make[array[i32,20]]();
     for i in 0..10 {
         p.at(i) = i;
@@ -320,7 +311,7 @@ fun main() {
             ),
             (
                 r#"
-fun main() {
+fun main(): i32 {
     let p = make[vec[i32]]();
     for i in 0..100 {
         p.push(i);
@@ -355,7 +346,7 @@ module Point {
     }
 }
 
-fun main() {
+fun main(): i32 {
     let p = Point::new(10, 20);
 
     return p.sum();
@@ -369,7 +360,7 @@ type Container = {
     x: i32?,
 };
 
-fun main() {
+fun main(): bool {
     let c = Container {
         x: 0?,
     };
@@ -394,7 +385,7 @@ module Point {
     }
 }
 
-fun main() {
+fun main(): bool {
     let p = Point {
         x: nil,
         y: 10?,
@@ -430,7 +421,7 @@ fun int_to_string(n: i32): string {
     };
 }
 
-fun main() {
+fun main(): i32 {
     let str = int_to_string(123456);
 
     return str.data.at(5) as i32 - 48;
@@ -458,7 +449,7 @@ fun main(): i32 {
             ),
             (
                 r#"
-fun main() {
+fun main(): i32 {
     if "hello".equal("hello") {
         return 0;
     } else {
@@ -470,7 +461,7 @@ fun main() {
             ),
             (
                 r#"
-fun main() {
+fun main(): bool {
     let t = "hello".concat("world");
     println(t);
 
@@ -485,7 +476,7 @@ fun hoge(): string? {
     return "hoge"?;
 }
 
-fun main() {
+fun main(): bool {
     let t = hoge();
 
     return t != nil;
@@ -503,7 +494,7 @@ fun modify_p(p: P) {
     p.x = 10;
 }
 
-fun main() {
+fun main(): i32 {
     let p = P {
         x: 0,
     };
@@ -516,7 +507,7 @@ fun main() {
             ),
             (
                 r#"
-fun main() {
+fun main(): i32 {
     let paragraph = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
     let count = make[map[string, i32]]();
 
@@ -544,7 +535,7 @@ type Nested = {
     }
 };
 
-fun main() {
+fun main(): i32 {
     let n = Nested {
         child: struct {
             x: 10,

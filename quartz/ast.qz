@@ -7,7 +7,7 @@ type Function = {
 };
 
 module Function {
-    fun to_string(self) {
+    fun to_string(self): string {
         return "fun ".concat(self.name).concat("() {\n").concat(self.body.to_string()).concat("}\n");
     }
 }
@@ -17,7 +17,7 @@ type Block = {
 };
 
 module Block {
-    fun to_string(self) {
+    fun to_string(self): string {
         let result = "";
 
         for i in 0..self.block.length {
@@ -40,7 +40,7 @@ type Statement = {
 };
 
 module Statement {
-    fun to_string(self) {
+    fun to_string(self): string {
         if self.t_let != nil {
             return "let ".concat(self.t_let!.name).concat(": ").concat(self.t_let!.name_type).concat(" = ").concat(self.t_let!.expr.to_string()).concat(";\n");
         }

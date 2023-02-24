@@ -99,7 +99,7 @@ impl Parser {
         let params = self.params()?;
         self.expect(Lexeme::RParen)?;
 
-        let mut result = self.gen_omit()?;
+        let mut result = Type::Nil;
         if self.peek()?.lexeme == Lexeme::Colon {
             self.consume()?;
             result = self.type_()?;

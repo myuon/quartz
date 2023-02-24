@@ -29,7 +29,7 @@ module Parser {
         return self.function();
     }
 
-    fun function(self) {
+    fun function(self): Function {
         self.expect("fun");
         let name = self.ident();
         self.expect("lparen");
@@ -95,7 +95,7 @@ module Parser {
         }
     }
 
-    fun expect(self, lexeme: string) {
+    fun expect(self, lexeme: string): Token {
         let token = self.consume();
         if token.lexeme.equal(lexeme) {
             return token;
@@ -123,7 +123,7 @@ module Parser {
         };
     }
 
-    fun statement(self) {
+    fun statement(self): Statement {
         let token = self.peek();
         if token.lexeme.equal("let") {
             return self.let_statement();

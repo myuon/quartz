@@ -232,7 +232,7 @@ type Map = {
     entries: ptr[MapEntry]
 };
 
-fun map_make() {
+fun map_make(): Map {
     return Map {
         count: 0,
         capacity: 0,

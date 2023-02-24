@@ -31,12 +31,6 @@ fun main(): i32 {
     return x + 1;
 }
 "#,
-        r#"
-fun main() {
-    let x = 10;
-    return x + 1;
-}
-"#,
     ];
 
     for input in cases {
