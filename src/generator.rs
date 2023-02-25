@@ -552,7 +552,6 @@ impl Generator {
                             type_: type_.clone(),
                         },
                     ],
-                    variadic_args: None,
                     source: None,
                 })?;
 
@@ -684,7 +683,6 @@ impl Generator {
                             type_: type_.clone(),
                         },
                     ],
-                    variadic_args: None,
                     source: None,
                 })?;
 

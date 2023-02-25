@@ -23,7 +23,6 @@ pub enum IrTerm {
     Call {
         callee: Box<IrTerm>,
         args: Vec<IrTerm>,
-        variadic_args: Option<Vec<IrTerm>>,
         source: Option<SourcePosition>,
     },
     Seq {

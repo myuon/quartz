@@ -175,6 +175,7 @@ pub enum BinOp {
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct VariadicCall {
+    pub element_type: Type,
     pub index: usize,
 }
 

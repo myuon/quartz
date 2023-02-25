@@ -504,6 +504,7 @@ impl TypeChecker {
 
                         *variadic_info = Some(VariadicCall {
                             index: arg_types.len(),
+                            element_type: variadic_element,
                         });
 
                         Ok(result_type.as_ref().clone())
