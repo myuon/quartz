@@ -51,12 +51,15 @@ fun run(input: string): string {
 
     let parser = Parser::new();
     let result = parser.run(lexer.tokens);
+    // println(result.to_string());
 
     let typechecker = Typechecker::new();
     typechecker.module_(result);
+    // println("typecheck");
 
     let irgen = IrCodeGenerator::new();
     let term = irgen.module_(result);
+    // println("irgen");
 
     let gen = Generator::new();
     let code = gen.run(term);

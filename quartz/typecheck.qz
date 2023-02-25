@@ -2,12 +2,14 @@ import quartz::ast;
 
 type Typechecker = {
     locals: map[string, Type],
+    globals: map[string, Type],
 };
 
 module Typechecker {
     fun new(): Typechecker {
         return Typechecker {
             locals: make[map[string, Type]](),
+            globals: make[map[string, Type]](),
         };
     }
 
@@ -17,6 +19,21 @@ module Typechecker {
 
             if f.t_func != nil {
                 self.function(f.t_func!);
+
+                let params_type = make[vec[Type]]();
+                for i in 0..f.t_func!.params.length {
+                    let p = f.t_func!.params.at(i);
+                    params_type.push(p.type_);
+                }
+
+                self.globals.insert(f.t_func!.name, Type {
+                    t_func: struct {
+                        params: params_type,
+                        result: f.t_func!.result_type,
+                    }?,
+                    ..nil,
+                });
+
                 continue;
             }
 
@@ -26,6 +43,7 @@ module Typechecker {
 
     fun function(self, f: Function) {
         let locals = self.locals;
+        self.locals = make[map[string, Type]]();
 
         for i in 0..f.params.length {
             let p = f.params.at(i);

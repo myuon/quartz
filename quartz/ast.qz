@@ -4,9 +4,31 @@ type Module = {
     decls: vec[Decl],
 };
 
+module Module {
+    fun to_string(self): string {
+        let result = "Module{";
+
+        for i in 0..self.decls.length {
+            result = result.concat(self.decls.at(i).to_string()).concat("\n");
+        }
+
+        return result.concat("}");
+    }
+}
+
 type Decl = {
     t_func: Function?,
 };
+
+module Decl {
+    fun to_string(self): string {
+        if self.t_func != nil {
+            return self.t_func!.to_string();
+        }
+
+        panic("Unknown decl type");
+    }
+}
 
 type Function = {
     name: string,

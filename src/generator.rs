@@ -221,6 +221,9 @@ impl Generator {
     i32.const {}
     global.set ${}
 
+    (memory.grow (i32.const 1))
+    drop
+
     call $prepare_strings
     call ${}
 )

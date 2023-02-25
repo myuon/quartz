@@ -38,6 +38,7 @@ module IrCodeGenerator {
     }
 
     fun function(self, func: Function): IrFunc {
+        self.locals = make[vec[string]]();
         let body = self.block(func.body);
 
         let params = make[vec[struct {
@@ -137,6 +138,21 @@ module IrCodeGenerator {
                 ir_ident: expr.t_ident!.name?,
                 ..nil,
             };
+
+            return term;
+        }
+        if expr.t_call != nil {
+            let term = IrTerm {
+                ir_call: IrCall {
+                    callee: self.expression(expr.t_call!.callee),
+                    args: make[vec[IrTerm]](),
+                }?,
+                ..nil,
+            };
+
+            for i in 0..expr.t_call!.args.length {
+                term.ir_call!.args.push(self.expression(expr.t_call!.args.at(i)));
+            }
 
             return term;
         }

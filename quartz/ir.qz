@@ -15,51 +15,60 @@ module IrTerm {
     fun to_string(self): string {
         if self.ir_nil != nil {
             return "nil";
-        } else {
-            if self.ir_i32 != nil {
-                return self.ir_i32!;
-            } else {
-                if self.ir_ident != nil {
-                    return self.ir_ident!;
-                } else {
-                    if self.ir_func != nil {
-                        let t = "func\n";
-
-                        for i in 0..self.ir_func!.body.length {
-                            t = t.concat(self.ir_func!.body.at(i).to_string()).concat(" ");
-                        }
-
-                        return t;
-                    } else {
-                        if self.ir_call != nil {
-                            let t = "call ".concat(self.ir_call!.callee.to_string()).concat(" ");
-                            for i in 0..2 {
-                                t = t.concat(self.ir_call!.args.at(i).to_string()).concat(" ");
-                            }
-
-                            return t;
-                        } else {
-                            if self.ir_let != nil {
-                                let t = "let ";
-
-                                t = t.concat(self.ir_let!.name).concat(" ");
-                                t = t.concat(self.ir_let!.value.to_string()).concat(" \n");
-
-                                return t;
-                            } else {
-                                if self.ir_return != nil {
-                                    let t = "return ";
-                                    t = t.concat(self.ir_return!.value.to_string()).concat(" \n");
-
-                                    return t;
-                                } else {
-                                    return "unknown";
-                                }
-                            }
-                        }
-                    }
+        }
+        if self.ir_i32 != nil {
+            return self.ir_i32!;
+        }
+        if self.ir_ident != nil {
+            return self.ir_ident!;
+        }
+        if self.ir_func != nil {
+            let result = "func ".concat(self.ir_func!.name).concat(" (");
+            for i in 0..self.ir_func!.params.length {
+                let p = self.ir_func!.params.at(i);
+                result = result.concat(p.name).concat(": ").concat(p.type_.to_string());
+                if i != self.ir_func!.params.length - 1 {
+                    result = result.concat(", ");
                 }
             }
+            result = result.concat(") -> ").concat(self.ir_func!.result_type.to_string()).concat(" {");
+            for i in 0..self.ir_func!.body.length {
+                let p = self.ir_func!.body.at(i);
+                result = result.concat(" ").concat(p.to_string());
+            }
+            result = result.concat(" }");
+
+            return result;
+        }
+        if self.ir_call != nil {
+            let result = "".concat(self.ir_call!.callee.to_string()).concat("(");
+            for i in 0..self.ir_call!.args.length {
+                let p = self.ir_call!.args.at(i);
+                result = result.concat(p.to_string());
+                if i != self.ir_call!.args.length - 1 {
+                    result = result.concat(", ");
+                }
+            }
+            result = result.concat(")");
+
+            return result;
+        }
+        if self.ir_let != nil {
+            return "let";
+        }
+        if self.ir_return != nil {
+            let result = "return ".concat(self.ir_return!.value.to_string());
+
+            return result;
+        }
+        if self.ir_module != nil {
+            let result = "module";
+            for i in 0..self.ir_module!.elements.length {
+                let p = self.ir_module!.elements.at(i);
+                result = result.concat(" ").concat(p.to_string());
+            }
+
+            return result;
         }
     }
 }
