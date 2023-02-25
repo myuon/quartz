@@ -47,6 +47,13 @@ enum SubCommand {
 
         file: Option<String>,
     },
+    #[clap(name = "check", about = "Check a file")]
+    Check {
+        #[clap(long)]
+        project: Option<String>,
+
+        file: Option<String>,
+    },
 }
 
 fn read_from_stdin() -> String {
@@ -90,6 +97,20 @@ fn main() -> Result<()> {
                 for r in result.iter() {
                     println!("{}", r.to_string());
                 }
+            }
+        }
+        SubCommand::Check { project, file } => {
+            let path = file.ok_or(anyhow::anyhow!("No file specified"))?;
+            let mut file = std::fs::File::open(path)?;
+            let mut buffer = String::new();
+            file.read_to_string(&mut buffer)?;
+
+            let result = compiler.compile_collect_errors(
+                &project.unwrap_or(std::env::current_dir()?.to_str().unwrap().to_string()),
+                &buffer,
+            );
+            if let Err(errors) = result {
+                println!("{}", serde_json::to_string_pretty(&errors)?);
             }
         }
     }

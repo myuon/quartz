@@ -1,6 +1,7 @@
 use std::{collections::HashSet, io::Read};
 
 use anyhow::{Context, Result};
+use serde::Serialize;
 use thiserror::{Error, __private::PathAsDisplay};
 
 use crate::{
@@ -26,6 +27,14 @@ pub struct ErrorInSource {
     pub path: Option<Path>,
     pub start: usize,
     pub end: usize,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ElaboratedError {
+    pub source_path: Option<Vec<String>>,
+    pub start: (usize, usize),
+    pub end: (usize, usize),
+    pub message: String,
 }
 
 #[derive(Debug, Clone)]
@@ -239,6 +248,49 @@ impl Compiler {
                 ))
             } else {
                 error
+            }
+        })
+    }
+
+    pub fn compile_collect_errors(
+        &mut self,
+        cwd: &str,
+        input: &str,
+    ) -> Result<String, Vec<ElaboratedError>> {
+        let input = input.to_string();
+
+        self.compile_(cwd, &input).map_err(|error| {
+            if let Some(source) = error.downcast_ref::<ErrorInSource>() {
+                let input = if let Some(path) = &source.path {
+                    let Some(loaded) = self.loader.matches(path) else {
+                        return vec![]
+                    };
+
+                    loaded.source.clone()
+                } else {
+                    input
+                };
+
+                let start = source.start;
+                let end = source.end;
+                let source_path = source.path.clone();
+
+                let (start_line_number, start_column_index) = find_position(&input, start);
+                let (end_line_number, end_column_index) = find_position(&input, end);
+
+                vec![ElaboratedError {
+                    source_path: source_path.map(|path| path.0.into_iter().map(|t| t.0).collect()),
+                    start: (start_line_number, start_column_index),
+                    end: (end_line_number, end_column_index),
+                    message: format!("{}", error),
+                }]
+            } else {
+                vec![ElaboratedError {
+                    start: (0, 0),
+                    end: (0, 0),
+                    source_path: None,
+                    message: format!("Unknown error: {}", error),
+                }]
             }
         })
     }
