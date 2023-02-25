@@ -76,6 +76,10 @@ type Expression = {
     t_number: struct {
         value: string,
     }?,
+    t_call: struct {
+        callee: Expression,
+        args: vec[Expression],
+    }?,
 };
 
 module Expression {
@@ -88,6 +92,19 @@ module Expression {
         }
         if self.t_number != nil {
             return self.t_number!.value;
+        }
+        if self.t_call != nil {
+            let result = self.t_call!.callee.to_string().concat("(");
+
+            for i in 0..self.t_call!.args.length {
+                result = result.concat(self.t_call!.args.at(i).to_string());
+
+                if i != self.t_call!.args.length - 1 {
+                    result = result.concat(", ");
+                }
+            }
+
+            return result.concat(")");
         }
 
         panic("Unknown expression type");

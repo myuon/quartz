@@ -95,6 +95,24 @@ module Typechecker {
 
             return t;
         }
+        if expr.t_call != nil {
+            let func_type = self.expression(expr.t_call!.callee).t_func!;
+            if func_type.params.length != expr.t_call!.args.length {
+                println(expr.to_string());
+                println(func_type.params.length.to_string().concat(" != ").concat(expr.t_call!.args.length.to_string()));
+                panic("wrong number of arguments");
+            }
+
+            for i in 0..expr.t_call!.args.length {
+                let arg = expr.t_call!.args.at(i);
+                let arg_type = self.expression(arg);
+                let param_type = func_type.params.at(i);
+
+                unify(arg_type, param_type);
+            }
+
+            return func_type.result;
+        }
 
         panic("unimplemented: expression");
     }
@@ -104,6 +122,10 @@ type Type = {
     t_omit: bool?, // for unification
     t_nil: bool?,
     t_i32: bool?,
+    t_func: struct {
+        params: vec[Type],
+        result: Type,
+    }?,
 };
 
 module Type {
@@ -116,6 +138,19 @@ module Type {
         }
         if self.t_i32 != nil {
             return "i32";
+        }
+        if self.t_func != nil {
+            let s = "func(";
+            for i in 0..self.t_func!.params.length {
+                let p = self.t_func!.params.at(i);
+                s = s.concat(p.to_string());
+                if i != self.t_func!.params.length - 1 {
+                    s = s.concat(", ");
+                }
+            }
+            s = s.concat(") -> ");
+            s = s.concat(self.t_func!.result.to_string());
+            return s;
         }
 
         panic("unimplemented: type.to_string");

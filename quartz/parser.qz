@@ -245,6 +245,38 @@ module Parser {
     }
 
     fun term_0(self): Expression {
+        let current = self.term_0_1();
+
+        while true {
+            if self.peek().lexeme.equal("lparen") {
+                self.consume();
+
+                let args = make[vec[Expression]]();
+                while !self.peek().lexeme.equal("rparen") {
+                    args.push(self.expression());
+
+                    if self.peek().lexeme.equal("comma") {
+                        self.consume();
+                    } else {
+                        break;
+                    }
+                }
+                self.consume();
+
+                current = Expression {
+                    t_call: struct {
+                        callee: current,
+                        args: args,
+                    }?,
+                    ..nil,
+                };
+            }
+
+            return current;
+        }
+    }
+
+    fun term_0_1(self): Expression {
         if self.peek().lexeme.equal("ident") {
             return Expression {
                 t_ident: struct {

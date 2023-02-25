@@ -152,7 +152,7 @@
     "keywords": {
       "patterns": [
         {
-          "match": "\\b(for|if|while|return|let|continue|in)\\b",
+          "match": "\\b(for|if|else|while|return|let|continue|break|in)\\b",
           "name": "keyword.control.quartz"
         },
         {
