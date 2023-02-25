@@ -486,9 +486,25 @@ impl IrCodeGenerator {
                             }
                             _ => bail!("invalid project: {:?}", expr),
                         }
-                    } else if let Some(variadic_call) = variadic {
+                    } else {
                         let mut elements = vec![];
                         elements.push(self.expr(expr)?);
+                        for arg in args {
+                            elements.push(self.expr(arg)?);
+                        }
+
+                        Ok(IrTerm::Call {
+                            callee: Box::new(
+                                self.expr(&mut Source::unknown(Expr::path(label.clone())))?,
+                            ),
+                            args: elements,
+                            source: None,
+                        })
+                    }
+                }
+                _ => {
+                    if let Some(variadic_call) = variadic {
+                        let mut elements = vec![];
                         for arg in &mut args[0..variadic_call.index] {
                             elements.push(self.expr(arg)?);
                         }
@@ -535,43 +551,26 @@ impl IrCodeGenerator {
                         });
 
                         Ok(IrTerm::Call {
-                            callee: Box::new(
-                                self.expr(&mut Source::unknown(Expr::path(label.clone())))?,
-                            ),
+                            callee: Box::new(self.expr(callee.as_mut())?),
                             args: elements,
                             source: None,
                         })
                     } else {
                         let mut elements = vec![];
-                        elements.push(self.expr(expr)?);
                         for arg in args {
                             elements.push(self.expr(arg)?);
                         }
 
                         Ok(IrTerm::Call {
-                            callee: Box::new(
-                                self.expr(&mut Source::unknown(Expr::path(label.clone())))?,
-                            ),
+                            callee: Box::new(self.expr(callee.as_mut())?),
                             args: elements,
-                            source: None,
+                            source: Some(SourcePosition {
+                                path: self.current_path.clone(),
+                                start: callee.start.unwrap_or(0),
+                                end: callee.end.unwrap_or(0),
+                            }),
                         })
                     }
-                }
-                _ => {
-                    let mut elements = vec![];
-                    for arg in args {
-                        elements.push(self.expr(arg)?);
-                    }
-
-                    Ok(IrTerm::Call {
-                        callee: Box::new(self.expr(callee.as_mut())?),
-                        args: elements,
-                        source: Some(SourcePosition {
-                            path: self.current_path.clone(),
-                            start: callee.start.unwrap_or(0),
-                            end: callee.end.unwrap_or(0),
-                        }),
-                    })
                 }
             },
             Expr::Record(ident, fields, expansion) => {
