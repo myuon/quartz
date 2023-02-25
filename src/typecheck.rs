@@ -200,7 +200,12 @@ impl TypeChecker {
     fn decl(&mut self, decl: &mut Decl) -> Result<()> {
         match decl {
             Decl::Func(func) => {
+                // For recursive functions
+                self.globals
+                    .insert(self.path_to(&func.name), func.to_type());
+
                 self.func(func)?;
+
                 self.globals
                     .insert(self.path_to(&func.name), func.to_type());
             }
@@ -231,8 +236,6 @@ impl TypeChecker {
 
     fn func(&mut self, func: &mut Func) -> Result<()> {
         let locals = self.locals.clone();
-
-        self.locals.insert(func.name.clone(), func.to_type());
 
         for (name, type_) in &mut func.params {
             self.locals.insert(name.clone(), type_.clone());
@@ -389,6 +392,10 @@ impl TypeChecker {
                 ident,
                 resolved_path,
             } => {
+                if let Ok(type_) = self.ident_local(ident) {
+                    return Ok(type_);
+                }
+
                 let mut candidates = self.imported.clone();
                 candidates.push(self.current_path.clone());
 
@@ -403,13 +410,11 @@ impl TypeChecker {
                     }
                 }
 
-                self.ident_local(ident)
-                    .or(self.ident_global(ident))
-                    .context(ErrorInSource {
-                        path: Some(self.current_path.clone()),
-                        start: expr.start.unwrap_or(0),
-                        end: expr.end.unwrap_or(0),
-                    })
+                self.ident_global(ident).context(ErrorInSource {
+                    path: Some(self.current_path.clone()),
+                    start: expr.start.unwrap_or(0),
+                    end: expr.end.unwrap_or(0),
+                })
             }
             Expr::Path {
                 path,

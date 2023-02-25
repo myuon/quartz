@@ -576,6 +576,25 @@ fun main() {
 "#,
                 vec![],
             ),
+            (
+                r#"
+type T = {
+};
+
+module T {
+    fun method(self) {
+    }
+
+    fun f(self, method: i32): i32 {
+        return method;
+    }
+}
+
+fun main() {
+}
+"#,
+                vec![],
+            ),
         ];
 
         for (input, expected) in cases {
