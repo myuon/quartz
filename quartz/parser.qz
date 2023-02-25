@@ -219,39 +219,49 @@ module Parser {
     }
 
     fun expression(self): Expression {
-        let token = self.consume();
+        return self.term_2();
+    }
 
-        if token.lexeme.equal("number") {
-            return Expression {
-                t_number: struct {
-                    value: token.string_value!,
-                }?,
-                ..nil,
-            };
-        }
-        if token.lexeme.equal("ident") {
-            let expr = Expression {
-                t_ident: struct {
-                    name: token.string_value!,
-                }?,
-                ..nil,
-            };
+    fun term_2(self): Expression {
+        let current = self.term_0();
 
+        while true {
             if self.peek().lexeme.equal("plus") {
                 self.consume();
-                return Expression {
+
+                current = Expression {
                     t_binop: struct {
                         binop: "plus",
-                        left: expr,
-                        right: self.expression(),
+                        left: current,
+                        right: self.term_0(),
                     }?,
                     ..nil,
                 };
+                continue;
             }
 
-            return expr;
+            return current;
+        }
+    }
+
+    fun term_0(self): Expression {
+        if self.peek().lexeme.equal("ident") {
+            return Expression {
+                t_ident: struct {
+                    name: self.ident(),
+                }?,
+                ..nil,
+            };
+        }
+        if self.peek().lexeme.equal("number") {
+            return Expression {
+                t_number: struct {
+                    value: self.consume().string_value!,
+                }?,
+                ..nil,
+            };
         }
 
-        panic("Unexpected token ".concat(token.lexeme).concat("{").concat(token.string_value!).concat("}"));
+        panic("Unexpected token ".concat(self.peek().lexeme));
     }
 }
