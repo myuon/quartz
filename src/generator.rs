@@ -590,38 +590,40 @@ impl Generator {
                 self.writer.new_statement();
                 self.expr(lhs)?;
 
-                self.writer.new_statement();
+                self.writer.start();
                 self.writer.write("if (result i32)");
 
                 self.writer.start();
+                self.writer.write("then");
                 self.expr(rhs)?;
                 self.writer.end();
 
-                self.writer.new_statement();
-                self.writer.write("else");
-
                 self.writer.start();
+                self.writer.write("else");
                 self.writer.new_statement();
                 self.writer.write("i32.const 0");
+                self.writer.end();
+
                 self.writer.end();
             }
             IrTerm::Or { lhs, rhs } => {
                 self.writer.new_statement();
                 self.expr(lhs)?;
 
-                self.writer.new_statement();
+                self.writer.start();
                 self.writer.write("if (result i32)");
 
                 self.writer.start();
+                self.writer.write("then");
                 self.writer.new_statement();
                 self.writer.write("i32.const 1");
                 self.writer.end();
 
-                self.writer.new_statement();
-                self.writer.write("else");
-
                 self.writer.start();
+                self.writer.write("else");
                 self.expr(rhs)?;
+                self.writer.end();
+
                 self.writer.end();
             }
             _ => todo!("{:?}", expr),
@@ -721,12 +723,6 @@ impl Generator {
                 }
                 "gte" => {
                     self.writer.write("i32.ge_s");
-                }
-                "or" => {
-                    self.writer.write("i32.or");
-                }
-                "and" => {
-                    self.writer.write("i32.and");
                 }
                 "xor_i64" => {
                     self.writer.write("i64.xor");

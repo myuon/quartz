@@ -550,11 +550,17 @@ fun main(): i32 {
             ),
             (
                 r#"
+fun f(): bool {
+    panic("foo");
+
+    return false;
+}
+
 fun main(): bool {
-    return true && panic("foo");
+    return false && f();
 }
 "#,
-                vec![Value::I32(5)],
+                vec![Value::I32(0)],
             ),
         ];
 
