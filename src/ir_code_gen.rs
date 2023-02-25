@@ -194,6 +194,7 @@ impl IrCodeGenerator {
                                     IrTerm::Ident(ident.as_str().to_string()),
                                     self.expr(end.as_mut())?,
                                 ],
+                                variadic_args: None,
                                 source: None,
                             }),
                             body: Box::new(IrTerm::Seq {
@@ -204,6 +205,7 @@ impl IrCodeGenerator {
                                 rhs: Box::new(IrTerm::Call {
                                     callee: Box::new(IrTerm::Ident("add".to_string())),
                                     args: vec![IrTerm::Ident(ident.0.clone()), IrTerm::I32(1)],
+                                    variadic_args: None,
                                     source: None,
                                 }),
                             })),
@@ -293,6 +295,7 @@ impl IrCodeGenerator {
                                 .to_string(),
                             )),
                             args: vec![arg1, arg2],
+                            variadic_args: None,
                             source: None,
                         })
                     }
@@ -312,6 +315,7 @@ impl IrCodeGenerator {
                                 .to_string(),
                             )),
                             args: vec![arg1, arg2],
+                            variadic_args: None,
                             source: None,
                         })
                     }
@@ -335,7 +339,7 @@ impl IrCodeGenerator {
                     }
                 }
             }
-            Expr::Call(callee, args) => match &mut callee.data {
+            Expr::Call(callee, args, variadic) => match &mut callee.data {
                 Expr::Project(expr, type_, label) => {
                     if label.0.len() == 1 {
                         match (type_, label.0[0].as_str()) {
@@ -362,6 +366,7 @@ impl IrCodeGenerator {
                                                     .context("method:ptr.offset")?,
                                             },
                                         ],
+                                        variadic_args: None,
                                         source: None,
                                     }),
                                 })
@@ -392,6 +397,7 @@ impl IrCodeGenerator {
                                             .collect(),
                                     )))),
                                     vec![expr.as_ref().clone(), args[0].clone()],
+                                    None,
                                 )))?)
                             }
                             (Type::Vec(_), "push") => {
@@ -406,6 +412,7 @@ impl IrCodeGenerator {
                                                 .collect(),
                                         )))),
                                         vec![expr.as_ref().clone(), args[0].clone()],
+                                        None,
                                     )),
                                     Type::Nil,
                                 )))?)
@@ -426,6 +433,7 @@ impl IrCodeGenerator {
                                             args[0].clone(),
                                             args[1].clone(),
                                         ],
+                                        None,
                                     )),
                                     Type::Nil,
                                 )))?)
@@ -442,6 +450,7 @@ impl IrCodeGenerator {
                                         ])),
                                     ))?),
                                     args: vec![self.expr(expr)?, self.expr(&mut args[0])?],
+                                    variadic_args: None,
                                     source: None,
                                 })
                             }
@@ -457,6 +466,7 @@ impl IrCodeGenerator {
                                         ])),
                                     ))?),
                                     args: vec![self.expr(expr)?, self.expr(&mut args[0])?],
+                                    variadic_args: None,
                                     source: None,
                                 })
                             }
@@ -475,11 +485,32 @@ impl IrCodeGenerator {
                                         ])),
                                     ))?),
                                     args: elements,
+                                    variadic_args: None,
                                     source: None,
                                 })
                             }
                             _ => bail!("invalid project: {:?}", expr),
                         }
+                    } else if let Some(variadic_call) = variadic {
+                        let mut elements = vec![];
+                        elements.push(self.expr(expr)?);
+                        for arg in &mut args[0..variadic_call.index] {
+                            elements.push(self.expr(arg)?);
+                        }
+
+                        let mut additional_args = vec![];
+                        for arg in &mut args[variadic_call.index..] {
+                            additional_args.push(self.expr(arg)?);
+                        }
+
+                        Ok(IrTerm::Call {
+                            callee: Box::new(
+                                self.expr(&mut Source::unknown(Expr::path(label.clone())))?,
+                            ),
+                            args: elements,
+                            variadic_args: Some(additional_args),
+                            source: None,
+                        })
                     } else {
                         let mut elements = vec![];
                         elements.push(self.expr(expr)?);
@@ -492,6 +523,7 @@ impl IrCodeGenerator {
                                 self.expr(&mut Source::unknown(Expr::path(label.clone())))?,
                             ),
                             args: elements,
+                            variadic_args: None,
                             source: None,
                         })
                     }
@@ -510,6 +542,7 @@ impl IrCodeGenerator {
                             start: callee.start.unwrap_or(0),
                             end: callee.end.unwrap_or(0),
                         }),
+                        variadic_args: None,
                     })
                 }
             },
@@ -541,6 +574,7 @@ impl IrCodeGenerator {
                     value: Box::new(IrTerm::Call {
                         callee: Box::new(IrTerm::Ident("alloc".to_string())),
                         args: vec![IrTerm::i32(record_type.len() as i32)],
+                        variadic_args: None,
                         source: None,
                     }),
                 });
@@ -586,6 +620,7 @@ impl IrCodeGenerator {
                     value: Box::new(IrTerm::Call {
                         callee: Box::new(IrTerm::Ident("alloc".to_string())),
                         args: vec![IrTerm::i32(fields.len() as i32)],
+                        variadic_args: None,
                         source: None,
                     }),
                 });
@@ -660,6 +695,7 @@ impl IrCodeGenerator {
                             Source::unknown(Expr::Call(
                                 Box::new(Source::unknown(Expr::ident(Ident("alloc".to_string())))),
                                 vec![Source::unknown(Expr::Lit(Lit::I32(*size as i32)))],
+                                None,
                             )),
                         ),
                         (
@@ -692,6 +728,7 @@ impl IrCodeGenerator {
                                 type_: IrType::from_type(type_)?,
                             },
                         ],
+                        variadic_args: None,
                         source: None,
                     })
                 }
@@ -706,6 +743,7 @@ impl IrCodeGenerator {
                         .as_joined_str("_"),
                     )),
                     args: vec![],
+                    variadic_args: None,
                     source: None,
                 }),
                 _ => bail!("unsupported type for make: {:?}", type_),
@@ -723,6 +761,7 @@ impl IrCodeGenerator {
                 Ok(IrTerm::Call {
                     callee: Box::new(IrTerm::Ident("equal".to_string())),
                     args: vec![lhs, rhs],
+                    variadic_args: None,
                     source: None,
                 })
             }
@@ -733,6 +772,7 @@ impl IrCodeGenerator {
                 Ok(IrTerm::Call {
                     callee: Box::new(IrTerm::Ident("not_equal".to_string())),
                     args: vec![lhs, rhs],
+                    variadic_args: None,
                     source: None,
                 })
             }
@@ -748,6 +788,7 @@ impl IrCodeGenerator {
                             value: Box::new(IrTerm::Call {
                                 callee: Box::new(IrTerm::Ident("alloc".to_string())),
                                 args: vec![IrTerm::i32(1)],
+                                variadic_args: None,
                                 source: None,
                             }),
                         },

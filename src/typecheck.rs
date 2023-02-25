@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use anyhow::{anyhow, bail, Context, Result};
 
 use crate::{
-    ast::{Decl, Expr, Func, Lit, Module, Statement, Type},
+    ast::{Decl, Expr, Func, Lit, Module, Statement, Type, VariadicCall},
     compiler::ErrorInSource,
     util::{ident::Ident, path::Path, source::Source},
 };
@@ -434,7 +434,7 @@ impl TypeChecker {
 
                 Ok(t)
             }
-            Expr::Call(caller, args) => {
+            Expr::Call(caller, args, variadic_info) => {
                 let caller_type = self.expr(caller)?;
 
                 match caller_type {
@@ -501,6 +501,10 @@ impl TypeChecker {
                                 )?
                             }
                         }
+
+                        *variadic_info = Some(VariadicCall {
+                            index: arg_types.len(),
+                        });
 
                         Ok(result_type.as_ref().clone())
                     }

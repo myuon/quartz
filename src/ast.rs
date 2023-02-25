@@ -174,6 +174,11 @@ pub enum BinOp {
 }
 
 #[derive(PartialEq, Debug, Clone)]
+pub struct VariadicCall {
+    pub index: usize,
+}
+
+#[derive(PartialEq, Debug, Clone)]
 pub enum Expr {
     Ident {
         ident: Ident,
@@ -181,7 +186,7 @@ pub enum Expr {
     },
     Self_,
     Lit(Lit),
-    Call(Box<Source<Expr>>, Vec<Source<Expr>>),
+    Call(Box<Source<Expr>>, Vec<Source<Expr>>, Option<VariadicCall>),
     BinOp(BinOp, Type, Box<Source<Expr>>, Box<Source<Expr>>),
     Record(
         Source<Ident>,

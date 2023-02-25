@@ -388,6 +388,7 @@ impl Parser {
                             token_position_end,
                         )),
                         vec![current, rhs],
+                        None,
                     ),
                     position,
                 );
@@ -405,6 +406,7 @@ impl Parser {
                             token_position_end,
                         )),
                         vec![current, rhs],
+                        None,
                     ),
                     position,
                 );
@@ -422,6 +424,7 @@ impl Parser {
                             token_position_end,
                         )),
                         vec![current, rhs],
+                        None,
                     ),
                     position,
                 );
@@ -439,6 +442,7 @@ impl Parser {
                             token_position_end,
                         )),
                         vec![current, rhs],
+                        None,
                     ),
                     position,
                 );
@@ -475,6 +479,7 @@ impl Parser {
                                 token_position_end,
                             )),
                             vec![current, rhs],
+                            None,
                         ),
                         position,
                     );
@@ -492,6 +497,7 @@ impl Parser {
                                 token_position_end,
                             )),
                             vec![current, rhs],
+                            None,
                         ),
                         position,
                     );
@@ -538,6 +544,7 @@ impl Parser {
                             token_position_end,
                         )),
                         vec![current, rhs],
+                        None,
                     ),
                     position,
                 );
@@ -598,6 +605,7 @@ impl Parser {
                             position,
                         )),
                         vec![expr],
+                        None,
                     ),
                     position,
                 )
@@ -647,7 +655,7 @@ impl Parser {
                     }
                     self.consume()?;
 
-                    current = self.source_from(Expr::Call(Box::new(current), args), position);
+                    current = self.source_from(Expr::Call(Box::new(current), args, None), position);
                 }
                 Lexeme::Dot => {
                     self.consume()?;
@@ -1035,9 +1043,11 @@ fn test_expr() -> Result<()> {
                         source(Expr::ident(Ident("a".to_string()))),
                         source(Expr::ident(Ident("b".to_string()))),
                     ],
+                    None,
                 )),
                 source(Expr::ident(Ident("c".to_string()))),
             ],
+            None,
         )),
     )];
 
