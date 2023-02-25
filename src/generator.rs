@@ -528,6 +528,10 @@ impl Generator {
                 self.writer.new_statement();
                 self.writer.write("br $continue");
             }
+            IrTerm::Break => {
+                self.writer.new_statement();
+                self.writer.write("br $exit");
+            }
             IrTerm::PointerAt {
                 type_,
                 address,

@@ -248,6 +248,11 @@ impl Parser {
                 self.expect(Lexeme::Semicolon)?;
                 Ok(Statement::Continue)
             }
+            Lexeme::Break => {
+                self.consume()?;
+                self.expect(Lexeme::Semicolon)?;
+                Ok(Statement::Break)
+            }
             _ => {
                 let expr = self.expr()?;
 

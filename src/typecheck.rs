@@ -362,6 +362,7 @@ impl TypeChecker {
                 Ok(None)
             }
             Statement::Continue => Ok(None),
+            Statement::Break => Ok(None),
         }
     }
 

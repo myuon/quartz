@@ -218,6 +218,7 @@ pub enum Statement {
     While(Source<Expr>, Vec<Source<Statement>>),
     For(Ident, Source<Expr>, Vec<Source<Statement>>),
     Continue,
+    Break,
 }
 
 #[derive(PartialEq, Debug, Clone)]

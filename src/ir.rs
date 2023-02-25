@@ -85,6 +85,7 @@ pub enum IrTerm {
         elements: Vec<IrTerm>,
     },
     Continue,
+    Break,
     Discard {
         element: Box<IrTerm>,
     },
@@ -309,6 +310,11 @@ impl IrTerm {
                 writer.write("continue");
                 writer.end();
             }
+            IrTerm::Break => {
+                writer.start();
+                writer.write("break");
+                writer.end();
+            }
             IrTerm::PointerOffset { address, offset } => {
                 writer.start();
                 writer.write("pointer-offset");
@@ -450,6 +456,7 @@ impl IrTerm {
                 value,
             } => vec![],
             IrTerm::Continue => vec![],
+            IrTerm::Break => vec![],
             IrTerm::PointerOffset { address, offset } => {
                 let mut result = vec![];
                 result.extend(address.find_let());
