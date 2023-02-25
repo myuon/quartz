@@ -20,7 +20,7 @@ module IrCodeGenerator {
 
             if f.t_func != nil {
                 elements.push(IrTerm {
-                    ir_func: self.function(f.t_func!)?,
+                    t_func: self.function(f.t_func!)?,
                     ..nil,
                 });
                 continue;
@@ -30,7 +30,7 @@ module IrCodeGenerator {
         }
 
         return IrTerm {
-            ir_module: struct {
+            t_module: struct {
                 elements: elements,
             }?,
             ..nil
@@ -76,10 +76,10 @@ module IrCodeGenerator {
     fun statement(self, stm: Statement): IrTerm {
         if stm.t_let != nil {
             let term = IrTerm {
-                ir_let: IrLet {
+                t_let: IrLet {
                     name: stm.t_let!.name,
                     type_: IrType {
-                        ir_i32: true?,
+                        t_i32: true?,
                     },
                     value: self.expression(stm.t_let!.expr),
                 }?,
@@ -91,7 +91,7 @@ module IrCodeGenerator {
         }
         if stm.t_return != nil {
             let term = IrTerm {
-                ir_return: IrReturn {
+                t_return: IrReturn {
                     value: self.expression(stm.t_return!.expr),
                 }?,
                 ..nil,
@@ -106,7 +106,7 @@ module IrCodeGenerator {
     fun expression(self, expr: Expression): IrTerm {
         if expr.t_number != nil {
             let term = IrTerm {
-                ir_i32: expr.t_number!.value?,
+                t_i32: expr.t_number!.value?,
                 ..nil,
             };
 
@@ -115,9 +115,9 @@ module IrCodeGenerator {
         if expr.t_binop != nil {
             if expr.t_binop!.binop.equal("plus") {
                 let term = IrTerm {
-                    ir_call: IrCall {
+                    t_call: IrCall {
                         callee: IrTerm {
-                            ir_ident: "add"?,
+                            t_ident: "add"?,
                             ..nil,
                         },
                         args: make[vec[IrTerm]](),
@@ -125,8 +125,8 @@ module IrCodeGenerator {
                     ..nil,
                 };
 
-                term.ir_call!.args.push(self.expression(expr.t_binop!.left));
-                term.ir_call!.args.push(self.expression(expr.t_binop!.right));
+                term.t_call!.args.push(self.expression(expr.t_binop!.left));
+                term.t_call!.args.push(self.expression(expr.t_binop!.right));
 
                 return term;
             }
@@ -135,7 +135,7 @@ module IrCodeGenerator {
         }
         if expr.t_ident != nil {
             let term = IrTerm {
-                ir_ident: expr.t_ident!.name?,
+                t_ident: expr.t_ident!.name?,
                 ..nil,
             };
 
@@ -143,7 +143,7 @@ module IrCodeGenerator {
         }
         if expr.t_call != nil {
             let term = IrTerm {
-                ir_call: IrCall {
+                t_call: IrCall {
                     callee: self.expression(expr.t_call!.callee),
                     args: make[vec[IrTerm]](),
                 }?,
@@ -151,7 +151,7 @@ module IrCodeGenerator {
             };
 
             for i in 0..expr.t_call!.args.length {
-                term.ir_call!.args.push(self.expression(expr.t_call!.args.at(i)));
+                term.t_call!.args.push(self.expression(expr.t_call!.args.at(i)));
             }
 
             return term;

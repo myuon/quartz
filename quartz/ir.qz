@@ -1,51 +1,53 @@
+import quartz::ast;
+
 type IrTerm = {
-    ir_nil: bool?,
-    ir_i32: string?,
-    ir_ident: string?,
-    ir_func: IrFunc?,
-    ir_call: IrCall?,
-    ir_let: IrLet?,
-    ir_return: IrReturn?,
-    ir_module: struct {
+    t_nil: bool?,
+    t_i32: string?,
+    t_ident: string?,
+    t_func: IrFunc?,
+    t_call: IrCall?,
+    t_let: IrLet?,
+    t_return: IrReturn?,
+    t_module: struct {
         elements: vec[IrTerm],
     }?,
 };
 
 module IrTerm {
     fun to_string(self): string {
-        if self.ir_nil != nil {
+        if self.t_nil != nil {
             return "nil";
         }
-        if self.ir_i32 != nil {
-            return self.ir_i32!;
+        if self.t_i32 != nil {
+            return self.t_i32!;
         }
-        if self.ir_ident != nil {
-            return self.ir_ident!;
+        if self.t_ident != nil {
+            return self.t_ident!;
         }
-        if self.ir_func != nil {
-            let result = "func ".concat(self.ir_func!.name).concat(" (");
-            for i in 0..self.ir_func!.params.length {
-                let p = self.ir_func!.params.at(i);
+        if self.t_func != nil {
+            let result = "func ".concat(self.t_func!.name).concat(" (");
+            for i in 0..self.t_func!.params.length {
+                let p = self.t_func!.params.at(i);
                 result = result.concat(p.name).concat(": ").concat(p.type_.to_string());
-                if i != self.ir_func!.params.length - 1 {
+                if i != self.t_func!.params.length - 1 {
                     result = result.concat(", ");
                 }
             }
-            result = result.concat(") -> ").concat(self.ir_func!.result_type.to_string()).concat(" {");
-            for i in 0..self.ir_func!.body.length {
-                let p = self.ir_func!.body.at(i);
+            result = result.concat(") -> ").concat(self.t_func!.result_type.to_string()).concat(" {");
+            for i in 0..self.t_func!.body.length {
+                let p = self.t_func!.body.at(i);
                 result = result.concat(" ").concat(p.to_string());
             }
             result = result.concat(" }");
 
             return result;
         }
-        if self.ir_call != nil {
-            let result = "".concat(self.ir_call!.callee.to_string()).concat("(");
-            for i in 0..self.ir_call!.args.length {
-                let p = self.ir_call!.args.at(i);
+        if self.t_call != nil {
+            let result = "".concat(self.t_call!.callee.to_string()).concat("(");
+            for i in 0..self.t_call!.args.length {
+                let p = self.t_call!.args.at(i);
                 result = result.concat(p.to_string());
-                if i != self.ir_call!.args.length - 1 {
+                if i != self.t_call!.args.length - 1 {
                     result = result.concat(", ");
                 }
             }
@@ -53,18 +55,18 @@ module IrTerm {
 
             return result;
         }
-        if self.ir_let != nil {
+        if self.t_let != nil {
             return "let";
         }
-        if self.ir_return != nil {
-            let result = "return ".concat(self.ir_return!.value.to_string());
+        if self.t_return != nil {
+            let result = "return ".concat(self.t_return!.value.to_string());
 
             return result;
         }
-        if self.ir_module != nil {
+        if self.t_module != nil {
             let result = "module";
-            for i in 0..self.ir_module!.elements.length {
-                let p = self.ir_module!.elements.at(i);
+            for i in 0..self.t_module!.elements.length {
+                let p = self.t_module!.elements.at(i);
                 result = result.concat(" ").concat(p.to_string());
             }
 
@@ -100,14 +102,14 @@ type IrReturn = {
 };
 
 type IrType = {
-    ir_i32: bool?,
+    t_i32: bool?,
 };
 
 module IrType {
     fun new(t: Type): IrType {
         if t.t_i32 != nil {
             return IrType{
-                ir_i32: true?,
+                t_i32: true?,
                 ..nil,
             };
         }
@@ -116,7 +118,7 @@ module IrType {
     }
 
     fun to_string(self): string {
-        if self.ir_i32 != nil {
+        if self.t_i32 != nil {
             return "i32";
         }
 

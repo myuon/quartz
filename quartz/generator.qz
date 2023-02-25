@@ -50,12 +50,12 @@ module Generator {
         self.start();
         self.write("module");
 
-        if m.ir_module != nil {
-            for i in 0..m.ir_module!.elements.length {
-                let element = m.ir_module!.elements.at(i);
+        if m.t_module != nil {
+            for i in 0..m.t_module!.elements.length {
+                let element = m.t_module!.elements.at(i);
 
-                if element.ir_func != nil {
-                    self.function(element.ir_func!);
+                if element.t_func != nil {
+                    self.function(element.t_func!);
                     continue;
                 }
 
@@ -103,42 +103,42 @@ module Generator {
     }
 
     fun expression(self, expr: IrTerm) {
-        if expr.ir_ident != nil {
-            self.write("local.get $".concat(expr.ir_ident!));
+        if expr.t_ident != nil {
+            self.write("local.get $".concat(expr.t_ident!));
             return;
         }
-        if expr.ir_i32 != nil {
-            self.write("i32.const ".concat(expr.ir_i32!));
+        if expr.t_i32 != nil {
+            self.write("i32.const ".concat(expr.t_i32!));
             return;
         }
-        if expr.ir_let != nil {
+        if expr.t_let != nil {
             self.new_statement();
-            self.expression(expr.ir_let!.value);
+            self.expression(expr.t_let!.value);
             self.expression_left_value(IrTerm {
-                ir_ident: expr.ir_let!.name?,
+                t_ident: expr.t_let!.name?,
                 ..nil,
             });
             return;
         }
-        if expr.ir_return != nil {
+        if expr.t_return != nil {
             self.new_statement();
-            self.expression(expr.ir_return!.value);
+            self.expression(expr.t_return!.value);
 
             self.new_statement();
             self.write("return");
             return;
         }
-        if expr.ir_call != nil {
-            for i in 0..expr.ir_call!.args.length {
+        if expr.t_call != nil {
+            for i in 0..expr.t_call!.args.length {
                 self.new_statement();
-                self.expression(expr.ir_call!.args.at(i));
+                self.expression(expr.t_call!.args.at(i));
             }
 
             self.new_statement();
 
-            let callee = expr.ir_call!.callee;
-            if callee.ir_ident != nil {
-                let ident = callee.ir_ident!;
+            let callee = expr.t_call!.callee;
+            if callee.t_ident != nil {
+                let ident = callee.t_ident!;
                 if ident.equal("add") {
                     self.write("i32.add");
                     return;
@@ -157,9 +157,9 @@ module Generator {
     }
 
     fun expression_left_value(self, expr: IrTerm) {
-        if expr.ir_ident != nil {
+        if expr.t_ident != nil {
             self.new_statement();
-            self.write("local.set $".concat(expr.ir_ident!));
+            self.write("local.set $".concat(expr.t_ident!));
             return;
         }
 
