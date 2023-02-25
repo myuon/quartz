@@ -314,6 +314,20 @@ impl IrTerm {
                 element.to_string_writer(writer);
                 writer.end();
             }
+            IrTerm::And { lhs, rhs } => {
+                writer.start();
+                writer.write("and");
+                lhs.to_string_writer(writer);
+                rhs.to_string_writer(writer);
+                writer.end();
+            }
+            IrTerm::Or { lhs, rhs } => {
+                writer.start();
+                writer.write("or");
+                lhs.to_string_writer(writer);
+                rhs.to_string_writer(writer);
+                writer.end();
+            }
         }
     }
 
@@ -430,6 +444,18 @@ impl IrTerm {
             IrTerm::Discard { element } => {
                 let mut result = vec![];
                 result.extend(element.find_let());
+                result
+            }
+            IrTerm::And { lhs, rhs } => {
+                let mut result = vec![];
+                result.extend(lhs.find_let());
+                result.extend(rhs.find_let());
+                result
+            }
+            IrTerm::Or { lhs, rhs } => {
+                let mut result = vec![];
+                result.extend(lhs.find_let());
+                result.extend(rhs.find_let());
                 result
             }
         }

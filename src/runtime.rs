@@ -548,6 +548,14 @@ fun main(): i32 {
 "#,
                 vec![Value::I32(5)],
             ),
+            (
+                r#"
+fun main(): bool {
+    return true && panic("foo");
+}
+"#,
+                vec![Value::I32(5)],
+            ),
         ];
 
         for (input, expected) in cases {

@@ -586,6 +586,44 @@ impl Generator {
                 self.writer.new_statement();
                 self.writer.write("drop");
             }
+            IrTerm::And { lhs, rhs } => {
+                self.writer.new_statement();
+                self.expr(lhs)?;
+
+                self.writer.new_statement();
+                self.writer.write("if (result i32)");
+
+                self.writer.start();
+                self.expr(rhs)?;
+                self.writer.end();
+
+                self.writer.new_statement();
+                self.writer.write("else");
+
+                self.writer.start();
+                self.writer.new_statement();
+                self.writer.write("i32.const 0");
+                self.writer.end();
+            }
+            IrTerm::Or { lhs, rhs } => {
+                self.writer.new_statement();
+                self.expr(lhs)?;
+
+                self.writer.new_statement();
+                self.writer.write("if (result i32)");
+
+                self.writer.start();
+                self.writer.new_statement();
+                self.writer.write("i32.const 1");
+                self.writer.end();
+
+                self.writer.new_statement();
+                self.writer.write("else");
+
+                self.writer.start();
+                self.expr(rhs)?;
+                self.writer.end();
+            }
             _ => todo!("{:?}", expr),
         }
 
