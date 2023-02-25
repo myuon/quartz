@@ -473,16 +473,22 @@ impl Generator {
                 self.writer.new_statement();
                 self.writer.write("i32.store");
             }
-            IrTerm::While { cond, body } => {
-                /*  [while(cond) {block}]
+            IrTerm::While {
+                cond,
+                body,
+                cleanup,
+            } => {
+                /*  [while(cond) {block, cleanup}]
 
                     (block $exit
-                        (loop
-                            (not (cond))
-                            (br_if $exit)
+                        (loop $loop
+                            (block $continue
+                                (br_if $exit (i32.eqz (cond)))
+                                ($body)
+                            )
 
-                            (block)
-                            (br 0)
+                            ($cleanup)
+                            (br $loop)
                         )
                     )
                 */
@@ -495,6 +501,10 @@ impl Generator {
                 self.writer.write("loop");
                 self.writer.write("$loop");
 
+                self.writer.start();
+                self.writer.write("block");
+                self.writer.write("$continue");
+
                 self.expr(cond.as_mut())?;
                 self.writer.new_statement();
                 self.writer.write("i32.eqz");
@@ -502,11 +512,21 @@ impl Generator {
                 self.writer.write("br_if $exit");
 
                 self.expr(body.as_mut())?;
+                self.writer.end();
+
+                if let Some(cleanup) = cleanup {
+                    self.expr(cleanup.as_mut())?;
+                }
+
                 self.writer.new_statement();
                 self.writer.write("br $loop");
 
                 self.writer.end();
                 self.writer.end();
+            }
+            IrTerm::Continue => {
+                self.writer.new_statement();
+                self.writer.write("br $continue");
             }
             IrTerm::PointerAt {
                 type_,
@@ -564,10 +584,6 @@ impl Generator {
                         value: Box::new(v.clone()),
                     })?;
                 }
-            }
-            IrTerm::Continue => {
-                self.writer.new_statement();
-                self.writer.write("br $loop");
             }
             IrTerm::PointerOffset { address, offset } => {
                 self.writer.new_statement();

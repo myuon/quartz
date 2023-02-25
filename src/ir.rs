@@ -71,6 +71,7 @@ pub enum IrTerm {
     While {
         cond: Box<IrTerm>,
         body: Box<IrTerm>,
+        cleanup: Option<Box<IrTerm>>,
     },
     SizeOf {
         type_: IrType,
@@ -246,11 +247,18 @@ impl IrTerm {
                 writer.write(&offset.to_string());
                 writer.end();
             }
-            IrTerm::While { cond, body } => {
+            IrTerm::While {
+                cond,
+                body,
+                cleanup,
+            } => {
                 writer.start();
                 writer.write("while");
                 cond.to_string_writer(writer);
                 body.to_string_writer(writer);
+                if let Some(cleanup) = cleanup {
+                    cleanup.to_string_writer(writer);
+                }
                 writer.end();
             }
             IrTerm::PointerAt {
@@ -383,10 +391,17 @@ impl IrTerm {
                 result.extend(else_.find_let());
                 result
             }
-            IrTerm::While { cond, body } => {
+            IrTerm::While {
+                cond,
+                body,
+                cleanup,
+            } => {
                 let mut result = vec![];
                 result.extend(cond.find_let());
                 result.extend(body.find_let());
+                if let Some(cleanup) = cleanup {
+                    result.extend(cleanup.find_let());
+                }
                 result
             }
             IrTerm::Module { elements } => todo!(),

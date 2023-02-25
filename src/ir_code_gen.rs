@@ -176,41 +176,40 @@ impl IrCodeGenerator {
                 Ok(IrTerm::While {
                     cond: Box::new(self.expr(cond)?),
                     body: Box::new(IrTerm::Seq { elements }),
+                    cleanup: None,
                 })
             }
             Statement::For(ident, range, body) => match &mut range.data {
-                Expr::Range(start, end) => {
-                    let mut elements = self.statements(body)?;
-                    elements.push(IrTerm::Assign {
-                        lhs: ident.0.clone(),
-                        rhs: Box::new(IrTerm::Call {
-                            callee: Box::new(IrTerm::Ident("add".to_string())),
-                            args: vec![IrTerm::Ident(ident.0.clone()), IrTerm::I32(1)],
-                            source: None,
-                        }),
-                    });
-
-                    Ok(IrTerm::Seq {
-                        elements: vec![
-                            IrTerm::Let {
-                                name: ident.as_str().to_string(),
-                                type_: IrType::I32,
-                                value: Box::new(self.expr(start.as_mut())?),
-                            },
-                            IrTerm::While {
-                                cond: Box::new(IrTerm::Call {
-                                    callee: Box::new(IrTerm::Ident("lt".to_string())),
-                                    args: vec![
-                                        IrTerm::Ident(ident.as_str().to_string()),
-                                        self.expr(end.as_mut())?,
-                                    ],
+                Expr::Range(start, end) => Ok(IrTerm::Seq {
+                    elements: vec![
+                        IrTerm::Let {
+                            name: ident.as_str().to_string(),
+                            type_: IrType::I32,
+                            value: Box::new(self.expr(start.as_mut())?),
+                        },
+                        IrTerm::While {
+                            cond: Box::new(IrTerm::Call {
+                                callee: Box::new(IrTerm::Ident("lt".to_string())),
+                                args: vec![
+                                    IrTerm::Ident(ident.as_str().to_string()),
+                                    self.expr(end.as_mut())?,
+                                ],
+                                source: None,
+                            }),
+                            body: Box::new(IrTerm::Seq {
+                                elements: self.statements(body)?,
+                            }),
+                            cleanup: Some(Box::new(IrTerm::Assign {
+                                lhs: ident.0.clone(),
+                                rhs: Box::new(IrTerm::Call {
+                                    callee: Box::new(IrTerm::Ident("add".to_string())),
+                                    args: vec![IrTerm::Ident(ident.0.clone()), IrTerm::I32(1)],
                                     source: None,
                                 }),
-                                body: Box::new(IrTerm::Seq { elements }),
-                            },
-                        ],
-                    })
-                }
+                            })),
+                        },
+                    ],
+                }),
                 _ => bail!("invalid range expression, {:?}", range),
             },
             Statement::Continue => Ok(IrTerm::Continue),

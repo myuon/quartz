@@ -562,6 +562,16 @@ fun main(): bool {
 "#,
                 vec![Value::I32(0)],
             ),
+            (
+                r#"
+fun main() {
+    for i in 0..5 {
+        continue;
+    }
+}
+"#,
+                vec![],
+            ),
         ];
 
         for (input, expected) in cases {
