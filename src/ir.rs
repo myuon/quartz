@@ -514,6 +514,7 @@ impl IrType {
             Type::Vec(_) => Ok(IrType::Address),
             Type::Optional(_) => Ok(IrType::Address),
             Type::Func(_, _) => todo!(),
+            Type::VariadicFunc(_, _, _) => todo!(),
             Type::Range(_) => todo!(),
             Type::Omit(_) => {
                 bail!("Found omit type in IrType::from_type");

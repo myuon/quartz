@@ -595,6 +595,23 @@ fun main() {
 "#,
                 vec![],
             ),
+            (
+                r#"
+fun vec(..t: vec[i32]): i32 {
+    return t.length;
+}
+
+fun main(): i32 {
+    let t1 = vec(1,2,3,4);
+    let t2 = vec(1,2,3,4,5);
+
+    return t1 + t2;
+}
+"#,
+                vec![
+                    Value::I32(9),
+                ],
+            ),
         ];
 
         for (input, expected) in cases {

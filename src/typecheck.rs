@@ -240,6 +240,11 @@ impl TypeChecker {
         for (name, type_) in &mut func.params {
             self.locals.insert(name.clone(), type_.clone());
         }
+        if let Some((name, type_)) = &mut func.variadic {
+            assert!(matches!(type_, Type::Vec(_)), "variadic must be vec");
+
+            self.locals.insert(name.clone(), type_.clone());
+        }
 
         self.block(&mut func.body, &mut func.result)?;
         for statement in &mut func.body {
@@ -429,7 +434,85 @@ impl TypeChecker {
 
                 Ok(t)
             }
-            Expr::Call(caller, args) => self.call(caller, args),
+            Expr::Call(caller, args) => {
+                let caller_type = self.expr(caller)?;
+
+                match caller_type {
+                    Type::Func(mut arg_types, result_type) => {
+                        if arg_types.len() != args.len() {
+                            return Err(anyhow!(
+                                "wrong number of arguments, expected {}, but found {}",
+                                arg_types.len(),
+                                args.len()
+                            )
+                            .context(ErrorInSource {
+                                path: Some(self.current_path.clone()),
+                                start: caller.start.unwrap_or(0),
+                                end: caller.end.unwrap_or(0),
+                            }));
+                        }
+
+                        for (index, arg) in args.into_iter().enumerate() {
+                            let mut arg_type = self.expr(arg)?;
+                            self.unify(&mut arg_types[index], &mut arg_type).context(
+                                ErrorInSource {
+                                    path: Some(self.current_path.clone()),
+                                    start: arg.start.unwrap_or(0),
+                                    end: arg.end.unwrap_or(0),
+                                },
+                            )?
+                        }
+
+                        Ok(result_type.as_ref().clone())
+                    }
+                    Type::VariadicFunc(mut arg_types, variadic, result_type) => {
+                        if arg_types.len() > args.len() {
+                            return Err(anyhow!(
+                                "wrong number of arguments, expected at least {}, but found {}",
+                                arg_types.len(),
+                                args.len()
+                            )
+                            .context(ErrorInSource {
+                                path: Some(self.current_path.clone()),
+                                start: caller.start.unwrap_or(0),
+                                end: caller.end.unwrap_or(0),
+                            }));
+                        }
+
+                        let mut variadic_element = variadic.as_vec_type_element()?.clone();
+
+                        for (index, arg) in args.into_iter().enumerate() {
+                            let mut arg_type = self.expr(arg)?;
+                            if index < arg_types.len() {
+                                self.unify(&mut arg_types[index], &mut arg_type).context(
+                                    ErrorInSource {
+                                        path: Some(self.current_path.clone()),
+                                        start: arg.start.unwrap_or(0),
+                                        end: arg.end.unwrap_or(0),
+                                    },
+                                )?
+                            } else {
+                                self.unify(&mut variadic_element, &mut arg_type).context(
+                                    ErrorInSource {
+                                        path: Some(self.current_path.clone()),
+                                        start: arg.start.unwrap_or(0),
+                                        end: arg.end.unwrap_or(0),
+                                    },
+                                )?
+                            }
+                        }
+
+                        Ok(result_type.as_ref().clone())
+                    }
+                    _ => {
+                        return Err(anyhow!("not a function").context(ErrorInSource {
+                            path: Some(self.current_path.clone()),
+                            start: caller.start.unwrap_or(0),
+                            end: caller.end.unwrap_or(0),
+                        }))
+                    }
+                }
+            }
             Expr::BinOp(op, type_, arg1, arg2) => {
                 use crate::ast::BinOp::*;
 
@@ -821,45 +904,6 @@ impl TypeChecker {
         }
     }
 
-    fn call(
-        &mut self,
-        caller: &mut Box<Source<Expr>>,
-        args: &mut Vec<Source<Expr>>,
-    ) -> Result<Type> {
-        let (mut arg_types, result_type) =
-            self.expr(caller.as_mut())?
-                .to_func()
-                .context(ErrorInSource {
-                    path: Some(self.current_path.clone()),
-                    start: caller.start.unwrap_or(0),
-                    end: caller.end.unwrap_or(0),
-                })?;
-        if arg_types.len() != args.len() {
-            return Err(anyhow!(
-                "wrong number of arguments, expected {}, but found {}",
-                arg_types.len(),
-                args.len()
-            )
-            .context(ErrorInSource {
-                path: Some(self.current_path.clone()),
-                start: caller.start.unwrap_or(0),
-                end: caller.end.unwrap_or(0),
-            }));
-        }
-
-        for (index, arg) in args.into_iter().enumerate() {
-            let mut arg_type = self.expr(arg)?;
-            self.unify(&mut arg_types[index], &mut arg_type)
-                .context(ErrorInSource {
-                    path: Some(self.current_path.clone()),
-                    start: arg.start.unwrap_or(0),
-                    end: arg.end.unwrap_or(0),
-                })?
-        }
-
-        Ok(result_type.as_ref().clone())
-    }
-
     fn unify(&mut self, type1: &mut Type, type2: &mut Type) -> Result<()> {
         let cs = Constrains::unify(type1, type2)?;
         cs.apply(type1);
@@ -987,6 +1031,13 @@ impl Constrains {
                     self.apply(arg);
                 }
                 self.apply(ret.as_mut());
+            }
+            Type::VariadicFunc(args, variadic, result) => {
+                for arg in args {
+                    self.apply(arg);
+                }
+                self.apply(variadic);
+                self.apply(result.as_mut());
             }
             Type::Nil => {}
             Type::Bool => {}

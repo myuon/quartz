@@ -11,6 +11,7 @@ pub enum Type {
     I64,
     Byte,
     Func(Vec<Type>, Box<Type>),
+    VariadicFunc(Vec<Type>, Box<Type>, Box<Type>),
     Record(Vec<(Ident, Type)>),
     Ident(Ident),
     Ptr(Box<Type>),
@@ -36,6 +37,15 @@ impl Type {
                     .collect::<Vec<String>>()
                     .join(", "),
                 ret.to_string()
+            ),
+            Type::VariadicFunc(args, ret, variadic) => format!(
+                "({}, ..{}) -> {}",
+                args.iter()
+                    .map(|t| t.to_string())
+                    .collect::<Vec<String>>()
+                    .join(", "),
+                variadic.to_string(),
+                ret.to_string(),
             ),
             Type::Record(fields) => format!(
                 "{{{}}}",
@@ -137,6 +147,13 @@ impl Type {
             _ => bail!("expected identifier type, but found {}", self.to_string()),
         }
     }
+
+    pub fn as_vec_type_element(&self) -> Result<&Type> {
+        match self {
+            Type::Vec(t) => Ok(t),
+            _ => bail!("expected vec type, but found {}", self.to_string()),
+        }
+    }
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -225,16 +242,25 @@ pub enum Statement {
 pub struct Func {
     pub name: Ident,
     pub params: Vec<(Ident, Type)>,
+    pub variadic: Option<(Ident, Type)>,
     pub result: Type,
     pub body: Vec<Source<Statement>>,
 }
 
 impl Func {
     pub fn to_type(&self) -> Type {
-        Type::Func(
-            self.params.iter().map(|(_, t)| t.clone()).collect(),
-            Box::new(self.result.clone()),
-        )
+        if let Some((_, t)) = &self.variadic {
+            Type::VariadicFunc(
+                self.params.iter().map(|(_, t)| t.clone()).collect(),
+                Box::new(t.clone()),
+                Box::new(self.result.clone()),
+            )
+        } else {
+            Type::Func(
+                self.params.iter().map(|(_, t)| t.clone()).collect(),
+                Box::new(self.result.clone()),
+            )
+        }
     }
 }
 

@@ -201,6 +201,10 @@ module string {
             length: new_length,
         };
     }
+
+    fun to_string(self): string {
+        return self;
+    }
 }
 
 fun panic(s: string) {

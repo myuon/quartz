@@ -96,7 +96,7 @@ impl Parser {
         self.expect(Lexeme::Fun)?;
         let name = self.ident()?;
         self.expect(Lexeme::LParen)?;
-        let params = self.params()?;
+        let (params, variadic) = self.params()?;
         self.expect(Lexeme::RParen)?;
 
         let mut result = Type::Nil;
@@ -112,6 +112,7 @@ impl Parser {
         Ok(Func {
             name,
             params,
+            variadic,
             result,
             body,
         })
@@ -145,12 +146,19 @@ impl Parser {
         Ok((ident, Type::Record(record_type)))
     }
 
-    fn params(&mut self) -> Result<Vec<(Ident, Type)>> {
+    fn params(&mut self) -> Result<(Vec<(Ident, Type)>, Option<(Ident, Type)>)> {
+        let mut variadic = None;
         let mut params = vec![];
         while self.peek()?.lexeme != Lexeme::RParen {
             if self.peek()?.lexeme == Lexeme::Self_ {
                 self.consume()?;
                 params.push((Ident("self".to_string()), self.gen_omit()?));
+            } else if self.peek()?.lexeme == Lexeme::DoubleDot {
+                self.consume()?;
+                let name = self.ident()?;
+                self.expect(Lexeme::Colon)?;
+                let type_ = self.type_()?;
+                variadic = Some((name, type_));
             } else {
                 let name = self.ident()?;
                 self.expect(Lexeme::Colon)?;
@@ -165,7 +173,7 @@ impl Parser {
             self.expect(Lexeme::Comma)?;
         }
 
-        Ok(params)
+        Ok((params, variadic))
     }
 
     fn block(&mut self) -> Result<Vec<Source<Statement>>> {
