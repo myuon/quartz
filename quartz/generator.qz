@@ -1,3 +1,6 @@
+import quartz::ast;
+import quartz::ir;
+
 type Generator = {
     writer: string,
     depth: i32,
