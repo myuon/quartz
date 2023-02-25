@@ -242,15 +242,24 @@ fun map_make(): Map {
 
 fun map_at(map: Map, key: string): any {
     if map.count == 0 {
-        return nil as any;
+        panic("map_at: key ".concat(key).concat(" not found"));
     }
 
     let entry = map_find_entry(map, key);
     if entry.key == nil {
-        return nil as any;
+        panic("map_at: key ".concat(key).concat(" not found"));
     } else {
         return entry.value;
     }
+}
+
+fun map_has(map: Map, key: string): bool {
+    if map.count == 0 {
+        return false;
+    }
+
+    let entry = map_find_entry(map, key);
+    return entry.key != nil;
 }
 
 fun map_insert(map: Map, key: string, value: any) {
@@ -292,15 +301,13 @@ fun map_find_entry(map: Map, key: string): MapEntry {
     let index = i64_to_i32(hash % i32_to_i64(map.capacity));
 
     let entry = map.entries.at(index);
-    while entry.key != nil {
-        if entry.key!.equal(key) {
+    while true {
+        if entry.key == nil || entry.key!.equal(key) {
             return entry;
         }
         index = (index + 1) % map.capacity;
         entry = map.entries.at(index);
     }
-
-    return entry;
 }
 
 fun hash_string(key: string, length: i32): i64 {

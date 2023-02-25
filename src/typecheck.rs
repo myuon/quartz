@@ -620,6 +620,12 @@ impl TypeChecker {
                         "at" => {
                             return Ok(Type::Func(vec![key.as_ref().clone()], value.clone()));
                         }
+                        "has" => {
+                            return Ok(Type::Func(
+                                vec![key.as_ref().clone()],
+                                Box::new(Type::Bool),
+                            ));
+                        }
                         _ => (),
                     }
                 }

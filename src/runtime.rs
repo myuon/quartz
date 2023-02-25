@@ -513,6 +513,10 @@ fun main(): i32 {
 
     for i in 0..paragraph.length {
         let ch = paragraph.at(i);
+        if !count.has(ch) {
+            count.insert(ch, 0);
+        }
+
         count.insert(ch, count.at(ch) + 1);
     }
 
