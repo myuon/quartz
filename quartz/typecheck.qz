@@ -136,45 +136,6 @@ module Typechecker {
     }
 }
 
-type Type = {
-    t_omit: bool?, // for unification
-    t_nil: bool?,
-    t_i32: bool?,
-    t_func: struct {
-        params: vec[Type],
-        result: Type,
-    }?,
-};
-
-module Type {
-    fun to_string(self): string {
-        if self.t_omit != nil {
-            return "omit";
-        }
-        if self.t_nil != nil {
-            return "nil";
-        }
-        if self.t_i32 != nil {
-            return "i32";
-        }
-        if self.t_func != nil {
-            let s = "func(";
-            for i in 0..self.t_func!.params.length {
-                let p = self.t_func!.params.at(i);
-                s = s.concat(p.to_string());
-                if i != self.t_func!.params.length - 1 {
-                    s = s.concat(", ");
-                }
-            }
-            s = s.concat(") -> ");
-            s = s.concat(self.t_func!.result.to_string());
-            return s;
-        }
-
-        panic("unimplemented: type.to_string");
-    }
-}
-
 fun unify(type1: Type, type2: Type) {
     if type1.t_i32 != nil && type2.t_i32 != nil {
         return;

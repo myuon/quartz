@@ -105,13 +105,11 @@ fn main() -> Result<()> {
             let mut buffer = String::new();
             file.read_to_string(&mut buffer)?;
 
-            let result = compiler.compile_collect_errors(
+            let result = compiler.check(
                 &project.unwrap_or(std::env::current_dir()?.to_str().unwrap().to_string()),
                 &buffer,
             );
-            if let Err(errors) = result {
-                println!("{}", serde_json::to_string_pretty(&errors)?);
-            }
+            println!("{}", serde_json::to_string_pretty(&result)?);
         }
     }
 

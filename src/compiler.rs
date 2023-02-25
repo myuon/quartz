@@ -108,6 +108,100 @@ impl Compiler {
         }
     }
 
+    fn check_(&mut self, cwd: &str, input: &str) -> Result<()> {
+        let mut lexer = Lexer::new();
+        let mut parser = Parser::new();
+        let mut typechecker = TypeChecker::new();
+
+        let main_path = Path::ident(Ident("main".to_string()));
+        lexer.run(input, main_path.clone()).context("lexer phase")?;
+        let main = parser
+            .run(lexer.tokens, main_path.clone())
+            .context("parser phase")?;
+
+        self.loader.loaded.push(LoadedModule {
+            path: main_path.clone(),
+            source: input.to_string(),
+            module: main.clone(),
+        });
+
+        let mut visited = HashSet::new();
+
+        parser.imports.push(Path::new(vec![
+            Ident("quartz".to_string()),
+            Ident("std".to_string()),
+        ]));
+
+        while let Some(path) = parser.imports.pop() {
+            if visited.contains(&path) {
+                continue;
+            }
+
+            self.loader.load_module(cwd, path.clone())?;
+
+            visited.insert(path);
+        }
+
+        let mut module = Module(
+            self.loader
+                .loaded
+                .iter()
+                .map(|v| {
+                    // HACK: Add import quartz::std to the top of the file
+                    let mut decls = vec![Decl::Import(v.path.clone())];
+                    decls.extend(v.module.0.clone());
+
+                    Decl::Module(v.path.clone(), Module(decls))
+                })
+                .collect::<Vec<_>>(),
+        );
+
+        typechecker.run(&mut module).context("typechecker phase")?;
+
+        Ok(())
+    }
+
+    pub fn check(&mut self, cwd: &str, input: &str) -> Vec<ElaboratedError> {
+        let input = input.to_string();
+
+        let Err(error) = self.check_(cwd, &input) else {
+            return vec![]
+        };
+
+        if let Some(source) = error.downcast_ref::<ErrorInSource>() {
+            let input = if let Some(path) = &source.path {
+                let Some(loaded) = self.loader.matches(path) else {
+                        return vec![]
+                    };
+
+                loaded.source.clone()
+            } else {
+                input
+            };
+
+            let start = source.start;
+            let end = source.end;
+            let source_path = source.path.clone();
+
+            let (start_line_number, start_column_index) = find_position(&input, start);
+            let (end_line_number, end_column_index) = find_position(&input, end);
+
+            vec![ElaboratedError {
+                source_path: source_path.map(|path| path.0.into_iter().map(|t| t.0).collect()),
+                start: (start_line_number, start_column_index),
+                end: (end_line_number, end_column_index),
+                message: format!("{:?}", error),
+            }]
+        } else {
+            vec![ElaboratedError {
+                start: (0, 0),
+                end: (0, 0),
+                source_path: None,
+                message: format!("Unknown error: {}", error),
+            }]
+        }
+    }
+
     fn compile_(&mut self, cwd: &str, input: &str) -> Result<String> {
         let mut lexer = Lexer::new();
         let mut parser = Parser::new();
@@ -248,49 +342,6 @@ impl Compiler {
                 ))
             } else {
                 error
-            }
-        })
-    }
-
-    pub fn compile_collect_errors(
-        &mut self,
-        cwd: &str,
-        input: &str,
-    ) -> Result<String, Vec<ElaboratedError>> {
-        let input = input.to_string();
-
-        self.compile_(cwd, &input).map_err(|error| {
-            if let Some(source) = error.downcast_ref::<ErrorInSource>() {
-                let input = if let Some(path) = &source.path {
-                    let Some(loaded) = self.loader.matches(path) else {
-                        return vec![]
-                    };
-
-                    loaded.source.clone()
-                } else {
-                    input
-                };
-
-                let start = source.start;
-                let end = source.end;
-                let source_path = source.path.clone();
-
-                let (start_line_number, start_column_index) = find_position(&input, start);
-                let (end_line_number, end_column_index) = find_position(&input, end);
-
-                vec![ElaboratedError {
-                    source_path: source_path.map(|path| path.0.into_iter().map(|t| t.0).collect()),
-                    start: (start_line_number, start_column_index),
-                    end: (end_line_number, end_column_index),
-                    message: format!("{}", error),
-                }]
-            } else {
-                vec![ElaboratedError {
-                    start: (0, 0),
-                    end: (0, 0),
-                    source_path: None,
-                    message: format!("Unknown error: {}", error),
-                }]
             }
         })
     }
