@@ -1,26 +1,48 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
-import * as vscode from 'vscode';
+import * as vscode from "vscode";
+import {
+  LanguageClient,
+  LanguageClientOptions,
+  ServerOptions,
+  TransportKind,
+} from "vscode-languageclient/node";
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
+let client: LanguageClient;
+
 export function activate(context: vscode.ExtensionContext) {
+  try {
+    console.log("Activating extension: " + context.extensionPath);
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "quartz-vscode" is now active!');
+    const serverModule = context.asAbsolutePath("server/out/server.js");
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	let disposable = vscode.commands.registerCommand('quartz-vscode.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from quartz-vscode!');
-	});
+    const serverOptions: ServerOptions = {
+      run: {
+        module: serverModule,
+        transport: TransportKind.ipc,
+      },
+      debug: {
+        module: serverModule,
+        transport: TransportKind.ipc,
+      },
+    };
 
-	context.subscriptions.push(disposable);
+    const clientOptions: LanguageClientOptions = {
+      documentSelector: [{ scheme: "file", language: "quartz" }],
+    };
+    client = new LanguageClient(
+      "quartz-mode",
+      "Quartz Language Server",
+      serverOptions,
+      clientOptions
+    );
+    context.subscriptions.push(client.start());
+  } catch (e) {
+    vscode.window.showErrorMessage("Error activating extension: " + e);
+  }
 }
 
 // This method is called when your extension is deactivated
-export function deactivate() {}
+export function deactivate() {
+  if (client) {
+    return client.stop();
+  }
+}
