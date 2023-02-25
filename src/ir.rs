@@ -87,6 +87,14 @@ pub enum IrTerm {
     Discard {
         element: Box<IrTerm>,
     },
+    And {
+        lhs: Box<IrTerm>,
+        rhs: Box<IrTerm>,
+    },
+    Or {
+        lhs: Box<IrTerm>,
+        rhs: Box<IrTerm>,
+    },
 }
 
 impl IrTerm {

@@ -315,6 +315,24 @@ impl IrCodeGenerator {
                             source: None,
                         })
                     }
+                    And => {
+                        let arg1 = self.expr(arg1)?;
+                        let arg2 = self.expr(arg2)?;
+
+                        Ok(IrTerm::And {
+                            lhs: Box::new(arg1),
+                            rhs: Box::new(arg2),
+                        })
+                    }
+                    Or => {
+                        let arg1 = self.expr(arg1)?;
+                        let arg2 = self.expr(arg2)?;
+
+                        Ok(IrTerm::Or {
+                            lhs: Box::new(arg1),
+                            rhs: Box::new(arg2),
+                        })
+                    }
                 }
             }
             Expr::Call(callee, args) => match &mut callee.data {

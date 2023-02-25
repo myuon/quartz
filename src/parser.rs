@@ -309,30 +309,17 @@ impl Parser {
                     self.consume()?;
                     let rhs = self.term_4(with_struct)?;
 
-                    current =
-                        self.source_from(
-                            Expr::Call(
-                                Box::new(self.source_from(
-                                    Expr::ident(Ident("or".to_string())),
-                                    token.position,
-                                )),
-                                vec![current, rhs],
-                            ),
-                            position,
-                        );
+                    current = self.source_from(
+                        Expr::BinOp(BinOp::Or, Type::Bool, Box::new(current), Box::new(rhs)),
+                        position,
+                    );
                 }
                 Lexeme::DoubleAmp => {
                     self.consume()?;
                     let rhs = self.term_4(with_struct)?;
 
                     current = self.source_from(
-                        Expr::Call(
-                            Box::new(self.source_from(
-                                Expr::ident(Ident("and".to_string())),
-                                token.position,
-                            )),
-                            vec![current, rhs],
-                        ),
+                        Expr::BinOp(BinOp::And, Type::Bool, Box::new(current), Box::new(rhs)),
                         position,
                     );
                 }

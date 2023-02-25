@@ -464,6 +464,42 @@ impl TypeChecker {
 
                         Ok(arg1_type)
                     }
+                    And => {
+                        let mut arg1_type = self.expr(arg1)?;
+                        let mut arg2_type = self.expr(arg2)?;
+
+                        self.unify(&mut arg1_type, &mut arg2_type)
+                            .context(ErrorInSource {
+                                path: Some(self.current_path.clone()),
+                                start: arg1.start.unwrap_or(0),
+                                end: arg1.end.unwrap_or(0),
+                            })?;
+                        if !arg1_type.is_bool_type() {
+                            bail!("Expected bool type, got {:?}", arg1_type)
+                        }
+
+                        *type_ = arg1_type.clone();
+
+                        Ok(arg1_type)
+                    }
+                    Or => {
+                        let mut arg1_type = self.expr(arg1)?;
+                        let mut arg2_type = self.expr(arg2)?;
+
+                        self.unify(&mut arg1_type, &mut arg2_type)
+                            .context(ErrorInSource {
+                                path: Some(self.current_path.clone()),
+                                start: arg1.start.unwrap_or(0),
+                                end: arg1.end.unwrap_or(0),
+                            })?;
+                        if !arg1_type.is_bool_type() {
+                            bail!("Expected bool type, got {:?}", arg1_type)
+                        }
+
+                        *type_ = arg1_type.clone();
+
+                        Ok(arg1_type)
+                    }
                 }
             }
             Expr::Record(ident, record, expansion) => {

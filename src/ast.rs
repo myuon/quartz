@@ -117,6 +117,13 @@ impl Type {
         }
     }
 
+    pub fn is_bool_type(&self) -> bool {
+        match self {
+            Type::Bool => true,
+            _ => false,
+        }
+    }
+
     pub fn as_record_type(&self) -> Result<&Vec<(Ident, Type)>> {
         match self {
             Type::Record(fields) => Ok(fields),
@@ -145,6 +152,8 @@ pub enum Lit {
 pub enum BinOp {
     Mul,
     Mod,
+    And,
+    Or,
 }
 
 #[derive(PartialEq, Debug, Clone)]
