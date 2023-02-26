@@ -1,4 +1,4 @@
-fun println(s: string) {
+fun print_string(s: string) {
     let l = s.length;
     let d = s.data;
     let n = 0;
@@ -7,13 +7,23 @@ fun println(s: string) {
         write_stdout(d.at(n));
         n = n + 1;
     }
+}
+
+fun println(format: string, ..arg: vec[string]) {
+    let str = format;
+    for i in 0..arg.length {
+        let a = arg.at(i);
+        str = str.replace_first("{}", a);
+    }
+
+    print_string(str);
 
     // \newline
     write_stdout(10 as byte);
 }
 
-fun formatf(format: string, ..arg: vec[string]): string {
-    let str = format;
+fun format(f: string, ..arg: vec[string]): string {
+    let str = f;
     for i in 0..arg.length {
         let a = arg.at(i);
         str = str.replace_first("{}", a);
@@ -22,14 +32,14 @@ fun formatf(format: string, ..arg: vec[string]): string {
     return str;
 }
 
-fun printf(format: string, ..arg: vec[string]) {
+fun print(format: string, ..arg: vec[string]) {
     let str = format;
     for i in 0..arg.length {
         let a = arg.at(i);
         str = str.replace_first("{}", a);
     }
 
-    println(str);
+    print_string(str);
 }
 
 fun vec_make(init_capacity: i32, size: i32): vec[i32] {

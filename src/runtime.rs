@@ -629,7 +629,7 @@ fun main(): bool {
             (
                 r#"
 fun main(): bool {
-    let f = formatf("hello, {}, {}, {}", "world", 1.to_string(), true.to_string());
+    let f = format("hello, {}, {}, {}", "world", 1.to_string(), true.to_string());
     println(f);
 
     return f.equal("hello, world, 1, true");
