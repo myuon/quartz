@@ -325,6 +325,20 @@ impl IrCodeGenerator {
                         args: vec![arg1, arg2],
                         source: None,
                     }),
+                    Div => Ok(IrTerm::Call {
+                        callee: Box::new(IrTerm::Ident(
+                            if matches!(type_, Type::I32) {
+                                "div"
+                            } else if matches!(type_, Type::I64) {
+                                "div_i64"
+                            } else {
+                                bail!("invalid type for div: {:?}", type_)
+                            }
+                            .to_string(),
+                        )),
+                        args: vec![arg1, arg2],
+                        source: None,
+                    }),
                     Mod => Ok(IrTerm::Call {
                         callee: Box::new(IrTerm::Ident(
                             if matches!(type_, Type::I32) {

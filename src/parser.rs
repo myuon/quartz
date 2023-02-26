@@ -463,7 +463,6 @@ impl Parser {
         let position = self.position;
         let mut current = self.term_0(with_struct)?;
 
-        let token_position = self.position;
         let token = self.peek()?;
         match token.lexeme {
             Lexeme::Star => {
@@ -477,20 +476,10 @@ impl Parser {
             }
             Lexeme::Slash => {
                 self.consume()?;
-                let token_position_end = self.position;
                 let rhs = self.term_1(with_struct)?;
 
                 current = self.source_from(
-                    Expr::Call(
-                        Box::new(self.source(
-                            Expr::ident(Ident("div".to_string())),
-                            token_position,
-                            token_position_end,
-                        )),
-                        vec![current, rhs],
-                        None,
-                        None,
-                    ),
+                    Expr::BinOp(BinOp::Div, Type::Omit(0), Box::new(current), Box::new(rhs)),
                     position,
                 );
             }

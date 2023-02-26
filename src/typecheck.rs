@@ -21,14 +21,6 @@ impl TypeChecker {
         TypeChecker {
             locals: HashMap::new(),
             globals: vec![
-                (
-                    "div",
-                    Type::Func(vec![Type::I32, Type::I32], Box::new(Type::I32)),
-                ),
-                (
-                    "equal",
-                    Type::Func(vec![Type::I32, Type::I32], Box::new(Type::Bool)), // FIXME: support bool
-                ),
                 ("not", Type::Func(vec![Type::Bool], Box::new(Type::Bool))),
                 (
                     "write_stdout",
@@ -67,14 +59,6 @@ impl TypeChecker {
                     Type::Func(vec![Type::I64], Box::new(Type::I32)),
                 ),
                 ("abort", Type::Func(vec![], Box::new(Type::Nil))),
-                (
-                    "load_global",
-                    // result type should be any
-                    Type::Func(
-                        vec![Type::Ident(Ident("string".to_string()))],
-                        Box::new(Type::Nil),
-                    ),
-                ),
             ]
             .into_iter()
             .map(|(k, v)| (Path::ident(Ident(k.to_string())), v))
@@ -507,7 +491,7 @@ impl TypeChecker {
                 use crate::ast::BinOp::*;
 
                 match op {
-                    Add | Sub | Mul | Mod => {
+                    Add | Sub | Mul | Mod | Div => {
                         let mut arg1_type = self.expr(arg1)?;
                         let mut arg2_type = self.expr(arg2)?;
 
