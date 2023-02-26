@@ -87,7 +87,7 @@ module Parser {
         self.expect("rparen");
 
         let result_type = Type {
-            t_omit: true?,
+            t_nil: true?,
             ..nil,
         };
         if self.peek().lexeme.equal("colon") {

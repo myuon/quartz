@@ -62,6 +62,7 @@ fun run(input: string): string {
     // println("irgen");
 
     let gen = Generator::new();
+    gen.set_globals(typechecker.globals);
     let code = gen.run(term);
 
     return code;

@@ -41,6 +41,8 @@ module Typechecker {
         }
         if d.t_let != nil {
             let t = self.expression(d.t_let!.expr);
+            unify(t, d.t_let!.name_type);
+            d.t_let!.name_type = t;
 
             self.globals.insert(d.t_let!.name, t);
             return;
@@ -76,6 +78,8 @@ module Typechecker {
     fun statement(self, s: Statement, result_type: Type) {
         if s.t_let != nil {
             let t = self.expression(s.t_let!.expr);
+            unify(t, s.t_let!.name_type);
+            s.t_let!.name_type = t;
 
             self.locals.insert(s.t_let!.name, t);
             return;

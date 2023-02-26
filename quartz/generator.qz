@@ -5,6 +5,7 @@ type Generator = {
     writer: string,
     depth: i32,
     index: i32,
+    globals: map[string, Type],
 };
 
 module Generator {
@@ -13,6 +14,7 @@ module Generator {
             writer: "",
             depth: 0,
             index: 0,
+            globals: make[map[string, Type]](),
         };
     }
 
@@ -45,6 +47,10 @@ module Generator {
         self.index = 0;
     }
 
+    fun set_globals(self, globals: map[string, Type]) {
+        self.globals = globals;
+    }
+
     fun generate(self): string {
         return self.writer;
     }
@@ -59,6 +65,10 @@ module Generator {
 
                 if element.t_func != nil {
                     self.function(element.t_func!);
+                    continue;
+                }
+                if element.t_global_let != nil {
+                    self.global_let(element.t_global_let!);
                     continue;
                 }
 
@@ -77,6 +87,25 @@ module Generator {
         return self.generate();
     }
 
+    fun global_let(self, global_let: struct {
+        name: string,
+        type_: IrType,
+        value: IrTerm,
+    }): Generator {
+        self.start();
+        self.write(format(
+            "global ${} (mut {})",
+            global_let.name,
+            global_let.type_.to_string(),
+        ));
+        self.start();
+        self.expression(global_let.value);
+        self.end();
+        self.end();
+
+        return self;
+    }
+
     fun function(self, func: IrFunc): Generator {
         self.start();
         self.write("func");
@@ -87,7 +116,9 @@ module Generator {
             self.write("(param $".concat(p.name).concat(" ").concat(p.type_.to_string()).concat(")"));
         }
 
-        self.write("(result ".concat(func.result_type.to_string()).concat(")"));
+        if !func.result_type.is_nil() {
+            self.write("(result ".concat(func.result_type.to_string()).concat(")"));
+        }
 
         for i in 0..func.locals.length {
             self.new_statement();
@@ -107,7 +138,12 @@ module Generator {
 
     fun expression(self, expr: IrTerm) {
         if expr.t_ident != nil {
-            self.write("local.get $".concat(expr.t_ident!));
+            if self.globals.has(expr.t_ident!) {
+                self.write("global.get");
+            } else {
+                self.write("local.get");
+            }
+            self.write(format("${}", expr.t_ident!));
             return;
         }
         if expr.t_i32 != nil {
@@ -150,22 +186,41 @@ module Generator {
                     return;
                 }
             } else {
-                panic("not implemented");
+                panic("not implemented: call");
             }
 
             return;
         }
+        if expr.t_assign != nil {
+            self.expression(expr.t_assign!.rhs);
 
-        panic("not implemented");
+            self.new_statement();
+            if self.globals.has(expr.t_assign!.lhs) {
+                self.write("global.set");
+            } else {
+                self.write("local.set");
+            }
+            self.write(format("${}", expr.t_assign!.lhs));
+
+            return;
+        }
+
+        println(expr.to_string());
+        panic("not implemented: expr");
     }
 
     fun expression_left_value(self, expr: IrTerm) {
         if expr.t_ident != nil {
             self.new_statement();
-            self.write("local.set $".concat(expr.t_ident!));
+            if self.globals.has(expr.t_ident!) {
+                self.write("global.set");
+            } else {
+                self.write("local.set");
+            }
+            self.write(format("${}", expr.t_ident!));
             return;
         }
 
-        panic("not implemented");
+        panic("not implemented: expr_lhs");
     }
 }

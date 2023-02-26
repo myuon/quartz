@@ -17,16 +17,7 @@ module IrCodeGenerator {
 
         for i in 0..m.decls.length {
             let f = m.decls.at(i);
-
-            if f.t_func != nil {
-                elements.push(IrTerm {
-                    t_func: self.function(f.t_func!)?,
-                    ..nil,
-                });
-                continue;
-            }
-
-            panic("module_ exhausted");
+            elements.push(self.decl(f));
         }
 
         return IrTerm {
@@ -35,6 +26,31 @@ module IrCodeGenerator {
             }?,
             ..nil
         };
+    }
+
+    fun decl(self, d: Decl): IrTerm {
+        if d.t_func != nil {
+            return IrTerm {
+                t_func: self.function(d.t_func!)?,
+                ..nil,
+            };
+        }
+        if d.t_let != nil {
+            return IrTerm {
+                t_global_let: struct {
+                    name: d.t_let!.name,
+                    type_: IrType {
+                        t_i32: true?,
+                        ..nil,
+                    },
+                    value: self.expression(d.t_let!.expr),
+                }?,
+                ..nil,
+            };
+        }
+
+        println(d.to_string());
+        panic("decl exhausted");
     }
 
     fun function(self, func: Function): IrFunc {
@@ -80,6 +96,7 @@ module IrCodeGenerator {
                     name: stm.t_let!.name,
                     type_: IrType {
                         t_i32: true?,
+                        ..nil,
                     },
                     value: self.expression(stm.t_let!.expr),
                 }?,
@@ -99,7 +116,30 @@ module IrCodeGenerator {
 
             return term;
         }
+        if stm.t_expr != nil {
+            return self.expression(stm.t_expr!.expr);
+        }
+        if stm.t_assign != nil {
+            let lhs = self.expression(stm.t_assign!.lhs);
+            let rhs = self.expression(stm.t_assign!.rhs);
 
+            if lhs.t_ident != nil {
+                let term = IrTerm {
+                    t_assign: struct {
+                        lhs: lhs.t_ident!,
+                        rhs: rhs,
+                    }?,
+                    ..nil,
+                };
+
+                return term;
+            }
+
+            println(stm.t_assign!.lhs.to_string());
+            panic("lhs");
+        }
+
+        println(stm.to_string());
         panic("statement exhausted");
     }
 

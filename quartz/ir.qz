@@ -11,6 +11,15 @@ type IrTerm = {
     t_module: struct {
         elements: vec[IrTerm],
     }?,
+    t_global_let: struct {
+        name: string,
+        type_: IrType,
+        value: IrTerm,
+    }?,
+    t_assign: struct {
+        lhs: string,
+        rhs: IrTerm,
+    }?,
 };
 
 module IrTerm {
@@ -56,7 +65,11 @@ module IrTerm {
             return result;
         }
         if self.t_let != nil {
-            return "let";
+            return format(
+                "(let ${} {})",
+                self.t_let!.name,
+                self.t_let!.value.to_string(),
+            );
         }
         if self.t_return != nil {
             let result = "return ".concat(self.t_return!.value.to_string());
@@ -102,11 +115,18 @@ type IrReturn = {
 };
 
 type IrType = {
+    t_nil: bool?,
     t_i32: bool?,
 };
 
 module IrType {
     fun new(t: Type): IrType {
+        if t.t_nil != nil {
+            return IrType{
+                t_nil: true?,
+                ..nil,
+            };
+        }
         if t.t_i32 != nil {
             return IrType{
                 t_i32: true?,
@@ -114,14 +134,22 @@ module IrType {
             };
         }
 
+        println(t.to_string());
         panic("unknown type");
     }
 
     fun to_string(self): string {
+        if self.t_nil != nil {
+            return "nil";
+        }
         if self.t_i32 != nil {
             return "i32";
         }
 
         panic("unknown type");
+    }
+
+    fun is_nil(self): bool {
+        return self.t_nil != nil;
     }
 }
