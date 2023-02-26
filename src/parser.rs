@@ -193,12 +193,15 @@ impl Parser {
                 Ok(Statement::Let(ident, type_, value))
             }
             Lexeme::Return => {
+                let position = self.position;
                 self.consume()?;
 
                 if self.peek()?.lexeme == Lexeme::Semicolon {
                     self.consume()?;
 
-                    Ok(Statement::Return(Source::unknown(Expr::Lit(Lit::Nil))))
+                    Ok(Statement::Return(
+                        self.source_from(Expr::Lit(Lit::Nil), position),
+                    ))
                 } else {
                     let value = self.expr()?;
                     self.expect(Lexeme::Semicolon)?;
@@ -568,9 +571,10 @@ impl Parser {
                 self.source_from(Expr::AnonymousRecord(fields, Type::Omit(0)), position)
             }
             _ => {
+                let position = self.position;
                 let lit = self.lit()?;
 
-                Source::unknown(Expr::Lit(lit))
+                self.source_from(Expr::Lit(lit), position)
             }
         };
 

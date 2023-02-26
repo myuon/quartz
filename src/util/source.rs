@@ -21,4 +21,12 @@ impl<T> Source<T> {
             end: None,
         }
     }
+
+    pub fn transfer<S>(data: T, other: &Source<S>) -> Source<T> {
+        Source {
+            data,
+            start: other.start,
+            end: other.end,
+        }
+    }
 }

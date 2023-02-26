@@ -246,6 +246,9 @@ impl IrCodeGenerator {
     }
 
     fn expr(&mut self, expr: &mut Source<Expr>) -> Result<IrTerm> {
+        let source_start = expr.start.unwrap_or(0);
+        let source_end = expr.end.unwrap_or(0);
+
         match &mut expr.data {
             Expr::Ident {
                 ident,
@@ -455,12 +458,13 @@ impl IrCodeGenerator {
 
                                 Ok(IrTerm::PointerAt {
                                     type_: IrType::from_type(p).context("method:array.at")?,
-                                    address: Box::new(self.expr(&mut Source::unknown(
+                                    address: Box::new(self.expr(&mut Source::transfer(
                                         Expr::Project(
                                             expr.clone(),
                                             Type::Array(p.clone(), *s),
                                             Path::ident(Ident("data".to_string())),
                                         ),
+                                        expr,
                                     ))?),
                                     index: Box::new(self.expr(&mut args[0])?),
                                 })
@@ -468,68 +472,93 @@ impl IrCodeGenerator {
                             (Type::Vec(_), "at") => {
                                 assert_eq!(args.len(), 1);
 
-                                Ok(self.expr(&mut Source::unknown(Expr::Call(
-                                    Box::new(Source::unknown(Expr::path(Path::new(
-                                        vec!["quartz", "std", "vec_at"]
-                                            .into_iter()
-                                            .map(|t| Ident(t.to_string()))
-                                            .collect(),
-                                    )))),
-                                    vec![expr.as_ref().clone(), args[0].clone()],
-                                    None,
-                                    None,
-                                )))?)
+                                Ok(self.expr(&mut Source::transfer(
+                                    Expr::Call(
+                                        Box::new(Source::transfer(
+                                            Expr::path(Path::new(
+                                                vec!["quartz", "std", "vec_at"]
+                                                    .into_iter()
+                                                    .map(|t| Ident(t.to_string()))
+                                                    .collect(),
+                                            )),
+                                            expr,
+                                        )),
+                                        vec![expr.as_ref().clone(), args[0].clone()],
+                                        None,
+                                        None,
+                                    ),
+                                    expr,
+                                ))?)
                             }
                             (Type::Vec(_), "push") => {
                                 assert_eq!(args.len(), 1);
 
-                                Ok(self.statement(&mut Source::unknown(Statement::Expr(
-                                    Source::unknown(Expr::Call(
-                                        Box::new(Source::unknown(Expr::path(Path::new(
-                                            vec!["quartz", "std", "vec_push"]
-                                                .into_iter()
-                                                .map(|t| Ident(t.to_string()))
-                                                .collect(),
-                                        )))),
-                                        vec![expr.as_ref().clone(), args[0].clone()],
-                                        None,
-                                        None,
-                                    )),
-                                    Type::Nil,
-                                )))?)
+                                Ok(self.statement(&mut Source::transfer(
+                                    Statement::Expr(
+                                        Source::transfer(
+                                            Expr::Call(
+                                                Box::new(Source::transfer(
+                                                    Expr::path(Path::new(
+                                                        vec!["quartz", "std", "vec_push"]
+                                                            .into_iter()
+                                                            .map(|t| Ident(t.to_string()))
+                                                            .collect(),
+                                                    )),
+                                                    expr,
+                                                )),
+                                                vec![expr.as_ref().clone(), args[0].clone()],
+                                                None,
+                                                None,
+                                            ),
+                                            expr,
+                                        ),
+                                        Type::Nil,
+                                    ),
+                                    expr,
+                                ))?)
                             }
                             (Type::Map(_, _), "insert") => {
                                 assert_eq!(args.len(), 2);
 
-                                Ok(self.statement(&mut Source::unknown(Statement::Expr(
-                                    Source::unknown(Expr::Call(
-                                        Box::new(Source::unknown(Expr::path(Path::new(
-                                            vec!["quartz", "std", "map_insert"]
-                                                .into_iter()
-                                                .map(|t| Ident(t.to_string()))
-                                                .collect(),
-                                        )))),
-                                        vec![
-                                            expr.as_ref().clone(),
-                                            args[0].clone(),
-                                            args[1].clone(),
-                                        ],
-                                        None,
-                                        None,
-                                    )),
-                                    Type::Nil,
-                                )))?)
+                                Ok(self.statement(&mut Source::transfer(
+                                    Statement::Expr(
+                                        Source::transfer(
+                                            Expr::Call(
+                                                Box::new(Source::transfer(
+                                                    Expr::path(Path::new(
+                                                        vec!["quartz", "std", "map_insert"]
+                                                            .into_iter()
+                                                            .map(|t| Ident(t.to_string()))
+                                                            .collect(),
+                                                    )),
+                                                    expr,
+                                                )),
+                                                vec![
+                                                    expr.as_ref().clone(),
+                                                    args[0].clone(),
+                                                    args[1].clone(),
+                                                ],
+                                                None,
+                                                None,
+                                            ),
+                                            expr,
+                                        ),
+                                        Type::Nil,
+                                    ),
+                                    expr,
+                                ))?)
                             }
                             (Type::Map(_, _), "at") => {
                                 assert_eq!(args.len(), 1);
 
                                 Ok(IrTerm::Call {
-                                    callee: Box::new(self.expr(&mut Source::unknown(
+                                    callee: Box::new(self.expr(&mut Source::transfer(
                                         Expr::path(Path::new(vec![
                                             Ident("quartz".to_string()),
                                             Ident("std".to_string()),
                                             Ident("map_at".to_string()),
                                         ])),
+                                        expr,
                                     ))?),
                                     args: vec![self.expr(expr)?, self.expr(&mut args[0])?],
                                     source: None,
@@ -539,12 +568,13 @@ impl IrCodeGenerator {
                                 assert_eq!(args.len(), 1);
 
                                 Ok(IrTerm::Call {
-                                    callee: Box::new(self.expr(&mut Source::unknown(
+                                    callee: Box::new(self.expr(&mut Source::transfer(
                                         Expr::path(Path::new(vec![
                                             Ident("quartz".to_string()),
                                             Ident("std".to_string()),
                                             Ident("map_has".to_string()),
                                         ])),
+                                        expr,
                                     ))?),
                                     args: vec![self.expr(expr)?, self.expr(&mut args[0])?],
                                     source: None,
@@ -558,11 +588,12 @@ impl IrCodeGenerator {
                                 }
 
                                 Ok(IrTerm::Call {
-                                    callee: Box::new(self.expr(&mut Source::unknown(
+                                    callee: Box::new(self.expr(&mut Source::transfer(
                                         Expr::path(Path::new(vec![
                                             Ident("i32".to_string()),
                                             Ident(label.to_string()),
                                         ])),
+                                        expr,
                                     ))?),
                                     args: elements,
                                     source: None,
@@ -575,7 +606,7 @@ impl IrCodeGenerator {
                         args_with_self.extend(args.clone());
 
                         self.generate_call(
-                            &mut Source::unknown(Expr::path(label.clone())),
+                            &mut Source::transfer(Expr::path(label.clone()), expr),
                             &mut args_with_self,
                             variadic,
                             expansion,
@@ -741,29 +772,48 @@ impl IrCodeGenerator {
                 })
             }
             Expr::Make(type_, args) => match type_ {
-                Type::Array(_elem, size) => Ok(self.expr(&mut Source::unknown(Expr::Record(
-                    Source::unknown(Ident("array".to_string())),
-                    vec![
-                        (
-                            Ident("data".to_string()),
-                            Source::unknown(Expr::Call(
-                                Box::new(Source::unknown(Expr::path(Path::new(vec![
-                                    Ident("quartz".to_string()),
-                                    Ident("std".to_string()),
-                                    Ident("alloc".to_string()),
-                                ])))),
-                                vec![Source::unknown(Expr::Lit(Lit::I32(*size as i32)))],
-                                None,
-                                None,
-                            )),
-                        ),
-                        (
-                            Ident("length".to_string()),
-                            Source::unknown(Expr::Lit(Lit::I32(*size as i32))),
-                        ),
-                    ],
-                    None,
-                )))?),
+                Type::Array(_elem, size) => Ok(self.expr(&mut Source::transfer(
+                    Expr::Record(
+                        Source::new(Ident("array".to_string()), source_start, source_end),
+                        vec![
+                            (
+                                Ident("data".to_string()),
+                                Source::new(
+                                    Expr::Call(
+                                        Box::new(Source::new(
+                                            Expr::path(Path::new(vec![
+                                                Ident("quartz".to_string()),
+                                                Ident("std".to_string()),
+                                                Ident("alloc".to_string()),
+                                            ])),
+                                            source_start,
+                                            source_end,
+                                        )),
+                                        vec![Source::new(
+                                            Expr::Lit(Lit::I32(*size as i32)),
+                                            source_start,
+                                            source_end,
+                                        )],
+                                        None,
+                                        None,
+                                    ),
+                                    source_start,
+                                    source_end,
+                                ),
+                            ),
+                            (
+                                Ident("length".to_string()),
+                                Source::new(
+                                    Expr::Lit(Lit::I32(*size as i32)),
+                                    source_start,
+                                    source_end,
+                                ),
+                            ),
+                        ],
+                        None,
+                    ),
+                    expr,
+                ))?),
                 Type::Vec(type_) => {
                     let cap = if args.is_empty() {
                         IrTerm::i32(5)
@@ -892,13 +942,14 @@ impl IrCodeGenerator {
                 name: vec_name.clone(),
                 type_: IrType::from_type(&Type::Vec(Box::new(variadic_call.element_type.clone())))?,
                 value: Box::new(IrTerm::Call {
-                    callee: Box::new(self.expr(&mut Source::unknown(Expr::path(Path::new(
-                        vec![
+                    callee: Box::new(self.expr(&mut Source::transfer(
+                        Expr::path(Path::new(vec![
                             Ident("quartz".to_string()),
                             Ident("std".to_string()),
                             Ident("vec_make".to_string()),
-                        ],
-                    ))))?),
+                        ])),
+                        callee,
+                    ))?),
                     args: vec![
                         IrTerm::I32(args.len() as i32 - variadic_call.index as i32),
                         IrTerm::SizeOf {
@@ -910,13 +961,14 @@ impl IrCodeGenerator {
             }];
             for arg in &mut args[variadic_call.index..] {
                 variadic_terms.push(IrTerm::Call {
-                    callee: Box::new(self.expr(&mut Source::unknown(Expr::path(Path::new(
-                        vec![
+                    callee: Box::new(self.expr(&mut Source::transfer(
+                        Expr::path(Path::new(vec![
                             Ident("quartz".to_string()),
                             Ident("std".to_string()),
                             Ident("vec_push".to_string()),
-                        ],
-                    ))))?),
+                        ])),
+                        arg,
+                    ))?),
                     args: vec![IrTerm::Ident(vec_name.clone()), self.expr(arg)?],
                     source: None,
                 });
@@ -924,13 +976,14 @@ impl IrCodeGenerator {
 
             if let Some(expansion) = expansion {
                 variadic_terms.push(IrTerm::Call {
-                    callee: Box::new(self.expr(&mut Source::unknown(Expr::path(Path::new(
-                        vec![
+                    callee: Box::new(self.expr(&mut Source::transfer(
+                        Expr::path(Path::new(vec![
                             Ident("quartz".to_string()),
                             Ident("std".to_string()),
                             Ident("vec_extend".to_string()),
-                        ],
-                    ))))?),
+                        ])),
+                        expansion,
+                    ))?),
                     args: vec![IrTerm::Ident(vec_name.clone()), self.expr(expansion)?],
                     source: None,
                 });
