@@ -3,7 +3,7 @@ use std::{collections::HashMap, vec};
 use anyhow::{anyhow, bail, Context, Result};
 
 use crate::{
-    ast::{Decl, Expr, Func, Lit, Module, Statement, Type},
+    ast::{Decl, Expr, Func, Lit, Module, Statement, Type, VariadicCall},
     compiler::{ErrorInSource, SourcePosition},
     ir::{IrTerm, IrType},
     util::{ident::Ident, path::Path, source::Source},
@@ -490,109 +490,18 @@ impl IrCodeGenerator {
                             _ => bail!("invalid project: {:?}", expr),
                         }
                     } else {
-                        let mut elements = vec![];
-                        elements.push(self.expr(expr)?);
-                        for arg in args {
-                            elements.push(self.expr(arg)?);
-                        }
+                        let mut args_with_self = vec![expr.as_ref().clone()];
+                        args_with_self.extend(args.clone());
 
-                        Ok(IrTerm::Call {
-                            callee: Box::new(
-                                self.expr(&mut Source::unknown(Expr::path(label.clone())))?,
-                            ),
-                            args: elements,
-                            source: None,
-                        })
+                        self.generate_call(
+                            &mut Source::unknown(Expr::path(label.clone())),
+                            &mut args_with_self,
+                            variadic,
+                            expansion,
+                        )
                     }
                 }
-                _ => {
-                    if let Some(variadic_call) = variadic {
-                        let mut elements = vec![];
-                        for arg in &mut args[0..variadic_call.index] {
-                            elements.push(self.expr(arg)?);
-                        }
-
-                        let vec_name = format!("vec_{}", callee.start.unwrap_or(0));
-
-                        let mut variadic_terms = vec![IrTerm::Let {
-                            name: vec_name.clone(),
-                            type_: IrType::from_type(&Type::Vec(Box::new(
-                                variadic_call.element_type.clone(),
-                            )))?,
-                            value: Box::new(IrTerm::Call {
-                                callee: Box::new(self.expr(&mut Source::unknown(Expr::path(
-                                    Path::new(vec![
-                                        Ident("quartz".to_string()),
-                                        Ident("std".to_string()),
-                                        Ident("vec_make".to_string()),
-                                    ]),
-                                )))?),
-                                args: vec![
-                                    IrTerm::I32(args.len() as i32 - variadic_call.index as i32),
-                                    IrTerm::SizeOf {
-                                        type_: IrType::from_type(&Type::Ident(Ident(
-                                            "string".to_string(),
-                                        )))?,
-                                    },
-                                ],
-                                source: None,
-                            }),
-                        }];
-                        for arg in &mut args[variadic_call.index..] {
-                            variadic_terms.push(IrTerm::Call {
-                                callee: Box::new(self.expr(&mut Source::unknown(Expr::path(
-                                    Path::new(vec![
-                                        Ident("quartz".to_string()),
-                                        Ident("std".to_string()),
-                                        Ident("vec_push".to_string()),
-                                    ]),
-                                )))?),
-                                args: vec![IrTerm::Ident(vec_name.clone()), self.expr(arg)?],
-                                source: None,
-                            });
-                        }
-                        variadic_terms.push(IrTerm::Ident(vec_name.clone()));
-
-                        if let Some(expansion) = expansion {
-                            variadic_terms.push(IrTerm::Call {
-                                callee: Box::new(self.expr(&mut Source::unknown(Expr::path(
-                                    Path::new(vec![
-                                        Ident("quartz".to_string()),
-                                        Ident("std".to_string()),
-                                        Ident("vec_extend".to_string()),
-                                    ]),
-                                )))?),
-                                args: vec![IrTerm::Ident(vec_name.clone()), self.expr(expansion)?],
-                                source: None,
-                            });
-                        }
-
-                        elements.push(IrTerm::Seq {
-                            elements: variadic_terms,
-                        });
-
-                        Ok(IrTerm::Call {
-                            callee: Box::new(self.expr(callee.as_mut())?),
-                            args: elements,
-                            source: None,
-                        })
-                    } else {
-                        let mut elements = vec![];
-                        for arg in args {
-                            elements.push(self.expr(arg)?);
-                        }
-
-                        Ok(IrTerm::Call {
-                            callee: Box::new(self.expr(callee.as_mut())?),
-                            args: elements,
-                            source: Some(SourcePosition {
-                                path: self.current_path.clone(),
-                                start: callee.start.unwrap_or(0),
-                                end: callee.end.unwrap_or(0),
-                            }),
-                        })
-                    }
-                }
+                _ => self.generate_call(callee, args, variadic, expansion),
             },
             Expr::Record(ident, fields, expansion) => {
                 /* example
@@ -851,6 +760,100 @@ impl IrCodeGenerator {
                     offset: 0,
                 })
             }
+        }
+    }
+
+    fn generate_call(
+        &mut self,
+        callee: &mut Source<Expr>,
+        args: &mut Vec<Source<Expr>>,
+        variadic: &mut Option<VariadicCall>,
+        expansion: &mut Option<Box<Source<Expr>>>,
+    ) -> Result<IrTerm> {
+        if let Some(variadic_call) = variadic {
+            let mut elements = vec![];
+            for arg in &mut args[0..variadic_call.index] {
+                elements.push(self.expr(arg)?);
+            }
+
+            let vec_name = format!("vec_{}", callee.start.unwrap_or(0));
+
+            let mut variadic_terms = vec![IrTerm::Let {
+                name: vec_name.clone(),
+                type_: IrType::from_type(&Type::Vec(Box::new(variadic_call.element_type.clone())))?,
+                value: Box::new(IrTerm::Call {
+                    callee: Box::new(self.expr(&mut Source::unknown(Expr::path(Path::new(
+                        vec![
+                            Ident("quartz".to_string()),
+                            Ident("std".to_string()),
+                            Ident("vec_make".to_string()),
+                        ],
+                    ))))?),
+                    args: vec![
+                        IrTerm::I32(args.len() as i32 - variadic_call.index as i32),
+                        IrTerm::SizeOf {
+                            type_: IrType::from_type(&Type::Ident(Ident("string".to_string())))?,
+                        },
+                    ],
+                    source: None,
+                }),
+            }];
+            for arg in &mut args[variadic_call.index..] {
+                variadic_terms.push(IrTerm::Call {
+                    callee: Box::new(self.expr(&mut Source::unknown(Expr::path(Path::new(
+                        vec![
+                            Ident("quartz".to_string()),
+                            Ident("std".to_string()),
+                            Ident("vec_push".to_string()),
+                        ],
+                    ))))?),
+                    args: vec![IrTerm::Ident(vec_name.clone()), self.expr(arg)?],
+                    source: None,
+                });
+            }
+            variadic_terms.push(IrTerm::Ident(vec_name.clone()));
+
+            if let Some(expansion) = expansion {
+                variadic_terms.push(IrTerm::Call {
+                    callee: Box::new(self.expr(&mut Source::unknown(Expr::path(Path::new(
+                        vec![
+                            Ident("quartz".to_string()),
+                            Ident("std".to_string()),
+                            Ident("vec_extend".to_string()),
+                        ],
+                    ))))?),
+                    args: vec![IrTerm::Ident(vec_name.clone()), self.expr(expansion)?],
+                    source: None,
+                });
+            }
+
+            elements.push(IrTerm::Seq {
+                elements: variadic_terms,
+            });
+
+            Ok(IrTerm::Call {
+                callee: Box::new(self.expr(callee)?),
+                args: elements,
+                source: None,
+            })
+        } else {
+            assert_eq!(variadic, &mut None);
+            assert_eq!(expansion, &mut None);
+
+            let mut elements = vec![];
+            for arg in args {
+                elements.push(self.expr(arg)?);
+            }
+
+            Ok(IrTerm::Call {
+                callee: Box::new(self.expr(callee)?),
+                args: elements,
+                source: Some(SourcePosition {
+                    path: self.current_path.clone(),
+                    start: callee.start.unwrap_or(0),
+                    end: callee.end.unwrap_or(0),
+                }),
+            })
         }
     }
 

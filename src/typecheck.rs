@@ -779,28 +779,67 @@ impl TypeChecker {
                         _ => unreachable!(),
                     }
 
-                    let (mut arg_types, result_type) =
-                        type_.clone().to_func().context(ErrorInSource {
-                            path: Some(self.current_path.clone()),
-                            start: expr.start.unwrap_or(0),
-                            end: expr.end.unwrap_or(0),
-                        })?;
-                    if arg_types.is_empty() {
-                        return Err(anyhow!("method {} has no arguments", label_path.as_str())
+                    match type_ {
+                        Type::Func(mut arg_types, result_type) => {
+                            if arg_types.is_empty() {
+                                return Err(anyhow!(
+                                    "method {} has no arguments",
+                                    label_path.as_str()
+                                )
+                                .context(ErrorInSource {
+                                    path: Some(self.current_path.clone()),
+                                    start: expr.start.unwrap_or(0),
+                                    end: expr.end.unwrap_or(0),
+                                }));
+                            }
+                            self.unify(&mut expr_type, &mut arg_types[0]).context(
+                                ErrorInSource {
+                                    path: Some(self.current_path.clone()),
+                                    start: expr.start.unwrap_or(0),
+                                    end: expr.end.unwrap_or(0),
+                                },
+                            )?;
+
+                            Ok(Type::Func(arg_types[1..].to_vec(), result_type))
+                        }
+                        Type::VariadicFunc(mut arg_types, variadic, result_type) => {
+                            if arg_types.is_empty() {
+                                return Err(anyhow!(
+                                    "method {} has no arguments",
+                                    label_path.as_str()
+                                )
+                                .context(ErrorInSource {
+                                    path: Some(self.current_path.clone()),
+                                    start: expr.start.unwrap_or(0),
+                                    end: expr.end.unwrap_or(0),
+                                }));
+                            }
+                            self.unify(&mut expr_type, &mut arg_types[0]).context(
+                                ErrorInSource {
+                                    path: Some(self.current_path.clone()),
+                                    start: expr.start.unwrap_or(0),
+                                    end: expr.end.unwrap_or(0),
+                                },
+                            )?;
+
+                            Ok(Type::VariadicFunc(
+                                arg_types[1..].to_vec(),
+                                variadic,
+                                result_type,
+                            ))
+                        }
+                        _ => {
+                            return Err(anyhow!(
+                                "method {} is not a function",
+                                label_path.as_str()
+                            )
                             .context(ErrorInSource {
                                 path: Some(self.current_path.clone()),
                                 start: expr.start.unwrap_or(0),
                                 end: expr.end.unwrap_or(0),
                             }));
+                        }
                     }
-                    self.unify(&mut expr_type, &mut arg_types[0])
-                        .context(ErrorInSource {
-                            path: Some(self.current_path.clone()),
-                            start: expr.start.unwrap_or(0),
-                            end: expr.end.unwrap_or(0),
-                        })?;
-
-                    Ok(Type::Func(arg_types[1..].to_vec(), result_type))
                 }
             }
             Expr::Make(type_, args) => {

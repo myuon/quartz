@@ -251,6 +251,10 @@ module string {
 
         return self.slice(0, n!).concat(to).concat(self.slice_start(n! + from.length));
     }
+
+    fun format(self, ..arg: vec[string]): string {
+        return format(self, ..arg);
+    }
 }
 
 fun panic(s: string) {
