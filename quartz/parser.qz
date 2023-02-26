@@ -34,11 +34,48 @@ module Parser {
     }
 
     fun decl(self): Decl {
-        let func = self.function();
+        let token = self.peek();
+        if token.lexeme.equal("fun") {
+            let func = self.function();
 
-        return Decl {
-            t_func: func?,
+            return Decl {
+                t_func: func?,
+                ..nil,
+            };
+        }
+        if token.lexeme.equal("let") {
+            let let_ = self.let_();
+
+            return Decl {
+                t_let: let_?,
+                ..nil,
+            };
+        }
+
+        panic("Expected DECL, got ".concat(token.lexeme).concat("{").concat(token.string_value!).concat("}"));
+    }
+
+    fun let_(self): Let {
+        self.expect("let");
+        let name = self.ident();
+
+        let t = Type {
+            t_omit: true?,
             ..nil,
+        };
+        if self.peek().lexeme.equal("colon") {
+            self.expect("colon");
+            t = self.type_();
+        }
+
+        self.expect("equal");
+        let value = self.expression();
+        self.expect("semicolon");
+
+        return Let {
+            name: name,
+            name_type: t,
+            expr: value,
         };
     }
 
@@ -169,13 +206,37 @@ module Parser {
         let token = self.peek();
         if token.lexeme.equal("let") {
             return self.let_statement();
-        } else {
-            if token.lexeme.equal("return") {
-                return self.return_statement();
-            } else {
-                panic("Unexpected token ".concat(token.lexeme).concat("{").concat(token.string_value!).concat("}"));
-            }
         }
+        if token.lexeme.equal("return") {
+            return self.return_statement();
+        }
+
+        let expr = self.expression();
+        if self.peek().lexeme.equal("semicolon") {
+            self.consume();
+
+            return Statement {
+                t_expr: struct {
+                    expr: expr,
+                }?,
+                ..nil,
+            };
+        }
+        if self.peek().lexeme.equal("equal") {
+            self.consume();
+            let rhs = self.expression();
+            self.expect("semicolon");
+
+            return Statement {
+                t_assign: struct {
+                    lhs: expr,
+                    rhs: rhs,
+                }?,
+                ..nil,
+            };
+        }
+
+        panic("Unexpected token ".concat(token.lexeme).concat("{").concat(token.string_value!).concat("}"));
     }
 
     fun let_statement(self): Statement {

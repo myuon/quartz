@@ -15,30 +15,38 @@ module Typechecker {
 
     fun module_(self, m: Module) {
         for i in 0..m.decls.length {
-            let f = m.decls.at(i);
+            let d = m.decls.at(i);
+            self.decl(d);
+        }
+    }
 
-            if f.t_func != nil {
-                self.function(f.t_func!);
+    fun decl(self, d: Decl) {
+        if d.t_func != nil {
+            self.function(d.t_func!);
 
-                let params_type = make[vec[Type]]();
-                for i in 0..f.t_func!.params.length {
-                    let p = f.t_func!.params.at(i);
-                    params_type.push(p.type_);
-                }
-
-                self.globals.insert(f.t_func!.name, Type {
-                    t_func: struct {
-                        params: params_type,
-                        result: f.t_func!.result_type,
-                    }?,
-                    ..nil,
-                });
-
-                continue;
+            let params_type = make[vec[Type]]();
+            for i in 0..d.t_func!.params.length {
+                let p = d.t_func!.params.at(i);
+                params_type.push(p.type_);
             }
 
-            panic("unimplemented: decl");
+            self.globals.insert(d.t_func!.name, Type {
+                t_func: struct {
+                    params: params_type,
+                    result: d.t_func!.result_type,
+                }?,
+                ..nil,
+            });
+            return;
         }
+        if d.t_let != nil {
+            let t = self.expression(d.t_let!.expr);
+
+            self.globals.insert(d.t_let!.name, t);
+            return;
+        }
+
+        panic("unimplemented: decl");
     }
 
     fun function(self, f: Function) {
@@ -77,8 +85,32 @@ module Typechecker {
             unify(t, result_type);
             return;
         }
+        if s.t_expr != nil {
+            self.expression(s.t_expr!.expr);
+            return;
+        }
+        if s.t_assign != nil {
+            let lhs_type = self.expression_left_value(s.t_assign!.lhs);
+            let rhs_type = Type {
+                t_ptr: self.expression(s.t_assign!.rhs)?,
+                ..nil,
+            };
 
+            unify(lhs_type, rhs_type);
+            return;
+        }
+
+        println(s.to_string());
         panic("unimplemented: statement");
+    }
+
+    fun expression_left_value(self, expr: Expression): Type {
+        let t = self.expression(expr);
+
+        return Type {
+            t_ptr: t?,
+            ..nil,
+        };
     }
 
     fun expression(self, expr: Expression): Type {
@@ -109,9 +141,18 @@ module Typechecker {
             panic("unimplemented: binop");
         }
         if expr.t_ident != nil {
-            let t = self.locals.at(expr.t_ident!.name);
+            if self.globals.has(expr.t_ident!.name) {
+                let t = self.globals.at(expr.t_ident!.name);
 
-            return t;
+                return t;
+            }
+            if self.locals.has(expr.t_ident!.name) {
+                let t = self.locals.at(expr.t_ident!.name);
+
+                return t;
+            }
+
+            panic("unbound identifier: ".concat(expr.t_ident!.name));
         }
         if expr.t_call != nil {
             let func_type = self.expression(expr.t_call!.callee).t_func!;
@@ -147,6 +188,10 @@ fun unify(type1: Type, type2: Type) {
         return;
     }
     if type2.t_omit != nil {
+        return;
+    }
+    if type1.t_ptr != nil && type2.t_ptr != nil {
+        unify(type1.t_ptr!, type2.t_ptr!);
         return;
     }
 

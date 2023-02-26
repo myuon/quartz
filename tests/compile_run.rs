@@ -42,6 +42,18 @@ fun main(): i32 {
     return calc(2);
 }
 "#,
+        r#"
+let a = 5;
+
+fun f() {
+    a = a + 10;
+}
+
+fun main(): i32 {
+    f();
+    return a;
+}
+"#,
     ];
 
     for input in cases {

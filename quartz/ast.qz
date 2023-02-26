@@ -18,6 +18,7 @@ module Module {
 
 type Decl = {
     t_func: Function?,
+    t_let: Let?,
 };
 
 module Decl {
@@ -27,6 +28,23 @@ module Decl {
         }
 
         panic("Unknown decl type");
+    }
+}
+
+type Let = {
+    name: string,
+    name_type: Type,
+    expr: Expression,
+};
+
+module Let {
+    fun to_string(self): string {
+        return format(
+            "let {} : {} = {};",
+            self.name,
+            self.name_type.to_string(),
+            self.expr.to_string(),
+        );
     }
 }
 
@@ -71,6 +89,13 @@ type Statement = {
     t_return: struct {
         expr: Expression,
     }?,
+    t_assign: struct {
+        lhs: Expression,
+        rhs: Expression,
+    }?,
+    t_expr: struct {
+        expr: Expression,
+    }?,
 };
 
 module Statement {
@@ -80,6 +105,19 @@ module Statement {
         }
         if self.t_return != nil {
             return "return ".concat(self.t_return!.expr.to_string()).concat(";\n");
+        }
+        if self.t_assign != nil {
+            return format(
+                "{} = {};",
+                self.t_assign!.lhs.to_string(),
+                self.t_assign!.rhs.to_string(),
+            );
+        }
+        if self.t_expr != nil {
+            return format(
+                "{};",
+                self.t_expr!.expr.to_string(),
+            );
         }
 
         panic("Unknown statement type");
@@ -141,6 +179,7 @@ type Type = {
         params: vec[Type],
         result: Type,
     }?,
+    t_ptr: Type?,
 };
 
 module Type {
@@ -166,6 +205,9 @@ module Type {
             s = s.concat(") -> ");
             s = s.concat(self.t_func!.result.to_string());
             return s;
+        }
+        if self.t_ptr != nil {
+            return format("ptr[{}]", self.t_ptr!.to_string());
         }
 
         panic("unimplemented: type.to_string");
