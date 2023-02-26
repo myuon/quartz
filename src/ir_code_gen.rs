@@ -529,7 +529,15 @@ impl IrCodeGenerator {
                     name: var.clone(),
                     type_: IrType::Address,
                     value: Box::new(IrTerm::Call {
-                        callee: Box::new(IrTerm::Ident("alloc".to_string())),
+                        callee: Box::new(IrTerm::ident(
+                            Path::new(
+                                vec!["quartz", "std", "alloc"]
+                                    .into_iter()
+                                    .map(|s| Ident(s.to_string()))
+                                    .collect(),
+                            )
+                            .as_joined_str("_"),
+                        )),
                         args: vec![IrTerm::i32(record_type.len() as i32)],
                         source: None,
                     }),
@@ -574,7 +582,15 @@ impl IrCodeGenerator {
                     name: "_record".to_string(),
                     type_: IrType::Address,
                     value: Box::new(IrTerm::Call {
-                        callee: Box::new(IrTerm::Ident("alloc".to_string())),
+                        callee: Box::new(IrTerm::ident(
+                            Path::new(
+                                vec!["quartz", "std", "alloc"]
+                                    .into_iter()
+                                    .map(|s| Ident(s.to_string()))
+                                    .collect(),
+                            )
+                            .as_joined_str("_"),
+                        )),
                         args: vec![IrTerm::i32(fields.len() as i32)],
                         source: None,
                     }),
@@ -648,7 +664,11 @@ impl IrCodeGenerator {
                         (
                             Ident("data".to_string()),
                             Source::unknown(Expr::Call(
-                                Box::new(Source::unknown(Expr::ident(Ident("alloc".to_string())))),
+                                Box::new(Source::unknown(Expr::path(Path::new(vec![
+                                    Ident("quartz".to_string()),
+                                    Ident("std".to_string()),
+                                    Ident("alloc".to_string()),
+                                ])))),
                                 vec![Source::unknown(Expr::Lit(Lit::I32(*size as i32)))],
                                 None,
                                 None,
@@ -738,7 +758,14 @@ impl IrCodeGenerator {
                             name: var.clone(),
                             type_: IrType::Address,
                             value: Box::new(IrTerm::Call {
-                                callee: Box::new(IrTerm::Ident("alloc".to_string())),
+                                callee: Box::new(IrTerm::ident(
+                                    Path::new(vec![
+                                        Ident("quartz".to_string()),
+                                        Ident("std".to_string()),
+                                        Ident("alloc".to_string()),
+                                    ])
+                                    .as_joined_str("_"),
+                                )),
                                 args: vec![IrTerm::i32(1)],
                                 source: None,
                             }),

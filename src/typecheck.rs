@@ -55,10 +55,6 @@ impl TypeChecker {
                     Type::Func(vec![Type::I32, Type::I32], Box::new(Type::Bool)),
                 ),
                 (
-                    "alloc",
-                    Type::Func(vec![Type::I32], Box::new(Type::Ptr(Box::new(Type::I32)))),
-                ),
-                (
                     "write_stdout",
                     Type::Func(vec![Type::Byte], Box::new(Type::Nil)),
                 ),

@@ -105,24 +105,6 @@ impl Generator {
         // builtin functions here
         self.writer.write(
             r#"
-;; avoid using address 0, this is for null pointers
-(global $_sp (mut i32) (i32.const 4))
-
-(func $alloc (param $size i32) (result i32)
-    (local $addr i32)
-
-    global.get $_sp
-    local.tee $addr
-
-    local.get $size
-    i32.add
-    global.set $_sp
-
-    local.get $addr
-    i32.const 4
-    i32.mul
-)
-
 (func $mem_copy (param $source i32) (param $target i32) (param $length i32)
     local.get $target
     local.get $source
@@ -148,7 +130,16 @@ impl Generator {
             .write(format!("i32.const {}", self.strings.len()));
 
         self.writer.new_statement();
-        self.writer.write("call $alloc");
+        self.writer.write(format!(
+            "call ${}",
+            Path::new(
+                vec!["quartz", "std", "alloc"]
+                    .into_iter()
+                    .map(|i| Ident(i.to_string()))
+                    .collect()
+            )
+            .as_joined_str("_")
+        ));
 
         self.writer.new_statement();
         self.writer.write(format!("global.set ${}", var_strings));

@@ -195,6 +195,19 @@ impl Lexer {
                 continue;
             }
 
+            match IDENT_PATTERN.find(&input[self.position..]) {
+                Some(m) => {
+                    self.tokens.push(Token {
+                        lexeme: Lexeme::Ident(m.as_str().to_string()),
+                        position: self.position,
+                    });
+
+                    self.position += m.end();
+                    continue;
+                }
+                None => (),
+            }
+
             if self.matches_any(
                 input,
                 vec![
@@ -230,19 +243,6 @@ impl Lexer {
                 ],
             ) {
                 continue;
-            }
-
-            match IDENT_PATTERN.find(&input[self.position..]) {
-                Some(m) => {
-                    self.tokens.push(Token {
-                        lexeme: Lexeme::Ident(m.as_str().to_string()),
-                        position: self.position,
-                    });
-
-                    self.position += m.end();
-                    continue;
-                }
-                None => (),
             }
 
             match INT_LITERAL.find(&input[self.position..]) {

@@ -45,7 +45,7 @@ fun vec_make(init_capacity: i32, size: i32): vec[i32] {
     let length = 0;
     let data = alloc(capacity * size);
     return vec {
-        data: data,
+        data: data as ptr[i32],
         length: length,
         capacity: capacity,
     };
@@ -54,7 +54,7 @@ fun vec_make(init_capacity: i32, size: i32): vec[i32] {
 fun vec_push(v: vec[i32], e: i32) {
     if (v.length + 1) == v.capacity {
         let new_capacity = v.capacity * 2;
-        let new_data = alloc(new_capacity);
+        let new_data = alloc(new_capacity) as ptr[i32];
         mem_copy(v.data, new_data, v.length * sizeof[i32]());
         mem_free(v.data);
         v.data = new_data;
@@ -394,4 +394,15 @@ fun stdin(): string {
     }
 
     return vec_byte_to_string(str);
+}
+
+// used in compiler
+// avoid using address 0, this is for null pointers
+let _sp = 4;
+
+fun alloc(size: i32): ptr[any] {
+    let current = _sp;
+    _sp = _sp + size;
+
+    return (current * 4) as ptr[any];
 }
