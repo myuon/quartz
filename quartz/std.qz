@@ -12,6 +12,26 @@ fun println(s: string) {
     write_stdout(10 as byte);
 }
 
+fun formatf(format: string, ..arg: vec[string]): string {
+    let str = format;
+    for i in 0..arg.length {
+        let a = arg.at(i);
+        str = str.replace_first("{}", a);
+    }
+
+    return str;
+}
+
+fun printf(format: string, ..arg: vec[string]) {
+    let str = format;
+    for i in 0..arg.length {
+        let a = arg.at(i);
+        str = str.replace_first("{}", a);
+    }
+
+    println(str);
+}
+
 fun vec_make(init_capacity: i32, size: i32): vec[i32] {
     let capacity = init_capacity;
     let length = 0;
@@ -204,6 +224,28 @@ module string {
 
     fun to_string(self): string {
         return self;
+    }
+
+    fun find_first(self, haystack: string): i32? {
+        let n = 0;
+        while n <= self.length - haystack.length {
+            if is_prefix(self, n, haystack) {
+                return n?;
+            } else {
+                n = n + 1;
+            }
+        }
+
+        return nil;
+    }
+
+    fun replace_first(self, from: string, to: string): string {
+        let n = self.find_first(from);
+        if n == nil {
+            return self;
+        }
+
+        return self.slice(0, n!).concat(to).concat(self.slice_start(n! + from.length));
     }
 }
 

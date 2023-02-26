@@ -612,6 +612,33 @@ fun main(): i32 {
                     Value::I32(9),
                 ],
             ),
+            (
+                r#"
+fun main(): bool {
+    let r1 = "helloll".replace_first("ll", "x");
+    let r2 = "ab".replace_first("a", "eee").replace_first("b", "fff");
+
+    return r1.equal("hexoll")
+        && r2.equal("eeefff");
+}
+"#,
+                vec![
+                    Value::I32(1),
+                ],
+            ),
+            (
+                r#"
+fun main(): bool {
+    let f = formatf("hello, {}, {}, {}", "world", 1.to_string(), true.to_string());
+    println(f);
+
+    return f.equal("hello, world, 1, true");
+}
+"#,
+                vec![
+                    Value::I32(1),
+                ],
+            ),
         ];
 
         for (input, expected) in cases {
