@@ -372,82 +372,41 @@ impl Parser {
         let position = self.position;
         let mut current = self.term_2(with_struct)?;
 
-        let token_position = self.position;
         let token = self.peek()?;
         match token.lexeme {
             Lexeme::Lt => {
                 self.consume()?;
-                let token_position_end = self.position;
                 let rhs = self.expr_(with_struct)?;
 
                 current = self.source_from(
-                    Expr::Call(
-                        Box::new(self.source(
-                            Expr::ident(Ident("lt".to_string())),
-                            token_position,
-                            token_position_end,
-                        )),
-                        vec![current, rhs],
-                        None,
-                        None,
-                    ),
+                    Expr::BinOp(BinOp::Lt, Type::Omit(0), Box::new(current), Box::new(rhs)),
                     position,
                 );
             }
             Lexeme::Gt => {
                 self.consume()?;
-                let token_position_end = self.position;
                 let rhs = self.expr_(with_struct)?;
 
                 current = self.source_from(
-                    Expr::Call(
-                        Box::new(self.source(
-                            Expr::ident(Ident("gt".to_string())),
-                            token_position,
-                            token_position_end,
-                        )),
-                        vec![current, rhs],
-                        None,
-                        None,
-                    ),
+                    Expr::BinOp(BinOp::Gt, Type::Omit(0), Box::new(current), Box::new(rhs)),
                     position,
                 );
             }
             Lexeme::Gte => {
                 self.consume()?;
-                let token_position_end = self.position;
                 let rhs = self.expr_(with_struct)?;
 
                 current = self.source_from(
-                    Expr::Call(
-                        Box::new(self.source(
-                            Expr::ident(Ident("gte".to_string())),
-                            token_position,
-                            token_position_end,
-                        )),
-                        vec![current, rhs],
-                        None,
-                        None,
-                    ),
+                    Expr::BinOp(BinOp::Gte, Type::Omit(0), Box::new(current), Box::new(rhs)),
                     position,
                 );
             }
             Lexeme::Lte => {
                 self.consume()?;
-                let token_position_end = self.position;
                 let rhs = self.expr_(with_struct)?;
 
                 current = self.source_from(
-                    Expr::Call(
-                        Box::new(self.source(
-                            Expr::ident(Ident("lte".to_string())),
-                            token_position,
-                            token_position_end,
-                        )),
-                        vec![current, rhs],
-                        None,
-                        None,
-                    ),
+                    Expr::BinOp(BinOp::Lte, Type::Omit(0), Box::new(current), Box::new(rhs)),
                     position,
                 );
             }
@@ -467,7 +426,6 @@ impl Parser {
         let position = self.position;
         let mut current = self.term_1(with_struct)?;
 
-        let token_position = self.position;
         loop {
             match self.peek()?.lexeme {
                 Lexeme::Plus => {
@@ -481,20 +439,10 @@ impl Parser {
                 }
                 Lexeme::Minus => {
                     self.consume()?;
-                    let token_position_end = self.position;
                     let rhs = self.term_1(with_struct)?;
 
                     current = self.source_from(
-                        Expr::Call(
-                            Box::new(self.source(
-                                Expr::ident(Ident("sub".to_string())),
-                                token_position,
-                                token_position_end,
-                            )),
-                            vec![current, rhs],
-                            None,
-                            None,
-                        ),
+                        Expr::BinOp(BinOp::Sub, Type::Omit(0), Box::new(current), Box::new(rhs)),
                         position,
                     );
                 }
@@ -1043,22 +991,16 @@ fn test_expr() -> Result<()> {
                 position: 0,
             },
         ],
-        source(Expr::Call(
-            Box::new(source(Expr::ident(Ident("sub".to_string())))),
-            vec![
-                source(Expr::Call(
-                    Box::new(source(Expr::ident(Ident("sub".to_string())))),
-                    vec![
-                        source(Expr::ident(Ident("a".to_string()))),
-                        source(Expr::ident(Ident("b".to_string()))),
-                    ],
-                    None,
-                    None,
-                )),
-                source(Expr::ident(Ident("c".to_string()))),
-            ],
-            None,
-            None,
+        source(Expr::BinOp(
+            BinOp::Sub,
+            Type::Omit(0),
+            Box::new(source(Expr::BinOp(
+                BinOp::Sub,
+                Type::Omit(0),
+                Box::new(source(Expr::ident(Ident("a".to_string())))),
+                Box::new(source(Expr::ident(Ident("b".to_string())))),
+            ))),
+            Box::new(source(Expr::ident(Ident("c".to_string())))),
         )),
     )];
 

@@ -22,10 +22,6 @@ impl TypeChecker {
             locals: HashMap::new(),
             globals: vec![
                 (
-                    "sub",
-                    Type::Func(vec![Type::I32, Type::I32], Box::new(Type::I32)),
-                ),
-                (
                     "div",
                     Type::Func(vec![Type::I32, Type::I32], Box::new(Type::I32)),
                 ),
@@ -34,22 +30,6 @@ impl TypeChecker {
                     Type::Func(vec![Type::I32, Type::I32], Box::new(Type::Bool)), // FIXME: support bool
                 ),
                 ("not", Type::Func(vec![Type::Bool], Box::new(Type::Bool))),
-                (
-                    "lt",
-                    Type::Func(vec![Type::I32, Type::I32], Box::new(Type::Bool)),
-                ),
-                (
-                    "gt",
-                    Type::Func(vec![Type::I32, Type::I32], Box::new(Type::Bool)),
-                ),
-                (
-                    "lte",
-                    Type::Func(vec![Type::I32, Type::I32], Box::new(Type::Bool)),
-                ),
-                (
-                    "gte",
-                    Type::Func(vec![Type::I32, Type::I32], Box::new(Type::Bool)),
-                ),
                 (
                     "write_stdout",
                     Type::Func(vec![Type::Byte], Box::new(Type::Nil)),
@@ -73,14 +53,6 @@ impl TypeChecker {
                 (
                     "debug_i32",
                     Type::Func(vec![Type::I32], Box::new(Type::Nil)),
-                ),
-                (
-                    "or",
-                    Type::Func(vec![Type::Bool, Type::Bool], Box::new(Type::Bool)),
-                ),
-                (
-                    "and",
-                    Type::Func(vec![Type::Bool, Type::Bool], Box::new(Type::Bool)),
                 ),
                 (
                     "xor_i64",
@@ -535,7 +507,7 @@ impl TypeChecker {
                 use crate::ast::BinOp::*;
 
                 match op {
-                    Add | Mul | Mod => {
+                    Add | Sub | Mul | Mod => {
                         let mut arg1_type = self.expr(arg1)?;
                         let mut arg2_type = self.expr(arg2)?;
 
@@ -570,6 +542,24 @@ impl TypeChecker {
                         *type_ = arg1_type.clone();
 
                         Ok(arg1_type)
+                    }
+                    Lt | Lte | Gt | Gte => {
+                        let mut arg1_type = self.expr(arg1)?;
+                        let mut arg2_type = self.expr(arg2)?;
+
+                        self.unify(&mut arg1_type, &mut arg2_type)
+                            .context(ErrorInSource {
+                                path: Some(self.current_path.clone()),
+                                start: arg1.start.unwrap_or(0),
+                                end: arg1.end.unwrap_or(0),
+                            })?;
+                        if !arg1_type.is_integer_type() {
+                            bail!("Expected integer type, got {:?}", arg1_type)
+                        }
+
+                        *type_ = arg1_type.clone();
+
+                        Ok(Type::Bool)
                     }
                 }
             }

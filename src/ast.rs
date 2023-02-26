@@ -168,10 +168,15 @@ pub enum Lit {
 #[derive(PartialEq, Debug, Clone)]
 pub enum BinOp {
     Add,
+    Sub,
     Mul,
     Mod,
     And,
     Or,
+    Lt,
+    Lte,
+    Gt,
+    Gte,
 }
 
 #[derive(PartialEq, Debug, Clone)]
