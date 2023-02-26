@@ -9,6 +9,16 @@ fun print_string(s: string) {
     }
 }
 
+fun print_vec_string(v: vec[string]) {
+    print_string("vec(");
+    print_string(v.length.to_string());
+    print_string(")[");
+    for i in 0..v.length {
+        print_string(v.at(i).concat(","));
+    }
+    print_string("]\n");
+}
+
 fun format(f: string, ..arg: vec[string]): string {
     let str = f;
     for i in 0..arg.length {
@@ -65,7 +75,7 @@ fun vec_at(v: vec[i32], n: i32): i32 {
 
 fun vec_extend(v: vec[i32], other: vec[i32]) {
     for i in 0..other.length {
-        vec_push(v, other.at(i));
+        v.push(other.at(i));
     }
 }
 
