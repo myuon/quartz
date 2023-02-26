@@ -472,20 +472,10 @@ impl Parser {
             match self.peek()?.lexeme {
                 Lexeme::Plus => {
                     self.consume()?;
-                    let token_position_end = self.position;
                     let rhs = self.term_1(with_struct)?;
 
                     current = self.source_from(
-                        Expr::Call(
-                            Box::new(self.source(
-                                Expr::ident(Ident("add".to_string())),
-                                token_position,
-                                token_position_end,
-                            )),
-                            vec![current, rhs],
-                            None,
-                            None,
-                        ),
+                        Expr::BinOp(BinOp::Add, Type::Omit(0), Box::new(current), Box::new(rhs)),
                         position,
                     );
                 }

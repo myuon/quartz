@@ -167,6 +167,7 @@ pub enum Lit {
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum BinOp {
+    Add,
     Mul,
     Mod,
     And,

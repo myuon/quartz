@@ -279,63 +279,60 @@ impl IrCodeGenerator {
             Expr::BinOp(op, type_, arg1, arg2) => {
                 use crate::ast::BinOp::*;
 
+                let arg1 = self.expr(arg1)?;
+                let arg2 = self.expr(arg2)?;
+
                 match op {
-                    Mul => {
-                        let arg1 = self.expr(arg1)?;
-                        let arg2 = self.expr(arg2)?;
-
-                        Ok(IrTerm::Call {
-                            callee: Box::new(IrTerm::Ident(
-                                if matches!(type_, Type::I32) {
-                                    "mult"
-                                } else if matches!(type_, Type::I64) {
-                                    "mult_i64"
-                                } else {
-                                    bail!("invalid type for mul: {:?}", type_)
-                                }
-                                .to_string(),
-                            )),
-                            args: vec![arg1, arg2],
-                            source: None,
-                        })
-                    }
-                    Mod => {
-                        let arg1 = self.expr(arg1)?;
-                        let arg2 = self.expr(arg2)?;
-
-                        Ok(IrTerm::Call {
-                            callee: Box::new(IrTerm::Ident(
-                                if matches!(type_, Type::I32) {
-                                    "mod"
-                                } else if matches!(type_, Type::I64) {
-                                    "mod_i64"
-                                } else {
-                                    bail!("invalid type for mod: {:?}", type_)
-                                }
-                                .to_string(),
-                            )),
-                            args: vec![arg1, arg2],
-                            source: None,
-                        })
-                    }
-                    And => {
-                        let arg1 = self.expr(arg1)?;
-                        let arg2 = self.expr(arg2)?;
-
-                        Ok(IrTerm::And {
-                            lhs: Box::new(arg1),
-                            rhs: Box::new(arg2),
-                        })
-                    }
-                    Or => {
-                        let arg1 = self.expr(arg1)?;
-                        let arg2 = self.expr(arg2)?;
-
-                        Ok(IrTerm::Or {
-                            lhs: Box::new(arg1),
-                            rhs: Box::new(arg2),
-                        })
-                    }
+                    Add => Ok(IrTerm::Call {
+                        callee: Box::new(IrTerm::Ident(
+                            if matches!(type_, Type::I32) {
+                                "add"
+                            } else if matches!(type_, Type::I64) {
+                                "add_i64"
+                            } else {
+                                bail!("invalid type for add: {:?}", type_)
+                            }
+                            .to_string(),
+                        )),
+                        args: vec![arg1, arg2],
+                        source: None,
+                    }),
+                    Mul => Ok(IrTerm::Call {
+                        callee: Box::new(IrTerm::Ident(
+                            if matches!(type_, Type::I32) {
+                                "mult"
+                            } else if matches!(type_, Type::I64) {
+                                "mult_i64"
+                            } else {
+                                bail!("invalid type for mul: {:?}", type_)
+                            }
+                            .to_string(),
+                        )),
+                        args: vec![arg1, arg2],
+                        source: None,
+                    }),
+                    Mod => Ok(IrTerm::Call {
+                        callee: Box::new(IrTerm::Ident(
+                            if matches!(type_, Type::I32) {
+                                "mod"
+                            } else if matches!(type_, Type::I64) {
+                                "mod_i64"
+                            } else {
+                                bail!("invalid type for mod: {:?}", type_)
+                            }
+                            .to_string(),
+                        )),
+                        args: vec![arg1, arg2],
+                        source: None,
+                    }),
+                    And => Ok(IrTerm::And {
+                        lhs: Box::new(arg1),
+                        rhs: Box::new(arg2),
+                    }),
+                    Or => Ok(IrTerm::Or {
+                        lhs: Box::new(arg1),
+                        rhs: Box::new(arg2),
+                    }),
                 }
             }
             Expr::Call(callee, args, variadic, expansion) => match &mut callee.data {
