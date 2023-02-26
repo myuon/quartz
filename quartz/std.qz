@@ -267,8 +267,8 @@ module string {
     }
 }
 
-fun panic(s: string) {
-    println(s);
+fun panic(s: string, ..arg: vec[string]) {
+    println(s, ..arg);
     abort();
 }
 
