@@ -658,9 +658,11 @@ impl IrCodeGenerator {
                 Ok(IrTerm::Seq { elements })
             }
             Expr::AnonymousRecord(fields, type_) => {
+                let var_name = format!("_record_{}", fields[0].1.start.unwrap_or(0));
+
                 let mut elements = vec![];
                 elements.push(IrTerm::Let {
-                    name: "_record".to_string(),
+                    name: var_name.clone(),
                     type_: IrType::Address,
                     value: Box::new(IrTerm::Call {
                         callee: Box::new(IrTerm::ident(
@@ -680,7 +682,7 @@ impl IrCodeGenerator {
                 let mut offset = 0;
                 for (label, type_) in type_.as_record_type().unwrap() {
                     elements.push(IrTerm::SetField {
-                        address: Box::new(IrTerm::ident("_record".to_string())),
+                        address: Box::new(IrTerm::ident(var_name.clone())),
                         offset,
                         value: Box::new(
                             self.expr(
@@ -696,7 +698,7 @@ impl IrCodeGenerator {
                     offset += IrType::from_type(&type_)?.sizeof();
                 }
 
-                elements.push(IrTerm::ident("_record".to_string()));
+                elements.push(IrTerm::ident(var_name));
 
                 Ok(IrTerm::Seq { elements })
             }
