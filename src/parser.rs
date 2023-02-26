@@ -55,7 +55,7 @@ impl Parser {
                 let (ident, type_) = self.type_decl()?;
                 Ok(Decl::Type(ident, type_))
             }
-            Lexeme::Module(path) => {
+            Lexeme::Module(_path) => {
                 self.consume()?;
                 let ident = self.ident()?;
                 self.expect(Lexeme::LBrace)?;

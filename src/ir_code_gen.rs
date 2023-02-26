@@ -951,10 +951,4 @@ impl IrCodeGenerator {
             })
         }
     }
-
-    fn type_name(&self, ident: &Ident) -> Result<&Type> {
-        self.types
-            .get(ident)
-            .ok_or(anyhow!("Type not found: {:?}", ident))
-    }
 }

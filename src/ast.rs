@@ -66,13 +66,6 @@ impl Type {
         }
     }
 
-    pub fn to_func(self) -> Result<(Vec<Type>, Box<Type>)> {
-        match self {
-            Type::Func(args, ret) => Ok((args, ret)),
-            _ => bail!("expected function type, but found {}", self.to_string()),
-        }
-    }
-
     pub fn to_record(self) -> Result<Vec<(Ident, Type)>> {
         match self {
             Type::Record(fields) => Ok(fields),
@@ -138,13 +131,6 @@ impl Type {
         match self {
             Type::Record(fields) => Ok(fields),
             _ => bail!("expected record type, but found {}", self.to_string()),
-        }
-    }
-
-    pub fn as_ident_type(&self) -> Result<&Ident> {
-        match self {
-            Type::Ident(name) => Ok(name),
-            _ => bail!("expected identifier type, but found {}", self.to_string()),
         }
     }
 

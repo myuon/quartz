@@ -1016,6 +1016,7 @@ impl Constrains {
         }
     }
 
+    #[cfg(test)]
     pub fn new_from_hashmap(constrains: HashMap<usize, Type>) -> Constrains {
         Constrains { constrains }
     }
