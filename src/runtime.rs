@@ -639,6 +639,25 @@ fun main(): bool {
                     Value::I32(1),
                 ],
             ),
+            (
+                r#"
+fun f(v: i32, ..t: vec[i32]): i32 {
+    return v + t.length;
+}
+
+fun main(): i32 {
+    let t = make[vec[i32]]();
+    t.push(1);
+    t.push(2);
+    t.push(3);
+
+    return f(10, ..t);
+}
+"#,
+                vec![
+                    Value::I32(13),
+                ],
+            ),
         ];
 
         for (input, expected) in cases {

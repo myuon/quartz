@@ -187,7 +187,12 @@ pub enum Expr {
     },
     Self_,
     Lit(Lit),
-    Call(Box<Source<Expr>>, Vec<Source<Expr>>, Option<VariadicCall>),
+    Call(
+        Box<Source<Expr>>,
+        Vec<Source<Expr>>,
+        Option<VariadicCall>,
+        Option<Box<Source<Expr>>>,
+    ),
     BinOp(BinOp, Type, Box<Source<Expr>>, Box<Source<Expr>>),
     Record(
         Source<Ident>,

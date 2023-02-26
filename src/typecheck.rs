@@ -434,7 +434,7 @@ impl TypeChecker {
 
                 Ok(t)
             }
-            Expr::Call(caller, args, variadic_info) => {
+            Expr::Call(caller, args, variadic_info, expansion) => {
                 let caller_type = self.expr(caller)?;
 
                 match caller_type {
@@ -463,9 +463,19 @@ impl TypeChecker {
                             )?
                         }
 
+                        if expansion.is_some() {
+                            return Err(anyhow!("cannot expand a function call").context(
+                                ErrorInSource {
+                                    path: Some(self.current_path.clone()),
+                                    start: caller.start.unwrap_or(0),
+                                    end: caller.end.unwrap_or(0),
+                                },
+                            ));
+                        }
+
                         Ok(result_type.as_ref().clone())
                     }
-                    Type::VariadicFunc(mut arg_types, variadic, result_type) => {
+                    Type::VariadicFunc(mut arg_types, mut variadic, result_type) => {
                         if arg_types.len() > args.len() {
                             return Err(anyhow!(
                                 "wrong number of arguments, expected at least {}, but found {}",
@@ -500,6 +510,17 @@ impl TypeChecker {
                                     },
                                 )?
                             }
+                        }
+
+                        if let Some(expansion) = expansion {
+                            let mut expansion_type = self.expr(expansion)?;
+                            self.unify(&mut variadic, &mut expansion_type).context(
+                                ErrorInSource {
+                                    path: Some(self.current_path.clone()),
+                                    start: expansion.start.unwrap_or(0),
+                                    end: expansion.end.unwrap_or(0),
+                                },
+                            )?
                         }
 
                         *variadic_info = Some(VariadicCall {

@@ -338,7 +338,7 @@ impl IrCodeGenerator {
                     }
                 }
             }
-            Expr::Call(callee, args, variadic) => match &mut callee.data {
+            Expr::Call(callee, args, variadic, expansion) => match &mut callee.data {
                 Expr::Project(expr, type_, label) => {
                     if label.0.len() == 1 {
                         match (type_, label.0[0].as_str()) {
@@ -396,6 +396,7 @@ impl IrCodeGenerator {
                                     )))),
                                     vec![expr.as_ref().clone(), args[0].clone()],
                                     None,
+                                    None,
                                 )))?)
                             }
                             (Type::Vec(_), "push") => {
@@ -410,6 +411,7 @@ impl IrCodeGenerator {
                                                 .collect(),
                                         )))),
                                         vec![expr.as_ref().clone(), args[0].clone()],
+                                        None,
                                         None,
                                     )),
                                     Type::Nil,
@@ -431,6 +433,7 @@ impl IrCodeGenerator {
                                             args[0].clone(),
                                             args[1].clone(),
                                         ],
+                                        None,
                                         None,
                                     )),
                                     Type::Nil,
@@ -549,6 +552,20 @@ impl IrCodeGenerator {
                             });
                         }
                         variadic_terms.push(IrTerm::Ident(vec_name.clone()));
+
+                        if let Some(expansion) = expansion {
+                            variadic_terms.push(IrTerm::Call {
+                                callee: Box::new(self.expr(&mut Source::unknown(Expr::path(
+                                    Path::new(vec![
+                                        Ident("quartz".to_string()),
+                                        Ident("std".to_string()),
+                                        Ident("vec_extend".to_string()),
+                                    ]),
+                                )))?),
+                                args: vec![IrTerm::Ident(vec_name.clone()), self.expr(expansion)?],
+                                source: None,
+                            });
+                        }
 
                         elements.push(IrTerm::Seq {
                             elements: variadic_terms,
@@ -724,6 +741,7 @@ impl IrCodeGenerator {
                             Source::unknown(Expr::Call(
                                 Box::new(Source::unknown(Expr::ident(Ident("alloc".to_string())))),
                                 vec![Source::unknown(Expr::Lit(Lit::I32(*size as i32)))],
+                                None,
                                 None,
                             )),
                         ),

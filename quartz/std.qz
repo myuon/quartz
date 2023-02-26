@@ -75,6 +75,12 @@ fun vec_at(v: vec[i32], n: i32): i32 {
     return v.data.at(n);
 }
 
+fun vec_extend(v: vec[i32], other: vec[i32]) {
+    for i in 0..other.length {
+        vec_push(v, other.at(i));
+    }
+}
+
 fun digit_to_string(digit: i32): string {
     return char_to_string(digit as byte);
 }
