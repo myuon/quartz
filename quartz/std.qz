@@ -398,11 +398,19 @@ fun stdin(): string {
 
 // used in compiler
 // avoid using address 0, this is for null pointers
-let _sp = 4;
+let alloc_ptr = 4;
 
 fun alloc(size: i32): ptr[any] {
-    let current = _sp;
-    _sp = _sp + size;
+    if size == 0 {
+        return nil as ptr[any];
+    }
+
+    let current = alloc_ptr;
+    alloc_ptr = alloc_ptr + size;
+
+    if alloc_ptr * 4 > 64 * 1024 * 3 {
+        panic("alloc: out of memory");
+    }
 
     return (current * 4) as ptr[any];
 }

@@ -817,7 +817,7 @@ impl IrCodeGenerator {
                         ],
                     ))))?),
                     args: vec![
-                        IrTerm::I32(args.len() as i32),
+                        IrTerm::I32(args.len() as i32 - variadic_call.index as i32),
                         IrTerm::SizeOf {
                             type_: IrType::from_type(&Type::Ident(Ident("string".to_string())))?,
                         },
