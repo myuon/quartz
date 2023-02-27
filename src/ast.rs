@@ -20,6 +20,7 @@ pub enum Type {
     Range(Box<Type>),
     Optional(Box<Type>),
     Map(Box<Type>, Box<Type>),
+    Or(Box<Type>, Box<Type>),
 }
 
 impl Type {
@@ -63,6 +64,7 @@ impl Type {
             Type::Vec(type_) => format!("vec[{}]", type_.to_string()),
             Type::Optional(type_) => format!("optional[{}]", type_.to_string()),
             Type::Map(key, value) => format!("map[{}, {}]", key.to_string(), value.to_string()),
+            Type::Or(left, right) => format!("{} or {}", left.to_string(), right.to_string()),
         }
     }
 
@@ -164,6 +166,7 @@ pub enum BinOp {
     Lte,
     Gt,
     Gte,
+    EnumOr,
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -206,6 +209,7 @@ pub enum Expr {
     NotEqual(Box<Source<Expr>>, Box<Source<Expr>>),
     Wrap(Box<Source<Expr>>),
     Unwrap(Box<Source<Expr>>),
+    Omit(Type),
 }
 
 impl Expr {

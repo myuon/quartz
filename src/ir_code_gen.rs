@@ -420,6 +420,10 @@ impl IrCodeGenerator {
                         args: vec![arg1, arg2],
                         source: None,
                     }),
+                    EnumOr => {
+                        println!("{:?}, {:?}", arg1, arg2);
+                        todo!();
+                    }
                 }
             }
             Expr::Call(callee, args, variadic, expansion) => match &mut callee.data {
@@ -920,6 +924,7 @@ impl IrCodeGenerator {
                     offset: 0,
                 })
             }
+            Expr::Omit(_) => todo!(),
         }
     }
 

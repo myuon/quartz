@@ -339,6 +339,15 @@ impl Parser {
                         position,
                     );
                 }
+                Lexeme::Or => {
+                    self.consume()?;
+                    let rhs = self.term_4(with_struct)?;
+
+                    current = self.source_from(
+                        Expr::BinOp(BinOp::EnumOr, Type::Bool, Box::new(current), Box::new(rhs)),
+                        position,
+                    );
+                }
                 _ => break,
             }
         }
@@ -569,6 +578,12 @@ impl Parser {
                 self.expect(Lexeme::RBrace)?;
 
                 self.source_from(Expr::AnonymousRecord(fields, Type::Omit(0)), position)
+            }
+            Lexeme::Underscore => {
+                self.consume()?;
+
+                let t = self.gen_omit()?;
+                self.source_from(Expr::Omit(t), position)
             }
             _ => {
                 let position = self.position;
@@ -890,6 +905,12 @@ impl Parser {
         if self.peek()?.lexeme == Lexeme::Question {
             self.consume()?;
             type_ = Type::Optional(Box::new(type_));
+        }
+
+        if self.peek()?.lexeme == Lexeme::Or {
+            self.consume()?;
+            let type_2 = self.type_()?;
+            type_ = Type::Or(Box::new(type_), Box::new(type_2));
         }
 
         Ok(type_)

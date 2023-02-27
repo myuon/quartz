@@ -658,6 +658,24 @@ fun main(): i32 {
                     Value::I32(13),
                 ],
             ),
+            (
+                r#"
+fun f(a: i32): i32 or string {
+    if a == 0 {
+        return _ or "zero";
+    } else {
+        return a;
+    }
+}
+
+fun main(): bool {
+    return f(0).right!.equal("zero");
+}
+"#,
+                vec![
+                    Value::I32(13),
+                ],
+            ),
         ];
 
         for (input, expected) in cases {

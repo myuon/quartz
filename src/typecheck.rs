@@ -490,11 +490,11 @@ impl TypeChecker {
             Expr::BinOp(op, type_, arg1, arg2) => {
                 use crate::ast::BinOp::*;
 
+                let mut arg1_type = self.expr(arg1)?;
+                let mut arg2_type = self.expr(arg2)?;
+
                 match op {
                     Add | Sub | Mul | Mod | Div => {
-                        let mut arg1_type = self.expr(arg1)?;
-                        let mut arg2_type = self.expr(arg2)?;
-
                         self.unify(&mut arg1_type, &mut arg2_type)
                             .context(ErrorInSource {
                                 path: Some(self.current_path.clone()),
@@ -510,9 +510,6 @@ impl TypeChecker {
                         Ok(arg1_type)
                     }
                     And | Or => {
-                        let mut arg1_type = self.expr(arg1)?;
-                        let mut arg2_type = self.expr(arg2)?;
-
                         self.unify(&mut arg1_type, &mut arg2_type)
                             .context(ErrorInSource {
                                 path: Some(self.current_path.clone()),
@@ -528,9 +525,6 @@ impl TypeChecker {
                         Ok(arg1_type)
                     }
                     Lt | Lte | Gt | Gte => {
-                        let mut arg1_type = self.expr(arg1)?;
-                        let mut arg2_type = self.expr(arg2)?;
-
                         self.unify(&mut arg1_type, &mut arg2_type)
                             .context(ErrorInSource {
                                 path: Some(self.current_path.clone()),
@@ -544,6 +538,11 @@ impl TypeChecker {
                         *type_ = arg1_type.clone();
 
                         Ok(Type::Bool)
+                    }
+                    EnumOr => {
+                        *type_ = Type::Or(Box::new(arg1_type), Box::new(arg2_type));
+
+                        Ok(type_.clone())
                     }
                 }
             }
@@ -857,6 +856,7 @@ impl TypeChecker {
 
                 Ok(type_.to_optional()?.as_ref().clone())
             }
+            Expr::Omit(type_) => Ok(type_.clone()),
         }
     }
 
@@ -990,6 +990,13 @@ impl Constrains {
             (Type::Ident(ident), Type::Bool) if ident.as_str() == "bool" => Ok(Constrains::empty()),
             (Type::I64, Type::Ident(ident)) if ident.as_str() == "i64" => Ok(Constrains::empty()),
             (Type::Ident(ident), Type::I64) if ident.as_str() == "i64" => Ok(Constrains::empty()),
+            (Type::Or(type1, type2), Type::Or(type3, type4)) => {
+                let mut constrains = Constrains::empty();
+                constrains.merge(&Constrains::unify(type1.as_mut(), type3.as_mut())?);
+                constrains.merge(&Constrains::unify(type2.as_mut(), type4.as_mut())?);
+
+                Ok(constrains)
+            }
             (type1, type2) => {
                 bail!(
                     "type mismatch, expected {}, but found {}",
@@ -1060,6 +1067,10 @@ impl Constrains {
             Type::Map(k, v) => {
                 self.apply(k);
                 self.apply(v);
+            }
+            Type::Or(t1, t2) => {
+                self.apply(t1);
+                self.apply(t2);
             }
         }
     }

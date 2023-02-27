@@ -24,6 +24,7 @@ pub enum Lexeme {
     Break,
     Import,
     Struct,
+    Or,
     LParen,
     RParen,
     LBrace,
@@ -190,6 +191,7 @@ impl Lexer {
                     ("break", Lexeme::Break),
                     ("import", Lexeme::Import),
                     ("struct", Lexeme::Struct),
+                    ("or", Lexeme::Or),
                 ],
             ) {
                 continue;
@@ -197,6 +199,16 @@ impl Lexer {
 
             match IDENT_PATTERN.find(&input[self.position..]) {
                 Some(m) => {
+                    if m.as_str() == "_" {
+                        self.tokens.push(Token {
+                            lexeme: Lexeme::Underscore,
+                            position: self.position,
+                        });
+
+                        self.position += m.end();
+                        continue;
+                    }
+
                     self.tokens.push(Token {
                         lexeme: Lexeme::Ident(m.as_str().to_string()),
                         position: self.position,
@@ -235,7 +247,6 @@ impl Lexer {
                     (">=", Lexeme::Gte),
                     ("<", Lexeme::Lt),
                     (">", Lexeme::Gt),
-                    ("_", Lexeme::Underscore),
                     ("?", Lexeme::Question),
                     ("!", Lexeme::Bang),
                     ("&&", Lexeme::DoubleAmp),

@@ -520,6 +520,7 @@ impl IrType {
                 bail!("Found omit type in IrType::from_type");
             }
             Type::Map(_, _) => Ok(IrType::Address),
+            Type::Or(_, _) => Ok(IrType::Address),
         }
     }
 
