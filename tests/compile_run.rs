@@ -54,6 +54,21 @@ fun main(): i32 {
     return a;
 }
 "#,
+        r#"
+fun factorial(n: i32): i32 {
+    if n == 0 {
+        return 1;
+    } else {
+        return n * factorial(n - 1);
+    }
+
+    return 0;
+}
+
+fun main(): i32 {
+    return factorial(5);
+}
+"#,
     ];
 
     for input in cases {

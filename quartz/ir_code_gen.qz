@@ -138,6 +138,38 @@ module IrCodeGenerator {
             println(stm.t_assign!.lhs.to_string());
             panic("lhs");
         }
+        if stm.t_if != nil {
+            let then_elements = make[vec[IrTerm]]();
+            for i in 0..stm.t_if!.then_block.block.length {
+                then_elements.push(self.statement(stm.t_if!.then_block.block.at(i)));
+            }
+
+            let else_elements = make[vec[IrTerm]]();
+            if stm.t_if!.else_block != nil {
+                for i in 0..stm.t_if!.else_block!.block.length {
+                    else_elements.push(self.statement(stm.t_if!.else_block!.block.at(i)));
+                }
+            }
+
+            return IrTerm {
+                t_if: struct {
+                    condition: self.expression(stm.t_if!.condition),
+                    then_term: IrTerm {
+                        t_seq: struct {
+                            terms: then_elements,
+                        }?,
+                        ..nil,
+                    },
+                    else_term: IrTerm {
+                        t_seq: struct {
+                            terms: else_elements,
+                        }?,
+                        ..nil,
+                    },
+                }?,
+                ..nil,
+            };
+        }
 
         println(stm.to_string());
         panic("statement exhausted");
@@ -153,22 +185,57 @@ module IrCodeGenerator {
             return term;
         }
         if expr.t_binop != nil {
+            let args = make[vec[IrTerm]]();
+            args.push(self.expression(expr.t_binop!.left));
+            args.push(self.expression(expr.t_binop!.right));
+
             if expr.t_binop!.binop.equal("plus") {
-                let term = IrTerm {
+                return IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
                             t_ident: "add"?,
                             ..nil,
                         },
-                        args: make[vec[IrTerm]](),
+                        args: args,
                     }?,
                     ..nil,
                 };
-
-                term.t_call!.args.push(self.expression(expr.t_binop!.left));
-                term.t_call!.args.push(self.expression(expr.t_binop!.right));
-
-                return term;
+            }
+            if expr.t_binop!.binop.equal("minus") {
+                return IrTerm {
+                    t_call: IrCall {
+                        callee: IrTerm {
+                            t_ident: "sub"?,
+                            ..nil,
+                        },
+                        args: args,
+                    }?,
+                    ..nil,
+                };
+            }
+            if expr.t_binop!.binop.equal("mult") {
+                return IrTerm {
+                    t_call: IrCall {
+                        callee: IrTerm {
+                            t_ident: "mult"?,
+                            ..nil,
+                        },
+                        args: args,
+                    }?,
+                    ..nil,
+                };
+            }
+            if expr.t_binop!.binop.equal("equal") {
+                return IrTerm {
+                    t_call: IrCall {
+                        callee: IrTerm {
+                            t_ident: "equal"?,
+                            ..nil,
+                        },
+                        args: args,
+                    }?,
+                    ..nil,
+                };
             }
 
             panic("binop exhausted: ".concat(expr.t_binop!.binop));

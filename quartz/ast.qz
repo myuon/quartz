@@ -62,6 +62,22 @@ module Function {
     fun to_string(self): string {
         return "fun ".concat(self.name).concat("(??) {\n").concat(self.body.to_string()).concat("}\n");
     }
+
+    fun to_type(self): Type {
+        let params_type = make[vec[Type]]();
+        for i in 0..self.params.length {
+            let p = self.params.at(i);
+            params_type.push(p.type_);
+        }
+
+        return Type {
+            t_func: struct {
+                params: params_type,
+                result: self.result_type,
+            }?,
+            ..nil,
+        };
+    }
 }
 
 type Block = {
@@ -96,6 +112,11 @@ type Statement = {
     t_expr: struct {
         expr: Expression,
     }?,
+    t_if: struct {
+        condition: Expression,
+        then_block: Block,
+        else_block: Block?,
+    }?,
 };
 
 module Statement {
@@ -118,6 +139,23 @@ module Statement {
                 "{};",
                 self.t_expr!.expr.to_string(),
             );
+        }
+        if self.t_if != nil {
+            let result = format(
+                "if ({}) {\n{}}",
+                self.t_if!.condition.to_string(),
+                self.t_if!.then_block.to_string(),
+            );
+
+            if self.t_if!.else_block != nil {
+                result = format(
+                    "{} else {\n{}}",
+                    result,
+                    self.t_if!.else_block!.to_string(),
+                );
+            }
+
+            return result.concat("\n");
         }
 
         panic("Unknown statement type");
@@ -180,6 +218,7 @@ type Type = {
         result: Type,
     }?,
     t_ptr: Type?,
+    t_bool: bool?,
 };
 
 module Type {
@@ -208,6 +247,9 @@ module Type {
         }
         if self.t_ptr != nil {
             return format("ptr[{}]", self.t_ptr!.to_string());
+        }
+        if self.t_bool != nil {
+            return "bool";
         }
 
         panic("unimplemented: type.to_string");

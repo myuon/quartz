@@ -210,6 +210,30 @@ module Parser {
         if token.lexeme.equal("return") {
             return self.return_statement();
         }
+        if token.lexeme.equal("if") {
+            self.consume();
+            let condition = self.expression_conditional();
+            self.expect("lbrace");
+            let then_block = self.block();
+            self.expect("rbrace");
+
+            let else_block = nil as Block?;
+            if self.peek().lexeme.equal("else") {
+                self.consume();
+                self.expect("lbrace");
+                else_block = self.block()?;
+                self.expect("rbrace");
+            }
+
+            return Statement {
+                t_if: struct {
+                    condition: condition,
+                    then_block: then_block,
+                    else_block: else_block,
+                }?,
+                ..nil,
+            };
+        }
 
         let expr = self.expression();
         if self.peek().lexeme.equal("semicolon") {
@@ -237,6 +261,10 @@ module Parser {
         }
 
         panic("Unexpected token ".concat(token.lexeme).concat("{").concat(token.string_value!).concat("}"));
+    }
+
+    fun expression_conditional(self): Expression {
+        return self.expression_(false);
     }
 
     fun let_statement(self): Statement {
@@ -280,21 +308,29 @@ module Parser {
     }
 
     fun expression(self): Expression {
-        return self.term_2();
+        return self.expression_(true);
     }
 
-    fun term_2(self): Expression {
-        let current = self.term_0();
+    fun expression_(self, with_struct: bool): Expression {
+        return self.term_5(with_struct);
+    }
+
+    fun term_5(self, with_struct: bool): Expression {
+        return self.term_4(with_struct);
+    }
+
+    fun term_4(self, with_struct: bool): Expression {
+        let current = self.term_3(with_struct);
 
         while true {
-            if self.peek().lexeme.equal("plus") {
+            if self.peek().lexeme.equal("double_equal") {
                 self.consume();
 
                 current = Expression {
                     t_binop: struct {
-                        binop: "plus",
+                        binop: "equal",
                         left: current,
-                        right: self.term_0(),
+                        right: self.term_3(with_struct),
                     }?,
                     ..nil,
                 };
@@ -305,7 +341,68 @@ module Parser {
         }
     }
 
-    fun term_0(self): Expression {
+    fun term_3(self, with_struct: bool): Expression {
+        return self.term_2(with_struct);
+    }
+
+    fun term_2(self, with_struct: bool): Expression {
+        let current = self.term_1(with_struct);
+
+        while true {
+            if self.peek().lexeme.equal("plus") {
+                self.consume();
+
+                current = Expression {
+                    t_binop: struct {
+                        binop: "plus",
+                        left: current,
+                        right: self.term_1(with_struct),
+                    }?,
+                    ..nil,
+                };
+                continue;
+            }
+            if self.peek().lexeme.equal("minus") {
+                self.consume();
+
+                current = Expression {
+                    t_binop: struct {
+                        binop: "minus",
+                        left: current,
+                        right: self.term_1(with_struct),
+                    }?,
+                    ..nil,
+                };
+                continue;
+            }
+
+            return current;
+        }
+    }
+
+    fun term_1(self, with_struct: bool): Expression {
+        let current = self.term_0(with_struct);
+
+        while true {
+            if self.peek().lexeme.equal("star") {
+                self.consume();
+
+                current = Expression {
+                    t_binop: struct {
+                        binop: "mult",
+                        left: current,
+                        right: self.term_1(with_struct),
+                    }?,
+                    ..nil,
+                };
+                continue;
+            }
+
+            return current;
+        }
+    }
+
+    fun term_0(self, with_struct: bool): Expression {
         let current = self.term_0_1();
 
         while true {

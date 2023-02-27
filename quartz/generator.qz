@@ -181,10 +181,22 @@ module Generator {
                 if ident.equal("add") {
                     self.write("i32.add");
                     return;
-                } else {
-                    self.write("call $".concat(ident));
+                }
+                if ident.equal("sub") {
+                    self.write("i32.sub");
                     return;
                 }
+                if ident.equal("mult") {
+                    self.write("i32.mul");
+                    return;
+                }
+                if ident.equal("equal") {
+                    self.write("i32.eq");
+                    return;
+                }
+
+                self.write("call $".concat(ident));
+                return;
             } else {
                 panic("not implemented: call");
             }
@@ -202,6 +214,33 @@ module Generator {
             }
             self.write(format("${}", expr.t_assign!.lhs));
 
+            return;
+        }
+        if expr.t_if != nil {
+            self.new_statement();
+            self.expression(expr.t_if!.condition);
+
+            self.start();
+            self.write("if");
+
+            self.start();
+            self.write("then");
+            self.expression(expr.t_if!.then_term);
+            self.end();
+
+            self.start();
+            self.write("else");
+            self.expression(expr.t_if!.else_term);
+            self.end();
+
+            self.end();
+
+            return;
+        }
+        if expr.t_seq != nil {
+            for i in 0..expr.t_seq!.terms.length {
+                self.expression(expr.t_seq!.terms.at(i));
+            }
             return;
         }
 

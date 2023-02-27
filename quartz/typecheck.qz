@@ -22,21 +22,12 @@ module Typechecker {
 
     fun decl(self, d: Decl) {
         if d.t_func != nil {
+            // For recursive functions
+            self.globals.insert(d.t_func!.name, d.t_func!.to_type());
+
             self.function(d.t_func!);
 
-            let params_type = make[vec[Type]]();
-            for i in 0..d.t_func!.params.length {
-                let p = d.t_func!.params.at(i);
-                params_type.push(p.type_);
-            }
-
-            self.globals.insert(d.t_func!.name, Type {
-                t_func: struct {
-                    params: params_type,
-                    result: d.t_func!.result_type,
-                }?,
-                ..nil,
-            });
+            self.globals.insert(d.t_func!.name, d.t_func!.to_type());
             return;
         }
         if d.t_let != nil {
@@ -103,6 +94,23 @@ module Typechecker {
             unify(lhs_type, rhs_type);
             return;
         }
+        if s.t_if != nil {
+            let condition_type = self.expression(s.t_if!.condition);
+            unify(condition_type, Type {
+                t_bool: true?,
+                ..nil,
+            });
+
+            let type_ = Type {
+                t_omit: true?,
+                ..nil,
+            };
+            self.block(s.t_if!.then_block, type_);
+            if s.t_if!.else_block != nil {
+                self.block(s.t_if!.else_block!, type_);
+            }
+            return;
+        }
 
         println(s.to_string());
         panic("unimplemented: statement");
@@ -125,7 +133,9 @@ module Typechecker {
             };
         }
         if expr.t_binop != nil {
-            if expr.t_binop!.binop.equal("plus") {
+            if (expr.t_binop!.binop.equal("plus")
+                || expr.t_binop!.binop.equal("minus")
+                || expr.t_binop!.binop.equal("mult")) {
                 let t1 = self.expression(expr.t_binop!.left);
                 unify(t1, Type {
                     t_i32: true?,
@@ -139,6 +149,16 @@ module Typechecker {
                 });
 
                 return t1;
+            }
+            if (expr.t_binop!.binop.equal("equal")) {
+                let t1 = self.expression(expr.t_binop!.left);
+                let t2 = self.expression(expr.t_binop!.right);
+                unify(t1, t2);
+
+                return Type {
+                    t_bool: true?,
+                    ..nil,
+                };
             }
 
             println(expr.t_binop!.binop);
@@ -196,6 +216,9 @@ fun unify(type1: Type, type2: Type) {
     }
     if type1.t_ptr != nil && type2.t_ptr != nil {
         unify(type1.t_ptr!, type2.t_ptr!);
+        return;
+    }
+    if type1.t_bool != nil && type2.t_bool != nil {
         return;
     }
 

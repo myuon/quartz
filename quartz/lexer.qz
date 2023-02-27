@@ -85,6 +85,15 @@ module Lexer {
             if self.match(input, "return", "return") {
                 continue;
             }
+            if self.match(input, "if", "if") {
+                continue;
+            }
+            if self.match(input, "else", "else") {
+                continue;
+            }
+            if self.match(input, "==", "double_equal") {
+                continue;
+            }
             if self.match(input, "(", "lparen") {
                 continue;
             }
@@ -104,6 +113,12 @@ module Lexer {
                 continue;
             }
             if self.match(input, "+", "plus") {
+                continue;
+            }
+            if self.match(input, "-", "minus") {
+                continue;
+            }
+            if self.match(input, "*", "star") {
                 continue;
             }
             if self.match(input, "=", "equal") {

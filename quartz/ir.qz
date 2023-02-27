@@ -20,6 +20,14 @@ type IrTerm = {
         lhs: string,
         rhs: IrTerm,
     }?,
+    t_if: struct {
+        condition: IrTerm,
+        then_term: IrTerm,
+        else_term: IrTerm,
+    }?,
+    t_seq: struct {
+        terms: vec[IrTerm],
+    }?,
 };
 
 module IrTerm {
