@@ -671,7 +671,7 @@ fun f(a: i32): i32 or string {
 fun main(): bool {
     let a or b = f(0);
 
-    return a == nil && b.equal("zero");
+    return a == nil && b!.equal("zero");
 }
 "#,
                 vec![

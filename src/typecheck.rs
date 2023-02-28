@@ -341,9 +341,17 @@ impl TypeChecker {
                 self.locals.insert(ident.clone(), type_.clone());
             }
             Pattern::Or(left, right) => match type_ {
+                // let a or b = A or B
+                // --> a: A?, b: B?
                 Type::Or(left_type, right_type) => {
-                    self.register_locals_with_pattern(left, left_type)?;
-                    self.register_locals_with_pattern(right, right_type)?;
+                    self.register_locals_with_pattern(
+                        left,
+                        &Type::Optional(Box::new(*left_type.clone())),
+                    )?;
+                    self.register_locals_with_pattern(
+                        right,
+                        &Type::Optional(Box::new(*right_type.clone())),
+                    )?;
                 }
                 _ => bail!("Expected or type"),
             },
