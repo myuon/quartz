@@ -196,9 +196,7 @@ impl TypeChecker {
 
         self.block(&mut func.body, &mut func.result)?;
         for statement in &mut func.body {
-            if let Some(result) = &mut self.statement(statement)? {
-                self.unify(&mut func.result, result)?;
-            }
+            self.statement(statement, &mut func.result)?;
         }
 
         self.locals = locals;
@@ -216,19 +214,17 @@ impl TypeChecker {
         expected: &mut Type,
     ) -> Result<()> {
         for statement in statements {
-            if let Some(result) = &mut self.statement(statement)? {
-                self.unify(expected, result).context(ErrorInSource {
-                    path: Some(self.current_path.clone()),
-                    start: statement.start.unwrap_or(0),
-                    end: statement.end.unwrap_or(0),
-                })?;
-            }
+            self.statement(statement, expected)?;
         }
 
         Ok(())
     }
 
-    fn statement(&mut self, statement: &mut Source<Statement>) -> Result<Option<Type>> {
+    fn statement(
+        &mut self,
+        statement: &mut Source<Statement>,
+        result_type: &mut Type,
+    ) -> Result<()> {
         match &mut statement.data {
             Statement::Let(pattern, type_, expr) => {
                 let mut result = self.expr(expr)?;
@@ -239,17 +235,20 @@ impl TypeChecker {
                 })?;
 
                 self.register_locals_with_pattern(pattern, type_)?;
-
-                Ok(None)
             }
             Statement::Return(expr) => {
                 // support transform `return a` to `return a or _`
-                Ok(Some(self.expr(expr)?))
+                let type_ = self.expr(expr)?;
+
+                self.unify(result_type, &mut type_.clone())
+                    .context(ErrorInSource {
+                        path: Some(self.current_path.clone()),
+                        start: expr.start.unwrap_or(0),
+                        end: expr.end.unwrap_or(0),
+                    })?;
             }
             Statement::Expr(expr, type_) => {
                 *type_ = self.expr(expr)?;
-
-                Ok(None)
             }
             Statement::Assign(lhs, rhs) => {
                 let mut lhs_type = self.expr_left_value(lhs)?;
@@ -260,8 +259,6 @@ impl TypeChecker {
                         start: lhs.start.unwrap_or(0),
                         end: lhs.end.unwrap_or(0),
                     })?;
-
-                Ok(None)
             }
             Statement::If(cond, type_, then_block, else_block) => {
                 let mut cond_type = self.expr(cond)?;
@@ -272,13 +269,10 @@ impl TypeChecker {
                         end: cond.end.unwrap_or(0),
                     })?;
 
-                let mut then_type = Type::Omit(0);
-                self.block(then_block, &mut then_type)
-                    .context("then block")?;
+                self.block(then_block, result_type).context("then block")?;
 
                 if let Some(else_block) = else_block {
-                    self.block(else_block, &mut then_type)
-                        .context("else block")?;
+                    self.block(else_block, result_type).context("else block")?;
                 }
 
                 self.unify(type_, &mut Type::Nil)
@@ -288,8 +282,6 @@ impl TypeChecker {
                         start: cond.start.unwrap_or(0),
                         end: cond.end.unwrap_or(0),
                     })?;
-
-                Ok(Some(then_type))
             }
             Statement::While(cond, block) => {
                 let mut cond_type = self.expr(cond)?;
@@ -302,8 +294,6 @@ impl TypeChecker {
 
                 let mut block_type = Type::Omit(0);
                 self.block(block, &mut block_type)?;
-
-                Ok(None)
             }
             Statement::For(ident, range, body) => {
                 let type_ = self.expr(range)?;
@@ -317,12 +307,12 @@ impl TypeChecker {
 
                 let mut body_type = Type::Omit(0);
                 self.block(body, &mut body_type)?;
-
-                Ok(None)
             }
-            Statement::Continue => Ok(None),
-            Statement::Break => Ok(None),
+            Statement::Continue => (),
+            Statement::Break => (),
         }
+
+        Ok(())
     }
 
     fn register_locals_with_pattern(&mut self, pattern: &Pattern, type_: &Type) -> Result<()> {
