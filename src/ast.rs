@@ -230,7 +230,7 @@ impl Expr {
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Statement {
-    Let(Ident, Type, Source<Expr>),
+    Let(Pattern, Type, Source<Expr>),
     Return(Source<Expr>),
     Expr(Source<Expr>, Type),
     Assign(Box<Source<Expr>>, Box<Source<Expr>>),
@@ -244,6 +244,22 @@ pub enum Statement {
     For(Ident, Source<Expr>, Vec<Source<Statement>>),
     Continue,
     Break,
+}
+
+#[derive(PartialEq, Debug, Clone)]
+pub enum Pattern {
+    Ident(Ident),
+    Or(Box<Pattern>, Box<Pattern>),
+    Omit,
+}
+
+impl Pattern {
+    pub fn as_ident(&self) -> Result<&Ident> {
+        match self {
+            Pattern::Ident(ident) => Ok(ident),
+            _ => bail!("expected identifier pattern, but found {:?}", self),
+        }
+    }
 }
 
 #[derive(PartialEq, Debug, Clone)]

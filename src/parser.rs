@@ -2,7 +2,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use pretty_assertions::assert_eq;
 
 use crate::{
-    ast::{BinOp, Decl, Expr, Func, Lit, Module, Statement, Type},
+    ast::{BinOp, Decl, Expr, Func, Lit, Module, Pattern, Statement, Type},
     compiler::ErrorInSource,
     lexer::{Lexeme, Token},
     util::{ident::Ident, path::Path, source::Source},
@@ -49,7 +49,7 @@ impl Parser {
             Lexeme::Fun => Ok(Decl::Func(self.func()?)),
             Lexeme::Let => {
                 let (ident, type_, value) = self.let_()?;
-                Ok(Decl::Let(ident, type_, value))
+                Ok(Decl::Let(ident.as_ident().unwrap().clone(), type_, value))
             }
             Lexeme::Type => {
                 let (ident, type_) = self.type_decl()?;
@@ -285,9 +285,9 @@ impl Parser {
         }
     }
 
-    fn let_(&mut self) -> Result<(Ident, Type, Source<Expr>)> {
+    fn let_(&mut self) -> Result<(Pattern, Type, Source<Expr>)> {
         self.expect(Lexeme::Let)?;
-        let ident = self.ident()?;
+        let pattern = self.pattern()?;
 
         let mut type_ = self.gen_omit()?;
         if self.peek()?.lexeme == Lexeme::Colon {
@@ -299,7 +299,23 @@ impl Parser {
         let value = self.expr()?;
         self.expect(Lexeme::Semicolon).context("let:end")?;
 
-        Ok((ident, type_, value))
+        Ok((pattern, type_, value))
+    }
+
+    fn pattern(&mut self) -> Result<Pattern> {
+        let current = if self.peek()?.lexeme == Lexeme::Underscore {
+            Pattern::Omit
+        } else {
+            Pattern::Ident(self.ident()?)
+        };
+
+        if self.peek()?.lexeme == Lexeme::Or {
+            self.consume()?;
+            let pat = self.pattern()?;
+            Ok(Pattern::Or(Box::new(current), Box::new(pat)))
+        } else {
+            Ok(current)
+        }
     }
 
     fn expr_conditional(&mut self) -> Result<Source<Expr>> {

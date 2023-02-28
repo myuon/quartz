@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use anyhow::{anyhow, bail, Context, Result};
 
 use crate::{
-    ast::{Decl, Expr, Func, Lit, Module, Statement, Type, VariadicCall},
+    ast::{Decl, Expr, Func, Lit, Module, Pattern, Statement, Type, VariadicCall},
     compiler::ErrorInSource,
     util::{ident::Ident, path::Path, source::Source},
 };
@@ -230,7 +230,7 @@ impl TypeChecker {
 
     fn statement(&mut self, statement: &mut Source<Statement>) -> Result<Option<Type>> {
         match &mut statement.data {
-            Statement::Let(val, type_, expr) => {
+            Statement::Let(pattern, type_, expr) => {
                 let mut result = self.expr(expr)?;
                 self.unify(type_, &mut result).context(ErrorInSource {
                     path: Some(self.current_path.clone()),
@@ -238,11 +238,14 @@ impl TypeChecker {
                     end: expr.end.unwrap_or(0),
                 })?;
 
-                self.locals.insert(val.clone(), type_.clone());
+                self.register_locals_with_pattern(pattern, type_)?;
 
                 Ok(None)
             }
-            Statement::Return(expr) => Ok(Some(self.expr(expr)?)),
+            Statement::Return(expr) => {
+                // support transform `return a` to `return a or _`
+                Ok(Some(self.expr(expr)?))
+            }
             Statement::Expr(expr, type_) => {
                 *type_ = self.expr(expr)?;
 
@@ -320,6 +323,24 @@ impl TypeChecker {
             Statement::Continue => Ok(None),
             Statement::Break => Ok(None),
         }
+    }
+
+    fn register_locals_with_pattern(&mut self, pattern: &Pattern, type_: &Type) -> Result<()> {
+        match pattern {
+            Pattern::Ident(ident) => {
+                self.locals.insert(ident.clone(), type_.clone());
+            }
+            Pattern::Or(left, right) => match type_ {
+                Type::Or(left_type, right_type) => {
+                    self.register_locals_with_pattern(left, left_type)?;
+                    self.register_locals_with_pattern(right, right_type)?;
+                }
+                _ => bail!("Expected or type"),
+            },
+            Pattern::Omit => todo!(),
+        }
+
+        Ok(())
     }
 
     fn resolve_path(&mut self, user_specified_path: &mut Path) -> Result<(Path, Type)> {

@@ -3,7 +3,7 @@ use std::{collections::HashMap, vec};
 use anyhow::{anyhow, bail, Context, Result};
 
 use crate::{
-    ast::{Decl, Expr, Func, Lit, Module, Statement, Type, VariadicCall},
+    ast::{Decl, Expr, Func, Lit, Module, Pattern, Statement, Type, VariadicCall},
     compiler::{ErrorInSource, SourcePosition},
     ir::{IrTerm, IrType},
     util::{ident::Ident, path::Path, source::Source},
@@ -109,15 +109,18 @@ impl IrCodeGenerator {
 
     fn statement(&mut self, statement: &mut Source<Statement>) -> Result<IrTerm> {
         match &mut statement.data {
-            Statement::Let(ident, type_, expr) => Ok(IrTerm::Let {
-                name: ident.0.clone(),
-                type_: IrType::from_type(type_).context(ErrorInSource {
-                    path: Some(self.current_path.clone()),
-                    start: statement.start.unwrap_or(0),
-                    end: statement.end.unwrap_or(0),
-                })?,
-                value: Box::new(self.expr(expr)?),
-            }),
+            Statement::Let(pattern, type_, expr) => match pattern {
+                Pattern::Ident(ident) => Ok(IrTerm::Let {
+                    name: ident.0.clone(),
+                    type_: IrType::from_type(type_).context(ErrorInSource {
+                        path: Some(self.current_path.clone()),
+                        start: statement.start.unwrap_or(0),
+                        end: statement.end.unwrap_or(0),
+                    })?,
+                    value: Box::new(self.expr(expr)?),
+                }),
+                _ => todo!(),
+            },
             Statement::Return(expr) => Ok(IrTerm::Return {
                 value: Box::new(self.expr(expr)?),
             }),
