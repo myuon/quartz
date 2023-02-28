@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use anyhow::{anyhow, bail, Context, Result};
 
 use crate::{
-    ast::{Decl, Expr, Func, Lit, Module, Pattern, Statement, Type, VariadicCall},
+    ast::{BinOp, Decl, Expr, Func, Lit, Module, Pattern, Statement, Type, VariadicCall},
     compiler::ErrorInSource,
     util::{ident::Ident, path::Path, source::Source},
 };
@@ -237,15 +237,35 @@ impl TypeChecker {
                 self.register_locals_with_pattern(pattern, type_)?;
             }
             Statement::Return(expr) => {
-                // support transform `return a` to `return a or _`
                 let type_ = self.expr(expr)?;
 
-                self.unify(result_type, &mut type_.clone())
+                let result = self
+                    .unify(result_type, &mut type_.clone())
                     .context(ErrorInSource {
                         path: Some(self.current_path.clone()),
                         start: expr.start.unwrap_or(0),
                         end: expr.end.unwrap_or(0),
-                    })?;
+                    });
+                if let Err(err) = result {
+                    // return a : A or B --> return a or _
+                    if let Type::Or(left, right) = result_type {
+                        if self.unify(left, &mut type_.clone()).is_ok() {
+                            *expr = Source::transfer(
+                                Expr::BinOp(
+                                    BinOp::EnumOr,
+                                    Type::Omit(0),
+                                    Box::new(expr.clone()),
+                                    Box::new(Source::transfer(Expr::Omit(*right.clone()), expr)),
+                                ),
+                                expr,
+                            );
+                        } else {
+                            return Err(err);
+                        }
+                    } else {
+                        return Err(err);
+                    }
+                }
             }
             Statement::Expr(expr, type_) => {
                 *type_ = self.expr(expr)?;
