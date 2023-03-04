@@ -166,7 +166,6 @@ pub enum BinOp {
     Lte,
     Gt,
     Gte,
-    EnumOr,
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -210,6 +209,7 @@ pub enum Expr {
     Wrap(Box<Source<Expr>>),
     Unwrap(Box<Source<Expr>>),
     Omit(Type),
+    EnumOr(Option<Box<Source<Expr>>>, Option<Box<Source<Expr>>>),
 }
 
 impl Expr {

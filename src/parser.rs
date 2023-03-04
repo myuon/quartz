@@ -359,10 +359,18 @@ impl Parser {
                     self.consume()?;
                     let rhs = self.term_4(with_struct)?;
 
-                    current = self.source_from(
-                        Expr::BinOp(BinOp::EnumOr, Type::Bool, Box::new(current), Box::new(rhs)),
-                        position,
-                    );
+                    let lhs = if let Expr::Omit(_) = current.data {
+                        None
+                    } else {
+                        Some(Box::new(current))
+                    };
+                    let rhs = if let Expr::Omit(_) = rhs.data {
+                        None
+                    } else {
+                        Some(Box::new(rhs))
+                    };
+
+                    current = self.source_from(Expr::EnumOr(lhs, rhs), position);
                 }
                 _ => break,
             }
@@ -599,7 +607,7 @@ impl Parser {
                 self.consume()?;
 
                 let t = self.gen_omit()?;
-                self.source_from(Expr::Omit(t), position)
+                self.source_from(Expr::Omit(Type::Omit(0)), position)
             }
             _ => {
                 let position = self.position;

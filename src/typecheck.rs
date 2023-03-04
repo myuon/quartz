@@ -251,12 +251,7 @@ impl TypeChecker {
                     if let Type::Or(left, right) = result_type {
                         if self.unify(left, &mut type_.clone()).is_ok() {
                             *expr = Source::transfer(
-                                Expr::BinOp(
-                                    BinOp::EnumOr,
-                                    Type::Omit(0),
-                                    Box::new(expr.clone()),
-                                    Box::new(Source::transfer(Expr::Omit(*right.clone()), expr)),
-                                ),
+                                Expr::EnumOr(Some(Box::new(expr.clone())), None),
                                 expr,
                             );
                         } else {
@@ -895,7 +890,21 @@ impl TypeChecker {
 
                 Ok(type_.to_optional()?.as_ref().clone())
             }
-            Expr::Omit(type_) => Ok(type_.clone()),
+            Expr::Omit(_) => todo!(),
+            Expr::EnumOr(lhs, rhs) => {
+                let lhs_type = if let Some(lhs) = lhs {
+                    self.expr(lhs)?
+                } else {
+                    Type::Omit(0)
+                };
+                let rhs_type = if let Some(rhs) = rhs {
+                    self.expr(rhs)?
+                } else {
+                    Type::Omit(0)
+                };
+
+                Ok(Type::Or(Box::new(lhs_type), Box::new(rhs_type)))
+            }
         }
     }
 

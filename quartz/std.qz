@@ -415,10 +415,6 @@ fun alloc(size: i32): ptr[any] {
     return (current * 4) as ptr[any];
 }
 
-fun vec_elements(..items: vec[any]): vec[any] {
-    return items;
-}
-
 fun make_record(
     size: i32,
     field_num: i32,

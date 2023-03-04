@@ -902,6 +902,7 @@ impl IrCodeGenerator {
                 })
             }
             Expr::Omit(_) => todo!(),
+            Expr::EnumOr(lhs, rhs) => todo!(),
         }
     }
 
