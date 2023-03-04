@@ -120,6 +120,53 @@ impl IrCodeGenerator {
                     })?,
                     value: Box::new(self.expr(expr)?),
                 }),
+                Pattern::Or(lhs_pattern, rhs_pattern) => {
+                    let (lhs_type, rhs_type) = match type_.clone() {
+                        Type::Or(lhs, rhs) => (lhs, rhs),
+                        _ => bail!("type of or pattern must be or type"),
+                    };
+                    let lhs = lhs_pattern.as_ident().unwrap();
+                    let rhs = rhs_pattern.as_ident().unwrap();
+
+                    let var_name = format!(
+                        "var_{}",
+                        rand::thread_rng()
+                            .sample_iter(&rand::distributions::Alphanumeric)
+                            .take(5)
+                            .map(|t| t.to_string())
+                            .collect::<String>()
+                    );
+
+                    Ok(IrTerm::Seq {
+                        elements: vec![
+                            IrTerm::Let {
+                                name: var_name.clone(),
+                                type_: IrType::from_type(type_).context(ErrorInSource {
+                                    path: Some(self.current_path.clone()),
+                                    start: statement.start.unwrap_or(0),
+                                    end: statement.end.unwrap_or(0),
+                                })?,
+                                value: Box::new(self.expr(expr)?),
+                            },
+                            IrTerm::Let {
+                                name: lhs.0.clone(),
+                                type_: IrType::from_type(&lhs_type)?,
+                                value: Box::new(IrTerm::GetField {
+                                    address: Box::new(self.expr(expr)?),
+                                    offset: 0,
+                                }),
+                            },
+                            IrTerm::Let {
+                                name: rhs.0.clone(),
+                                type_: IrType::from_type(&rhs_type)?,
+                                value: Box::new(IrTerm::GetField {
+                                    address: Box::new(self.expr(expr)?),
+                                    offset: 1,
+                                }),
+                            },
+                        ],
+                    })
+                }
                 _ => todo!(),
             },
             Statement::Return(expr) => Ok(IrTerm::Return {
@@ -902,7 +949,20 @@ impl IrCodeGenerator {
                 })
             }
             Expr::Omit(_) => todo!(),
-            Expr::EnumOr(lhs, rhs) => todo!(),
+            Expr::EnumOr(lhs, rhs) => {
+                let lhs_term = if let Some(lhs) = lhs {
+                    self.expr(lhs)?
+                } else {
+                    IrTerm::Nil
+                };
+                let rhs_term = if let Some(rhs) = rhs {
+                    self.expr(rhs)?
+                } else {
+                    IrTerm::Nil
+                };
+
+                self.generate_array_enumerated(vec![lhs_term, rhs_term])
+            }
         }
     }
 
@@ -1016,7 +1076,7 @@ impl IrCodeGenerator {
             "array_{}",
             rand::thread_rng()
                 .sample_iter(&rand::distributions::Alphanumeric)
-                .take(4)
+                .take(5)
                 .map(|t| t.to_string())
                 .collect::<String>()
         );
@@ -1048,5 +1108,9 @@ impl IrCodeGenerator {
         array.push(IrTerm::ident(var_name.clone()));
 
         Ok(IrTerm::Seq { elements: array })
+    }
+
+    fn generate_array_enumerated(&mut self, elements: Vec<IrTerm>) -> Result<IrTerm> {
+        self.generate_array(elements.into_iter().enumerate().collect())
     }
 }
