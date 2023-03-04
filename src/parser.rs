@@ -607,7 +607,7 @@ impl Parser {
                 self.consume()?;
 
                 let t = self.gen_omit()?;
-                self.source_from(Expr::Omit(Type::Omit(0)), position)
+                self.source_from(Expr::Omit(t), position)
             }
             _ => {
                 let position = self.position;

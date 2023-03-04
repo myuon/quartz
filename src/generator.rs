@@ -352,7 +352,7 @@ impl Generator {
     fn expr(&mut self, expr: &mut IrTerm) -> Result<()> {
         match expr {
             IrTerm::Nil => {
-                self.writer.write(&format!("i32.const {}", -1));
+                self.writer.write(&format!("i32.const {}", 0));
             }
             IrTerm::I32(i) => {
                 self.writer.write(&format!("i32.const {}", i));

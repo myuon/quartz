@@ -79,7 +79,7 @@ mod tests {
     use anyhow::Context;
     use pretty_assertions::assert_eq;
 
-    use crate::compiler::Compiler;
+    use crate::{compiler::Compiler, ir::IrTerm};
 
     use super::*;
 
@@ -670,12 +670,11 @@ fun f(a: i32): i32 or string {
 
 fun main(): bool {
     let a or b = f(0);
-
     return a == nil && b!.equal("zero");
 }
 "#,
                 vec![
-                    Value::I32(13),
+                    Value::I32(1),
                 ],
             ),
         ];
@@ -688,9 +687,22 @@ fun main(): bool {
                 .unwrap();
             let result = runtime
                 .run(&wat)
-                .context(format!("\n== SOURCE\n{}", input))
+                .context(format!("\n== SOURCE\n{}\n", input,))
                 .unwrap();
-            assert_eq!(expected.as_slice(), result.as_ref(), "case: {}", input);
+
+            let ir = compiler.ir.unwrap();
+            let ir_module = match ir {
+                IrTerm::Module { elements: m } => m[0].clone(),
+                _ => todo!(),
+            };
+
+            assert_eq!(
+                expected.as_slice(),
+                result.as_ref(),
+                "case: {}\n== IR\n{}\n",
+                input,
+                ir_module.to_string()
+            );
         }
     }
 }

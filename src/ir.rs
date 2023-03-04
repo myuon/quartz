@@ -131,7 +131,10 @@ impl IrTerm {
                 writer.write(p);
             }
             IrTerm::String(p) => {
+                writer.start();
+                writer.write("string");
                 writer.write(&p.to_string());
+                writer.end();
             }
             IrTerm::Func {
                 name,

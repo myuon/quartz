@@ -7,6 +7,7 @@ use thiserror::{Error, __private::PathAsDisplay};
 use crate::{
     ast::{Decl, Module},
     generator::Generator,
+    ir::IrTerm,
     ir_code_gen::IrCodeGenerator,
     lexer::Lexer,
     parser::Parser,
@@ -99,12 +100,14 @@ impl SourceLoader {
 
 pub struct Compiler {
     loader: SourceLoader,
+    pub ir: Option<IrTerm>,
 }
 
 impl Compiler {
     pub fn new() -> Compiler {
         Compiler {
             loader: SourceLoader::new(),
+            ir: None,
         }
     }
 
@@ -264,6 +267,8 @@ impl Compiler {
         generator.set_types(typechecker.types);
         generator.set_strings(ir_code_generator.strings);
         generator.run(&mut ir).context("generator phase")?;
+
+        self.ir = Some(ir);
 
         Ok(generator.writer.buffer)
     }

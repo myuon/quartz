@@ -1,7 +1,7 @@
 use std::{collections::HashMap, vec};
 
 use anyhow::{anyhow, bail, Context, Result};
-use rand::Rng;
+use rand::{distributions::Alphanumeric, prelude::Distribution, Rng};
 
 use crate::{
     ast::{Decl, Expr, Func, Lit, Module, Pattern, Statement, Type, VariadicCall},
@@ -130,10 +130,10 @@ impl IrCodeGenerator {
 
                     let var_name = format!(
                         "var_{}",
-                        rand::thread_rng()
-                            .sample_iter(&rand::distributions::Alphanumeric)
+                        Alphanumeric
+                            .sample_iter(&mut rand::thread_rng())
                             .take(5)
-                            .map(|t| t.to_string())
+                            .map(char::from)
                             .collect::<String>()
                     );
 
@@ -152,7 +152,7 @@ impl IrCodeGenerator {
                                 name: lhs.0.clone(),
                                 type_: IrType::from_type(&lhs_type)?,
                                 value: Box::new(IrTerm::GetField {
-                                    address: Box::new(self.expr(expr)?),
+                                    address: Box::new(IrTerm::Ident(var_name.clone())),
                                     offset: 0,
                                 }),
                             },
@@ -160,8 +160,8 @@ impl IrCodeGenerator {
                                 name: rhs.0.clone(),
                                 type_: IrType::from_type(&rhs_type)?,
                                 value: Box::new(IrTerm::GetField {
-                                    address: Box::new(self.expr(expr)?),
-                                    offset: 1,
+                                    address: Box::new(IrTerm::Ident(var_name.clone())),
+                                    offset: IrType::Address.sizeof(),
                                 }),
                             },
                         ],
@@ -319,7 +319,7 @@ impl IrCodeGenerator {
                 Ok(IrTerm::ident(resolved_path.as_joined_str("_")))
             }
             Expr::Lit(lit) => match lit {
-                Lit::Nil => Ok(IrTerm::I32(0)),
+                Lit::Nil => Ok(IrTerm::nil()),
                 Lit::Bool(b) => Ok(IrTerm::I32(if *b { 1 } else { 0 })),
                 Lit::I32(i) => Ok(IrTerm::i32(*i)),
                 Lit::I64(i) => Ok(IrTerm::i64(*i)),
@@ -471,10 +471,6 @@ impl IrCodeGenerator {
                         args: vec![arg1, arg2],
                         source: None,
                     }),
-                    EnumOr => {
-                        println!("{:?}, {:?}", arg1, arg2);
-                        todo!();
-                    }
                 }
             }
             Expr::Call(callee, args, variadic, expansion) => match &mut callee.data {
@@ -910,35 +906,9 @@ impl IrCodeGenerator {
                 })
             }
             Expr::Wrap(expr) => {
-                let var = format!("_wrap_{}", expr.start.unwrap_or(0));
                 let expr = self.expr(expr)?;
 
-                Ok(IrTerm::Seq {
-                    elements: vec![
-                        IrTerm::Let {
-                            name: var.clone(),
-                            type_: IrType::Address,
-                            value: Box::new(IrTerm::Call {
-                                callee: Box::new(IrTerm::ident(
-                                    Path::new(vec![
-                                        Ident("quartz".to_string()),
-                                        Ident("std".to_string()),
-                                        Ident("alloc".to_string()),
-                                    ])
-                                    .as_joined_str("_"),
-                                )),
-                                args: vec![IrTerm::i32(1)],
-                                source: None,
-                            }),
-                        },
-                        IrTerm::SetField {
-                            address: Box::new(IrTerm::ident(var.clone())),
-                            offset: 0,
-                            value: Box::new(expr),
-                        },
-                        IrTerm::ident(var),
-                    ],
-                })
+                self.generate_array_enumerated(vec![expr])
             }
             Expr::Unwrap(expr) => {
                 let expr = self.expr(expr)?;
@@ -951,12 +921,14 @@ impl IrCodeGenerator {
             Expr::Omit(_) => todo!(),
             Expr::EnumOr(lhs, rhs) => {
                 let lhs_term = if let Some(lhs) = lhs {
-                    self.expr(lhs)?
+                    let lhs_term = self.expr(lhs)?;
+                    self.generate_array_enumerated(vec![lhs_term])?
                 } else {
                     IrTerm::Nil
                 };
                 let rhs_term = if let Some(rhs) = rhs {
-                    self.expr(rhs)?
+                    let rhs_term = self.expr(rhs)?;
+                    self.generate_array_enumerated(vec![rhs_term])?
                 } else {
                     IrTerm::Nil
                 };
@@ -1074,10 +1046,10 @@ impl IrCodeGenerator {
         // array_x
         let var_name = format!(
             "array_{}",
-            rand::thread_rng()
-                .sample_iter(&rand::distributions::Alphanumeric)
+            Alphanumeric
+                .sample_iter(&mut rand::thread_rng())
                 .take(5)
-                .map(|t| t.to_string())
+                .map(char::from)
                 .collect::<String>()
         );
 
@@ -1111,6 +1083,12 @@ impl IrCodeGenerator {
     }
 
     fn generate_array_enumerated(&mut self, elements: Vec<IrTerm>) -> Result<IrTerm> {
-        self.generate_array(elements.into_iter().enumerate().collect())
+        self.generate_array(
+            elements
+                .into_iter()
+                .enumerate()
+                .map(|(i, e)| (i * 4, e))
+                .collect(),
+        )
     }
 }
