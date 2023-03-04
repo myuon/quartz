@@ -370,7 +370,11 @@ impl Parser {
                         Some(Box::new(rhs))
                     };
 
-                    current = self.source_from(Expr::EnumOr(lhs, rhs), position);
+                    let lhs_type = self.gen_omit()?;
+                    let rhs_type = self.gen_omit()?;
+
+                    current =
+                        self.source_from(Expr::EnumOr(lhs_type, rhs_type, lhs, rhs), position);
                 }
                 _ => break,
             }
@@ -788,12 +792,14 @@ impl Parser {
                 Lexeme::Question => {
                     self.consume()?;
 
-                    current = self.source_from(Expr::Wrap(Box::new(current)), position);
+                    let type_ = self.gen_omit()?;
+                    current = self.source_from(Expr::Wrap(type_, Box::new(current)), position);
                 }
                 Lexeme::Bang => {
                     self.consume()?;
 
-                    current = self.source_from(Expr::Unwrap(Box::new(current)), position);
+                    let type_ = self.gen_omit()?;
+                    current = self.source_from(Expr::Unwrap(type_, Box::new(current)), position);
                 }
                 _ => break,
             }

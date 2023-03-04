@@ -206,10 +206,15 @@ pub enum Expr {
     },
     Equal(Box<Source<Expr>>, Box<Source<Expr>>),
     NotEqual(Box<Source<Expr>>, Box<Source<Expr>>),
-    Wrap(Box<Source<Expr>>),
-    Unwrap(Box<Source<Expr>>),
+    Wrap(Type, Box<Source<Expr>>),
+    Unwrap(Type, Box<Source<Expr>>),
     Omit(Type),
-    EnumOr(Option<Box<Source<Expr>>>, Option<Box<Source<Expr>>>),
+    EnumOr(
+        Type,
+        Type,
+        Option<Box<Source<Expr>>>,
+        Option<Box<Source<Expr>>>,
+    ),
 }
 
 impl Expr {

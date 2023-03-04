@@ -97,6 +97,17 @@ pub enum IrTerm {
         lhs: Box<IrTerm>,
         rhs: Box<IrTerm>,
     },
+    Store {
+        type_: IrType,
+        address: Box<IrTerm>,
+        offset: Box<IrTerm>,
+        value: Box<IrTerm>,
+    },
+    Load {
+        type_: IrType,
+        address: Box<IrTerm>,
+        offset: Box<IrTerm>,
+    },
 }
 
 impl IrTerm {
@@ -345,6 +356,32 @@ impl IrTerm {
                 rhs.to_string_writer(writer);
                 writer.end();
             }
+            IrTerm::Load {
+                type_,
+                address,
+                offset,
+            } => {
+                writer.start();
+                writer.write("load");
+                type_.to_term().to_string_writer(writer);
+                address.to_string_writer(writer);
+                offset.to_string_writer(writer);
+                writer.end();
+            }
+            IrTerm::Store {
+                type_,
+                address,
+                offset,
+                value,
+            } => {
+                writer.start();
+                writer.write("store");
+                type_.to_term().to_string_writer(writer);
+                address.to_string_writer(writer);
+                offset.to_string_writer(writer);
+                value.to_string_writer(writer);
+                writer.end();
+            }
         }
     }
 
@@ -481,6 +518,28 @@ impl IrTerm {
                 let mut result = vec![];
                 result.extend(lhs.find_let());
                 result.extend(rhs.find_let());
+                result
+            }
+            IrTerm::Load {
+                type_,
+                address,
+                offset,
+            } => {
+                let mut result = vec![];
+                result.extend(address.find_let());
+                result.extend(offset.find_let());
+                result
+            }
+            IrTerm::Store {
+                type_,
+                address,
+                offset,
+                value,
+            } => {
+                let mut result = vec![];
+                result.extend(address.find_let());
+                result.extend(offset.find_let());
+                result.extend(value.find_let());
                 result
             }
         }

@@ -251,7 +251,12 @@ impl TypeChecker {
                     if let Type::Or(left, right) = result_type {
                         if self.unify(left, &mut type_.clone()).is_ok() {
                             *expr = Source::transfer(
-                                Expr::EnumOr(Some(Box::new(expr.clone())), None),
+                                Expr::EnumOr(
+                                    *left.clone(),
+                                    *right.clone(),
+                                    Some(Box::new(expr.clone())),
+                                    None,
+                                ),
                                 expr,
                             );
                         } else {
@@ -873,37 +878,41 @@ impl TypeChecker {
 
                 Ok(Type::Bool)
             }
-            Expr::Wrap(expr) => {
+            Expr::Wrap(type_, expr) => {
                 let expr_type = self.expr(expr)?;
+                *type_ = expr_type.clone();
 
                 Ok(Type::Optional(Box::new(expr_type)))
             }
-            Expr::Unwrap(expr) => {
+            Expr::Unwrap(type_, expr) => {
                 let mut expr_type = self.expr(expr)?;
-                let mut type_ = Type::Optional(Box::new(Type::Omit(0)));
-                self.unify(&mut type_, &mut expr_type)
+
+                let mut wrapped_type = Type::Optional(Box::new(type_.clone()));
+                self.unify(&mut wrapped_type, &mut expr_type)
                     .context(ErrorInSource {
                         path: Some(self.current_path.clone()),
                         start: expr.start.unwrap_or(0),
                         end: expr.end.unwrap_or(0),
                     })?;
 
-                Ok(type_.to_optional()?.as_ref().clone())
+                let wrapperd_type_element = *wrapped_type.to_optional()?.clone();
+                *type_ = wrapperd_type_element.clone();
+
+                Ok(wrapperd_type_element)
             }
             Expr::Omit(_) => todo!(),
-            Expr::EnumOr(lhs, rhs) => {
-                let lhs_type = if let Some(lhs) = lhs {
-                    self.expr(lhs)?
-                } else {
-                    Type::Omit(0)
+            Expr::EnumOr(lhs_type, rhs_type, lhs, rhs) => {
+                if let Some(lhs) = lhs {
+                    *lhs_type = self.expr(lhs)?;
                 };
-                let rhs_type = if let Some(rhs) = rhs {
-                    self.expr(rhs)?
-                } else {
-                    Type::Omit(0)
+                if let Some(rhs) = rhs {
+                    *rhs_type = self.expr(rhs)?;
                 };
 
-                Ok(Type::Or(Box::new(lhs_type), Box::new(rhs_type)))
+                Ok(Type::Or(
+                    Box::new(lhs_type.clone()),
+                    Box::new(rhs_type.clone()),
+                ))
             }
         }
     }

@@ -640,6 +640,44 @@ impl Generator {
 
                 self.writer.end();
             }
+            IrTerm::Load {
+                type_,
+                address,
+                offset,
+            } => {
+                self.writer.new_statement();
+                self.expr(address)?;
+
+                self.writer.new_statement();
+                self.expr(offset)?;
+
+                self.writer.new_statement();
+                self.writer.write("i32.add");
+
+                self.writer.new_statement();
+                self.writer.write(&format!("{}.load", type_.to_string()));
+            }
+            IrTerm::Store {
+                type_,
+                address,
+                offset,
+                value,
+            } => {
+                self.writer.new_statement();
+                self.expr(address)?;
+
+                self.writer.new_statement();
+                self.expr(offset)?;
+
+                self.writer.new_statement();
+                self.writer.write("i32.add");
+
+                self.writer.new_statement();
+                self.expr(value)?;
+
+                self.writer.new_statement();
+                self.writer.write(&format!("{}.store", type_.to_string()));
+            }
             _ => todo!("{:?}", expr),
         }
 
