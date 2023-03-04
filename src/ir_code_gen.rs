@@ -546,26 +546,20 @@ impl IrCodeGenerator {
                             (Type::Vec(_), "push") => {
                                 assert_eq!(args.len(), 1);
 
-                                Ok(self.statement(&mut Source::transfer(
-                                    Statement::Expr(
-                                        Source::transfer(
-                                            Expr::Call(
-                                                Box::new(Source::transfer(
-                                                    Expr::path(Path::new(
-                                                        vec!["quartz", "std", "vec_push"]
-                                                            .into_iter()
-                                                            .map(|t| Ident(t.to_string()))
-                                                            .collect(),
-                                                    )),
-                                                    expr,
-                                                )),
-                                                vec![expr.as_ref().clone(), args[0].clone()],
-                                                None,
-                                                None,
-                                            ),
+                                Ok(self.expr(&mut Source::transfer(
+                                    Expr::Call(
+                                        Box::new(Source::transfer(
+                                            Expr::path(Path::new(
+                                                vec!["quartz", "std", "vec_push"]
+                                                    .into_iter()
+                                                    .map(|t| Ident(t.to_string()))
+                                                    .collect(),
+                                            )),
                                             expr,
-                                        ),
-                                        Type::Nil,
+                                        )),
+                                        vec![expr.as_ref().clone(), args[0].clone()],
+                                        None,
+                                        None,
                                     ),
                                     expr,
                                 ))?)
@@ -573,30 +567,24 @@ impl IrCodeGenerator {
                             (Type::Map(_, _), "insert") => {
                                 assert_eq!(args.len(), 2);
 
-                                Ok(self.statement(&mut Source::transfer(
-                                    Statement::Expr(
-                                        Source::transfer(
-                                            Expr::Call(
-                                                Box::new(Source::transfer(
-                                                    Expr::path(Path::new(
-                                                        vec!["quartz", "std", "map_insert"]
-                                                            .into_iter()
-                                                            .map(|t| Ident(t.to_string()))
-                                                            .collect(),
-                                                    )),
-                                                    expr,
-                                                )),
-                                                vec![
-                                                    expr.as_ref().clone(),
-                                                    args[0].clone(),
-                                                    args[1].clone(),
-                                                ],
-                                                None,
-                                                None,
-                                            ),
+                                Ok(self.expr(&mut Source::transfer(
+                                    Expr::Call(
+                                        Box::new(Source::transfer(
+                                            Expr::path(Path::new(
+                                                vec!["quartz", "std", "map_insert"]
+                                                    .into_iter()
+                                                    .map(|t| Ident(t.to_string()))
+                                                    .collect(),
+                                            )),
                                             expr,
-                                        ),
-                                        Type::Nil,
+                                        )),
+                                        vec![
+                                            expr.as_ref().clone(),
+                                            args[0].clone(),
+                                            args[1].clone(),
+                                        ],
+                                        None,
+                                        None,
                                     ),
                                     expr,
                                 ))?)

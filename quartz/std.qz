@@ -414,21 +414,3 @@ fun alloc(size: i32): ptr[any] {
 
     return (current * 4) as ptr[any];
 }
-
-fun make_record(
-    size: i32,
-    field_num: i32,
-    offset: ptr[i32],
-    value: ptr[any],
-): ptr[any] {
-    let addr = alloc(size);
-
-    for i in 0..field_num {
-        let i = offset.at(i);
-        let v = value.at(i);
-
-        addr.at(i) = v;
-    }
-
-    return addr;
-}
