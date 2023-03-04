@@ -150,18 +150,20 @@ impl IrCodeGenerator {
                             },
                             IrTerm::Let {
                                 name: lhs.0.clone(),
-                                type_: IrType::from_type(&lhs_type)?,
-                                value: Box::new(IrTerm::GetField {
+                                type_: IrType::Address,
+                                value: Box::new(IrTerm::Load {
+                                    type_: IrType::from_type(&lhs_type)?,
                                     address: Box::new(IrTerm::Ident(var_name.clone())),
-                                    offset: 0,
+                                    offset: Box::new(IrTerm::i32(0)),
                                 }),
                             },
                             IrTerm::Let {
                                 name: rhs.0.clone(),
-                                type_: IrType::from_type(&rhs_type)?,
-                                value: Box::new(IrTerm::GetField {
+                                type_: IrType::Address,
+                                value: Box::new(IrTerm::Load {
+                                    type_: IrType::from_type(&rhs_type)?,
                                     address: Box::new(IrTerm::Ident(var_name.clone())),
-                                    offset: IrType::Address.sizeof(),
+                                    offset: Box::new(IrTerm::i32(IrType::Address.sizeof() as i32)),
                                 }),
                             },
                         ],
@@ -290,6 +292,16 @@ impl IrCodeGenerator {
             }),
             IrTerm::Call { .. } => Ok(IrTerm::SetPointer {
                 address: Box::new(lhs),
+                value: Box::new(rhs),
+            }),
+            IrTerm::Load {
+                type_,
+                address,
+                offset,
+            } => Ok(IrTerm::Store {
+                type_,
+                address,
+                offset,
                 value: Box::new(rhs),
             }),
             _ => bail!("invalid lhs for assignment: {}", lhs.to_string()),
@@ -787,9 +799,10 @@ impl IrCodeGenerator {
                     offset += IrType::from_type(type_)?.sizeof();
                 }
 
-                Ok(IrTerm::GetField {
+                Ok(IrTerm::Load {
+                    type_: IrType::from_type(&record_type[index].1)?,
                     address: Box::new(self.expr(expr)?),
-                    offset,
+                    offset: Box::new(IrTerm::i32(offset as i32)),
                 })
             }
             Expr::Make(type_, args) => match type_ {
