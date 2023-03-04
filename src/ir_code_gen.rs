@@ -1,6 +1,7 @@
 use std::{collections::HashMap, vec};
 
 use anyhow::{anyhow, bail, Context, Result};
+use rand::Rng;
 
 use crate::{
     ast::{Decl, Expr, Func, Lit, Module, Pattern, Statement, Type, VariadicCall},
@@ -696,49 +697,22 @@ impl IrCodeGenerator {
                 Ok(IrTerm::Seq { elements })
             }
             Expr::AnonymousRecord(fields, type_) => {
-                let var_name = format!("_record_{}", fields[0].1.start.unwrap_or(0));
-
                 let mut elements = vec![];
-                elements.push(IrTerm::Let {
-                    name: var_name.clone(),
-                    type_: IrType::Address,
-                    value: Box::new(IrTerm::Call {
-                        callee: Box::new(IrTerm::ident(
-                            Path::new(
-                                vec!["quartz", "std", "alloc"]
-                                    .into_iter()
-                                    .map(|s| Ident(s.to_string()))
-                                    .collect(),
-                            )
-                            .as_joined_str("_"),
-                        )),
-                        args: vec![IrTerm::i32(fields.len() as i32)],
-                        source: None,
-                    }),
-                });
-
                 let mut offset = 0;
                 for (label, type_) in type_.as_record_type().unwrap() {
-                    elements.push(IrTerm::SetField {
-                        address: Box::new(IrTerm::ident(var_name.clone())),
-                        offset,
-                        value: Box::new(
-                            self.expr(
-                                &mut fields
-                                    .iter_mut()
-                                    .find(|(f, _)| f == label)
-                                    .ok_or(anyhow!("Field not found: {:?}", label))?
-                                    .1,
-                            )?,
-                        ),
-                    });
+                    let value = self.expr(
+                        &mut fields
+                            .iter_mut()
+                            .find(|(f, _)| f == label)
+                            .ok_or(anyhow!("Field not found: {:?}", label))?
+                            .1,
+                    )?;
+                    elements.push((offset, value));
 
                     offset += IrType::from_type(&type_)?.sizeof();
                 }
 
-                elements.push(IrTerm::ident(var_name));
-
-                Ok(IrTerm::Seq { elements })
+                self.generate_array(elements)
             }
             Expr::Project(expr, type_, label) => {
                 let record_type = if let Ok(record) = type_.as_record_type() {
@@ -1027,5 +1001,51 @@ impl IrCodeGenerator {
                 }),
             })
         }
+    }
+
+    fn generate_array(&mut self, elements: Vec<(usize, IrTerm)>) -> Result<IrTerm> {
+        // generates:
+        //
+        // let array_x = alloc(10);
+        // for i in elements {
+        //     array_x.at(i) = elements.at(i);
+        // }
+        // array_x
+        let var_name = format!(
+            "array_{}",
+            rand::thread_rng()
+                .sample_iter(&rand::distributions::Alphanumeric)
+                .take(4)
+                .map(|t| t.to_string())
+                .collect::<String>()
+        );
+
+        let mut array = vec![IrTerm::Let {
+            name: var_name.clone(),
+            type_: IrType::Address,
+            value: Box::new(IrTerm::Call {
+                callee: Box::new(IrTerm::ident(
+                    Path::new(vec![
+                        Ident("quartz".to_string()),
+                        Ident("std".to_string()),
+                        Ident("alloc".to_string()),
+                    ])
+                    .as_joined_str("_"),
+                )),
+                args: vec![IrTerm::i32(elements.len() as i32)],
+                source: None,
+            }),
+        }];
+        for (offset, element) in elements {
+            array.push(IrTerm::SetField {
+                address: Box::new(IrTerm::ident(var_name.clone())),
+                offset,
+                value: Box::new(element),
+            });
+        }
+
+        array.push(IrTerm::ident(var_name.clone()));
+
+        Ok(IrTerm::Seq { elements: array })
     }
 }
