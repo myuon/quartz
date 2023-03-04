@@ -51,10 +51,6 @@ pub enum IrTerm {
         address: Box<IrTerm>,
         index: Box<IrTerm>,
     },
-    PointerOffset {
-        address: Box<IrTerm>,
-        offset: Box<IrTerm>,
-    },
     SetPointer {
         address: Box<IrTerm>,
         value: Box<IrTerm>,
@@ -301,13 +297,6 @@ impl IrTerm {
                 writer.write("break");
                 writer.end();
             }
-            IrTerm::PointerOffset { address, offset } => {
-                writer.start();
-                writer.write("pointer-offset");
-                address.to_string_writer(writer);
-                offset.to_string_writer(writer);
-                writer.end();
-            }
             IrTerm::Discard { element } => {
                 writer.start();
                 writer.write("discard");
@@ -454,12 +443,6 @@ impl IrTerm {
             } => vec![],
             IrTerm::Continue => vec![],
             IrTerm::Break => vec![],
-            IrTerm::PointerOffset { address, offset } => {
-                let mut result = vec![];
-                result.extend(address.find_let());
-                result.extend(offset.find_let());
-                result
-            }
             IrTerm::Discard { element } => {
                 let mut result = vec![];
                 result.extend(element.find_let());

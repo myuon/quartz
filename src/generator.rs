@@ -551,16 +551,6 @@ impl Generator {
                     })?;
                 }
             }
-            IrTerm::PointerOffset { address, offset } => {
-                self.writer.new_statement();
-                self.expr(address)?;
-
-                self.writer.new_statement();
-                self.expr(offset)?;
-
-                self.writer.new_statement();
-                self.writer.write("i32.add");
-            }
             IrTerm::Discard { element } => {
                 self.writer.new_statement();
                 self.expr(element)?;

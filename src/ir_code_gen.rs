@@ -486,8 +486,8 @@ impl IrCodeGenerator {
                         match (type_, label.0[0].as_str()) {
                             (Type::Ptr(p), "at") => {
                                 assert_eq!(args.len(), 1);
-                                let offset = self.expr(&mut args[0])?;
 
+                                let offset = self.expr(&mut args[0])?;
                                 Ok(IrTerm::Load {
                                     type_: IrType::from_type(p).context("method:ptr.at")?,
                                     address: Box::new(self.expr(expr)?),
@@ -497,19 +497,14 @@ impl IrCodeGenerator {
                             (Type::Ptr(p), "offset") => {
                                 assert_eq!(args.len(), 1);
 
-                                Ok(IrTerm::PointerOffset {
-                                    address: Box::new(self.expr(expr)?),
-                                    offset: Box::new(IrTerm::Call {
-                                        callee: Box::new(IrTerm::Ident("mult".to_string())),
-                                        args: vec![
-                                            self.expr(&mut args[0])?,
-                                            IrTerm::SizeOf {
-                                                type_: IrType::from_type(&p)
-                                                    .context("method:ptr.offset")?,
-                                            },
-                                        ],
-                                        source: None,
-                                    }),
+                                let offset = self.expr(&mut args[0])?;
+                                Ok(IrTerm::Call {
+                                    callee: Box::new(IrTerm::Ident("add".to_string())),
+                                    args: vec![
+                                        self.expr(expr)?,
+                                        self.generate_mult_sizeof(p, offset)?,
+                                    ],
+                                    source: None,
                                 })
                             }
                             (Type::Array(p, s), "at") => {
