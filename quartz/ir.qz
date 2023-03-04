@@ -25,6 +25,11 @@ type IrTerm = {
         then_term: IrTerm,
         else_term: IrTerm,
     }?,
+    t_while: struct {
+        condition: IrTerm,
+        block: IrTerm,
+        cleanup: IrTerm?,
+    }?,
     t_seq: struct {
         terms: vec[IrTerm],
     }?,

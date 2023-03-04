@@ -677,6 +677,38 @@ fun main(): bool {
                     Value::I32(1),
                 ],
             ),
+            /*
+            (
+                r#"
+fun div(n: i32, m: i32): i32 or error {
+    if m == 0 {
+        return _ or error::new("zero division exception");
+    }
+
+    return n / m;
+}
+
+fun calc(): i32 {
+    let n = div(10, 3)!;
+
+    return n + 1;
+}
+
+fun main(): bool {
+    let result or error = calc();
+    if error != nil {
+        println(error.message);
+        return false;
+    } else {
+        return result == 4;
+    }
+}
+"#,
+                vec![
+                    Value::I32(1),
+                ],
+            ),
+             */
         ];
 
         for (input, expected) in cases {

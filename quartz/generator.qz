@@ -194,6 +194,10 @@ module Generator {
                     self.write("i32.eq");
                     return;
                 }
+                if ident.equal("lt") {
+                    self.write("i32.lt_s");
+                    return;
+                }
 
                 self.write("call $".concat(ident));
                 return;
@@ -241,6 +245,55 @@ module Generator {
             for i in 0..expr.t_seq!.terms.length {
                 self.expression(expr.t_seq!.terms.at(i));
             }
+            return;
+        }
+        if expr.t_while != nil {
+            // [while(cond) {block, cleanup}]
+
+            // (block $exit
+            //     (loop $loop
+            //         (block $continue
+            //             (br_if $exit (i32.eqz (cond)))
+            //             ($body)
+            //         )
+
+            //         ($cleanup)
+            //         (br $loop)
+            //     )
+            // )
+
+            self.new_statement();
+            self.start();
+            self.write("block");
+            self.write("$exit");
+
+            self.start();
+            self.write("loop");
+            self.write("$loop");
+
+            self.start();
+            self.write("block");
+            self.write("$continue");
+
+            self.expression(expr.t_while!.condition);
+            self.new_statement();
+            self.write("i32.eqz");
+            self.new_statement();
+            self.write("br_if $exit");
+
+            self.expression(expr.t_while!.block);
+            self.end();
+
+            if expr.t_while!.cleanup != nil {
+                self.expression(expr.t_while!.cleanup!);
+            }
+
+            self.new_statement();
+            self.write("br $loop");
+
+            self.end();
+            self.end();
+
             return;
         }
 

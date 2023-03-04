@@ -170,6 +170,26 @@ module IrCodeGenerator {
                 ..nil,
             };
         }
+        if stm.t_while != nil {
+            let body_elements = make[vec[IrTerm]]();
+            for i in 0..stm.t_while!.block.block.length {
+                body_elements.push(self.statement(stm.t_while!.block.block.at(i)));
+            }
+
+            return IrTerm {
+                t_while: struct {
+                    condition: self.expression(stm.t_while!.condition),
+                    block: IrTerm {
+                        t_seq: struct {
+                            terms: body_elements,
+                        }?,
+                        ..nil,
+                    },
+                    cleanup: nil as IrTerm?,
+                }?,
+                ..nil,
+            };
+        }
 
         println(stm.to_string());
         panic("statement exhausted");
@@ -230,6 +250,18 @@ module IrCodeGenerator {
                     t_call: IrCall {
                         callee: IrTerm {
                             t_ident: "equal"?,
+                            ..nil,
+                        },
+                        args: args,
+                    }?,
+                    ..nil,
+                };
+            }
+            if expr.t_binop!.binop.equal("lt") {
+                return IrTerm {
+                    t_call: IrCall {
+                        callee: IrTerm {
+                            t_ident: "lt"?,
                             ..nil,
                         },
                         args: args,

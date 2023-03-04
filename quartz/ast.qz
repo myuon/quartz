@@ -117,6 +117,10 @@ type Statement = {
         then_block: Block,
         else_block: Block?,
     }?,
+    t_while: struct {
+        condition: Expression,
+        block: Block,
+    }?,
 };
 
 module Statement {
@@ -156,6 +160,13 @@ module Statement {
             }
 
             return result.concat("\n");
+        }
+        if self.t_while != nil {
+            return format(
+                "while ({}) {{\n{}}}",
+                self.t_while!.condition.to_string(),
+                self.t_while!.block.to_string(),
+            );
         }
 
         panic("Unknown statement type");

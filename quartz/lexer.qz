@@ -69,7 +69,7 @@ module Lexer {
         return false;
     }
 
-    fun run(self, input: string) {
+    fun run(self, input: string): nil or error {
         while self.position < input.length {
             let p = self.consume_space(input);
             if p > 0 {
@@ -89,6 +89,9 @@ module Lexer {
                 continue;
             }
             if self.match(input, "else", "else") {
+                continue;
+            }
+            if self.match(input, "while", "while") {
                 continue;
             }
             if self.match(input, "==", "double_equal") {
@@ -124,6 +127,9 @@ module Lexer {
             if self.match(input, "=", "equal") {
                 continue;
             }
+            if self.match(input, "<", "lt") {
+                continue;
+            }
 
             let number = self.consume_number(input);
             if number != nil {
@@ -148,8 +154,6 @@ module Lexer {
             }
 
             panic("== Abort ==\nposition: ".concat(self.position.to_string()).concat("\ninput: ").concat(input.slice_start(self.position)));
-
-            return nil;
         }
     }
 }

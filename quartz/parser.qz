@@ -234,6 +234,21 @@ module Parser {
                 ..nil,
             };
         }
+        if token.lexeme.equal("while") {
+            self.consume();
+            let condition = self.expression_conditional();
+            self.expect("lbrace");
+            let block = self.block();
+            self.expect("rbrace");
+
+            return Statement {
+                t_while: struct {
+                    condition: condition,
+                    block: block,
+                }?,
+                ..nil,
+            };
+        }
 
         let expr = self.expression();
         if self.peek().lexeme.equal("semicolon") {
@@ -342,7 +357,22 @@ module Parser {
     }
 
     fun term_3(self, with_struct: bool): Expression {
-        return self.term_2(with_struct);
+        let current = self.term_2(with_struct);
+
+        if self.peek().lexeme.equal("lt") {
+            self.consume();
+
+            return Expression {
+                t_binop: struct {
+                    binop: "lt",
+                    left: current,
+                    right: self.term_2(with_struct),
+                }?,
+                ..nil,
+            };
+        }
+
+        return current;
     }
 
     fun term_2(self, with_struct: bool): Expression {

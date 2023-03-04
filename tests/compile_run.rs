@@ -69,6 +69,18 @@ fun main(): i32 {
     return factorial(5);
 }
 "#,
+        r#"
+fun main(): i32 {
+    let x = 10;
+    let n = 0;
+    while n < 10 {
+        x = x + n;
+        n = n + 1;
+    }
+
+    return x;
+}
+"#,
     ];
 
     for input in cases {

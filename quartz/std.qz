@@ -414,3 +414,15 @@ fun alloc(size: i32): ptr[any] {
 
     return (current * 4) as ptr[any];
 }
+
+type error = {
+    message: string,
+};
+
+module error {
+    fun new(message: string): error {
+        return error {
+            message: message,
+        };
+    }
+}
