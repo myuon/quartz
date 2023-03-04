@@ -486,11 +486,12 @@ impl IrCodeGenerator {
                         match (type_, label.0[0].as_str()) {
                             (Type::Ptr(p), "at") => {
                                 assert_eq!(args.len(), 1);
+                                let offset = self.expr(&mut args[0])?;
 
-                                Ok(IrTerm::PointerAt {
+                                Ok(IrTerm::Load {
                                     type_: IrType::from_type(p).context("method:ptr.at")?,
                                     address: Box::new(self.expr(expr)?),
-                                    index: Box::new(self.expr(&mut args[0])?),
+                                    offset: Box::new(self.generate_mult_sizeof(p, offset)?),
                                 })
                             }
                             (Type::Ptr(p), "offset") => {
@@ -514,7 +515,8 @@ impl IrCodeGenerator {
                             (Type::Array(p, s), "at") => {
                                 assert_eq!(args.len(), 1);
 
-                                Ok(IrTerm::PointerAt {
+                                let term = self.expr(&mut args[0])?;
+                                Ok(IrTerm::Load {
                                     type_: IrType::from_type(p).context("method:array.at")?,
                                     address: Box::new(self.expr(&mut Source::transfer(
                                         Expr::Project(
@@ -524,7 +526,7 @@ impl IrCodeGenerator {
                                         ),
                                         expr,
                                     ))?),
-                                    index: Box::new(self.expr(&mut args[0])?),
+                                    offset: Box::new(self.generate_mult_sizeof(p, term)?),
                                 })
                             }
                             (Type::Vec(_), "at") => {
@@ -1056,5 +1058,18 @@ impl IrCodeGenerator {
         }
 
         self.generate_array(terms)
+    }
+
+    fn generate_mult_sizeof(&mut self, type_: &Type, term: IrTerm) -> Result<IrTerm> {
+        Ok(IrTerm::Call {
+            callee: Box::new(IrTerm::Ident("mult".to_string())),
+            args: vec![
+                term,
+                IrTerm::SizeOf {
+                    type_: IrType::from_type(type_)?,
+                },
+            ],
+            source: None,
+        })
     }
 }
