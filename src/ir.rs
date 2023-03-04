@@ -46,11 +46,6 @@ pub enum IrTerm {
         then: Box<IrTerm>,
         else_: Box<IrTerm>,
     },
-    SetField {
-        address: Box<IrTerm>,
-        offset: usize,
-        value: Box<IrTerm>,
-    },
     PointerAt {
         type_: IrType,
         address: Box<IrTerm>,
@@ -237,18 +232,6 @@ impl IrTerm {
                 for element in elements {
                     element.to_string_writer(writer);
                 }
-                writer.end();
-            }
-            IrTerm::SetField {
-                address,
-                offset,
-                value,
-            } => {
-                writer.start();
-                writer.write("set-field");
-                address.to_string_writer(writer);
-                writer.write(&offset.to_string());
-                value.to_string_writer(writer);
                 writer.end();
             }
             IrTerm::While {
@@ -447,16 +430,6 @@ impl IrTerm {
                 body,
             } => todo!(),
             IrTerm::GlobalLet { name, type_, value } => todo!(),
-            IrTerm::SetField {
-                address,
-                offset,
-                value,
-            } => {
-                let mut result = vec![];
-                result.extend(address.find_let());
-                result.extend(value.find_let());
-                result
-            }
             IrTerm::PointerAt {
                 type_,
                 address,

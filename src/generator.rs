@@ -435,26 +435,6 @@ impl Generator {
 
                 self.writer.end();
             }
-            IrTerm::SetField {
-                address,
-                offset,
-                value,
-            } => {
-                self.writer.new_statement();
-                self.expr(address)?;
-
-                self.writer.new_statement();
-                self.expr(&mut IrTerm::I32(offset.clone() as i32))?;
-
-                self.writer.new_statement();
-                self.writer.write("i32.add");
-
-                self.writer.new_statement();
-                self.expr(value)?;
-
-                self.writer.new_statement();
-                self.writer.write("i32.store");
-            }
             IrTerm::While {
                 cond,
                 body,

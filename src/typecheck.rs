@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use anyhow::{anyhow, bail, Context, Result};
 
 use crate::{
-    ast::{BinOp, Decl, Expr, Func, Lit, Module, Pattern, Statement, Type, VariadicCall},
+    ast::{Decl, Expr, Func, Lit, Module, Pattern, Statement, Type, VariadicCall},
     compiler::ErrorInSource,
     util::{ident::Ident, path::Path, source::Source},
 };
@@ -577,11 +577,6 @@ impl TypeChecker {
                         *type_ = arg1_type.clone();
 
                         Ok(Type::Bool)
-                    }
-                    EnumOr => {
-                        *type_ = Type::Or(Box::new(arg1_type), Box::new(arg2_type));
-
-                        Ok(type_.clone())
                     }
                 }
             }
