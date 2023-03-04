@@ -674,17 +674,6 @@ impl IrCodeGenerator {
                 _ => self.generate_call(callee, args, variadic, expansion),
             },
             Expr::Record(ident, fields, expansion) => {
-                /* example
-                    let x = Point { x: 10, y: 20 };
-
-                    (seq
-                        (let $addr (call $alloc 2))
-                        (call $set_field $addr 0 10)
-                        (call $set_field $addr 1 20)
-                        $addr
-                    )
-                */
-
                 let record_type = self
                     .types
                     .get(&ident.data)
@@ -692,59 +681,24 @@ impl IrCodeGenerator {
                     .clone()
                     .to_record()?;
 
-                let var = format!("_record_{}", ident.start.unwrap_or(0));
+                let expansion_term = if let Some(expansion) = expansion {
+                    Some(self.expr(expansion)?)
+                } else {
+                    None
+                };
 
-                let mut elements = vec![];
-                elements.push(IrTerm::Let {
-                    name: var.clone(),
-                    type_: IrType::Address,
-                    value: Box::new(IrTerm::Call {
-                        callee: Box::new(IrTerm::ident(
-                            Path::new(
-                                vec!["quartz", "std", "alloc"]
-                                    .into_iter()
-                                    .map(|s| Ident(s.to_string()))
-                                    .collect(),
-                            )
-                            .as_joined_str("_"),
-                        )),
-                        args: vec![IrTerm::i32(record_type.len() as i32)],
-                        source: None,
-                    }),
-                });
-
-                let mut offset = 0;
+                let mut record = vec![];
                 for (i, type_) in record_type {
-                    if let Some((_, expr)) = fields.iter_mut().find(|(f, _)| f == &i) {
-                        elements.push(IrTerm::SetField {
-                            address: Box::new(IrTerm::ident(var.clone())),
-                            offset,
-                            value: Box::new(self.expr(expr)?),
-                        });
-                    } else {
-                        if let Some(expansion) = expansion {
-                            elements.push(IrTerm::SetField {
-                                address: Box::new(IrTerm::ident(var.clone())),
-                                offset,
-                                value: Box::new(self.expr(expansion)?),
-                            });
-                        } else {
-                            return Err(anyhow!("Field not found: {:?}", i).context(
-                                ErrorInSource {
-                                    path: Some(self.current_path.clone()),
-                                    start: expr.start.unwrap_or(0),
-                                    end: expr.end.unwrap_or(0),
-                                },
-                            ));
-                        }
-                    }
+                    let ir_type = IrType::from_type(&type_)?;
 
-                    offset += IrType::from_type(&type_)?.sizeof();
+                    if let Some((_, expr)) = fields.iter_mut().find(|(f, _)| f == &i) {
+                        record.push((ir_type, self.expr(expr)?));
+                    } else {
+                        record.push((ir_type, expansion_term.clone().unwrap()));
+                    }
                 }
 
-                elements.push(IrTerm::ident(var));
-
-                Ok(IrTerm::Seq { elements })
+                Ok(self.generate_array_enumerated(record)?)
             }
             Expr::AnonymousRecord(fields, type_) => {
                 let mut elements = vec![];
