@@ -51,10 +51,6 @@ pub enum IrTerm {
         offset: usize,
         value: Box<IrTerm>,
     },
-    GetField {
-        address: Box<IrTerm>,
-        offset: usize,
-    },
     PointerAt {
         type_: IrType,
         address: Box<IrTerm>,
@@ -253,13 +249,6 @@ impl IrTerm {
                 address.to_string_writer(writer);
                 writer.write(&offset.to_string());
                 value.to_string_writer(writer);
-                writer.end();
-            }
-            IrTerm::GetField { address, offset } => {
-                writer.start();
-                writer.write("get-field");
-                address.to_string_writer(writer);
-                writer.write(&offset.to_string());
                 writer.end();
             }
             IrTerm::While {
@@ -466,11 +455,6 @@ impl IrTerm {
                 let mut result = vec![];
                 result.extend(address.find_let());
                 result.extend(value.find_let());
-                result
-            }
-            IrTerm::GetField { address, offset } => {
-                let mut result = vec![];
-                result.extend(address.find_let());
                 result
             }
             IrTerm::PointerAt {

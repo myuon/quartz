@@ -159,9 +159,10 @@ impl Generator {
 
             self.expr(&mut IrTerm::WriteMemory {
                 type_: IrType::I32,
-                address: Box::new(IrTerm::GetField {
+                address: Box::new(IrTerm::Load {
+                    type_: IrType::I32,
                     address: Box::new(IrTerm::ident("p")),
-                    offset: 0,
+                    offset: Box::new(IrTerm::i32(0)),
                 }),
                 value: string.bytes().map(|b| IrTerm::i32(b as i32)).collect(),
             })?;
@@ -433,19 +434,6 @@ impl Generator {
                 self.writer.end();
 
                 self.writer.end();
-            }
-            IrTerm::GetField { address, offset } => {
-                self.writer.new_statement();
-                self.expr(address)?;
-
-                self.writer.new_statement();
-                self.expr(&mut IrTerm::I32(offset.clone() as i32))?;
-
-                self.writer.new_statement();
-                self.writer.write("i32.add");
-
-                self.writer.new_statement();
-                self.writer.write("i32.load");
             }
             IrTerm::SetField {
                 address,
