@@ -281,8 +281,10 @@ impl IrCodeGenerator {
                 lhs: ident,
                 rhs: Box::new(rhs),
             }),
-            IrTerm::Call { .. } => Ok(IrTerm::SetPointer {
+            IrTerm::Call { .. } => Ok(IrTerm::Store {
+                type_: IrType::Address,
                 address: Box::new(lhs),
+                offset: Box::new(IrTerm::i32(0)),
                 value: Box::new(rhs),
             }),
             IrTerm::Load {

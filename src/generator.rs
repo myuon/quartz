@@ -494,16 +494,6 @@ impl Generator {
                 self.writer.new_statement();
                 self.writer.write("br $exit");
             }
-            IrTerm::SetPointer { address, value } => {
-                self.writer.new_statement();
-                self.expr_left_value(address)?;
-
-                self.writer.new_statement();
-                self.expr(value)?;
-
-                self.writer.new_statement();
-                self.writer.write("i32.store");
-            }
             IrTerm::SizeOf { type_ } => {
                 self.writer.new_statement();
                 self.writer.write(&format!("i32.const {}", type_.sizeof()));

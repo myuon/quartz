@@ -46,10 +46,6 @@ pub enum IrTerm {
         then: Box<IrTerm>,
         else_: Box<IrTerm>,
     },
-    SetPointer {
-        address: Box<IrTerm>,
-        value: Box<IrTerm>,
-    },
     While {
         cond: Box<IrTerm>,
         body: Box<IrTerm>,
@@ -239,13 +235,6 @@ impl IrTerm {
                 }
                 writer.end();
             }
-            IrTerm::SetPointer { address, value } => {
-                writer.start();
-                writer.write("set-pointer");
-                address.to_string_writer(writer);
-                value.to_string_writer(writer);
-                writer.end();
-            }
             IrTerm::SizeOf { type_ } => {
                 writer.start();
                 writer.write("size-of");
@@ -402,12 +391,6 @@ impl IrTerm {
                 body,
             } => todo!(),
             IrTerm::GlobalLet { name, type_, value } => todo!(),
-            IrTerm::SetPointer { address, value } => {
-                let mut result = vec![];
-                result.extend(address.find_let());
-                result.extend(value.find_let());
-                result
-            }
             IrTerm::SizeOf { type_ } => vec![],
             IrTerm::WriteMemory {
                 type_,
