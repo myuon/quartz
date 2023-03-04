@@ -46,11 +46,6 @@ pub enum IrTerm {
         then: Box<IrTerm>,
         else_: Box<IrTerm>,
     },
-    PointerAt {
-        type_: IrType,
-        address: Box<IrTerm>,
-        index: Box<IrTerm>,
-    },
     SetPointer {
         address: Box<IrTerm>,
         value: Box<IrTerm>,
@@ -244,18 +239,6 @@ impl IrTerm {
                 }
                 writer.end();
             }
-            IrTerm::PointerAt {
-                type_,
-                address,
-                index,
-            } => {
-                writer.start();
-                writer.write("pointer-at");
-                type_.to_term().to_string_writer(writer);
-                address.to_string_writer(writer);
-                index.to_string_writer(writer);
-                writer.end();
-            }
             IrTerm::SetPointer { address, value } => {
                 writer.start();
                 writer.write("set-pointer");
@@ -419,16 +402,6 @@ impl IrTerm {
                 body,
             } => todo!(),
             IrTerm::GlobalLet { name, type_, value } => todo!(),
-            IrTerm::PointerAt {
-                type_,
-                address,
-                index,
-            } => {
-                let mut result = vec![];
-                result.extend(address.find_let());
-                result.extend(index.find_let());
-                result
-            }
             IrTerm::SetPointer { address, value } => {
                 let mut result = vec![];
                 result.extend(address.find_let());
@@ -490,6 +463,14 @@ impl IrTerm {
         self.to_string_writer(&mut writer);
 
         writer.buffer
+    }
+
+    pub fn wrap_mult_sizeof(ir_type: IrType, term: IrTerm) -> IrTerm {
+        IrTerm::Call {
+            callee: Box::new(IrTerm::Ident("mult".to_string())),
+            args: vec![term, IrTerm::SizeOf { type_: ir_type }],
+            source: None,
+        }
     }
 }
 

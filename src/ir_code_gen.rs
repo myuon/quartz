@@ -281,10 +281,6 @@ impl IrCodeGenerator {
                 lhs: ident,
                 rhs: Box::new(rhs),
             }),
-            IrTerm::PointerAt { .. } => Ok(IrTerm::SetPointer {
-                address: Box::new(lhs),
-                value: Box::new(rhs),
-            }),
             IrTerm::Call { .. } => Ok(IrTerm::SetPointer {
                 address: Box::new(lhs),
                 value: Box::new(rhs),
@@ -1056,15 +1052,6 @@ impl IrCodeGenerator {
     }
 
     fn generate_mult_sizeof(&mut self, type_: &Type, term: IrTerm) -> Result<IrTerm> {
-        Ok(IrTerm::Call {
-            callee: Box::new(IrTerm::Ident("mult".to_string())),
-            args: vec![
-                term,
-                IrTerm::SizeOf {
-                    type_: IrType::from_type(type_)?,
-                },
-            ],
-            source: None,
-        })
+        Ok(IrTerm::wrap_mult_sizeof(IrType::from_type(type_)?, term))
     }
 }
