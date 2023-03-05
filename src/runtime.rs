@@ -24,9 +24,8 @@ impl Runtime {
                     println!("[DEBUG_I32] {}", i);
                     0
                 }),
-                "abort" => Function::new_typed(&mut store, || {
+                "abort" => Function::new_typed(&mut store, || -> i32 {
                     panic!("[ABORT]");
-                    0
                 }),
                 "read_stdin" => Function::new_typed(&mut store, || {
                     let mut buffer = [0u8; 1];

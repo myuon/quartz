@@ -967,17 +967,19 @@ impl IrCodeGenerator {
                 }),
             }];
             for arg in &mut args[variadic_call.index..] {
-                variadic_terms.push(IrTerm::Call {
-                    callee: Box::new(self.expr(&mut Source::transfer(
-                        Expr::path(Path::new(vec![
-                            Ident("quartz".to_string()),
-                            Ident("std".to_string()),
-                            Ident("vec_push".to_string()),
-                        ])),
-                        arg,
-                    ))?),
-                    args: vec![IrTerm::Ident(vec_name.clone()), self.expr(arg)?],
-                    source: None,
+                variadic_terms.push(IrTerm::Discard {
+                    element: Box::new(IrTerm::Call {
+                        callee: Box::new(self.expr(&mut Source::transfer(
+                            Expr::path(Path::new(vec![
+                                Ident("quartz".to_string()),
+                                Ident("std".to_string()),
+                                Ident("vec_push".to_string()),
+                            ])),
+                            arg,
+                        ))?),
+                        args: vec![IrTerm::Ident(vec_name.clone()), self.expr(arg)?],
+                        source: None,
+                    }),
                 });
             }
 
