@@ -44,7 +44,7 @@ module Parser {
             };
         }
         if token.lexeme.equal("let") {
-            let let_ = self.let_().try;
+            let let_ = self.global_let().try;
 
             return Decl {
                 t_let: let_?,
@@ -55,7 +55,7 @@ module Parser {
         return _ or error::new("Expected DECL, got ".concat(token.lexeme).concat("{").concat(token.string_value!).concat("}"));
     }
 
-    fun let_(self): Let or error {
+    fun global_let(self): Let or error {
         self.expect("let").try;
         let name = self.ident().try;
 
@@ -96,7 +96,7 @@ module Parser {
         }
 
         self.expect("lbrace").try;
-        let body = self.block();
+        let body = self.block().try;
         self.expect("rbrace").try;
 
         return Function {
@@ -190,7 +190,7 @@ module Parser {
         }
     }
 
-    fun block(self): Block {
+    fun block(self): Block or error {
         let statements = make[vec[Statement]]();
 
         while !self.is_end() && !self.peek().lexeme.equal("rbrace") {
@@ -214,14 +214,14 @@ module Parser {
             self.consume();
             let condition = self.expression_conditional().try;
             self.expect("lbrace").try;
-            let then_block = self.block();
+            let then_block = self.block().try;
             self.expect("rbrace").try;
 
             let else_block = nil as Block?;
             if self.peek().lexeme.equal("else") {
-                let _t = self.consume();
+                self.consume();
                 self.expect("lbrace").try;
-                else_block = self.block()?;
+                else_block = self.block().try?;
                 self.expect("rbrace").try;
             }
 
@@ -238,7 +238,7 @@ module Parser {
             self.consume();
             let condition = self.expression_conditional().try;
             self.expect("lbrace").try;
-            let block = self.block();
+            let block = self.block().try;
             self.expect("rbrace").try;
 
             return Statement {
@@ -283,7 +283,7 @@ module Parser {
     }
 
     fun let_statement(self): Statement or error {
-        self.consume();
+        self.expect("let").try;
         let name = self.ident().try;
 
         let t = Type {
@@ -310,7 +310,7 @@ module Parser {
     }
 
     fun return_statement(self): Statement or error {
-        self.consume();
+        self.expect("return").try;
         let value = self.expression().try;
         self.expect("semicolon").try;
 
@@ -339,7 +339,7 @@ module Parser {
 
         while true {
             if self.peek().lexeme.equal("double_equal") {
-                self.consume();
+                self.expect("double_equal").try;
 
                 current = Expression {
                     t_binop: struct {
@@ -360,7 +360,7 @@ module Parser {
         let current = self.term_2(with_struct).try;
 
         if self.peek().lexeme.equal("lt") {
-            self.consume();
+            self.expect("lt").try;
 
             return Expression {
                 t_binop: struct {
@@ -380,7 +380,7 @@ module Parser {
 
         while true {
             if self.peek().lexeme.equal("plus") {
-                self.consume();
+                self.expect("plus").try;
 
                 current = Expression {
                     t_binop: struct {
@@ -393,7 +393,7 @@ module Parser {
                 continue;
             }
             if self.peek().lexeme.equal("minus") {
-                self.consume();
+                self.expect("minus").try;
 
                 current = Expression {
                     t_binop: struct {
@@ -415,7 +415,7 @@ module Parser {
 
         while true {
             if self.peek().lexeme.equal("star") {
-                self.consume();
+                self.expect("star").try;
 
                 current = Expression {
                     t_binop: struct {
@@ -437,14 +437,14 @@ module Parser {
 
         while true {
             if self.peek().lexeme.equal("lparen") {
-                self.consume();
+                self.expect("lparen").try;
 
                 let args = make[vec[Expression]]();
                 while !self.peek().lexeme.equal("rparen") {
                     args.push(self.expression().try);
 
                     if self.peek().lexeme.equal("comma") {
-                        self.consume();
+                        self.expect("comma").try;
                     } else {
                         break;
                     }
@@ -465,7 +465,8 @@ module Parser {
     }
 
     fun term_0_1(self): Expression or error {
-        if self.peek().lexeme.equal("ident") {
+        let token = self.consume();
+        if token.lexeme.equal("ident") {
             return Expression {
                 t_ident: struct {
                     name: self.ident().try,
@@ -473,7 +474,7 @@ module Parser {
                 ..nil,
             };
         }
-        if self.peek().lexeme.equal("number") {
+        if token.lexeme.equal("number") {
             return Expression {
                 t_number: struct {
                     value: self.consume().string_value!,
@@ -482,6 +483,6 @@ module Parser {
             };
         }
 
-        return _ or error::new("Unexpected token ".concat(self.peek().lexeme));
+        return _ or error::new("Unexpected token ".concat(token.lexeme));
     }
 }

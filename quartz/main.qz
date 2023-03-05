@@ -53,6 +53,7 @@ fun main() {
 fun run(input: string): string or error {
     let lexer = Lexer::new();
     lexer.run(input).try;
+    // println("lexer");
 
     let parser = Parser::new();
     let result = parser.run(lexer.tokens).try;

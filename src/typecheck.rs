@@ -196,6 +196,7 @@ impl TypeChecker {
             self.locals.insert(name.clone(), type_.clone());
         }
 
+        self.result_type = Some(func.result.clone());
         self.block(&mut func.body, &mut func.result)?;
         for statement in &mut func.body {
             self.statement(statement, &mut func.result)?;
@@ -227,8 +228,6 @@ impl TypeChecker {
         statement: &mut Source<Statement>,
         result_type: &mut Type,
     ) -> Result<()> {
-        self.result_type = Some(result_type.clone());
-
         match &mut statement.data {
             Statement::Let(pattern, type_, expr) => {
                 let mut result = self.expr(expr)?;

@@ -4,6 +4,17 @@ type Token = {
     position: i32,
 };
 
+module Token {
+    fun to_string(self): string {
+        let value = "nil";
+        if self.string_value != nil {
+            value = self.string_value!;
+        }
+
+        return format("Token({}, {})", self.lexeme, value);
+    }
+}
+
 type Lexer = {
     position: i32,
     tokens: vec[Token],
