@@ -91,7 +91,7 @@ module Generator {
         name: string,
         type_: IrType,
         value: IrTerm,
-    }): Generator {
+    }) {
         self.start();
         self.write(format(
             "global ${} (mut {})",
@@ -102,11 +102,9 @@ module Generator {
         self.expression(global_let.value);
         self.end();
         self.end();
-
-        return self;
     }
 
-    fun function(self, func: IrFunc): Generator {
+    fun function(self, func: IrFunc) {
         self.start();
         self.write("func");
         self.write("$".concat(func.name));
@@ -132,8 +130,6 @@ module Generator {
         }
         
         self.end();
-
-        return self;
     }
 
     fun expression(self, expr: IrTerm) {

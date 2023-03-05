@@ -56,7 +56,7 @@ module Parser {
     }
 
     fun let_(self): Let or error {
-        self.expect("let");
+        self.expect("let").try;
         let name = self.ident().try;
 
         let t = Type {
@@ -64,13 +64,13 @@ module Parser {
             ..nil,
         };
         if self.peek().lexeme.equal("colon") {
-            self.expect("colon");
+            self.expect("colon").try;
             t = self.type_().try;
         }
 
-        self.expect("equal");
+        self.expect("equal").try;
         let value = self.expression().try;
-        self.expect("semicolon");
+        self.expect("semicolon").try;
 
         return Let {
             name: name,
@@ -80,24 +80,24 @@ module Parser {
     }
 
     fun function(self): Function or error {
-        self.expect("fun");
+        self.expect("fun").try;
         let name = self.ident().try;
-        self.expect("lparen");
+        self.expect("lparen").try;
         let params = self.parameters().try;
-        self.expect("rparen");
+        self.expect("rparen").try;
 
         let result_type = Type {
             t_nil: true?,
             ..nil,
         };
         if self.peek().lexeme.equal("colon") {
-            self.consume();
+            let _t = self.consume();
             result_type = self.type_().try;
         }
 
-        self.expect("lbrace");
+        self.expect("lbrace").try;
         let body = self.block();
-        self.expect("rbrace");
+        self.expect("rbrace").try;
 
         return Function {
             name: name,
@@ -118,7 +118,7 @@ module Parser {
 
         while !self.is_end() && !self.peek().lexeme.equal("rparen") {
             let name = self.ident().try;
-            self.expect("colon");
+            self.expect("colon").try;
             let t = self.type_().try;
 
             params.push(struct {
@@ -127,7 +127,7 @@ module Parser {
             });
 
             if self.peek().lexeme.equal("comma") {
-                self.consume();
+                let _t = self.consume();
             }
         }
 
@@ -174,10 +174,10 @@ module Parser {
         }
     }
 
-    fun expect(self, lexeme: string): Token or error {
+    fun expect(self, lexeme: string): nil or error {
         let token = self.consume();
         if token.lexeme.equal(lexeme) {
-            return token;
+            return nil;
         } else {
             return _ or error::new("Expected ".concat(lexeme).concat(", got ").concat(token.lexeme).concat("{").concat(token.string_value!).concat("}"));
         }
@@ -213,16 +213,16 @@ module Parser {
         if token.lexeme.equal("if") {
             self.consume();
             let condition = self.expression_conditional().try;
-            self.expect("lbrace");
+            self.expect("lbrace").try;
             let then_block = self.block();
-            self.expect("rbrace");
+            self.expect("rbrace").try;
 
             let else_block = nil as Block?;
             if self.peek().lexeme.equal("else") {
-                self.consume();
-                self.expect("lbrace");
+                let _t = self.consume();
+                self.expect("lbrace").try;
                 else_block = self.block()?;
-                self.expect("rbrace");
+                self.expect("rbrace").try;
             }
 
             return Statement {
@@ -237,9 +237,9 @@ module Parser {
         if token.lexeme.equal("while") {
             self.consume();
             let condition = self.expression_conditional().try;
-            self.expect("lbrace");
+            self.expect("lbrace").try;
             let block = self.block();
-            self.expect("rbrace");
+            self.expect("rbrace").try;
 
             return Statement {
                 t_while: struct {
@@ -264,7 +264,7 @@ module Parser {
         if self.peek().lexeme.equal("equal") {
             self.consume();
             let rhs = self.expression().try;
-            self.expect("semicolon");
+            self.expect("semicolon").try;
 
             return Statement {
                 t_assign: struct {
@@ -295,9 +295,9 @@ module Parser {
             t = self.type_().try;
         }
 
-        self.expect("equal");
+        self.expect("equal").try;
         let value = self.expression().try;
-        self.expect("semicolon");
+        self.expect("semicolon").try;
 
         return Statement {
             t_let: struct {
@@ -312,7 +312,7 @@ module Parser {
     fun return_statement(self): Statement or error {
         self.consume();
         let value = self.expression().try;
-        self.expect("semicolon");
+        self.expect("semicolon").try;
 
         return Statement {
             t_return: struct {

@@ -273,6 +273,16 @@ impl TypeChecker {
             }
             Statement::Expr(expr, type_) => {
                 *type_ = self.expr(expr)?;
+
+                if matches!(type_, Type::Or(_, _)) {
+                    return Err(anyhow!("or type is not handled correctly").context(
+                        ErrorInSource {
+                            path: Some(self.current_path.clone()),
+                            start: expr.start.unwrap_or(0),
+                            end: expr.end.unwrap_or(0),
+                        },
+                    ));
+                }
             }
             Statement::Assign(lhs, rhs) => {
                 let mut lhs_type = self.expr_left_value(lhs)?;
@@ -293,13 +303,7 @@ impl TypeChecker {
                         end: cond.end.unwrap_or(0),
                     })?;
 
-                self.block(then_block, result_type)
-                    .context(ErrorInSource {
-                        path: Some(self.current_path.clone()),
-                        start: cond.start.unwrap_or(0),
-                        end: cond.end.unwrap_or(0),
-                    })
-                    .context("then block")?;
+                self.block(then_block, result_type).context("then block")?;
 
                 if let Some(else_block) = else_block {
                     self.block(else_block, result_type).context("else block")?;
@@ -967,12 +971,14 @@ impl TypeChecker {
 
                         Ok(*lhs)
                     }
-                    _ => {
-                        return Err(anyhow!("try type mismatch").context(ErrorInSource {
-                            path: Some(self.current_path.clone()),
-                            start: expr.start.unwrap_or(0),
-                            end: expr.end.unwrap_or(0),
-                        }))
+                    t => {
+                        return Err(
+                            anyhow!("try type mismatch, {:?}", t).context(ErrorInSource {
+                                path: Some(self.current_path.clone()),
+                                start: expr.start.unwrap_or(0),
+                                end: expr.end.unwrap_or(0),
+                            }),
+                        )
                     }
                 }
             }

@@ -13,26 +13,26 @@ module Typechecker {
         };
     }
 
-    fun module_(self, m: Module) {
+    fun module_(self, m: Module): nil or error {
         for i in 0..m.decls.length {
             let d = m.decls.at(i);
-            self.decl(d);
+            self.decl(d).try;
         }
     }
 
-    fun decl(self, d: Decl) {
+    fun decl(self, d: Decl): nil or error {
         if d.t_func != nil {
             // For recursive functions
             self.globals.insert(d.t_func!.name, d.t_func!.to_type());
 
-            self.function(d.t_func!);
+            self.function(d.t_func!).try;
 
             self.globals.insert(d.t_func!.name, d.t_func!.to_type());
             return;
         }
         if d.t_let != nil {
-            let t = self.expression(d.t_let!.expr);
-            unify(t, d.t_let!.name_type);
+            let t = self.expression(d.t_let!.expr).try;
+            unify(t, d.t_let!.name_type).try;
             d.t_let!.name_type = t;
 
             self.globals.insert(d.t_let!.name, t);
@@ -42,7 +42,7 @@ module Typechecker {
         panic("unimplemented: decl");
     }
 
-    fun function(self, f: Function) {
+    fun function(self, f: Function): nil or error {
         let locals = self.locals;
         self.locals = make[map[string, Type]]();
 
@@ -51,87 +51,86 @@ module Typechecker {
             self.locals.insert(p.name, p.type_);
         }
 
-        self.block(f.body, f.result_type);
+        self.block(f.body, f.result_type).try;
 
         self.locals = locals;
     }
 
-    fun block(self, b: Block, expected: Type) {
+    fun block(self, b: Block, expected: Type): nil or error {
         for i in 0..b.block.length {
             let result = Type {
                 t_omit: true?,
                 ..nil,
             };
-            self.statement(b.block.at(i), result);
+            self.statement(b.block.at(i), result).try;
         }
     }
 
-    fun statement(self, s: Statement, result_type: Type) {
+    fun statement(self, s: Statement, result_type: Type): nil or error {
         if s.t_let != nil {
-            let t = self.expression(s.t_let!.expr);
-            unify(t, s.t_let!.name_type);
+            let t = self.expression(s.t_let!.expr).try;
+            unify(t, s.t_let!.name_type).try;
             s.t_let!.name_type = t;
 
             self.locals.insert(s.t_let!.name, t);
             return;
         }
         if s.t_return != nil {
-            let t = self.expression(s.t_return!.expr);
-            unify(t, result_type);
+            let t = self.expression(s.t_return!.expr).try;
+            unify(t, result_type).try;
             return;
         }
         if s.t_expr != nil {
-            self.expression(s.t_expr!.expr);
+            let _t = self.expression(s.t_expr!.expr).try;
             return;
         }
         if s.t_assign != nil {
-            let lhs_type = self.expression_left_value(s.t_assign!.lhs);
+            let lhs_type = self.expression_left_value(s.t_assign!.lhs).try;
             let rhs_type = Type {
-                t_ptr: self.expression(s.t_assign!.rhs)?,
+                t_ptr: self.expression(s.t_assign!.rhs).try?,
                 ..nil,
             };
 
-            unify(lhs_type, rhs_type);
+            unify(lhs_type, rhs_type).try;
             return;
         }
         if s.t_if != nil {
-            let condition_type = self.expression(s.t_if!.condition);
+            let condition_type = self.expression(s.t_if!.condition).try;
             unify(condition_type, Type {
                 t_bool: true?,
                 ..nil,
-            });
+            }).try;
 
             let type_ = Type {
                 t_omit: true?,
                 ..nil,
             };
-            self.block(s.t_if!.then_block, type_);
+            self.block(s.t_if!.then_block, type_).try;
             if s.t_if!.else_block != nil {
-                self.block(s.t_if!.else_block!, type_);
+                self.block(s.t_if!.else_block!, type_).try;
             }
             return;
         }
         if s.t_while != nil {
-            let condition_type = self.expression(s.t_while!.condition);
+            let condition_type = self.expression(s.t_while!.condition).try;
             unify(condition_type, Type {
                 t_bool: true?,
                 ..nil,
-            });
+            }).try;
 
             let type_ = Type {
                 t_omit: true?,
                 ..nil,
             };
-            self.block(s.t_while!.block, type_);
+            self.block(s.t_while!.block, type_).try;
             return;
         }
 
-        println(s.to_string());
-        panic("unimplemented: statement");
+        return _ or error::new("unimplemented: statement, {}".format(s.to_string()));
     }
 
-    fun expression_left_value(self, expr: Expression): Type {
-        let t = self.expression(expr);
+    fun expression_left_value(self, expr: Expression): Type or error {
+        let t = self.expression(expr).try;
 
         return Type {
             t_ptr: t?,
@@ -139,7 +138,7 @@ module Typechecker {
         };
     }
 
-    fun expression(self, expr: Expression): Type {
+    fun expression(self, expr: Expression): Type or error {
         if expr.t_number != nil {
             return Type {
                 t_i32: true?,
@@ -150,25 +149,25 @@ module Typechecker {
             if (expr.t_binop!.binop.equal("plus")
                 || expr.t_binop!.binop.equal("minus")
                 || expr.t_binop!.binop.equal("mult")) {
-                let t1 = self.expression(expr.t_binop!.left);
+                let t1 = self.expression(expr.t_binop!.left).try;
                 unify(t1, Type {
                     t_i32: true?,
                     ..nil,
-                });
+                }).try;
 
-                let t2 = self.expression(expr.t_binop!.right);
+                let t2 = self.expression(expr.t_binop!.right).try;
                 unify(t2, Type {
                     t_i32: true?,
                     ..nil,
-                });
+                }).try;
 
                 return t1;
             }
             if (expr.t_binop!.binop.equal("equal")
                 || expr.t_binop!.binop.equal("lt")) {
-                let t1 = self.expression(expr.t_binop!.left);
-                let t2 = self.expression(expr.t_binop!.right);
-                unify(t1, t2);
+                let t1 = self.expression(expr.t_binop!.left).try;
+                let t2 = self.expression(expr.t_binop!.right).try;
+                unify(t1, t2).try;
 
                 return Type {
                     t_bool: true?,
@@ -176,8 +175,7 @@ module Typechecker {
                 };
             }
 
-            println(expr.t_binop!.binop);
-            panic("unimplemented: binop");
+            return _ or error::new("unimplemented: binop, {}".format(expr.to_string()));
         }
         if expr.t_ident != nil {
             if self.globals.has(expr.t_ident!.name) {
@@ -191,33 +189,30 @@ module Typechecker {
                 return t;
             }
 
-            panic("unbound identifier: ".concat(expr.t_ident!.name));
+            return _ or error::new("unbound identifier: ".concat(expr.t_ident!.name));
         }
         if expr.t_call != nil {
-            let func_type = self.expression(expr.t_call!.callee).t_func!;
+            let func_type = self.expression(expr.t_call!.callee).try.t_func!;
             if func_type.params.length != expr.t_call!.args.length {
-                println(expr.to_string());
-                println(func_type.params.length.to_string().concat(" != ").concat(expr.t_call!.args.length.to_string()));
-                panic("wrong number of arguments");
+                return _ or error::new("wrong number of arguments, {}".format(expr.to_string()));
             }
 
             for i in 0..expr.t_call!.args.length {
                 let arg = expr.t_call!.args.at(i);
-                let arg_type = self.expression(arg);
+                let arg_type = self.expression(arg).try;
                 let param_type = func_type.params.at(i);
 
-                unify(arg_type, param_type);
+                unify(arg_type, param_type).try;
             }
 
             return func_type.result;
         }
 
-        println(expr.to_string());
-        panic("unimplemented: expression");
+        return _ or error::new("unimplemented: expression, {}".format(expr.to_string()));
     }
 }
 
-fun unify(type1: Type, type2: Type) {
+fun unify(type1: Type, type2: Type): nil or error {
     if type1.t_i32 != nil && type2.t_i32 != nil {
         return;
     }
@@ -231,12 +226,12 @@ fun unify(type1: Type, type2: Type) {
         return;
     }
     if type1.t_ptr != nil && type2.t_ptr != nil {
-        unify(type1.t_ptr!, type2.t_ptr!);
+        unify(type1.t_ptr!, type2.t_ptr!).try;
         return;
     }
     if type1.t_bool != nil && type2.t_bool != nil {
         return;
     }
 
-    panic("unification failed: ".concat(type1.to_string()).concat(" != ").concat(type2.to_string()));
+    return _ or error::new("unification failed: ".concat(type1.to_string()).concat(" != ").concat(type2.to_string()));
 }

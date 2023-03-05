@@ -59,7 +59,7 @@ fun run(input: string): string or error {
     // println(result.to_string());
 
     let typechecker = Typechecker::new();
-    typechecker.module_(result);
+    typechecker.module_(result).try;
     // println("typecheck");
 
     let irgen = IrCodeGenerator::new();
