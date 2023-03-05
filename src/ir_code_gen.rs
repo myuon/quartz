@@ -186,12 +186,8 @@ impl IrCodeGenerator {
                         }));
                 }
 
-                Ok(if type_.is_nil() {
-                    expr
-                } else {
-                    IrTerm::Discard {
-                        element: Box::new(expr),
-                    }
+                Ok(IrTerm::Discard {
+                    element: Box::new(expr),
                 })
             }
             Statement::Assign(lhs, rhs) => self.assign(lhs, rhs),
@@ -986,17 +982,19 @@ impl IrCodeGenerator {
             }
 
             if let Some(expansion) = expansion {
-                variadic_terms.push(IrTerm::Call {
-                    callee: Box::new(self.expr(&mut Source::transfer(
-                        Expr::path(Path::new(vec![
-                            Ident("quartz".to_string()),
-                            Ident("std".to_string()),
-                            Ident("vec_extend".to_string()),
-                        ])),
-                        expansion,
-                    ))?),
-                    args: vec![IrTerm::Ident(vec_name.clone()), self.expr(expansion)?],
-                    source: None,
+                variadic_terms.push(IrTerm::Discard {
+                    element: Box::new(IrTerm::Call {
+                        callee: Box::new(self.expr(&mut Source::transfer(
+                            Expr::path(Path::new(vec![
+                                Ident("quartz".to_string()),
+                                Ident("std".to_string()),
+                                Ident("vec_extend".to_string()),
+                            ])),
+                            expansion,
+                        ))?),
+                        args: vec![IrTerm::Ident(vec_name.clone()), self.expr(expansion)?],
+                        source: None,
+                    }),
                 });
             }
 

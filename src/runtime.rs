@@ -17,13 +17,16 @@ impl Runtime {
         let import_object = imports! {
             "env" => {
                 "write_stdout" => Function::new_typed(&mut store, |ch: u32| {
-                        std::io::stdout().lock().write(&[ch as u8]).unwrap();
+                    std::io::stdout().lock().write(&[ch as u8]).unwrap();
+                    0
                 }),
                 "debug_i32" => Function::new_typed(&mut store, |i: i32| {
                     println!("[DEBUG_I32] {}", i);
+                    0
                 }),
                 "abort" => Function::new_typed(&mut store, || {
                     panic!("[ABORT]");
+                    0
                 }),
                 "read_stdin" => Function::new_typed(&mut store, || {
                     let mut buffer = [0u8; 1];
@@ -574,7 +577,7 @@ fun main() {
     }
 }
 "#,
-                vec![],
+                vec![Value::I32(0)],
             ),
             (
                 r#"
@@ -593,7 +596,7 @@ module T {
 fun main() {
 }
 "#,
-                vec![],
+                vec![Value::I32(0)],
             ),
             (
                 r#"

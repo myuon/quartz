@@ -77,12 +77,12 @@ impl Generator {
 
         self.writer.start();
         self.writer
-            .write(r#"import "env" "write_stdout" (func $write_stdout (param i32))"#);
+            .write(r#"import "env" "write_stdout" (func $write_stdout (param i32) (result i32))"#);
         self.writer.end();
 
         self.writer.start();
         self.writer
-            .write(r#"import "env" "debug_i32" (func $debug_i32 (param i32))"#);
+            .write(r#"import "env" "debug_i32" (func $debug_i32 (param i32) (result i32))"#);
         self.writer.end();
 
         self.writer.start();
@@ -91,7 +91,8 @@ impl Generator {
         self.writer.end();
 
         self.writer.start();
-        self.writer.write(r#"import "env" "abort" (func $abort)"#);
+        self.writer
+            .write(r#"import "env" "abort" (func $abort (result i32))"#);
         self.writer.end();
 
         self.writer.start();
@@ -105,13 +106,15 @@ impl Generator {
         // builtin functions here
         self.writer.write(
             r#"
-(func $mem_copy (param $source i32) (param $target i32) (param $length i32)
+(func $mem_copy (param $source i32) (param $target i32) (param $length i32) (result i32)
     local.get $target
     local.get $source
     local.get $length
     memory.copy
+    i32.const 0
 )
-(func $mem_free (param $address i32)
+(func $mem_free (param $address i32) (result i32)
+    i32.const 0
 )
 "#,
         );
@@ -282,10 +285,8 @@ impl Generator {
                 .write(&format!("(param ${} {})", name.as_str(), type_.to_string()));
         }
 
-        if !result.is_nil() {
-            self.writer
-                .write(&format!("(result {})", result.to_string()));
-        }
+        self.writer
+            .write(&format!("(result {})", result.to_string()));
 
         let mut used = HashSet::new();
         for term in body.iter() {
@@ -408,20 +409,13 @@ impl Generator {
                 self.writer.write(&format!("${}", ident.as_str()));
             }
             IrTerm::If {
-                cond,
-                type_,
-                then,
-                else_,
+                cond, then, else_, ..
             } => {
                 self.writer.new_statement();
                 self.expr(cond)?;
 
                 self.writer.start();
                 self.writer.write("if");
-                if !type_.is_nil() {
-                    self.writer
-                        .write(&format!("(result {})", type_.to_string()));
-                }
 
                 self.writer.start();
                 self.writer.write("then");

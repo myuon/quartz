@@ -468,7 +468,7 @@ pub enum IrType {
 impl IrType {
     pub fn from_type(type_: &Type) -> Result<Self> {
         match type_ {
-            Type::Nil => Ok(IrType::Nil),
+            Type::Nil => Ok(IrType::Address),
             Type::Bool => Ok(IrType::I32),
             Type::I32 => Ok(IrType::I32),
             Type::I64 => Ok(IrType::I64),
@@ -492,7 +492,7 @@ impl IrType {
 
     pub fn to_term(&self) -> IrTerm {
         match self {
-            IrType::Nil => IrTerm::nil(),
+            IrType::Nil => IrTerm::Ident("nil".to_string()),
             IrType::I32 => IrTerm::Ident("i32".to_string()),
             IrType::I64 => IrTerm::Ident("i64".to_string()),
             IrType::Address => IrTerm::Ident("i32".to_string()),
@@ -512,7 +512,7 @@ impl IrType {
 
     pub fn sizeof(&self) -> usize {
         match self {
-            IrType::Nil => 4,
+            IrType::Nil => todo!(),
             IrType::I32 => 4,
             IrType::I64 => 8,
             IrType::Address => 4,
