@@ -49,8 +49,7 @@ module IrCodeGenerator {
             };
         }
 
-        println(d.to_string());
-        panic("decl exhausted");
+        panic("decl exhausted: {}", d.to_string());
     }
 
     fun function(self, func: Function): IrFunc {
@@ -135,8 +134,7 @@ module IrCodeGenerator {
                 return term;
             }
 
-            println(stm.t_assign!.lhs.to_string());
-            panic("lhs");
+            panic("lhs: {}", stm.t_assign!.lhs.to_string());
         }
         if stm.t_if != nil {
             let then_elements = make[vec[IrTerm]]();
@@ -191,8 +189,7 @@ module IrCodeGenerator {
             };
         }
 
-        println(stm.to_string());
-        panic("statement exhausted");
+        panic("statement exhausted: {}", stm.to_string());
     }
 
     fun expression(self, expr: Expression): IrTerm {

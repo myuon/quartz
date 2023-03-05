@@ -194,7 +194,7 @@ type Expression = {
 module Expression {
     fun to_string(self): string {
         if self.t_ident != nil {
-            return self.t_ident!.name;
+            return format("${}", self.t_ident!.name);
         }
         if self.t_binop != nil {
             return self.t_binop!.left.to_string().concat(" ").concat(self.t_binop!.binop).concat(" ").concat(self.t_binop!.right.to_string());

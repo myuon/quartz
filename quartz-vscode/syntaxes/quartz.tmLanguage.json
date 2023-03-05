@@ -144,15 +144,19 @@
     "types": {
       "patterns": [
         {
-          "match": "\\b(nil|i32|bool|float|string|byte|array|ptr|vec|map|struct)\\b",
+          "match": "\\b(nil|i32|bool|float|string|byte|array|ptr|vec|map|struct|or)\\b",
           "name": "entity.name.type.primitive.quartz"
+        },
+        {
+          "match": "\\b(error)\\b",
+          "name": "entity.name.type.error.quartz"
         }
       ]
     },
     "keywords": {
       "patterns": [
         {
-          "match": "\\b(for|if|else|while|return|let|continue|break|in)\\b",
+          "match": "\\b(for|if|else|while|return|let|continue|break|in|try)\\b",
           "name": "keyword.control.quartz"
         },
         {

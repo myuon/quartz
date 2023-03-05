@@ -17,12 +17,14 @@ impl Runtime {
         let import_object = imports! {
             "env" => {
                 "write_stdout" => Function::new_typed(&mut store, |ch: u32| {
-                        std::io::stdout().lock().write(&[ch as u8]).unwrap();
+                    std::io::stdout().lock().write(&[ch as u8]).unwrap();
+                    0
                 }),
                 "debug_i32" => Function::new_typed(&mut store, |i: i32| {
                     println!("[DEBUG_I32] {}", i);
+                    0
                 }),
-                "abort" => Function::new_typed(&mut store, || {
+                "abort" => Function::new_typed(&mut store, || -> i32 {
                     panic!("[ABORT]");
                 }),
                 "read_stdin" => Function::new_typed(&mut store, || {
@@ -574,7 +576,7 @@ fun main() {
     }
 }
 "#,
-                vec![],
+                vec![Value::I32(0)],
             ),
             (
                 r#"
@@ -593,7 +595,7 @@ module T {
 fun main() {
 }
 "#,
-                vec![],
+                vec![Value::I32(0)],
             ),
             (
                 r#"
@@ -677,7 +679,6 @@ fun main(): bool {
                     Value::I32(1),
                 ],
             ),
-            /*
             (
                 r#"
 fun div(n: i32, m: i32): i32 or error {
@@ -688,19 +689,19 @@ fun div(n: i32, m: i32): i32 or error {
     return n / m;
 }
 
-fun calc(): i32 {
-    let n = div(10, 3)!;
+fun calc(): i32 or error {
+    let n = div(10, 0).try;
 
     return n + 1;
 }
 
 fun main(): bool {
-    let result or error = calc();
-    if error != nil {
-        println(error.message);
-        return false;
+    let result or err = calc();
+    if err != nil {
+        println(err!.message);
+        return true;
     } else {
-        return result == 4;
+        return false;
     }
 }
 "#,
@@ -708,7 +709,41 @@ fun main(): bool {
                     Value::I32(1),
                 ],
             ),
-             */
+            (
+                r#"
+fun f(n: i32): i32 or error {
+    if n == 0 {
+        return _ or error::new("zero");
+    } else {
+        return n + 1;
+    }
+}
+
+fun g(n0: i32): i32 or error {
+    let n = n0;
+    for i in 0..4 {
+        n = f(n).try;
+    }
+
+    return n;
+}
+
+fun main(): bool {
+    let r or err = g(0);
+    if err != nil {
+        println(err!.message);
+    }
+    if r != nil {
+        println(r!.to_string());
+    }
+
+    return err != nil && r == nil;
+}
+"#,
+                vec![
+                    Value::I32(1),
+                ],
+            ),
         ];
 
         for (input, expected) in cases {

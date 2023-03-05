@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use anyhow::{anyhow, bail, Context, Result};
 
 use crate::{
-    ast::{Decl, Expr, Func, Lit, Module, Pattern, Statement, Type, VariadicCall},
+    ast::{Decl, Expr, Func, Lit, Module, Pattern, Statement, Type, UnwrapMode, VariadicCall},
     compiler::ErrorInSource,
     util::{ident::Ident, path::Path, source::Source},
 };
@@ -14,6 +14,7 @@ pub struct TypeChecker {
     pub types: HashMap<Ident, Type>,
     current_path: Path,
     imported: Vec<Path>,
+    result_type: Option<Type>,
 }
 
 impl TypeChecker {
@@ -92,6 +93,7 @@ impl TypeChecker {
             .collect(),
             current_path: Path::empty(),
             imported: vec![],
+            result_type: None,
         }
     }
 
@@ -194,9 +196,10 @@ impl TypeChecker {
             self.locals.insert(name.clone(), type_.clone());
         }
 
-        self.block(&mut func.body, &mut func.result)?;
+        self.result_type = Some(func.result.clone());
+        self.block(&mut func.body)?;
         for statement in &mut func.body {
-            self.statement(statement, &mut func.result)?;
+            self.statement(statement)?;
         }
 
         self.locals = locals;
@@ -208,23 +211,15 @@ impl TypeChecker {
         Ok(())
     }
 
-    fn block(
-        &mut self,
-        statements: &mut Vec<Source<Statement>>,
-        expected: &mut Type,
-    ) -> Result<()> {
+    fn block(&mut self, statements: &mut Vec<Source<Statement>>) -> Result<()> {
         for statement in statements {
-            self.statement(statement, expected)?;
+            self.statement(statement)?;
         }
 
         Ok(())
     }
 
-    fn statement(
-        &mut self,
-        statement: &mut Source<Statement>,
-        result_type: &mut Type,
-    ) -> Result<()> {
+    fn statement(&mut self, statement: &mut Source<Statement>) -> Result<()> {
         match &mut statement.data {
             Statement::Let(pattern, type_, expr) => {
                 let mut result = self.expr(expr)?;
@@ -239,17 +234,17 @@ impl TypeChecker {
             Statement::Return(expr) => {
                 let type_ = self.expr(expr)?;
 
-                let result = self
-                    .unify(result_type, &mut type_.clone())
-                    .context(ErrorInSource {
+                let result_type = self.result_type.as_mut().unwrap();
+                let result =
+                    TypeChecker::unify_fn(result_type, &mut type_.clone()).context(ErrorInSource {
                         path: Some(self.current_path.clone()),
                         start: expr.start.unwrap_or(0),
                         end: expr.end.unwrap_or(0),
                     });
                 if let Err(err) = result {
                     // return a : A or B --> return a or _
-                    if let Type::Or(left, right) = result_type {
-                        if self.unify(left, &mut type_.clone()).is_ok() {
+                    if let Type::Or(left, right) = self.result_type.as_mut().unwrap() {
+                        if TypeChecker::unify_fn(left, &mut type_.clone()).is_ok() {
                             *expr = Source::transfer(
                                 Expr::EnumOr(
                                     *left.clone(),
@@ -269,6 +264,16 @@ impl TypeChecker {
             }
             Statement::Expr(expr, type_) => {
                 *type_ = self.expr(expr)?;
+
+                if matches!(type_, Type::Or(_, _)) {
+                    return Err(anyhow!("or type is not handled correctly").context(
+                        ErrorInSource {
+                            path: Some(self.current_path.clone()),
+                            start: expr.start.unwrap_or(0),
+                            end: expr.end.unwrap_or(0),
+                        },
+                    ));
+                }
             }
             Statement::Assign(lhs, rhs) => {
                 let mut lhs_type = self.expr_left_value(lhs)?;
@@ -289,10 +294,10 @@ impl TypeChecker {
                         end: cond.end.unwrap_or(0),
                     })?;
 
-                self.block(then_block, result_type).context("then block")?;
+                self.block(then_block).context("then block")?;
 
                 if let Some(else_block) = else_block {
-                    self.block(else_block, result_type).context("else block")?;
+                    self.block(else_block).context("else block")?;
                 }
 
                 self.unify(type_, &mut Type::Nil)
@@ -312,8 +317,7 @@ impl TypeChecker {
                         end: cond.end.unwrap_or(0),
                     })?;
 
-                let mut block_type = Type::Omit(0);
-                self.block(block, &mut block_type)?;
+                self.block(block)?;
             }
             Statement::For(ident, range, body) => {
                 let type_ = self.expr(range)?;
@@ -325,8 +329,7 @@ impl TypeChecker {
 
                 self.locals.insert(ident.clone(), element.clone());
 
-                let mut body_type = Type::Omit(0);
-                self.block(body, &mut body_type)?;
+                self.block(body)?;
             }
             Statement::Continue => (),
             Statement::Break => (),
@@ -353,7 +356,12 @@ impl TypeChecker {
                         &Type::Optional(Box::new(*right_type.clone())),
                     )?;
                 }
-                _ => bail!("Expected or type"),
+                _ => bail!(
+                    "Expected or type, got: {:?} in {:?} or {:?}",
+                    type_,
+                    left,
+                    right
+                ),
             },
             Pattern::Omit => todo!(),
         }
@@ -879,21 +887,47 @@ impl TypeChecker {
 
                 Ok(Type::Optional(Box::new(expr_type)))
             }
-            Expr::Unwrap(type_, expr) => {
+            Expr::Unwrap(type_, mode, expr) => {
                 let mut expr_type = self.expr(expr)?;
 
-                let mut wrapped_type = Type::Optional(Box::new(type_.clone()));
-                self.unify(&mut wrapped_type, &mut expr_type)
-                    .context(ErrorInSource {
+                if matches!(expr_type, Type::Optional(_)) {
+                    *mode = Some(UnwrapMode::Optional);
+
+                    let mut wrapped_type = Type::Optional(Box::new(type_.clone()));
+                    self.unify(&mut wrapped_type, &mut expr_type)
+                        .context(ErrorInSource {
+                            path: Some(self.current_path.clone()),
+                            start: expr.start.unwrap_or(0),
+                            end: expr.end.unwrap_or(0),
+                        })?;
+
+                    let wrapperd_type_element = *wrapped_type.to_optional()?.clone();
+                    *type_ = wrapperd_type_element.clone();
+
+                    Ok(wrapperd_type_element)
+                } else if matches!(expr_type, Type::Or(_, _)) {
+                    *mode = Some(UnwrapMode::Or);
+
+                    let mut wrapped_type =
+                        Type::Or(Box::new(type_.clone()), Box::new(Type::Omit(0)));
+                    self.unify(&mut wrapped_type, &mut expr_type)
+                        .context(ErrorInSource {
+                            path: Some(self.current_path.clone()),
+                            start: expr.start.unwrap_or(0),
+                            end: expr.end.unwrap_or(0),
+                        })?;
+
+                    let (wrapperd_type_element, _) = wrapped_type.as_or_type()?;
+                    *type_ = wrapperd_type_element.clone();
+
+                    Ok(wrapperd_type_element.clone())
+                } else {
+                    Err(anyhow!("unwrap type mismatch").context(ErrorInSource {
                         path: Some(self.current_path.clone()),
                         start: expr.start.unwrap_or(0),
                         end: expr.end.unwrap_or(0),
-                    })?;
-
-                let wrapperd_type_element = *wrapped_type.to_optional()?.clone();
-                *type_ = wrapperd_type_element.clone();
-
-                Ok(wrapperd_type_element)
+                    }))
+                }
             }
             Expr::Omit(_) => todo!(),
             Expr::EnumOr(lhs_type, rhs_type, lhs, rhs) => {
@@ -908,6 +942,34 @@ impl TypeChecker {
                     Box::new(lhs_type.clone()),
                     Box::new(rhs_type.clone()),
                 ))
+            }
+            Expr::Try(expr) => {
+                let expr_type = self.expr(expr)?;
+
+                match expr_type {
+                    Type::Or(lhs, rhs) => {
+                        self.unify(
+                            &mut self.result_type.clone().unwrap(),
+                            &mut Type::Or(Box::new(Type::Omit(0)), rhs),
+                        )
+                        .context(ErrorInSource {
+                            path: Some(self.current_path.clone()),
+                            start: expr.start.unwrap_or(0),
+                            end: expr.end.unwrap_or(0),
+                        })?;
+
+                        Ok(*lhs)
+                    }
+                    t => {
+                        return Err(
+                            anyhow!("try type mismatch, {:?}", t).context(ErrorInSource {
+                                path: Some(self.current_path.clone()),
+                                start: expr.start.unwrap_or(0),
+                                end: expr.end.unwrap_or(0),
+                            }),
+                        )
+                    }
+                }
             }
         }
     }
@@ -948,6 +1010,14 @@ impl TypeChecker {
     }
 
     fn unify(&mut self, type1: &mut Type, type2: &mut Type) -> Result<()> {
+        let cs = Constrains::unify(type1, type2)?;
+        cs.apply(type1);
+        cs.apply(type2);
+
+        Ok(())
+    }
+
+    fn unify_fn(type1: &mut Type, type2: &mut Type) -> Result<()> {
         let cs = Constrains::unify(type1, type2)?;
         cs.apply(type1);
         cs.apply(type2);

@@ -27,6 +27,11 @@ fn test_compile_run() {
     let cases = vec![
         r#"
 fun main(): i32 {
+    return 1;
+}
+"#,
+        r#"
+fun main(): i32 {
     let x: i32 = 20;
     return x + 1;
 }
@@ -84,15 +89,15 @@ fun main(): i32 {
     ];
 
     for input in cases {
-        let stdout_gen0 =
-            run_command("cargo", &["run", "--", "run", "--stdin"], input.as_bytes()).unwrap();
+        let stdout_gen0 = run_command("cargo", &["run", "--", "run", "--stdin"], input.as_bytes())
+            .expect(format!("[INPUT]\n{}\n", input).as_str());
 
         let stdout = run_command(
             "cargo",
             &["run", "--", "run", "./quartz/main.qz"],
             input.as_bytes(),
         )
-        .unwrap();
+        .expect(format!("[INPUT]\n{}\n", input).as_str());
         let stdout_gen1 = run_command(
             "cargo",
             &["run", "--", "run-wat", "--stdin"],

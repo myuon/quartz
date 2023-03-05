@@ -42,19 +42,25 @@ fun main() {
     // dump_strings();
     test();
 
-    println(run(stdin()));
+    let result or err = run(stdin());
+    if err != nil {
+        panic(err!.message);
+    }
+
+    println(result!);
 }
 
-fun run(input: string): string {
+fun run(input: string): string or error {
     let lexer = Lexer::new();
-    lexer.run(input);
+    lexer.run(input).try;
+    // println("lexer");
 
     let parser = Parser::new();
-    let result = parser.run(lexer.tokens);
-    // println(result.to_string());
+    let result = parser.run(lexer.tokens).try;
+    // println("parser");
 
     let typechecker = Typechecker::new();
-    typechecker.module_(result);
+    typechecker.module_(result).try;
     // println("typecheck");
 
     let irgen = IrCodeGenerator::new();

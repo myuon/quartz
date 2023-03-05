@@ -4,7 +4,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use rand::{distributions::Alphanumeric, prelude::Distribution};
 
 use crate::{
-    ast::{Decl, Expr, Func, Lit, Module, Pattern, Statement, Type, VariadicCall},
+    ast::{Decl, Expr, Func, Lit, Module, Pattern, Statement, Type, UnwrapMode, VariadicCall},
     compiler::{ErrorInSource, SourcePosition},
     ir::{IrTerm, IrType},
     util::{ident::Ident, path::Path, source::Source},
@@ -186,12 +186,8 @@ impl IrCodeGenerator {
                         }));
                 }
 
-                Ok(if type_.is_nil() {
-                    expr
-                } else {
-                    IrTerm::Discard {
-                        element: Box::new(expr),
-                    }
+                Ok(IrTerm::Discard {
+                    element: Box::new(expr),
                 })
             }
             Statement::Assign(lhs, rhs) => self.assign(lhs, rhs),
@@ -852,15 +848,26 @@ impl IrCodeGenerator {
 
                 self.generate_array_enumerated(vec![(IrType::from_type(type_)?, expr)])
             }
-            Expr::Unwrap(type_, expr) => {
-                let expr = self.expr(expr)?;
+            Expr::Unwrap(type_, mode, expr) => match mode.clone().unwrap() {
+                UnwrapMode::Optional => {
+                    let expr = self.expr(expr)?;
 
-                Ok(IrTerm::Load {
-                    type_: IrType::from_type(type_)?,
-                    address: Box::new(expr),
-                    offset: Box::new(IrTerm::i32(0)),
-                })
-            }
+                    Ok(IrTerm::Load {
+                        type_: IrType::from_type(type_)?,
+                        address: Box::new(expr),
+                        offset: Box::new(IrTerm::i32(0)),
+                    })
+                }
+                UnwrapMode::Or => {
+                    let expr = self.expr(expr)?;
+
+                    Ok(IrTerm::Load {
+                        type_: IrType::from_type(type_)?,
+                        address: Box::new(expr),
+                        offset: Box::new(IrTerm::i32(1)),
+                    })
+                }
+            },
             Expr::Omit(_) => todo!(),
             Expr::EnumOr(lhs_type, rhs_type, lhs, rhs) => {
                 let lhs_term = if let Some(lhs) = lhs {
@@ -880,6 +887,49 @@ impl IrCodeGenerator {
                     (IrType::Address, lhs_term),
                     (IrType::Address, rhs_term),
                 ])
+            }
+            Expr::Try(expr) => {
+                // expr.try
+                // --> let try = expr;
+                //     if try.right != nil { return try }
+                //     try.left!
+                let var_name = format!("try_{}", expr.start.unwrap_or(0));
+                let left = IrTerm::Load {
+                    type_: IrType::Address,
+                    address: Box::new(IrTerm::Ident(var_name.clone())),
+                    offset: Box::new(IrTerm::i32(0)),
+                };
+                let right = IrTerm::Load {
+                    type_: IrType::Address,
+                    address: Box::new(IrTerm::Ident(var_name.clone())),
+                    offset: Box::new(IrTerm::i32(IrType::Address.sizeof() as i32)),
+                };
+
+                let mut elements = vec![];
+                elements.push(IrTerm::Let {
+                    name: var_name.clone(),
+                    type_: IrType::Address,
+                    value: Box::new(self.expr(&mut *expr)?),
+                });
+                elements.push(IrTerm::If {
+                    cond: Box::new(IrTerm::Call {
+                        callee: Box::new(IrTerm::Ident("not_equal".to_string())),
+                        args: vec![right.clone(), IrTerm::Nil],
+                        source: None,
+                    }),
+                    type_: IrType::Nil,
+                    then: Box::new(IrTerm::Return {
+                        value: Box::new(IrTerm::ident(var_name.clone())),
+                    }),
+                    else_: Box::new(IrTerm::Seq { elements: vec![] }),
+                });
+                elements.push(IrTerm::Load {
+                    type_: IrType::Address,
+                    address: Box::new(left.clone()),
+                    offset: Box::new(IrTerm::i32(0)),
+                });
+
+                Ok(IrTerm::Seq { elements })
             }
         }
     }
@@ -921,32 +971,36 @@ impl IrCodeGenerator {
                 }),
             }];
             for arg in &mut args[variadic_call.index..] {
-                variadic_terms.push(IrTerm::Call {
-                    callee: Box::new(self.expr(&mut Source::transfer(
-                        Expr::path(Path::new(vec![
-                            Ident("quartz".to_string()),
-                            Ident("std".to_string()),
-                            Ident("vec_push".to_string()),
-                        ])),
-                        arg,
-                    ))?),
-                    args: vec![IrTerm::Ident(vec_name.clone()), self.expr(arg)?],
-                    source: None,
+                variadic_terms.push(IrTerm::Discard {
+                    element: Box::new(IrTerm::Call {
+                        callee: Box::new(self.expr(&mut Source::transfer(
+                            Expr::path(Path::new(vec![
+                                Ident("quartz".to_string()),
+                                Ident("std".to_string()),
+                                Ident("vec_push".to_string()),
+                            ])),
+                            arg,
+                        ))?),
+                        args: vec![IrTerm::Ident(vec_name.clone()), self.expr(arg)?],
+                        source: None,
+                    }),
                 });
             }
 
             if let Some(expansion) = expansion {
-                variadic_terms.push(IrTerm::Call {
-                    callee: Box::new(self.expr(&mut Source::transfer(
-                        Expr::path(Path::new(vec![
-                            Ident("quartz".to_string()),
-                            Ident("std".to_string()),
-                            Ident("vec_extend".to_string()),
-                        ])),
-                        expansion,
-                    ))?),
-                    args: vec![IrTerm::Ident(vec_name.clone()), self.expr(expansion)?],
-                    source: None,
+                variadic_terms.push(IrTerm::Discard {
+                    element: Box::new(IrTerm::Call {
+                        callee: Box::new(self.expr(&mut Source::transfer(
+                            Expr::path(Path::new(vec![
+                                Ident("quartz".to_string()),
+                                Ident("std".to_string()),
+                                Ident("vec_extend".to_string()),
+                            ])),
+                            expansion,
+                        ))?),
+                        args: vec![IrTerm::Ident(vec_name.clone()), self.expr(expansion)?],
+                        source: None,
+                    }),
                 });
             }
 
