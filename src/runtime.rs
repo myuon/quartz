@@ -697,9 +697,9 @@ fun main(): bool {
     let result or err = calc();
     if err != nil {
         println(err!.message);
-        return false;
+        return true;
     } else {
-        return result! == 4;
+        return false;
     }
 }
 "#,

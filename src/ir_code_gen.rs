@@ -893,7 +893,43 @@ impl IrCodeGenerator {
                 ])
             }
             Expr::Try(expr) => {
-                todo!()
+                // expr.try
+                // --> let try = expr;
+                //     if try.right != nil { return try }
+                //     try.left!
+                let var_name = format!("try_{}", expr.start.unwrap_or(0));
+                let left = IrTerm::Load {
+                    type_: IrType::Address,
+                    address: Box::new(IrTerm::Ident(var_name.clone())),
+                    offset: Box::new(IrTerm::i32(0)),
+                };
+                let right = IrTerm::Load {
+                    type_: IrType::Address,
+                    address: Box::new(IrTerm::Ident(var_name.clone())),
+                    offset: Box::new(IrTerm::i32(IrType::Address.sizeof() as i32)),
+                };
+
+                let mut elements = vec![];
+                elements.push(IrTerm::Let {
+                    name: var_name.clone(),
+                    type_: IrType::Address,
+                    value: Box::new(self.expr(&mut *expr)?),
+                });
+                elements.push(IrTerm::If {
+                    cond: Box::new(IrTerm::Call {
+                        callee: Box::new(IrTerm::Ident("not_equal".to_string())),
+                        args: vec![right.clone(), IrTerm::Nil],
+                        source: None,
+                    }),
+                    type_: IrType::Nil,
+                    then: Box::new(IrTerm::Return {
+                        value: Box::new(IrTerm::ident(var_name.clone())),
+                    }),
+                    else_: Box::new(IrTerm::Seq { elements: vec![] }),
+                });
+                elements.push(left.clone());
+
+                Ok(IrTerm::Seq { elements })
             }
         }
     }
