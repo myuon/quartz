@@ -25,6 +25,7 @@ pub enum Lexeme {
     Import,
     Struct,
     Or,
+    Try,
     LParen,
     RParen,
     LBrace,
@@ -192,6 +193,7 @@ impl Lexer {
                     ("import", Lexeme::Import),
                     ("struct", Lexeme::Struct),
                     ("or", Lexeme::Or),
+                    ("try", Lexeme::Try),
                 ],
             ) {
                 continue;

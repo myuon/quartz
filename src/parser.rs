@@ -653,12 +653,17 @@ impl Parser {
                 Lexeme::Dot => {
                     self.consume()?;
 
-                    let field = self.ident()?;
-                    let omit = self.gen_omit()?;
-                    current = self.source_from(
-                        Expr::Project(Box::new(current), omit, Path::ident(field)),
-                        position,
-                    );
+                    if self.peek()?.lexeme == Lexeme::Try {
+                        self.consume()?;
+                        current = self.source_from(Expr::Try(Box::new(current)), position);
+                    } else {
+                        let field = self.ident()?;
+                        let omit = self.gen_omit()?;
+                        current = self.source_from(
+                            Expr::Project(Box::new(current), omit, Path::ident(field)),
+                            position,
+                        );
+                    }
                 }
                 Lexeme::LBrace if with_struct => {
                     self.consume()?;

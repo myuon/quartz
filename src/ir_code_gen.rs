@@ -4,7 +4,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use rand::{distributions::Alphanumeric, prelude::Distribution};
 
 use crate::{
-    ast::{Decl, Expr, Func, Lit, Module, Pattern, Statement, Type, VariadicCall},
+    ast::{Decl, Expr, Func, Lit, Module, Pattern, Statement, Type, UnwrapMode, VariadicCall},
     compiler::{ErrorInSource, SourcePosition},
     ir::{IrTerm, IrType},
     util::{ident::Ident, path::Path, source::Source},
@@ -852,15 +852,26 @@ impl IrCodeGenerator {
 
                 self.generate_array_enumerated(vec![(IrType::from_type(type_)?, expr)])
             }
-            Expr::Unwrap(type_, _mode, expr) => {
-                let expr = self.expr(expr)?;
+            Expr::Unwrap(type_, mode, expr) => match mode.clone().unwrap() {
+                UnwrapMode::Optional => {
+                    let expr = self.expr(expr)?;
 
-                Ok(IrTerm::Load {
-                    type_: IrType::from_type(type_)?,
-                    address: Box::new(expr),
-                    offset: Box::new(IrTerm::i32(0)),
-                })
-            }
+                    Ok(IrTerm::Load {
+                        type_: IrType::from_type(type_)?,
+                        address: Box::new(expr),
+                        offset: Box::new(IrTerm::i32(0)),
+                    })
+                }
+                UnwrapMode::Or => {
+                    let expr = self.expr(expr)?;
+
+                    Ok(IrTerm::Load {
+                        type_: IrType::from_type(type_)?,
+                        address: Box::new(expr),
+                        offset: Box::new(IrTerm::i32(1)),
+                    })
+                }
+            },
             Expr::Omit(_) => todo!(),
             Expr::EnumOr(lhs_type, rhs_type, lhs, rhs) => {
                 let lhs_term = if let Some(lhs) = lhs {
@@ -880,6 +891,9 @@ impl IrCodeGenerator {
                     (IrType::Address, lhs_term),
                     (IrType::Address, rhs_term),
                 ])
+            }
+            Expr::Try(expr) => {
+                todo!()
             }
         }
     }

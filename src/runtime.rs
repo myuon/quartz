@@ -688,7 +688,7 @@ fun div(n: i32, m: i32): i32 or error {
 }
 
 fun calc(): i32 or error {
-    let n = div(10, 0)!;
+    let n = div(10, 0).try;
 
     return n + 1;
 }

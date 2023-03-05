@@ -14,6 +14,7 @@ pub struct TypeChecker {
     pub types: HashMap<Ident, Type>,
     current_path: Path,
     imported: Vec<Path>,
+    result_type: Option<Type>,
 }
 
 impl TypeChecker {
@@ -92,6 +93,7 @@ impl TypeChecker {
             .collect(),
             current_path: Path::empty(),
             imported: vec![],
+            result_type: None,
         }
     }
 
@@ -225,6 +227,8 @@ impl TypeChecker {
         statement: &mut Source<Statement>,
         result_type: &mut Type,
     ) -> Result<()> {
+        self.result_type = Some(result_type.clone());
+
         match &mut statement.data {
             Statement::Let(pattern, type_, expr) => {
                 let mut result = self.expr(expr)?;
@@ -939,6 +943,27 @@ impl TypeChecker {
                     Box::new(lhs_type.clone()),
                     Box::new(rhs_type.clone()),
                 ))
+            }
+            Expr::Try(expr) => {
+                let expr_type = self.expr(expr)?;
+
+                match expr_type {
+                    Type::Or(lhs, rhs) => {
+                        self.unify(
+                            &mut self.result_type.clone().unwrap(),
+                            &mut Type::Or(Box::new(Type::Omit(0)), rhs),
+                        )?;
+
+                        Ok(*lhs)
+                    }
+                    _ => {
+                        return Err(anyhow!("try type mismatch").context(ErrorInSource {
+                            path: Some(self.current_path.clone()),
+                            start: expr.start.unwrap_or(0),
+                            end: expr.end.unwrap_or(0),
+                        }))
+                    }
+                }
             }
         }
     }
