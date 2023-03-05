@@ -465,19 +465,22 @@ module Parser {
     }
 
     fun term_0_1(self): Expression or error {
-        let token = self.consume();
-        if token.lexeme.equal("ident") {
+        if self.peek().lexeme.equal("ident") {
+            let name = self.ident().try;
+
             return Expression {
                 t_ident: struct {
-                    name: self.ident().try,
+                    name: name,
                 }?,
                 ..nil,
             };
         }
-        if token.lexeme.equal("number") {
+        if self.peek().lexeme.equal("number") {
+            let token = self.consume();
+
             return Expression {
                 t_number: struct {
-                    value: self.consume().string_value!,
+                    value: token.string_value!,
                 }?,
                 ..nil,
             };
