@@ -709,6 +709,41 @@ fun main(): bool {
                     Value::I32(1),
                 ],
             ),
+            (
+                r#"
+fun f(n: i32): i32 or error {
+    if n == 0 {
+        return _ or error::new("zero");
+    } else {
+        return n + 1;
+    }
+}
+
+fun g(n0: i32): i32 or error {
+    let n = n0;
+    for i in 0..4 {
+        n = f(n).try;
+    }
+
+    return n;
+}
+
+fun main(): bool {
+    let r or err = g(0);
+    if err != nil {
+        println(err!.message);
+    }
+    if r != nil {
+        println(r!.to_string());
+    }
+
+    return err != nil && r == nil;
+}
+"#,
+                vec![
+                    Value::I32(1),
+                ],
+            ),
         ];
 
         for (input, expected) in cases {
