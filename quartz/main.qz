@@ -55,7 +55,7 @@ fun run(input: string): string or error {
     lexer.run(input).try;
 
     let parser = Parser::new();
-    let result = parser.run(lexer.tokens);
+    let result = parser.run(lexer.tokens).try;
     // println(result.to_string());
 
     let typechecker = Typechecker::new();

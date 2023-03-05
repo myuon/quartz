@@ -293,7 +293,13 @@ impl TypeChecker {
                         end: cond.end.unwrap_or(0),
                     })?;
 
-                self.block(then_block, result_type).context("then block")?;
+                self.block(then_block, result_type)
+                    .context(ErrorInSource {
+                        path: Some(self.current_path.clone()),
+                        start: cond.start.unwrap_or(0),
+                        end: cond.end.unwrap_or(0),
+                    })
+                    .context("then block")?;
 
                 if let Some(else_block) = else_block {
                     self.block(else_block, result_type).context("else block")?;
@@ -952,7 +958,12 @@ impl TypeChecker {
                         self.unify(
                             &mut self.result_type.clone().unwrap(),
                             &mut Type::Or(Box::new(Type::Omit(0)), rhs),
-                        )?;
+                        )
+                        .context(ErrorInSource {
+                            path: Some(self.current_path.clone()),
+                            start: expr.start.unwrap_or(0),
+                            end: expr.end.unwrap_or(0),
+                        })?;
 
                         Ok(*lhs)
                     }
