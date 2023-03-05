@@ -197,9 +197,9 @@ impl TypeChecker {
         }
 
         self.result_type = Some(func.result.clone());
-        self.block(&mut func.body, &mut func.result)?;
+        self.block(&mut func.body)?;
         for statement in &mut func.body {
-            self.statement(statement, &mut func.result)?;
+            self.statement(statement)?;
         }
 
         self.locals = locals;
@@ -211,23 +211,15 @@ impl TypeChecker {
         Ok(())
     }
 
-    fn block(
-        &mut self,
-        statements: &mut Vec<Source<Statement>>,
-        expected: &mut Type,
-    ) -> Result<()> {
+    fn block(&mut self, statements: &mut Vec<Source<Statement>>) -> Result<()> {
         for statement in statements {
-            self.statement(statement, expected)?;
+            self.statement(statement)?;
         }
 
         Ok(())
     }
 
-    fn statement(
-        &mut self,
-        statement: &mut Source<Statement>,
-        result_type: &mut Type,
-    ) -> Result<()> {
+    fn statement(&mut self, statement: &mut Source<Statement>) -> Result<()> {
         match &mut statement.data {
             Statement::Let(pattern, type_, expr) => {
                 let mut result = self.expr(expr)?;
@@ -242,17 +234,17 @@ impl TypeChecker {
             Statement::Return(expr) => {
                 let type_ = self.expr(expr)?;
 
-                let result = self
-                    .unify(result_type, &mut type_.clone())
-                    .context(ErrorInSource {
+                let result_type = self.result_type.as_mut().unwrap();
+                let result =
+                    TypeChecker::unify_fn(result_type, &mut type_.clone()).context(ErrorInSource {
                         path: Some(self.current_path.clone()),
                         start: expr.start.unwrap_or(0),
                         end: expr.end.unwrap_or(0),
                     });
                 if let Err(err) = result {
                     // return a : A or B --> return a or _
-                    if let Type::Or(left, right) = result_type {
-                        if self.unify(left, &mut type_.clone()).is_ok() {
+                    if let Type::Or(left, right) = self.result_type.as_mut().unwrap() {
+                        if TypeChecker::unify_fn(left, &mut type_.clone()).is_ok() {
                             *expr = Source::transfer(
                                 Expr::EnumOr(
                                     *left.clone(),
@@ -302,10 +294,10 @@ impl TypeChecker {
                         end: cond.end.unwrap_or(0),
                     })?;
 
-                self.block(then_block, result_type).context("then block")?;
+                self.block(then_block).context("then block")?;
 
                 if let Some(else_block) = else_block {
-                    self.block(else_block, result_type).context("else block")?;
+                    self.block(else_block).context("else block")?;
                 }
 
                 self.unify(type_, &mut Type::Nil)
@@ -325,8 +317,7 @@ impl TypeChecker {
                         end: cond.end.unwrap_or(0),
                     })?;
 
-                let mut block_type = Type::Omit(0);
-                self.block(block, &mut block_type)?;
+                self.block(block)?;
             }
             Statement::For(ident, range, body) => {
                 let type_ = self.expr(range)?;
@@ -338,8 +329,7 @@ impl TypeChecker {
 
                 self.locals.insert(ident.clone(), element.clone());
 
-                let mut body_type = Type::Omit(0);
-                self.block(body, &mut body_type)?;
+                self.block(body)?;
             }
             Statement::Continue => (),
             Statement::Break => (),
@@ -1020,6 +1010,14 @@ impl TypeChecker {
     }
 
     fn unify(&mut self, type1: &mut Type, type2: &mut Type) -> Result<()> {
+        let cs = Constrains::unify(type1, type2)?;
+        cs.apply(type1);
+        cs.apply(type2);
+
+        Ok(())
+    }
+
+    fn unify_fn(type1: &mut Type, type2: &mut Type) -> Result<()> {
         let cs = Constrains::unify(type1, type2)?;
         cs.apply(type1);
         cs.apply(type2);

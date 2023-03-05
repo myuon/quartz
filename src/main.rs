@@ -13,6 +13,7 @@ use std::io::{Read, Write};
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
+use wasmer::Value;
 
 use crate::{compiler::Compiler, runtime::Runtime};
 
@@ -74,7 +75,8 @@ fn main() -> Result<()> {
         SubCommand::Run { stdin, file } => {
             let wat = compile(&mut compiler, stdin, file)?;
             let result = runtime.run(&wat)?;
-            if !result.is_empty() {
+
+            if result.to_vec() != vec![Value::I32(0)] {
                 for r in result.iter() {
                     println!("{}", r.to_string());
                 }
