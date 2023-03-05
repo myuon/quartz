@@ -153,7 +153,9 @@ module Lexer {
                 continue;
             }
 
-            panic("== Abort ==\nposition: ".concat(self.position.to_string()).concat("\ninput: ").concat(input.slice_start(self.position)));
+            return error::new(`== Abort ==
+position: {}
+input: {}`.format(self.position.to_string(), input.slice_start(self.position)));
         }
     }
 }

@@ -42,12 +42,17 @@ fun main() {
     // dump_strings();
     test();
 
-    println(run(stdin()));
+    let result or err = run(stdin());
+    if err != nil {
+        panic(err!.message);
+    }
+
+    println(result!);
 }
 
-fun run(input: string): string {
+fun run(input: string): string or error {
     let lexer = Lexer::new();
-    lexer.run(input);
+    lexer.run(input).try;
 
     let parser = Parser::new();
     let result = parser.run(lexer.tokens);
