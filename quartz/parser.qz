@@ -194,7 +194,8 @@ module Parser {
         let statements = make[vec[Statement]]();
 
         while !self.is_end() && !self.peek().lexeme.equal("rbrace") {
-            statements.push(self.statement().try);
+            let s = self.statement().try;
+            statements.push(s);
         }
 
         return Block {
@@ -449,7 +450,7 @@ module Parser {
                         break;
                     }
                 }
-                self.consume();
+                self.expect("rparen").try;
 
                 current = Expression {
                     t_call: struct {

@@ -44,7 +44,8 @@ fun main() {
 
     let result or err = run(stdin());
     if err != nil {
-        panic(err!.message);
+        // panic(err!.message);
+        panic("error");
     }
 
     println(result!);
@@ -57,7 +58,7 @@ fun run(input: string): string or error {
 
     let parser = Parser::new();
     let result = parser.run(lexer.tokens).try;
-    // println(result.to_string());
+    // println("parser");
 
     let typechecker = Typechecker::new();
     typechecker.module_(result).try;
