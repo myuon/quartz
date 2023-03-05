@@ -92,7 +92,7 @@ fun main(): i32 {
             &["run", "--", "run", "./quartz/main.qz"],
             input.as_bytes(),
         )
-        .unwrap();
+        .expect(format!("[INPUT]\n{}\n", input).as_str());
         let stdout_gen1 = run_command(
             "cargo",
             &["run", "--", "run-wat", "--stdin"],
