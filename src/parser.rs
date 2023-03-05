@@ -799,7 +799,8 @@ impl Parser {
                     self.consume()?;
 
                     let type_ = self.gen_omit()?;
-                    current = self.source_from(Expr::Unwrap(type_, Box::new(current)), position);
+                    current =
+                        self.source_from(Expr::Unwrap(type_, None, Box::new(current)), position);
                 }
                 _ => break,
             }

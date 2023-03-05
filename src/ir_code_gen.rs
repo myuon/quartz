@@ -852,7 +852,7 @@ impl IrCodeGenerator {
 
                 self.generate_array_enumerated(vec![(IrType::from_type(type_)?, expr)])
             }
-            Expr::Unwrap(type_, expr) => {
+            Expr::Unwrap(type_, _mode, expr) => {
                 let expr = self.expr(expr)?;
 
                 Ok(IrTerm::Load {

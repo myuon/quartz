@@ -677,7 +677,6 @@ fun main(): bool {
                     Value::I32(1),
                 ],
             ),
-            /*
             (
                 r#"
 fun div(n: i32, m: i32): i32 or error {
@@ -688,19 +687,19 @@ fun div(n: i32, m: i32): i32 or error {
     return n / m;
 }
 
-fun calc(): i32 {
-    let n = div(10, 3)!;
+fun calc(): i32 or error {
+    let n = div(10, 0)!;
 
     return n + 1;
 }
 
 fun main(): bool {
-    let result or error = calc();
-    if error != nil {
-        println(error.message);
+    let result or err = calc();
+    if err != nil {
+        println(err!.message);
         return false;
     } else {
-        return result == 4;
+        return result! == 4;
     }
 }
 "#,
@@ -708,7 +707,6 @@ fun main(): bool {
                     Value::I32(1),
                 ],
             ),
-             */
         ];
 
         for (input, expected) in cases {

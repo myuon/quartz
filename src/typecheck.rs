@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use anyhow::{anyhow, bail, Context, Result};
 
 use crate::{
-    ast::{Decl, Expr, Func, Lit, Module, Pattern, Statement, Type, VariadicCall},
+    ast::{Decl, Expr, Func, Lit, Module, Pattern, Statement, Type, UnwrapMode, VariadicCall},
     compiler::ErrorInSource,
     util::{ident::Ident, path::Path, source::Source},
 };
@@ -353,7 +353,12 @@ impl TypeChecker {
                         &Type::Optional(Box::new(*right_type.clone())),
                     )?;
                 }
-                _ => bail!("Expected or type"),
+                _ => bail!(
+                    "Expected or type, got: {:?} in {:?} or {:?}",
+                    type_,
+                    left,
+                    right
+                ),
             },
             Pattern::Omit => todo!(),
         }
@@ -879,21 +884,47 @@ impl TypeChecker {
 
                 Ok(Type::Optional(Box::new(expr_type)))
             }
-            Expr::Unwrap(type_, expr) => {
+            Expr::Unwrap(type_, mode, expr) => {
                 let mut expr_type = self.expr(expr)?;
 
-                let mut wrapped_type = Type::Optional(Box::new(type_.clone()));
-                self.unify(&mut wrapped_type, &mut expr_type)
-                    .context(ErrorInSource {
+                if matches!(expr_type, Type::Optional(_)) {
+                    *mode = Some(UnwrapMode::Optional);
+
+                    let mut wrapped_type = Type::Optional(Box::new(type_.clone()));
+                    self.unify(&mut wrapped_type, &mut expr_type)
+                        .context(ErrorInSource {
+                            path: Some(self.current_path.clone()),
+                            start: expr.start.unwrap_or(0),
+                            end: expr.end.unwrap_or(0),
+                        })?;
+
+                    let wrapperd_type_element = *wrapped_type.to_optional()?.clone();
+                    *type_ = wrapperd_type_element.clone();
+
+                    Ok(wrapperd_type_element)
+                } else if matches!(expr_type, Type::Or(_, _)) {
+                    *mode = Some(UnwrapMode::Or);
+
+                    let mut wrapped_type =
+                        Type::Or(Box::new(type_.clone()), Box::new(Type::Omit(0)));
+                    self.unify(&mut wrapped_type, &mut expr_type)
+                        .context(ErrorInSource {
+                            path: Some(self.current_path.clone()),
+                            start: expr.start.unwrap_or(0),
+                            end: expr.end.unwrap_or(0),
+                        })?;
+
+                    let (wrapperd_type_element, _) = wrapped_type.as_or_type()?;
+                    *type_ = wrapperd_type_element.clone();
+
+                    Ok(wrapperd_type_element.clone())
+                } else {
+                    Err(anyhow!("unwrap type mismatch").context(ErrorInSource {
                         path: Some(self.current_path.clone()),
                         start: expr.start.unwrap_or(0),
                         end: expr.end.unwrap_or(0),
-                    })?;
-
-                let wrapperd_type_element = *wrapped_type.to_optional()?.clone();
-                *type_ = wrapperd_type_element.clone();
-
-                Ok(wrapperd_type_element)
+                    }))
+                }
             }
             Expr::Omit(_) => todo!(),
             Expr::EnumOr(lhs_type, rhs_type, lhs, rhs) => {

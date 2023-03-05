@@ -142,6 +142,13 @@ impl Type {
             _ => bail!("expected vec type, but found {}", self.to_string()),
         }
     }
+
+    pub fn as_or_type(&self) -> Result<(&Type, &Type)> {
+        match self {
+            Type::Or(left, right) => Ok((left, right)),
+            _ => bail!("expected or type, but found {}", self.to_string()),
+        }
+    }
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -172,6 +179,12 @@ pub enum BinOp {
 pub struct VariadicCall {
     pub element_type: Type,
     pub index: usize,
+}
+
+#[derive(PartialEq, Debug, Clone)]
+pub enum UnwrapMode {
+    Optional,
+    Or,
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -207,7 +220,7 @@ pub enum Expr {
     Equal(Box<Source<Expr>>, Box<Source<Expr>>),
     NotEqual(Box<Source<Expr>>, Box<Source<Expr>>),
     Wrap(Type, Box<Source<Expr>>),
-    Unwrap(Type, Box<Source<Expr>>),
+    Unwrap(Type, Option<UnwrapMode>, Box<Source<Expr>>),
     Omit(Type),
     EnumOr(
         Type,
