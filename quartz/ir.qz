@@ -147,8 +147,7 @@ module IrType {
             };
         }
 
-        println(t.to_string());
-        panic("unknown type");
+        panic("unknown type: {}", t.to_string());
     }
 
     fun to_string(self): string {

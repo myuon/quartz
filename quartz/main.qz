@@ -44,8 +44,7 @@ fun main() {
 
     let result or err = run(stdin());
     if err != nil {
-        // panic(err!.message);
-        panic("error");
+        panic(err!.message);
     }
 
     println(result!);

@@ -293,8 +293,7 @@ module Generator {
             return;
         }
 
-        println(expr.to_string());
-        panic("not implemented: expr");
+        panic("not implemented: expr, {}", expr.to_string());
     }
 
     fun expression_left_value(self, expr: IrTerm) {

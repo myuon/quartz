@@ -923,7 +923,11 @@ impl IrCodeGenerator {
                     }),
                     else_: Box::new(IrTerm::Seq { elements: vec![] }),
                 });
-                elements.push(left.clone());
+                elements.push(IrTerm::Load {
+                    type_: IrType::Address,
+                    address: Box::new(left.clone()),
+                    offset: Box::new(IrTerm::i32(0)),
+                });
 
                 Ok(IrTerm::Seq { elements })
             }
