@@ -55,6 +55,10 @@ impl Parser {
                 let (ident, type_) = self.type_decl()?;
                 Ok(Decl::Type(ident, type_))
             }
+            Lexeme::Struct => {
+                let (ident, type_) = self.struct_decl()?;
+                Ok(Decl::Type(ident, type_))
+            }
             Lexeme::Module(_path) => {
                 self.consume()?;
                 let ident = self.ident()?;
@@ -75,6 +79,32 @@ impl Parser {
             }
             _ => Err(anyhow!("Unexpected token {:?}", self.peek()?.lexeme)),
         }
+    }
+
+    fn struct_decl(&mut self) -> Result<(Ident, Type)> {
+        self.expect(Lexeme::Struct)?;
+        let ident = self.ident()?;
+
+        self.expect(Lexeme::LBrace)?;
+
+        let mut record_type = vec![];
+        while self.peek()?.lexeme != Lexeme::RBrace {
+            let field = self.ident()?;
+            self.expect(Lexeme::Colon)?;
+            let type_ = self.type_()?;
+
+            record_type.push((field, type_));
+
+            if self.peek()?.lexeme == Lexeme::Comma {
+                self.consume()?;
+            } else {
+                break;
+            }
+        }
+
+        self.expect(Lexeme::RBrace)?;
+
+        Ok((ident, Type::Record(record_type)))
     }
 
     fn path(&mut self) -> Result<Path> {

@@ -744,6 +744,24 @@ fun main(): bool {
                     Value::I32(1),
                 ],
             ),
+            (
+                r#"
+struct Position {
+    x: i32,
+}
+
+fun main(): i32 {
+    let p = Position {
+        x: 10,
+    };
+
+    return p.x;
+}
+"#,
+                vec![
+                    Value::I32(10),
+                ],
+            ),
         ];
 
         for (input, expected) in cases {
