@@ -119,7 +119,7 @@ impl Type {
 
     pub fn is_integer_type(&self) -> bool {
         match self {
-            Type::I32 | Type::I64 => true,
+            Type::I32 | Type::U32 | Type::I64 => true,
             _ => false,
         }
     }

@@ -362,7 +362,7 @@ fun map_insert(map: Map, key: string, value: any) {
 
 fun map_find_entry(map: Map, key: string): MapEntry {
     let hash = hash_string(key, key.length);
-    let index = i64_to_i32(hash % i32_to_i64(map.capacity));
+    let index = hash % (map.capacity as u32);
 
     let entry = map.entries.at(index);
     while true {
@@ -374,11 +374,11 @@ fun map_find_entry(map: Map, key: string): MapEntry {
     }
 }
 
-fun hash_string(key: string, length: i32): i64 {
-    let hash = 2166136261 as i64;
+fun hash_string(key: string, length: i32): u32 {
+    let hash = 2166136261 as u32;
     for i in 0..length {
-        hash = xor_i64(hash, i32_to_i64(key.data.at(i) as i32));
-        hash = hash * i32_to_i64(16777619);
+        hash = xor_u32(hash, i32_to_u32(key.data.at(i) as i32));
+        hash = hash * 16777619 as u32;
     }
     return hash;
 }

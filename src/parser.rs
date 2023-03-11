@@ -885,6 +885,7 @@ impl Parser {
             Lexeme::Ident(ident) => match ident.as_str() {
                 "nil" => Type::Nil,
                 "i32" => Type::I32,
+                "u32" => Type::U32,
                 "i64" => Type::I64,
                 "bool" => Type::Bool,
                 "byte" => Type::Byte,
