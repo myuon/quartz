@@ -329,7 +329,11 @@ impl TypeChecker {
 
                 self.locals.insert(ident.clone(), element.clone());
 
+                let locals = self.locals.clone();
+
                 self.block(body)?;
+
+                self.locals = locals;
             }
             Statement::Continue => (),
             Statement::Break => (),

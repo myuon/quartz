@@ -197,12 +197,7 @@ type Expression = {
         expr: Expression,
         field: string,
     }?,
-    t_record: struct {
-        fields: vec[struct {
-            field: string,
-            value: Expression,
-        }],
-    }?,
+    t_record: RecordExpression?,
 };
 
 module Expression {
@@ -237,21 +232,49 @@ module Expression {
             );
         }
         if self.t_record != nil {
-            let result = "{";
-
-            for i in 0..self.t_record!.fields.length {
-                let f = self.t_record!.fields.at(i);
-                result = result.concat(f.field).concat(": ").concat(f.value.to_string());
-
-                if i != self.t_record!.fields.length - 1 {
-                    result = result.concat(", ");
-                }
-            }
-
-            return result.concat("}");
+            return self.t_record!.to_string();
         }
 
         panic("Unknown expression type");
+    }
+}
+
+type RecordExpression = {
+    name: string,
+    fields: vec[struct {
+        field: string,
+        value: Expression,
+    }]
+};
+
+module RecordExpression {
+    fun to_string(self): string {
+        let result = format(
+            "{} {{",
+            self.name,
+        );
+
+        for i in 0..self.fields.length {
+            let f = self.fields.at(i);
+            result = result.concat(f.field).concat(": ").concat(f.value.to_string());
+
+            if i != self.fields.length - 1 {
+                result = result.concat(", ");
+            }
+        }
+
+        return result.concat("}");
+    }
+
+    fun at(self, field: string): Expression or error {
+        for i in 0..self.fields.length {
+            let f = self.fields.at(i);
+            if f.field == field {
+                return f.value;
+            }
+        }
+
+        return _ or error::new("Field not found");
     }
 }
 
@@ -316,7 +339,7 @@ module Type {
 }
 
 type TypeStruct = {
-    t: vec[struct {
+    fields: vec[struct {
         name: string,
         type_: Type,
     }],
@@ -324,8 +347,8 @@ type TypeStruct = {
 
 module TypeStruct {
     fun has(self, name: string): bool {
-        for i in 0..self.t.length {
-            if self.t.at(i).name.equal(name) {
+        for i in 0..self.fields.length {
+            if self.fields.at(i).name.equal(name) {
                 return true;
             }
         }
@@ -333,9 +356,9 @@ module TypeStruct {
     }
 
     fun at(self, name: string): Type {
-        for i in 0..self.t.length {
-            if self.t.at(i).name.equal(name) {
-                return self.t.at(i).type_;
+        for i in 0..self.fields.length {
+            if self.fields.at(i).name.equal(name) {
+                return self.fields.at(i).type_;
             }
         }
         panic("unimplemented: typestruct.find");

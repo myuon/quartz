@@ -223,6 +223,29 @@ module Typechecker {
 
             return _ or error::new("unimplemented: project, {}".format(expr.to_string()));
         }
+        if expr.t_record != nil {
+            let t = self.globals.at(expr.t_record!.name);
+            if t.t_struct == nil {
+                return _ or error::new("unimplemented: record, {}".format(expr.to_string()));
+            }
+
+            for i in 0..t.t_struct!.fields.length {
+                let field = t.t_struct!.fields.at(i);
+                let expr = expr.t_record!.fields.at(i);
+                let expr_type = self.expression(expr.value).try;
+
+                unify(expr_type, field.type_).try;
+            }
+
+            for i in 0..expr.t_record!.fields.length {
+                let field = expr.t_record!.fields.at(i);
+                if !t.t_struct!.has(field.field) {
+                    return _ or error::new("unknown field: {}".format(expr.to_string()));
+                }
+            }
+
+            return t;
+        }
 
         return _ or error::new("unimplemented: expression, {}".format(expr.to_string()));
     }

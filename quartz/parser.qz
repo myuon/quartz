@@ -558,6 +558,7 @@ module Parser {
 
                 current = Expression {
                     t_record: struct {
+                        name: ident.name,
                         fields: fields,
                     }?,
                     ..nil,
