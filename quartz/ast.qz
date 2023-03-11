@@ -19,6 +19,10 @@ module Module {
 type Decl = {
     t_func: Function?,
     t_let: Let?,
+    t_type: struct {
+        name: string,
+        type_: Type,
+    }?,
 };
 
 module Decl {
@@ -189,6 +193,16 @@ type Expression = {
         callee: Expression,
         args: vec[Expression],
     }?,
+    t_project: struct {
+        expr: Expression,
+        field: string,
+    }?,
+    t_record: struct {
+        fields: vec[struct {
+            field: string,
+            value: Expression,
+        }],
+    }?,
 };
 
 module Expression {
@@ -230,6 +244,10 @@ type Type = {
     }?,
     t_ptr: Type?,
     t_bool: bool?,
+    t_record: vec[struct {
+        name: string,
+        type_: Type,
+    }]?,
 };
 
 module Type {
@@ -261,6 +279,18 @@ module Type {
         }
         if self.t_bool != nil {
             return "bool";
+        }
+        if self.t_record != nil {
+            let s = "record {";
+            for i in 0..self.t_record!.length {
+                let p = self.t_record!.at(i);
+                s = s.concat(p.name).concat(": ").concat(p.type_.to_string());
+                if i != self.t_record!.length - 1 {
+                    s = s.concat(", ");
+                }
+            }
+            s = s.concat("}");
+            return s;
         }
 
         panic("unimplemented: type.to_string");
