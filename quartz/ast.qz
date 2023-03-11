@@ -229,6 +229,27 @@ module Expression {
 
             return result.concat(")");
         }
+        if self.t_project != nil {
+            return format(
+                "{}.{}",
+                self.t_project!.expr.to_string(),
+                self.t_project!.field,
+            );
+        }
+        if self.t_record != nil {
+            let result = "{";
+
+            for i in 0..self.t_record!.fields.length {
+                let f = self.t_record!.fields.at(i);
+                result = result.concat(f.field).concat(": ").concat(f.value.to_string());
+
+                if i != self.t_record!.fields.length - 1 {
+                    result = result.concat(", ");
+                }
+            }
+
+            return result.concat("}");
+        }
 
         panic("Unknown expression type");
     }
@@ -244,10 +265,7 @@ type Type = {
     }?,
     t_ptr: Type?,
     t_bool: bool?,
-    t_record: vec[struct {
-        name: string,
-        type_: Type,
-    }]?,
+    t_struct: TypeStruct?,
 };
 
 module Type {
@@ -280,12 +298,12 @@ module Type {
         if self.t_bool != nil {
             return "bool";
         }
-        if self.t_record != nil {
+        if self.t_struct != nil {
             let s = "record {";
-            for i in 0..self.t_record!.length {
-                let p = self.t_record!.at(i);
+            for i in 0..self.t_struct!.t.length {
+                let p = self.t_struct!.t.at(i);
                 s = s.concat(p.name).concat(": ").concat(p.type_.to_string());
-                if i != self.t_record!.length - 1 {
+                if i != self.t_struct!.t.length - 1 {
                     s = s.concat(", ");
                 }
             }
@@ -294,5 +312,32 @@ module Type {
         }
 
         panic("unimplemented: type.to_string");
+    }
+}
+
+type TypeStruct = {
+    t: vec[struct {
+        name: string,
+        type_: Type,
+    }],
+};
+
+module TypeStruct {
+    fun has(self, name: string): bool {
+        for i in 0..self.t.length {
+            if self.t.at(i).name.equal(name) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    fun at(self, name: string): Type {
+        for i in 0..self.t.length {
+            if self.t.at(i).name.equal(name) {
+                return self.t.at(i).type_;
+            }
+        }
+        panic("unimplemented: typestruct.find");
     }
 }

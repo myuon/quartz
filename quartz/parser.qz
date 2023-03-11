@@ -98,7 +98,9 @@ module Parser {
         return struct {
             name: name,
             type_: Type {
-                t_record: fields?,
+                t_struct: TypeStruct {
+                    t: fields,
+                }?,
                 ..nil,
             },
         };

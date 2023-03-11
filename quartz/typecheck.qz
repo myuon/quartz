@@ -38,6 +38,10 @@ module Typechecker {
             self.globals.insert(d.t_let!.name, t);
             return;
         }
+        if d.t_type != nil {
+            self.globals.insert(d.t_type!.name, d.t_type!.type_);
+            return;
+        }
 
         panic("unimplemented: decl");
     }
@@ -206,6 +210,18 @@ module Typechecker {
             }
 
             return func_type.result;
+        }
+        if expr.t_project != nil {
+            let t = self.expression(expr.t_project!.expr).try;
+            if t.t_struct != nil {
+                if t.t_struct!.has(expr.t_project!.field) {
+                    let t = t.t_struct!.at(expr.t_project!.field);
+
+                    return t;
+                }
+            }
+
+            return _ or error::new("unimplemented: project, {}".format(expr.to_string()));
         }
 
         return _ or error::new("unimplemented: expression, {}".format(expr.to_string()));

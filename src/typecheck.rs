@@ -725,7 +725,7 @@ impl TypeChecker {
                 if fields.contains_key(&label) {
                     // field access
 
-                    Ok(fields[&label].clone())
+                    Ok(fields[label].clone())
                 } else {
                     // method access
                     let path = Path::new(vec![
