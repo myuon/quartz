@@ -39,6 +39,11 @@ type IrTerm = {
         offset: IrTerm,
         value: IrTerm,
     }?,
+    t_load: struct {
+        type_: IrType,
+        address: IrTerm,
+        offset: IrTerm,
+    }?,
 };
 
 module IrTerm {

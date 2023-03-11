@@ -196,6 +196,7 @@ type Expression = {
     t_project: struct {
         expr: Expression,
         field: string,
+        type_: Type?,
     }?,
     t_record: RecordExpression?,
 };
@@ -361,6 +362,16 @@ module TypeStruct {
                 return self.fields.at(i).type_;
             }
         }
+        panic("unimplemented: typestruct.find");
+    }
+
+    fun index(self, name: string): i32 {
+        for i in 0..self.fields.length {
+            if self.fields.at(i).name.equal(name) {
+                return i;
+            }
+        }
+
         panic("unimplemented: typestruct.find");
     }
 }

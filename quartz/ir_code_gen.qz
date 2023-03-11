@@ -311,6 +311,24 @@ module IrCodeGenerator {
                 });
             }
         }
+        if expr.t_project != nil {
+            let t = expr.t_project!.type_!.t_struct!;
+            let index = t.index(expr.t_project!.field);
+
+            let offset = 0;
+            for i in 0..index {
+                offset = offset + IrType::new(t.fields.at(i).type_).sizeof();
+            }
+
+            return IrTerm {
+                t_load: struct {
+                    type_: IrType::new(t.fields.at(index).type_),
+                    address: self.expression(expr.t_project!.expr),
+                    offset: IrTerm::i32(offset),
+                }?,
+                ..nil,
+            };
+        }
 
         panic("expression exhausted: ");
     }

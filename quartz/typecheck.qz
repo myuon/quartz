@@ -213,6 +213,8 @@ module Typechecker {
         }
         if expr.t_project != nil {
             let t = self.expression(expr.t_project!.expr).try;
+            expr.t_project!.type_ = t?;
+
             if t.t_struct != nil {
                 if t.t_struct!.has(expr.t_project!.field) {
                     let t = t.t_struct!.at(expr.t_project!.field);

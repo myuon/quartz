@@ -521,6 +521,7 @@ module Parser {
                     t_project: struct {
                         expr: current,
                         field: field,
+                        type_: nil as Type?,
                     }?,
                     ..nil,
                 };
