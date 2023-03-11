@@ -51,8 +51,59 @@ module Parser {
                 ..nil,
             };
         }
+        if token.lexeme.equal("struct") {
+            let struct_ = self.struct_decl().try;
+
+            return Decl {
+                t_type: struct_?,
+                ..nil,
+            };
+        }
 
         return _ or error::new("Expected DECL, got ".concat(token.lexeme).concat("{").concat(token.string_value!).concat("}"));
+    }
+
+    fun struct_decl(self): struct {
+        name: string,
+        type_: Type,
+    } or error {
+        self.expect("struct").try;
+        let ident = self.ident().try;
+        self.expect("lbrace").try;
+
+        let fields = make[vec[struct {
+            name: string,
+            type_: Type,
+        }]]();
+
+        while !self.peek().lexeme.equal("rbrace") {
+            let name = self.ident().try;
+            self.expect("colon").try;
+            let t = self.type_().try;
+
+            fields.push(struct {
+                name: name,
+                type_: t,
+            });
+
+            if self.peek().lexeme.equal("comma") {
+                self.consume();
+            } else {
+                break;
+            }
+        }
+
+        self.expect("rbrace").try;
+
+        return struct {
+            name: ident,
+            type_: Type {
+                t_struct: TypeStruct {
+                    fields: fields,
+                }?,
+                ..nil,
+            },
+        };
     }
 
     fun global_let(self): Let or error {
@@ -437,7 +488,9 @@ module Parser {
         let current = self.term_0_1().try;
 
         while true {
-            if self.peek().lexeme.equal("lparen") {
+            let token = self.peek();
+
+            if token.lexeme.equal("lparen") {
                 self.expect("lparen").try;
 
                 let args = make[vec[Expression]]();
@@ -456,6 +509,58 @@ module Parser {
                     t_call: struct {
                         callee: current,
                         args: args,
+                    }?,
+                    ..nil,
+                };
+            }
+            if token.lexeme.equal("dot") {
+                self.expect("dot").try;
+                let field = self.ident().try;
+
+                current = Expression {
+                    t_project: struct {
+                        expr: current,
+                        field: field,
+                        type_: nil as Type?,
+                    }?,
+                    ..nil,
+                };
+            }
+            if with_struct && token.lexeme.equal("lbrace") {
+                self.expect("lbrace").try;
+
+                if current.t_ident == nil {
+                    return _ or error::new("Expected identifier");
+                }
+
+                let ident = current.t_ident!;
+                let fields = make[vec[struct {
+                    field: string,
+                    value: Expression,
+                }]]();
+
+                while !self.peek().lexeme.equal("rbrace") {
+                    let field = self.ident().try;
+                    self.expect("colon").try;
+                    let value = self.expression().try;
+
+                    fields.push(struct {
+                        field: field,
+                        value: value,
+                    });
+
+                    if self.peek().lexeme.equal("comma") {
+                        self.expect("comma").try;
+                    } else {
+                        break;
+                    }
+                }
+                self.expect("rbrace").try;
+
+                current = Expression {
+                    t_record: RecordExpression {
+                        name: ident.name,
+                        fields: fields,
                     }?,
                     ..nil,
                 };

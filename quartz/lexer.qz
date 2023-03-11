@@ -105,6 +105,9 @@ module Lexer {
             if self.match(input, "while", "while") {
                 continue;
             }
+            if self.match(input, "struct", "struct") {
+                continue;
+            }
             if self.match(input, "==", "double_equal") {
                 continue;
             }
@@ -139,6 +142,12 @@ module Lexer {
                 continue;
             }
             if self.match(input, "<", "lt") {
+                continue;
+            }
+            if self.match(input, ",", "comma") {
+                continue;
+            }
+            if self.match(input, ".", "dot") {
                 continue;
             }
 

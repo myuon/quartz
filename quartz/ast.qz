@@ -19,6 +19,10 @@ module Module {
 type Decl = {
     t_func: Function?,
     t_let: Let?,
+    t_type: struct {
+        name: string,
+        type_: Type,
+    }?,
 };
 
 module Decl {
@@ -189,6 +193,12 @@ type Expression = {
         callee: Expression,
         args: vec[Expression],
     }?,
+    t_project: struct {
+        expr: Expression,
+        field: string,
+        type_: Type?,
+    }?,
+    t_record: RecordExpression?,
 };
 
 module Expression {
@@ -215,8 +225,57 @@ module Expression {
 
             return result.concat(")");
         }
+        if self.t_project != nil {
+            return format(
+                "{}.{}",
+                self.t_project!.expr.to_string(),
+                self.t_project!.field,
+            );
+        }
+        if self.t_record != nil {
+            return self.t_record!.to_string();
+        }
 
         panic("Unknown expression type");
+    }
+}
+
+type RecordExpression = {
+    name: string,
+    fields: vec[struct {
+        field: string,
+        value: Expression,
+    }]
+};
+
+module RecordExpression {
+    fun to_string(self): string {
+        let result = format(
+            "{} {{",
+            self.name,
+        );
+
+        for i in 0..self.fields.length {
+            let f = self.fields.at(i);
+            result = result.concat(f.field).concat(": ").concat(f.value.to_string());
+
+            if i != self.fields.length - 1 {
+                result = result.concat(", ");
+            }
+        }
+
+        return result.concat("}");
+    }
+
+    fun at(self, field: string): Expression or error {
+        for i in 0..self.fields.length {
+            let f = self.fields.at(i);
+            if f.field == field {
+                return f.value;
+            }
+        }
+
+        return _ or error::new("Field not found");
     }
 }
 
@@ -230,6 +289,7 @@ type Type = {
     }?,
     t_ptr: Type?,
     t_bool: bool?,
+    t_struct: TypeStruct?,
 };
 
 module Type {
@@ -262,7 +322,56 @@ module Type {
         if self.t_bool != nil {
             return "bool";
         }
+        if self.t_struct != nil {
+            let s = "record {";
+            for i in 0..self.t_struct!.fields.length {
+                let p = self.t_struct!.fields.at(i);
+                s = s.concat(p.name).concat(": ").concat(p.type_.to_string());
+                if i != self.t_struct!.fields.length - 1 {
+                    s = s.concat(", ");
+                }
+            }
+            s = s.concat("}");
+            return s;
+        }
 
         panic("unimplemented: type.to_string");
+    }
+}
+
+type TypeStruct = {
+    fields: vec[struct {
+        name: string,
+        type_: Type,
+    }],
+};
+
+module TypeStruct {
+    fun has(self, name: string): bool {
+        for i in 0..self.fields.length {
+            if self.fields.at(i).name.equal(name) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    fun at(self, name: string): Type {
+        for i in 0..self.fields.length {
+            if self.fields.at(i).name.equal(name) {
+                return self.fields.at(i).type_;
+            }
+        }
+        panic("unimplemented: typestruct.find");
+    }
+
+    fun index(self, name: string): i32 {
+        for i in 0..self.fields.length {
+            if self.fields.at(i).name.equal(name) {
+                return i;
+            }
+        }
+
+        panic("unimplemented: typestruct.find");
     }
 }

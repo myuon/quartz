@@ -329,7 +329,11 @@ impl TypeChecker {
 
                 self.locals.insert(ident.clone(), element.clone());
 
+                let locals = self.locals.clone();
+
                 self.block(body)?;
+
+                self.locals = locals;
             }
             Statement::Continue => (),
             Statement::Break => (),
@@ -725,7 +729,7 @@ impl TypeChecker {
                 if fields.contains_key(&label) {
                     // field access
 
-                    Ok(fields[&label].clone())
+                    Ok(fields[label].clone())
                 } else {
                     // method access
                     let path = Path::new(vec![
@@ -737,7 +741,7 @@ impl TypeChecker {
                         label.clone(),
                     ]);
                     let mut path_expr = Source::new(
-                        Expr::path(path.clone()),
+                        Expr::source_path(Source::transfer(path.clone(), expr)),
                         expr.start.unwrap_or(0),
                         expr.end.unwrap_or(0),
                     );
