@@ -8,6 +8,7 @@ mod parser;
 mod runtime;
 mod typecheck;
 mod util;
+mod value;
 
 use std::io::{Read, Write};
 

@@ -17,3 +17,7 @@ serde_json = "1.0.93"
 thiserror = "1.0.37"
 wasmer = "3.0.2"
 wat = "1.0.52"
+
+[dev-dependencies]
+proptest = "1.1.0"
+proptest-derive = "0.3.0"
