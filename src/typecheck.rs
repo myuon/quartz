@@ -741,7 +741,7 @@ impl TypeChecker {
                         label.clone(),
                     ]);
                     let mut path_expr = Source::new(
-                        Expr::path(path.clone()),
+                        Expr::source_path(Source::transfer(path.clone(), expr)),
                         expr.start.unwrap_or(0),
                         expr.end.unwrap_or(0),
                     );

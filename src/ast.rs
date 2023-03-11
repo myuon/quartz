@@ -239,11 +239,15 @@ impl Expr {
         }
     }
 
-    pub fn path(path: Path) -> Self {
+    pub fn source_path(path: Source<Path>) -> Self {
         Expr::Path {
-            path: Source::unknown(path),
+            path,
             resolved_path: None,
         }
+    }
+
+    pub fn path(path: Path) -> Self {
+        Expr::source_path(Source::unknown(path))
     }
 }
 

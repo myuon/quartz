@@ -99,7 +99,7 @@ module Parser {
             name: name,
             type_: Type {
                 t_struct: TypeStruct {
-                    t: fields,
+                    fields: fields,
                 }?,
                 ..nil,
             },
@@ -557,7 +557,7 @@ module Parser {
                 self.expect("rbrace").try;
 
                 current = Expression {
-                    t_record: struct {
+                    t_record: RecordExpression {
                         name: ident.name,
                         fields: fields,
                     }?,

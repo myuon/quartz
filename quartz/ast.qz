@@ -323,10 +323,10 @@ module Type {
         }
         if self.t_struct != nil {
             let s = "record {";
-            for i in 0..self.t_struct!.t.length {
-                let p = self.t_struct!.t.at(i);
+            for i in 0..self.t_struct!.fields.length {
+                let p = self.t_struct!.fields.at(i);
                 s = s.concat(p.name).concat(": ").concat(p.type_.to_string());
-                if i != self.t_struct!.t.length - 1 {
+                if i != self.t_struct!.fields.length - 1 {
                     s = s.concat(", ");
                 }
             }
