@@ -4,12 +4,13 @@
   "description": "",
   "version": "0.0.1",
   "engines": {
-    "vscode": "^1.74.0"
+    "vscode": "^1.76.0"
   },
   "categories": [
     "Other"
   ],
   "main": "./out/extension.js",
+  "publisher": "myuon",
   "contributes": {
     "languages": [
       {
@@ -71,5 +72,8 @@
   },
   "dependencies": {
     "vscode-languageclient": "^7.0.0"
+  },
+  "repository": {
+    "url": "https://github.com/myuon/quartz"
   }
 }
