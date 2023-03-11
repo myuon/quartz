@@ -52,6 +52,10 @@ impl TypeChecker {
                     Type::Func(vec![Type::I64, Type::I64], Box::new(Type::I64)),
                 ),
                 (
+                    "xor_u32",
+                    Type::Func(vec![Type::U32, Type::U32], Box::new(Type::U32)),
+                ),
+                (
                     "i32_to_i64",
                     Type::Func(vec![Type::I32], Box::new(Type::I64)),
                 ),

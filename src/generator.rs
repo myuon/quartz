@@ -360,16 +360,19 @@ impl Generator {
     fn expr(&mut self, expr: &mut IrTerm) -> Result<()> {
         match expr {
             IrTerm::Nil => {
-                self.write_value(Value::nil());
+                // self.write_value(Value::nil());
+                self.writer.write(&format!("i32.const {}", 0));
             }
             IrTerm::I32(i) => {
-                self.write_value(Value::i32(*i));
+                // self.write_value(Value::i32(*i));
+                self.writer.write(&format!("i32.const {}", i));
             }
             IrTerm::I64(i) => {
-                todo!();
+                todo!("{}", i);
             }
             IrTerm::U32(i) => {
-                self.write_value(Value::i32(*i as i32));
+                // self.write_value(Value::i32(*i as i32));
+                self.writer.write(&format!("i32.const {}", i));
             }
             IrTerm::Ident(i) => {
                 if self.globals.contains(&i.clone()) {
@@ -646,6 +649,9 @@ impl Generator {
                 "mult" => {
                     self.writer.write("i32.mul");
                 }
+                "mult_u32" => {
+                    self.writer.write("i32.mul");
+                }
                 "mult_i64" => {
                     self.writer.write("i64.mul");
                 }
@@ -654,6 +660,9 @@ impl Generator {
                 }
                 "mod" => {
                     self.writer.write("i32.rem_s");
+                }
+                "mod_u32" => {
+                    self.writer.write("i32.rem_u");
                 }
                 "mod_i64" => {
                     self.writer.write("i64.rem_s");
@@ -678,6 +687,9 @@ impl Generator {
                 }
                 "gte" => {
                     self.writer.write("i32.ge_s");
+                }
+                "xor_u32" => {
+                    self.writer.write("i32.xor");
                 }
                 "xor_i64" => {
                     self.writer.write("i64.xor");

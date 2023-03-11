@@ -371,6 +371,8 @@ impl IrCodeGenerator {
                         callee: Box::new(IrTerm::Ident(
                             if matches!(type_, Type::I32) {
                                 "mult"
+                            } else if matches!(type_, Type::U32) {
+                                "mult_u32"
                             } else if matches!(type_, Type::I64) {
                                 "mult_i64"
                             } else {
@@ -399,6 +401,8 @@ impl IrCodeGenerator {
                         callee: Box::new(IrTerm::Ident(
                             if matches!(type_, Type::I32) {
                                 "mod"
+                            } else if matches!(type_, Type::U32) {
+                                "mod_u32"
                             } else if matches!(type_, Type::I64) {
                                 "mod_i64"
                             } else {

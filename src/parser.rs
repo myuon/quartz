@@ -863,6 +863,7 @@ impl Parser {
         let current = self.consume()?;
         match current.lexeme {
             Lexeme::Int(int) if int <= i32::MAX as i64 => Ok(Lit::I32(int as i32)),
+            Lexeme::Int(int) if int <= u32::MAX as i64 => Ok(Lit::U32(int as u32)),
             Lexeme::Int(int) => Ok(Lit::I64(int)),
             Lexeme::String(string) => Ok(Lit::String(string)),
             Lexeme::True => Ok(Lit::Bool(true)),
