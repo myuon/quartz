@@ -306,7 +306,7 @@ fun map_make(): Map {
 
 fun map_at(map: Map, key: string): any {
     if map.count == 0 {
-        panic("map_at: key ".concat(key).concat(" not found"));
+        panic("map_at[empty]: key ".concat(key).concat(" not found"));
     }
 
     let entry = map_find_entry(map, key);

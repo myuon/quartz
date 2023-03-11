@@ -68,7 +68,7 @@ module Parser {
         type_: Type,
     } or error {
         self.expect("struct").try;
-        let name = self.ident().try;
+        let ident = self.ident().try;
         self.expect("lbrace").try;
 
         let fields = make[vec[struct {
@@ -96,7 +96,7 @@ module Parser {
         self.expect("rbrace").try;
 
         return struct {
-            name: name,
+            name: ident,
             type_: Type {
                 t_struct: TypeStruct {
                     fields: fields,

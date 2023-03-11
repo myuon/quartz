@@ -64,6 +64,7 @@ fun run(input: string): string or error {
     // println("typecheck");
 
     let irgen = IrCodeGenerator::new();
+    irgen.globals = typechecker.globals;
     let term = irgen.module_(result);
     // println("irgen");
 

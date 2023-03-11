@@ -231,8 +231,8 @@ module Typechecker {
 
             for i in 0..t.t_struct!.fields.length {
                 let field = t.t_struct!.fields.at(i);
-                let expr = expr.t_record!.fields.at(i);
-                let expr_type = self.expression(expr.value).try;
+                let expr_field = expr.t_record!.fields.at(i);
+                let expr_type = self.expression(expr_field.value).try;
 
                 unify(expr_type, field.type_).try;
             }

@@ -2,12 +2,14 @@ import quartz::ast;
 import quartz::ir;
 
 type IrCodeGenerator = {
+    globals: map[string, Type],
     locals: vec[string],
 };
 
 module IrCodeGenerator {
     fun new(): IrCodeGenerator {
         return IrCodeGenerator {
+            globals: make[map[string, Type]](),
             locals: make[vec[string]](),
         };
     }
@@ -292,7 +294,98 @@ module IrCodeGenerator {
 
             return term;
         }
+        if expr.t_record != nil {
+            let t = self.globals.at(expr.t_record!.name).t_struct!;
+
+            let record = make[vec[struct {
+                type_: IrType,
+                term: IrTerm,
+            }]]();
+            for i in 0..t.fields.length {
+                let field = t.fields.at(i);
+                let value = expr.t_record!.fields.at(i).value;
+
+                record.push(struct {
+                    type_: IrType::new(field.type_),
+                    term: self.expression(value),
+                });
+            }
+        }
 
         panic("expression exhausted: ");
+    }
+
+    fun generate_array_enumerated(self, record: vec[struct {
+        type_: IrType,
+        term: IrTerm,
+    }]): IrTerm {
+        let terms = make[vec[struct {
+            offset: i32,
+            type_: IrType,
+            term: IrTerm,
+        }]]();
+        let offset = 0;
+        for i in 0..record.length {
+            let field = record.at(i);
+
+            terms.push(struct {
+                offset: offset,
+                type_: field.type_,
+                term: field.term,
+            });
+            offset = offset + field.type_.sizeof();
+        }
+
+        return self.generate_array(terms);
+    }
+
+    fun generate_array(self, terms: vec[struct {
+        offset: i32,
+        type_: IrType,
+        term: IrTerm,
+    }]): IrTerm {
+        let arr = make[vec[IrTerm]]();
+        arr.push(IrTerm {
+            t_let: IrLet {
+                name: "arr",
+                type_: IrType {
+                    t_address: true?,
+                    ..nil,
+                },
+                value: IrTerm {
+                    t_call: IrCall {
+                        callee: IrTerm {
+                            t_ident: "alloc"?,
+                            ..nil,
+                        },
+                        args: make[vec[IrTerm]](),
+                    }?,
+                    ..nil,
+                },
+            }?,
+            ..nil,
+        });
+
+        for i in 0..terms.length {
+            let term = terms.at(i);
+            let element = IrTerm {
+                t_store: struct {
+                    type_: term.type_,
+                    address: IrTerm::ident("arr"),
+                    offset: IrTerm::i32(term.offset),
+                    value: term.term,
+                }?,
+                ..nil,
+            };
+
+            arr.push(element);
+        }
+
+        return IrTerm {
+            t_seq: struct {
+                terms: arr,
+            }?,
+            ..nil,
+        };
     }
 }

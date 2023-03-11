@@ -33,6 +33,12 @@ type IrTerm = {
     t_seq: struct {
         terms: vec[IrTerm],
     }?,
+    t_store: struct {
+        type_: IrType,
+        address: IrTerm,
+        offset: IrTerm,
+        value: IrTerm,
+    }?,
 };
 
 module IrTerm {
@@ -99,6 +105,20 @@ module IrTerm {
             return result;
         }
     }
+
+    fun ident(name: string): IrTerm {
+        return IrTerm{
+            t_ident: name?,
+            ..nil,
+        };
+    }
+
+    fun i32(value: i32): IrTerm {
+        return IrTerm{
+            t_i32: value.to_string()?,
+            ..nil,
+        };
+    }
 }
 
 type IrFunc = {
@@ -130,6 +150,7 @@ type IrReturn = {
 type IrType = {
     t_nil: bool?,
     t_i32: bool?,
+    t_address: bool?,
 };
 
 module IrType {
@@ -163,5 +184,19 @@ module IrType {
 
     fun is_nil(self): bool {
         return self.t_nil != nil;
+    }
+
+    fun sizeof(self): i32 {
+        if self.t_nil != nil {
+            return 4;
+        }
+        if self.t_i32 != nil {
+            return 4;
+        }
+        if self.t_address != nil {
+            return 4;
+        }
+
+        panic("unknown type");
     }
 }
