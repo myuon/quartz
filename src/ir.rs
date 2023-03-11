@@ -6,6 +6,7 @@ use crate::{ast::Type, compiler::SourcePosition, util::sexpr_writer::SExprWriter
 pub enum IrTerm {
     Nil,
     I32(i32),
+    U32(u32),
     I64(i64),
     Ident(String),
     String(usize),
@@ -101,6 +102,10 @@ impl IrTerm {
         IrTerm::I32(value)
     }
 
+    pub fn u32(value: u32) -> Self {
+        IrTerm::U32(value)
+    }
+
     pub fn i64(value: i64) -> Self {
         IrTerm::I64(value)
     }
@@ -111,6 +116,9 @@ impl IrTerm {
                 writer.write("nil");
             }
             IrTerm::I32(i) => {
+                writer.write(&i.to_string());
+            }
+            IrTerm::U32(i) => {
                 writer.write(&i.to_string());
             }
             IrTerm::I64(i) => {
@@ -323,6 +331,7 @@ impl IrTerm {
         match self {
             IrTerm::Nil => vec![],
             IrTerm::I32(_) => vec![],
+            IrTerm::U32(_) => vec![],
             IrTerm::I64(_) => vec![],
             IrTerm::Ident(_) => vec![],
             IrTerm::String(_) => vec![],
@@ -471,6 +480,7 @@ impl IrType {
             Type::Nil => Ok(IrType::Address),
             Type::Bool => Ok(IrType::I32),
             Type::I32 => Ok(IrType::I32),
+            Type::U32 => Ok(IrType::I32),
             Type::I64 => Ok(IrType::I64),
             Type::Record(_) => Ok(IrType::Address),
             Type::Ident(_) => Ok(IrType::Address), // FIXME: could be other types

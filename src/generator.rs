@@ -6,6 +6,7 @@ use crate::{
     ast::Type,
     ir::{IrTerm, IrType},
     util::{ident::Ident, path::Path, sexpr_writer::SExprWriter},
+    value::Value,
 };
 
 pub struct Generator {
@@ -351,16 +352,24 @@ impl Generator {
         Ok(())
     }
 
+    fn write_value(&mut self, value: Value) {
+        self.writer
+            .write(&format!("{}.const {}", Value::wasm_type(), value.as_i64()));
+    }
+
     fn expr(&mut self, expr: &mut IrTerm) -> Result<()> {
         match expr {
             IrTerm::Nil => {
-                self.writer.write(&format!("i32.const {}", 0));
+                self.write_value(Value::nil());
             }
             IrTerm::I32(i) => {
-                self.writer.write(&format!("i32.const {}", i));
+                self.write_value(Value::i32(*i));
             }
             IrTerm::I64(i) => {
-                self.writer.write(&format!("i64.const {}", i));
+                todo!();
+            }
+            IrTerm::U32(i) => {
+                self.write_value(Value::i32(*i as i32));
             }
             IrTerm::Ident(i) => {
                 if self.globals.contains(&i.clone()) {

@@ -323,6 +323,7 @@ impl IrCodeGenerator {
                 Lit::Nil => Ok(IrTerm::nil()),
                 Lit::Bool(b) => Ok(IrTerm::I32(if *b { 1 } else { 0 })),
                 Lit::I32(i) => Ok(IrTerm::i32(*i)),
+                Lit::U32(i) => Ok(IrTerm::u32(*i)),
                 Lit::I64(i) => Ok(IrTerm::i64(*i)),
                 Lit::String(s) => {
                     let index = self.strings.len();

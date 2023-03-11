@@ -35,6 +35,26 @@ impl Value {
             Value::I32((i >> 32) as i32)
         }
     }
+
+    pub fn wasm_type() -> &'static str {
+        "i64"
+    }
+
+    pub fn sizeof() -> usize {
+        8
+    }
+
+    pub fn nil() -> Value {
+        Value::Pointer(0)
+    }
+
+    pub fn i32(i: i32) -> Value {
+        Value::I32(i)
+    }
+
+    pub fn bool(b: bool) -> Value {
+        Value::Bool(b)
+    }
 }
 
 #[cfg(test)]
