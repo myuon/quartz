@@ -228,7 +228,7 @@ impl Generator {
                     lhs: "quartz_std_strings_count".to_string(),
                     rhs: Box::new(IrTerm::i32(self.strings.len() as i32)),
                 },
-                IrTerm::i32(2),
+                IrTerm::i32(10),
                 IrTerm::Discard {
                     element: Box::new(IrTerm::Instruction("memory.grow".to_string())),
                 },

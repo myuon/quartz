@@ -298,9 +298,6 @@ impl IrCodeGenerator {
     }
 
     fn expr(&mut self, expr: &mut Source<Expr>) -> Result<IrTerm> {
-        let source_start = expr.start.unwrap_or(0);
-        let source_end = expr.end.unwrap_or(0);
-
         match &mut expr.data {
             Expr::Ident {
                 ident,
@@ -756,34 +753,17 @@ impl IrCodeGenerator {
                         source: None,
                     })
                 }
-                Type::Array(elem, size) => Ok(self.expr(&mut Source::transfer(
-                    Expr::Record(
-                        Source::new(Ident("array".to_string()), source_start, source_end),
-                        vec![
-                            (
-                                Ident("data".to_string()),
-                                Source::new(
-                                    Expr::Make(
-                                        Type::Ptr(elem.clone()),
-                                        vec![Source::unknown(Expr::Lit(Lit::I32(*size as i32)))],
-                                    ),
-                                    source_start,
-                                    source_end,
-                                ),
-                            ),
-                            (
-                                Ident("length".to_string()),
-                                Source::new(
-                                    Expr::Lit(Lit::I32(*size as i32)),
-                                    source_start,
-                                    source_end,
-                                ),
-                            ),
-                        ],
-                        None,
-                    ),
-                    expr,
-                ))?),
+                Type::Array(elem, size) => {
+                    let data_ptr = self.expr(&mut Source::unknown(Expr::Make(
+                        Type::Ptr(elem.clone()),
+                        vec![Source::unknown(Expr::Lit(Lit::I32(*size as i32)))],
+                    )))?;
+
+                    Ok(self.generate_array_enumerated(vec![
+                        (IrType::from_type(&Type::Ptr(elem.clone()))?, data_ptr),
+                        (IrType::from_type(&Type::I32)?, IrTerm::i32(*size as i32)),
+                    ])?)
+                }
                 Type::Vec(_) => {
                     let cap = if args.is_empty() {
                         IrTerm::i32(5)

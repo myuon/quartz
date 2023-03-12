@@ -40,13 +40,10 @@ fun println(f: string, ..arg: vec[string]) {
     write_stdout(10 as byte);
 }
 
-fun vec_make(init_capacity: i32): vec[i32] {
-    let capacity = init_capacity;
-    let length = 0;
-    let data = make[ptr[i32]](capacity);
+fun vec_make(capacity: i32): vec[i32] {
     return vec {
-        data: data,
-        length: length,
+        data: make[ptr[i32]](capacity),
+        length: 0,
         capacity: capacity,
     };
 }
@@ -401,7 +398,7 @@ fun stdin(): string {
 
 // used in compiler
 // avoid using address 0, this is for null pointers
-let alloc_ptr = 4;
+let alloc_ptr = 8;
 
 fun alloc(size: i32): ptr[any] {
     if size % 4 != 0 {
@@ -414,11 +411,6 @@ fun alloc(size: i32): ptr[any] {
 
     let current = alloc_ptr;
     alloc_ptr = alloc_ptr + size;
-
-    if alloc_ptr > 64 * 1024 * 3 {
-        debug_i32(64 * 1024 * 3);
-        abort();
-    }
 
     return current as ptr[any];
 }
