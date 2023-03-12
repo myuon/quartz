@@ -76,25 +76,29 @@ impl Generator {
         self.writer.start();
         self.writer.write("module");
 
-        self.writer.start();
-        self.writer
-            .write(r#"import "env" "write_stdout" (func $write_stdout (param i32) (result i32))"#);
-        self.writer.end();
+        self.decl(&mut IrTerm::Declare {
+            name: "write_stdout".to_string(),
+            params: vec![IrType::I32],
+            result: IrType::I32,
+        })?;
 
-        self.writer.start();
-        self.writer
-            .write(r#"import "env" "debug_i32" (func $debug_i32 (param i32) (result i32))"#);
-        self.writer.end();
+        self.decl(&mut IrTerm::Declare {
+            name: "debug_i32".to_string(),
+            params: vec![IrType::I32],
+            result: IrType::I32,
+        })?;
 
-        self.writer.start();
-        self.writer
-            .write(r#"import "env" "read_stdin" (func $read_stdin (result i32))"#);
-        self.writer.end();
+        self.decl(&mut IrTerm::Declare {
+            name: "read_stdin".to_string(),
+            params: vec![],
+            result: IrType::I32,
+        })?;
 
-        self.writer.start();
-        self.writer
-            .write(r#"import "env" "abort" (func $abort (result i32))"#);
-        self.writer.end();
+        self.decl(&mut IrTerm::Declare {
+            name: "abort".to_string(),
+            params: vec![],
+            result: IrType::I32,
+        })?;
 
         self.writer.start();
         self.writer.write(r#"memory 1"#);
@@ -269,6 +273,29 @@ impl Generator {
                 for element in elements {
                     self.decl(element)?;
                 }
+
+                Ok(())
+            }
+            IrTerm::Declare {
+                name,
+                params,
+                result,
+            } => {
+                self.writer.start();
+                self.writer.write("import");
+                self.writer.write("\"env\"");
+                self.writer.write(&format!("\"{}\"", name.as_str()));
+
+                self.writer.start();
+                self.writer.write("func");
+                self.writer.write(&format!("${}", name.as_str()));
+                for type_ in params {
+                    self.writer.write(&format!("(param {})", type_.to_string()));
+                }
+                self.writer
+                    .write(&format!("(result {})", result.to_string()));
+                self.writer.end();
+                self.writer.end();
 
                 Ok(())
             }

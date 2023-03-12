@@ -88,6 +88,11 @@ pub enum IrTerm {
         offset: Box<IrTerm>,
     },
     Instruction(String),
+    Declare {
+        name: String,
+        params: Vec<IrType>,
+        result: IrType,
+    },
 }
 
 impl IrTerm {
@@ -330,6 +335,20 @@ impl IrTerm {
                 writer.write(i);
                 writer.end();
             }
+            IrTerm::Declare {
+                name,
+                params,
+                result,
+            } => {
+                writer.start();
+                writer.write("declare");
+                writer.write(name);
+                for param in params {
+                    param.to_term().to_string_writer(writer);
+                }
+                result.to_term().to_string_writer(writer);
+                writer.end();
+            }
         }
     }
 
@@ -455,6 +474,11 @@ impl IrTerm {
                 result
             }
             IrTerm::Instruction(i) => vec![],
+            IrTerm::Declare {
+                name,
+                params,
+                result,
+            } => vec![],
         }
     }
 
