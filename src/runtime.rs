@@ -762,6 +762,25 @@ fun main(): i32 {
                     Value::I32(10),
                 ],
             ),
+            (
+                r#"
+fun sum(..t: vec[i32]): i32 {
+    let r = 0;
+    for i in 0..t.length {
+        r = r + t.at(i);
+    }
+
+    return r;
+}
+
+fun main(): i32 {
+    return sum(10, 4, 2, 30, 100);
+}
+"#,
+                vec![
+                    Value::I32(146),
+                ],
+            ),
         ];
 
         for (input, expected) in cases {
