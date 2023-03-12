@@ -4,6 +4,7 @@ use anyhow::{bail, Ok, Result};
 
 use crate::{
     ast::Type,
+    compiler::MODE_TYPE_REP,
     ir::{IrTerm, IrType},
     util::{ident::Ident, path::Path, sexpr_writer::SExprWriter},
     value::Value,
@@ -109,24 +110,6 @@ impl Generator {
         }
 
         // builtin functions here
-        self.decl(&mut IrTerm::Func {
-            name: "mem_copy".to_string(),
-            params: vec![
-                ("source".to_string(), IrType::I32),
-                ("target".to_string(), IrType::I32),
-                ("length".to_string(), IrType::I32),
-            ],
-            result: Some(IrType::I32),
-            body: vec![
-                IrTerm::ident("target"),
-                IrTerm::ident("source"),
-                IrTerm::ident("length"),
-                IrTerm::Instruction("memory.copy".to_string()),
-                IrTerm::Return {
-                    value: Box::new(IrTerm::nil()),
-                },
-            ],
-        })?;
         self.decl(&mut IrTerm::Func {
             name: "mem_free".to_string(),
             params: vec![("address".to_string(), IrType::I32)],
@@ -281,6 +264,7 @@ impl Generator {
                     self.writer.write("unreachable");
                 }
                 IrType::Address => {
+                    self.writer.new_statement();
                     self.expr(&mut IrTerm::nil())?;
 
                     self.writer.new_statement();
@@ -464,7 +448,7 @@ impl Generator {
                             IrTerm::I32(i as i32),
                         )),
                         value: Box::new(v.clone()),
-                        raw_offset: None,
+                        raw_offset: Some(if MODE_TYPE_REP { 4 } else { 0 }),
                     })?;
                 }
             }

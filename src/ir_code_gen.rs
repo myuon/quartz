@@ -5,12 +5,10 @@ use rand::{distributions::Alphanumeric, prelude::Distribution};
 
 use crate::{
     ast::{Decl, Expr, Func, Lit, Module, Pattern, Statement, Type, UnwrapMode, VariadicCall},
-    compiler::{ErrorInSource, SourcePosition},
+    compiler::{ErrorInSource, SourcePosition, MODE_TYPE_REP},
     ir::{IrTerm, IrType},
     util::{ident::Ident, path::Path, source::Source},
 };
-
-const MODE_TYPE_REP: bool = false;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TypeRep {
@@ -91,6 +89,32 @@ impl IrCodeGenerator {
     pub fn run(&mut self, module: &mut Module) -> Result<IrTerm> {
         let mut decls = self.module(module)?;
         decls.push(self.generate_prepare_strings()?);
+        decls.push(IrTerm::Func {
+            name: "mem_copy".to_string(),
+            params: vec![
+                ("source".to_string(), IrType::I32),
+                ("target".to_string(), IrType::I32),
+                ("length".to_string(), IrType::I32),
+            ],
+            result: Some(IrType::I32),
+            body: vec![
+                IrTerm::ident("target"),
+                IrTerm::ident("source"),
+                if MODE_TYPE_REP {
+                    IrTerm::Call {
+                        callee: Box::new(IrTerm::ident("add".to_string())),
+                        args: vec![IrTerm::ident("length"), IrTerm::i32(1)],
+                        source: None,
+                    }
+                } else {
+                    IrTerm::ident("length")
+                },
+                IrTerm::Instruction("memory.copy".to_string()),
+                IrTerm::Return {
+                    value: Box::new(IrTerm::nil()),
+                },
+            ],
+        });
 
         Ok(IrTerm::Module { elements: decls })
     }
@@ -1171,7 +1195,7 @@ impl IrCodeGenerator {
                     self.generate_mult_sizeof(&Type::I32, IrTerm::i32(offset as i32))?,
                 ),
                 value: Box::new(element),
-                raw_offset: Some(if MODE_TYPE_REP { 1 } else { 0 }),
+                raw_offset: Some(if MODE_TYPE_REP { 4 } else { 0 }),
             });
         }
 
@@ -1194,7 +1218,7 @@ impl IrCodeGenerator {
             type_: IrType::from_type(elem_type).context("method:array.at")?,
             address: Box::new(array),
             offset: Box::new(self.generate_mult_sizeof(&Type::I32, index)?),
-            raw_offset: Some(if MODE_TYPE_REP { 1 } else { 0 }),
+            raw_offset: Some(if MODE_TYPE_REP { 4 } else { 0 }),
         })
     }
 
