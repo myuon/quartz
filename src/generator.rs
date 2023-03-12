@@ -183,26 +183,16 @@ impl Generator {
                 value: string.bytes().map(|b| IrTerm::i32(b as i32)).collect(),
             })?;
 
-            self.writer.new_statement();
-            self.writer.write(format!("global.get ${}", var_strings));
-
-            self.writer.new_statement();
-            self.writer.write(format!("i32.const {}", i));
-
-            self.writer.new_statement();
-            self.writer.write("i32.const 4");
-
-            self.writer.new_statement();
-            self.writer.write("i32.mul");
-
-            self.writer.new_statement();
-            self.writer.write("i32.add");
-
-            self.writer.new_statement();
-            self.writer.write("local.get $p");
-
-            self.writer.new_statement();
-            self.writer.write("i32.store");
+            self.expr(&mut IrTerm::Store {
+                type_: IrType::I32,
+                address: Box::new(IrTerm::ident(var_strings)),
+                offset: Box::new(IrTerm::Call {
+                    callee: Box::new(IrTerm::ident("mult")),
+                    args: vec![IrTerm::i32(i as i32), IrTerm::SizeOf { type_: IrType::I32 }],
+                    source: None,
+                }),
+                value: Box::new(IrTerm::ident("p")),
+            })?;
         }
 
         self.writer.end();
