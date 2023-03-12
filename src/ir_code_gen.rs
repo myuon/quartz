@@ -10,6 +10,8 @@ use crate::{
     util::{ident::Ident, path::Path, source::Source},
 };
 
+const MODE_TYPE_REP: bool = false;
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TypeRep {
     pub name: String,
@@ -406,16 +408,19 @@ impl IrCodeGenerator {
                 address: Box::new(lhs),
                 offset: Box::new(IrTerm::i32(0)),
                 value: Box::new(rhs),
+                raw_offset: None,
             }),
             IrTerm::Load {
                 type_,
                 address,
                 offset,
+                raw_offset,
             } => Ok(IrTerm::Store {
                 type_,
                 address,
                 offset,
                 value: Box::new(rhs),
+                raw_offset,
             }),
             _ => bail!("invalid lhs for assignment: {}", lhs.to_string()),
         }
@@ -852,18 +857,8 @@ impl IrCodeGenerator {
                     assert_eq!(args.len(), 1);
                     let len = self.expr(&mut args[0])?;
 
-                    Ok(IrTerm::Call {
-                        callee: Box::new(self.expr(&mut Source::transfer(
-                            Expr::path(Path::new(vec![
-                                Ident("quartz".to_string()),
-                                Ident("std".to_string()),
-                                Ident("alloc".to_string()),
-                            ])),
-                            &args[0],
-                        ))?),
-                        args: vec![self.generate_mult_sizeof(p, len)?],
-                        source: None,
-                    })
+                    Ok(self
+                        .allocate_heap_object(TypeRep::from_name(format!("ptr[{:?}]", p)), len)?)
                 }
                 Type::Array(elem, size) => {
                     let data_ptr = self.expr(&mut Source::unknown(Expr::Make(
@@ -1141,17 +1136,9 @@ impl IrCodeGenerator {
                 .map(|(i, (t, _))| (format!("{}", i), t.clone()))
                 .collect::<Vec<_>>(),
         );
-        let rep_id = self.type_reps.get_or_insert(rep);
 
         let mut terms = vec![];
-        for (index, (type_, elem)) in vec![
-            // vec![(IrType::Address, IrTerm::i32(rep_id as i32))],
-            elements,
-        ]
-        .concat()
-        .into_iter()
-        .enumerate()
-        {
+        for (index, (type_, elem)) in elements.into_iter().enumerate() {
             terms.push((index, type_.clone(), elem));
         }
 
@@ -1174,21 +1161,7 @@ impl IrCodeGenerator {
         let mut array = vec![IrTerm::Let {
             name: var_name.clone(),
             type_: IrType::Address,
-            value: Box::new(IrTerm::Call {
-                callee: Box::new(IrTerm::ident(
-                    Path::new(vec![
-                        Ident("quartz".to_string()),
-                        Ident("std".to_string()),
-                        Ident("alloc".to_string()),
-                    ])
-                    .as_joined_str("_"),
-                )),
-                args: vec![self.generate_mult_sizeof(
-                    &Type::Ident(Ident("string".to_string())),
-                    IrTerm::i32(terms.len() as i32),
-                )?],
-                source: None,
-            }),
+            value: Box::new(self.allocate_heap_object(rep, IrTerm::i32(terms.len() as i32))?),
         }];
         for (offset, type_, element) in terms {
             array.push(IrTerm::Store {
@@ -1198,6 +1171,7 @@ impl IrCodeGenerator {
                     self.generate_mult_sizeof(&Type::I32, IrTerm::i32(offset as i32))?,
                 ),
                 value: Box::new(element),
+                raw_offset: Some(if MODE_TYPE_REP { 1 } else { 0 }),
             });
         }
 
@@ -1220,6 +1194,58 @@ impl IrCodeGenerator {
             type_: IrType::from_type(elem_type).context("method:array.at")?,
             address: Box::new(array),
             offset: Box::new(self.generate_mult_sizeof(&Type::I32, index)?),
+            raw_offset: Some(if MODE_TYPE_REP { 1 } else { 0 }),
         })
+    }
+
+    fn allocate_heap_object(&mut self, rep: TypeRep, size: IrTerm) -> Result<IrTerm> {
+        let rep_id = self.type_reps.get_or_insert(rep);
+
+        let var = format!(
+            "object_{}",
+            Alphanumeric
+                .sample_iter(&mut rand::thread_rng())
+                .take(5)
+                .map(char::from)
+                .collect::<String>()
+        );
+
+        let mut object = vec![IrTerm::Let {
+            name: var.clone(),
+            type_: IrType::Address,
+            value: Box::new(IrTerm::Call {
+                callee: Box::new(IrTerm::ident(
+                    Path::new(vec![
+                        Ident("quartz".to_string()),
+                        Ident("std".to_string()),
+                        Ident("alloc".to_string()),
+                    ])
+                    .as_joined_str("_"),
+                )),
+                args: vec![self.generate_mult_sizeof(
+                    &Type::Ident(Ident("string".to_string())),
+                    IrTerm::Call {
+                        callee: Box::new(IrTerm::ident("add".to_string())),
+                        args: vec![size, IrTerm::i32(if MODE_TYPE_REP { 1 } else { 0 })],
+                        source: None,
+                    },
+                )?],
+                source: None,
+            }),
+        }];
+        // object header
+        if MODE_TYPE_REP {
+            object.push(IrTerm::Store {
+                type_: IrType::Address,
+                address: Box::new(IrTerm::ident(var.clone())),
+                offset: Box::new(IrTerm::i32(0)),
+                value: Box::new(IrTerm::i32(rep_id as i32)),
+                raw_offset: None,
+            });
+        }
+
+        object.push(IrTerm::ident(var.clone()));
+
+        Ok(IrTerm::Seq { elements: object })
     }
 }

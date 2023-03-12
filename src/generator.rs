@@ -464,6 +464,7 @@ impl Generator {
                             IrTerm::I32(i as i32),
                         )),
                         value: Box::new(v.clone()),
+                        raw_offset: None,
                     })?;
                 }
             }
@@ -494,6 +495,7 @@ impl Generator {
                 type_,
                 address,
                 offset,
+                raw_offset,
             } => {
                 self.writer.new_statement();
                 self.expr(address)?;
@@ -506,12 +508,16 @@ impl Generator {
 
                 self.writer.new_statement();
                 self.writer.write(&format!("{}.load", type_.to_string()));
+                if let Some(raw_offset) = raw_offset {
+                    self.writer.write(&format!("offset={}", raw_offset));
+                }
             }
             IrTerm::Store {
                 type_,
                 address,
                 offset,
                 value,
+                raw_offset,
             } => {
                 self.writer.new_statement();
                 self.expr(address)?;
@@ -527,6 +533,9 @@ impl Generator {
 
                 self.writer.new_statement();
                 self.writer.write(&format!("{}.store", type_.to_string()));
+                if let Some(raw_offset) = raw_offset {
+                    self.writer.write(&format!("offset={}", raw_offset));
+                }
             }
             IrTerm::Instruction(i) => {
                 self.writer.new_statement();
