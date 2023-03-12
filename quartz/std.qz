@@ -273,6 +273,10 @@ fun panic(s: string, ..arg: vec[string]) {
 let strings_ptr = 0;
 let strings_count = 0;
 
+fun load_string(index: i32): string {
+    return (strings_ptr as ptr[string]).at(index);
+}
+
 fun dump_strings() {
     println("[dump_strings]");
 

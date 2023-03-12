@@ -72,7 +72,7 @@ impl IrCodeGenerator {
         Ok(elements)
     }
 
-    pub fn generate_prepare_strings(&mut self) -> Result<IrTerm> {
+    fn generate_prepare_strings(&mut self) -> Result<IrTerm> {
         let var_strings = "quartz_std_strings_ptr";
         let mut body = vec![];
         // quartz_std_strings_ptr = make[ptr[string]](${strings.len()});
@@ -551,12 +551,7 @@ impl IrCodeGenerator {
                             (Type::Ptr(p), "at") => {
                                 assert_eq!(args.len(), 1);
 
-                                let offset = self.expr(&mut args[0])?;
-                                Ok(IrTerm::Load {
-                                    type_: IrType::from_type(p).context("method:ptr.at")?,
-                                    address: Box::new(self.expr(expr)?),
-                                    offset: Box::new(self.generate_mult_sizeof(p, offset)?),
-                                })
+                                Ok(self.generate_array_at(&p, expr, &mut args[0])?)
                             }
                             (Type::Ptr(p), "offset") => {
                                 assert_eq!(args.len(), 1);

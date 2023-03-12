@@ -136,25 +136,6 @@ impl Generator {
             }],
         })?;
 
-        // prepare strings
-        let var_strings = "quartz_std_strings_ptr";
-
-        self.decl(&mut IrTerm::Func {
-            name: "load_string".to_string(),
-            params: vec![("index".to_string(), IrType::I32)],
-            result: Some(IrType::I32),
-            body: vec![IrTerm::Return {
-                value: Box::new(IrTerm::Load {
-                    type_: IrType::I32,
-                    address: Box::new(IrTerm::ident(var_strings)),
-                    offset: Box::new(IrTerm::wrap_mult_sizeof(
-                        IrType::Address,
-                        IrTerm::ident("index"),
-                    )),
-                }),
-            }],
-        })?;
-
         let (_, result) = self.main_signature.clone().unwrap();
 
         self.decl(&mut IrTerm::Func {
@@ -365,7 +346,7 @@ impl Generator {
                 self.writer.write(&format!("i32.const {}", p));
 
                 self.writer.new_statement();
-                self.writer.write("call $load_string");
+                self.writer.write("call $quartz_std_load_string");
             }
             IrTerm::Call { callee, args, .. } => self.call(callee, args)?,
             IrTerm::Seq { elements } => {
