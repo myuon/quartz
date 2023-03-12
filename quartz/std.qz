@@ -52,8 +52,9 @@ fun vec_push(v: vec[i32], e: i32) {
     if (v.length + 1) == v.capacity {
         let new_capacity = v.capacity * 2;
         let new_data = make[ptr[i32]](new_capacity);
-        mem_copy(v.data, new_data, v.length * sizeof[i32]());
-        mem_free(v.data);
+        for i in 0..v.length {
+            new_data.at(i) = v.data.at(i);
+        }
         v.data = new_data;
         v.capacity = new_capacity;
     }
