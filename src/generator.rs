@@ -314,15 +314,14 @@ impl Generator {
             IrType::Nil => {}
             IrType::I32 => {
                 self.writer.new_statement();
-                self.writer.write("i32.const 0");
+                self.writer.write("unreachable");
             }
             IrType::I64 => {
                 self.writer.new_statement();
-                self.writer.write("i64.const 0");
+                self.writer.write("unreachable");
             }
             IrType::Address => {
-                self.writer.new_statement();
-                self.writer.write("i32.const 0");
+                self.expr(&mut IrTerm::nil())?;
             }
         }
 
