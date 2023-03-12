@@ -423,23 +423,7 @@ impl Generator {
             IrTerm::If {
                 cond, then, else_, ..
             } => {
-                self.writer.new_statement();
-                self.expr(cond)?;
-
-                self.writer.start();
-                self.writer.write("if");
-
-                self.writer.start();
-                self.writer.write("then");
-                self.expr(then)?;
-                self.writer.end();
-
-                self.writer.start();
-                self.writer.write("else");
-                self.expr(else_)?;
-                self.writer.end();
-
-                self.writer.end();
+                self.generate_if(None, cond, then, else_)?;
             }
             IrTerm::While {
                 cond,
@@ -530,44 +514,10 @@ impl Generator {
                 self.writer.write("drop");
             }
             IrTerm::And { lhs, rhs } => {
-                self.writer.new_statement();
-                self.expr(lhs)?;
-
-                self.writer.start();
-                self.writer.write("if (result i32)");
-
-                self.writer.start();
-                self.writer.write("then");
-                self.expr(rhs)?;
-                self.writer.end();
-
-                self.writer.start();
-                self.writer.write("else");
-                self.writer.new_statement();
-                self.writer.write("i32.const 0");
-                self.writer.end();
-
-                self.writer.end();
+                self.generate_if(Some("i32"), lhs.as_mut(), rhs.as_mut(), &mut IrTerm::i32(0))?;
             }
             IrTerm::Or { lhs, rhs } => {
-                self.writer.new_statement();
-                self.expr(lhs)?;
-
-                self.writer.start();
-                self.writer.write("if (result i32)");
-
-                self.writer.start();
-                self.writer.write("then");
-                self.writer.new_statement();
-                self.writer.write("i32.const 1");
-                self.writer.end();
-
-                self.writer.start();
-                self.writer.write("else");
-                self.expr(rhs)?;
-                self.writer.end();
-
-                self.writer.end();
+                self.generate_if(Some("i32"), lhs.as_mut(), &mut IrTerm::i32(1), rhs.as_mut())?;
             }
             IrTerm::Load {
                 type_,
@@ -706,6 +656,38 @@ impl Generator {
             },
             _ => todo!(),
         }
+
+        Ok(())
+    }
+
+    fn generate_if(
+        &mut self,
+        type_: Option<&str>,
+        cond: &mut IrTerm,
+        then: &mut IrTerm,
+        else_: &mut IrTerm,
+    ) -> Result<()> {
+        self.writer.new_statement();
+        self.expr(cond)?;
+
+        self.writer.start();
+        self.writer.write(if let Some(t) = type_ {
+            format!("if (result {})", t)
+        } else {
+            "if".to_string()
+        });
+
+        self.writer.start();
+        self.writer.write("then");
+        self.expr(then)?;
+        self.writer.end();
+
+        self.writer.start();
+        self.writer.write("else");
+        self.expr(else_)?;
+        self.writer.end();
+
+        self.writer.end();
 
         Ok(())
     }
