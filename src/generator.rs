@@ -146,19 +146,14 @@ impl Generator {
         self.writer
             .write(format!("(local $p {})", IrType::I32.to_string()));
 
-        self.expr(&mut IrTerm::i32(self.strings.len() as i32))?;
-
-        self.writer.new_statement();
-        self.writer.write(format!(
-            "call ${}",
-            Path::new(
-                vec!["quartz", "std", "alloc"]
-                    .into_iter()
-                    .map(|i| Ident(i.to_string()))
-                    .collect()
-            )
-            .as_joined_str("_")
-        ));
+        self.expr(&mut IrTerm::Call {
+            callee: Box::new(IrTerm::ident("quartz_std_alloc".to_string())),
+            args: vec![IrTerm::wrap_mult_sizeof(
+                IrType::Address,
+                IrTerm::i32(self.strings.len() as i32),
+            )],
+            source: None,
+        })?;
 
         self.writer.new_statement();
         self.writer.write(format!("global.set ${}", var_strings));

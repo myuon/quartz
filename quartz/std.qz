@@ -176,7 +176,7 @@ module i32 {
 module string {
     fun concat(self, s: string): string {
         let new_length = self.length + s.length;
-        let new_data = alloc(new_length) as ptr[byte];
+        let new_data = make[ptr[byte]](new_length);
 
         for i in 0..self.length {
             new_data.at(i) = self.data.at(i);
@@ -404,6 +404,10 @@ fun stdin(): string {
 let alloc_ptr = 4;
 
 fun alloc(size: i32): ptr[any] {
+    if size % 4 != 0 {
+        debug_i32(size);
+        abort();
+    }
     if size == 0 {
         return nil as ptr[any];
     }
@@ -411,11 +415,12 @@ fun alloc(size: i32): ptr[any] {
     let current = alloc_ptr;
     alloc_ptr = alloc_ptr + size;
 
-    if alloc_ptr * 4 > 64 * 1024 * 3 {
-        panic("alloc: out of memory");
+    if alloc_ptr > 64 * 1024 * 3 {
+        debug_i32(64 * 1024 * 3);
+        abort();
     }
 
-    return (current * 4) as ptr[any];
+    return current as ptr[any];
 }
 
 type error = {

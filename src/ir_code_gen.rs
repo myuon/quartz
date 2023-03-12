@@ -741,6 +741,7 @@ impl IrCodeGenerator {
             Expr::Make(type_, args) => match type_ {
                 Type::Ptr(p) => {
                     assert_eq!(args.len(), 1);
+                    let len = self.expr(&mut args[0])?;
 
                     Ok(IrTerm::Call {
                         callee: Box::new(self.expr(&mut Source::transfer(
@@ -751,43 +752,20 @@ impl IrCodeGenerator {
                             ])),
                             &args[0],
                         ))?),
-                        args: vec![IrTerm::Call {
-                            callee: Box::new(IrTerm::ident("mult".to_string())),
-                            args: vec![
-                                IrTerm::SizeOf {
-                                    type_: IrType::from_type(p)?,
-                                },
-                                self.expr(&mut args[0])?,
-                            ],
-                            source: None,
-                        }],
+                        args: vec![self.generate_mult_sizeof(p, len)?],
                         source: None,
                     })
                 }
-                Type::Array(_elem, size) => Ok(self.expr(&mut Source::transfer(
+                Type::Array(elem, size) => Ok(self.expr(&mut Source::transfer(
                     Expr::Record(
                         Source::new(Ident("array".to_string()), source_start, source_end),
                         vec![
                             (
                                 Ident("data".to_string()),
                                 Source::new(
-                                    Expr::Call(
-                                        Box::new(Source::new(
-                                            Expr::path(Path::new(vec![
-                                                Ident("quartz".to_string()),
-                                                Ident("std".to_string()),
-                                                Ident("alloc".to_string()),
-                                            ])),
-                                            source_start,
-                                            source_end,
-                                        )),
-                                        vec![Source::new(
-                                            Expr::Lit(Lit::I32(*size as i32)),
-                                            source_start,
-                                            source_end,
-                                        )],
-                                        None,
-                                        None,
+                                    Expr::Make(
+                                        Type::Ptr(elem.clone()),
+                                        vec![Source::unknown(Expr::Lit(Lit::I32(*size as i32)))],
                                     ),
                                     source_start,
                                     source_end,
@@ -1085,7 +1063,10 @@ impl IrCodeGenerator {
                     ])
                     .as_joined_str("_"),
                 )),
-                args: vec![IrTerm::i32(elements.len() as i32)],
+                args: vec![self.generate_mult_sizeof(
+                    &Type::Ident(Ident("string".to_string())),
+                    IrTerm::i32(elements.len() as i32),
+                )?],
                 source: None,
             }),
         }];

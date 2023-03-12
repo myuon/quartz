@@ -208,9 +208,9 @@ fun main(): i32 {
             (
                 r#"
 fun main(): i32 {
-    let a = alloc(10);
-    let b = alloc(5);
-    let c = alloc(5);
+    let a = alloc(10 * sizeof[i32]());
+    let b = alloc(5 * sizeof[i32]());
+    let c = alloc(5 * sizeof[i32]());
 
     return 0;
 }
@@ -409,7 +409,7 @@ fun int_to_string(n: i32): string {
         digit = digit + 1;
     }
 
-    let str = alloc(digit) as ptr[byte];
+    let str = make[ptr[byte]](digit);
     tmp = n;
     for i in 0..digit {
         let d = tmp % 10;
