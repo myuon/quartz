@@ -162,15 +162,17 @@ impl Generator {
             self.writer.new_statement();
             self.writer.write(format!(";; {:?}", string));
 
-            self.expr(&mut IrTerm::Call {
-                callee: Box::new(IrTerm::ident("quartz_std_new_empty_string")),
-                args: vec![IrTerm::i32(string.len() as i32)],
-                source: None,
+            // let p = new_empty_string(${string.len()})
+            self.expr(&mut IrTerm::Assign {
+                lhs: "p".to_string(),
+                rhs: Box::new(IrTerm::Call {
+                    callee: Box::new(IrTerm::ident("quartz_std_new_empty_string")),
+                    args: vec![IrTerm::i32(string.len() as i32)],
+                    source: None,
+                }),
             })?;
 
-            self.writer.new_statement();
-            self.writer.write("local.set $p");
-
+            // write_memory(*p, ${string.bytes()})
             self.expr(&mut IrTerm::WriteMemory {
                 type_: IrType::I32,
                 address: Box::new(IrTerm::Load {
@@ -181,6 +183,7 @@ impl Generator {
                 value: string.bytes().map(|b| IrTerm::i32(b as i32)).collect(),
             })?;
 
+            // strings[i] = p
             self.expr(&mut IrTerm::Store {
                 type_: IrType::I32,
                 address: Box::new(IrTerm::ident(var_strings)),
