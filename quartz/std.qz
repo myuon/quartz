@@ -95,7 +95,7 @@ fun char_to_string(char: byte): string {
 
 fun new_empty_string(length: i32): string {
     return string {
-        data: alloc(length) as ptr[byte],
+        data: make[ptr[byte]](length),
         length: length,
     };
 }
@@ -158,7 +158,7 @@ module i32 {
             digit = digit + 1;
         }
 
-        let str = alloc(digit) as ptr[byte];
+        let str = make[ptr[byte]](digit);
         tmp = self;
         for i in 0..digit {
             let d = tmp % 10;
@@ -222,7 +222,7 @@ module string {
 
     fun repeat(self, n: i32): string {
         let new_length = self.length * n;
-        let new_data = alloc(new_length) as ptr[byte];
+        let new_data = make[ptr[byte]](new_length);
 
         for i in 0..n {
             for j in 0..self.length {
@@ -333,7 +333,7 @@ fun map_insert(map: Map, key: string, value: any) {
             new_capacity = 8;
         }
 
-        let entries = alloc(new_capacity) as ptr[MapEntry];
+        let entries = make[ptr[MapEntry]](new_capacity);
 
         for i in 0..new_capacity {
             if i < map.capacity {
