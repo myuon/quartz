@@ -551,12 +551,7 @@ impl IrCodeGenerator {
                             (Type::Ptr(p), "at") => {
                                 assert_eq!(args.len(), 1);
 
-                                let offset = self.expr(&mut args[0])?;
-                                Ok(IrTerm::Load {
-                                    type_: IrType::from_type(p).context("method:ptr.at")?,
-                                    address: Box::new(self.expr(expr)?),
-                                    offset: Box::new(self.generate_mult_sizeof(p, offset)?),
-                                })
+                                Ok(self.generate_array_at(&p, expr, &mut args[0])?)
                             }
                             (Type::Ptr(p), "offset") => {
                                 assert_eq!(args.len(), 1);
