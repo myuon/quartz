@@ -139,11 +139,10 @@ impl Generator {
         self.writer.write("func $prepare_strings");
 
         self.writer.new_statement();
-        self.writer.write("(local $p i32)");
-
-        self.writer.new_statement();
         self.writer
-            .write(format!("i32.const {}", self.strings.len()));
+            .write(format!("(local $p {})", IrType::I32.to_string()));
+
+        self.expr(&mut IrTerm::i32(self.strings.len() as i32))?;
 
         self.writer.new_statement();
         self.writer.write(format!(
@@ -219,28 +218,33 @@ impl Generator {
 
         let (_, result) = self.main_signature.clone().unwrap();
 
-        self.writer.write(&format!(
-            r#"
-(func $start {}
-    i32.const {}
-    global.set ${}
-
-    (memory.grow (i32.const 2))
-    drop
-
-    call $prepare_strings
-    call ${}
-)
-"#,
-            if result.is_nil() {
-                "".to_string()
-            } else {
-                format!("(result {})", result.to_string())
-            },
-            self.strings.len(),
-            "quartz_std_strings_count",
-            self.entrypoint_symbol
-        ));
+        self.decl(&mut IrTerm::Func {
+            name: "start".to_string(),
+            params: vec![],
+            result: Box::new(result),
+            body: vec![
+                IrTerm::Assign {
+                    lhs: "quartz_std_strings_count".to_string(),
+                    rhs: Box::new(IrTerm::i32(self.strings.len() as i32)),
+                },
+                IrTerm::i32(2),
+                IrTerm::Discard {
+                    element: Box::new(IrTerm::Instruction("memory.grow".to_string())),
+                },
+                IrTerm::Call {
+                    callee: Box::new(IrTerm::ident("prepare_strings")),
+                    args: vec![],
+                    source: None,
+                },
+                IrTerm::Return {
+                    value: Box::new(IrTerm::Call {
+                        callee: Box::new(IrTerm::ident(self.entrypoint_symbol.clone())),
+                        args: vec![],
+                        source: None,
+                    }),
+                },
+            ],
+        })?;
 
         self.writer.start();
         self.writer.write(r#"export "main" (func $start)"#);
