@@ -10,11 +10,80 @@ use crate::{
     util::{ident::Ident, path::Path, source::Source},
 };
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TypeRep {
+    pub name: Ident,
+    pub fields: Vec<(Ident, TypeRep)>,
+}
+
+impl TypeRep {
+    pub fn from_ident(ident: Ident) -> TypeRep {
+        TypeRep {
+            name: ident,
+            fields: vec![],
+        }
+    }
+
+    pub fn from_struct(name: Ident, record_type: Vec<(Ident, Type)>) -> Self {
+        let mut fields = vec![];
+        for (name, type_) in record_type {
+            fields.push((name, TypeRep::from_type(type_)));
+        }
+
+        TypeRep { name, fields }
+    }
+
+    pub fn from_type(type_: Type) -> Self {
+        match type_ {
+            Type::Nil => TypeRep::from_ident(Ident("nil".to_string())),
+            Type::Bool => TypeRep::from_ident(Ident("bool".to_string())),
+            Type::I32 => TypeRep::from_ident(Ident("i32".to_string())),
+            Type::U32 => TypeRep::from_ident(Ident("u32".to_string())),
+            Type::Omit(_) => todo!(),
+            Type::I64 => todo!(),
+            Type::Byte => todo!(),
+            Type::Func(_, _) => todo!(),
+            Type::VariadicFunc(_, _, _) => todo!(),
+            Type::Record(_) => todo!(),
+            Type::Ident(_) => todo!(),
+            Type::Ptr(p) => TypeRep::from_ident(Ident(format!("ptr[{:?}]", p))),
+            Type::Array(_, _) => todo!(),
+            Type::Vec(v) => TypeRep::from_ident(Ident(format!("vec[{:?}]", v))),
+            Type::Range(_) => todo!(),
+            Type::Optional(v) => TypeRep::from_ident(Ident(format!("{:?}?", v))),
+            Type::Map(k, v) => TypeRep::from_ident(Ident(format!("map[{:?}, {:?}]", k, v))),
+            Type::Or(a, b) => TypeRep::from_ident(Ident(format!("[{:?} or {:?}]", a, b))),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct TypeRepDict {
+    pub types: Vec<TypeRep>,
+}
+
+impl TypeRepDict {
+    pub fn new() -> Self {
+        TypeRepDict { types: vec![] }
+    }
+
+    pub fn get_index(&mut self, rep: TypeRep) -> usize {
+        if let Some(index) = self.types.iter().position(|r| r == &rep) {
+            index
+        } else {
+            let index = self.types.len();
+            self.types.push(rep);
+            index
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct IrCodeGenerator {
     types: HashMap<Ident, Type>,
     current_path: Path,
     pub strings: Vec<String>,
+    pub type_reps: TypeRepDict,
 }
 
 impl IrCodeGenerator {
@@ -23,6 +92,7 @@ impl IrCodeGenerator {
             types: HashMap::new(),
             current_path: Path::empty(),
             strings: vec![],
+            type_reps: TypeRepDict::new(),
         }
     }
 
