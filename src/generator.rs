@@ -105,20 +105,32 @@ impl Generator {
         }
 
         // builtin functions here
-        self.writer.write(
-            r#"
-(func $mem_copy (param $source i32) (param $target i32) (param $length i32) (result i32)
-    local.get $target
-    local.get $source
-    local.get $length
-    memory.copy
-    i32.const 0
-)
-(func $mem_free (param $address i32) (result i32)
-    i32.const 0
-)
-"#,
-        );
+        self.decl(&mut IrTerm::Func {
+            name: "mem_copy".to_string(),
+            params: vec![
+                ("source".to_string(), IrType::I32),
+                ("target".to_string(), IrType::I32),
+                ("length".to_string(), IrType::I32),
+            ],
+            result: Box::new(IrType::I32),
+            body: vec![
+                IrTerm::ident("target"),
+                IrTerm::ident("source"),
+                IrTerm::ident("length"),
+                IrTerm::Instruction("memory.copy".to_string()),
+                IrTerm::Return {
+                    value: Box::new(IrTerm::nil()),
+                },
+            ],
+        })?;
+        self.decl(&mut IrTerm::Func {
+            name: "mem_free".to_string(),
+            params: vec![("address".to_string(), IrType::I32)],
+            result: Box::new(IrType::I32),
+            body: vec![IrTerm::Return {
+                value: Box::new(IrTerm::nil()),
+            }],
+        })?;
 
         // prepare strings
         let var_strings = "quartz_std_strings_ptr";
@@ -555,6 +567,10 @@ impl Generator {
 
                 self.writer.new_statement();
                 self.writer.write(&format!("{}.store", type_.to_string()));
+            }
+            IrTerm::Instruction(i) => {
+                self.writer.new_statement();
+                self.writer.write(i);
             }
             _ => todo!("{:?}", expr),
         }

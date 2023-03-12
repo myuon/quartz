@@ -87,6 +87,7 @@ pub enum IrTerm {
         address: Box<IrTerm>,
         offset: Box<IrTerm>,
     },
+    Instruction(String),
 }
 
 impl IrTerm {
@@ -323,6 +324,12 @@ impl IrTerm {
                 value.to_string_writer(writer);
                 writer.end();
             }
+            IrTerm::Instruction(i) => {
+                writer.start();
+                writer.write("instruction");
+                writer.write(i);
+                writer.end();
+            }
         }
     }
 
@@ -447,6 +454,7 @@ impl IrTerm {
                 result.extend(value.find_let());
                 result
             }
+            IrTerm::Instruction(i) => vec![],
         }
     }
 
