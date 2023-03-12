@@ -115,8 +115,8 @@ impl IrCodeGenerator {
             // strings.at(i) = p
             let lhs = self.generate_array_at(
                 &Type::Ident(Ident("string".to_string())),
-                &mut Source::unknown(Expr::ident(Ident(var_strings.to_string()))),
-                &mut Source::unknown(Expr::Lit(Lit::I32(i as i32))),
+                IrTerm::ident(var_strings.to_string()),
+                IrTerm::i32(i as i32),
             )?;
             body.push(self.assign(lhs, IrTerm::ident("p"))?);
         }
@@ -551,7 +551,10 @@ impl IrCodeGenerator {
                             (Type::Ptr(p), "at") => {
                                 assert_eq!(args.len(), 1);
 
-                                Ok(self.generate_array_at(&p, expr, &mut args[0])?)
+                                let ptr = self.expr(expr)?;
+                                let offset = self.expr(&mut args[0])?;
+
+                                Ok(self.generate_array_at(&p, ptr, offset)?)
                             }
                             (Type::Ptr(p), "offset") => {
                                 assert_eq!(args.len(), 1);
@@ -569,18 +572,17 @@ impl IrCodeGenerator {
                             (Type::Array(p, s), "at") => {
                                 assert_eq!(args.len(), 1);
 
-                                Ok(self.generate_array_at(
-                                    p,
-                                    &mut Source::transfer(
-                                        Expr::Project(
-                                            expr.clone(),
-                                            Type::Array(p.clone(), *s),
-                                            Path::ident(Ident("data".to_string())),
-                                        ),
-                                        expr,
+                                let array = self.expr(&mut Source::transfer(
+                                    Expr::Project(
+                                        expr.clone(),
+                                        Type::Array(p.clone(), *s),
+                                        Path::ident(Ident("data".to_string())),
                                     ),
-                                    &mut args[0],
-                                )?)
+                                    expr,
+                                ))?;
+                                let offset = self.expr(&mut args[0])?;
+
+                                Ok(self.generate_array_at(p, array, offset)?)
                             }
                             (Type::Vec(_), "at") => {
                                 assert_eq!(args.len(), 1);
@@ -1142,18 +1144,11 @@ impl IrCodeGenerator {
         Ok(IrTerm::wrap_mult_sizeof(IrType::from_type(type_)?, term))
     }
 
-    fn generate_array_at(
-        &mut self,
-        elem_type: &Type,
-        array: &mut Source<Expr>,
-        at: &mut Source<Expr>,
-    ) -> Result<IrTerm> {
-        let term = self.expr(at)?;
-
+    fn generate_array_at(&mut self, elem_type: &Type, array: IrTerm, at: IrTerm) -> Result<IrTerm> {
         Ok(IrTerm::Load {
             type_: IrType::from_type(elem_type).context("method:array.at")?,
-            address: Box::new(self.expr(array)?),
-            offset: Box::new(self.generate_mult_sizeof(&Type::I32, term)?),
+            address: Box::new(array),
+            offset: Box::new(self.generate_mult_sizeof(&Type::I32, at)?),
         })
     }
 }
