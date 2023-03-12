@@ -40,12 +40,12 @@ fun println(f: string, ..arg: vec[string]) {
     write_stdout(10 as byte);
 }
 
-fun vec_make(init_capacity: i32, size: i32): vec[i32] {
+fun vec_make(init_capacity: i32): vec[i32] {
     let capacity = init_capacity;
     let length = 0;
-    let data = alloc(capacity * size);
+    let data = make[ptr[i32]](capacity);
     return vec {
-        data: data as ptr[i32],
+        data: data,
         length: length,
         capacity: capacity,
     };
@@ -54,7 +54,7 @@ fun vec_make(init_capacity: i32, size: i32): vec[i32] {
 fun vec_push(v: vec[i32], e: i32) {
     if (v.length + 1) == v.capacity {
         let new_capacity = v.capacity * 2;
-        let new_data = alloc(new_capacity) as ptr[i32];
+        let new_data = make[ptr[i32]](new_capacity);
         mem_copy(v.data, new_data, v.length * sizeof[i32]());
         mem_free(v.data);
         v.data = new_data;

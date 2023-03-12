@@ -739,6 +739,31 @@ impl IrCodeGenerator {
                 })
             }
             Expr::Make(type_, args) => match type_ {
+                Type::Ptr(p) => {
+                    assert_eq!(args.len(), 1);
+
+                    Ok(IrTerm::Call {
+                        callee: Box::new(self.expr(&mut Source::transfer(
+                            Expr::path(Path::new(vec![
+                                Ident("quartz".to_string()),
+                                Ident("std".to_string()),
+                                Ident("alloc".to_string()),
+                            ])),
+                            &args[0],
+                        ))?),
+                        args: vec![IrTerm::Call {
+                            callee: Box::new(IrTerm::ident("mult".to_string())),
+                            args: vec![
+                                IrTerm::SizeOf {
+                                    type_: IrType::from_type(p)?,
+                                },
+                                self.expr(&mut args[0])?,
+                            ],
+                            source: None,
+                        }],
+                        source: None,
+                    })
+                }
                 Type::Array(_elem, size) => Ok(self.expr(&mut Source::transfer(
                     Expr::Record(
                         Source::new(Ident("array".to_string()), source_start, source_end),
@@ -781,7 +806,7 @@ impl IrCodeGenerator {
                     ),
                     expr,
                 ))?),
-                Type::Vec(type_) => {
+                Type::Vec(_) => {
                     let cap = if args.is_empty() {
                         IrTerm::i32(5)
                     } else {
@@ -798,12 +823,7 @@ impl IrCodeGenerator {
                             )
                             .as_joined_str("_"),
                         )),
-                        args: vec![
-                            cap,
-                            IrTerm::SizeOf {
-                                type_: IrType::from_type(type_)?,
-                            },
-                        ],
+                        args: vec![cap],
                         source: None,
                     })
                 }
@@ -966,12 +986,7 @@ impl IrCodeGenerator {
                         ])),
                         callee,
                     ))?),
-                    args: vec![
-                        IrTerm::I32(args.len() as i32 - variadic_call.index as i32),
-                        IrTerm::SizeOf {
-                            type_: IrType::from_type(&Type::Ident(Ident("string".to_string())))?,
-                        },
-                    ],
+                    args: vec![IrTerm::I32(args.len() as i32 - variadic_call.index as i32)],
                     source: None,
                 }),
             }];
