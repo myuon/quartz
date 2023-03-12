@@ -118,7 +118,7 @@ impl IrCodeGenerator {
                 &mut Source::unknown(Expr::ident(Ident(var_strings.to_string()))),
                 &mut Source::unknown(Expr::Lit(Lit::I32(i as i32))),
             )?;
-            self.assign(lhs, IrTerm::ident("p"))?;
+            body.push(self.assign(lhs, IrTerm::ident("p"))?);
         }
 
         body.push(IrTerm::Return {
