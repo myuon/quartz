@@ -784,11 +784,12 @@ impl IrCodeGenerator {
                     .position(|(f, _)| &Path::ident(f.clone()) == label)
                     .ok_or(anyhow!("Field not found: {:?} in {:?}", label, record_type))?;
 
-                Ok(IrTerm::Load {
-                    type_: IrType::from_type(&record_type[index].1)?,
-                    address: Box::new(self.expr(expr)?),
-                    offset: Box::new(IrTerm::i32(index as i32 * IrType::sizeof())),
-                })
+                let root = self.expr(expr)?;
+                Ok(self.generate_array_at(
+                    &record_type[index].1,
+                    root,
+                    IrTerm::i32(index as i32),
+                )?)
             }
             Expr::Make(type_, args) => match type_ {
                 Type::Ptr(p) => {
@@ -889,21 +890,11 @@ impl IrCodeGenerator {
             Expr::Unwrap(type_, mode, expr) => match mode.clone().unwrap() {
                 UnwrapMode::Optional => {
                     let expr = self.expr(expr)?;
-
-                    Ok(IrTerm::Load {
-                        type_: IrType::from_type(type_)?,
-                        address: Box::new(expr),
-                        offset: Box::new(IrTerm::i32(0)),
-                    })
+                    Ok(self.generate_array_at(type_, expr, IrTerm::i32(0))?)
                 }
                 UnwrapMode::Or => {
                     let expr = self.expr(expr)?;
-
-                    Ok(IrTerm::Load {
-                        type_: IrType::from_type(type_)?,
-                        address: Box::new(expr),
-                        offset: Box::new(IrTerm::i32(1 * IrType::sizeof())),
-                    })
+                    Ok(self.generate_array_at(type_, expr, IrTerm::i32(1))?)
                 }
             },
             Expr::Omit(_) => todo!(),
@@ -932,16 +923,16 @@ impl IrCodeGenerator {
                 //     if try.right != nil { return try }
                 //     try.left!
                 let var_name = format!("try_{}", expr.start.unwrap_or(0));
-                let left = IrTerm::Load {
-                    type_: IrType::Address,
-                    address: Box::new(IrTerm::Ident(var_name.clone())),
-                    offset: Box::new(IrTerm::i32(0)),
-                };
-                let right = IrTerm::Load {
-                    type_: IrType::Address,
-                    address: Box::new(IrTerm::Ident(var_name.clone())),
-                    offset: Box::new(IrTerm::i32(IrType::sizeof())),
-                };
+                let left = self.generate_array_at(
+                    &Type::Ptr(Box::new(Type::Omit(0))),
+                    IrTerm::Ident(var_name.clone()),
+                    IrTerm::i32(0),
+                )?;
+                let right = self.generate_array_at(
+                    &Type::Ptr(Box::new(Type::Omit(0))),
+                    IrTerm::Ident(var_name.clone()),
+                    IrTerm::i32(1),
+                )?;
 
                 let mut elements = vec![];
                 elements.push(IrTerm::Let {
@@ -961,11 +952,11 @@ impl IrCodeGenerator {
                     }),
                     else_: Box::new(IrTerm::Seq { elements: vec![] }),
                 });
-                elements.push(IrTerm::Load {
-                    type_: IrType::Address,
-                    address: Box::new(left.clone()),
-                    offset: Box::new(IrTerm::i32(0)),
-                });
+                elements.push(self.generate_array_at(
+                    &Type::Ptr(Box::new(Type::Omit(0))),
+                    left.clone(),
+                    IrTerm::i32(0),
+                )?);
 
                 Ok(IrTerm::Seq { elements })
             }
@@ -1135,11 +1126,16 @@ impl IrCodeGenerator {
         Ok(IrTerm::wrap_mult_sizeof(IrType::from_type(type_)?, term))
     }
 
-    fn generate_array_at(&mut self, elem_type: &Type, array: IrTerm, at: IrTerm) -> Result<IrTerm> {
+    fn generate_array_at(
+        &mut self,
+        elem_type: &Type,
+        array: IrTerm,
+        index: IrTerm,
+    ) -> Result<IrTerm> {
         Ok(IrTerm::Load {
             type_: IrType::from_type(elem_type).context("method:array.at")?,
             address: Box::new(array),
-            offset: Box::new(self.generate_mult_sizeof(&Type::I32, at)?),
+            offset: Box::new(self.generate_mult_sizeof(&Type::I32, index)?),
         })
     }
 }
