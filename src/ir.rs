@@ -554,12 +554,7 @@ impl IrType {
         self.to_term().to_string()
     }
 
-    pub fn sizeof(&self) -> usize {
-        match self {
-            IrType::Nil => todo!(),
-            IrType::I32 => 4,
-            IrType::I64 => todo!(),
-            IrType::Address => 4,
-        }
+    pub fn sizeof() -> i32 {
+        4
     }
 }

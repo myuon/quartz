@@ -444,9 +444,10 @@ impl Generator {
                 self.writer.new_statement();
                 self.writer.write("br $exit");
             }
-            IrTerm::SizeOf { type_ } => {
+            IrTerm::SizeOf { .. } => {
                 self.writer.new_statement();
-                self.writer.write(&format!("i32.const {}", type_.sizeof()));
+                self.writer
+                    .write(&format!("i32.const {}", IrType::sizeof()));
             }
             IrTerm::WriteMemory {
                 type_,

@@ -784,19 +784,10 @@ impl IrCodeGenerator {
                     .position(|(f, _)| &Path::ident(f.clone()) == label)
                     .ok_or(anyhow!("Field not found: {:?} in {:?}", label, record_type))?;
 
-                let mut offset = 0;
-                for (field, _) in record_type.iter().take(index) {
-                    let (_, type_) = record_type
-                        .iter()
-                        .find(|(f, _)| f == field)
-                        .ok_or(anyhow!("Field not found: {:?} in {:?}", field, record_type))?;
-                    offset += IrType::from_type(type_)?.sizeof();
-                }
-
                 Ok(IrTerm::Load {
                     type_: IrType::from_type(&record_type[index].1)?,
                     address: Box::new(self.expr(expr)?),
-                    offset: Box::new(IrTerm::i32(offset as i32)),
+                    offset: Box::new(IrTerm::i32(index as i32 * IrType::sizeof())),
                 })
             }
             Expr::Make(type_, args) => match type_ {
@@ -911,7 +902,7 @@ impl IrCodeGenerator {
                     Ok(IrTerm::Load {
                         type_: IrType::from_type(type_)?,
                         address: Box::new(expr),
-                        offset: Box::new(IrTerm::i32(1)),
+                        offset: Box::new(IrTerm::i32(1 * IrType::sizeof())),
                     })
                 }
             },
@@ -949,7 +940,7 @@ impl IrCodeGenerator {
                 let right = IrTerm::Load {
                     type_: IrType::Address,
                     address: Box::new(IrTerm::Ident(var_name.clone())),
-                    offset: Box::new(IrTerm::i32(IrType::Address.sizeof() as i32)),
+                    offset: Box::new(IrTerm::i32(IrType::sizeof())),
                 };
 
                 let mut elements = vec![];
@@ -1134,7 +1125,7 @@ impl IrCodeGenerator {
         for (type_, elem) in elements {
             terms.push((offset, type_.clone(), elem));
 
-            offset += type_.sizeof();
+            offset += IrType::sizeof() as usize;
         }
 
         self.generate_array(terms)
