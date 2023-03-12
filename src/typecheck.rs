@@ -49,6 +49,13 @@ impl TypeChecker {
                     Type::Func(vec![Type::I64], Box::new(Type::I32)),
                 ),
                 ("abort", Type::Func(vec![], Box::new(Type::Nil))),
+                (
+                    "reflection_get_type_rep",
+                    Type::Func(
+                        vec![Type::Omit(0)],
+                        Box::new(Type::Ident(Ident("string".to_string()))),
+                    ),
+                ),
             ]
             .into_iter()
             .map(|(k, v)| (Path::ident(Ident(k.to_string())), v))

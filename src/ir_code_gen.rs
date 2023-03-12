@@ -66,6 +66,19 @@ impl IrCodeGenerator {
     pub fn run(&mut self, module: &mut Module) -> Result<IrTerm> {
         let mut decls = self.module(module)?;
         decls.push(self.generate_prepare_strings()?);
+        decls.push(IrTerm::Func {
+            name: "reflection_get_type_rep".to_string(),
+            params: vec![("p".to_string(), IrType::Address)],
+            result: Some(IrType::Address),
+            body: vec![IrTerm::Return {
+                value: Box::new(IrTerm::Load {
+                    type_: IrType::Address,
+                    address: Box::new(IrTerm::ident("p".to_string())),
+                    offset: Box::new(IrTerm::i32(0)),
+                    raw_offset: None,
+                }),
+            }],
+        });
 
         Ok(IrTerm::Module { elements: decls })
     }

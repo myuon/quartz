@@ -431,3 +431,9 @@ module error {
         };
     }
 }
+
+module reflection {
+    fun get_type_rep(t: any): string {
+        return reflection_get_type_rep(t);
+    }
+}
