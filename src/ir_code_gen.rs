@@ -44,32 +44,10 @@ impl TypeRep {
 }
 
 #[derive(Debug, Clone)]
-pub struct TypeRepDict {
-    pub types: Vec<TypeRep>,
-}
-
-impl TypeRepDict {
-    pub fn new() -> Self {
-        TypeRepDict { types: vec![] }
-    }
-
-    pub fn get_or_insert(&mut self, rep: TypeRep) -> usize {
-        if let Some(index) = self.types.iter().position(|r| r == &rep) {
-            index
-        } else {
-            let index = self.types.len();
-            self.types.push(rep);
-            index
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
 pub struct IrCodeGenerator {
     types: HashMap<Ident, Type>,
     current_path: Path,
     pub strings: Vec<String>,
-    pub type_reps: TypeRepDict,
 }
 
 impl IrCodeGenerator {
@@ -78,7 +56,6 @@ impl IrCodeGenerator {
             types: HashMap::new(),
             current_path: Path::empty(),
             strings: vec![],
-            type_reps: TypeRepDict::new(),
         }
     }
 
@@ -1222,8 +1199,18 @@ impl IrCodeGenerator {
         })
     }
 
+    fn rep_get_or_insert(&mut self, rep: TypeRep) -> usize {
+        let rep_string = format!("{:?}", rep);
+        if let Some(p) = self.strings.iter().position(|s| s == &rep_string) {
+            p
+        } else {
+            self.strings.push(rep_string);
+            self.strings.len() - 1
+        }
+    }
+
     fn allocate_heap_object(&mut self, rep: TypeRep, size: IrTerm) -> Result<IrTerm> {
-        let rep_id = self.type_reps.get_or_insert(rep);
+        let rep_id = self.rep_get_or_insert(rep);
 
         let var = format!(
             "object_{}",
