@@ -552,10 +552,20 @@ impl Generator {
                 self.writer.write("drop");
             }
             IrTerm::And { lhs, rhs } => {
-                self.generate_if(Some("i32"), lhs.as_mut(), rhs.as_mut(), &mut IrTerm::i32(0))?;
+                self.generate_if(
+                    Some(IrType::I32),
+                    lhs.as_mut(),
+                    rhs.as_mut(),
+                    &mut IrTerm::i32(0),
+                )?;
             }
             IrTerm::Or { lhs, rhs } => {
-                self.generate_if(Some("i32"), lhs.as_mut(), &mut IrTerm::i32(1), rhs.as_mut())?;
+                self.generate_if(
+                    Some(IrType::I32),
+                    lhs.as_mut(),
+                    &mut IrTerm::i32(1),
+                    rhs.as_mut(),
+                )?;
             }
             IrTerm::Load {
                 type_,
@@ -704,7 +714,7 @@ impl Generator {
 
     fn generate_if(
         &mut self,
-        type_: Option<&str>,
+        type_: Option<IrType>,
         cond: &mut IrTerm,
         then: &mut IrTerm,
         else_: &mut IrTerm,
@@ -714,7 +724,7 @@ impl Generator {
 
         self.writer.start();
         self.writer.write(if let Some(t) = type_ {
-            format!("if (result {})", t)
+            format!("if (result {})", t.to_string())
         } else {
             "if".to_string()
         });
