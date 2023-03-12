@@ -6,6 +6,7 @@ use crate::{
     ast::Type,
     ir::{IrTerm, IrType},
     util::{ident::Ident, path::Path, sexpr_writer::SExprWriter},
+    value::Value,
 };
 
 pub struct Generator {
@@ -75,25 +76,29 @@ impl Generator {
         self.writer.start();
         self.writer.write("module");
 
-        self.writer.start();
-        self.writer
-            .write(r#"import "env" "write_stdout" (func $write_stdout (param i32) (result i32))"#);
-        self.writer.end();
+        self.decl(&mut IrTerm::Declare {
+            name: "write_stdout".to_string(),
+            params: vec![IrType::I32],
+            result: IrType::I32,
+        })?;
 
-        self.writer.start();
-        self.writer
-            .write(r#"import "env" "debug_i32" (func $debug_i32 (param i32) (result i32))"#);
-        self.writer.end();
+        self.decl(&mut IrTerm::Declare {
+            name: "debug_i32".to_string(),
+            params: vec![IrType::I32],
+            result: IrType::I32,
+        })?;
 
-        self.writer.start();
-        self.writer
-            .write(r#"import "env" "read_stdin" (func $read_stdin (result i32))"#);
-        self.writer.end();
+        self.decl(&mut IrTerm::Declare {
+            name: "read_stdin".to_string(),
+            params: vec![],
+            result: IrType::I32,
+        })?;
 
-        self.writer.start();
-        self.writer
-            .write(r#"import "env" "abort" (func $abort (result i32))"#);
-        self.writer.end();
+        self.decl(&mut IrTerm::Declare {
+            name: "abort".to_string(),
+            params: vec![],
+            result: IrType::I32,
+        })?;
 
         self.writer.start();
         self.writer.write(r#"memory 1"#);
@@ -104,134 +109,81 @@ impl Generator {
         }
 
         // builtin functions here
-        self.writer.write(
-            r#"
-(func $mem_copy (param $source i32) (param $target i32) (param $length i32) (result i32)
-    local.get $target
-    local.get $source
-    local.get $length
-    memory.copy
-    i32.const 0
-)
-(func $mem_free (param $address i32) (result i32)
-    i32.const 0
-)
-"#,
-        );
+        self.decl(&mut IrTerm::Func {
+            name: "mem_copy".to_string(),
+            params: vec![
+                ("source".to_string(), IrType::I32),
+                ("target".to_string(), IrType::I32),
+                ("length".to_string(), IrType::I32),
+            ],
+            result: Some(IrType::I32),
+            body: vec![
+                IrTerm::ident("target"),
+                IrTerm::ident("source"),
+                IrTerm::ident("length"),
+                IrTerm::Instruction("memory.copy".to_string()),
+                IrTerm::Return {
+                    value: Box::new(IrTerm::nil()),
+                },
+            ],
+        })?;
+        self.decl(&mut IrTerm::Func {
+            name: "mem_free".to_string(),
+            params: vec![("address".to_string(), IrType::I32)],
+            result: Some(IrType::I32),
+            body: vec![IrTerm::Return {
+                value: Box::new(IrTerm::nil()),
+            }],
+        })?;
 
         // prepare strings
         let var_strings = "quartz_std_strings_ptr";
 
-        self.writer.start();
-        self.writer.write("func $prepare_strings");
-
-        self.writer.new_statement();
-        self.writer.write("(local $p i32)");
-
-        self.writer.new_statement();
-        self.writer
-            .write(format!("i32.const {}", self.strings.len()));
-
-        self.writer.new_statement();
-        self.writer.write(format!(
-            "call ${}",
-            Path::new(
-                vec!["quartz", "std", "alloc"]
-                    .into_iter()
-                    .map(|i| Ident(i.to_string()))
-                    .collect()
-            )
-            .as_joined_str("_")
-        ));
-
-        self.writer.new_statement();
-        self.writer.write(format!("global.set ${}", var_strings));
-
-        for (i, string) in self.strings.clone().iter().enumerate() {
-            self.writer.new_statement();
-            self.writer.write(format!(";; {:?}", string));
-
-            self.writer.new_statement();
-            self.writer.write(format!(
-                "(call $quartz_std_new_empty_string (i32.const {}))",
-                string.len()
-            ));
-
-            self.writer.new_statement();
-            self.writer.write("local.set $p");
-
-            self.expr(&mut IrTerm::WriteMemory {
-                type_: IrType::I32,
-                address: Box::new(IrTerm::Load {
+        self.decl(&mut IrTerm::Func {
+            name: "load_string".to_string(),
+            params: vec![("index".to_string(), IrType::I32)],
+            result: Some(IrType::I32),
+            body: vec![IrTerm::Return {
+                value: Box::new(IrTerm::Load {
                     type_: IrType::I32,
-                    address: Box::new(IrTerm::ident("p")),
-                    offset: Box::new(IrTerm::i32(0)),
+                    address: Box::new(IrTerm::ident(var_strings)),
+                    offset: Box::new(IrTerm::wrap_mult_sizeof(
+                        IrType::Address,
+                        IrTerm::ident("index"),
+                    )),
                 }),
-                value: string.bytes().map(|b| IrTerm::i32(b as i32)).collect(),
-            })?;
-
-            self.writer.new_statement();
-            self.writer.write(format!("global.get ${}", var_strings));
-
-            self.writer.new_statement();
-            self.writer.write(format!("i32.const {}", i));
-
-            self.writer.new_statement();
-            self.writer.write("i32.const 4");
-
-            self.writer.new_statement();
-            self.writer.write("i32.mul");
-
-            self.writer.new_statement();
-            self.writer.write("i32.add");
-
-            self.writer.new_statement();
-            self.writer.write("local.get $p");
-
-            self.writer.new_statement();
-            self.writer.write("i32.store");
-        }
-
-        self.writer.end();
-
-        self.writer.write(format!(
-            r#"
-(func $load_string (param $index i32) (result i32)
-    global.get ${}
-    local.get $index
-    i32.const 4
-    i32.mul
-    i32.add
-    i32.load
-)
-"#,
-            var_strings,
-        ));
+            }],
+        })?;
 
         let (_, result) = self.main_signature.clone().unwrap();
 
-        self.writer.write(&format!(
-            r#"
-(func $start {}
-    i32.const {}
-    global.set ${}
-
-    (memory.grow (i32.const 2))
-    drop
-
-    call $prepare_strings
-    call ${}
-)
-"#,
-            if result.is_nil() {
-                "".to_string()
-            } else {
-                format!("(result {})", result.to_string())
-            },
-            self.strings.len(),
-            "quartz_std_strings_count",
-            self.entrypoint_symbol
-        ));
+        self.decl(&mut IrTerm::Func {
+            name: "start".to_string(),
+            params: vec![],
+            result: Some(result),
+            body: vec![
+                IrTerm::Assign {
+                    lhs: "quartz_std_strings_count".to_string(),
+                    rhs: Box::new(IrTerm::i32(self.strings.len() as i32)),
+                },
+                IrTerm::i32(10),
+                IrTerm::Discard {
+                    element: Box::new(IrTerm::Instruction("memory.grow".to_string())),
+                },
+                IrTerm::Call {
+                    callee: Box::new(IrTerm::ident("prepare_strings")),
+                    args: vec![],
+                    source: None,
+                },
+                IrTerm::Return {
+                    value: Box::new(IrTerm::Call {
+                        callee: Box::new(IrTerm::ident(self.entrypoint_symbol.clone())),
+                        args: vec![],
+                        source: None,
+                    }),
+                },
+            ],
+        })?;
 
         self.writer.start();
         self.writer.write(r#"export "main" (func $start)"#);
@@ -259,6 +211,29 @@ impl Generator {
 
                 Ok(())
             }
+            IrTerm::Declare {
+                name,
+                params,
+                result,
+            } => {
+                self.writer.start();
+                self.writer.write("import");
+                self.writer.write("\"env\"");
+                self.writer.write(&format!("\"{}\"", name.as_str()));
+
+                self.writer.start();
+                self.writer.write("func");
+                self.writer.write(&format!("${}", name.as_str()));
+                for type_ in params {
+                    self.writer.write(&format!("(param {})", type_.to_string()));
+                }
+                self.writer
+                    .write(&format!("(result {})", result.to_string()));
+                self.writer.end();
+                self.writer.end();
+
+                Ok(())
+            }
             _ => bail!("Expected func or global let, got {:?}", decl),
         }
     }
@@ -267,14 +242,16 @@ impl Generator {
         &mut self,
         name: &mut String,
         params: &mut Vec<(String, IrType)>,
-        result: &mut IrType,
+        result: &mut Option<IrType>,
         body: &mut Vec<IrTerm>,
     ) -> Result<()> {
         if name == &self.entrypoint_symbol {
-            self.main_signature = Some((
-                params.iter().map(|(_, t)| t.clone()).collect(),
-                result.clone(),
-            ));
+            if let Some(result) = result {
+                self.main_signature = Some((
+                    params.iter().map(|(_, t)| t.clone()).collect(),
+                    result.clone(),
+                ));
+            }
         }
 
         self.writer.start();
@@ -285,8 +262,10 @@ impl Generator {
                 .write(&format!("(param ${} {})", name.as_str(), type_.to_string()));
         }
 
-        self.writer
-            .write(&format!("(result {})", result.to_string()));
+        if let Some(result) = result {
+            self.writer
+                .write(&format!("(result {})", result.to_string()));
+        }
 
         let mut used = HashSet::new();
         for term in body.iter() {
@@ -309,24 +288,25 @@ impl Generator {
 
         // In WASM, even if you have exhaustive return in if block, you must provide explicit return at the end of the function
         // so we add a return here for some random value
-        match result {
-            IrType::Nil => {}
-            IrType::I32 => {
-                self.writer.new_statement();
-                self.writer.write("i32.const 0");
-            }
-            IrType::I64 => {
-                self.writer.new_statement();
-                self.writer.write("i64.const 0");
-            }
-            IrType::Address => {
-                self.writer.new_statement();
-                self.writer.write("i32.const 0");
+        if let Some(result) = result {
+            match result {
+                IrType::Nil => {}
+                IrType::I32 => {
+                    self.writer.new_statement();
+                    self.writer.write("unreachable");
+                }
+                IrType::I64 => {
+                    self.writer.new_statement();
+                    self.writer.write("unreachable");
+                }
+                IrType::Address => {
+                    self.expr(&mut IrTerm::nil())?;
+
+                    self.writer.new_statement();
+                    self.writer.write("return");
+                }
             }
         }
-
-        self.writer.new_statement();
-        self.writer.write("return");
 
         self.writer.end();
 
@@ -351,16 +331,27 @@ impl Generator {
         Ok(())
     }
 
+    fn write_value(&mut self, value: Value) {
+        self.writer
+            .write(&format!("{}.const {}", Value::wasm_type(), value.as_i64()));
+    }
+
     fn expr(&mut self, expr: &mut IrTerm) -> Result<()> {
         match expr {
             IrTerm::Nil => {
+                // self.write_value(Value::nil());
                 self.writer.write(&format!("i32.const {}", 0));
             }
             IrTerm::I32(i) => {
+                // self.write_value(Value::i32(*i));
                 self.writer.write(&format!("i32.const {}", i));
             }
             IrTerm::I64(i) => {
-                self.writer.write(&format!("i64.const {}", i));
+                todo!("{}", i);
+            }
+            IrTerm::U32(i) => {
+                // self.write_value(Value::i32(*i as i32));
+                self.writer.write(&format!("i32.const {}", i));
             }
             IrTerm::Ident(i) => {
                 if self.globals.contains(&i.clone()) {
@@ -411,23 +402,7 @@ impl Generator {
             IrTerm::If {
                 cond, then, else_, ..
             } => {
-                self.writer.new_statement();
-                self.expr(cond)?;
-
-                self.writer.start();
-                self.writer.write("if");
-
-                self.writer.start();
-                self.writer.write("then");
-                self.expr(then)?;
-                self.writer.end();
-
-                self.writer.start();
-                self.writer.write("else");
-                self.expr(else_)?;
-                self.writer.end();
-
-                self.writer.end();
+                self.generate_if(None, cond, then, else_)?;
             }
             IrTerm::While {
                 cond,
@@ -518,44 +493,20 @@ impl Generator {
                 self.writer.write("drop");
             }
             IrTerm::And { lhs, rhs } => {
-                self.writer.new_statement();
-                self.expr(lhs)?;
-
-                self.writer.start();
-                self.writer.write("if (result i32)");
-
-                self.writer.start();
-                self.writer.write("then");
-                self.expr(rhs)?;
-                self.writer.end();
-
-                self.writer.start();
-                self.writer.write("else");
-                self.writer.new_statement();
-                self.writer.write("i32.const 0");
-                self.writer.end();
-
-                self.writer.end();
+                self.generate_if(
+                    Some(IrType::I32),
+                    lhs.as_mut(),
+                    rhs.as_mut(),
+                    &mut IrTerm::i32(0),
+                )?;
             }
             IrTerm::Or { lhs, rhs } => {
-                self.writer.new_statement();
-                self.expr(lhs)?;
-
-                self.writer.start();
-                self.writer.write("if (result i32)");
-
-                self.writer.start();
-                self.writer.write("then");
-                self.writer.new_statement();
-                self.writer.write("i32.const 1");
-                self.writer.end();
-
-                self.writer.start();
-                self.writer.write("else");
-                self.expr(rhs)?;
-                self.writer.end();
-
-                self.writer.end();
+                self.generate_if(
+                    Some(IrType::I32),
+                    lhs.as_mut(),
+                    &mut IrTerm::i32(1),
+                    rhs.as_mut(),
+                )?;
             }
             IrTerm::Load {
                 type_,
@@ -594,6 +545,10 @@ impl Generator {
 
                 self.writer.new_statement();
                 self.writer.write(&format!("{}.store", type_.to_string()));
+            }
+            IrTerm::Instruction(i) => {
+                self.writer.new_statement();
+                self.writer.write(i);
             }
             _ => todo!("{:?}", expr),
         }
@@ -637,6 +592,9 @@ impl Generator {
                 "mult" => {
                     self.writer.write("i32.mul");
                 }
+                "mult_u32" => {
+                    self.writer.write("i32.mul");
+                }
                 "mult_i64" => {
                     self.writer.write("i64.mul");
                 }
@@ -645,6 +603,9 @@ impl Generator {
                 }
                 "mod" => {
                     self.writer.write("i32.rem_s");
+                }
+                "mod_u32" => {
+                    self.writer.write("i32.rem_u");
                 }
                 "mod_i64" => {
                     self.writer.write("i64.rem_s");
@@ -670,6 +631,9 @@ impl Generator {
                 "gte" => {
                     self.writer.write("i32.ge_s");
                 }
+                "xor_u32" => {
+                    self.writer.write("i32.xor");
+                }
                 "xor_i64" => {
                     self.writer.write("i64.xor");
                 }
@@ -685,6 +649,38 @@ impl Generator {
             },
             _ => todo!(),
         }
+
+        Ok(())
+    }
+
+    fn generate_if(
+        &mut self,
+        type_: Option<IrType>,
+        cond: &mut IrTerm,
+        then: &mut IrTerm,
+        else_: &mut IrTerm,
+    ) -> Result<()> {
+        self.writer.new_statement();
+        self.expr(cond)?;
+
+        self.writer.start();
+        self.writer.write(if let Some(t) = type_ {
+            format!("if (result {})", t.to_string())
+        } else {
+            "if".to_string()
+        });
+
+        self.writer.start();
+        self.writer.write("then");
+        self.expr(then)?;
+        self.writer.end();
+
+        self.writer.start();
+        self.writer.write("else");
+        self.expr(else_)?;
+        self.writer.end();
+
+        self.writer.end();
 
         Ok(())
     }

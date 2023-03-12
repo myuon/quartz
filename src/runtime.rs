@@ -208,9 +208,9 @@ fun main(): i32 {
             (
                 r#"
 fun main(): i32 {
-    let a = alloc(10);
-    let b = alloc(5);
-    let c = alloc(5);
+    let a = alloc(10 * sizeof[i32]());
+    let b = alloc(5 * sizeof[i32]());
+    let c = alloc(5 * sizeof[i32]());
 
     return 0;
 }
@@ -409,7 +409,7 @@ fun int_to_string(n: i32): string {
         digit = digit + 1;
     }
 
-    let str = alloc(digit) as ptr[byte];
+    let str = make[ptr[byte]](digit);
     tmp = n;
     for i in 0..digit {
         let d = tmp % 10;
@@ -760,6 +760,25 @@ fun main(): i32 {
 "#,
                 vec![
                     Value::I32(10),
+                ],
+            ),
+            (
+                r#"
+fun sum(..t: vec[i32]): i32 {
+    let r = 0;
+    for i in 0..t.length {
+        r = r + t.at(i);
+    }
+
+    return r;
+}
+
+fun main(): i32 {
+    return sum(10, 4, 2, 30, 100);
+}
+"#,
+                vec![
+                    Value::I32(146),
                 ],
             ),
         ];

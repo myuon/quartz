@@ -40,13 +40,10 @@ fun println(f: string, ..arg: vec[string]) {
     write_stdout(10 as byte);
 }
 
-fun vec_make(init_capacity: i32, size: i32): vec[i32] {
-    let capacity = init_capacity;
-    let length = 0;
-    let data = alloc(capacity * size);
+fun vec_make(capacity: i32): vec[i32] {
     return vec {
-        data: data as ptr[i32],
-        length: length,
+        data: make[ptr[i32]](capacity),
+        length: 0,
         capacity: capacity,
     };
 }
@@ -54,7 +51,7 @@ fun vec_make(init_capacity: i32, size: i32): vec[i32] {
 fun vec_push(v: vec[i32], e: i32) {
     if (v.length + 1) == v.capacity {
         let new_capacity = v.capacity * 2;
-        let new_data = alloc(new_capacity) as ptr[i32];
+        let new_data = make[ptr[i32]](new_capacity);
         mem_copy(v.data, new_data, v.length * sizeof[i32]());
         mem_free(v.data);
         v.data = new_data;
@@ -95,7 +92,7 @@ fun char_to_string(char: byte): string {
 
 fun new_empty_string(length: i32): string {
     return string {
-        data: alloc(length) as ptr[byte],
+        data: make[ptr[byte]](length),
         length: length,
     };
 }
@@ -158,7 +155,7 @@ module i32 {
             digit = digit + 1;
         }
 
-        let str = alloc(digit) as ptr[byte];
+        let str = make[ptr[byte]](digit);
         tmp = self;
         for i in 0..digit {
             let d = tmp % 10;
@@ -176,7 +173,7 @@ module i32 {
 module string {
     fun concat(self, s: string): string {
         let new_length = self.length + s.length;
-        let new_data = alloc(new_length) as ptr[byte];
+        let new_data = make[ptr[byte]](new_length);
 
         for i in 0..self.length {
             new_data.at(i) = self.data.at(i);
@@ -222,7 +219,7 @@ module string {
 
     fun repeat(self, n: i32): string {
         let new_length = self.length * n;
-        let new_data = alloc(new_length) as ptr[byte];
+        let new_data = make[ptr[byte]](new_length);
 
         for i in 0..n {
             for j in 0..self.length {
@@ -333,7 +330,7 @@ fun map_insert(map: Map, key: string, value: any) {
             new_capacity = 8;
         }
 
-        let entries = alloc(new_capacity) as ptr[MapEntry];
+        let entries = make[ptr[MapEntry]](new_capacity);
 
         for i in 0..new_capacity {
             if i < map.capacity {
@@ -362,7 +359,10 @@ fun map_insert(map: Map, key: string, value: any) {
 
 fun map_find_entry(map: Map, key: string): MapEntry {
     let hash = hash_string(key, key.length);
-    let index = i64_to_i32(hash % i32_to_i64(map.capacity));
+    let index = (hash % (map.capacity as u32)) as i32;
+    if (index < 0) {
+        panic("map_find_entry: index < 0");
+    }
 
     let entry = map.entries.at(index);
     while true {
@@ -374,11 +374,11 @@ fun map_find_entry(map: Map, key: string): MapEntry {
     }
 }
 
-fun hash_string(key: string, length: i32): i64 {
-    let hash = 2166136261 as i64;
+fun hash_string(key: string, length: i32): u32 {
+    let hash = 2166136261 as u32;
     for i in 0..length {
-        hash = xor_i64(hash, i32_to_i64(key.data.at(i) as i32));
-        hash = hash * i32_to_i64(16777619);
+        hash = xor_u32(hash, key.data.at(i) as u32);
+        hash = hash * (16777619 as u32);
     }
     return hash;
 }
@@ -398,9 +398,13 @@ fun stdin(): string {
 
 // used in compiler
 // avoid using address 0, this is for null pointers
-let alloc_ptr = 4;
+let alloc_ptr = 8;
 
 fun alloc(size: i32): ptr[any] {
+    if size % 4 != 0 {
+        debug_i32(size);
+        abort();
+    }
     if size == 0 {
         return nil as ptr[any];
     }
@@ -408,11 +412,7 @@ fun alloc(size: i32): ptr[any] {
     let current = alloc_ptr;
     alloc_ptr = alloc_ptr + size;
 
-    if alloc_ptr * 4 > 64 * 1024 * 3 {
-        panic("alloc: out of memory");
-    }
-
-    return (current * 4) as ptr[any];
+    return current as ptr[any];
 }
 
 type error = {

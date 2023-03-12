@@ -6,13 +6,14 @@ use crate::{ast::Type, compiler::SourcePosition, util::sexpr_writer::SExprWriter
 pub enum IrTerm {
     Nil,
     I32(i32),
+    U32(u32),
     I64(i64),
     Ident(String),
     String(usize),
     Func {
         name: String,
         params: Vec<(String, IrType)>,
-        result: Box<IrType>,
+        result: Option<IrType>,
         body: Vec<IrTerm>,
     },
     GlobalLet {
@@ -86,6 +87,12 @@ pub enum IrTerm {
         address: Box<IrTerm>,
         offset: Box<IrTerm>,
     },
+    Instruction(String),
+    Declare {
+        name: String,
+        params: Vec<IrType>,
+        result: IrType,
+    },
 }
 
 impl IrTerm {
@@ -101,6 +108,10 @@ impl IrTerm {
         IrTerm::I32(value)
     }
 
+    pub fn u32(value: u32) -> Self {
+        IrTerm::U32(value)
+    }
+
     pub fn i64(value: i64) -> Self {
         IrTerm::I64(value)
     }
@@ -111,6 +122,9 @@ impl IrTerm {
                 writer.write("nil");
             }
             IrTerm::I32(i) => {
+                writer.write(&i.to_string());
+            }
+            IrTerm::U32(i) => {
                 writer.write(&i.to_string());
             }
             IrTerm::I64(i) => {
@@ -145,7 +159,9 @@ impl IrTerm {
 
                 writer.start();
                 writer.write("result");
-                result.to_term().to_string_writer(writer);
+                if let Some(type_) = result {
+                    type_.to_term().to_string_writer(writer);
+                }
                 writer.end();
 
                 for term in body {
@@ -315,6 +331,26 @@ impl IrTerm {
                 value.to_string_writer(writer);
                 writer.end();
             }
+            IrTerm::Instruction(i) => {
+                writer.start();
+                writer.write("instruction");
+                writer.write(i);
+                writer.end();
+            }
+            IrTerm::Declare {
+                name,
+                params,
+                result,
+            } => {
+                writer.start();
+                writer.write("declare");
+                writer.write(name);
+                for param in params {
+                    param.to_term().to_string_writer(writer);
+                }
+                result.to_term().to_string_writer(writer);
+                writer.end();
+            }
         }
     }
 
@@ -323,6 +359,7 @@ impl IrTerm {
         match self {
             IrTerm::Nil => vec![],
             IrTerm::I32(_) => vec![],
+            IrTerm::U32(_) => vec![],
             IrTerm::I64(_) => vec![],
             IrTerm::Ident(_) => vec![],
             IrTerm::String(_) => vec![],
@@ -438,6 +475,12 @@ impl IrTerm {
                 result.extend(value.find_let());
                 result
             }
+            IrTerm::Instruction(i) => vec![],
+            IrTerm::Declare {
+                name,
+                params,
+                result,
+            } => vec![],
         }
     }
 
@@ -471,6 +514,7 @@ impl IrType {
             Type::Nil => Ok(IrType::Address),
             Type::Bool => Ok(IrType::I32),
             Type::I32 => Ok(IrType::I32),
+            Type::U32 => Ok(IrType::I32),
             Type::I64 => Ok(IrType::I64),
             Type::Record(_) => Ok(IrType::Address),
             Type::Ident(_) => Ok(IrType::Address), // FIXME: could be other types
@@ -514,7 +558,7 @@ impl IrType {
         match self {
             IrType::Nil => todo!(),
             IrType::I32 => 4,
-            IrType::I64 => 8,
+            IrType::I64 => todo!(),
             IrType::Address => 4,
         }
     }

@@ -52,6 +52,10 @@ impl TypeChecker {
                     Type::Func(vec![Type::I64, Type::I64], Box::new(Type::I64)),
                 ),
                 (
+                    "xor_u32",
+                    Type::Func(vec![Type::U32, Type::U32], Box::new(Type::U32)),
+                ),
+                (
                     "i32_to_i64",
                     Type::Func(vec![Type::I32], Box::new(Type::I64)),
                 ),
@@ -987,6 +991,7 @@ impl TypeChecker {
             Lit::Nil => Ok(Type::Nil),
             Lit::Bool(_) => Ok(Type::Bool),
             Lit::I32(_) => Ok(Type::I32),
+            Lit::U32(_) => Ok(Type::U32),
             Lit::I64(_) => Ok(Type::I64),
             Lit::String(_) => Ok(Type::Ident(Ident("string".to_string()))),
         }
@@ -1167,6 +1172,7 @@ impl Constrains {
             Type::Nil => {}
             Type::Bool => {}
             Type::I32 => {}
+            Type::U32 => {}
             Type::I64 => {}
             Type::Byte => {}
             Type::Record(r) => {

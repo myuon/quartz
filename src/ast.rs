@@ -8,6 +8,7 @@ pub enum Type {
     Nil,
     Bool,
     I32,
+    U32,
     I64,
     Byte,
     Func(Vec<Type>, Box<Type>),
@@ -30,6 +31,7 @@ impl Type {
             Type::Nil => "[nil]".to_string(),
             Type::Bool => "[bool]".to_string(),
             Type::I32 => "[i32]".to_string(),
+            Type::U32 => "[u32]".to_string(),
             Type::I64 => "[i64]".to_string(),
             Type::Func(args, ret) => format!(
                 "({}) -> {}",
@@ -117,7 +119,7 @@ impl Type {
 
     pub fn is_integer_type(&self) -> bool {
         match self {
-            Type::I32 | Type::I64 => true,
+            Type::I32 | Type::U32 | Type::I64 => true,
             _ => false,
         }
     }
@@ -156,6 +158,7 @@ pub enum Lit {
     Nil,
     Bool(bool),
     I32(i32),
+    U32(u32),
     I64(i64),
     String(String),
 }

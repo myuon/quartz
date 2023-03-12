@@ -31,10 +31,13 @@ impl IrCodeGenerator {
     }
 
     pub fn run(&mut self, module: &mut Module) -> Result<IrTerm> {
-        self.module(module)
+        let mut decls = self.module(module)?;
+        decls.push(self.generate_prepare_strings()?);
+
+        Ok(IrTerm::Module { elements: decls })
     }
 
-    fn module(&mut self, module: &mut Module) -> Result<IrTerm> {
+    fn module(&mut self, module: &mut Module) -> Result<Vec<IrTerm>> {
         let mut elements = vec![];
 
         for decl in &mut module.0 {
@@ -56,7 +59,9 @@ impl IrCodeGenerator {
                 Decl::Module(name, module) => {
                     let path = self.current_path.clone();
                     self.current_path.extend(name);
-                    elements.push(self.module(module)?);
+                    elements.push(IrTerm::Module {
+                        elements: self.module(module)?,
+                    });
 
                     self.current_path = path;
                 }
@@ -64,7 +69,68 @@ impl IrCodeGenerator {
             }
         }
 
-        Ok(IrTerm::Module { elements })
+        Ok(elements)
+    }
+
+    pub fn generate_prepare_strings(&mut self) -> Result<IrTerm> {
+        let var_strings = "quartz_std_strings_ptr";
+        let mut body = vec![];
+        // quartz_std_strings_ptr = make[ptr[string]](${strings.len()});
+        body.push(IrTerm::Assign {
+            lhs: var_strings.to_string(),
+            rhs: Box::new(self.expr(&mut Source::unknown(Expr::Make(
+                Type::Ptr(Box::new(Type::Ident(Ident("string".to_string())))),
+                vec![Source::unknown(Expr::Lit(Lit::I32(
+                    self.strings.len() as i32
+                )))],
+            )))?),
+        });
+
+        for (i, string) in self.strings.clone().iter().enumerate() {
+            // let p = new_empty_string(${string.len()})
+            body.push(IrTerm::Let {
+                name: "p".to_string(),
+                type_: IrType::I32,
+                value: Box::new(self.expr(&mut Source::unknown(Expr::Call(
+                    Box::new(Source::unknown(Expr::ident(Ident(
+                        "quartz_std_new_empty_string".to_string(),
+                    )))),
+                    vec![Source::unknown(Expr::Lit(Lit::I32(string.len() as i32)))],
+                    None,
+                    None,
+                )))?),
+            });
+
+            // write_memory(p.data, ${string.byte()})
+            body.push(IrTerm::WriteMemory {
+                type_: IrType::I32,
+                address: Box::new(IrTerm::Load {
+                    type_: IrType::I32,
+                    address: Box::new(IrTerm::ident("p".to_string())),
+                    offset: Box::new(IrTerm::i32(0)),
+                }),
+                value: string.bytes().map(|b| IrTerm::i32(b as i32)).collect(),
+            });
+
+            // strings.at(i) = p
+            let lhs = self.generate_array_at(
+                &Type::Ident(Ident("string".to_string())),
+                &mut Source::unknown(Expr::ident(Ident(var_strings.to_string()))),
+                &mut Source::unknown(Expr::Lit(Lit::I32(i as i32))),
+            )?;
+            body.push(self.assign(lhs, IrTerm::ident("p"))?);
+        }
+
+        body.push(IrTerm::Return {
+            value: Box::new(IrTerm::nil()),
+        });
+
+        Ok(IrTerm::Func {
+            name: "prepare_strings".to_string(),
+            params: vec![],
+            result: None,
+            body,
+        })
     }
 
     fn func(&mut self, func: &mut Func) -> Result<IrTerm> {
@@ -95,7 +161,7 @@ impl IrCodeGenerator {
         Ok(IrTerm::Func {
             name: path.as_joined_str("_"),
             params,
-            result: Box::new(IrType::from_type(&func.result).context("func:result")?),
+            result: Some(IrType::from_type(&func.result).context("func:result")?),
             body: vec![IrTerm::Seq { elements }],
         })
     }
@@ -190,7 +256,11 @@ impl IrCodeGenerator {
                     element: Box::new(expr),
                 })
             }
-            Statement::Assign(lhs, rhs) => self.assign(lhs, rhs),
+            Statement::Assign(lhs, rhs) => {
+                let lhs = self.expr(lhs)?;
+                let rhs = self.expr(rhs)?;
+                self.assign(lhs, rhs)
+            }
             Statement::If(cond, type_, then_block, else_block) => {
                 let mut then_elements = vec![];
                 for statement in then_block {
@@ -269,9 +339,7 @@ impl IrCodeGenerator {
         }
     }
 
-    fn assign(&mut self, lhs: &mut Source<Expr>, rhs: &mut Source<Expr>) -> Result<IrTerm> {
-        let lhs = self.expr(lhs)?;
-        let rhs = self.expr(rhs)?;
+    fn assign(&mut self, lhs: IrTerm, rhs: IrTerm) -> Result<IrTerm> {
         match lhs {
             IrTerm::Ident(ident) => Ok(IrTerm::Assign {
                 lhs: ident,
@@ -298,9 +366,6 @@ impl IrCodeGenerator {
     }
 
     fn expr(&mut self, expr: &mut Source<Expr>) -> Result<IrTerm> {
-        let source_start = expr.start.unwrap_or(0);
-        let source_end = expr.end.unwrap_or(0);
-
         match &mut expr.data {
             Expr::Ident {
                 ident,
@@ -323,6 +388,7 @@ impl IrCodeGenerator {
                 Lit::Nil => Ok(IrTerm::nil()),
                 Lit::Bool(b) => Ok(IrTerm::I32(if *b { 1 } else { 0 })),
                 Lit::I32(i) => Ok(IrTerm::i32(*i)),
+                Lit::U32(i) => Ok(IrTerm::u32(*i)),
                 Lit::I64(i) => Ok(IrTerm::i64(*i)),
                 Lit::String(s) => {
                     let index = self.strings.len();
@@ -370,6 +436,8 @@ impl IrCodeGenerator {
                         callee: Box::new(IrTerm::Ident(
                             if matches!(type_, Type::I32) {
                                 "mult"
+                            } else if matches!(type_, Type::U32) {
+                                "mult_u32"
                             } else if matches!(type_, Type::I64) {
                                 "mult_i64"
                             } else {
@@ -398,6 +466,8 @@ impl IrCodeGenerator {
                         callee: Box::new(IrTerm::Ident(
                             if matches!(type_, Type::I32) {
                                 "mod"
+                            } else if matches!(type_, Type::U32) {
+                                "mod_u32"
                             } else if matches!(type_, Type::I64) {
                                 "mod_i64"
                             } else {
@@ -504,19 +574,18 @@ impl IrCodeGenerator {
                             (Type::Array(p, s), "at") => {
                                 assert_eq!(args.len(), 1);
 
-                                let term = self.expr(&mut args[0])?;
-                                Ok(IrTerm::Load {
-                                    type_: IrType::from_type(p).context("method:array.at")?,
-                                    address: Box::new(self.expr(&mut Source::transfer(
+                                Ok(self.generate_array_at(
+                                    p,
+                                    &mut Source::transfer(
                                         Expr::Project(
                                             expr.clone(),
                                             Type::Array(p.clone(), *s),
                                             Path::ident(Ident("data".to_string())),
                                         ),
                                         expr,
-                                    ))?),
-                                    offset: Box::new(self.generate_mult_sizeof(p, term)?),
-                                })
+                                    ),
+                                    &mut args[0],
+                                )?)
                             }
                             (Type::Vec(_), "at") => {
                                 assert_eq!(args.len(), 1);
@@ -734,49 +803,35 @@ impl IrCodeGenerator {
                 })
             }
             Expr::Make(type_, args) => match type_ {
-                Type::Array(_elem, size) => Ok(self.expr(&mut Source::transfer(
-                    Expr::Record(
-                        Source::new(Ident("array".to_string()), source_start, source_end),
-                        vec![
-                            (
-                                Ident("data".to_string()),
-                                Source::new(
-                                    Expr::Call(
-                                        Box::new(Source::new(
-                                            Expr::path(Path::new(vec![
-                                                Ident("quartz".to_string()),
-                                                Ident("std".to_string()),
-                                                Ident("alloc".to_string()),
-                                            ])),
-                                            source_start,
-                                            source_end,
-                                        )),
-                                        vec![Source::new(
-                                            Expr::Lit(Lit::I32(*size as i32)),
-                                            source_start,
-                                            source_end,
-                                        )],
-                                        None,
-                                        None,
-                                    ),
-                                    source_start,
-                                    source_end,
-                                ),
-                            ),
-                            (
-                                Ident("length".to_string()),
-                                Source::new(
-                                    Expr::Lit(Lit::I32(*size as i32)),
-                                    source_start,
-                                    source_end,
-                                ),
-                            ),
-                        ],
-                        None,
-                    ),
-                    expr,
-                ))?),
-                Type::Vec(type_) => {
+                Type::Ptr(p) => {
+                    assert_eq!(args.len(), 1);
+                    let len = self.expr(&mut args[0])?;
+
+                    Ok(IrTerm::Call {
+                        callee: Box::new(self.expr(&mut Source::transfer(
+                            Expr::path(Path::new(vec![
+                                Ident("quartz".to_string()),
+                                Ident("std".to_string()),
+                                Ident("alloc".to_string()),
+                            ])),
+                            &args[0],
+                        ))?),
+                        args: vec![self.generate_mult_sizeof(p, len)?],
+                        source: None,
+                    })
+                }
+                Type::Array(elem, size) => {
+                    let data_ptr = self.expr(&mut Source::unknown(Expr::Make(
+                        Type::Ptr(elem.clone()),
+                        vec![Source::unknown(Expr::Lit(Lit::I32(*size as i32)))],
+                    )))?;
+
+                    Ok(self.generate_array_enumerated(vec![
+                        (IrType::from_type(&Type::Ptr(elem.clone()))?, data_ptr),
+                        (IrType::from_type(&Type::I32)?, IrTerm::i32(*size as i32)),
+                    ])?)
+                }
+                Type::Vec(_) => {
                     let cap = if args.is_empty() {
                         IrTerm::i32(5)
                     } else {
@@ -793,12 +848,7 @@ impl IrCodeGenerator {
                             )
                             .as_joined_str("_"),
                         )),
-                        args: vec![
-                            cap,
-                            IrTerm::SizeOf {
-                                type_: IrType::from_type(type_)?,
-                            },
-                        ],
+                        args: vec![cap],
                         source: None,
                     })
                 }
@@ -961,12 +1011,7 @@ impl IrCodeGenerator {
                         ])),
                         callee,
                     ))?),
-                    args: vec![
-                        IrTerm::I32(args.len() as i32 - variadic_call.index as i32),
-                        IrTerm::SizeOf {
-                            type_: IrType::from_type(&Type::Ident(Ident("string".to_string())))?,
-                        },
-                    ],
+                    args: vec![IrTerm::I32(args.len() as i32 - variadic_call.index as i32)],
                     source: None,
                 }),
             }];
@@ -1065,7 +1110,10 @@ impl IrCodeGenerator {
                     ])
                     .as_joined_str("_"),
                 )),
-                args: vec![IrTerm::i32(elements.len() as i32)],
+                args: vec![self.generate_mult_sizeof(
+                    &Type::Ident(Ident("string".to_string())),
+                    IrTerm::i32(elements.len() as i32),
+                )?],
                 source: None,
             }),
         }];
@@ -1097,5 +1145,20 @@ impl IrCodeGenerator {
 
     fn generate_mult_sizeof(&mut self, type_: &Type, term: IrTerm) -> Result<IrTerm> {
         Ok(IrTerm::wrap_mult_sizeof(IrType::from_type(type_)?, term))
+    }
+
+    fn generate_array_at(
+        &mut self,
+        elem_type: &Type,
+        array: &mut Source<Expr>,
+        at: &mut Source<Expr>,
+    ) -> Result<IrTerm> {
+        let term = self.expr(at)?;
+
+        Ok(IrTerm::Load {
+            type_: IrType::from_type(elem_type).context("method:array.at")?,
+            address: Box::new(self.expr(array)?),
+            offset: Box::new(self.generate_mult_sizeof(&Type::I32, term)?),
+        })
     }
 }
