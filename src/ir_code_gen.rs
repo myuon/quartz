@@ -971,7 +971,7 @@ impl IrCodeGenerator {
             Expr::Try(expr) => {
                 // expr.try
                 // --> let try = expr;
-                //     if try.right != nil { return try }
+                //     if try.right != nil { return _ or right }
                 //     try.left!
                 let var_name = format!("try_{}", expr.start.unwrap_or(0));
                 let left = self.generate_array_at(
@@ -985,21 +985,34 @@ impl IrCodeGenerator {
                     IrTerm::i32(1),
                 )?;
 
+                let right_name = format!("try_{}_right", expr.start.unwrap_or(0));
+
                 let mut elements = vec![];
                 elements.push(IrTerm::Let {
                     name: var_name.clone(),
                     type_: IrType::Address,
-                    value: Box::new(self.expr(&mut *expr)?),
+                    value: Box::new(self.expr(expr)?),
+                });
+                elements.push(IrTerm::Let {
+                    name: right_name.clone(),
+                    type_: IrType::Address,
+                    value: Box::new(right),
                 });
                 elements.push(IrTerm::If {
                     cond: Box::new(IrTerm::Call {
                         callee: Box::new(IrTerm::Ident("not_equal".to_string())),
-                        args: vec![right.clone(), IrTerm::Nil],
+                        args: vec![IrTerm::ident(right_name.clone()), IrTerm::Nil],
                         source: None,
                     }),
                     type_: IrType::Nil,
                     then: Box::new(IrTerm::Return {
-                        value: Box::new(IrTerm::ident(var_name.clone())),
+                        value: Box::new(self.generate_array(
+                            "or".to_string(),
+                            vec![
+                                (IrType::Address, IrTerm::nil()),
+                                (IrType::Address, IrTerm::ident(right_name)),
+                            ],
+                        )?),
                     }),
                     else_: Box::new(IrTerm::Seq { elements: vec![] }),
                 });

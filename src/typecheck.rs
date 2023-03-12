@@ -52,7 +52,7 @@ impl TypeChecker {
                 (
                     "reflection_get_type_rep",
                     Type::Func(
-                        vec![Type::Omit(0)],
+                        vec![Type::Byte],
                         Box::new(Type::Ident(Ident("string".to_string()))),
                     ),
                 ),
