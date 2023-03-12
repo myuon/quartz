@@ -147,14 +147,10 @@ impl Generator {
                 value: Box::new(IrTerm::Load {
                     type_: IrType::I32,
                     address: Box::new(IrTerm::ident(var_strings)),
-                    offset: Box::new(IrTerm::Call {
-                        callee: Box::new(IrTerm::ident("mult")),
-                        args: vec![
-                            IrTerm::ident("index"),
-                            IrTerm::SizeOf { type_: IrType::I32 },
-                        ],
-                        source: None,
-                    }),
+                    offset: Box::new(IrTerm::wrap_mult_sizeof(
+                        IrType::Address,
+                        IrTerm::ident("index"),
+                    )),
                 }),
             }],
         })?;
@@ -305,12 +301,12 @@ impl Generator {
                 }
                 IrType::Address => {
                     self.expr(&mut IrTerm::nil())?;
+
+                    self.writer.new_statement();
+                    self.writer.write("return");
                 }
             }
         }
-
-        self.writer.new_statement();
-        self.writer.write("return");
 
         self.writer.end();
 

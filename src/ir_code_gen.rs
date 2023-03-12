@@ -75,12 +75,6 @@ impl IrCodeGenerator {
     pub fn generate_prepare_strings(&mut self) -> Result<IrTerm> {
         let var_strings = "quartz_std_strings_ptr";
         let mut body = vec![];
-        // let p = 0;
-        body.push(IrTerm::Let {
-            name: "p".to_string(),
-            type_: IrType::I32,
-            value: Box::new(IrTerm::i32(0)),
-        });
         // quartz_std_strings_ptr = make[ptr[string]](${strings.len()});
         body.push(IrTerm::Assign {
             lhs: var_strings.to_string(),
@@ -107,12 +101,12 @@ impl IrCodeGenerator {
                 )))?),
             });
 
-            // write_memory(*p, ${string.byte()})
+            // write_memory(p.data, ${string.byte()})
             body.push(IrTerm::WriteMemory {
                 type_: IrType::I32,
                 address: Box::new(IrTerm::Load {
                     type_: IrType::I32,
-                    address: Box::new(IrTerm::ident("p")),
+                    address: Box::new(IrTerm::ident("p".to_string())),
                     offset: Box::new(IrTerm::i32(0)),
                 }),
                 value: string.bytes().map(|b| IrTerm::i32(b as i32)).collect(),
