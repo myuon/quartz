@@ -31,10 +31,13 @@ impl IrCodeGenerator {
     }
 
     pub fn run(&mut self, module: &mut Module) -> Result<IrTerm> {
-        self.module(module)
+        let mut decls = self.module(module)?;
+        decls.push(self.generate_prepare_strings()?);
+
+        Ok(IrTerm::Module { elements: decls })
     }
 
-    fn module(&mut self, module: &mut Module) -> Result<IrTerm> {
+    fn module(&mut self, module: &mut Module) -> Result<Vec<IrTerm>> {
         let mut elements = vec![];
 
         for decl in &mut module.0 {
@@ -56,7 +59,9 @@ impl IrCodeGenerator {
                 Decl::Module(name, module) => {
                     let path = self.current_path.clone();
                     self.current_path.extend(name);
-                    elements.push(self.module(module)?);
+                    elements.push(IrTerm::Module {
+                        elements: self.module(module)?,
+                    });
 
                     self.current_path = path;
                 }
@@ -64,7 +69,77 @@ impl IrCodeGenerator {
             }
         }
 
-        Ok(IrTerm::Module { elements })
+        Ok(elements)
+    }
+
+    pub fn generate_prepare_strings(&mut self) -> Result<IrTerm> {
+        let var_strings = "quartz_std_strings_ptr";
+        let mut body = vec![];
+        // let p = 0;
+        body.push(IrTerm::Let {
+            name: "p".to_string(),
+            type_: IrType::I32,
+            value: Box::new(IrTerm::i32(0)),
+        });
+        // quartz_std_strings_ptr = make[ptr[string]](${strings.len()});
+        body.push(IrTerm::Assign {
+            lhs: var_strings.to_string(),
+            rhs: Box::new(self.expr(&mut Source::unknown(Expr::Make(
+                Type::Ptr(Box::new(Type::Ident(Ident("string".to_string())))),
+                vec![Source::unknown(Expr::Lit(Lit::I32(
+                    self.strings.len() as i32
+                )))],
+            )))?),
+        });
+
+        for (i, string) in self.strings.clone().iter().enumerate() {
+            // let p = new_empty_string(${string.len()})
+            body.push(IrTerm::Let {
+                name: "p".to_string(),
+                type_: IrType::I32,
+                value: Box::new(self.expr(&mut Source::unknown(Expr::Call(
+                    Box::new(Source::unknown(Expr::ident(Ident(
+                        "quartz_std_new_empty_string".to_string(),
+                    )))),
+                    vec![Source::unknown(Expr::Lit(Lit::I32(string.len() as i32)))],
+                    None,
+                    None,
+                )))?),
+            });
+
+            // write_memory(*p, ${string.byte()})
+            body.push(IrTerm::WriteMemory {
+                type_: IrType::I32,
+                address: Box::new(IrTerm::Load {
+                    type_: IrType::I32,
+                    address: Box::new(IrTerm::ident("p")),
+                    offset: Box::new(IrTerm::i32(0)),
+                }),
+                value: string.bytes().map(|b| IrTerm::i32(b as i32)).collect(),
+            });
+
+            // strings[i] = p
+            body.push(IrTerm::Store {
+                type_: IrType::I32,
+                address: Box::new(IrTerm::ident(var_strings.to_string())),
+                offset: Box::new(self.generate_mult_sizeof(
+                    &Type::Ident(Ident("string".to_string())),
+                    IrTerm::i32(i as i32),
+                )?),
+                value: Box::new(IrTerm::ident("p")),
+            });
+        }
+
+        body.push(IrTerm::Return {
+            value: Box::new(IrTerm::nil()),
+        });
+
+        Ok(IrTerm::Func {
+            name: "prepare_strings".to_string(),
+            params: vec![],
+            result: None,
+            body,
+        })
     }
 
     fn func(&mut self, func: &mut Func) -> Result<IrTerm> {
@@ -95,7 +170,7 @@ impl IrCodeGenerator {
         Ok(IrTerm::Func {
             name: path.as_joined_str("_"),
             params,
-            result: Box::new(IrType::from_type(&func.result).context("func:result")?),
+            result: Some(IrType::from_type(&func.result).context("func:result")?),
             body: vec![IrTerm::Seq { elements }],
         })
     }

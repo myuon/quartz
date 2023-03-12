@@ -116,7 +116,7 @@ impl Generator {
                 ("target".to_string(), IrType::I32),
                 ("length".to_string(), IrType::I32),
             ],
-            result: Box::new(IrType::I32),
+            result: Some(IrType::I32),
             body: vec![
                 IrTerm::ident("target"),
                 IrTerm::ident("source"),
@@ -130,7 +130,7 @@ impl Generator {
         self.decl(&mut IrTerm::Func {
             name: "mem_free".to_string(),
             params: vec![("address".to_string(), IrType::I32)],
-            result: Box::new(IrType::I32),
+            result: Some(IrType::I32),
             body: vec![IrTerm::Return {
                 value: Box::new(IrTerm::nil()),
             }],
@@ -139,68 +139,10 @@ impl Generator {
         // prepare strings
         let var_strings = "quartz_std_strings_ptr";
 
-        self.writer.start();
-        self.writer.write("func $prepare_strings");
-
-        self.writer.new_statement();
-        self.writer
-            .write(format!("(local $p {})", IrType::I32.to_string()));
-
-        self.expr(&mut IrTerm::Assign {
-            lhs: var_strings.to_string(),
-            rhs: Box::new(IrTerm::Call {
-                callee: Box::new(IrTerm::ident("quartz_std_alloc".to_string())),
-                args: vec![IrTerm::wrap_mult_sizeof(
-                    IrType::Address,
-                    IrTerm::i32(self.strings.len() as i32),
-                )],
-                source: None,
-            }),
-        })?;
-
-        for (i, string) in self.strings.clone().iter().enumerate() {
-            self.writer.new_statement();
-            self.writer.write(format!(";; {:?}", string));
-
-            // let p = new_empty_string(${string.len()})
-            self.expr(&mut IrTerm::Assign {
-                lhs: "p".to_string(),
-                rhs: Box::new(IrTerm::Call {
-                    callee: Box::new(IrTerm::ident("quartz_std_new_empty_string")),
-                    args: vec![IrTerm::i32(string.len() as i32)],
-                    source: None,
-                }),
-            })?;
-
-            // write_memory(*p, ${string.bytes()})
-            self.expr(&mut IrTerm::WriteMemory {
-                type_: IrType::I32,
-                address: Box::new(IrTerm::Load {
-                    type_: IrType::I32,
-                    address: Box::new(IrTerm::ident("p")),
-                    offset: Box::new(IrTerm::i32(0)),
-                }),
-                value: string.bytes().map(|b| IrTerm::i32(b as i32)).collect(),
-            })?;
-
-            // strings[i] = p
-            self.expr(&mut IrTerm::Store {
-                type_: IrType::I32,
-                address: Box::new(IrTerm::ident(var_strings)),
-                offset: Box::new(IrTerm::wrap_mult_sizeof(
-                    IrType::Address,
-                    IrTerm::i32(i as i32),
-                )),
-                value: Box::new(IrTerm::ident("p")),
-            })?;
-        }
-
-        self.writer.end();
-
         self.decl(&mut IrTerm::Func {
             name: "load_string".to_string(),
             params: vec![("index".to_string(), IrType::I32)],
-            result: Box::new(IrType::I32),
+            result: Some(IrType::I32),
             body: vec![IrTerm::Return {
                 value: Box::new(IrTerm::Load {
                     type_: IrType::I32,
@@ -222,7 +164,7 @@ impl Generator {
         self.decl(&mut IrTerm::Func {
             name: "start".to_string(),
             params: vec![],
-            result: Box::new(result),
+            result: Some(result),
             body: vec![
                 IrTerm::Assign {
                     lhs: "quartz_std_strings_count".to_string(),
@@ -304,14 +246,16 @@ impl Generator {
         &mut self,
         name: &mut String,
         params: &mut Vec<(String, IrType)>,
-        result: &mut IrType,
+        result: &mut Option<IrType>,
         body: &mut Vec<IrTerm>,
     ) -> Result<()> {
         if name == &self.entrypoint_symbol {
-            self.main_signature = Some((
-                params.iter().map(|(_, t)| t.clone()).collect(),
-                result.clone(),
-            ));
+            if let Some(result) = result {
+                self.main_signature = Some((
+                    params.iter().map(|(_, t)| t.clone()).collect(),
+                    result.clone(),
+                ));
+            }
         }
 
         self.writer.start();
@@ -322,8 +266,10 @@ impl Generator {
                 .write(&format!("(param ${} {})", name.as_str(), type_.to_string()));
         }
 
-        self.writer
-            .write(&format!("(result {})", result.to_string()));
+        if let Some(result) = result {
+            self.writer
+                .write(&format!("(result {})", result.to_string()));
+        }
 
         let mut used = HashSet::new();
         for term in body.iter() {
@@ -346,18 +292,20 @@ impl Generator {
 
         // In WASM, even if you have exhaustive return in if block, you must provide explicit return at the end of the function
         // so we add a return here for some random value
-        match result {
-            IrType::Nil => {}
-            IrType::I32 => {
-                self.writer.new_statement();
-                self.writer.write("unreachable");
-            }
-            IrType::I64 => {
-                self.writer.new_statement();
-                self.writer.write("unreachable");
-            }
-            IrType::Address => {
-                self.expr(&mut IrTerm::nil())?;
+        if let Some(result) = result {
+            match result {
+                IrType::Nil => {}
+                IrType::I32 => {
+                    self.writer.new_statement();
+                    self.writer.write("unreachable");
+                }
+                IrType::I64 => {
+                    self.writer.new_statement();
+                    self.writer.write("unreachable");
+                }
+                IrType::Address => {
+                    self.expr(&mut IrTerm::nil())?;
+                }
             }
         }
 

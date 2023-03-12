@@ -13,7 +13,7 @@ pub enum IrTerm {
     Func {
         name: String,
         params: Vec<(String, IrType)>,
-        result: Box<IrType>,
+        result: Option<IrType>,
         body: Vec<IrTerm>,
     },
     GlobalLet {
@@ -159,7 +159,9 @@ impl IrTerm {
 
                 writer.start();
                 writer.write("result");
-                result.to_term().to_string_writer(writer);
+                if let Some(type_) = result {
+                    type_.to_term().to_string_writer(writer);
+                }
                 writer.end();
 
                 for term in body {
