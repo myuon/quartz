@@ -66,32 +66,6 @@ impl IrCodeGenerator {
     pub fn run(&mut self, module: &mut Module) -> Result<IrTerm> {
         let mut decls = self.module(module)?;
         decls.push(self.generate_prepare_strings()?);
-        decls.push(IrTerm::Func {
-            name: "mem_copy".to_string(),
-            params: vec![
-                ("source".to_string(), IrType::I32),
-                ("target".to_string(), IrType::I32),
-                ("length".to_string(), IrType::I32),
-            ],
-            result: Some(IrType::I32),
-            body: vec![
-                IrTerm::ident("target"),
-                IrTerm::ident("source"),
-                if MODE_TYPE_REP {
-                    IrTerm::Call {
-                        callee: Box::new(IrTerm::ident("add".to_string())),
-                        args: vec![IrTerm::ident("length"), IrTerm::i32(1)],
-                        source: None,
-                    }
-                } else {
-                    IrTerm::ident("length")
-                },
-                IrTerm::Instruction("memory.copy".to_string()),
-                IrTerm::Return {
-                    value: Box::new(IrTerm::nil()),
-                },
-            ],
-        });
 
         Ok(IrTerm::Module { elements: decls })
     }

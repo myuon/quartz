@@ -110,15 +110,6 @@ impl Generator {
         }
 
         // builtin functions here
-        self.decl(&mut IrTerm::Func {
-            name: "mem_free".to_string(),
-            params: vec![("address".to_string(), IrType::I32)],
-            result: Some(IrType::I32),
-            body: vec![IrTerm::Return {
-                value: Box::new(IrTerm::nil()),
-            }],
-        })?;
-
         let (_, result) = self.main_signature.clone().unwrap();
 
         self.decl(&mut IrTerm::Func {

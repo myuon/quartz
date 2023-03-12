@@ -29,21 +29,6 @@ impl TypeChecker {
                 ),
                 ("read_stdin", Type::Func(vec![], Box::new(Type::Byte))),
                 (
-                    "mem_copy",
-                    Type::Func(
-                        vec![
-                            Type::Ptr(Box::new(Type::I32)),
-                            Type::Ptr(Box::new(Type::I32)),
-                            Type::I32,
-                        ],
-                        Box::new(Type::Nil),
-                    ),
-                ),
-                (
-                    "mem_free",
-                    Type::Func(vec![Type::Ptr(Box::new(Type::I32))], Box::new(Type::Nil)),
-                ),
-                (
                     "debug_i32",
                     Type::Func(vec![Type::I32], Box::new(Type::Nil)),
                 ),
