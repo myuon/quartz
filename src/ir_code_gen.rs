@@ -813,7 +813,7 @@ impl IrCodeGenerator {
                     }
                 }
 
-                Ok(self.generate_array(record)?)
+                Ok(self.generate_array(ident.data.clone(), record)?)
             }
             Expr::AnonymousRecord(fields, type_) => {
                 let mut elements = vec![];
@@ -828,7 +828,7 @@ impl IrCodeGenerator {
                     elements.push((IrType::from_type(type_)?, value));
                 }
 
-                self.generate_array(elements)
+                self.generate_array(Ident("struct".to_string()), elements)
             }
             Expr::Project(expr, type_, label) => {
                 let record_type = if let Ok(record) = type_.as_record_type() {
@@ -885,10 +885,13 @@ impl IrCodeGenerator {
                         vec![Source::unknown(Expr::Lit(Lit::I32(*size as i32)))],
                     )))?;
 
-                    Ok(self.generate_array(vec![
-                        (IrType::from_type(&Type::Ptr(elem.clone()))?, data_ptr),
-                        (IrType::from_type(&Type::I32)?, IrTerm::i32(*size as i32)),
-                    ])?)
+                    Ok(self.generate_array(
+                        Ident("array".to_string()),
+                        vec![
+                            (IrType::from_type(&Type::Ptr(elem.clone()))?, data_ptr),
+                            (IrType::from_type(&Type::I32)?, IrTerm::i32(*size as i32)),
+                        ],
+                    )?)
                 }
                 Type::Vec(_) => {
                     let cap = if args.is_empty() {
@@ -955,7 +958,10 @@ impl IrCodeGenerator {
             Expr::Wrap(type_, expr) => {
                 let expr = self.expr(expr)?;
 
-                self.generate_array(vec![(IrType::from_type(type_)?, expr)])
+                self.generate_array(
+                    Ident("optional".to_string()),
+                    vec![(IrType::from_type(type_)?, expr)],
+                )
             }
             Expr::Unwrap(type_, mode, expr) => match mode.clone().unwrap() {
                 UnwrapMode::Optional => {
@@ -971,21 +977,27 @@ impl IrCodeGenerator {
             Expr::EnumOr(lhs_type, rhs_type, lhs, rhs) => {
                 let lhs_term = if let Some(lhs) = lhs {
                     let lhs_term = self.expr(lhs)?;
-                    self.generate_array(vec![(IrType::from_type(lhs_type)?, lhs_term)])?
+                    self.generate_array(
+                        Ident("optional".to_string()),
+                        vec![(IrType::from_type(lhs_type)?, lhs_term)],
+                    )?
                 } else {
                     IrTerm::Nil
                 };
                 let rhs_term = if let Some(rhs) = rhs {
                     let rhs_term = self.expr(rhs)?;
-                    self.generate_array(vec![(IrType::from_type(rhs_type)?, rhs_term)])?
+                    self.generate_array(
+                        Ident("optional".to_string()),
+                        vec![(IrType::from_type(rhs_type)?, rhs_term)],
+                    )?
                 } else {
                     IrTerm::Nil
                 };
 
-                self.generate_array(vec![
-                    (IrType::Address, lhs_term),
-                    (IrType::Address, rhs_term),
-                ])
+                self.generate_array(
+                    Ident("or".to_string()),
+                    vec![(IrType::Address, lhs_term), (IrType::Address, rhs_term)],
+                )
             }
             Expr::Try(expr) => {
                 // expr.try
@@ -1130,13 +1142,17 @@ impl IrCodeGenerator {
         }
     }
 
-    fn generate_array(&mut self, elements: Vec<(IrType, IrTerm)>) -> Result<IrTerm> {
+    fn generate_array(
+        &mut self,
+        rep_name: Ident,
+        elements: Vec<(IrType, IrTerm)>,
+    ) -> Result<IrTerm> {
         let mut terms = vec![];
         let mut offset = 0;
         for (type_, elem) in elements {
             terms.push((offset, type_.clone(), elem));
 
-            offset += IrType::sizeof() as usize;
+            offset += 1;
         }
 
         // generates:
@@ -1178,7 +1194,7 @@ impl IrCodeGenerator {
             array.push(IrTerm::Store {
                 type_,
                 address: Box::new(IrTerm::ident(var_name.clone())),
-                offset: Box::new(IrTerm::i32(offset as i32)),
+                offset: Box::new(self.generate_mult_sizeof(&Type::I32, IrTerm::i32(offset))?),
                 value: Box::new(element),
             });
         }
