@@ -146,17 +146,17 @@ impl Generator {
         self.writer
             .write(format!("(local $p {})", IrType::I32.to_string()));
 
-        self.expr(&mut IrTerm::Call {
-            callee: Box::new(IrTerm::ident("quartz_std_alloc".to_string())),
-            args: vec![IrTerm::wrap_mult_sizeof(
-                IrType::Address,
-                IrTerm::i32(self.strings.len() as i32),
-            )],
-            source: None,
+        self.expr(&mut IrTerm::Assign {
+            lhs: var_strings.to_string(),
+            rhs: Box::new(IrTerm::Call {
+                callee: Box::new(IrTerm::ident("quartz_std_alloc".to_string())),
+                args: vec![IrTerm::wrap_mult_sizeof(
+                    IrType::Address,
+                    IrTerm::i32(self.strings.len() as i32),
+                )],
+                source: None,
+            }),
         })?;
-
-        self.writer.new_statement();
-        self.writer.write(format!("global.set ${}", var_strings));
 
         for (i, string) in self.strings.clone().iter().enumerate() {
             self.writer.new_statement();
@@ -184,11 +184,10 @@ impl Generator {
             self.expr(&mut IrTerm::Store {
                 type_: IrType::I32,
                 address: Box::new(IrTerm::ident(var_strings)),
-                offset: Box::new(IrTerm::Call {
-                    callee: Box::new(IrTerm::ident("mult")),
-                    args: vec![IrTerm::i32(i as i32), IrTerm::SizeOf { type_: IrType::I32 }],
-                    source: None,
-                }),
+                offset: Box::new(IrTerm::wrap_mult_sizeof(
+                    IrType::Address,
+                    IrTerm::i32(i as i32),
+                )),
                 value: Box::new(IrTerm::ident("p")),
             })?;
         }
