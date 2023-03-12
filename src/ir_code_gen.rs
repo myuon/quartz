@@ -743,7 +743,7 @@ impl IrCodeGenerator {
                     }
                 }
 
-                Ok(self.generate_array_enumerated(record)?)
+                Ok(self.generate_array(record)?)
             }
             Expr::AnonymousRecord(fields, type_) => {
                 let mut elements = vec![];
@@ -758,7 +758,7 @@ impl IrCodeGenerator {
                     elements.push((IrType::from_type(type_)?, value));
                 }
 
-                self.generate_array_enumerated(elements)
+                self.generate_array(elements)
             }
             Expr::Project(expr, type_, label) => {
                 let record_type = if let Ok(record) = type_.as_record_type() {
@@ -815,7 +815,7 @@ impl IrCodeGenerator {
                         vec![Source::unknown(Expr::Lit(Lit::I32(*size as i32)))],
                     )))?;
 
-                    Ok(self.generate_array_enumerated(vec![
+                    Ok(self.generate_array(vec![
                         (IrType::from_type(&Type::Ptr(elem.clone()))?, data_ptr),
                         (IrType::from_type(&Type::I32)?, IrTerm::i32(*size as i32)),
                     ])?)
@@ -885,7 +885,7 @@ impl IrCodeGenerator {
             Expr::Wrap(type_, expr) => {
                 let expr = self.expr(expr)?;
 
-                self.generate_array_enumerated(vec![(IrType::from_type(type_)?, expr)])
+                self.generate_array(vec![(IrType::from_type(type_)?, expr)])
             }
             Expr::Unwrap(type_, mode, expr) => match mode.clone().unwrap() {
                 UnwrapMode::Optional => {
@@ -901,18 +901,18 @@ impl IrCodeGenerator {
             Expr::EnumOr(lhs_type, rhs_type, lhs, rhs) => {
                 let lhs_term = if let Some(lhs) = lhs {
                     let lhs_term = self.expr(lhs)?;
-                    self.generate_array_enumerated(vec![(IrType::from_type(lhs_type)?, lhs_term)])?
+                    self.generate_array(vec![(IrType::from_type(lhs_type)?, lhs_term)])?
                 } else {
                     IrTerm::Nil
                 };
                 let rhs_term = if let Some(rhs) = rhs {
                     let rhs_term = self.expr(rhs)?;
-                    self.generate_array_enumerated(vec![(IrType::from_type(rhs_type)?, rhs_term)])?
+                    self.generate_array(vec![(IrType::from_type(rhs_type)?, rhs_term)])?
                 } else {
                     IrTerm::Nil
                 };
 
-                self.generate_array_enumerated(vec![
+                self.generate_array(vec![
                     (IrType::Address, lhs_term),
                     (IrType::Address, rhs_term),
                 ])
@@ -1060,7 +1060,15 @@ impl IrCodeGenerator {
         }
     }
 
-    fn generate_array(&mut self, elements: Vec<(usize, IrType, IrTerm)>) -> Result<IrTerm> {
+    fn generate_array(&mut self, elements: Vec<(IrType, IrTerm)>) -> Result<IrTerm> {
+        let mut terms = vec![];
+        let mut offset = 0;
+        for (type_, elem) in elements {
+            terms.push((offset, type_.clone(), elem));
+
+            offset += IrType::sizeof() as usize;
+        }
+
         // generates:
         //
         // let array_x = alloc(10);
@@ -1091,12 +1099,12 @@ impl IrCodeGenerator {
                 )),
                 args: vec![self.generate_mult_sizeof(
                     &Type::Ident(Ident("string".to_string())),
-                    IrTerm::i32(elements.len() as i32),
+                    IrTerm::i32(terms.len() as i32),
                 )?],
                 source: None,
             }),
         }];
-        for (offset, type_, element) in elements {
+        for (offset, type_, element) in terms {
             array.push(IrTerm::Store {
                 type_,
                 address: Box::new(IrTerm::ident(var_name.clone())),
@@ -1108,18 +1116,6 @@ impl IrCodeGenerator {
         array.push(IrTerm::ident(var_name.clone()));
 
         Ok(IrTerm::Seq { elements: array })
-    }
-
-    fn generate_array_enumerated(&mut self, elements: Vec<(IrType, IrTerm)>) -> Result<IrTerm> {
-        let mut terms = vec![];
-        let mut offset = 0;
-        for (type_, elem) in elements {
-            terms.push((offset, type_.clone(), elem));
-
-            offset += IrType::sizeof() as usize;
-        }
-
-        self.generate_array(terms)
     }
 
     fn generate_mult_sizeof(&mut self, type_: &Type, term: IrTerm) -> Result<IrTerm> {
