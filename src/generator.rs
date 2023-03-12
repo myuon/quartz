@@ -164,11 +164,11 @@ impl Generator {
             self.writer.new_statement();
             self.writer.write(format!(";; {:?}", string));
 
-            self.writer.new_statement();
-            self.writer.write(format!(
-                "(call $quartz_std_new_empty_string (i32.const {}))",
-                string.len()
-            ));
+            self.expr(&mut IrTerm::Call {
+                callee: Box::new(IrTerm::ident("quartz_std_new_empty_string")),
+                args: vec![IrTerm::i32(string.len() as i32)],
+                source: None,
+            })?;
 
             self.writer.new_statement();
             self.writer.write("local.set $p");
