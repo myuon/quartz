@@ -556,7 +556,7 @@ impl IrType {
         match self {
             IrType::Nil => todo!(),
             IrType::I32 => 4,
-            IrType::I64 => 8,
+            IrType::I64 => todo!(),
             IrType::Address => 4,
         }
     }
