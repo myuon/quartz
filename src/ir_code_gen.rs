@@ -72,7 +72,7 @@ impl IrCodeGenerator {
         Ok(elements)
     }
 
-    pub fn generate_prepare_strings(&mut self) -> Result<IrTerm> {
+    fn generate_prepare_strings(&mut self) -> Result<IrTerm> {
         let var_strings = "quartz_std_strings_ptr";
         let mut body = vec![];
         // quartz_std_strings_ptr = make[ptr[string]](${strings.len()});
