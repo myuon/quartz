@@ -104,11 +104,11 @@ impl IrCodeGenerator {
             // write_memory(p.data, ${string.byte()})
             body.push(IrTerm::WriteMemory {
                 type_: IrType::I32,
-                address: Box::new(IrTerm::Load {
-                    type_: IrType::I32,
-                    address: Box::new(IrTerm::ident("p".to_string())),
-                    offset: Box::new(IrTerm::i32(0)),
-                }),
+                address: Box::new(self.generate_array_at(
+                    &Type::I32,
+                    IrTerm::ident("p".to_string()),
+                    IrTerm::i32(0),
+                )?),
                 value: string.bytes().map(|b| IrTerm::i32(b as i32)).collect(),
             });
 
@@ -217,20 +217,20 @@ impl IrCodeGenerator {
                             IrTerm::Let {
                                 name: lhs.0.clone(),
                                 type_: IrType::Address,
-                                value: Box::new(IrTerm::Load {
-                                    type_: IrType::from_type(&lhs_type)?,
-                                    address: Box::new(IrTerm::Ident(var_name.clone())),
-                                    offset: Box::new(IrTerm::i32(0)),
-                                }),
+                                value: Box::new(self.generate_array_at(
+                                    &lhs_type,
+                                    IrTerm::Ident(var_name.clone()),
+                                    IrTerm::i32(0),
+                                )?),
                             },
                             IrTerm::Let {
                                 name: rhs.0.clone(),
                                 type_: IrType::Address,
-                                value: Box::new(IrTerm::Load {
-                                    type_: IrType::from_type(&rhs_type)?,
-                                    address: Box::new(IrTerm::Ident(var_name.clone())),
-                                    offset: Box::new(IrTerm::i32(IrType::Address.sizeof() as i32)),
-                                }),
+                                value: Box::new(self.generate_array_at(
+                                    &rhs_type,
+                                    IrTerm::Ident(var_name.clone()),
+                                    IrTerm::i32(1),
+                                )?),
                             },
                         ],
                     })
