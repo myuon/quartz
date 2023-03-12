@@ -207,19 +207,25 @@ impl Generator {
 
         self.writer.end();
 
-        self.writer.write(format!(
-            r#"
-(func $load_string (param $index i32) (result i32)
-    global.get ${}
-    local.get $index
-    i32.const 4
-    i32.mul
-    i32.add
-    i32.load
-)
-"#,
-            var_strings,
-        ));
+        self.decl(&mut IrTerm::Func {
+            name: "load_string".to_string(),
+            params: vec![("index".to_string(), IrType::I32)],
+            result: Box::new(IrType::I32),
+            body: vec![IrTerm::Return {
+                value: Box::new(IrTerm::Load {
+                    type_: IrType::I32,
+                    address: Box::new(IrTerm::ident(var_strings)),
+                    offset: Box::new(IrTerm::Call {
+                        callee: Box::new(IrTerm::ident("mult")),
+                        args: vec![
+                            IrTerm::ident("index"),
+                            IrTerm::SizeOf { type_: IrType::I32 },
+                        ],
+                        source: None,
+                    }),
+                }),
+            }],
+        })?;
 
         let (_, result) = self.main_signature.clone().unwrap();
 
