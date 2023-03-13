@@ -81,11 +81,13 @@ pub enum IrTerm {
         address: Box<IrTerm>,
         offset: Box<IrTerm>,
         value: Box<IrTerm>,
+        raw_offset: Option<usize>,
     },
     Load {
         type_: IrType,
         address: Box<IrTerm>,
         offset: Box<IrTerm>,
+        raw_offset: Option<usize>,
     },
     Instruction(String),
     Declare {
@@ -309,12 +311,16 @@ impl IrTerm {
                 type_,
                 address,
                 offset,
+                raw_offset,
             } => {
                 writer.start();
                 writer.write("load");
                 type_.to_term().to_string_writer(writer);
                 address.to_string_writer(writer);
                 offset.to_string_writer(writer);
+                if let Some(raw_offset) = raw_offset {
+                    writer.write(format!("offset={}", raw_offset));
+                }
                 writer.end();
             }
             IrTerm::Store {
@@ -322,6 +328,7 @@ impl IrTerm {
                 address,
                 offset,
                 value,
+                raw_offset,
             } => {
                 writer.start();
                 writer.write("store");
@@ -329,6 +336,9 @@ impl IrTerm {
                 address.to_string_writer(writer);
                 offset.to_string_writer(writer);
                 value.to_string_writer(writer);
+                if let Some(raw_offset) = raw_offset {
+                    writer.write(format!("offset={}", raw_offset));
+                }
                 writer.end();
             }
             IrTerm::Instruction(i) => {
@@ -457,6 +467,7 @@ impl IrTerm {
                 type_,
                 address,
                 offset,
+                raw_offset,
             } => {
                 let mut result = vec![];
                 result.extend(address.find_let());
@@ -468,6 +479,7 @@ impl IrTerm {
                 address,
                 offset,
                 value,
+                raw_offset,
             } => {
                 let mut result = vec![];
                 result.extend(address.find_let());
@@ -554,12 +566,7 @@ impl IrType {
         self.to_term().to_string()
     }
 
-    pub fn sizeof(&self) -> usize {
-        match self {
-            IrType::Nil => todo!(),
-            IrType::I32 => 4,
-            IrType::I64 => todo!(),
-            IrType::Address => 4,
-        }
+    pub fn sizeof() -> i32 {
+        4
     }
 }

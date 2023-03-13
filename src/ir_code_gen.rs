@@ -5,10 +5,43 @@ use rand::{distributions::Alphanumeric, prelude::Distribution};
 
 use crate::{
     ast::{Decl, Expr, Func, Lit, Module, Pattern, Statement, Type, UnwrapMode, VariadicCall},
-    compiler::{ErrorInSource, SourcePosition},
+    compiler::{ErrorInSource, SourcePosition, MODE_TYPE_REP},
     ir::{IrTerm, IrType},
     util::{ident::Ident, path::Path, source::Source},
 };
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TypeRep {
+    pub name: String,
+    pub fields: Vec<(String, TypeRep)>,
+}
+
+impl TypeRep {
+    pub fn from_name(name: String) -> TypeRep {
+        TypeRep {
+            name,
+            fields: vec![],
+        }
+    }
+
+    pub fn from_struct(name: String, record_type: Vec<(String, IrType)>) -> Self {
+        let mut fields = vec![];
+        for (name, type_) in record_type {
+            fields.push((name, TypeRep::from_type(type_)));
+        }
+
+        TypeRep { name, fields }
+    }
+
+    pub fn from_type(type_: IrType) -> TypeRep {
+        match type_ {
+            IrType::Nil => TypeRep::from_name("nil".to_string()),
+            IrType::I32 => TypeRep::from_name("i32".to_string()),
+            IrType::I64 => todo!(),
+            IrType::Address => TypeRep::from_name("address".to_string()),
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct IrCodeGenerator {
@@ -33,6 +66,19 @@ impl IrCodeGenerator {
     pub fn run(&mut self, module: &mut Module) -> Result<IrTerm> {
         let mut decls = self.module(module)?;
         decls.push(self.generate_prepare_strings()?);
+        decls.push(IrTerm::Func {
+            name: "reflection_get_type_rep".to_string(),
+            params: vec![("p".to_string(), IrType::Address)],
+            result: Some(IrType::Address),
+            body: vec![IrTerm::Return {
+                value: Box::new(IrTerm::Load {
+                    type_: IrType::Address,
+                    address: Box::new(IrTerm::ident("p".to_string())),
+                    offset: Box::new(IrTerm::i32(0)),
+                    raw_offset: None,
+                }),
+            }],
+        });
 
         Ok(IrTerm::Module { elements: decls })
     }
@@ -104,19 +150,19 @@ impl IrCodeGenerator {
             // write_memory(p.data, ${string.byte()})
             body.push(IrTerm::WriteMemory {
                 type_: IrType::I32,
-                address: Box::new(IrTerm::Load {
-                    type_: IrType::I32,
-                    address: Box::new(IrTerm::ident("p".to_string())),
-                    offset: Box::new(IrTerm::i32(0)),
-                }),
+                address: Box::new(self.generate_array_at(
+                    &Type::I32,
+                    IrTerm::ident("p".to_string()),
+                    IrTerm::i32(0),
+                )?),
                 value: string.bytes().map(|b| IrTerm::i32(b as i32)).collect(),
             });
 
             // strings.at(i) = p
             let lhs = self.generate_array_at(
                 &Type::Ident(Ident("string".to_string())),
-                &mut Source::unknown(Expr::ident(Ident(var_strings.to_string()))),
-                &mut Source::unknown(Expr::Lit(Lit::I32(i as i32))),
+                IrTerm::ident(var_strings.to_string()),
+                IrTerm::i32(i as i32),
             )?;
             body.push(self.assign(lhs, IrTerm::ident("p"))?);
         }
@@ -217,20 +263,20 @@ impl IrCodeGenerator {
                             IrTerm::Let {
                                 name: lhs.0.clone(),
                                 type_: IrType::Address,
-                                value: Box::new(IrTerm::Load {
-                                    type_: IrType::from_type(&lhs_type)?,
-                                    address: Box::new(IrTerm::Ident(var_name.clone())),
-                                    offset: Box::new(IrTerm::i32(0)),
-                                }),
+                                value: Box::new(self.generate_array_at(
+                                    &lhs_type,
+                                    IrTerm::Ident(var_name.clone()),
+                                    IrTerm::i32(0),
+                                )?),
                             },
                             IrTerm::Let {
                                 name: rhs.0.clone(),
                                 type_: IrType::Address,
-                                value: Box::new(IrTerm::Load {
-                                    type_: IrType::from_type(&rhs_type)?,
-                                    address: Box::new(IrTerm::Ident(var_name.clone())),
-                                    offset: Box::new(IrTerm::i32(IrType::Address.sizeof() as i32)),
-                                }),
+                                value: Box::new(self.generate_array_at(
+                                    &rhs_type,
+                                    IrTerm::Ident(var_name.clone()),
+                                    IrTerm::i32(1),
+                                )?),
                             },
                         ],
                     })
@@ -350,16 +396,19 @@ impl IrCodeGenerator {
                 address: Box::new(lhs),
                 offset: Box::new(IrTerm::i32(0)),
                 value: Box::new(rhs),
+                raw_offset: None,
             }),
             IrTerm::Load {
                 type_,
                 address,
                 offset,
+                raw_offset,
             } => Ok(IrTerm::Store {
                 type_,
                 address,
                 offset,
                 value: Box::new(rhs),
+                raw_offset,
             }),
             _ => bail!("invalid lhs for assignment: {}", lhs.to_string()),
         }
@@ -551,7 +600,10 @@ impl IrCodeGenerator {
                             (Type::Ptr(p), "at") => {
                                 assert_eq!(args.len(), 1);
 
-                                Ok(self.generate_array_at(&p, expr, &mut args[0])?)
+                                let ptr = self.expr(expr)?;
+                                let offset = self.expr(&mut args[0])?;
+
+                                Ok(self.generate_array_at(&p, ptr, offset)?)
                             }
                             (Type::Ptr(p), "offset") => {
                                 assert_eq!(args.len(), 1);
@@ -569,18 +621,17 @@ impl IrCodeGenerator {
                             (Type::Array(p, s), "at") => {
                                 assert_eq!(args.len(), 1);
 
-                                Ok(self.generate_array_at(
-                                    p,
-                                    &mut Source::transfer(
-                                        Expr::Project(
-                                            expr.clone(),
-                                            Type::Array(p.clone(), *s),
-                                            Path::ident(Ident("data".to_string())),
-                                        ),
-                                        expr,
+                                let array = self.expr(&mut Source::transfer(
+                                    Expr::Project(
+                                        expr.clone(),
+                                        Type::Array(p.clone(), *s),
+                                        Path::ident(Ident("data".to_string())),
                                     ),
-                                    &mut args[0],
-                                )?)
+                                    expr,
+                                ))?;
+                                let offset = self.expr(&mut args[0])?;
+
+                                Ok(self.generate_array_at(p, array, offset)?)
                             }
                             (Type::Vec(_), "at") => {
                                 assert_eq!(args.len(), 1);
@@ -741,7 +792,7 @@ impl IrCodeGenerator {
                     }
                 }
 
-                Ok(self.generate_array_enumerated(record)?)
+                Ok(self.generate_array(ident.data.as_str().to_string(), record)?)
             }
             Expr::AnonymousRecord(fields, type_) => {
                 let mut elements = vec![];
@@ -756,7 +807,7 @@ impl IrCodeGenerator {
                     elements.push((IrType::from_type(type_)?, value));
                 }
 
-                self.generate_array_enumerated(elements)
+                self.generate_array("struct".to_string(), elements)
             }
             Expr::Project(expr, type_, label) => {
                 let record_type = if let Ok(record) = type_.as_record_type() {
@@ -782,38 +833,20 @@ impl IrCodeGenerator {
                     .position(|(f, _)| &Path::ident(f.clone()) == label)
                     .ok_or(anyhow!("Field not found: {:?} in {:?}", label, record_type))?;
 
-                let mut offset = 0;
-                for (field, _) in record_type.iter().take(index) {
-                    let (_, type_) = record_type
-                        .iter()
-                        .find(|(f, _)| f == field)
-                        .ok_or(anyhow!("Field not found: {:?} in {:?}", field, record_type))?;
-                    offset += IrType::from_type(type_)?.sizeof();
-                }
-
-                Ok(IrTerm::Load {
-                    type_: IrType::from_type(&record_type[index].1)?,
-                    address: Box::new(self.expr(expr)?),
-                    offset: Box::new(IrTerm::i32(offset as i32)),
-                })
+                let root = self.expr(expr)?;
+                Ok(self.generate_array_at(
+                    &record_type[index].1,
+                    root,
+                    IrTerm::i32(index as i32),
+                )?)
             }
             Expr::Make(type_, args) => match type_ {
                 Type::Ptr(p) => {
                     assert_eq!(args.len(), 1);
                     let len = self.expr(&mut args[0])?;
 
-                    Ok(IrTerm::Call {
-                        callee: Box::new(self.expr(&mut Source::transfer(
-                            Expr::path(Path::new(vec![
-                                Ident("quartz".to_string()),
-                                Ident("std".to_string()),
-                                Ident("alloc".to_string()),
-                            ])),
-                            &args[0],
-                        ))?),
-                        args: vec![self.generate_mult_sizeof(p, len)?],
-                        source: None,
-                    })
+                    Ok(self
+                        .allocate_heap_object(TypeRep::from_name(format!("ptr[{:?}]", p)), len)?)
                 }
                 Type::Array(elem, size) => {
                     let data_ptr = self.expr(&mut Source::unknown(Expr::Make(
@@ -821,10 +854,13 @@ impl IrCodeGenerator {
                         vec![Source::unknown(Expr::Lit(Lit::I32(*size as i32)))],
                     )))?;
 
-                    Ok(self.generate_array_enumerated(vec![
-                        (IrType::from_type(&Type::Ptr(elem.clone()))?, data_ptr),
-                        (IrType::from_type(&Type::I32)?, IrTerm::i32(*size as i32)),
-                    ])?)
+                    Ok(self.generate_array(
+                        "array".to_string(),
+                        vec![
+                            (IrType::from_type(&Type::Ptr(elem.clone()))?, data_ptr),
+                            (IrType::from_type(&Type::I32)?, IrTerm::i32(*size as i32)),
+                        ],
+                    )?)
                 }
                 Type::Vec(_) => {
                     let cap = if args.is_empty() {
@@ -891,88 +927,100 @@ impl IrCodeGenerator {
             Expr::Wrap(type_, expr) => {
                 let expr = self.expr(expr)?;
 
-                self.generate_array_enumerated(vec![(IrType::from_type(type_)?, expr)])
+                self.generate_array(
+                    "optional".to_string(),
+                    vec![(IrType::from_type(type_)?, expr)],
+                )
             }
             Expr::Unwrap(type_, mode, expr) => match mode.clone().unwrap() {
                 UnwrapMode::Optional => {
                     let expr = self.expr(expr)?;
-
-                    Ok(IrTerm::Load {
-                        type_: IrType::from_type(type_)?,
-                        address: Box::new(expr),
-                        offset: Box::new(IrTerm::i32(0)),
-                    })
+                    Ok(self.generate_array_at(type_, expr, IrTerm::i32(0))?)
                 }
                 UnwrapMode::Or => {
                     let expr = self.expr(expr)?;
-
-                    Ok(IrTerm::Load {
-                        type_: IrType::from_type(type_)?,
-                        address: Box::new(expr),
-                        offset: Box::new(IrTerm::i32(1)),
-                    })
+                    Ok(self.generate_array_at(type_, expr, IrTerm::i32(1))?)
                 }
             },
             Expr::Omit(_) => todo!(),
             Expr::EnumOr(lhs_type, rhs_type, lhs, rhs) => {
                 let lhs_term = if let Some(lhs) = lhs {
                     let lhs_term = self.expr(lhs)?;
-                    self.generate_array_enumerated(vec![(IrType::from_type(lhs_type)?, lhs_term)])?
+                    self.generate_array(
+                        "optional".to_string(),
+                        vec![(IrType::from_type(lhs_type)?, lhs_term)],
+                    )?
                 } else {
                     IrTerm::Nil
                 };
                 let rhs_term = if let Some(rhs) = rhs {
                     let rhs_term = self.expr(rhs)?;
-                    self.generate_array_enumerated(vec![(IrType::from_type(rhs_type)?, rhs_term)])?
+                    self.generate_array(
+                        "optional".to_string(),
+                        vec![(IrType::from_type(rhs_type)?, rhs_term)],
+                    )?
                 } else {
                     IrTerm::Nil
                 };
 
-                self.generate_array_enumerated(vec![
-                    (IrType::Address, lhs_term),
-                    (IrType::Address, rhs_term),
-                ])
+                self.generate_array(
+                    "or".to_string(),
+                    vec![(IrType::Address, lhs_term), (IrType::Address, rhs_term)],
+                )
             }
             Expr::Try(expr) => {
                 // expr.try
                 // --> let try = expr;
-                //     if try.right != nil { return try }
+                //     if try.right != nil { return _ or right }
                 //     try.left!
                 let var_name = format!("try_{}", expr.start.unwrap_or(0));
-                let left = IrTerm::Load {
-                    type_: IrType::Address,
-                    address: Box::new(IrTerm::Ident(var_name.clone())),
-                    offset: Box::new(IrTerm::i32(0)),
-                };
-                let right = IrTerm::Load {
-                    type_: IrType::Address,
-                    address: Box::new(IrTerm::Ident(var_name.clone())),
-                    offset: Box::new(IrTerm::i32(IrType::Address.sizeof() as i32)),
-                };
+                let left = self.generate_array_at(
+                    &Type::Ptr(Box::new(Type::Omit(0))),
+                    IrTerm::Ident(var_name.clone()),
+                    IrTerm::i32(0),
+                )?;
+                let right = self.generate_array_at(
+                    &Type::Ptr(Box::new(Type::Omit(0))),
+                    IrTerm::Ident(var_name.clone()),
+                    IrTerm::i32(1),
+                )?;
+
+                let right_name = format!("try_{}_right", expr.start.unwrap_or(0));
 
                 let mut elements = vec![];
                 elements.push(IrTerm::Let {
                     name: var_name.clone(),
                     type_: IrType::Address,
-                    value: Box::new(self.expr(&mut *expr)?),
+                    value: Box::new(self.expr(expr)?),
+                });
+                elements.push(IrTerm::Let {
+                    name: right_name.clone(),
+                    type_: IrType::Address,
+                    value: Box::new(right),
                 });
                 elements.push(IrTerm::If {
                     cond: Box::new(IrTerm::Call {
                         callee: Box::new(IrTerm::Ident("not_equal".to_string())),
-                        args: vec![right.clone(), IrTerm::Nil],
+                        args: vec![IrTerm::ident(right_name.clone()), IrTerm::Nil],
                         source: None,
                     }),
                     type_: IrType::Nil,
                     then: Box::new(IrTerm::Return {
-                        value: Box::new(IrTerm::ident(var_name.clone())),
+                        value: Box::new(self.generate_array(
+                            "or".to_string(),
+                            vec![
+                                (IrType::Address, IrTerm::nil()),
+                                (IrType::Address, IrTerm::ident(right_name)),
+                            ],
+                        )?),
                     }),
                     else_: Box::new(IrTerm::Seq { elements: vec![] }),
                 });
-                elements.push(IrTerm::Load {
-                    type_: IrType::Address,
-                    address: Box::new(left.clone()),
-                    offset: Box::new(IrTerm::i32(0)),
-                });
+                elements.push(self.generate_array_at(
+                    &Type::Ptr(Box::new(Type::Omit(0))),
+                    left.clone(),
+                    IrTerm::i32(0),
+                )?);
 
                 Ok(IrTerm::Seq { elements })
             }
@@ -1076,7 +1124,25 @@ impl IrCodeGenerator {
         }
     }
 
-    fn generate_array(&mut self, elements: Vec<(usize, IrType, IrTerm)>) -> Result<IrTerm> {
+    fn generate_array(
+        &mut self,
+        rep_name: String,
+        elements: Vec<(IrType, IrTerm)>,
+    ) -> Result<IrTerm> {
+        let rep = TypeRep::from_struct(
+            rep_name,
+            elements
+                .iter()
+                .enumerate()
+                .map(|(i, (t, _))| (format!("{}", i), t.clone()))
+                .collect::<Vec<_>>(),
+        );
+
+        let mut terms = vec![];
+        for (index, (type_, elem)) in elements.into_iter().enumerate() {
+            terms.push((index, type_.clone(), elem));
+        }
+
         // generates:
         //
         // let array_x = alloc(10);
@@ -1096,6 +1162,68 @@ impl IrCodeGenerator {
         let mut array = vec![IrTerm::Let {
             name: var_name.clone(),
             type_: IrType::Address,
+            value: Box::new(self.allocate_heap_object(rep, IrTerm::i32(terms.len() as i32))?),
+        }];
+        for (offset, type_, element) in terms {
+            array.push(IrTerm::Store {
+                type_,
+                address: Box::new(IrTerm::ident(var_name.clone())),
+                offset: Box::new(
+                    self.generate_mult_sizeof(&Type::I32, IrTerm::i32(offset as i32))?,
+                ),
+                value: Box::new(element),
+                raw_offset: Some(if MODE_TYPE_REP { 4 } else { 0 }),
+            });
+        }
+
+        array.push(IrTerm::ident(var_name.clone()));
+
+        Ok(IrTerm::Seq { elements: array })
+    }
+
+    fn generate_mult_sizeof(&mut self, type_: &Type, term: IrTerm) -> Result<IrTerm> {
+        Ok(IrTerm::wrap_mult_sizeof(IrType::from_type(type_)?, term))
+    }
+
+    fn generate_array_at(
+        &mut self,
+        elem_type: &Type,
+        array: IrTerm,
+        index: IrTerm,
+    ) -> Result<IrTerm> {
+        Ok(IrTerm::Load {
+            type_: IrType::from_type(elem_type).context("method:array.at")?,
+            address: Box::new(array),
+            offset: Box::new(self.generate_mult_sizeof(&Type::I32, index)?),
+            raw_offset: Some(if MODE_TYPE_REP { 4 } else { 0 }),
+        })
+    }
+
+    fn rep_get_or_insert(&mut self, rep: TypeRep) -> usize {
+        let rep_string = format!("{:?}", rep);
+        if let Some(p) = self.strings.iter().position(|s| s == &rep_string) {
+            p
+        } else {
+            self.strings.push(rep_string);
+            self.strings.len() - 1
+        }
+    }
+
+    fn allocate_heap_object(&mut self, rep: TypeRep, size: IrTerm) -> Result<IrTerm> {
+        let rep_id = self.rep_get_or_insert(rep);
+
+        let var = format!(
+            "object_{}",
+            Alphanumeric
+                .sample_iter(&mut rand::thread_rng())
+                .take(5)
+                .map(char::from)
+                .collect::<String>()
+        );
+
+        let mut object = vec![IrTerm::Let {
+            name: var.clone(),
+            type_: IrType::Address,
             value: Box::new(IrTerm::Call {
                 callee: Box::new(IrTerm::ident(
                     Path::new(vec![
@@ -1107,53 +1235,28 @@ impl IrCodeGenerator {
                 )),
                 args: vec![self.generate_mult_sizeof(
                     &Type::Ident(Ident("string".to_string())),
-                    IrTerm::i32(elements.len() as i32),
+                    IrTerm::Call {
+                        callee: Box::new(IrTerm::ident("add".to_string())),
+                        args: vec![size, IrTerm::i32(if MODE_TYPE_REP { 1 } else { 0 })],
+                        source: None,
+                    },
                 )?],
                 source: None,
             }),
         }];
-        for (offset, type_, element) in elements {
-            array.push(IrTerm::Store {
-                type_,
-                address: Box::new(IrTerm::ident(var_name.clone())),
-                offset: Box::new(IrTerm::i32(offset as i32)),
-                value: Box::new(element),
+        // object header
+        if MODE_TYPE_REP {
+            object.push(IrTerm::Store {
+                type_: IrType::Address,
+                address: Box::new(IrTerm::ident(var.clone())),
+                offset: Box::new(IrTerm::i32(0)),
+                value: Box::new(IrTerm::i32(rep_id as i32)),
+                raw_offset: None,
             });
         }
 
-        array.push(IrTerm::ident(var_name.clone()));
+        object.push(IrTerm::ident(var.clone()));
 
-        Ok(IrTerm::Seq { elements: array })
-    }
-
-    fn generate_array_enumerated(&mut self, elements: Vec<(IrType, IrTerm)>) -> Result<IrTerm> {
-        let mut terms = vec![];
-        let mut offset = 0;
-        for (type_, elem) in elements {
-            terms.push((offset, type_.clone(), elem));
-
-            offset += type_.sizeof();
-        }
-
-        self.generate_array(terms)
-    }
-
-    fn generate_mult_sizeof(&mut self, type_: &Type, term: IrTerm) -> Result<IrTerm> {
-        Ok(IrTerm::wrap_mult_sizeof(IrType::from_type(type_)?, term))
-    }
-
-    fn generate_array_at(
-        &mut self,
-        elem_type: &Type,
-        array: &mut Source<Expr>,
-        at: &mut Source<Expr>,
-    ) -> Result<IrTerm> {
-        let term = self.expr(at)?;
-
-        Ok(IrTerm::Load {
-            type_: IrType::from_type(elem_type).context("method:array.at")?,
-            address: Box::new(self.expr(array)?),
-            offset: Box::new(self.generate_mult_sizeof(&Type::I32, term)?),
-        })
+        Ok(IrTerm::Seq { elements: object })
     }
 }

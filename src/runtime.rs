@@ -631,6 +631,16 @@ fun main(): bool {
             (
                 r#"
 fun main(): bool {
+    return "abc".concat("def").equal("abcdef");
+}
+"#,
+                vec![
+                    Value::I32(1),
+                ],
+            ),
+            (
+                r#"
+fun main(): bool {
     let f = format("hello, {}, {}, {}", "world", 1.to_string(), true.to_string());
     println(f);
 

@@ -4,6 +4,7 @@ use anyhow::{bail, Ok, Result};
 
 use crate::{
     ast::Type,
+    compiler::MODE_TYPE_REP,
     ir::{IrTerm, IrType},
     util::{ident::Ident, path::Path, sexpr_writer::SExprWriter},
     value::Value,
@@ -109,33 +110,6 @@ impl Generator {
         }
 
         // builtin functions here
-        self.decl(&mut IrTerm::Func {
-            name: "mem_copy".to_string(),
-            params: vec![
-                ("source".to_string(), IrType::I32),
-                ("target".to_string(), IrType::I32),
-                ("length".to_string(), IrType::I32),
-            ],
-            result: Some(IrType::I32),
-            body: vec![
-                IrTerm::ident("target"),
-                IrTerm::ident("source"),
-                IrTerm::ident("length"),
-                IrTerm::Instruction("memory.copy".to_string()),
-                IrTerm::Return {
-                    value: Box::new(IrTerm::nil()),
-                },
-            ],
-        })?;
-        self.decl(&mut IrTerm::Func {
-            name: "mem_free".to_string(),
-            params: vec![("address".to_string(), IrType::I32)],
-            result: Some(IrType::I32),
-            body: vec![IrTerm::Return {
-                value: Box::new(IrTerm::nil()),
-            }],
-        })?;
-
         let (_, result) = self.main_signature.clone().unwrap();
 
         self.decl(&mut IrTerm::Func {
@@ -281,6 +255,7 @@ impl Generator {
                     self.writer.write("unreachable");
                 }
                 IrType::Address => {
+                    self.writer.new_statement();
                     self.expr(&mut IrTerm::nil())?;
 
                     self.writer.new_statement();
@@ -444,9 +419,10 @@ impl Generator {
                 self.writer.new_statement();
                 self.writer.write("br $exit");
             }
-            IrTerm::SizeOf { type_ } => {
+            IrTerm::SizeOf { .. } => {
                 self.writer.new_statement();
-                self.writer.write(&format!("i32.const {}", type_.sizeof()));
+                self.writer
+                    .write(&format!("i32.const {}", IrType::sizeof()));
             }
             IrTerm::WriteMemory {
                 type_,
@@ -463,6 +439,7 @@ impl Generator {
                             IrTerm::I32(i as i32),
                         )),
                         value: Box::new(v.clone()),
+                        raw_offset: Some(if MODE_TYPE_REP { 4 } else { 0 }),
                     })?;
                 }
             }
@@ -493,6 +470,7 @@ impl Generator {
                 type_,
                 address,
                 offset,
+                raw_offset,
             } => {
                 self.writer.new_statement();
                 self.expr(address)?;
@@ -505,12 +483,16 @@ impl Generator {
 
                 self.writer.new_statement();
                 self.writer.write(&format!("{}.load", type_.to_string()));
+                if let Some(raw_offset) = raw_offset {
+                    self.writer.write(&format!("offset={}", raw_offset));
+                }
             }
             IrTerm::Store {
                 type_,
                 address,
                 offset,
                 value,
+                raw_offset,
             } => {
                 self.writer.new_statement();
                 self.expr(address)?;
@@ -526,6 +508,9 @@ impl Generator {
 
                 self.writer.new_statement();
                 self.writer.write(&format!("{}.store", type_.to_string()));
+                if let Some(raw_offset) = raw_offset {
+                    self.writer.write(&format!("offset={}", raw_offset));
+                }
             }
             IrTerm::Instruction(i) => {
                 self.writer.new_statement();

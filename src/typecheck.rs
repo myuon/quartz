@@ -29,21 +29,6 @@ impl TypeChecker {
                 ),
                 ("read_stdin", Type::Func(vec![], Box::new(Type::Byte))),
                 (
-                    "mem_copy",
-                    Type::Func(
-                        vec![
-                            Type::Ptr(Box::new(Type::I32)),
-                            Type::Ptr(Box::new(Type::I32)),
-                            Type::I32,
-                        ],
-                        Box::new(Type::Nil),
-                    ),
-                ),
-                (
-                    "mem_free",
-                    Type::Func(vec![Type::Ptr(Box::new(Type::I32))], Box::new(Type::Nil)),
-                ),
-                (
                     "debug_i32",
                     Type::Func(vec![Type::I32], Box::new(Type::Nil)),
                 ),
@@ -64,6 +49,13 @@ impl TypeChecker {
                     Type::Func(vec![Type::I64], Box::new(Type::I32)),
                 ),
                 ("abort", Type::Func(vec![], Box::new(Type::Nil))),
+                (
+                    "reflection_get_type_rep",
+                    Type::Func(
+                        vec![Type::Byte],
+                        Box::new(Type::Ident(Ident("string".to_string()))),
+                    ),
+                ),
             ]
             .into_iter()
             .map(|(k, v)| (Path::ident(Ident(k.to_string())), v))

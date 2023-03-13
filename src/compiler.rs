@@ -15,6 +15,8 @@ use crate::{
     util::{ident::Ident, path::Path},
 };
 
+pub const MODE_TYPE_REP: bool = true;
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SourcePosition {
     pub path: Path,

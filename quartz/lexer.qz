@@ -177,5 +177,7 @@ module Lexer {
 position: {}
 input: {}`.format(self.position.to_string(), input.slice_start(self.position)));
         }
+
+        return nil;
     }
 }
