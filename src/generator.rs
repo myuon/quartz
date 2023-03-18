@@ -719,6 +719,9 @@ impl Generator {
         self.writer.new_statement();
         self.expr(cond)?;
 
+        // if condition should be i32
+        self.convert_stack_to_i32_1();
+
         self.writer.start();
         self.writer.write(if let Some(t) = type_ {
             format!("if (result {})", t.to_string())
