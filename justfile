@@ -1,5 +1,5 @@
 test:
-  cargo test
+  cargo test --release
 
 dump:
   wasm-objdump -d build/error.wasm > build/error.log
