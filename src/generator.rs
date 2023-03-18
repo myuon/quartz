@@ -110,6 +110,12 @@ impl Generator {
         }
 
         // builtin functions here
+        self.decl(&mut IrTerm::GlobalLet {
+            name: "_value_i32_1".to_string(),
+            type_: IrType::I32,
+            value: Box::new(IrTerm::i32(1)),
+        })?;
+
         let (_, result) = self.main_signature.clone().unwrap();
 
         self.decl(&mut IrTerm::Func {
@@ -617,6 +623,34 @@ impl Generator {
         }
 
         Ok(())
+    }
+
+    fn convert_stack_to_i32_1(&mut self) {
+        self.writer.new_statement();
+        self.writer.write("i32.const 32");
+
+        self.writer.new_statement();
+        self.writer.write("i32.shr_u");
+    }
+
+    fn convert_stack_to_i32_2(&mut self) {
+        self.writer.new_statement();
+        self.writer.write("global.set $_value_i32_1");
+
+        self.convert_stack_from_i32_1();
+
+        self.writer.new_statement();
+        self.writer.write("global.get $_value_i32_2");
+
+        self.convert_stack_from_i32_1();
+    }
+
+    fn convert_stack_from_i32_1(&mut self) {
+        self.writer.new_statement();
+        self.writer.write("i32.const 32");
+
+        self.writer.new_statement();
+        self.writer.write("i32.shl_u");
     }
 
     fn generate_if(
