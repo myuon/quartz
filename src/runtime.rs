@@ -603,7 +603,7 @@ fun main() {
     }
 }
 "#,
-                vec![Value::I32(0)],
+                vec![Value::nil()],
             ),
             (
                 r#"
@@ -622,7 +622,7 @@ module T {
 fun main() {
 }
 "#,
-                vec![Value::I32(0)],
+                vec![Value::nil()],
             ),
             (
                 r#"
