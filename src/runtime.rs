@@ -24,21 +24,15 @@ impl Runtime {
                         Value::I32(i) => {
                             std::io::stdout().lock().write(&[i as u8]).unwrap();
                         }
-                        _ => panic!("write_stdout: invalid value"),
+                        _ => panic!("write_stdout: invalid value, {:?}", w),
                     }
 
                     Value::i32(0).as_i64()
                 }),
                 "debug_i32" => Function::new_typed(&mut store, |i: i64| {
                     let w = Value::from_i64(i);
-                    match w {
-                        Value::I32(i) => {
-                            std::io::stdout().lock().write(&[i as u8]).unwrap();
-                        }
-                        _ => panic!("write_stdout: invalid value"),
-                    }
 
-                    println!("[DEBUG_I32] {}", i);
+                    println!("[DEBUG] {:?}", w);
                     Value::i32(0).as_i64()
                 }),
                 "abort" => Function::new_typed(&mut store, || -> i64 {

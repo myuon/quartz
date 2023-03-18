@@ -904,11 +904,15 @@ impl IrCodeGenerator {
                 let term = self.expr(expr)?;
 
                 match (IrType::from_type(source)?, IrType::from_type(target)?) {
-                    (IrType::I32, IrType::Address) => Ok(IrTerm::Call {
-                        callee: Box::new(IrTerm::Ident("i32_to_address".to_string())),
-                        args: vec![term],
-                        source: None,
-                    }),
+                    (IrType::I32, IrType::Address) => {
+                        println!("{} {:?}", self.current_path.as_str(), expr);
+
+                        Ok(IrTerm::Call {
+                            callee: Box::new(IrTerm::Ident("i32_to_address".to_string())),
+                            args: vec![term],
+                            source: None,
+                        })
+                    }
                     (IrType::Address, IrType::I32) => Ok(IrTerm::Call {
                         callee: Box::new(IrTerm::Ident("address_to_i32".to_string())),
                         args: vec![term],

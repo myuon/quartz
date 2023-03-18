@@ -116,6 +116,18 @@ impl Generator {
             value: Box::new(IrTerm::i32(1)),
         })?;
 
+        self.decl(&mut IrTerm::Func {
+            name: "is_pointer".to_string(),
+            params: vec![("value".to_string(), IrType::Address)],
+            result: Some(IrType::I32),
+            body: vec![
+                IrTerm::Instruction("local.get $value".to_string()),
+                IrTerm::Instruction("i64.const 1".to_string()),
+                IrTerm::Instruction("i64.and".to_string()),
+                IrTerm::Instruction("return".to_string()),
+            ],
+        })?;
+
         let (_, result) = self.main_signature.clone().unwrap();
 
         self.decl(&mut IrTerm::Func {
@@ -742,16 +754,27 @@ impl Generator {
             self.writer.write("global.get $_value_i32_1");
 
             self.writer.new_statement();
-            self.writer.write("i64.const 1");
-
-            self.writer.new_statement();
-            self.writer.write("i64.and");
+            self.writer.write("call $is_pointer");
 
             self.writer.new_statement();
             self.writer.write("i64.eqz");
 
             self.writer.new_statement();
-            self.writer.write("(if (then call $abort drop) (else))");
+            self.writer.write(format!(
+                r#"
+(if
+    (then
+    )
+    (else
+        i64.const {}
+        i64.const 32
+        i64.shl
+        call $debug_i32
+        drop
+    )
+)"#,
+                rand::random::<u16>(),
+            ));
 
             self.writer.new_statement();
             self.writer.write("global.get $_value_i32_1");
