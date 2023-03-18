@@ -2,7 +2,9 @@ use std::io::{Read, Write};
 
 use anyhow::{anyhow, Result};
 use wasmer::{imports, Instance, Module, Store};
-use wasmer::{Function, Value};
+use wasmer::{Function, Value as WasmValue};
+
+use crate::value::Value;
 
 pub struct Runtime {}
 
@@ -11,26 +13,35 @@ impl Runtime {
         Runtime {}
     }
 
-    pub fn _run(&mut self, wat: &str) -> Result<Box<[Value]>> {
+    pub fn _run(&mut self, wat: &str) -> Result<Box<[WasmValue]>> {
         let mut store = Store::default();
         let module = Module::new(&store, &wat)?;
         let import_object = imports! {
             "env" => {
-                "write_stdout" => Function::new_typed(&mut store, |ch: u32| {
-                    std::io::stdout().lock().write(&[ch as u8]).unwrap();
-                    0
+                "write_stdout" => Function::new_typed(&mut store, |ch: i64| {
+                    let w = Value::from_i64(ch);
+                    match w {
+                        Value::I32(i) => {
+                            std::io::stdout().lock().write(&[i as u8]).unwrap();
+                        }
+                        _ => panic!("write_stdout: invalid value, {:?}", w),
+                    }
+
+                    Value::i32(0).as_i64()
                 }),
-                "debug_i32" => Function::new_typed(&mut store, |i: i32| {
-                    println!("[DEBUG_I32] {}", i);
-                    0
+                "debug_i32" => Function::new_typed(&mut store, |i: i64| {
+                    let w = Value::from_i64(i);
+
+                    println!("[DEBUG] {:?}", w);
+                    Value::i32(0).as_i64()
                 }),
-                "abort" => Function::new_typed(&mut store, || -> i32 {
+                "abort" => Function::new_typed(&mut store, || -> i64 {
                     panic!("[ABORT]");
                 }),
                 "read_stdin" => Function::new_typed(&mut store, || {
                     let mut buffer = [0u8; 1];
                     std::io::stdin().lock().read(&mut buffer).unwrap();
-                    buffer[0] as i32
+                    Value::i32(buffer[0] as i32).as_i64()
                 }),
             }
         };
@@ -42,7 +53,7 @@ impl Runtime {
         Ok(result)
     }
 
-    pub fn run(&mut self, input: &str) -> Result<Box<[Value]>> {
+    pub fn run(&mut self, input: &str) -> Result<Box<[WasmValue]>> {
         self._run(input).map_err(|err| {
             let message = err.to_string();
             // regexp test (at offset %d) against message
@@ -174,6 +185,21 @@ fun main(): i32 {
 }
 "#,
                 vec![Value::I32(20)],
+            ),
+            (
+                r#"
+type Point = {
+    x: i32,
+    y: i32,
+};
+
+fun main(): i32 {
+    let p = Point { x: 10, y: 20 };
+
+    return p.x;
+}
+"#,
+                vec![Value::I32(10)],
             ),
             (
                 r#"
@@ -425,6 +451,7 @@ fun int_to_string(n: i32): string {
 
 fun main(): i32 {
     let str = int_to_string(123456);
+    println(str);
 
     return str.data.at(5) as i32 - 48;
 }
@@ -576,7 +603,7 @@ fun main() {
     }
 }
 "#,
-                vec![Value::I32(0)],
+                vec![Value::nil()],
             ),
             (
                 r#"
@@ -595,7 +622,7 @@ module T {
 fun main() {
 }
 "#,
-                vec![Value::I32(0)],
+                vec![Value::nil()],
             ),
             (
                 r#"
@@ -811,8 +838,14 @@ fun main(): i32 {
             };
 
             assert_eq!(
-                expected.as_slice(),
-                result.as_ref(),
+                expected,
+                result
+                    .into_iter()
+                    .map(|v| match v {
+                        WasmValue::I64(v) => Value::from_i64(*v),
+                        _ => todo!(),
+                    })
+                    .collect::<Vec<Value>>(),
                 "case: {}\n== IR\n{}\n",
                 input,
                 ir_module.to_string()

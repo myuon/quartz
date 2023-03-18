@@ -77,9 +77,21 @@ fn main() -> Result<()> {
             let wat = compile(&mut compiler, stdin, file)?;
             let result = runtime.run(&wat)?;
 
-            if result.to_vec() != vec![Value::I32(0)] {
+            if result.to_vec() != vec![Value::I64(value::Value::nil().as_i64())] {
                 for r in result.iter() {
-                    println!("{}", r.to_string());
+                    match r {
+                        Value::I64(t) => {
+                            let v = value::Value::from_i64(*t);
+
+                            match v {
+                                value::Value::I32(p) => {
+                                    println!("{}", p);
+                                }
+                                _ => todo!(),
+                            }
+                        }
+                        _ => todo!(),
+                    }
                 }
             }
         }

@@ -16,6 +16,8 @@ use crate::{
 };
 
 pub const MODE_TYPE_REP: bool = true;
+pub const MODE_OPTIMIZE_ARITH_OPS_IN_CODE_GEN: bool = true;
+pub const MODE_READABLE_WASM: bool = true;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SourcePosition {

@@ -315,12 +315,12 @@ impl IrTerm {
             } => {
                 writer.start();
                 writer.write("load");
-                type_.to_term().to_string_writer(writer);
-                address.to_string_writer(writer);
-                offset.to_string_writer(writer);
                 if let Some(raw_offset) = raw_offset {
                     writer.write(format!("offset={}", raw_offset));
                 }
+                type_.to_term().to_string_writer(writer);
+                address.to_string_writer(writer);
+                offset.to_string_writer(writer);
                 writer.end();
             }
             IrTerm::Store {
@@ -332,13 +332,13 @@ impl IrTerm {
             } => {
                 writer.start();
                 writer.write("store");
+                if let Some(raw_offset) = raw_offset {
+                    writer.write(format!("offset={}", raw_offset));
+                }
                 type_.to_term().to_string_writer(writer);
                 address.to_string_writer(writer);
                 offset.to_string_writer(writer);
                 value.to_string_writer(writer);
-                if let Some(raw_offset) = raw_offset {
-                    writer.write(format!("offset={}", raw_offset));
-                }
                 writer.end();
             }
             IrTerm::Instruction(i) => {
@@ -548,10 +548,10 @@ impl IrType {
 
     pub fn to_term(&self) -> IrTerm {
         match self {
-            IrType::Nil => IrTerm::Ident("nil".to_string()),
-            IrType::I32 => IrTerm::Ident("i32".to_string()),
+            IrType::Nil => IrTerm::Ident("i64".to_string()),
+            IrType::I32 => IrTerm::Ident("i64".to_string()),
             IrType::I64 => IrTerm::Ident("i64".to_string()),
-            IrType::Address => IrTerm::Ident("i32".to_string()),
+            IrType::Address => IrTerm::Ident("i64".to_string()),
         }
     }
 
@@ -567,6 +567,6 @@ impl IrType {
     }
 
     pub fn sizeof() -> i32 {
-        4
+        8
     }
 }
