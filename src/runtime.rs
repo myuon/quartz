@@ -2,7 +2,9 @@ use std::io::{Read, Write};
 
 use anyhow::{anyhow, Result};
 use wasmer::{imports, Instance, Module, Store};
-use wasmer::{Function, Value};
+use wasmer::{Function, Value as WasmValue};
+
+use crate::value::Value;
 
 pub struct Runtime {}
 
@@ -11,33 +13,33 @@ impl Runtime {
         Runtime {}
     }
 
-    pub fn _run(&mut self, wat: &str) -> Result<Box<[Value]>> {
+    pub fn _run(&mut self, wat: &str) -> Result<Box<[WasmValue]>> {
         let mut store = Store::default();
         let module = Module::new(&store, &wat)?;
         let import_object = imports! {
             "env" => {
                 "write_stdout" => Function::new_typed(&mut store, |ch: i64| {
-                    let w = crate::value::Value::from_i64(ch);
+                    let w = Value::from_i64(ch);
                     match w {
-                        crate::value::Value::I32(i) => {
+                        Value::I32(i) => {
                             std::io::stdout().lock().write(&[i as u8]).unwrap();
                         }
                         _ => panic!("write_stdout: invalid value"),
                     }
 
-                    crate::value::Value::i32(0).as_i64()
+                    Value::i32(0).as_i64()
                 }),
                 "debug_i32" => Function::new_typed(&mut store, |i: i64| {
-                    let w = crate::value::Value::from_i64(i);
+                    let w = Value::from_i64(i);
                     match w {
-                        crate::value::Value::I32(i) => {
+                        Value::I32(i) => {
                             std::io::stdout().lock().write(&[i as u8]).unwrap();
                         }
                         _ => panic!("write_stdout: invalid value"),
                     }
 
                     println!("[DEBUG_I32] {}", i);
-                    crate::value::Value::i32(0).as_i64()
+                    Value::i32(0).as_i64()
                 }),
                 "abort" => Function::new_typed(&mut store, || -> i64 {
                     panic!("[ABORT]");
@@ -45,7 +47,7 @@ impl Runtime {
                 "read_stdin" => Function::new_typed(&mut store, || {
                     let mut buffer = [0u8; 1];
                     std::io::stdin().lock().read(&mut buffer).unwrap();
-                    crate::value::Value::i32(buffer[0] as i32).as_i64()
+                    Value::i32(buffer[0] as i32).as_i64()
                 }),
             }
         };
@@ -57,7 +59,7 @@ impl Runtime {
         Ok(result)
     }
 
-    pub fn run(&mut self, input: &str) -> Result<Box<[Value]>> {
+    pub fn run(&mut self, input: &str) -> Result<Box<[WasmValue]>> {
         self._run(input).map_err(|err| {
             let message = err.to_string();
             // regexp test (at offset %d) against message
@@ -826,8 +828,14 @@ fun main(): i32 {
             };
 
             assert_eq!(
-                expected.as_slice(),
-                result.as_ref(),
+                expected,
+                result
+                    .into_iter()
+                    .map(|v| match v {
+                        WasmValue::I64(v) => Value::from_i64(*v),
+                        _ => todo!(),
+                    })
+                    .collect::<Vec<Value>>(),
                 "case: {}\n== IR\n{}\n",
                 input,
                 ir_module.to_string()
