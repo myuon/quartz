@@ -4,9 +4,7 @@ use anyhow::{bail, Ok, Result};
 
 use crate::{
     ast::Type,
-    compiler::{
-        MODE_ASSERT_PTR, MODE_OPTIMIZE_ARITH_OPS_IN_CODE_GEN, MODE_READABLE_WASM, MODE_TYPE_REP,
-    },
+    compiler::{MODE_OPTIMIZE_ARITH_OPS_IN_CODE_GEN, MODE_READABLE_WASM, MODE_TYPE_REP},
     ir::{IrTerm, IrType},
     util::{ident::Ident, path::Path, sexpr_writer::SExprWriter},
     value::Value,
@@ -542,7 +540,6 @@ impl Generator {
             } => {
                 self.writer.new_statement();
                 self.expr(address)?;
-                self.assert_if_pointer();
 
                 self.writer.new_statement();
                 self.expr(offset)?;
@@ -570,7 +567,6 @@ impl Generator {
             } => {
                 self.writer.new_statement();
                 self.expr(address)?;
-                self.assert_if_pointer();
 
                 self.writer.new_statement();
                 self.expr(offset)?;
@@ -741,13 +737,9 @@ impl Generator {
 
         self.writer.new_statement();
         self.writer.write("i64.add");
-
-        self.assert_if_pointer();
     }
 
     fn convert_value_address_to_i32_1(&mut self) {
-        self.assert_if_pointer();
-
         self.writer.new_statement();
         self.writer.write("i64.const 1");
 
@@ -787,42 +779,6 @@ impl Generator {
 
         self.writer.new_statement();
         self.writer.write("i64.shl");
-    }
-
-    fn assert_if_pointer(&mut self) {
-        if MODE_ASSERT_PTR {
-            self.writer.new_statement();
-            self.writer.write("global.set $_value_i32_1");
-
-            self.writer.new_statement();
-            self.writer.write("global.get $_value_i32_1");
-
-            self.writer.new_statement();
-            self.writer.write("call $is_pointer");
-
-            self.writer.new_statement();
-            self.writer.write("i64.eqz");
-
-            self.writer.new_statement();
-            self.writer.write(format!(
-                r#"
-(if
-    (then
-    )
-    (else
-        i64.const {}
-        i64.const 32
-        i64.shl
-        call $debug_i32
-        drop
-    )
-)"#,
-                rand::random::<u16>(),
-            ));
-
-            self.writer.new_statement();
-            self.writer.write("global.get $_value_i32_1");
-        }
     }
 
     fn generate_if(

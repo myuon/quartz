@@ -15,7 +15,6 @@ use crate::{
     util::{ident::Ident, path::Path},
 };
 
-pub const MODE_ASSERT_PTR: bool = true;
 pub const MODE_TYPE_REP: bool = true;
 pub const MODE_OPTIMIZE_ARITH_OPS_IN_CODE_GEN: bool = true;
 pub const MODE_READABLE_WASM: bool = true;
