@@ -127,9 +127,10 @@ impl Generator {
                     lhs: "quartz_std_strings_count".to_string(),
                     rhs: Box::new(IrTerm::i32(self.strings.len() as i32)),
                 },
-                IrTerm::i32(10),
                 IrTerm::Discard {
-                    element: Box::new(IrTerm::Instruction("memory.grow".to_string())),
+                    element: Box::new(IrTerm::Instruction(
+                        "(memory.grow (i32.const 10))".to_string(),
+                    )),
                 },
                 IrTerm::Call {
                     callee: Box::new(IrTerm::ident("prepare_strings")),
@@ -491,7 +492,8 @@ impl Generator {
                 self.writer.new_statement();
                 self.writer.write("i32.add");
 
-                self.convert_stack_from_i32_1();
+                // Only 32-bit addresses are supported
+                // self.convert_stack_from_i32_1();
 
                 self.writer.new_statement();
                 self.writer.write(&format!("{}.load", type_.to_string()));
@@ -517,7 +519,8 @@ impl Generator {
                 self.writer.new_statement();
                 self.writer.write("i32.add");
 
-                self.convert_stack_from_i32_1();
+                // Only 32-bit addresses are supported
+                // self.convert_stack_from_i32_1();
 
                 self.writer.new_statement();
                 self.expr(value)?;
