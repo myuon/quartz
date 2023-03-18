@@ -315,12 +315,12 @@ impl IrTerm {
             } => {
                 writer.start();
                 writer.write("load");
-                type_.to_term().to_string_writer(writer);
-                address.to_string_writer(writer);
-                offset.to_string_writer(writer);
                 if let Some(raw_offset) = raw_offset {
                     writer.write(format!("offset={}", raw_offset));
                 }
+                type_.to_term().to_string_writer(writer);
+                address.to_string_writer(writer);
+                offset.to_string_writer(writer);
                 writer.end();
             }
             IrTerm::Store {
@@ -332,13 +332,13 @@ impl IrTerm {
             } => {
                 writer.start();
                 writer.write("store");
+                if let Some(raw_offset) = raw_offset {
+                    writer.write(format!("offset={}", raw_offset));
+                }
                 type_.to_term().to_string_writer(writer);
                 address.to_string_writer(writer);
                 offset.to_string_writer(writer);
                 value.to_string_writer(writer);
-                if let Some(raw_offset) = raw_offset {
-                    writer.write(format!("offset={}", raw_offset));
-                }
                 writer.end();
             }
             IrTerm::Instruction(i) => {

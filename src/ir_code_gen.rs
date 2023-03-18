@@ -8,6 +8,7 @@ use crate::{
     compiler::{ErrorInSource, SourcePosition, MODE_TYPE_REP},
     ir::{IrTerm, IrType},
     util::{ident::Ident, path::Path, source::Source},
+    value::Value,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -1172,7 +1173,7 @@ impl IrCodeGenerator {
                     self.generate_mult_sizeof(&Type::I32, IrTerm::i32(offset as i32))?,
                 ),
                 value: Box::new(element),
-                raw_offset: Some(if MODE_TYPE_REP { 4 } else { 0 }),
+                raw_offset: Some(if MODE_TYPE_REP { Value::sizeof() } else { 0 }),
             });
         }
 
@@ -1195,7 +1196,7 @@ impl IrCodeGenerator {
             type_: IrType::from_type(elem_type).context("method:array.at")?,
             address: Box::new(array),
             offset: Box::new(self.generate_mult_sizeof(&Type::I32, index)?),
-            raw_offset: Some(if MODE_TYPE_REP { 4 } else { 0 }),
+            raw_offset: Some(if MODE_TYPE_REP { Value::sizeof() } else { 0 }),
         })
     }
 
