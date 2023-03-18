@@ -484,6 +484,11 @@ impl Generator {
                 self.writer.write("br $exit");
             }
             IrTerm::SizeOf { .. } => {
+                if MODE_READABLE_WASM {
+                    self.writer.new_statement();
+                    self.writer.write(";; sizeof");
+                }
+
                 self.writer.new_statement();
                 self.write_value(Value::i32(IrType::sizeof() as i32));
             }

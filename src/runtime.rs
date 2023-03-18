@@ -200,7 +200,7 @@ fun main(): i32 {
     return p.x;
 }
 "#,
-                vec![Value::I32(30)],
+                vec![Value::I32(10)],
             ),
             (
                 r#"

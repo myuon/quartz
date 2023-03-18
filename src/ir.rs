@@ -567,6 +567,6 @@ impl IrType {
     }
 
     pub fn sizeof() -> i32 {
-        4
+        8
     }
 }
