@@ -4,7 +4,9 @@ use anyhow::{bail, Ok, Result};
 
 use crate::{
     ast::Type,
-    compiler::{MODE_ASSERT_PTR, MODE_OPTIMIZE_ARITH_OPS_IN_CODE_GEN, MODE_TYPE_REP},
+    compiler::{
+        MODE_ASSERT_PTR, MODE_OPTIMIZE_ARITH_OPS_IN_CODE_GEN, MODE_READABLE_WASM, MODE_TYPE_REP,
+    },
     ir::{IrTerm, IrType},
     util::{ident::Ident, path::Path, sexpr_writer::SExprWriter},
     value::Value,
@@ -127,6 +129,25 @@ impl Generator {
                 IrTerm::Instruction("return".to_string()),
             ],
         })?;
+
+        self.writer.start();
+        self.writer
+            .write(r#"func $i32_mul (param $a i64) (param $b i64) (result i64)"#);
+
+        self.writer.new_statement();
+        self.writer.write("local.get $a");
+
+        self.writer.new_statement();
+        self.writer.write("local.get $b");
+
+        self.convert_stack_to_i32_2();
+
+        self.writer.new_statement();
+        self.writer.write("i32.mul");
+
+        self.convert_stack_from_i32_1();
+
+        self.writer.end();
 
         let (_, result) = self.main_signature.clone().unwrap();
 
@@ -596,11 +617,12 @@ impl Generator {
                         self.generate_op_arithmetic("sub");
                     }
                 }
-                "mult" => {
-                    self.generate_op_arithmetic("mul");
-                }
-                "mult_u32" => {
-                    self.generate_op_arithmetic("mul");
+                "mult" | "mult_u32" => {
+                    if MODE_READABLE_WASM {
+                        self.writer.write("call $i32_mul");
+                    } else {
+                        self.generate_op_arithmetic("mul");
+                    }
                 }
                 "mult_i64" => {
                     todo!();
