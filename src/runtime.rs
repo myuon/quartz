@@ -195,7 +195,6 @@ type Point = {
 
 fun main(): i32 {
     let p = Point { x: 10, y: 20 };
-    debug_i32((6380 as ptr[i32]).at(0) as i32);
 
     return p.x;
 }
@@ -452,6 +451,7 @@ fun int_to_string(n: i32): string {
 
 fun main(): i32 {
     let str = int_to_string(123456);
+    println(str);
 
     return str.data.at(5) as i32 - 48;
 }

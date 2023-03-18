@@ -651,11 +651,7 @@ impl Generator {
                     self.writer.write("i64.mul");
                 }
                 "div" => {
-                    if MODE_OPTIMIZE_ARITH_OPS_IN_CODE_GEN {
-                        self.writer.write("i64.div_s");
-                    } else {
-                        self.generate_op_arithmetic("div_s");
-                    }
+                    self.generate_op_arithmetic("div_s");
                 }
                 "mod" => {
                     self.generate_op_arithmetic("rem_s");
