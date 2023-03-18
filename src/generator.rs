@@ -460,7 +460,7 @@ impl Generator {
                             IrTerm::I32(i as i32),
                         )),
                         value: Box::new(v.clone()),
-                        raw_offset: Some(if MODE_TYPE_REP { 4 } else { 0 }),
+                        raw_offset: Some(if MODE_TYPE_REP { Value::sizeof() } else { 0 }),
                     })?;
                 }
             }

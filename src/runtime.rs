@@ -191,6 +191,22 @@ fun main(): i32 {
 type Point = {
     x: i32,
     y: i32,
+};
+
+fun main(): i32 {
+    let p = Point { x: 10, y: 20 };
+    debug_i32((6380 as ptr[i32]).at(0) as i32);
+
+    return p.x;
+}
+"#,
+                vec![Value::I32(30)],
+            ),
+            (
+                r#"
+type Point = {
+    x: i32,
+    y: i32,
     z: i32,
 };
 

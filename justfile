@@ -8,7 +8,7 @@ compile:
   cargo run -- compile --stdin
 
 run:
-  cargo run -- run
+  cargo run --release -- run --stdin
 
 run_compiler:
   cargo run -- run ./quartz/main.qz

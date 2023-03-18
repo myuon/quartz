@@ -406,7 +406,7 @@ fun stdin(): string {
 let alloc_ptr = 8;
 
 fun alloc(size: i32): ptr[any] {
-    if size % 4 != 0 {
+    if size % sizeof[i32]() != 0 {
         debug_i32(size);
         abort();
     }
