@@ -16,21 +16,36 @@ impl Runtime {
         let module = Module::new(&store, &wat)?;
         let import_object = imports! {
             "env" => {
-                "write_stdout" => Function::new_typed(&mut store, |ch: u32| {
-                    std::io::stdout().lock().write(&[ch as u8]).unwrap();
-                    0
+                "write_stdout" => Function::new_typed(&mut store, |ch: i64| {
+                    let w = crate::value::Value::from_i64(ch);
+                    match w {
+                        crate::value::Value::I32(i) => {
+                            std::io::stdout().lock().write(&[i as u8]).unwrap();
+                        }
+                        _ => panic!("write_stdout: invalid value"),
+                    }
+
+                    crate::value::Value::i32(0).as_i64()
                 }),
-                "debug_i32" => Function::new_typed(&mut store, |i: i32| {
+                "debug_i32" => Function::new_typed(&mut store, |i: i64| {
+                    let w = crate::value::Value::from_i64(i);
+                    match w {
+                        crate::value::Value::I32(i) => {
+                            std::io::stdout().lock().write(&[i as u8]).unwrap();
+                        }
+                        _ => panic!("write_stdout: invalid value"),
+                    }
+
                     println!("[DEBUG_I32] {}", i);
-                    0
+                    crate::value::Value::i32(0).as_i64()
                 }),
-                "abort" => Function::new_typed(&mut store, || -> i32 {
+                "abort" => Function::new_typed(&mut store, || -> i64 {
                     panic!("[ABORT]");
                 }),
                 "read_stdin" => Function::new_typed(&mut store, || {
                     let mut buffer = [0u8; 1];
                     std::io::stdin().lock().read(&mut buffer).unwrap();
-                    buffer[0] as i32
+                    crate::value::Value::i32(buffer[0] as i32).as_i64()
                 }),
             }
         };
