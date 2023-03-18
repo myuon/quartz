@@ -105,18 +105,22 @@ fun main(): i32 {
     ];
 
     for input in cases {
-        let stdout_gen0 = run_command("cargo", &["run", "--", "run", "--stdin"], input.as_bytes())
-            .expect(format!("[INPUT]\n{}\n", input).as_str());
+        let stdout_gen0 = run_command(
+            "cargo",
+            &["run", "--release", "--", "run", "--stdin"],
+            input.as_bytes(),
+        )
+        .expect(format!("[INPUT]\n{}\n", input).as_str());
 
         let stdout = run_command(
             "cargo",
-            &["run", "--", "run", "./quartz/main.qz"],
+            &["run", "--release", "--", "run", "./quartz/main.qz"],
             input.as_bytes(),
         )
         .expect(format!("[INPUT]\n{}\n", input).as_str());
         let stdout_gen1 = run_command(
             "cargo",
-            &["run", "--", "run-wat", "--stdin"],
+            &["run", "--release", "--", "run-wat", "--stdin"],
             stdout.as_bytes(),
         )
         .unwrap();

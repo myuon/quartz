@@ -373,7 +373,7 @@ impl Generator {
             IrTerm::String(p) => {
                 if MODE_READABLE_WASM {
                     self.writer.new_statement();
-                    self.writer.write(&format!(";; {}", self.strings[*p]));
+                    self.writer.write(&format!(";; {:?}", self.strings[*p]));
                 }
 
                 self.writer.new_statement();
