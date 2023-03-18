@@ -4,7 +4,7 @@ use anyhow::{bail, Ok, Result};
 
 use crate::{
     ast::Type,
-    compiler::{MODE_ASSERT_PTR, MODE_TYPE_REP},
+    compiler::{MODE_ASSERT_PTR, MODE_OPTIMIZE_ARITH_OPS_IN_CODE_GEN, MODE_TYPE_REP},
     ir::{IrTerm, IrType},
     util::{ident::Ident, path::Path, sexpr_writer::SExprWriter},
     value::Value,
@@ -583,43 +583,41 @@ impl Generator {
         match caller.as_ref() {
             IrTerm::Ident(ident) => match ident.as_str() {
                 "add" => {
-                    self.convert_stack_to_i32_2();
-                    self.writer.write("i32.add");
-                    self.convert_stack_from_i32_1();
+                    if MODE_OPTIMIZE_ARITH_OPS_IN_CODE_GEN {
+                        self.writer.write("i64.add");
+                    } else {
+                        self.generate_op_arithmetic("add");
+                    }
                 }
                 "sub" => {
-                    self.convert_stack_to_i32_2();
-                    self.writer.write("i32.sub");
-                    self.convert_stack_from_i32_1();
+                    if MODE_OPTIMIZE_ARITH_OPS_IN_CODE_GEN {
+                        self.writer.write("i64.sub");
+                    } else {
+                        self.generate_op_arithmetic("sub");
+                    }
                 }
                 "mult" => {
-                    self.convert_stack_to_i32_2();
-                    self.writer.write("i32.mul");
-                    self.convert_stack_from_i32_1();
+                    self.generate_op_arithmetic("mul");
                 }
                 "mult_u32" => {
-                    self.convert_stack_to_i32_2();
-                    self.writer.write("i32.mul");
-                    self.convert_stack_from_i32_1();
+                    self.generate_op_arithmetic("mul");
                 }
                 "mult_i64" => {
                     todo!();
                     self.writer.write("i64.mul");
                 }
                 "div" => {
-                    self.convert_stack_to_i32_2();
-                    self.writer.write("i32.div_s");
-                    self.convert_stack_from_i32_1();
+                    if MODE_OPTIMIZE_ARITH_OPS_IN_CODE_GEN {
+                        self.writer.write("i64.div_s");
+                    } else {
+                        self.generate_op_arithmetic("div_s");
+                    }
                 }
                 "mod" => {
-                    self.convert_stack_to_i32_2();
-                    self.writer.write("i32.rem_s");
-                    self.convert_stack_from_i32_1();
+                    self.generate_op_arithmetic("rem_s");
                 }
                 "mod_u32" => {
-                    self.convert_stack_to_i32_2();
-                    self.writer.write("i32.rem_u");
-                    self.convert_stack_from_i32_1();
+                    self.generate_op_arithmetic("rem_u");
                 }
                 "mod_i64" => {
                     todo!();
@@ -661,9 +659,7 @@ impl Generator {
                     self.convert_stack_from_i32_1();
                 }
                 "xor_u32" => {
-                    self.convert_stack_to_i32_2();
-                    self.writer.write("i32.xor");
-                    self.convert_stack_from_i32_1();
+                    self.generate_op_arithmetic("xor");
                 }
                 "xor_i64" => {
                     todo!();
@@ -814,5 +810,11 @@ impl Generator {
         self.writer.end();
 
         Ok(())
+    }
+
+    fn generate_op_arithmetic(&mut self, code: &str) {
+        self.convert_stack_to_i32_2();
+        self.writer.write(format!("i32.{}", code));
+        self.convert_stack_from_i32_1();
     }
 }
