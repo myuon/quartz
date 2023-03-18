@@ -741,16 +741,14 @@ impl Generator {
             self.writer.new_statement();
             self.writer.write("global.get $_value_i32_1");
 
-            self.convert_stack_to_i32_1();
+            self.writer.new_statement();
+            self.writer.write("i64.const 1");
 
             self.writer.new_statement();
-            self.writer.write("i32.const 1");
+            self.writer.write("i64.and");
 
             self.writer.new_statement();
-            self.writer.write("i32.and");
-
-            self.writer.new_statement();
-            self.writer.write("i32.eqz");
+            self.writer.write("i64.eqz");
 
             self.writer.new_statement();
             self.writer.write("(if (then call $abort drop) (else))");
