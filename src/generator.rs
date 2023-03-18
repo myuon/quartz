@@ -331,6 +331,7 @@ impl Generator {
     }
 
     fn write_value(&mut self, value: Value) {
+        self.writer.new_statement();
         self.writer
             .write(&format!("{}.const {}", Value::wasm_type(), value.as_i64()));
     }
@@ -338,15 +339,30 @@ impl Generator {
     fn expr(&mut self, expr: &mut IrTerm) -> Result<()> {
         match expr {
             IrTerm::Nil => {
+                if MODE_READABLE_WASM {
+                    self.writer.new_statement();
+                    self.writer.write(";; nil");
+                }
+
                 self.write_value(Value::nil());
             }
             IrTerm::I32(i) => {
+                if MODE_READABLE_WASM {
+                    self.writer.new_statement();
+                    self.writer.write(&format!(" ;; {}", i));
+                }
+
                 self.write_value(Value::i32(*i));
             }
             IrTerm::I64(i) => {
                 todo!("{}", i);
             }
             IrTerm::U32(i) => {
+                if MODE_READABLE_WASM {
+                    self.writer.new_statement();
+                    self.writer.write(&format!(";; {}", i));
+                }
+
                 self.write_value(Value::i32(*i as i32));
             }
             IrTerm::Ident(i) => {
@@ -357,6 +373,11 @@ impl Generator {
                 }
             }
             IrTerm::String(p) => {
+                if MODE_READABLE_WASM {
+                    self.writer.new_statement();
+                    self.writer.write(&format!(";; {}", self.strings[*p]));
+                }
+
                 self.writer.new_statement();
                 self.writer.write(&format!("i32.const {}", p));
 
