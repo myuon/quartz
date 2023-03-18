@@ -37,7 +37,7 @@ impl SExprWriter {
 
     pub fn new_statement(&mut self) {
         if self.index != 0 {
-            self.write(&format!("\n{}", " ".repeat(self.depth * 2)));
+            self.write(&format!("\n{}", " ".repeat(self.depth * 4)));
         }
         self.index = 0;
     }
