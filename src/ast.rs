@@ -215,7 +215,7 @@ pub enum Expr {
     Make(Type, Vec<Source<Expr>>),
     SizeOf(Type),
     Range(Box<Source<Expr>>, Box<Source<Expr>>),
-    As(Box<Source<Expr>>, Type),
+    As(Box<Source<Expr>>, Type, Type),
     Path {
         path: Source<Path>,
         resolved_path: Option<Path>,

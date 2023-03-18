@@ -900,7 +900,24 @@ impl IrCodeGenerator {
                 _ => bail!("unsupported type for make: {:?}", type_),
             },
             Expr::Range(_, _) => todo!(),
-            Expr::As(expr, _) => self.expr(expr),
+            Expr::As(expr, source, target) => {
+                let term = self.expr(expr)?;
+
+                match (IrType::from_type(source)?, IrType::from_type(target)?) {
+                    (IrType::I32, IrType::Address) => Ok(IrTerm::Call {
+                        callee: Box::new(IrTerm::Ident("i32_to_address".to_string())),
+                        args: vec![term],
+                        source: None,
+                    }),
+                    (IrType::Address, IrType::I32) => Ok(IrTerm::Call {
+                        callee: Box::new(IrTerm::Ident("address_to_i32".to_string())),
+                        args: vec![term],
+                        source: None,
+                    }),
+                    (source, target) if source == target => Ok(term),
+                    (source, target) => bail!("unsupported as: {:?} -> {:?}", source, target),
+                }
+            }
             Expr::SizeOf(type_) => {
                 let type_ = IrType::from_type(type_)?;
                 Ok(IrTerm::SizeOf { type_ })

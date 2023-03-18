@@ -831,10 +831,11 @@ impl TypeChecker {
 
                 Ok(Type::Range(Box::new(start_type)))
             }
-            Expr::As(expr, type_) => {
-                self.expr(expr)?;
+            Expr::As(expr, source, target) => {
+                let source_type = self.expr(expr)?;
+                *source = source_type.clone();
 
-                Ok(type_.clone())
+                Ok(target.clone())
             }
             Expr::SizeOf(_) => Ok(Type::I32),
             Expr::Self_ => {

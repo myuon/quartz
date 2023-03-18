@@ -15,6 +15,7 @@ use crate::{
     util::{ident::Ident, path::Path},
 };
 
+pub const MODE_ASSERT_PTR: bool = false;
 pub const MODE_TYPE_REP: bool = true;
 
 #[derive(Debug, PartialEq, Eq, Clone)]

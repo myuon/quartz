@@ -4,7 +4,7 @@ use anyhow::{bail, Ok, Result};
 
 use crate::{
     ast::Type,
-    compiler::MODE_TYPE_REP,
+    compiler::{MODE_ASSERT_PTR, MODE_TYPE_REP},
     ir::{IrTerm, IrType},
     util::{ident::Ident, path::Path, sexpr_writer::SExprWriter},
     value::Value,
@@ -667,6 +667,8 @@ impl Generator {
                     self.writer.write("i32.wrap_i64");
                     self.convert_stack_from_i32_1();
                 }
+                "i32_to_address" => self.convert_value_i32_to_address_1(),
+                "address_to_i32" => self.convert_value_address_to_i32_1(),
                 _ => {
                     self.writer.write(&format!("call ${}", ident.as_str()));
                 }
@@ -675,6 +677,26 @@ impl Generator {
         }
 
         Ok(())
+    }
+
+    fn convert_value_i32_to_address_1(&mut self) {
+        self.writer.new_statement();
+        self.writer.write("i64.const 1");
+
+        self.writer.new_statement();
+        self.writer.write("i64.add");
+
+        self.assert_if_pointer();
+    }
+
+    fn convert_value_address_to_i32_1(&mut self) {
+        self.assert_if_pointer();
+
+        self.writer.new_statement();
+        self.writer.write("i64.const 1");
+
+        self.writer.new_statement();
+        self.writer.write("i64.sub");
     }
 
     fn convert_stack_to_i32_1(&mut self) {
@@ -712,28 +734,30 @@ impl Generator {
     }
 
     fn assert_if_pointer(&mut self) {
-        self.writer.new_statement();
-        self.writer.write("global.set $_value_i32_1");
+        if MODE_ASSERT_PTR {
+            self.writer.new_statement();
+            self.writer.write("global.set $_value_i32_1");
 
-        self.writer.new_statement();
-        self.writer.write("global.get $_value_i32_1");
+            self.writer.new_statement();
+            self.writer.write("global.get $_value_i32_1");
 
-        self.convert_stack_to_i32_1();
+            self.convert_stack_to_i32_1();
 
-        self.writer.new_statement();
-        self.writer.write("i32.const 1");
+            self.writer.new_statement();
+            self.writer.write("i32.const 1");
 
-        self.writer.new_statement();
-        self.writer.write("i32.and");
+            self.writer.new_statement();
+            self.writer.write("i32.and");
 
-        self.writer.new_statement();
-        self.writer.write("i32.eqz");
+            self.writer.new_statement();
+            self.writer.write("i32.eqz");
 
-        self.writer.new_statement();
-        self.writer.write("(if (then call $abort drop) (else))");
+            self.writer.new_statement();
+            self.writer.write("(if (then call $abort drop) (else))");
 
-        self.writer.new_statement();
-        self.writer.write("global.get $_value_i32_1");
+            self.writer.new_statement();
+            self.writer.write("global.get $_value_i32_1");
+        }
     }
 
     fn generate_if(

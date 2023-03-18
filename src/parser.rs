@@ -520,7 +520,8 @@ impl Parser {
                     self.consume()?;
                     let type_ = self.type_()?;
 
-                    current = self.source_from(Expr::As(Box::new(current), type_), position);
+                    current = self
+                        .source_from(Expr::As(Box::new(current), Type::Omit(0), type_), position);
                 }
                 _ => break,
             }
