@@ -548,10 +548,10 @@ impl IrType {
 
     pub fn to_term(&self) -> IrTerm {
         match self {
-            IrType::Nil => IrTerm::Ident("nil".to_string()),
-            IrType::I32 => IrTerm::Ident("i32".to_string()),
+            IrType::Nil => IrTerm::Ident("i64".to_string()),
+            IrType::I32 => IrTerm::Ident("i64".to_string()),
             IrType::I64 => IrTerm::Ident("i64".to_string()),
-            IrType::Address => IrTerm::Ident("i32".to_string()),
+            IrType::Address => IrTerm::Ident("i64".to_string()),
         }
     }
 

@@ -219,13 +219,16 @@ impl Generator {
         self.writer.write("func");
         self.writer.write(&format!("${}", name.as_str()));
         for (name, type_) in params {
-            self.writer
-                .write(&format!("(param ${} {})", name.as_str(), type_.to_string()));
+            self.writer.write(&format!(
+                "(param ${} {})",
+                name.as_str(),
+                Value::wasm_type()
+            ));
         }
 
         if let Some(result) = result {
             self.writer
-                .write(&format!("(result {})", result.to_string()));
+                .write(&format!("(result {})", Value::wasm_type()));
         }
 
         let mut used = HashSet::new();
@@ -237,7 +240,7 @@ impl Generator {
 
                 self.writer.start();
                 self.writer
-                    .write(&format!("local ${} {}", name.as_str(), type_.to_string()));
+                    .write(&format!("local ${} {}", name.as_str(), Value::wasm_type()));
                 self.writer.end();
 
                 used.insert(name);
@@ -301,19 +304,16 @@ impl Generator {
     fn expr(&mut self, expr: &mut IrTerm) -> Result<()> {
         match expr {
             IrTerm::Nil => {
-                // self.write_value(Value::nil());
-                self.writer.write(&format!("i32.const {}", 0));
+                self.write_value(Value::nil());
             }
             IrTerm::I32(i) => {
-                // self.write_value(Value::i32(*i));
-                self.writer.write(&format!("i32.const {}", i));
+                self.write_value(Value::i32(*i));
             }
             IrTerm::I64(i) => {
                 todo!("{}", i);
             }
             IrTerm::U32(i) => {
-                // self.write_value(Value::i32(*i as i32));
-                self.writer.write(&format!("i32.const {}", i));
+                self.write_value(Value::i32(*i as i32));
             }
             IrTerm::Ident(i) => {
                 if self.globals.contains(&i.clone()) {
@@ -325,6 +325,8 @@ impl Generator {
             IrTerm::String(p) => {
                 self.writer.new_statement();
                 self.writer.write(&format!("i32.const {}", p));
+
+                self.convert_stack_from_i32_1();
 
                 self.writer.new_statement();
                 self.writer.write("call $quartz_std_load_string");
@@ -399,6 +401,7 @@ impl Generator {
                 self.writer.write("$continue");
 
                 self.expr(cond.as_mut())?;
+                self.convert_stack_to_i32_1();
                 self.writer.new_statement();
                 self.writer.write("i32.eqz");
                 self.writer.new_statement();
@@ -427,8 +430,7 @@ impl Generator {
             }
             IrTerm::SizeOf { .. } => {
                 self.writer.new_statement();
-                self.writer
-                    .write(&format!("i32.const {}", IrType::sizeof()));
+                self.write_value(Value::i32(IrType::sizeof() as i32));
             }
             IrTerm::WriteMemory {
                 type_,
@@ -484,8 +486,12 @@ impl Generator {
                 self.writer.new_statement();
                 self.expr(offset)?;
 
+                self.convert_stack_to_i32_2();
+
                 self.writer.new_statement();
                 self.writer.write("i32.add");
+
+                self.convert_stack_from_i32_1();
 
                 self.writer.new_statement();
                 self.writer.write(&format!("{}.load", type_.to_string()));
@@ -506,8 +512,12 @@ impl Generator {
                 self.writer.new_statement();
                 self.expr(offset)?;
 
+                self.convert_stack_to_i32_2();
+
                 self.writer.new_statement();
                 self.writer.write("i32.add");
+
+                self.convert_stack_from_i32_1();
 
                 self.writer.new_statement();
                 self.expr(value)?;
@@ -556,64 +566,101 @@ impl Generator {
         match caller.as_ref() {
             IrTerm::Ident(ident) => match ident.as_str() {
                 "add" => {
+                    self.convert_stack_to_i32_2();
                     self.writer.write("i32.add");
+                    self.convert_stack_from_i32_1();
                 }
                 "sub" => {
+                    self.convert_stack_to_i32_2();
                     self.writer.write("i32.sub");
+                    self.convert_stack_from_i32_1();
                 }
                 "mult" => {
+                    self.convert_stack_to_i32_2();
                     self.writer.write("i32.mul");
+                    self.convert_stack_from_i32_1();
                 }
                 "mult_u32" => {
+                    self.convert_stack_to_i32_2();
                     self.writer.write("i32.mul");
+                    self.convert_stack_from_i32_1();
                 }
                 "mult_i64" => {
+                    todo!();
                     self.writer.write("i64.mul");
                 }
                 "div" => {
+                    self.convert_stack_to_i32_2();
                     self.writer.write("i32.div_s");
+                    self.convert_stack_from_i32_1();
                 }
                 "mod" => {
+                    self.convert_stack_to_i32_2();
                     self.writer.write("i32.rem_s");
+                    self.convert_stack_from_i32_1();
                 }
                 "mod_u32" => {
+                    self.convert_stack_to_i32_2();
                     self.writer.write("i32.rem_u");
+                    self.convert_stack_from_i32_1();
                 }
                 "mod_i64" => {
+                    todo!();
                     self.writer.write("i64.rem_s");
                 }
                 "equal" => {
+                    self.convert_stack_to_i32_2();
                     self.writer.write("i32.eq");
+                    self.convert_stack_from_i32_1();
                 }
                 "not_equal" => {
+                    self.convert_stack_to_i32_2();
                     self.writer.write("i32.ne");
+                    self.convert_stack_from_i32_1();
                 }
                 "not" => {
+                    self.convert_stack_to_i32_1();
                     self.writer.write("i32.eqz");
+                    self.convert_stack_from_i32_1();
                 }
                 "lt" => {
+                    self.convert_stack_to_i32_2();
                     self.writer.write("i32.lt_s");
+                    self.convert_stack_from_i32_1();
                 }
                 "gt" => {
+                    self.convert_stack_to_i32_2();
                     self.writer.write("i32.gt_s");
+                    self.convert_stack_from_i32_1();
                 }
                 "lte" => {
+                    self.convert_stack_to_i32_2();
                     self.writer.write("i32.le_s");
+                    self.convert_stack_from_i32_1();
                 }
                 "gte" => {
+                    self.convert_stack_to_i32_2();
                     self.writer.write("i32.ge_s");
+                    self.convert_stack_from_i32_1();
                 }
                 "xor_u32" => {
+                    self.convert_stack_to_i32_2();
                     self.writer.write("i32.xor");
+                    self.convert_stack_from_i32_1();
                 }
                 "xor_i64" => {
+                    todo!();
                     self.writer.write("i64.xor");
                 }
                 "i32_to_i64" => {
+                    self.convert_stack_to_i32_1();
                     self.writer.write("i64.extend_i32_s");
+                    self.convert_stack_from_i32_1();
                 }
                 "i64_to_i32" => {
+                    self.convert_stack_to_i32_1();
                     self.writer.write("i32.wrap_i64");
+                    self.convert_stack_from_i32_1();
                 }
                 _ => {
                     self.writer.write(&format!("call ${}", ident.as_str()));
@@ -627,30 +674,36 @@ impl Generator {
 
     fn convert_stack_to_i32_1(&mut self) {
         self.writer.new_statement();
-        self.writer.write("i32.const 32");
+        self.writer.write("i64.const 32");
 
         self.writer.new_statement();
-        self.writer.write("i32.shr_u");
+        self.writer.write("i64.shr_u");
+
+        self.writer.new_statement();
+        self.writer.write("i32.wrap_i64");
     }
 
     fn convert_stack_to_i32_2(&mut self) {
         self.writer.new_statement();
         self.writer.write("global.set $_value_i32_1");
 
-        self.convert_stack_from_i32_1();
+        self.convert_stack_to_i32_1();
 
         self.writer.new_statement();
-        self.writer.write("global.get $_value_i32_2");
+        self.writer.write("global.get $_value_i32_1");
 
-        self.convert_stack_from_i32_1();
+        self.convert_stack_to_i32_1();
     }
 
     fn convert_stack_from_i32_1(&mut self) {
         self.writer.new_statement();
-        self.writer.write("i32.const 32");
+        self.writer.write("i64.extend_i32_s");
 
         self.writer.new_statement();
-        self.writer.write("i32.shl_u");
+        self.writer.write("i64.const 32");
+
+        self.writer.new_statement();
+        self.writer.write("i64.shl");
     }
 
     fn generate_if(
