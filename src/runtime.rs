@@ -838,6 +838,27 @@ fun main(): bool {
                     Value::i32(1),
                 ],
             ),
+            (
+                r#"
+struct P {
+    x: i32,
+    y: string,
+}
+
+fun main(): bool {
+    let p = P {
+        x: 10,
+        y: "hello",
+    };
+    println(derive::to_string(p));
+
+    return derive::to_string(p).equal("");
+}
+"#,
+                vec![
+                    Value::i32(1),
+                ],
+            ),
         ];
 
         for (input, expected) in cases {

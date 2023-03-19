@@ -489,3 +489,27 @@ module reflection {
         println(get_type_rep(t).name);
     }
 }
+
+module derive {
+    fun to_string(t: any): string {
+        let rep = reflection::get_type_rep(t);
+        if rep.name.equal("string") {
+            return t as string;
+        }
+        if rep.name.equal("value") {
+            return (t as i32).to_string();
+        }
+        
+        let s = format("{} {", rep.name);
+        for i in 0..rep.fields.length {
+            if i > 0 {
+                s = s.concat(",");
+            }
+            let f = rep.fields.at(i);
+            let v = (t as ptr[any]).at(i);
+            s = s.concat(format(" {}: {}", f, derive::to_string(v)));
+        }
+
+        return s.concat(" }");
+    }
+}
