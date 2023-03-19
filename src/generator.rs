@@ -176,6 +176,11 @@ impl Generator {
                     args: vec![],
                     source: None,
                 },
+                IrTerm::Call {
+                    callee: Box::new(IrTerm::ident("prepare_type_reps")),
+                    args: vec![],
+                    source: None,
+                },
                 IrTerm::Return {
                     value: Box::new(IrTerm::Call {
                         callee: Box::new(IrTerm::ident(self.entrypoint_symbol.clone())),

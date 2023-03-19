@@ -26,7 +26,7 @@ impl<T: Hash + Eq> SerialIdMap<T> {
         }
     }
 
-    pub fn into_map(self) -> HashMap<T, usize> {
-        self.keys
+    pub fn as_map(&self) -> &HashMap<T, usize> {
+        &self.keys
     }
 }

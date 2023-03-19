@@ -51,8 +51,8 @@ impl TypeChecker {
                 ),
                 ("abort", Type::Func(vec![], Box::new(Type::Nil))),
                 (
-                    "reflection_get_type_rep",
-                    Type::Func(vec![Type::Any], Box::new(Type::Ptr(Box::new(Type::Any)))),
+                    "reflection_get_type_rep_id",
+                    Type::Func(vec![Type::Any], Box::new(Type::I32)),
                 ),
                 (
                     "reflection_is_pointer",

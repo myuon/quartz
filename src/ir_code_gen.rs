@@ -70,8 +70,9 @@ impl IrCodeGenerator {
     pub fn run(&mut self, module: &mut Module) -> Result<IrTerm> {
         let mut decls = self.module(module)?;
         decls.push(self.generate_prepare_strings()?);
+        decls.push(self.generate_prepare_type_reps()?);
         decls.push(IrTerm::Func {
-            name: "reflection_get_type_rep".to_string(),
+            name: "reflection_get_type_rep_id".to_string(),
             params: vec![("p".to_string(), IrType::Address)],
             result: Some(IrType::Address),
             body: vec![IrTerm::Return {
@@ -120,6 +121,51 @@ impl IrCodeGenerator {
         }
 
         Ok(elements)
+    }
+
+    fn generate_prepare_type_reps(&mut self) -> Result<IrTerm> {
+        let var_ptr = "quartz_std_type_reps_ptr";
+        let type_reps = self.type_reps.as_map().clone();
+
+        let mut body = vec![];
+        // quartz_std_type_reps_ptr = make[ptr[any]](${type_reps.len()});
+        body.push(IrTerm::Assign {
+            lhs: var_ptr.to_string(),
+            rhs: Box::new(self.expr(&mut Source::unknown(Expr::Make(
+                Type::Ptr(Box::new(Type::Any)),
+                vec![Source::unknown(Expr::Lit(Lit::I32(type_reps.len() as i32)))],
+            )))?),
+        });
+
+        for (type_rep, rep_id) in type_reps {
+            let var_p = "p".to_string();
+
+            // let p = write_type_rep(${rep});
+            body.push(IrTerm::Let {
+                name: var_p.clone(),
+                type_: IrType::I32,
+                value: Box::new(self.write_type_rep(type_rep)?),
+            });
+
+            // quartz_std_type_reps_ptr.at(${rep_id}) = p
+            let lhs = self.generate_array_at(
+                &Type::Any,
+                IrTerm::ident(var_ptr.to_string()),
+                IrTerm::i32(rep_id as i32),
+            )?;
+            body.push(self.assign(lhs, IrTerm::ident(var_p.clone()))?);
+        }
+
+        body.push(IrTerm::Return {
+            value: Box::new(IrTerm::nil()),
+        });
+
+        Ok(IrTerm::Func {
+            name: "prepare_type_reps".to_string(),
+            params: vec![],
+            result: None,
+            body,
+        })
     }
 
     fn generate_prepare_strings(&mut self) -> Result<IrTerm> {
