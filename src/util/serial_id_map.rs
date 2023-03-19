@@ -2,8 +2,8 @@ use std::{collections::HashMap, hash::Hash};
 
 #[derive(Debug, Clone)]
 pub struct SerialIdMap<T> {
-    keys: HashMap<T, usize>,
-    next: usize,
+    pub keys: HashMap<T, usize>,
+    pub next: usize,
 }
 
 impl<T: Hash + Eq> SerialIdMap<T> {
@@ -24,9 +24,5 @@ impl<T: Hash + Eq> SerialIdMap<T> {
                 id
             }
         }
-    }
-
-    pub fn as_map(&self) -> &HashMap<T, usize> {
-        &self.keys
     }
 }

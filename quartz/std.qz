@@ -464,6 +464,8 @@ module reflection {
     }
 
     fun get_type_rep(t: any): TypeRep {
+        debug(t);
+
         if reflection::is_pointer(t) {
             if t == nil {
                 return TypeRep {

@@ -125,7 +125,8 @@ impl IrCodeGenerator {
 
     fn generate_prepare_type_reps(&mut self) -> Result<IrTerm> {
         let var_ptr = "quartz_std_type_reps_ptr";
-        let type_reps = self.type_reps.as_map().clone();
+        let mut type_reps = self.type_reps.keys.clone().into_iter().collect::<Vec<_>>();
+        type_reps.sort_by(|(_, a), (_, b)| a.cmp(&b));
 
         let mut body = vec![];
         // quartz_std_type_reps_ptr = make[ptr[any]](${type_reps.len()});
