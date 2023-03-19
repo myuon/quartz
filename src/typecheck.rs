@@ -1121,6 +1121,8 @@ impl Constrains {
 
                 Ok(constrains)
             }
+            (_, Type::Any) => Ok(Constrains::empty()),
+            (Type::Any, _) => Ok(Constrains::empty()),
             (type1, type2) => {
                 bail!(
                     "type mismatch, expected {}, but found {}",

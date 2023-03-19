@@ -818,6 +818,18 @@ fun main(): i32 {
                     Value::I32(146),
                 ],
             ),
+            (
+                r#"
+fun main() {
+    reflection::print_type(10);
+    reflection::print_type("hello");
+    reflection::print_type(true);
+}
+"#,
+                vec![
+                    Value::nil(),
+                ],
+            ),
         ];
 
         for (input, expected) in cases {
