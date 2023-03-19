@@ -302,7 +302,10 @@ impl Generator {
                     self.writer.new_statement();
                     self.writer.write("return");
                 }
-                IrType::Any => todo!(),
+                IrType::Any => {
+                    self.writer.new_statement();
+                    self.writer.write("unreachable");
+                }
             }
         }
 
