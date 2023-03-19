@@ -518,6 +518,7 @@ pub enum IrType {
     I32,
     I64,
     Address,
+    Any,
 }
 
 impl IrType {
@@ -543,6 +544,7 @@ impl IrType {
             }
             Type::Map(_, _) => Ok(IrType::Address),
             Type::Or(_, _) => Ok(IrType::Address),
+            Type::Any => Ok(IrType::Any),
         }
     }
 
@@ -552,6 +554,7 @@ impl IrType {
             IrType::I32 => IrTerm::Ident("i64".to_string()),
             IrType::I64 => IrTerm::Ident("i64".to_string()),
             IrType::Address => IrTerm::Ident("i64".to_string()),
+            IrType::Any => IrTerm::Ident("i64".to_string()),
         }
     }
 

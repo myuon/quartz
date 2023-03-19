@@ -302,6 +302,7 @@ impl Generator {
                     self.writer.new_statement();
                     self.writer.write("return");
                 }
+                IrType::Any => todo!(),
             }
         }
 

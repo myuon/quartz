@@ -928,6 +928,7 @@ impl Parser {
 
                     Type::Map(Box::new(key), Box::new(value))
                 }
+                "any" => Type::Any,
                 ident => Type::Ident(Ident(ident.to_string())),
             },
             Lexeme::LBrace => {

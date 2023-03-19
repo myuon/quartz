@@ -52,7 +52,7 @@ impl TypeChecker {
                 (
                     "reflection_get_type_rep",
                     Type::Func(
-                        vec![Type::Byte],
+                        vec![Type::Any],
                         Box::new(Type::Ident(Ident("string".to_string()))),
                     ),
                 ),
@@ -1197,6 +1197,7 @@ impl Constrains {
                 self.apply(t1);
                 self.apply(t2);
             }
+            Type::Any => {}
         }
     }
 }

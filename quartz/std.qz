@@ -433,11 +433,11 @@ module error {
 }
 
 module reflection {
-    fun get_type_rep(t: byte): string {
+    fun get_type_rep(t: any): string {
         return reflection_get_type_rep(t);
     }
 
-    fun print_type(t: byte) {
+    fun print_type(t: any) {
         println(get_type_rep(t));
     }
 }

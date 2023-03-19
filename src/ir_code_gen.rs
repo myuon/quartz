@@ -40,6 +40,7 @@ impl TypeRep {
             IrType::I32 => TypeRep::from_name("i32".to_string()),
             IrType::I64 => todo!(),
             IrType::Address => TypeRep::from_name("address".to_string()),
+            IrType::Any => TypeRep::from_name("any".to_string()),
         }
     }
 }
@@ -914,6 +915,7 @@ impl IrCodeGenerator {
                         args: vec![term],
                         source: None,
                     }),
+                    (_, IrType::Any) => Ok(term),
                     (source, target) if source == target => Ok(term),
                     (source, target) => bail!("unsupported as: {:?} -> {:?}", source, target),
                 }
