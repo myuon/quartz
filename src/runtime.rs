@@ -820,14 +820,16 @@ fun main(): i32 {
             ),
             (
                 r#"
-fun main() {
+fun main(): bool {
     reflection::print_type(10);
     reflection::print_type("hello");
     reflection::print_type(true);
+
+    return reflection::is_pointer("hello");
 }
 "#,
                 vec![
-                    Value::nil(),
+                    Value::i32(1),
                 ],
             ),
         ];

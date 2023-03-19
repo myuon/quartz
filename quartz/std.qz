@@ -434,7 +434,15 @@ module error {
 
 module reflection {
     fun get_type_rep(t: any): string {
-        return reflection_get_type_rep(t);
+        if reflection::is_pointer(t) {
+            return reflection_get_type_rep(t);
+        } else {
+            return "value";
+        }
+    }
+
+    fun is_pointer(t: any): bool {
+        return reflection_is_pointer(t);
     }
 
     fun print_type(t: any) {

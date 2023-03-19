@@ -117,13 +117,15 @@ impl Generator {
         })?;
 
         self.decl(&mut IrTerm::Func {
-            name: "is_pointer".to_string(),
-            params: vec![("value".to_string(), IrType::Address)],
+            name: "reflection_is_pointer".to_string(),
+            params: vec![("value".to_string(), IrType::Any)],
             result: Some(IrType::I32),
             body: vec![
                 IrTerm::Instruction("local.get $value".to_string()),
                 IrTerm::Instruction("i64.const 1".to_string()),
                 IrTerm::Instruction("i64.and".to_string()),
+                IrTerm::Instruction("i64.const 32".to_string()),
+                IrTerm::Instruction("i64.shl".to_string()),
                 IrTerm::Instruction("return".to_string()),
             ],
         })?;
