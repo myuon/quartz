@@ -856,9 +856,9 @@ impl IrCodeGenerator {
                     let ir_type = IrType::from_type(&type_)?;
 
                     if let Some((_, expr)) = fields.iter_mut().find(|(f, _)| f == &i) {
-                        record.push((ir_type, self.expr(expr)?));
+                        record.push((Some(i.0), ir_type, self.expr(expr)?));
                     } else {
-                        record.push((ir_type, expansion_term.clone().unwrap()));
+                        record.push((Some(i.0), ir_type, expansion_term.clone().unwrap()));
                     }
                 }
 
@@ -874,7 +874,7 @@ impl IrCodeGenerator {
                             .ok_or(anyhow!("Field not found: {:?}", label))?
                             .1,
                     )?;
-                    elements.push((IrType::from_type(type_)?, value));
+                    elements.push((Some(label.0.clone()), IrType::from_type(type_)?, value));
                 }
 
                 self.generate_array("struct".to_string(), elements)
@@ -927,8 +927,16 @@ impl IrCodeGenerator {
                     Ok(self.generate_array(
                         "array".to_string(),
                         vec![
-                            (IrType::from_type(&Type::Ptr(elem.clone()))?, data_ptr),
-                            (IrType::from_type(&Type::I32)?, IrTerm::i32(*size as i32)),
+                            (
+                                Some("data".to_string()),
+                                IrType::from_type(&Type::Ptr(elem.clone()))?,
+                                data_ptr,
+                            ),
+                            (
+                                Some("length".to_string()),
+                                IrType::from_type(&Type::I32)?,
+                                IrTerm::i32(*size as i32),
+                            ),
                         ],
                     )?)
                 }
@@ -1018,7 +1026,7 @@ impl IrCodeGenerator {
 
                 self.generate_array(
                     "optional".to_string(),
-                    vec![(IrType::from_type(type_)?, expr)],
+                    vec![(None, IrType::from_type(type_)?, expr)],
                 )
             }
             Expr::Unwrap(type_, mode, expr) => match mode.clone().unwrap() {
@@ -1037,7 +1045,7 @@ impl IrCodeGenerator {
                     let lhs_term = self.expr(lhs)?;
                     self.generate_array(
                         "optional".to_string(),
-                        vec![(IrType::from_type(lhs_type)?, lhs_term)],
+                        vec![(None, IrType::from_type(lhs_type)?, lhs_term)],
                     )?
                 } else {
                     IrTerm::Nil
@@ -1046,7 +1054,7 @@ impl IrCodeGenerator {
                     let rhs_term = self.expr(rhs)?;
                     self.generate_array(
                         "optional".to_string(),
-                        vec![(IrType::from_type(rhs_type)?, rhs_term)],
+                        vec![(None, IrType::from_type(rhs_type)?, rhs_term)],
                     )?
                 } else {
                     IrTerm::Nil
@@ -1054,7 +1062,10 @@ impl IrCodeGenerator {
 
                 self.generate_array(
                     "or".to_string(),
-                    vec![(IrType::Address, lhs_term), (IrType::Address, rhs_term)],
+                    vec![
+                        (Some("left".to_string()), IrType::Address, lhs_term),
+                        (Some("right".to_string()), IrType::Address, rhs_term),
+                    ],
                 )
             }
             Expr::Try(expr) => {
@@ -1098,8 +1109,12 @@ impl IrCodeGenerator {
                         value: Box::new(self.generate_array(
                             "or".to_string(),
                             vec![
-                                (IrType::Address, IrTerm::nil()),
-                                (IrType::Address, IrTerm::ident(right_name)),
+                                (Some("left".to_string()), IrType::Address, IrTerm::nil()),
+                                (
+                                    Some("right".to_string()),
+                                    IrType::Address,
+                                    IrTerm::ident(right_name),
+                                ),
                             ],
                         )?),
                     }),
@@ -1216,19 +1231,19 @@ impl IrCodeGenerator {
     fn generate_array(
         &mut self,
         rep_name: String,
-        elements: Vec<(IrType, IrTerm)>,
+        elements: Vec<(Option<String>, IrType, IrTerm)>,
     ) -> Result<IrTerm> {
         let rep = TypeRep::from_struct(
             rep_name,
             elements
                 .iter()
                 .enumerate()
-                .map(|(i, (t, _))| (format!("{}", i), t.clone()))
+                .map(|(i, (l, t, _))| (l.clone().unwrap_or(format!("{}", i)), t.clone()))
                 .collect::<Vec<_>>(),
         );
 
         let mut terms = vec![];
-        for (index, (type_, elem)) in elements.into_iter().enumerate() {
+        for (index, (_, type_, elem)) in elements.into_iter().enumerate() {
             terms.push((index, type_.clone(), elem));
         }
 

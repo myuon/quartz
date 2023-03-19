@@ -494,7 +494,7 @@ module derive {
     fun to_string(t: any): string {
         let rep = reflection::get_type_rep(t);
         if rep.name.equal("string") {
-            return t as string;
+            return format(`"{}"`, t as string);
         }
         if rep.name.equal("value") {
             return (t as i32).to_string();

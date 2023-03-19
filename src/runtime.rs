@@ -852,7 +852,7 @@ fun main(): bool {
     };
     println(derive::to_string(p));
 
-    return derive::to_string(p).equal("");
+    return derive::to_string(p).equal(`P { x: 10, y: "hello" }`);
 }
 "#,
                 vec![
