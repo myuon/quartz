@@ -90,6 +90,12 @@ impl Generator {
         })?;
 
         self.decl(&mut IrTerm::Declare {
+            name: "debug".to_string(),
+            params: vec![IrType::Any],
+            result: IrType::Address,
+        })?;
+
+        self.decl(&mut IrTerm::Declare {
             name: "read_stdin".to_string(),
             params: vec![],
             result: IrType::I32,

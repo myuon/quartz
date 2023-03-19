@@ -918,6 +918,7 @@ impl IrCodeGenerator {
                         source: None,
                     }),
                     (_, IrType::Any) => Ok(term),
+                    (IrType::Any, _) => Ok(term),
                     (source, target) if source == target => Ok(term),
                     (source, target) => bail!("unsupported as: {:?} -> {:?}", source, target),
                 }

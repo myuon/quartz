@@ -32,6 +32,7 @@ impl TypeChecker {
                     "debug_i32",
                     Type::Func(vec![Type::I32], Box::new(Type::Nil)),
                 ),
+                ("debug", Type::Func(vec![Type::Any], Box::new(Type::Nil))),
                 (
                     "xor_i64",
                     Type::Func(vec![Type::I64, Type::I64], Box::new(Type::I64)),
@@ -51,10 +52,7 @@ impl TypeChecker {
                 ("abort", Type::Func(vec![], Box::new(Type::Nil))),
                 (
                     "reflection_get_type_rep",
-                    Type::Func(
-                        vec![Type::Any],
-                        Box::new(Type::Ident(Ident("string".to_string()))),
-                    ),
+                    Type::Func(vec![Type::Any], Box::new(Type::Ptr(Box::new(Type::Any)))),
                 ),
                 (
                     "reflection_is_pointer",
