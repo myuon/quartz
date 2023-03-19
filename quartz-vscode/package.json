@@ -2,7 +2,7 @@
   "name": "quartz-mode",
   "displayName": "quartz-mode",
   "description": "",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "engines": {
     "vscode": "^1.76.0"
   },
@@ -51,6 +51,7 @@
   },
   "scripts": {
     "vscode:prepublish": "yarn run compile",
+    "publish": "vsce publish",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "yarn run compile && yarn run lint",
