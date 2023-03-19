@@ -416,6 +416,13 @@ impl IrCodeGenerator {
         }
     }
 
+    fn register_string(&mut self, s: String) -> IrTerm {
+        let index = self.strings.len();
+        self.strings.push(s);
+
+        IrTerm::String(index)
+    }
+
     fn expr(&mut self, expr: &mut Source<Expr>) -> Result<IrTerm> {
         match &mut expr.data {
             Expr::Ident {
@@ -441,12 +448,7 @@ impl IrCodeGenerator {
                 Lit::I32(i) => Ok(IrTerm::i32(*i)),
                 Lit::U32(i) => Ok(IrTerm::u32(*i)),
                 Lit::I64(i) => Ok(IrTerm::i64(*i)),
-                Lit::String(s) => {
-                    let index = self.strings.len();
-                    self.strings.push(s.clone());
-
-                    Ok(IrTerm::String(index))
-                }
+                Lit::String(s) => Ok(self.register_string(s.clone())),
             },
             Expr::BinOp(op, type_, arg1, arg2) => {
                 use crate::ast::BinOp::*;
@@ -1230,7 +1232,7 @@ impl IrCodeGenerator {
     }
 
     fn allocate_heap_object(&mut self, rep: TypeRep, size: IrTerm) -> Result<IrTerm> {
-        let rep_id = self.rep_get_or_insert(rep);
+        let rep_term = self.write_type_rep(rep)?;
 
         let var = format!(
             "object_{}",
@@ -1270,7 +1272,7 @@ impl IrCodeGenerator {
                 type_: IrType::Address,
                 address: Box::new(IrTerm::ident(var.clone())),
                 offset: Box::new(IrTerm::i32(0)),
-                value: Box::new(IrTerm::i32(rep_id as i32)),
+                value: Box::new(rep_term),
                 raw_offset: None,
             });
         }
@@ -1278,5 +1280,57 @@ impl IrCodeGenerator {
         object.push(IrTerm::ident(var.clone()));
 
         Ok(IrTerm::Seq { elements: object })
+    }
+
+    fn write_type_rep(&mut self, rep: TypeRep) -> Result<IrTerm> {
+        // [size of fields, rep_name, field1, field2, ..., fieldn]
+        let mut elements = vec![
+            IrTerm::i32(rep.fields.len() as i32),
+            self.register_string(rep.name.clone()),
+        ];
+        for (s, _) in rep.fields {
+            elements.push(self.register_string(s));
+        }
+
+        let var_name = format!(
+            "type_rep_{}",
+            Alphanumeric
+                .sample_iter(&mut rand::thread_rng())
+                .take(5)
+                .map(char::from)
+                .collect::<String>()
+        );
+
+        let mut array = vec![IrTerm::Let {
+            name: var_name.clone(),
+            type_: IrType::Address,
+            value: Box::new(IrTerm::Call {
+                callee: Box::new(IrTerm::ident(
+                    Path::new(vec![
+                        Ident("quartz".to_string()),
+                        Ident("std".to_string()),
+                        Ident("alloc".to_string()),
+                    ])
+                    .as_joined_str("_"),
+                )),
+                args: vec![
+                    self.generate_mult_sizeof(&Type::Any, IrTerm::i32(elements.len() as i32))?
+                ],
+                source: None,
+            }),
+        }];
+        for (index, element) in elements.into_iter().enumerate() {
+            array.push(IrTerm::Store {
+                type_: IrType::Any,
+                address: Box::new(IrTerm::ident(var_name.clone())),
+                offset: Box::new(self.generate_mult_sizeof(&Type::I32, IrTerm::i32(index as i32))?),
+                value: Box::new(element),
+                raw_offset: None,
+            });
+        }
+
+        array.push(IrTerm::ident(var_name.clone()));
+
+        Ok(IrTerm::Seq { elements: array })
     }
 }
