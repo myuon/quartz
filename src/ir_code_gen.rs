@@ -7,7 +7,7 @@ use crate::{
     ast::{Decl, Expr, Func, Lit, Module, Pattern, Statement, Type, UnwrapMode, VariadicCall},
     compiler::{ErrorInSource, SourcePosition, MODE_TYPE_REP},
     ir::{IrTerm, IrType},
-    util::{ident::Ident, path::Path, source::Source},
+    util::{ident::Ident, path::Path, serial_id_map::SerialIdMap, source::Source},
     value::Value,
 };
 
@@ -50,6 +50,7 @@ pub struct IrCodeGenerator {
     types: HashMap<Ident, Type>,
     current_path: Path,
     pub strings: Vec<String>,
+    pub type_reps: SerialIdMap<TypeRep>,
 }
 
 impl IrCodeGenerator {
@@ -58,6 +59,7 @@ impl IrCodeGenerator {
             types: HashMap::new(),
             current_path: Path::empty(),
             strings: vec![],
+            type_reps: SerialIdMap::new(),
         }
     }
 
@@ -1222,18 +1224,8 @@ impl IrCodeGenerator {
         })
     }
 
-    fn rep_get_or_insert(&mut self, rep: TypeRep) -> usize {
-        let rep_string = format!("{:?}", rep);
-        if let Some(p) = self.strings.iter().position(|s| s == &rep_string) {
-            p
-        } else {
-            self.strings.push(rep_string);
-            self.strings.len() - 1
-        }
-    }
-
     fn allocate_heap_object(&mut self, rep: TypeRep, size: IrTerm) -> Result<IrTerm> {
-        let rep_term = self.write_type_rep(rep)?;
+        let rep_id = self.type_reps.get_or_insert(rep);
 
         let var = format!(
             "object_{}",
@@ -1273,7 +1265,7 @@ impl IrCodeGenerator {
                 type_: IrType::Address,
                 address: Box::new(IrTerm::ident(var.clone())),
                 offset: Box::new(IrTerm::i32(0)),
-                value: Box::new(rep_term),
+                value: Box::new(IrTerm::i32(rep_id as i32)),
                 raw_offset: None,
             });
         }

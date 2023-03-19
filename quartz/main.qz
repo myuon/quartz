@@ -31,9 +31,17 @@ fun test() {
     }
 }
 
+struct P {
+    x: i32,
+    y: i32,
+}
+
 fun main() {
     // dump_strings();
     test();
+
+    reflection::print_type(P {x: 10, y:20});
+    return;
 
     let result or err = run(stdin());
     if err != nil {

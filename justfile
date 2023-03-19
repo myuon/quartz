@@ -11,7 +11,7 @@ run:
   cargo run --release -- run --stdin
 
 run_compiler:
-  cargo run -- run ./quartz/main.qz
+  cargo run --release -- run ./quartz/main.qz
 
 run_wat:
   cargo run -- run-wat ./build/build.wat
