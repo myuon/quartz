@@ -3,7 +3,7 @@
 pub enum Value {
     Bool(bool),
     I32(i32),
-    Pointer(#[cfg_attr(test, proptest(filter = "|p| p % 4 == 0"))] i32),
+    Pointer(#[cfg_attr(test, proptest(filter = "|p| p % 4 == 0"))] u32),
 }
 
 impl Value {
@@ -22,13 +22,13 @@ impl Value {
                 }
             }
             Value::I32(i) => (*i as i64) << 32,
-            Value::Pointer(p) => (*p as i64) | 0b1_i64,
+            Value::Pointer(p) => ((*p as i64) << 32) | 0b1,
         }
     }
 
     pub fn from_i64(i: i64) -> Value {
         if i & 0b1 == 0b1 {
-            Value::Pointer((i & !0b1_i64) as i32)
+            Value::Pointer((i >> 32) as u32)
         } else if i & 0b10 == 0b10 {
             Value::Bool(i == 0b110)
         } else {
