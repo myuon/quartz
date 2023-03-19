@@ -447,7 +447,7 @@ module reflection {
         return (type_reps_ptr as ptr[ptr[any]]).at(index);
     }
 
-    // [size of fields, rep_name, field1, field2, ..., fieldn]
+    // [nil, size of fields, rep_name, field1, field2, ..., fieldn]
     fun parse_type_rep(t: ptr[any]): TypeRep {
         let size = t.at(0) as i32;
         let name = t.at(1) as string;
@@ -464,8 +464,6 @@ module reflection {
     }
 
     fun get_type_rep(t: any): TypeRep {
-        debug(strings_ptr);
-
         if reflection::is_pointer(t) {
             if t == nil {
                 return TypeRep {

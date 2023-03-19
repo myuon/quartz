@@ -58,6 +58,10 @@ impl TypeChecker {
                     "reflection_is_pointer",
                     Type::Func(vec![Type::Any], Box::new(Type::Bool)),
                 ),
+                (
+                    "unsafe_load_ptr",
+                    Type::Func(vec![Type::Any, Type::I32], Box::new(Type::Any)),
+                ),
             ]
             .into_iter()
             .map(|(k, v)| (Path::ident(Ident(k.to_string())), v))

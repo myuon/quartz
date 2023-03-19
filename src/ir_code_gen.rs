@@ -69,8 +69,9 @@ impl IrCodeGenerator {
 
     pub fn run(&mut self, module: &mut Module) -> Result<IrTerm> {
         let mut decls = self.module(module)?;
-        decls.push(self.generate_prepare_strings()?);
+        // generate_prepare_type_reps should be called before generate_prepare_strings, since it uses strings
         decls.push(self.generate_prepare_type_reps()?);
+        decls.push(self.generate_prepare_strings()?);
         decls.push(IrTerm::Func {
             name: "reflection_get_type_rep_id".to_string(),
             params: vec![("p".to_string(), IrType::Address)],
@@ -80,6 +81,22 @@ impl IrCodeGenerator {
                     type_: IrType::Address,
                     address: Box::new(IrTerm::ident("p".to_string())),
                     offset: Box::new(IrTerm::i32(0)),
+                    raw_offset: None,
+                }),
+            }],
+        });
+        decls.push(IrTerm::Func {
+            name: "unsafe_load_ptr".to_string(),
+            params: vec![
+                ("p".to_string(), IrType::Address),
+                ("offset".to_string(), IrType::I32),
+            ],
+            result: Some(IrType::Address),
+            body: vec![IrTerm::Return {
+                value: Box::new(IrTerm::Load {
+                    type_: IrType::Address,
+                    address: Box::new(IrTerm::ident("p".to_string())),
+                    offset: Box::new(IrTerm::ident("offset".to_string())),
                     raw_offset: None,
                 }),
             }],
@@ -1323,8 +1340,9 @@ impl IrCodeGenerator {
     }
 
     fn write_type_rep(&mut self, rep: TypeRep) -> Result<IrTerm> {
-        // [size of fields, rep_name, field1, field2, ..., fieldn]
+        // [nil, size of fields, rep_name, field1, field2, ..., fieldn]
         let mut elements = vec![
+            IrTerm::nil(),
             IrTerm::i32(rep.fields.len() as i32),
             self.register_string(rep.name.clone()),
         ];

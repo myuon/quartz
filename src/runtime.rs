@@ -38,7 +38,7 @@ impl Runtime {
                 "debug" => Function::new_typed(&mut store, |i: i64| {
                     let w = Value::from_i64(i);
 
-                    println!("[DEBUG] {:?} ({:#032b}|{:#032b})", w, i >> 32 , i & 0xffffffff);
+                    println!("[DEBUG] {:?} ({:#032b})", w, i >> 32);
                     Value::i32(0).as_i64()
                 }),
                 "abort" => Function::new_typed(&mut store, || -> i64 {
