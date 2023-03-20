@@ -803,7 +803,7 @@ impl Generator {
         self.writer.write("i64.const 2");
 
         self.writer.new_statement();
-        self.writer.write("i64.add");
+        self.writer.write("i64.or");
     }
 
     fn convert_stack_to_bool(&mut self) {
@@ -826,9 +826,7 @@ impl Generator {
     ) -> Result<()> {
         self.writer.new_statement();
         self.expr(cond)?;
-
-        // if condition should be i32
-        self.convert_stack_to_i32_1();
+        self.convert_stack_to_bool();
 
         self.writer.start();
         self.writer.write(if let Some(t) = type_ {
