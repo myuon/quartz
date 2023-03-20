@@ -380,6 +380,14 @@ impl Generator {
 
                 self.write_value(Value::i32(*i as i32));
             }
+            IrTerm::Bool(b) => {
+                if MODE_READABLE_WASM {
+                    self.writer.new_statement();
+                    self.writer.write(&format!(";; {}", b));
+                }
+
+                self.write_value(Value::bool(*b));
+            }
             IrTerm::Ident(i) => {
                 if self.globals.contains(&i.clone()) {
                     self.writer.write(&format!("global.get ${}", i.as_str()));
@@ -471,7 +479,8 @@ impl Generator {
                 self.writer.write("$continue");
 
                 self.expr(cond.as_mut())?;
-                self.convert_stack_to_i32_1();
+                self.convert_stack_to_bool();
+
                 self.writer.new_statement();
                 self.writer.write("i32.eqz");
                 self.writer.new_statement();
@@ -681,39 +690,25 @@ impl Generator {
                     self.writer.write("i64.rem_s");
                 }
                 "equal" => {
-                    self.convert_stack_to_i32_2();
-                    self.writer.write("i32.eq");
-                    self.convert_stack_from_i32_1();
+                    self.generate_op_comparison("eq");
                 }
                 "not_equal" => {
-                    self.convert_stack_to_i32_2();
-                    self.writer.write("i32.ne");
-                    self.convert_stack_from_i32_1();
+                    self.generate_op_comparison("ne");
                 }
                 "not" => {
-                    self.convert_stack_to_i32_1();
-                    self.writer.write("i32.eqz");
-                    self.convert_stack_from_i32_1();
+                    self.generate_op_comparison("eqz");
                 }
                 "lt" => {
-                    self.convert_stack_to_i32_2();
-                    self.writer.write("i32.lt_s");
-                    self.convert_stack_from_i32_1();
+                    self.generate_op_comparison("lt_s");
                 }
                 "gt" => {
-                    self.convert_stack_to_i32_2();
-                    self.writer.write("i32.gt_s");
-                    self.convert_stack_from_i32_1();
+                    self.generate_op_comparison("gt_s");
                 }
                 "lte" => {
-                    self.convert_stack_to_i32_2();
-                    self.writer.write("i32.le_s");
-                    self.convert_stack_from_i32_1();
+                    self.generate_op_comparison("le_s");
                 }
                 "gte" => {
-                    self.convert_stack_to_i32_2();
-                    self.writer.write("i32.ge_s");
-                    self.convert_stack_from_i32_1();
+                    self.generate_op_comparison("ge_s");
                 }
                 "xor_u32" => {
                     self.generate_op_arithmetic("xor");
@@ -794,6 +789,34 @@ impl Generator {
         self.writer.write("i64.shl");
     }
 
+    fn convert_stack_from_bool_1(&mut self) {
+        self.writer.new_statement();
+        self.writer.write("i64.extend_i32_s");
+
+        self.writer.new_statement();
+        self.writer.write("i64.const 2");
+
+        self.writer.new_statement();
+        self.writer.write("i64.shl");
+
+        self.writer.new_statement();
+        self.writer.write("i64.const 2");
+
+        self.writer.new_statement();
+        self.writer.write("i64.add");
+    }
+
+    fn convert_stack_to_bool(&mut self) {
+        self.writer.new_statement();
+        self.writer.write("i64.const 2");
+
+        self.writer.new_statement();
+        self.writer.write("i64.shr_u");
+
+        self.writer.new_statement();
+        self.writer.write("i32.wrap_i64");
+    }
+
     fn generate_if(
         &mut self,
         type_: Option<IrType>,
@@ -833,5 +856,11 @@ impl Generator {
         self.convert_stack_to_i32_2();
         self.writer.write(format!("i32.{}", code));
         self.convert_stack_from_i32_1();
+    }
+
+    fn generate_op_comparison(&mut self, code: &str) {
+        self.convert_stack_to_i32_2();
+        self.writer.write(format!("i32.{}", code));
+        self.convert_stack_from_bool_1();
     }
 }
