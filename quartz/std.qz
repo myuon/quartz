@@ -512,6 +512,16 @@ module derive {
         if rep.name.equal("bool") {
             return (t as bool).to_string();
         }
+        if rep.name.equal("vec") {
+            let s = format("vec(");
+            for i in 0..(t as vec[any]).length {
+                if i > 0 {
+                    s = s.concat(", ");
+                }
+                s = s.concat(derive::to_string((t as vec[any]).at(i)));
+            }
+            return s.concat(")");
+        }
         
         let s = format("{} {", rep.name);
         for i in 0..rep.fields.length {

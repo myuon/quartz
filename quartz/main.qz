@@ -28,6 +28,19 @@ fun test() {
     assert_eq_string("hoge".repeat(3), "hogehogehoge");
 
     assert_eq_string(derive::to_string(false), "false");
+    assert_eq_string(derive::to_string(1), "1");
+    assert_eq_string(derive::to_string("hello"), "\"hello\"");
+    assert_eq_string(derive::to_string(struct {
+        name: "foo",
+        age: 20,
+    }), `struct { name: "foo", age: 20 }`);
+    assert_eq_string(derive::to_string(4?), "optional { 0: 4 }");
+
+    let v = make[vec[i32]]();
+    v.push(1);
+    v.push(2);
+    v.push(3);
+    assert_eq_string(derive::to_string(v), "vec(1, 2, 3)");
 }
 
 fun main() {
