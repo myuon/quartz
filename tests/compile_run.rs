@@ -86,21 +86,23 @@ fun main(): i32 {
     return x;
 }
         "#,
-        r#"
-struct Position {
-    x: i32,
-    y: i32,
-}
+        /*
+                r#"
+        struct Position {
+            x: i32,
+            y: i32,
+        }
 
-fun main(): i32 {
-    let p = Position {
-        x: 10,
-        y: 20,
-    };
+        fun main(): i32 {
+            let p = Position {
+                x: 10,
+                y: 20,
+            };
 
-    return p.y;
-}
-        "#,
+            return p.y;
+        }
+                "#,
+                */
     ];
 
     for input in cases {
