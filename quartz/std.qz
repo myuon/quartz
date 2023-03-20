@@ -473,16 +473,26 @@ module reflection {
             }
 
             return parse_type_rep(get_type_rep_ptr(t));
-        } else {
+        }
+        if reflection::is_bool(t) {
             return TypeRep {
-                name: "value",
+                name: "bool",
                 fields: make[vec[string]](),
             };
         }
+
+        return TypeRep {
+            name: "i32",
+            fields: make[vec[string]](),
+        };
     }
 
     fun is_pointer(t: any): bool {
         return reflection_is_pointer(t);
+    }
+
+    fun is_bool(t: any): bool {
+        return reflection_is_bool(t);
     }
 
     fun print_type(t: any) {
@@ -496,8 +506,11 @@ module derive {
         if rep.name.equal("string") {
             return format(`"{}"`, t as string);
         }
-        if rep.name.equal("value") {
+        if rep.name.equal("i32") {
             return (t as i32).to_string();
+        }
+        if rep.name.equal("bool") {
+            return (t as bool).to_string();
         }
         
         let s = format("{} {", rep.name);
