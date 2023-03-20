@@ -5,6 +5,7 @@ use crate::{ast::Type, compiler::SourcePosition, util::sexpr_writer::SExprWriter
 #[derive(PartialEq, Debug, Clone)]
 pub enum IrTerm {
     Nil,
+    Bool(bool),
     I32(i32),
     U32(u32),
     I64(i64),
@@ -131,6 +132,9 @@ impl IrTerm {
             }
             IrTerm::I64(i) => {
                 writer.write(&i.to_string());
+            }
+            IrTerm::Bool(b) => {
+                writer.write(&b.to_string());
             }
             IrTerm::Ident(p) => {
                 writer.write(p);
@@ -373,6 +377,7 @@ impl IrTerm {
             IrTerm::I64(_) => vec![],
             IrTerm::Ident(_) => vec![],
             IrTerm::String(_) => vec![],
+            IrTerm::Bool(_) => vec![],
             IrTerm::Call {
                 callee: _, args, ..
             } => {

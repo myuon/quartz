@@ -48,67 +48,7 @@ type IrTerm = {
 
 module IrTerm {
     fun to_string(self): string {
-        if self.t_nil != nil {
-            return "nil";
-        }
-        if self.t_i32 != nil {
-            return self.t_i32!;
-        }
-        if self.t_ident != nil {
-            return self.t_ident!;
-        }
-        if self.t_func != nil {
-            let result = "func ".concat(self.t_func!.name).concat(" (");
-            for i in 0..self.t_func!.params.length {
-                let p = self.t_func!.params.at(i);
-                result = result.concat(p.name).concat(": ").concat(p.type_.to_string());
-                if i != self.t_func!.params.length - 1 {
-                    result = result.concat(", ");
-                }
-            }
-            result = result.concat(") -> ").concat(self.t_func!.result_type.to_string()).concat(" {");
-            for i in 0..self.t_func!.body.length {
-                let p = self.t_func!.body.at(i);
-                result = result.concat(" ").concat(p.to_string());
-            }
-            result = result.concat(" }");
-
-            return result;
-        }
-        if self.t_call != nil {
-            let result = "".concat(self.t_call!.callee.to_string()).concat("(");
-            for i in 0..self.t_call!.args.length {
-                let p = self.t_call!.args.at(i);
-                result = result.concat(p.to_string());
-                if i != self.t_call!.args.length - 1 {
-                    result = result.concat(", ");
-                }
-            }
-            result = result.concat(")");
-
-            return result;
-        }
-        if self.t_let != nil {
-            return format(
-                "(let ${} {})",
-                self.t_let!.name,
-                self.t_let!.value.to_string(),
-            );
-        }
-        if self.t_return != nil {
-            let result = "return ".concat(self.t_return!.value.to_string());
-
-            return result;
-        }
-        if self.t_module != nil {
-            let result = "module";
-            for i in 0..self.t_module!.elements.length {
-                let p = self.t_module!.elements.at(i);
-                result = result.concat(" ").concat(p.to_string());
-            }
-
-            return result;
-        }
+        return derive::to_string(self);
     }
 
     fun ident(name: string): IrTerm {
