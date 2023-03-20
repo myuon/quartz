@@ -300,6 +300,10 @@ impl Generator {
         if let Some(result) = result {
             match result {
                 IrType::Nil => {}
+                IrType::Bool => {
+                    self.writer.new_statement();
+                    self.writer.write("unreachable");
+                }
                 IrType::I32 => {
                     self.writer.new_statement();
                     self.writer.write("unreachable");
@@ -544,17 +548,17 @@ impl Generator {
             }
             IrTerm::And { lhs, rhs } => {
                 self.generate_if(
-                    Some(IrType::I32),
+                    Some(IrType::Bool),
                     lhs.as_mut(),
                     rhs.as_mut(),
-                    &mut IrTerm::i32(0),
+                    &mut IrTerm::Bool(false),
                 )?;
             }
             IrTerm::Or { lhs, rhs } => {
                 self.generate_if(
-                    Some(IrType::I32),
+                    Some(IrType::Bool),
                     lhs.as_mut(),
-                    &mut IrTerm::i32(1),
+                    &mut IrTerm::Bool(true),
                     rhs.as_mut(),
                 )?;
             }
@@ -690,13 +694,16 @@ impl Generator {
                     self.writer.write("i64.rem_s");
                 }
                 "equal" => {
-                    self.generate_op_comparison("eq");
+                    self.writer.write("i64.eq");
+                    self.convert_stack_from_bool_1();
                 }
                 "not_equal" => {
                     self.generate_op_comparison("ne");
                 }
                 "not" => {
-                    self.generate_op_comparison("eqz");
+                    self.convert_stack_to_bool();
+                    self.writer.write("i32.eqz");
+                    self.convert_stack_from_bool_1();
                 }
                 "lt" => {
                     self.generate_op_comparison("lt_s");
@@ -812,6 +819,12 @@ impl Generator {
 
         self.writer.new_statement();
         self.writer.write("i64.shr_u");
+
+        self.writer.new_statement();
+        self.writer.write("i64.const 1");
+
+        self.writer.new_statement();
+        self.writer.write("i64.and");
 
         self.writer.new_statement();
         self.writer.write("i32.wrap_i64");

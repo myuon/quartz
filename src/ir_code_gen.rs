@@ -39,6 +39,7 @@ impl TypeRep {
             IrType::Nil => TypeRep::from_name("nil".to_string()),
             IrType::I32 => TypeRep::from_name("i32".to_string()),
             IrType::I64 => todo!(),
+            IrType::Bool => TypeRep::from_name("bool".to_string()),
             IrType::Address => TypeRep::from_name("address".to_string()),
             IrType::Any => TypeRep::from_name("any".to_string()),
         }
