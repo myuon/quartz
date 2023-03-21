@@ -14,6 +14,7 @@ use std::io::{Read, Write};
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
+use serde_json::json;
 use wasmer::Value;
 
 use crate::{compiler::Compiler, runtime::Runtime};
@@ -56,8 +57,19 @@ enum SubCommand {
 
         file: Option<String>,
     },
-    #[clap(name = "check-type", about = "Run tests")]
+    #[clap(name = "check-type", about = "Get Type of a Node")]
     CheckType {
+        #[clap(long)]
+        project: Option<String>,
+        #[clap(long)]
+        line: usize,
+        #[clap(long)]
+        column: usize,
+
+        file: Option<String>,
+    },
+    #[clap(name = "go-to-def", about = "Go To Definition")]
+    GoToDef {
         #[clap(long)]
         project: Option<String>,
         #[clap(long)]
@@ -155,6 +167,38 @@ fn main() -> Result<()> {
                 column,
             );
             println!("{}", result);
+        }
+        SubCommand::GoToDef {
+            project,
+            file,
+            line,
+            column,
+        } => {
+            let path = file.ok_or(anyhow::anyhow!("No file specified"))?;
+            let mut file = std::fs::File::open(path)?;
+            let mut buffer = String::new();
+            file.read_to_string(&mut buffer)?;
+
+            let result = compiler.go_to_def(
+                &project.unwrap_or(std::env::current_dir()?.to_str().unwrap().to_string()),
+                &buffer,
+                line,
+                column,
+            )?;
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&json!({
+                    "file": result.file,
+                    "start": {
+                        "line": result.start.0,
+                        "column": result.start.1,
+                    },
+                    "end": {
+                        "line": result.end.0,
+                        "column": result.end.1,
+                    }
+                }))?
+            );
         }
     }
 

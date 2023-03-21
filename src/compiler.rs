@@ -1,6 +1,6 @@
 use std::{collections::HashSet, io::Read};
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use serde::Serialize;
 use thiserror::{Error, __private::PathAsDisplay};
 
@@ -52,6 +52,13 @@ struct LoadedModule {
     path: Path,
     source: String,
     module: Module,
+}
+
+#[derive(Debug, Clone)]
+pub struct GoToDefOutput {
+    pub file: String,
+    pub start: (usize, usize),
+    pub end: (usize, usize),
 }
 
 impl SourceLoader {
@@ -388,6 +395,31 @@ impl Compiler {
             format!("```quartz\n{}\n```", t.to_string())
         } else {
             String::new()
+        }
+    }
+
+    pub fn go_to_def(
+        &mut self,
+        cwd: &str,
+        input: &str,
+        line: usize,
+        column: usize,
+    ) -> Result<GoToDefOutput> {
+        let mut module = self.parse(cwd, input)?;
+        let position = find_line_column_from_position(input, line, column);
+
+        let mut typechecker = TypeChecker::new();
+
+        let result = typechecker.find_definition(&mut module, Self::get_main_path(), position)?;
+
+        if let Some((start, end)) = result {
+            Ok(GoToDefOutput {
+                file: cwd.to_string(),
+                start: find_position(input, start),
+                end: find_position(input, end),
+            })
+        } else {
+            bail!("No definition found")
         }
     }
 }

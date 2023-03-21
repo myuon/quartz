@@ -9,7 +9,7 @@ use crate::{
 };
 
 pub struct TypeChecker {
-    locals: HashMap<Ident, Type>,
+    locals: HashMap<Ident, Source<Type>>,
     pub globals: HashMap<Path, Type>,
     pub types: HashMap<Ident, Type>,
     current_path: Path,
@@ -17,6 +17,7 @@ pub struct TypeChecker {
     result_type: Option<Type>,
     pub search_node: Option<(Path, usize)>,
     pub search_node_type: Option<Type>,
+    pub search_node_definition: Option<(usize, usize)>,
 }
 
 impl TypeChecker {
@@ -104,6 +105,7 @@ impl TypeChecker {
             result_type: None,
             search_node: None,
             search_node_type: None,
+            search_node_definition: None,
         }
     }
 
@@ -198,12 +200,14 @@ impl TypeChecker {
         let locals = self.locals.clone();
 
         for (name, type_) in &mut func.params {
-            self.locals.insert(name.clone(), type_.clone());
+            self.locals
+                .insert(name.clone(), Source::unknown(type_.clone()));
         }
         if let Some((name, type_)) = &mut func.variadic {
             assert!(matches!(type_, Type::Vec(_)), "variadic must be vec");
 
-            self.locals.insert(name.clone(), type_.clone());
+            self.locals
+                .insert(name.clone(), Source::unknown(type_.clone()));
         }
 
         self.result_type = Some(func.result.clone());
@@ -343,7 +347,8 @@ impl TypeChecker {
                     end: range.end.unwrap_or(0),
                 })?;
 
-                self.locals.insert(ident.clone(), element.clone());
+                self.locals
+                    .insert(ident.clone(), Source::transfer(element.clone(), range));
 
                 let locals = self.locals.clone();
 
@@ -361,7 +366,8 @@ impl TypeChecker {
     fn register_locals_with_pattern(&mut self, pattern: &Pattern, type_: &Type) -> Result<()> {
         match pattern {
             Pattern::Ident(ident) => {
-                self.locals.insert(ident.clone(), type_.clone());
+                self.locals
+                    .insert(ident.clone(), Source::unknown(type_.clone()));
             }
             Pattern::Or(left, right) => match type_ {
                 // let a or b = A or B
@@ -424,8 +430,10 @@ impl TypeChecker {
                 resolved_path,
             } => {
                 if let Ok(type_) = self.ident_local(ident) {
-                    self.set_search_node_type(type_.clone(), expr);
-                    return Ok(type_);
+                    self.set_search_node_type(type_.data.clone(), expr);
+                    self.set_search_node_definition(&type_, expr);
+
+                    return Ok(type_.data);
                 }
 
                 let mut candidates = self.imported.clone();
@@ -1034,7 +1042,7 @@ impl TypeChecker {
         }
     }
 
-    fn ident_local(&mut self, ident: &mut Ident) -> Result<Type> {
+    fn ident_local(&mut self, ident: &mut Ident) -> Result<Source<Type>> {
         match self.locals.get(ident) {
             Some(type_) => Ok(type_.clone()),
             None => bail!("Ident Not Found: {}", ident.as_str()),
@@ -1122,7 +1130,7 @@ impl TypeChecker {
         }
     }
 
-    pub fn is_search_finished<T>(&mut self, expr: &mut Source<T>, node: &(Path, usize)) -> bool {
+    fn is_search_finished<T>(&mut self, expr: &mut Source<T>, node: &(Path, usize)) -> bool {
         if self.search_node_type.is_some() {
             return true;
         }
@@ -1133,6 +1141,36 @@ impl TypeChecker {
         }
 
         false
+    }
+
+    pub fn find_definition(
+        &mut self,
+        module: &mut Module,
+        path: Path,
+        cursor: usize,
+    ) -> Result<Option<(usize, usize)>> {
+        self.search_node = Some((path, cursor));
+
+        let _ = self.module(module);
+
+        Ok(self.search_node_definition.clone())
+    }
+
+    fn set_search_node_definition<S, T>(&mut self, def: &Source<S>, source: &Source<T>) {
+        if let Some((path, cursor)) = &self.search_node {
+            if &self.current_path == path {
+                if source.start.unwrap_or(0) <= *cursor && *cursor <= source.end.unwrap_or(0) {
+                    if let None = self.search_node_definition {
+                        match (def.start, def.end) {
+                            (Some(start), Some(end)) => {
+                                self.search_node_definition = Some((start, end));
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
