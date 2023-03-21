@@ -1381,15 +1381,22 @@ impl IrCodeGenerator {
     }
 
     fn write_type_rep(&mut self, rep: TypeRep) -> Result<IrTerm> {
-        // [nil, size of fields, rep_name, field1, field2, ..., fieldn]
-        let mut elements = vec![
-            IrTerm::nil(),
-            IrTerm::i32(rep.fields.len() as i32),
-            self.register_string(rep.name.clone()),
-        ];
-        for (s, _) in rep.fields {
-            elements.push(self.register_string(s));
+        // [nil, rep_name, size of params, *params, size of fields, *fields]
+        let mut elements = vec![IrTerm::nil(), self.register_string(rep.name.clone())];
+
+        elements.push(IrTerm::i32(rep.params.len() as i32));
+        let mut type_rep_terms = vec![];
+        for p in rep.params {
+            type_rep_terms.push((None, IrType::Address, self.write_type_rep(p)?));
         }
+        elements.push(self.generate_array("slice".to_string(), vec![], type_rep_terms)?);
+
+        elements.push(IrTerm::i32(rep.fields.len() as i32));
+        let mut field_terms = vec![];
+        for (name, _) in rep.fields {
+            field_terms.push((None, IrType::Address, self.register_string(name)));
+        }
+        elements.push(self.generate_array("slice".to_string(), vec![], field_terms)?);
 
         let var_name = format!(
             "type_rep_{}",

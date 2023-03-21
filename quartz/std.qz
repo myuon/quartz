@@ -437,6 +437,7 @@ let type_reps_ptr = 0;
 
 struct TypeRep {
     name: string,
+    params: vec[TypeRep],
     fields: vec[string],
 }
 
@@ -447,18 +448,27 @@ module reflection {
         return (type_reps_ptr as ptr[ptr[any]]).at(index);
     }
 
-    // [nil, size of fields, rep_name, field1, field2, ..., fieldn]
+    // [nil, rep_name, size of params, *params, size of fields, *fields]
     fun parse_type_rep(t: ptr[any]): TypeRep {
-        let size = t.at(0) as i32;
-        let name = t.at(1) as string;
+        let name = t.at(0) as string;
+        let params_size = t.at(1) as i32;
+        let params_ptr = t.at(2) as ptr[ptr[any]];
+        let fields_size = t.at(3) as i32;
+        let fields_ptr = t.at(4) as ptr[string];
+
+        let params = make[vec[TypeRep]]();
+        for i in 0..params_size {
+            params.push(parse_type_rep(params_ptr.at(i)));
+        }
+
         let fields = make[vec[string]]();
-        for i in 0..size {
-            let f = t.at(2 + i) as string;
-            fields.push(f);
+        for i in 0..fields_size {
+            fields.push(fields_ptr.at(i));
         }
 
         return TypeRep {
             name: name,
+            params: params,
             fields: fields,
         };
     }
@@ -468,6 +478,7 @@ module reflection {
             if t == nil {
                 return TypeRep {
                     name: "nil",
+                    params: make[vec[TypeRep]](),
                     fields: make[vec[string]](),
                 };
             }
@@ -477,12 +488,14 @@ module reflection {
         if reflection::is_bool(t) {
             return TypeRep {
                 name: "bool",
+                params: make[vec[TypeRep]](),
                 fields: make[vec[string]](),
             };
         }
 
         return TypeRep {
             name: "i32",
+            params: make[vec[TypeRep]](),
             fields: make[vec[string]](),
         };
     }
@@ -493,6 +506,12 @@ module reflection {
 
     fun is_bool(t: any): bool {
         return reflection_is_bool(t);
+    }
+
+    fun assert_pointer(t: any) {
+        if !is_pointer(t) {
+            panic("assert_pointer");
+        }
     }
 
     fun print_type(t: any) {
