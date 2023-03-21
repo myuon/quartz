@@ -79,6 +79,31 @@ module Generator {
         }
 
         self.start();
+        self.write("global");
+        self.write("$heap_ptr (mut i32) (i32.const 8)");
+        self.end();
+
+        self.start();
+        self.write("memory 1");
+        self.end();
+
+        self.start();
+        self.write(`func $alloc (param $size i32) (result i32)
+    (local $p i32)
+
+    global.get $heap_ptr
+    local.set $p
+
+    global.get $heap_ptr
+    local.get $size
+    i32.add
+    global.set $heap_ptr
+
+    local.get $p
+`);
+        self.end();
+
+        self.start();
         self.write("export \"main\" (func $main)");
         self.end();
 
@@ -289,6 +314,39 @@ module Generator {
 
             self.end();
             self.end();
+
+            return;
+        }
+        if expr.t_load != nil {
+            self.new_statement();
+            self.expression(expr.t_load!.address);
+
+            self.new_statement();
+            self.expression(expr.t_load!.offset);
+
+            self.new_statement();
+            self.write("i32.add");
+
+            self.new_statement();
+            self.write("i32.load");
+
+            return;
+        }
+        if expr.t_store != nil {
+            self.new_statement();
+            self.expression(expr.t_store!.address);
+
+            self.new_statement();
+            self.expression(expr.t_store!.offset);
+
+            self.new_statement();
+            self.write("i32.add");
+
+            self.new_statement();
+            self.expression(expr.t_store!.value);
+
+            self.new_statement();
+            self.write("i32.store");
 
             return;
         }
