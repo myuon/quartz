@@ -483,9 +483,17 @@ impl TypeChecker {
                     start: path.start.unwrap_or(0),
                     end: path.end.unwrap_or(0),
                 })?;
-                *resolved_path = Some(r);
+                *resolved_path = Some(r.clone());
 
                 self.set_search_node_type(t.data.clone(), expr);
+                self.set_search_node_definition(
+                    Path::new(
+                        // FIXME: need to strip current package path
+                        r.0[0..2].to_vec(),
+                    ),
+                    &t,
+                    expr,
+                );
                 Ok(t.data)
             }
             Expr::Call(caller, args, variadic_info, expansion) => {
