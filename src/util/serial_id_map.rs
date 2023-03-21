@@ -6,7 +6,7 @@ pub struct SerialIdMap<T> {
     pub next: usize,
 }
 
-impl<T: Hash + Eq> SerialIdMap<T> {
+impl<T: Hash + Eq + Clone> SerialIdMap<T> {
     pub fn new() -> SerialIdMap<T> {
         SerialIdMap {
             keys: HashMap::new(),
@@ -24,5 +24,12 @@ impl<T: Hash + Eq> SerialIdMap<T> {
                 id
             }
         }
+    }
+
+    pub fn to_vec(&self) -> Vec<(T, usize)> {
+        let mut keys = self.keys.clone().into_iter().collect::<Vec<_>>();
+        keys.sort_by(|(_, a), (_, b)| a.cmp(&b));
+
+        keys
     }
 }

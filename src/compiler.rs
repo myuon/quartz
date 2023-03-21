@@ -269,7 +269,14 @@ impl Compiler {
         generator.set_cwd(Path::ident(Ident("main".to_string())));
         generator.set_globals(typechecker.globals.keys().into_iter().cloned().collect());
         generator.set_types(typechecker.types);
-        generator.set_strings(ir_code_generator.strings);
+        generator.set_strings(
+            ir_code_generator
+                .strings
+                .to_vec()
+                .into_iter()
+                .map(|p| p.0)
+                .collect(),
+        );
         generator.run(&mut ir).context("generator phase")?;
 
         self.ir = Some(ir);

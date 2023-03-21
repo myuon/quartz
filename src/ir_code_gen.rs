@@ -62,7 +62,7 @@ impl TypeRep {
 pub struct IrCodeGenerator {
     types: HashMap<Ident, Type>,
     current_path: Path,
-    pub strings: Vec<String>,
+    pub strings: SerialIdMap<String>,
     pub type_reps: SerialIdMap<TypeRep>,
 }
 
@@ -71,7 +71,7 @@ impl IrCodeGenerator {
         IrCodeGenerator {
             types: HashMap::new(),
             current_path: Path::empty(),
-            strings: vec![],
+            strings: SerialIdMap::new(),
             type_reps: SerialIdMap::new(),
         }
     }
@@ -208,12 +208,13 @@ impl IrCodeGenerator {
             rhs: Box::new(self.expr(&mut Source::unknown(Expr::Make(
                 Type::Ptr(Box::new(Type::Ident(Ident("string".to_string())))),
                 vec![Source::unknown(Expr::Lit(Lit::I32(
-                    self.strings.len() as i32
+                    self.strings.keys.len() as i32,
                 )))],
             )))?),
         });
 
-        for (i, string) in self.strings.clone().iter().enumerate() {
+        let strings = self.strings.to_vec();
+        for (string, i) in strings {
             // let p = new_empty_string(${string.len()})
             body.push(IrTerm::Let {
                 name: "p".to_string(),
@@ -496,8 +497,7 @@ impl IrCodeGenerator {
     }
 
     fn register_string(&mut self, s: String) -> IrTerm {
-        let index = self.strings.len();
-        self.strings.push(s);
+        let index = self.strings.get_or_insert(s);
 
         IrTerm::String(index)
     }
