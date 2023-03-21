@@ -105,13 +105,6 @@ impl Type {
         }
     }
 
-    pub fn is_nil(&self) -> bool {
-        match self {
-            Type::Nil => true,
-            _ => false,
-        }
-    }
-
     pub fn as_range_type(&self) -> Result<&Type> {
         match self {
             Type::Range(t) => Ok(t),

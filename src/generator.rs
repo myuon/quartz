@@ -283,13 +283,13 @@ impl Generator {
             self.writer.write(&format!(
                 "(param ${} {})",
                 name.as_str(),
-                Value::wasm_type()
+                Value::from_ir_type(type_)
             ));
         }
 
         if let Some(result) = result {
             self.writer
-                .write(&format!("(result {})", Value::wasm_type()));
+                .write(&format!("(result {})", Value::from_ir_type(result)));
         }
 
         let mut used = HashSet::new();
@@ -300,8 +300,11 @@ impl Generator {
                 }
 
                 self.writer.start();
-                self.writer
-                    .write(&format!("local ${} {}", name.as_str(), Value::wasm_type()));
+                self.writer.write(&format!(
+                    "local ${} {}",
+                    name.as_str(),
+                    Value::from_ir_type(&type_)
+                ));
                 self.writer.end();
 
                 used.insert(name);
@@ -694,7 +697,6 @@ impl Generator {
                 }
                 "mult_i64" => {
                     todo!();
-                    self.writer.write("i64.mul");
                 }
                 "div" => {
                     self.generate_op_arithmetic("div_s");
@@ -707,7 +709,6 @@ impl Generator {
                 }
                 "mod_i64" => {
                     todo!();
-                    self.writer.write("i64.rem_s");
                 }
                 "equal" => {
                     self.writer.write("i64.eq");
@@ -738,7 +739,6 @@ impl Generator {
                 }
                 "xor_i64" => {
                     todo!();
-                    self.writer.write("i64.xor");
                 }
                 "i32_to_i64" => {
                     self.convert_stack_to_i32_1();

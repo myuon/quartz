@@ -1,3 +1,5 @@
+use crate::ir::IrType;
+
 #[derive(PartialEq, Debug, Clone)]
 #[cfg_attr(test, derive(proptest_derive::Arbitrary))]
 pub enum Value {
@@ -38,6 +40,10 @@ impl Value {
 
     pub fn wasm_type() -> &'static str {
         "i64"
+    }
+
+    pub fn from_ir_type(_: &IrType) -> &'static str {
+        Self::wasm_type()
     }
 
     pub fn sizeof() -> usize {
