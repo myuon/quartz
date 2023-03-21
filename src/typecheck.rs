@@ -793,7 +793,7 @@ impl TypeChecker {
                     Ok(t)
                 } else {
                     // method access
-                    let path = Path::new(vec![
+                    let mut path = Path::new(vec![
                         expr_type.clone().to_ident().context(ErrorInSource {
                             path: Some(self.current_path.clone()),
                             start: project_expr.start.unwrap_or(0),
@@ -801,21 +801,19 @@ impl TypeChecker {
                         })?,
                         label.clone(),
                     ]);
-                    let mut path_expr = Source::new(
-                        Expr::source_path(Source::transfer(path.clone(), project_expr)),
-                        project_expr.start.unwrap_or(0),
-                        project_expr.end.unwrap_or(0),
-                    );
-                    let type_ = self.expr(&mut path_expr)?;
-
-                    match path_expr.data {
-                        Expr::Path { resolved_path, .. } => {
-                            label_path.data = resolved_path.unwrap();
-                        }
-                        _ => unreachable!(),
-                    }
+                    let (resolved_path, defined_type) = self.resolve_path(&mut path)?;
+                    label_path.data = resolved_path.clone();
+                    let type_ = defined_type.data.clone();
 
                     self.set_search_node_type(type_.clone(), label_path);
+                    self.set_search_node_definition(
+                        Path::new(
+                            // FIXME: need to strip current package path
+                            resolved_path.0[0..2].to_vec(),
+                        ),
+                        &defined_type,
+                        label_path,
+                    );
 
                     match type_ {
                         Type::Func(mut arg_types, result_type) => {
