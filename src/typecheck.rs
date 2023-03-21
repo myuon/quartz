@@ -126,8 +126,10 @@ impl TypeChecker {
         for decl in &mut module.0 {
             match decl {
                 Decl::Func(func) => {
-                    self.globals
-                        .insert(self.path_to(&func.name), Source::unknown(func.to_type()));
+                    self.globals.insert(
+                        self.path_to(&func.name.data),
+                        Source::transfer(func.to_type(), &func.name),
+                    );
                 }
                 Decl::Let(ident, type_, _expr) => {
                     self.globals
@@ -164,13 +166,17 @@ impl TypeChecker {
         match decl {
             Decl::Func(func) => {
                 // For recursive functions
-                self.globals
-                    .insert(self.path_to(&func.name), Source::unknown(func.to_type()));
+                self.globals.insert(
+                    self.path_to(&func.name.data),
+                    Source::transfer(func.to_type(), &func.name),
+                );
 
                 self.func(func)?;
 
-                self.globals
-                    .insert(self.path_to(&func.name), Source::unknown(func.to_type()));
+                self.globals.insert(
+                    self.path_to(&func.name.data),
+                    Source::transfer(func.to_type(), &func.name),
+                );
             }
             Decl::Let(ident, type_, expr) => {
                 let mut result = self.expr(expr)?;

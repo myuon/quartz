@@ -292,7 +292,7 @@ impl Pattern {
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Func {
-    pub name: Ident,
+    pub name: Source<Ident>,
     pub params: Vec<(Ident, Type)>,
     pub variadic: Option<(Ident, Type)>,
     pub result: Type,

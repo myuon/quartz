@@ -86,6 +86,7 @@ connection.onHover(async (params) => {
 
 connection.onDefinition(async (params) => {
   const file = params.textDocument.uri.replace("file://", "");
+  console.log(params);
 
   const cargo = await execAsync(
     `cargo run --manifest-path ${path.join(

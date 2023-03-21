@@ -128,7 +128,9 @@ impl Parser {
 
     fn func(&mut self) -> Result<Func> {
         self.expect(Lexeme::Fun)?;
-        let name = self.ident()?;
+        let start = self.position;
+        let ident = self.ident()?;
+        let name = self.source_from(ident, start);
         self.expect(Lexeme::LParen)?;
         let (params, variadic) = self.params()?;
         self.expect(Lexeme::RParen)?;

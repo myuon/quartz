@@ -284,7 +284,7 @@ impl IrCodeGenerator {
         }
 
         let mut path = self.current_path.clone();
-        path.push(func.name.clone());
+        path.push(func.name.data.clone());
 
         Ok(IrTerm::Func {
             name: path.as_joined_str("_"),
