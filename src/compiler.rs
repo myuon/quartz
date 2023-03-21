@@ -385,7 +385,7 @@ impl Compiler {
         };
 
         if let Some(t) = t {
-            format!("{:?}", t)
+            t.to_string()
         } else {
             String::new()
         }
