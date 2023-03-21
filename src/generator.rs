@@ -795,6 +795,8 @@ impl Generator {
                 }
                 "i32_to_address" => self.convert_value_i32_to_address_1(),
                 "address_to_i32" => self.convert_value_address_to_i32_1(),
+                "i32_to_byte" => self.convert_value_i32_to_byte_1(),
+                "byte_to_i32" => self.convert_value_byte_to_i32_1(),
                 _ => {
                     self.writer.write(&format!("call ${}", ident.as_str()));
                 }
@@ -827,6 +829,14 @@ impl Generator {
 
         self.writer.new_statement();
         self.writer.write("i64.sub");
+    }
+
+    fn convert_value_byte_to_i32_1(&mut self) {
+        self.writer.new_statement();
+        self.writer.write("i64.const 4");
+
+        self.writer.new_statement();
+        self.writer.write("i64.xor");
     }
 
     fn convert_stack_to_i32_1(&mut self) {

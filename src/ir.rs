@@ -6,6 +6,7 @@ use crate::{ast::Type, compiler::SourcePosition, util::sexpr_writer::SExprWriter
 pub enum IrTerm {
     Nil,
     Bool(bool),
+    Byte(u8),
     I32(i32),
     U32(u32),
     I64(i64),
@@ -138,6 +139,9 @@ impl IrTerm {
                 writer.write(&i.to_string());
             }
             IrTerm::Bool(b) => {
+                writer.write(&b.to_string());
+            }
+            IrTerm::Byte(b) => {
                 writer.write(&b.to_string());
             }
             IrTerm::Ident(p) => {
@@ -389,6 +393,7 @@ impl IrTerm {
             IrTerm::Ident(_) => vec![],
             IrTerm::String(_) => vec![],
             IrTerm::Bool(_) => vec![],
+            IrTerm::Byte(_) => vec![],
             IrTerm::Call {
                 callee: _, args, ..
             } => {
