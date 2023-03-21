@@ -39,6 +39,7 @@ impl TypeRep {
             IrType::Nil => TypeRep::from_name("nil".to_string()),
             IrType::I32 => TypeRep::from_name("i32".to_string()),
             IrType::I64 => todo!(),
+            IrType::Bool => TypeRep::from_name("bool".to_string()),
             IrType::Address => TypeRep::from_name("address".to_string()),
             IrType::Any => TypeRep::from_name("any".to_string()),
         }
@@ -510,7 +511,7 @@ impl IrCodeGenerator {
             }
             Expr::Lit(lit) => match lit {
                 Lit::Nil => Ok(IrTerm::nil()),
-                Lit::Bool(b) => Ok(IrTerm::I32(if *b { 1 } else { 0 })),
+                Lit::Bool(b) => Ok(IrTerm::Bool(*b)),
                 Lit::I32(i) => Ok(IrTerm::i32(*i)),
                 Lit::U32(i) => Ok(IrTerm::u32(*i)),
                 Lit::I64(i) => Ok(IrTerm::i64(*i)),

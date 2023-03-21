@@ -59,6 +59,10 @@ impl TypeChecker {
                     Type::Func(vec![Type::Any], Box::new(Type::Bool)),
                 ),
                 (
+                    "reflection_is_bool",
+                    Type::Func(vec![Type::Any], Box::new(Type::Bool)),
+                ),
+                (
                     "unsafe_load_ptr",
                     Type::Func(vec![Type::Any, Type::I32], Box::new(Type::Any)),
                 ),

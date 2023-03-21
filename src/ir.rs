@@ -5,6 +5,7 @@ use crate::{ast::Type, compiler::SourcePosition, util::sexpr_writer::SExprWriter
 #[derive(PartialEq, Debug, Clone)]
 pub enum IrTerm {
     Nil,
+    Bool(bool),
     I32(i32),
     U32(u32),
     I64(i64),
@@ -131,6 +132,9 @@ impl IrTerm {
             }
             IrTerm::I64(i) => {
                 writer.write(&i.to_string());
+            }
+            IrTerm::Bool(b) => {
+                writer.write(&b.to_string());
             }
             IrTerm::Ident(p) => {
                 writer.write(p);
@@ -373,6 +377,7 @@ impl IrTerm {
             IrTerm::I64(_) => vec![],
             IrTerm::Ident(_) => vec![],
             IrTerm::String(_) => vec![],
+            IrTerm::Bool(_) => vec![],
             IrTerm::Call {
                 callee: _, args, ..
             } => {
@@ -515,6 +520,7 @@ impl IrTerm {
 #[derive(PartialEq, Debug, Clone)]
 pub enum IrType {
     Nil,
+    Bool,
     I32,
     I64,
     Address,
@@ -525,7 +531,7 @@ impl IrType {
     pub fn from_type(type_: &Type) -> Result<Self> {
         match type_ {
             Type::Nil => Ok(IrType::Address),
-            Type::Bool => Ok(IrType::I32),
+            Type::Bool => Ok(IrType::Bool),
             Type::I32 => Ok(IrType::I32),
             Type::U32 => Ok(IrType::I32),
             Type::I64 => Ok(IrType::I64),
@@ -551,6 +557,7 @@ impl IrType {
     pub fn to_term(&self) -> IrTerm {
         match self {
             IrType::Nil => IrTerm::Ident("i64".to_string()),
+            IrType::Bool => IrTerm::Ident("i64".to_string()),
             IrType::I32 => IrTerm::Ident("i64".to_string()),
             IrType::I64 => IrTerm::Ident("i64".to_string()),
             IrType::Address => IrTerm::Ident("i64".to_string()),

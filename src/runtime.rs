@@ -402,7 +402,7 @@ fun main(): bool {
     return c.x == nil;
 }
 "#,
-                vec![Value::I32(0)],
+                vec![Value::Bool(false)],
             ),
             (
                 r#"
@@ -429,7 +429,7 @@ fun main(): bool {
     return p.x == nil;
 }
 "#,
-                vec![Value::I32(0)],
+                vec![Value::Bool(false)],
             ),
             (
                 r#"
@@ -503,7 +503,7 @@ fun main(): bool {
     return t.equal("helloworld");
 }
 "#,
-                vec![Value::I32(1)],
+                vec![Value::Bool(true)],
             ),
             (
                 r#"
@@ -517,7 +517,7 @@ fun main(): bool {
     return t != nil;
 }
 "#,
-                vec![Value::I32(1)],
+                vec![Value::Bool(true)],
             ),
             (
                 r#"
@@ -599,7 +599,7 @@ fun main(): bool {
     return false && f();
 }
 "#,
-                vec![Value::I32(0)],
+                vec![Value::Bool(false)],
             ),
             (
                 r#"
@@ -658,7 +658,7 @@ fun main(): bool {
 }
 "#,
                 vec![
-                    Value::I32(1),
+                    Value::Bool(true),
                 ],
             ),
             (
@@ -668,7 +668,7 @@ fun main(): bool {
 }
 "#,
                 vec![
-                    Value::I32(1),
+                    Value::Bool(true),
                 ],
             ),
             (
@@ -681,7 +681,7 @@ fun main(): bool {
 }
 "#,
                 vec![
-                    Value::I32(1),
+                    Value::Bool(true),
                 ],
             ),
             (
@@ -719,7 +719,7 @@ fun main(): bool {
 }
 "#,
                 vec![
-                    Value::I32(1),
+                    Value::Bool(true),
                 ],
             ),
             (
@@ -749,7 +749,7 @@ fun main(): bool {
 }
 "#,
                 vec![
-                    Value::I32(1),
+                    Value::Bool(true),
                 ],
             ),
             (
@@ -784,7 +784,7 @@ fun main(): bool {
 }
 "#,
                 vec![
-                    Value::I32(1),
+                    Value::Bool(true),
                 ],
             ),
             (
@@ -835,7 +835,7 @@ fun main(): bool {
 }
 "#,
                 vec![
-                    Value::i32(1),
+                    Value::Bool(true),
                 ],
             ),
             (
@@ -856,7 +856,7 @@ fun main(): bool {
 }
 "#,
                 vec![
-                    Value::i32(1),
+                    Value::Bool(true),
                 ],
             ),
         ];

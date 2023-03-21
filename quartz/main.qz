@@ -7,28 +7,40 @@ import quartz::ir_code_gen;
 import quartz::generator;
 import quartz::typecheck;
 
+fun assert_eq_string(a: string, b: string) {
+    if !a.equal(b) {
+        panic("assert_eq_string failed: ".concat(a).concat(" != ").concat(b));
+    }
+}
+
+fun assert(a: bool) {
+    if !a {
+        panic("assert failed");
+    }
+}
+
 fun test() {
-    if !"hello".equal("hello") {
-        panic("string_equal failed: hello vs hello");
-    }
-    if "hello".equal("world") {
-        panic("string_equal failed: hello vs world");
-    }
-    if !is_space("hoge fuga", 4) {
-        panic("is_space failed");
-    }
-    if !"hoge fuga".slice(0, 4).equal("hoge") {
-        panic("slice failed");
-    }
-    if !"hoge fuga".slice_start(2).equal("ge fuga") {
-        panic("slice_start failed");
-    }
-    if !"hoge".concat(" fuga").equal("hoge fuga") {
-        panic("string_concat failed");
-    }
-    if !"hoge".repeat(3).equal("hogehogehoge") {
-        panic("string_repeat failed");
-    }
+    assert_eq_string("hoge", "hoge");
+    assert(is_space("hoge fuga", 4));
+    assert_eq_string("hoge fuga".slice(0, 4), "hoge");
+    assert_eq_string("hoge fuga".slice_start(2), "ge fuga");
+    assert_eq_string("hoge".concat(" fuga"), "hoge fuga");
+    assert_eq_string("hoge".repeat(3), "hogehogehoge");
+
+    assert_eq_string(derive::to_string(false), "false");
+    assert_eq_string(derive::to_string(1), "1");
+    assert_eq_string(derive::to_string("hello"), "\"hello\"");
+    assert_eq_string(derive::to_string(struct {
+        name: "foo",
+        age: 20,
+    }), `struct { name: "foo", age: 20 }`);
+    assert_eq_string(derive::to_string(4?), "optional { 0: 4 }");
+
+    let v = make[vec[i32]]();
+    v.push(1);
+    v.push(2);
+    v.push(3);
+    assert_eq_string(derive::to_string(v), "vec(1, 2, 3)");
 }
 
 fun main() {

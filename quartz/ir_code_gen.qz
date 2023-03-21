@@ -18,8 +18,28 @@ module IrCodeGenerator {
         let elements = make[vec[IrTerm]]();
 
         for i in 0..m.decls.length {
-            let f = m.decls.at(i);
-            elements.push(self.decl(f));
+            let d = m.decls.at(i);
+
+            if d.t_func != nil {
+                elements.push(IrTerm {
+                    t_func: self.function(d.t_func!)?,
+                    ..nil,
+                });
+            }
+            if d.t_let != nil {
+                elements.push(IrTerm {
+                    t_global_let: struct {
+                        name: d.t_let!.name,
+                        type_: IrType {
+                            t_i32: true?,
+                            ..nil,
+                        },
+                        value: self.expression(d.t_let!.expr),
+                    }?,
+                    ..nil,
+                });
+            }
+            if d.t_type != nil {}
         }
 
         return IrTerm {
@@ -28,30 +48,6 @@ module IrCodeGenerator {
             }?,
             ..nil
         };
-    }
-
-    fun decl(self, d: Decl): IrTerm {
-        if d.t_func != nil {
-            return IrTerm {
-                t_func: self.function(d.t_func!)?,
-                ..nil,
-            };
-        }
-        if d.t_let != nil {
-            return IrTerm {
-                t_global_let: struct {
-                    name: d.t_let!.name,
-                    type_: IrType {
-                        t_i32: true?,
-                        ..nil,
-                    },
-                    value: self.expression(d.t_let!.expr),
-                }?,
-                ..nil,
-            };
-        }
-
-        panic("decl exhausted: {}", d.to_string());
     }
 
     fun function(self, func: Function): IrFunc {
@@ -310,6 +306,8 @@ module IrCodeGenerator {
                     term: self.expression(value),
                 });
             }
+
+            return self.generate_array_enumerated(record);
         }
         if expr.t_project != nil {
             let t = expr.t_project!.type_!.t_struct!;
@@ -330,7 +328,7 @@ module IrCodeGenerator {
             };
         }
 
-        panic("expression exhausted: ");
+        panic("expression exhausted: {}", expr.to_string());
     }
 
     fun generate_array_enumerated(self, record: vec[struct {

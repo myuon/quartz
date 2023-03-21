@@ -74,19 +74,19 @@ fun main(): i32 {
     return factorial(5);
 }
 "#,
-        /*
-                r#"
-        fun main(): i32 {
-            let x = 10;
-            let n = 0;
-            while n < 10 {
-                x = x + n;
-                n = n + 1;
-            }
+        r#"
+fun main(): i32 {
+    let x = 10;
+    let n = 0;
+    while n < 10 {
+        x = x + n;
+        n = n + 1;
+    }
 
-            return x;
-        }
+    return x;
+}
         "#,
+        /*
                 r#"
         struct Position {
             x: i32,
@@ -101,7 +101,8 @@ fun main(): i32 {
 
             return p.y;
         }
-        "#, */
+                "#,
+                */
     ];
 
     for input in cases {
