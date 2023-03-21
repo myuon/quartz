@@ -21,8 +21,8 @@ impl Runtime {
                 "write_stdout" => Function::new_typed(&mut store, |ch: i64| {
                     let w = Value::from_i64(ch);
                     match w {
-                        Value::I32(i) => {
-                            std::io::stdout().lock().write(&[i as u8]).unwrap();
+                        Value::Byte(b) => {
+                            std::io::stdout().lock().write(&[b]).unwrap();
                         }
                         _ => println!("write_stdout: invalid value, {:?}", w),
                     }

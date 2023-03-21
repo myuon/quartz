@@ -75,7 +75,7 @@ impl IrCodeGenerator {
             current_path: Path::empty(),
             strings: SerialIdMap::new(),
             type_reps: SerialIdMap::new(),
-            data_section_offset: 8, // 8 bytes for null pointer
+            data_section_offset: 0,
         }
     }
 
@@ -84,6 +84,9 @@ impl IrCodeGenerator {
     }
 
     pub fn run(&mut self, module: &mut Module) -> Result<IrTerm> {
+        // 8 bytes for null pointer
+        self.register_string("\00\00\00\00\00\00\00\00".to_string());
+
         let mut decls = self.module(module)?;
         // generate_prepare_type_reps should be called before generate_prepare_strings, since it uses strings
         decls.push(self.generate_prepare_type_reps()?);
@@ -1016,6 +1019,11 @@ impl IrCodeGenerator {
                     }),
                     (IrType::Byte, IrType::I32) => Ok(IrTerm::Call {
                         callee: Box::new(IrTerm::Ident("byte_to_i32".to_string())),
+                        args: vec![term],
+                        source: None,
+                    }),
+                    (IrType::Byte, IrType::Address) => Ok(IrTerm::Call {
+                        callee: Box::new(IrTerm::Ident("byte_to_address".to_string())),
                         args: vec![term],
                         source: None,
                     }),

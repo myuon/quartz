@@ -431,6 +431,7 @@ impl Generator {
                 self.write_value(Value::bool(*b));
             }
             IrTerm::Ident(i) => {
+                self.writer.new_statement();
                 if self.globals.contains(&i.clone()) {
                     self.writer.write(&format!("global.get ${}", i.as_str()));
                 } else {
@@ -638,12 +639,21 @@ impl Generator {
                     self.writer.write(&format!("offset={}", raw_offset));
                 }
 
-                if load_size <= 32 {
-                    self.writer.new_statement();
-                    self.writer.write(format!("i64.const {}", 32));
+                match type_ {
+                    IrType::Byte => {
+                        self.writer.new_statement();
+                        self.writer.write("i64.const 32");
 
-                    self.writer.new_statement();
-                    self.writer.write("i64.shl");
+                        self.writer.new_statement();
+                        self.writer.write("i64.shl");
+
+                        self.writer.new_statement();
+                        self.writer.write("i64.const 4");
+
+                        self.writer.new_statement();
+                        self.writer.write("i64.xor");
+                    }
+                    _ => {}
                 }
             }
             IrTerm::Store {
@@ -803,6 +813,7 @@ impl Generator {
                 "address_to_i32" => self.convert_value_address_to_i32_1(),
                 "i32_to_byte" => self.convert_value_i32_to_byte_1(),
                 "byte_to_i32" => self.convert_value_byte_to_i32_1(),
+                "byte_to_address" => self.convert_value_byte_to_address_1(),
                 _ => {
                     self.writer.write(&format!("call ${}", ident.as_str()));
                 }
@@ -818,7 +829,7 @@ impl Generator {
         self.writer.write("i64.const 1");
 
         self.writer.new_statement();
-        self.writer.write("i64.add");
+        self.writer.write("i64.xor");
     }
 
     fn convert_value_address_to_i32_1(&mut self) {
@@ -840,6 +851,20 @@ impl Generator {
     fn convert_value_byte_to_i32_1(&mut self) {
         self.writer.new_statement();
         self.writer.write("i64.const 4");
+
+        self.writer.new_statement();
+        self.writer.write("i64.xor");
+    }
+
+    fn convert_value_byte_to_address_1(&mut self) {
+        self.writer.new_statement();
+        self.writer.write("i64.const 4");
+
+        self.writer.new_statement();
+        self.writer.write("i64.xor");
+
+        self.writer.new_statement();
+        self.writer.write("i64.const 1");
 
         self.writer.new_statement();
         self.writer.write("i64.xor");
