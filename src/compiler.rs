@@ -385,7 +385,7 @@ impl Compiler {
         };
 
         if let Some(t) = t {
-            t.to_string()
+            format!("```quartz\n{}\n```", t.to_string())
         } else {
             String::new()
         }

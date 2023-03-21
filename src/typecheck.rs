@@ -690,12 +690,12 @@ impl TypeChecker {
 
                 Ok(type_.clone())
             }
-            Expr::Project(expr, type_, label_path) => {
-                let mut expr_type = self.expr(expr)?;
+            Expr::Project(project_expr, type_, label_path) => {
+                let mut expr_type = self.expr(project_expr)?;
                 self.unify(type_, &mut expr_type).context(ErrorInSource {
                     path: Some(self.current_path.clone()),
-                    start: expr.start.unwrap_or(0),
-                    end: expr.end.unwrap_or(0),
+                    start: project_expr.start.unwrap_or(0),
+                    end: project_expr.end.unwrap_or(0),
                 })?;
 
                 let label = label_path.0.last().unwrap();
@@ -762,21 +762,24 @@ impl TypeChecker {
                 if fields.contains_key(&label) {
                     // field access
 
-                    Ok(fields[label].clone())
+                    let t = fields[label].clone();
+                    self.set_search_node_type(t.clone(), expr);
+
+                    Ok(t)
                 } else {
                     // method access
                     let path = Path::new(vec![
                         expr_type.clone().to_ident().context(ErrorInSource {
                             path: Some(self.current_path.clone()),
-                            start: expr.start.unwrap_or(0),
-                            end: expr.end.unwrap_or(0),
+                            start: project_expr.start.unwrap_or(0),
+                            end: project_expr.end.unwrap_or(0),
                         })?,
                         label.clone(),
                     ]);
                     let mut path_expr = Source::new(
-                        Expr::source_path(Source::transfer(path.clone(), expr)),
-                        expr.start.unwrap_or(0),
-                        expr.end.unwrap_or(0),
+                        Expr::source_path(Source::transfer(path.clone(), project_expr)),
+                        project_expr.start.unwrap_or(0),
+                        project_expr.end.unwrap_or(0),
                     );
                     let type_ = self.expr(&mut path_expr)?;
 
@@ -796,15 +799,15 @@ impl TypeChecker {
                                 )
                                 .context(ErrorInSource {
                                     path: Some(self.current_path.clone()),
-                                    start: expr.start.unwrap_or(0),
-                                    end: expr.end.unwrap_or(0),
+                                    start: project_expr.start.unwrap_or(0),
+                                    end: project_expr.end.unwrap_or(0),
                                 }));
                             }
                             self.unify(&mut expr_type, &mut arg_types[0]).context(
                                 ErrorInSource {
                                     path: Some(self.current_path.clone()),
-                                    start: expr.start.unwrap_or(0),
-                                    end: expr.end.unwrap_or(0),
+                                    start: project_expr.start.unwrap_or(0),
+                                    end: project_expr.end.unwrap_or(0),
                                 },
                             )?;
 
@@ -818,15 +821,15 @@ impl TypeChecker {
                                 )
                                 .context(ErrorInSource {
                                     path: Some(self.current_path.clone()),
-                                    start: expr.start.unwrap_or(0),
-                                    end: expr.end.unwrap_or(0),
+                                    start: project_expr.start.unwrap_or(0),
+                                    end: project_expr.end.unwrap_or(0),
                                 }));
                             }
                             self.unify(&mut expr_type, &mut arg_types[0]).context(
                                 ErrorInSource {
                                     path: Some(self.current_path.clone()),
-                                    start: expr.start.unwrap_or(0),
-                                    end: expr.end.unwrap_or(0),
+                                    start: project_expr.start.unwrap_or(0),
+                                    end: project_expr.end.unwrap_or(0),
                                 },
                             )?;
 
@@ -839,8 +842,8 @@ impl TypeChecker {
                             )
                             .context(ErrorInSource {
                                 path: Some(self.current_path.clone()),
-                                start: expr.start.unwrap_or(0),
-                                end: expr.end.unwrap_or(0),
+                                start: project_expr.start.unwrap_or(0),
+                                end: project_expr.end.unwrap_or(0),
                             }));
                         }
                     }

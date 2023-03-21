@@ -81,8 +81,6 @@ connection.onHover(async (params) => {
     } --column ${params.position.character}`
   );
   if (cargo.stdout) {
-    console.log(cargo.stdout);
-    console.error(cargo.stderr);
     return { contents: cargo.stdout };
   }
 });
