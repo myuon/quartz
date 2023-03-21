@@ -944,9 +944,13 @@ impl TypeChecker {
             Expr::EnumOr(lhs_type, rhs_type, lhs, rhs) => {
                 if let Some(lhs) = lhs {
                     *lhs_type = self.expr(lhs)?;
+                } else {
+                    *lhs_type = Type::Any;
                 };
                 if let Some(rhs) = rhs {
                     *rhs_type = self.expr(rhs)?;
+                } else {
+                    *rhs_type = Type::Any;
                 };
 
                 Ok(Type::Or(

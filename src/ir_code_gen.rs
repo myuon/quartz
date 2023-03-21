@@ -14,34 +14,46 @@ use crate::{
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TypeRep {
     pub name: String,
+    pub params: Vec<TypeRep>,
     pub fields: Vec<(String, TypeRep)>,
 }
 
 impl TypeRep {
-    pub fn from_name(name: String) -> TypeRep {
+    pub fn from_name(name: String, params: Vec<TypeRep>) -> TypeRep {
         TypeRep {
             name,
+            params,
             fields: vec![],
         }
     }
 
-    pub fn from_struct(name: String, record_type: Vec<(String, IrType)>) -> Self {
+    pub fn from_struct(
+        name: String,
+        params: Vec<IrType>,
+        record_type: Vec<(String, IrType)>,
+    ) -> Self {
+        let params = params.into_iter().map(TypeRep::from_type).collect();
+
         let mut fields = vec![];
         for (name, type_) in record_type {
             fields.push((name, TypeRep::from_type(type_)));
         }
 
-        TypeRep { name, fields }
+        TypeRep {
+            name,
+            params,
+            fields,
+        }
     }
 
     pub fn from_type(type_: IrType) -> TypeRep {
         match type_ {
-            IrType::Nil => TypeRep::from_name("nil".to_string()),
-            IrType::I32 => TypeRep::from_name("i32".to_string()),
+            IrType::Nil => TypeRep::from_name("nil".to_string(), vec![]),
+            IrType::I32 => TypeRep::from_name("i32".to_string(), vec![]),
             IrType::I64 => todo!(),
-            IrType::Bool => TypeRep::from_name("bool".to_string()),
-            IrType::Address => TypeRep::from_name("address".to_string()),
-            IrType::Any => TypeRep::from_name("any".to_string()),
+            IrType::Bool => TypeRep::from_name("bool".to_string(), vec![]),
+            IrType::Address => TypeRep::from_name("address".to_string(), vec![]),
+            IrType::Any => TypeRep::from_name("any".to_string(), vec![]),
         }
     }
 }
@@ -863,7 +875,7 @@ impl IrCodeGenerator {
                     }
                 }
 
-                Ok(self.generate_array(ident.data.as_str().to_string(), record)?)
+                Ok(self.generate_array(ident.data.as_str().to_string(), vec![], record)?)
             }
             Expr::AnonymousRecord(fields, type_) => {
                 let mut elements = vec![];
@@ -878,7 +890,7 @@ impl IrCodeGenerator {
                     elements.push((Some(label.0.clone()), IrType::from_type(type_)?, value));
                 }
 
-                self.generate_array("struct".to_string(), elements)
+                self.generate_array("struct".to_string(), vec![], elements)
             }
             Expr::Project(expr, type_, label) => {
                 let record_type = if let Ok(record) = type_.as_record_type() {
@@ -916,8 +928,13 @@ impl IrCodeGenerator {
                     assert_eq!(args.len(), 1);
                     let len = self.expr(&mut args[0])?;
 
-                    Ok(self
-                        .allocate_heap_object(TypeRep::from_name(format!("ptr[{:?}]", p)), len)?)
+                    Ok(self.allocate_heap_object(
+                        TypeRep::from_name(
+                            "ptr".to_string(),
+                            vec![TypeRep::from_type(IrType::from_type(p)?)],
+                        ),
+                        len,
+                    )?)
                 }
                 Type::Array(elem, size) => {
                     let data_ptr = self.expr(&mut Source::unknown(Expr::Make(
@@ -927,6 +944,7 @@ impl IrCodeGenerator {
 
                     Ok(self.generate_array(
                         "array".to_string(),
+                        vec![IrType::from_type(elem)?],
                         vec![
                             (
                                 Some("data".to_string()),
@@ -1027,6 +1045,7 @@ impl IrCodeGenerator {
 
                 self.generate_array(
                     "optional".to_string(),
+                    vec![IrType::from_type(type_)?],
                     vec![(None, IrType::from_type(type_)?, expr)],
                 )
             }
@@ -1046,6 +1065,7 @@ impl IrCodeGenerator {
                     let lhs_term = self.expr(lhs)?;
                     self.generate_array(
                         "optional".to_string(),
+                        vec![IrType::from_type(lhs_type)?],
                         vec![(None, IrType::from_type(lhs_type)?, lhs_term)],
                     )?
                 } else {
@@ -1055,6 +1075,7 @@ impl IrCodeGenerator {
                     let rhs_term = self.expr(rhs)?;
                     self.generate_array(
                         "optional".to_string(),
+                        vec![IrType::from_type(rhs_type)?],
                         vec![(None, IrType::from_type(rhs_type)?, rhs_term)],
                     )?
                 } else {
@@ -1063,6 +1084,7 @@ impl IrCodeGenerator {
 
                 self.generate_array(
                     "or".to_string(),
+                    vec![IrType::from_type(lhs_type)?, IrType::from_type(rhs_type)?],
                     vec![
                         (Some("left".to_string()), IrType::Address, lhs_term),
                         (Some("right".to_string()), IrType::Address, rhs_term),
@@ -1109,6 +1131,7 @@ impl IrCodeGenerator {
                     then: Box::new(IrTerm::Return {
                         value: Box::new(self.generate_array(
                             "or".to_string(),
+                            vec![IrType::Address, IrType::Address],
                             vec![
                                 (Some("left".to_string()), IrType::Address, IrTerm::nil()),
                                 (
@@ -1232,10 +1255,12 @@ impl IrCodeGenerator {
     fn generate_array(
         &mut self,
         rep_name: String,
+        params: Vec<IrType>,
         elements: Vec<(Option<String>, IrType, IrTerm)>,
     ) -> Result<IrTerm> {
         let rep = TypeRep::from_struct(
             rep_name,
+            params,
             elements
                 .iter()
                 .enumerate()
