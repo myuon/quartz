@@ -48,7 +48,7 @@ type IrTerm = {
 
 module IrTerm {
     fun to_string(self): string {
-        return derive::to_string(self);
+        return derive::to_string_pretty(self);
     }
 
     fun ident(name: string): IrTerm {
