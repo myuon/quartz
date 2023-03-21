@@ -1182,7 +1182,7 @@ impl IrCodeGenerator {
                         ])),
                         callee,
                     ))?),
-                    args: vec![IrTerm::I32(args.len() as i32 - variadic_call.index as i32)],
+                    args: vec![IrTerm::I32(1)],
                     source: None,
                 }),
             }];

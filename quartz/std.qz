@@ -30,7 +30,8 @@ fun format(f: string, ..arg: vec[string]): string {
 }
 
 fun print(f: string, ..arg: vec[string]) {
-    print_string(format(f, ..arg));
+    let result = format(f, ..arg);
+    print_string(result);
 }
 
 fun println(f: string, ..arg: vec[string]) {
@@ -41,6 +42,10 @@ fun println(f: string, ..arg: vec[string]) {
 }
 
 fun vec_make(capacity: i32): vec[i32] {
+    if capacity == 0 {
+        panic("vec_make: capacity must be greater than 0");
+    }
+
     return vec {
         data: make[ptr[i32]](capacity),
         length: 0,
