@@ -380,6 +380,7 @@ impl TypeChecker {
             Pattern::Ident(ident) => {
                 self.locals
                     .insert(ident.clone(), Source::transfer(type_.clone(), pattern));
+                self.set_search_node_type(type_.clone(), pattern);
             }
             Pattern::Or(left, right) => match type_ {
                 // let a or b = A or B
@@ -424,12 +425,6 @@ impl TypeChecker {
     }
 
     fn expr(&mut self, expr: &mut Source<Expr>) -> Result<Type> {
-        if let Some(cursor) = self.search_node.clone() {
-            if self.is_search_finished(expr, &cursor) {
-                return Ok(Type::Any);
-            }
-        }
-
         match &mut expr.data {
             Expr::Lit(lit) => {
                 let t = self.lit(lit)?;
@@ -911,6 +906,8 @@ impl TypeChecker {
             }
             Expr::SizeOf(_) => Ok(Type::I32),
             Expr::Self_ => {
+                // FIXME: This is not working for caller expression
+
                 if self.current_path.0.len() == 0 {
                     return Err(anyhow!("invalid self in empty module_path").context(
                         ErrorInSource {
