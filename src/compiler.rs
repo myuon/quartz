@@ -413,10 +413,12 @@ impl Compiler {
         let result = typechecker.find_definition(&mut module, Self::get_main_path(), position)?;
 
         if let Some((path, start, end)) = result {
+            let loaded = self.loader.matches(&path).unwrap();
+
             Ok(GoToDefOutput {
                 module_name: path.0.last().unwrap().0.clone(),
-                start: find_position(input, start),
-                end: find_position(input, end),
+                start: find_position(&loaded.source, start),
+                end: find_position(&loaded.source, end),
             })
         } else {
             bail!("No definition found")

@@ -99,6 +99,12 @@ impl Lexer {
         }
     }
 
+    pub fn reset(&mut self) {
+        self.current_path = Path::new(vec![]);
+        self.position = 0;
+        self.tokens = vec![];
+    }
+
     fn matches(&mut self, input: &str, keyword: &str, lexeme: Lexeme) -> bool {
         if input[self.position..].starts_with(keyword) {
             self.tokens.push(Token {
