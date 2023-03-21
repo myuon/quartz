@@ -115,12 +115,15 @@ impl Compiler {
         }
     }
 
-    fn check_(&mut self, cwd: &str, input: &str) -> Result<(TypeChecker, Module)> {
+    fn get_main_path() -> Path {
+        Path::ident(Ident("main".to_string()))
+    }
+
+    fn parse(&mut self, cwd: &str, input: &str) -> Result<Module> {
         let mut lexer = Lexer::new();
         let mut parser = Parser::new();
-        let mut typechecker = TypeChecker::new();
 
-        let main_path = Path::ident(Ident("main".to_string()));
+        let main_path = Self::get_main_path();
         lexer.run(input, main_path.clone()).context("lexer phase")?;
         let main = parser
             .run(lexer.tokens, main_path.clone())
@@ -162,6 +165,13 @@ impl Compiler {
                 })
                 .collect::<Vec<_>>(),
         );
+
+        Ok(module)
+    }
+
+    fn check_(&mut self, cwd: &str, input: &str) -> Result<(TypeChecker, Module)> {
+        let mut module = self.parse(cwd, input)?;
+        let mut typechecker = TypeChecker::new();
 
         typechecker.run(&mut module).context("typechecker phase")?;
 
@@ -363,13 +373,14 @@ impl Compiler {
     }
 
     pub fn check_type(&mut self, cwd: &str, input: &str, line: usize, column: usize) -> String {
-        // ignore type errors here
-        let Ok((mut typechecker, mut module)) = self.check_(cwd, input) else {
+        let Ok(mut module) = self.parse(cwd, input) else {
             return String::new();
         };
         let position = find_line_column_from_position(input, line, column);
 
-        let Ok(t) = typechecker.find_at_cursor(&mut module, position) else {
+        let mut typechecker = TypeChecker::new();
+
+        let Ok(t) = typechecker.find_at_cursor(&mut module, Self::get_main_path(), position) else {
             return String::new();
         };
 

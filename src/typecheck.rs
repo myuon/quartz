@@ -15,7 +15,7 @@ pub struct TypeChecker {
     current_path: Path,
     imported: Vec<Path>,
     result_type: Option<Type>,
-    pub search_node: Option<usize>,
+    pub search_node: Option<(Path, usize)>,
     pub search_node_type: Option<Type>,
 }
 
@@ -230,8 +230,8 @@ impl TypeChecker {
     }
 
     fn statement(&mut self, statement: &mut Source<Statement>) -> Result<()> {
-        if let Some(cursor) = self.search_node {
-            if self.is_search_finished(statement, cursor) {
+        if let Some(cursor) = self.search_node.clone() {
+            if self.is_search_finished(statement, &cursor) {
                 return Ok(());
             }
         }
@@ -406,8 +406,8 @@ impl TypeChecker {
     }
 
     fn expr(&mut self, expr: &mut Source<Expr>) -> Result<Type> {
-        if let Some(cursor) = self.search_node {
-            if self.is_search_finished(expr, cursor) {
+        if let Some(cursor) = self.search_node.clone() {
+            if self.is_search_finished(expr, &cursor) {
                 return Ok(Type::Any);
             }
         }
@@ -415,7 +415,7 @@ impl TypeChecker {
         match &mut expr.data {
             Expr::Lit(lit) => {
                 let t = self.lit(lit)?;
-                self.set_search_node_type(t.clone());
+                self.set_search_node_type(t.clone(), expr);
 
                 Ok(t)
             }
@@ -424,7 +424,7 @@ impl TypeChecker {
                 resolved_path,
             } => {
                 if let Ok(type_) = self.ident_local(ident) {
-                    self.set_search_node_type(type_.clone());
+                    self.set_search_node_type(type_.clone(), expr);
                     return Ok(type_);
                 }
 
@@ -438,7 +438,7 @@ impl TypeChecker {
                     if let Ok(type_) = self.ident_path(&path) {
                         *resolved_path = Some(path);
 
-                        self.set_search_node_type(type_.clone());
+                        self.set_search_node_type(type_.clone(), expr);
                         return Ok(type_);
                     }
                 }
@@ -449,7 +449,7 @@ impl TypeChecker {
                     end: expr.end.unwrap_or(0),
                 })?;
 
-                self.set_search_node_type(t.clone());
+                self.set_search_node_type(t.clone(), expr);
                 Ok(t)
             }
             Expr::Path {
@@ -463,7 +463,7 @@ impl TypeChecker {
                 })?;
                 *resolved_path = Some(r);
 
-                self.set_search_node_type(t.clone());
+                self.set_search_node_type(t.clone(), expr);
                 Ok(t)
             }
             Expr::Call(caller, args, variadic_info, expansion) => {
@@ -1094,26 +1094,37 @@ impl TypeChecker {
     }
 
     // For LSP
-    pub fn find_at_cursor(&mut self, module: &mut Module, cursor: usize) -> Result<Option<Type>> {
-        self.search_node = Some(cursor);
+    pub fn find_at_cursor(
+        &mut self,
+        module: &mut Module,
+        path: Path,
+        cursor: usize,
+    ) -> Result<Option<Type>> {
+        self.search_node = Some((path, cursor));
 
         let _ = self.module(module);
 
         Ok(self.search_node_type.clone())
     }
 
-    fn set_search_node_type(&mut self, type_: Type) {
-        if let None = self.search_node {
-            self.search_node_type = Some(type_);
+    fn set_search_node_type<T>(&mut self, type_: Type, source: &Source<T>) {
+        if let Some((path, cursor)) = &self.search_node {
+            if &self.current_path == path {
+                if let None = self.search_node_type {
+                    if source.start.unwrap_or(0) <= *cursor && *cursor <= source.end.unwrap_or(0) {
+                        self.search_node_type = Some(type_);
+                    }
+                }
+            }
         }
     }
 
-    pub fn is_search_finished<T>(&mut self, expr: &mut Source<T>, cursor: usize) -> bool {
+    pub fn is_search_finished<T>(&mut self, expr: &mut Source<T>, node: &(Path, usize)) -> bool {
         if self.search_node_type.is_some() {
             return true;
         }
         if let Some(start) = expr.start {
-            if start > cursor {
+            if start > node.1 {
                 return true;
             }
         }
