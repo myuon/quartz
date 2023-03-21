@@ -21,6 +21,7 @@ connection.onInitialize(() => {
     capabilities: {
       textDocumentSync: TextDocumentSyncKind.Full,
       hoverProvider: true,
+      definitionProvider: true,
     },
   };
 });
@@ -66,8 +67,6 @@ documents.onDidChangeContent(async (change) => {
 });
 
 connection.onHover(async (params) => {
-  console.log(params);
-
   const file = params.textDocument.uri.replace("file://", "");
 
   const cargo = await execAsync(
@@ -83,6 +82,52 @@ connection.onHover(async (params) => {
   if (cargo.stdout) {
     return { contents: cargo.stdout };
   }
+});
+
+connection.onDefinition(async (params) => {
+  const file = params.textDocument.uri.replace("file://", "");
+
+  const cargo = await execAsync(
+    `cargo run --manifest-path ${path.join(
+      file,
+      "..",
+      "..",
+      "Cargo.toml"
+    )} -- go-to-def ${file} --project ${path.join(file, "..", "..")} --line ${
+      params.position.line
+    } --column ${params.position.character}`
+  );
+  if (cargo.stdout) {
+    const result = JSON.parse(cargo.stdout) as {
+      file: string;
+      start: {
+        line: number;
+        column: number;
+      };
+      end: {
+        line: number;
+        column: number;
+      };
+    };
+
+    return [
+      {
+        uri: `file://${result.file}`,
+        range: {
+          start: {
+            line: result.start.line,
+            character: result.start.column,
+          },
+          end: {
+            line: result.end.line,
+            character: result.end.column,
+          },
+        },
+      },
+    ];
+  }
+
+  return null;
 });
 
 documents.listen(connection);
