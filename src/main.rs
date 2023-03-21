@@ -182,12 +182,14 @@ fn main() -> Result<()> {
             let mut buffer = String::new();
             file.read_to_string(&mut buffer)?;
 
-            let result = compiler.go_to_def(
+            let Ok(result) = compiler.go_to_def(
                 &project.unwrap_or(std::env::current_dir()?.to_str().unwrap().to_string()),
                 &buffer,
                 line,
                 column,
-            )?;
+            ) else {
+                return Ok(());
+            };
             println!(
                 "{}",
                 serde_json::to_string_pretty(&json!({

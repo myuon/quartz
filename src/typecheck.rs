@@ -10,7 +10,7 @@ use crate::{
 
 pub struct TypeChecker {
     locals: HashMap<Ident, Source<Type>>,
-    pub globals: HashMap<Path, Type>,
+    pub globals: HashMap<Path, Source<Type>>,
     pub types: HashMap<Ident, Type>,
     current_path: Path,
     imported: Vec<Path>,
@@ -71,7 +71,7 @@ impl TypeChecker {
                 ),
             ]
             .into_iter()
-            .map(|(k, v)| (Path::ident(Ident(k.to_string())), v))
+            .map(|(k, v)| (Path::ident(Ident(k.to_string())), Source::unknown(v)))
             .collect(),
             types: vec![
                 (
@@ -127,10 +127,11 @@ impl TypeChecker {
             match decl {
                 Decl::Func(func) => {
                     self.globals
-                        .insert(self.path_to(&func.name), func.to_type());
+                        .insert(self.path_to(&func.name), Source::unknown(func.to_type()));
                 }
                 Decl::Let(ident, type_, _expr) => {
-                    self.globals.insert(self.path_to(&ident), type_.clone());
+                    self.globals
+                        .insert(self.path_to(&ident), Source::unknown(type_.clone()));
                 }
                 Decl::Type(ident, type_) => {
                     self.types.insert(ident.clone(), type_.clone());
@@ -164,12 +165,12 @@ impl TypeChecker {
             Decl::Func(func) => {
                 // For recursive functions
                 self.globals
-                    .insert(self.path_to(&func.name), func.to_type());
+                    .insert(self.path_to(&func.name), Source::unknown(func.to_type()));
 
                 self.func(func)?;
 
                 self.globals
-                    .insert(self.path_to(&func.name), func.to_type());
+                    .insert(self.path_to(&func.name), Source::unknown(func.to_type()));
             }
             Decl::Let(ident, type_, expr) => {
                 let mut result = self.expr(expr)?;
@@ -179,7 +180,8 @@ impl TypeChecker {
                     end: expr.end.unwrap_or(0),
                 })?;
 
-                self.globals.insert(self.path_to(&ident), type_.clone());
+                self.globals
+                    .insert(self.path_to(&ident), Source::unknown(type_.clone()));
             }
             Decl::Type(ident, type_) => {
                 self.types.insert(ident.clone(), type_.clone());
@@ -399,7 +401,7 @@ impl TypeChecker {
         Ok(())
     }
 
-    fn resolve_path(&mut self, user_specified_path: &mut Path) -> Result<(Path, Type)> {
+    fn resolve_path(&mut self, user_specified_path: &mut Path) -> Result<(Path, Source<Type>)> {
         let mut candidates = self.imported.clone();
         candidates.push(self.current_path.clone());
 
@@ -450,8 +452,9 @@ impl TypeChecker {
                     if let Ok(type_) = self.ident_path(&path) {
                         *resolved_path = Some(path);
 
-                        self.set_search_node_type(type_.clone(), expr);
-                        return Ok(type_);
+                        self.set_search_node_type(type_.data.clone(), expr);
+                        self.set_search_node_definition(self.current_path.clone(), &type_, expr);
+                        return Ok(type_.data);
                     }
                 }
 
@@ -461,8 +464,9 @@ impl TypeChecker {
                     end: expr.end.unwrap_or(0),
                 })?;
 
-                self.set_search_node_type(t.clone(), expr);
-                Ok(t)
+                self.set_search_node_type(t.data.clone(), expr);
+                self.set_search_node_definition(self.current_path.clone(), &t, expr);
+                Ok(t.data)
             }
             Expr::Path {
                 path,
@@ -475,8 +479,8 @@ impl TypeChecker {
                 })?;
                 *resolved_path = Some(r);
 
-                self.set_search_node_type(t.clone(), expr);
-                Ok(t)
+                self.set_search_node_type(t.data.clone(), expr);
+                Ok(t.data)
             }
             Expr::Call(caller, args, variadic_info, expansion) => {
                 let caller_type = self.expr(caller)?;
@@ -1053,14 +1057,14 @@ impl TypeChecker {
         }
     }
 
-    fn ident_global(&mut self, ident: &mut Ident) -> Result<Type> {
+    fn ident_global(&mut self, ident: &mut Ident) -> Result<Source<Type>> {
         match self.globals.get(&Path::ident(ident.clone())) {
             Some(type_) => Ok(type_.clone()),
             None => bail!("Ident Not Found: {}", ident.as_str()),
         }
     }
 
-    fn ident_path(&mut self, path: &Path) -> Result<Type> {
+    fn ident_path(&mut self, path: &Path) -> Result<Source<Type>> {
         match self.globals.get(path) {
             Some(type_) => Ok(type_.clone()),
             None => bail!("Path Not Found: {}", path.as_str()),
