@@ -146,8 +146,10 @@ impl Generator {
                 IrTerm::Instruction("local.get $value".to_string()),
                 IrTerm::Instruction("i64.const 2".to_string()),
                 IrTerm::Instruction("i64.and".to_string()),
-                IrTerm::Instruction("i64.const 1".to_string()),
+                IrTerm::Instruction("i64.const 32".to_string()),
                 IrTerm::Instruction("i64.shl".to_string()),
+                IrTerm::Instruction("i64.const 2".to_string()),
+                IrTerm::Instruction("i64.or".to_string()),
                 IrTerm::Instruction("return".to_string()),
             ],
         })?;
@@ -834,7 +836,7 @@ impl Generator {
         self.writer.write("i64.extend_i32_s");
 
         self.writer.new_statement();
-        self.writer.write("i64.const 2");
+        self.writer.write("i64.const 32");
 
         self.writer.new_statement();
         self.writer.write("i64.shl");
@@ -848,7 +850,7 @@ impl Generator {
 
     fn convert_stack_to_bool(&mut self) {
         self.writer.new_statement();
-        self.writer.write("i64.const 2");
+        self.writer.write("i64.const 32");
 
         self.writer.new_statement();
         self.writer.write("i64.shr_u");
