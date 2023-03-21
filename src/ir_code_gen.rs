@@ -84,7 +84,7 @@ impl IrCodeGenerator {
         let mut decls = self.module(module)?;
         // generate_prepare_type_reps should be called before generate_prepare_strings, since it uses strings
         decls.push(self.generate_prepare_type_reps()?);
-        decls.push(self.generate_prepare_strings()?);
+        decls.extend(self.generate_prepare_strings()?);
         decls.push(IrTerm::Func {
             name: "reflection_get_type_rep_id".to_string(),
             params: vec![("p".to_string(), IrType::Address)],
@@ -199,7 +199,20 @@ impl IrCodeGenerator {
         })
     }
 
-    fn generate_prepare_strings(&mut self) -> Result<IrTerm> {
+    fn generate_prepare_strings(&mut self) -> Result<Vec<IrTerm>> {
+        let mut terms = vec![];
+
+        let mut offset = 8;
+        for (string, _) in self.strings.to_vec() {
+            let len = string.len();
+            terms.push(IrTerm::Data {
+                offset,
+                data: string,
+            });
+
+            offset += len;
+        }
+
         let var_strings = "quartz_std_strings_ptr";
         let mut body = vec![];
         // quartz_std_strings_ptr = make[ptr[string]](${strings.len()});
@@ -253,12 +266,14 @@ impl IrCodeGenerator {
             value: Box::new(IrTerm::nil()),
         });
 
-        Ok(IrTerm::Func {
+        terms.push(IrTerm::Func {
             name: "prepare_strings".to_string(),
             params: vec![],
             result: None,
             body,
-        })
+        });
+
+        Ok(terms)
     }
 
     fn func(&mut self, func: &mut Func) -> Result<IrTerm> {

@@ -96,6 +96,10 @@ pub enum IrTerm {
         params: Vec<IrType>,
         result: IrType,
     },
+    Data {
+        offset: usize,
+        data: String,
+    },
 }
 
 impl IrTerm {
@@ -365,6 +369,13 @@ impl IrTerm {
                 result.to_term().to_string_writer(writer);
                 writer.end();
             }
+            IrTerm::Data { offset, data } => {
+                writer.start();
+                writer.write("data");
+                writer.write(format!("offset={}", offset));
+                writer.write(format!("data={}", data));
+                writer.end();
+            }
         }
     }
 
@@ -497,7 +508,10 @@ impl IrTerm {
                 name,
                 params,
                 result,
-            } => vec![],
+            } => {
+                vec![]
+            }
+            IrTerm::Data { offset, data } => vec![],
         }
     }
 

@@ -256,6 +256,15 @@ impl Generator {
 
                 Ok(())
             }
+            IrTerm::Data { offset, data } => {
+                self.writer.start();
+                self.writer.write("data");
+                self.writer.write(format!("(i32.const {})", offset));
+                self.writer.write(format!("{:?}", data));
+                self.writer.end();
+
+                Ok(())
+            }
             _ => bail!("Expected func or global let, got {:?}", decl),
         }
     }
