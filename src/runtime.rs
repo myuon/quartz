@@ -433,6 +433,16 @@ fun main(): bool {
             ),
             (
                 r#"
+fun main(): byte {
+    let a = "hello";
+
+    return a.at(3);
+}
+"#,
+                vec![Value::Byte(b'l')],
+            ),
+            (
+                r#"
 fun int_to_string(n: i32): string {
     let digit = 0;
     let tmp = n;

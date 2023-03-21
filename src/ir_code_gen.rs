@@ -1331,9 +1331,9 @@ impl IrCodeGenerator {
         index: IrTerm,
     ) -> Result<IrTerm> {
         Ok(IrTerm::Load {
-            type_: IrType::from_type(elem_type).context("method:array.at")?,
+            type_: IrType::from_type(elem_type)?,
             address: Box::new(array),
-            offset: Box::new(self.generate_mult_sizeof(&Type::I32, index)?),
+            offset: Box::new(self.generate_mult_sizeof(elem_type, index)?),
             raw_offset: Some(if MODE_TYPE_REP { Value::sizeof() } else { 0 }),
         })
     }

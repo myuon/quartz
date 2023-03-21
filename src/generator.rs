@@ -550,13 +550,15 @@ impl Generator {
                 self.writer.write("br $exit");
             }
             IrTerm::SizeOf { type_ } => {
+                let size = type_.sizeof();
+
                 if MODE_READABLE_WASM {
                     self.writer.new_statement();
-                    self.writer.write(";; sizeof");
+                    self.writer.write(format!(";; {} (sizeof)", size));
                 }
 
                 self.writer.new_statement();
-                self.write_value(Value::i32(type_.sizeof() as i32));
+                self.write_value(Value::i32(size));
             }
             IrTerm::WriteMemory {
                 type_,
@@ -636,8 +638,12 @@ impl Generator {
                     self.writer.write(&format!("offset={}", raw_offset));
                 }
 
-                if matches!(type_, IrType::Bool) {
-                    self.convert_value_i32_to_byte_1();
+                if load_size <= 32 {
+                    self.writer.new_statement();
+                    self.writer.write(format!("i64.const {}", 32));
+
+                    self.writer.new_statement();
+                    self.writer.write("i64.shl");
                 }
             }
             IrTerm::Store {
@@ -820,15 +826,15 @@ impl Generator {
         self.writer.write("i64.const 1");
 
         self.writer.new_statement();
-        self.writer.write("i64.sub");
+        self.writer.write("i64.xor");
     }
 
     fn convert_value_i32_to_byte_1(&mut self) {
         self.writer.new_statement();
-        self.writer.write("i64.const 1");
+        self.writer.write("i64.const 4");
 
         self.writer.new_statement();
-        self.writer.write("i64.sub");
+        self.writer.write("i64.xor");
     }
 
     fn convert_value_byte_to_i32_1(&mut self) {

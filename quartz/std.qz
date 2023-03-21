@@ -226,8 +226,8 @@ module string {
         return self.slice(start, self.length);
     }
 
-    fun at(self, n: i32): string {
-        return char_to_string(self.data.at(n));
+    fun at(self, n: i32): byte {
+        return self.data.at(n);
     }
 
     fun repeat(self, n: i32): string {
