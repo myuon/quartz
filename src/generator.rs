@@ -52,10 +52,10 @@ impl Generator {
         self.strings = strings;
     }
 
-    pub fn run(&mut self, module: &mut IrTerm) -> Result<()> {
+    pub fn run(&mut self, module: &mut IrTerm, data_section_offset: usize) -> Result<()> {
         match module {
             IrTerm::Module { elements } => {
-                self.module(elements)?;
+                self.module(elements, data_section_offset)?;
             }
             _ => bail!("Expected module"),
         }
@@ -63,7 +63,7 @@ impl Generator {
         Ok(())
     }
 
-    fn module(&mut self, elements: &mut Vec<IrTerm>) -> Result<()> {
+    fn module(&mut self, elements: &mut Vec<IrTerm>, data_section_offset: usize) -> Result<()> {
         self.entrypoint_symbol = format!(
             "{}_main",
             self.cwd
@@ -178,6 +178,10 @@ impl Generator {
             params: vec![],
             result: Some(result),
             body: vec![
+                IrTerm::Assign {
+                    lhs: "quartz_std_alloc_ptr".to_string(),
+                    rhs: Box::new(IrTerm::i32(data_section_offset as i32)),
+                },
                 IrTerm::Assign {
                     lhs: "quartz_std_strings_count".to_string(),
                     rhs: Box::new(IrTerm::i32(self.strings.len() as i32)),

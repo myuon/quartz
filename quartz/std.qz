@@ -103,6 +103,13 @@ fun new_empty_string(length: i32): string {
     };
 }
 
+fun new_string(p: ptr[byte], length: i32): string {
+    return string {
+        data: p,
+        length: length,
+    };
+}
+
 fun is_included(s: string, n: i32, chars: string): bool {
     for i in 0..chars.length {
         if s.data.at(n) == chars.data.at(i) {
@@ -407,8 +414,7 @@ fun stdin(): string {
 }
 
 // used in compiler
-// avoid using address 0, this is for null pointers
-let alloc_ptr = 8;
+let alloc_ptr = 0;
 
 fun alloc(size: i32): ptr[any] {
     if size % sizeof[i32]() != 0 {

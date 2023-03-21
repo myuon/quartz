@@ -64,6 +64,7 @@ pub struct IrCodeGenerator {
     current_path: Path,
     pub strings: SerialIdMap<String>,
     pub type_reps: SerialIdMap<TypeRep>,
+    pub data_section_offset: usize,
 }
 
 impl IrCodeGenerator {
@@ -73,6 +74,7 @@ impl IrCodeGenerator {
             current_path: Path::empty(),
             strings: SerialIdMap::new(),
             type_reps: SerialIdMap::new(),
+            data_section_offset: 8, // 8 bytes for null pointer
         }
     }
 
@@ -202,17 +204,6 @@ impl IrCodeGenerator {
     fn generate_prepare_strings(&mut self) -> Result<Vec<IrTerm>> {
         let mut terms = vec![];
 
-        let mut offset = 8;
-        for (string, _) in self.strings.to_vec() {
-            let len = string.len();
-            terms.push(IrTerm::Data {
-                offset,
-                data: string,
-            });
-
-            offset += len;
-        }
-
         let var_strings = "quartz_std_strings_ptr";
         let mut body = vec![];
         // quartz_std_strings_ptr = make[ptr[string]](${strings.len()});
@@ -226,40 +217,32 @@ impl IrCodeGenerator {
             )))?),
         });
 
-        let strings = self.strings.to_vec();
-        for (string, i) in strings {
-            // let p = new_empty_string(${string.len()})
-            body.push(IrTerm::Let {
-                name: "p".to_string(),
-                type_: IrType::I32,
-                value: Box::new(self.expr(&mut Source::unknown(Expr::Call(
-                    Box::new(Source::unknown(Expr::ident(Ident(
-                        "quartz_std_new_empty_string".to_string(),
-                    )))),
-                    vec![Source::unknown(Expr::Lit(Lit::I32(string.len() as i32)))],
-                    None,
-                    None,
-                )))?),
+        for (string, i) in self.strings.to_vec() {
+            let len = string.len();
+            terms.push(IrTerm::Data {
+                offset: self.data_section_offset,
+                data: string,
             });
 
-            // write_memory(p.data, ${string.byte()})
-            body.push(IrTerm::WriteMemory {
-                type_: IrType::I32,
-                address: Box::new(self.generate_array_at(
-                    &Type::I32,
-                    IrTerm::ident("p".to_string()),
-                    IrTerm::i32(0),
-                )?),
-                value: string.bytes().map(|b| IrTerm::i32(b as i32)).collect(),
-            });
-
-            // strings.at(i) = p
+            // strings.at(i) = new_empty_string(${offset}, ${string.len()})
             let lhs = self.generate_array_at(
                 &Type::Ident(Ident("string".to_string())),
                 IrTerm::ident(var_strings.to_string()),
                 IrTerm::i32(i as i32),
             )?;
-            body.push(self.assign(lhs, IrTerm::ident("p"))?);
+            body.push(self.assign(
+                lhs,
+                IrTerm::Call {
+                    callee: Box::new(IrTerm::ident("quartz_std_new_string".to_string())),
+                    args: vec![
+                        IrTerm::i32(self.data_section_offset as i32),
+                        IrTerm::i32(len as i32),
+                    ],
+                    source: None,
+                },
+            )?);
+
+            self.data_section_offset += len;
         }
 
         body.push(IrTerm::Return {

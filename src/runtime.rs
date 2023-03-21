@@ -24,7 +24,7 @@ impl Runtime {
                         Value::I32(i) => {
                             std::io::stdout().lock().write(&[i as u8]).unwrap();
                         }
-                        _ => panic!("write_stdout: invalid value, {:?}", w),
+                        _ => println!("write_stdout: invalid value, {:?}", w),
                     }
 
                     Value::i32(0).as_i64()
