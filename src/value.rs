@@ -13,14 +13,14 @@ impl Value {
     //
     // pointer: [32bit address][0 * 31]1
     // i32:     [32bit value  ][0 * 31]0
-    // bool:    00...*10
+    // bool:    [32bit value ][0 * 30]10
     pub fn as_i64(&self) -> i64 {
         match self {
             Value::Bool(b) => {
                 if *b {
-                    0b110
+                    (0b1 as i64) << 32 | 0b10
                 } else {
-                    0b010
+                    0b10
                 }
             }
             Value::I32(i) => (*i as i64) << 32,
@@ -32,7 +32,7 @@ impl Value {
         if i & 0b1 == 0b1 {
             Value::Pointer((i >> 32) as u32)
         } else if i & 0b10 == 0b10 {
-            Value::Bool(i == 0b110)
+            Value::Bool(i >> 32 == 1)
         } else {
             Value::I32((i >> 32) as i32)
         }

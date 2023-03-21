@@ -5,3 +5,4 @@
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
 cc 56f47c873987d874fb0d73f9aab8889ac4e9439f86b3a9864bcb0454e236c3ac # shrinks to v = Pointer(-238399812)
+cc a6f3403e2f74a74e620ac4a380966ea61a2c5a3e176f2b91fe3f6b0440d99185 # shrinks to v = Bool(true)
