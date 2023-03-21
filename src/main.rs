@@ -10,7 +10,10 @@ mod typecheck;
 mod util;
 mod value;
 
-use std::io::{Read, Write};
+use std::{
+    io::{Read, Write},
+    path::PathBuf,
+};
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -188,7 +191,7 @@ fn main() -> Result<()> {
             println!(
                 "{}",
                 serde_json::to_string_pretty(&json!({
-                    "file": format!("{}", path),
+                    "file": replace_file_name(&path, &format!("{}.qz", result.module_name)),
                     "start": {
                         "line": result.start.0,
                         "column": result.start.1,
@@ -203,6 +206,15 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+fn replace_file_name(url: &str, new_file_name: &str) -> String {
+    let path_str = url;
+    let mut path = PathBuf::from(path_str);
+
+    path.set_file_name(new_file_name);
+
+    path.to_string_lossy().to_string()
 }
 
 fn compile(compiler: &mut Compiler, stdin: bool, file: Option<String>) -> Result<String> {

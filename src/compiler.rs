@@ -56,7 +56,7 @@ struct LoadedModule {
 
 #[derive(Debug, Clone)]
 pub struct GoToDefOutput {
-    pub file: String,
+    pub module_name: String,
     pub start: (usize, usize),
     pub end: (usize, usize),
 }
@@ -412,9 +412,9 @@ impl Compiler {
 
         let result = typechecker.find_definition(&mut module, Self::get_main_path(), position)?;
 
-        if let Some((start, end)) = result {
+        if let Some((path, start, end)) = result {
             Ok(GoToDefOutput {
-                file: cwd.to_string(),
+                module_name: path.0.last().unwrap().0.clone(),
                 start: find_position(input, start),
                 end: find_position(input, end),
             })

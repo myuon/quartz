@@ -17,7 +17,7 @@ pub struct TypeChecker {
     result_type: Option<Type>,
     pub search_node: Option<(Path, usize)>,
     pub search_node_type: Option<Type>,
-    pub search_node_definition: Option<(usize, usize)>,
+    pub search_node_definition: Option<(Path, usize, usize)>,
 }
 
 impl TypeChecker {
@@ -435,7 +435,7 @@ impl TypeChecker {
             } => {
                 if let Ok(type_) = self.ident_local(ident) {
                     self.set_search_node_type(type_.data.clone(), expr);
-                    self.set_search_node_definition(&type_, expr);
+                    self.set_search_node_definition(self.current_path.clone(), &type_, expr);
 
                     return Ok(type_.data);
                 }
@@ -1152,7 +1152,7 @@ impl TypeChecker {
         module: &mut Module,
         path: Path,
         cursor: usize,
-    ) -> Result<Option<(usize, usize)>> {
+    ) -> Result<Option<(Path, usize, usize)>> {
         self.search_node = Some((path, cursor));
 
         let _ = self.module(module);
@@ -1160,14 +1160,19 @@ impl TypeChecker {
         Ok(self.search_node_definition.clone())
     }
 
-    fn set_search_node_definition<S, T>(&mut self, def: &Source<S>, source: &Source<T>) {
-        if let Some((path, cursor)) = &self.search_node {
-            if &self.current_path == path {
+    fn set_search_node_definition<S, T>(
+        &mut self,
+        path: Path,
+        def: &Source<S>,
+        source: &Source<T>,
+    ) {
+        if let Some((search_path, cursor)) = &self.search_node {
+            if &self.current_path == search_path {
                 if source.start.unwrap_or(0) <= *cursor && *cursor <= source.end.unwrap_or(0) {
                     if let None = self.search_node_definition {
                         match (def.start, def.end) {
                             (Some(start), Some(end)) => {
-                                self.search_node_definition = Some((start, end));
+                                self.search_node_definition = Some((path, start, end));
                             }
                             _ => {}
                         }
