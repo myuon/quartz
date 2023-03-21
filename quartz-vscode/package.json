@@ -49,9 +49,7 @@
       }
     }
   },
-  "activationEvents": [
-    "onLanguage:quartz"
-  ],
+  "activationEvents": [],
   "scripts": {
     "vscode:prepublish": "yarn run compile",
     "publish": "vsce publish",

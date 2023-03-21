@@ -526,7 +526,16 @@ module reflection {
 }
 
 module derive {
-    fun to_string(t: any): string {
+    fun to_string_internal(t: any, pretty: bool, depth: i32): string {
+        let sep = "";
+        if pretty {
+            sep = "\n";
+        }
+        let indent = " ";
+        if pretty {
+            indent = " ".repeat(depth * 4);
+        }
+
         let rep = reflection::get_type_rep(t);
         if rep.name.equal("string") {
             return format(`"{}"`, t as string);
@@ -543,24 +552,35 @@ module derive {
                 if i > 0 {
                     s = s.concat(", ");
                 }
-                s = s.concat(derive::to_string((t as vec[any]).at(i)));
+                s = s.concat(derive::to_string_internal((t as vec[any]).at(i), pretty, depth + 1));
             }
             return s.concat(")");
         }
         if rep.name.equal("optional") {
-            return format("({})?", derive::to_string((t as any?)!));
+            return format("({})?", derive::to_string_internal((t as any?)!, pretty, depth + 1));
+        }
+        if rep.name.equal("nil") {
+            return "nil";
         }
         
-        let s = format("{} {", rep.name);
+        let s = format("{} {{}", rep.name, sep);
         for i in 0..rep.fields.length {
             if i > 0 {
-                s = s.concat(",");
+                s = s.concat(format(",{}", sep));
             }
             let f = rep.fields.at(i);
             let v = (t as ptr[any]).at(i);
-            s = s.concat(format(" {}: {}", f, derive::to_string(v)));
+            s = s.concat(format("{}{}: {}", indent, f, derive::to_string_internal(v, pretty, depth + 1)));
         }
 
         return s.concat(" }");
+    }
+
+    fun to_string(t: any): string {
+        return derive::to_string_internal(t, false, 1);
+    }
+
+    fun to_string_pretty(t: any): string {
+        return derive::to_string_internal(t, true, 1);
     }
 }
