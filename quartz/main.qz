@@ -34,7 +34,7 @@ fun test() {
         name: "foo",
         age: 20,
     }), `struct { name: "foo", age: 20 }`);
-    assert_eq_string(derive::to_string(4?), "optional { 0: 4 }");
+    assert_eq_string(derive::to_string(4?), "(4)?");
 
     let v = make[vec[i32]]();
     v.push(1);

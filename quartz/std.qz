@@ -458,7 +458,8 @@ module reflection {
 
         let params = make[vec[TypeRep]]();
         for i in 0..params_size {
-            params.push(parse_type_rep(params_ptr.at(i)));
+            let rep = parse_type_rep(params_ptr.at(i));
+            params.push(rep);
         }
 
         let fields = make[vec[string]]();
@@ -540,6 +541,9 @@ module derive {
                 s = s.concat(derive::to_string((t as vec[any]).at(i)));
             }
             return s.concat(")");
+        }
+        if rep.name.equal("optional") {
+            return format("({})?", derive::to_string((t as any?)!));
         }
         
         let s = format("{} {", rep.name);
