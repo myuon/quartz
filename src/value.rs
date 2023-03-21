@@ -6,7 +6,7 @@ pub enum Value {
     Bool(bool),
     Byte(u8),
     I32(i32),
-    Pointer(#[cfg_attr(test, proptest(filter = "|p| p % 4 == 0"))] u32),
+    Pointer(#[cfg_attr(test, proptest(filter = "|p| p % 8 == 0"))] u32),
 }
 
 impl Value {

@@ -620,10 +620,24 @@ impl Generator {
                 // Only 32-bit addresses are supported
                 // self.convert_stack_from_i32_1();
 
+                let load_size = type_.sizeof() * 8;
+
                 self.writer.new_statement();
-                self.writer.write(&format!("{}.load", type_.to_string()));
+                self.writer.write(&format!(
+                    "{}.load{}",
+                    Value::wasm_type(),
+                    if load_size == 64 {
+                        String::new()
+                    } else {
+                        format!("{}_u", load_size)
+                    }
+                ));
                 if let Some(raw_offset) = raw_offset {
                     self.writer.write(&format!("offset={}", raw_offset));
+                }
+
+                if matches!(type_, IrType::Bool) {
+                    self.convert_value_i32_to_byte_1();
                 }
             }
             IrTerm::Store {
@@ -650,8 +664,18 @@ impl Generator {
                 self.writer.new_statement();
                 self.expr(value)?;
 
+                let store_size = type_.sizeof() * 8;
+
                 self.writer.new_statement();
-                self.writer.write(&format!("{}.store", type_.to_string()));
+                self.writer.write(&format!(
+                    "{}.store{}",
+                    Value::wasm_type(),
+                    if store_size == 64 {
+                        String::new()
+                    } else {
+                        format!("{}", store_size)
+                    }
+                ));
                 if let Some(raw_offset) = raw_offset {
                     self.writer.write(&format!("offset={}", raw_offset));
                 }
@@ -790,6 +814,14 @@ impl Generator {
     }
 
     fn convert_value_address_to_i32_1(&mut self) {
+        self.writer.new_statement();
+        self.writer.write("i64.const 1");
+
+        self.writer.new_statement();
+        self.writer.write("i64.sub");
+    }
+
+    fn convert_value_i32_to_byte_1(&mut self) {
         self.writer.new_statement();
         self.writer.write("i64.const 1");
 
