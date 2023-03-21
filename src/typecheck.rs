@@ -15,6 +15,8 @@ pub struct TypeChecker {
     current_path: Path,
     imported: Vec<Path>,
     result_type: Option<Type>,
+    pub search_node: Option<usize>,
+    pub search_node_type: Option<Type>,
 }
 
 impl TypeChecker {
@@ -100,6 +102,8 @@ impl TypeChecker {
             current_path: Path::empty(),
             imported: vec![],
             result_type: None,
+            search_node: None,
+            search_node_type: None,
         }
     }
 
@@ -226,6 +230,12 @@ impl TypeChecker {
     }
 
     fn statement(&mut self, statement: &mut Source<Statement>) -> Result<()> {
+        if let Some(cursor) = self.search_node {
+            if self.is_search_finished(statement, cursor) {
+                return Ok(());
+            }
+        }
+
         match &mut statement.data {
             Statement::Let(pattern, type_, expr) => {
                 let mut result = self.expr(expr)?;
@@ -396,13 +406,25 @@ impl TypeChecker {
     }
 
     fn expr(&mut self, expr: &mut Source<Expr>) -> Result<Type> {
+        if let Some(cursor) = self.search_node {
+            if self.is_search_finished(expr, cursor) {
+                return Ok(Type::Any);
+            }
+        }
+
         match &mut expr.data {
-            Expr::Lit(lit) => self.lit(lit),
+            Expr::Lit(lit) => {
+                let t = self.lit(lit)?;
+                self.set_search_node_type(t.clone());
+
+                Ok(t)
+            }
             Expr::Ident {
                 ident,
                 resolved_path,
             } => {
                 if let Ok(type_) = self.ident_local(ident) {
+                    self.set_search_node_type(type_.clone());
                     return Ok(type_);
                 }
 
@@ -416,15 +438,19 @@ impl TypeChecker {
                     if let Ok(type_) = self.ident_path(&path) {
                         *resolved_path = Some(path);
 
+                        self.set_search_node_type(type_.clone());
                         return Ok(type_);
                     }
                 }
 
-                self.ident_global(ident).context(ErrorInSource {
+                let t = self.ident_global(ident).context(ErrorInSource {
                     path: Some(self.current_path.clone()),
                     start: expr.start.unwrap_or(0),
                     end: expr.end.unwrap_or(0),
-                })
+                })?;
+
+                self.set_search_node_type(t.clone());
+                Ok(t)
             }
             Expr::Path {
                 path,
@@ -437,6 +463,7 @@ impl TypeChecker {
                 })?;
                 *resolved_path = Some(r);
 
+                self.set_search_node_type(t.clone());
                 Ok(t)
             }
             Expr::Call(caller, args, variadic_info, expansion) => {
@@ -1067,280 +1094,31 @@ impl TypeChecker {
     }
 
     // For LSP
-    pub fn find_at_cursor(&mut self, module: &mut Module, cursor: usize) -> Result<Type> {
-        for decl in &mut module.0 {
-            if let Some(type_) = self.find_at_cursor_decl(decl, cursor)? {
-                return Ok(type_);
-            }
-        }
+    pub fn find_at_cursor(&mut self, module: &mut Module, cursor: usize) -> Result<Option<Type>> {
+        self.search_node = Some(cursor);
 
-        bail!("not found");
+        let _ = self.module(module);
+
+        Ok(self.search_node_type.clone())
     }
 
-    pub fn find_at_cursor_decl(&mut self, decl: &mut Decl, cursor: usize) -> Result<Option<Type>> {
-        match decl {
-            Decl::Func(func) => {
-                for stmt in &mut func.body {
-                    if let Some(found) = self.find_at_cursor_statement(stmt, cursor)? {
-                        return Ok(Some(found));
-                    };
-                }
-            }
-            Decl::Let(_, _, expr) => {
-                if let Some(found) = self.find_at_cursor_expr(expr, cursor)? {
-                    return Ok(Some(found));
-                };
-            }
-            Decl::Type(_, _) => (),
-            Decl::Module(_, module) => {
-                for decl in &mut module.0 {
-                    if let Some(found) = self.find_at_cursor_decl(decl, cursor)? {
-                        return Ok(Some(found));
-                    };
-                }
-            }
-            Decl::Import(_) => (),
+    fn set_search_node_type(&mut self, type_: Type) {
+        if let None = self.search_node {
+            self.search_node_type = Some(type_);
         }
-
-        Ok(None)
     }
 
-    pub fn find_at_cursor_statement(
-        &mut self,
-        statement: &mut Source<Statement>,
-        cursor: usize,
-    ) -> Result<Option<Type>> {
-        if let Some(start) = statement.start {
-            if start > cursor {
-                return Ok(None);
-            }
+    pub fn is_search_finished<T>(&mut self, expr: &mut Source<T>, cursor: usize) -> bool {
+        if self.search_node_type.is_some() {
+            return true;
         }
-        if let Some(end) = statement.end {
-            if end < cursor {
-                return Ok(None);
-            }
-        }
-
-        match &mut statement.data {
-            Statement::Let(_, _, expr) => {
-                if let Some(found) = self.find_at_cursor_expr(expr, cursor)? {
-                    return Ok(Some(found));
-                };
-            }
-            Statement::Return(expr) => {
-                if let Some(found) = self.find_at_cursor_expr(expr, cursor)? {
-                    return Ok(Some(found));
-                };
-            }
-            Statement::Expr(expr, _) => {
-                if let Some(found) = self.find_at_cursor_expr(expr, cursor)? {
-                    return Ok(Some(found));
-                };
-            }
-            Statement::Assign(lhs, rhs) => {
-                if let Some(found) = self.find_at_cursor_expr(lhs, cursor)? {
-                    return Ok(Some(found));
-                };
-
-                if let Some(found) = self.find_at_cursor_expr(rhs, cursor)? {
-                    return Ok(Some(found));
-                };
-            }
-            Statement::If(cond, _, then_block, else_block) => {
-                if let Some(found) = self.find_at_cursor_expr(cond, cursor)? {
-                    return Ok(Some(found));
-                };
-
-                for stmt in then_block {
-                    if let Some(found) = self.find_at_cursor_statement(stmt, cursor)? {
-                        return Ok(Some(found));
-                    };
-                }
-
-                if let Some(else_block) = else_block {
-                    for stmt in else_block {
-                        if let Some(found) = self.find_at_cursor_statement(stmt, cursor)? {
-                            return Ok(Some(found));
-                        };
-                    }
-                }
-            }
-            Statement::While(cond, body) => {
-                if let Some(found) = self.find_at_cursor_expr(cond, cursor)? {
-                    return Ok(Some(found));
-                };
-
-                for stmt in body {
-                    if let Some(found) = self.find_at_cursor_statement(stmt, cursor)? {
-                        return Ok(Some(found));
-                    };
-                }
-            }
-            Statement::For(_, expr, body) => {
-                if let Some(found) = self.find_at_cursor_expr(expr, cursor)? {
-                    return Ok(Some(found));
-                };
-
-                for stmt in body {
-                    if let Some(found) = self.find_at_cursor_statement(stmt, cursor)? {
-                        return Ok(Some(found));
-                    };
-                }
-            }
-            Statement::Continue => (),
-            Statement::Break => (),
-        }
-
-        Ok(None)
-    }
-
-    pub fn find_at_cursor_expr(
-        &mut self,
-        expr: &mut Source<Expr>,
-        cursor: usize,
-    ) -> Result<Option<Type>> {
         if let Some(start) = expr.start {
             if start > cursor {
-                return Ok(None);
-            }
-        }
-        if let Some(end) = expr.end {
-            if end < cursor {
-                return Ok(None);
+                return true;
             }
         }
 
-        match &mut expr.data {
-            Expr::Ident { .. } => {
-                let t = self.expr(expr)?;
-                return Ok(Some(t));
-            }
-            Expr::Self_ => {}
-            Expr::Lit(_) => {
-                return Ok(Some(self.expr(expr)?));
-            }
-            Expr::Call(callee, args, _, expansion) => {
-                if let Some(found) = self.find_at_cursor_expr(callee, cursor)? {
-                    return Ok(Some(found));
-                };
-
-                for arg in args {
-                    if let Some(found) = self.find_at_cursor_expr(arg, cursor)? {
-                        return Ok(Some(found));
-                    };
-                }
-
-                if let Some(expansion) = expansion {
-                    if let Some(found) = self.find_at_cursor_expr(expansion, cursor)? {
-                        return Ok(Some(found));
-                    };
-                }
-            }
-            Expr::BinOp(_, _, lhs, rhs) => {
-                if let Some(found) = self.find_at_cursor_expr(lhs, cursor)? {
-                    return Ok(Some(found));
-                };
-
-                if let Some(found) = self.find_at_cursor_expr(rhs, cursor)? {
-                    return Ok(Some(found));
-                };
-            }
-            Expr::Record(_, fields, expansion) => {
-                for (_, term) in fields {
-                    if let Some(found) = self.find_at_cursor_expr(term, cursor)? {
-                        return Ok(Some(found));
-                    };
-                }
-
-                if let Some(expansion) = expansion {
-                    if let Some(found) = self.find_at_cursor_expr(expansion, cursor)? {
-                        return Ok(Some(found));
-                    };
-                }
-            }
-            Expr::AnonymousRecord(fields, _) => {
-                for (_, term) in fields {
-                    if let Some(found) = self.find_at_cursor_expr(term, cursor)? {
-                        return Ok(Some(found));
-                    };
-                }
-            }
-            Expr::Project(expr, _, _) => {
-                if let Some(found) = self.find_at_cursor_expr(expr, cursor)? {
-                    return Ok(Some(found));
-                };
-            }
-            Expr::Make(_, args) => {
-                for arg in args {
-                    if let Some(found) = self.find_at_cursor_expr(arg, cursor)? {
-                        return Ok(Some(found));
-                    };
-                }
-            }
-            Expr::SizeOf(_) => todo!(),
-            Expr::Range(start, end) => {
-                if let Some(found) = self.find_at_cursor_expr(start, cursor)? {
-                    return Ok(Some(found));
-                };
-
-                if let Some(found) = self.find_at_cursor_expr(end, cursor)? {
-                    return Ok(Some(found));
-                };
-            }
-            Expr::As(expr, _, _) => {
-                if let Some(found) = self.find_at_cursor_expr(expr, cursor)? {
-                    return Ok(Some(found));
-                };
-            }
-            Expr::Path { .. } => (),
-            Expr::Equal(lhs, rhs) => {
-                if let Some(found) = self.find_at_cursor_expr(lhs, cursor)? {
-                    return Ok(Some(found));
-                };
-
-                if let Some(found) = self.find_at_cursor_expr(rhs, cursor)? {
-                    return Ok(Some(found));
-                };
-            }
-            Expr::NotEqual(lhs, rhs) => {
-                if let Some(found) = self.find_at_cursor_expr(lhs, cursor)? {
-                    return Ok(Some(found));
-                };
-
-                if let Some(found) = self.find_at_cursor_expr(rhs, cursor)? {
-                    return Ok(Some(found));
-                };
-            }
-            Expr::Wrap(_, expr) => {
-                if let Some(found) = self.find_at_cursor_expr(expr, cursor)? {
-                    return Ok(Some(found));
-                };
-            }
-            Expr::Unwrap(_, _, expr) => {
-                if let Some(found) = self.find_at_cursor_expr(expr, cursor)? {
-                    return Ok(Some(found));
-                };
-            }
-            Expr::Omit(t) => {
-                return Ok(Some(t.clone()));
-            }
-            Expr::EnumOr(_, _, lhs, rhs) => {
-                if let Some(lhs) = lhs {
-                    if let Some(found) = self.find_at_cursor_expr(lhs, cursor)? {
-                        return Ok(Some(found));
-                    };
-                }
-
-                if let Some(rhs) = rhs {
-                    if let Some(found) = self.find_at_cursor_expr(rhs, cursor)? {
-                        return Ok(Some(found));
-                    };
-                }
-            }
-            Expr::Try(_) => (),
-        }
-
-        Ok(None)
+        false
     }
 }
 

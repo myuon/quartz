@@ -115,7 +115,7 @@ impl Compiler {
         }
     }
 
-    fn check_(&mut self, cwd: &str, input: &str) -> Result<Module> {
+    fn check_(&mut self, cwd: &str, input: &str) -> Result<(TypeChecker, Module)> {
         let mut lexer = Lexer::new();
         let mut parser = Parser::new();
         let mut typechecker = TypeChecker::new();
@@ -165,7 +165,7 @@ impl Compiler {
 
         typechecker.run(&mut module).context("typechecker phase")?;
 
-        Ok(module)
+        Ok((typechecker, module))
     }
 
     pub fn check(&mut self, cwd: &str, input: &str) -> Vec<ElaboratedError> {
@@ -364,18 +364,20 @@ impl Compiler {
 
     pub fn check_type(&mut self, cwd: &str, input: &str, line: usize, column: usize) -> String {
         // ignore type errors here
-        let Ok(mut module) = self.check_(cwd, input) else {
+        let Ok((mut typechecker, mut module)) = self.check_(cwd, input) else {
             return String::new();
         };
         let position = find_line_column_from_position(input, line, column);
 
-        let mut checker = TypeChecker::new();
-
-        let Ok(t) = checker.find_at_cursor(&mut module, position) else {
+        let Ok(t) = typechecker.find_at_cursor(&mut module, position) else {
             return String::new();
         };
 
-        format!("{:?}", t)
+        if let Some(t) = t {
+            format!("{:?}", t)
+        } else {
+            String::new()
+        }
     }
 }
 
