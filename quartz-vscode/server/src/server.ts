@@ -20,6 +20,7 @@ connection.onInitialize(() => {
   return {
     capabilities: {
       textDocumentSync: TextDocumentSyncKind.Full,
+      hoverProvider: true,
     },
   };
 });
@@ -62,6 +63,28 @@ documents.onDidChangeContent(async (change) => {
   }
 
   connection.sendDiagnostics({ uri: change.document.uri, diagnostics });
+});
+
+connection.onHover(async (params) => {
+  console.log(params);
+
+  const file = params.textDocument.uri.replace("file://", "");
+
+  const cargo = await execAsync(
+    `cargo run --manifest-path ${path.join(
+      file,
+      "..",
+      "..",
+      "Cargo.toml"
+    )} -- check-type ${file} --project ${path.join(file, "..", "..")} --line ${
+      params.position.line
+    } --column ${params.position.character}`
+  );
+  if (cargo.stdout) {
+    console.log(cargo.stdout);
+    console.error(cargo.stderr);
+    return { contents: cargo.stdout };
+  }
 });
 
 documents.listen(connection);

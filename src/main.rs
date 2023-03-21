@@ -56,6 +56,17 @@ enum SubCommand {
 
         file: Option<String>,
     },
+    #[clap(name = "check-type", about = "Run tests")]
+    CheckType {
+        #[clap(long)]
+        project: Option<String>,
+        #[clap(long)]
+        line: usize,
+        #[clap(long)]
+        column: usize,
+
+        file: Option<String>,
+    },
 }
 
 fn read_from_stdin() -> String {
@@ -125,6 +136,25 @@ fn main() -> Result<()> {
                 &buffer,
             );
             println!("{}", serde_json::to_string_pretty(&result)?);
+        }
+        SubCommand::CheckType {
+            project,
+            file,
+            line,
+            column,
+        } => {
+            let path = file.ok_or(anyhow::anyhow!("No file specified"))?;
+            let mut file = std::fs::File::open(path)?;
+            let mut buffer = String::new();
+            file.read_to_string(&mut buffer)?;
+
+            let result = compiler.check_type(
+                &project.unwrap_or(std::env::current_dir()?.to_str().unwrap().to_string()),
+                &buffer,
+                line,
+                column,
+            );
+            println!("{}", result);
         }
     }
 

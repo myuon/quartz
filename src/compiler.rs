@@ -115,7 +115,7 @@ impl Compiler {
         }
     }
 
-    fn check_(&mut self, cwd: &str, input: &str) -> Result<()> {
+    fn check_(&mut self, cwd: &str, input: &str) -> Result<Module> {
         let mut lexer = Lexer::new();
         let mut parser = Parser::new();
         let mut typechecker = TypeChecker::new();
@@ -165,7 +165,7 @@ impl Compiler {
 
         typechecker.run(&mut module).context("typechecker phase")?;
 
-        Ok(())
+        Ok(module)
     }
 
     pub fn check(&mut self, cwd: &str, input: &str) -> Vec<ElaboratedError> {
@@ -361,6 +361,22 @@ impl Compiler {
             }
         })
     }
+
+    pub fn check_type(&mut self, cwd: &str, input: &str, line: usize, column: usize) -> String {
+        // ignore type errors here
+        let Ok(mut module) = self.check_(cwd, input) else {
+            return String::new();
+        };
+        let position = find_line_column_from_position(input, line, column);
+
+        let mut checker = TypeChecker::new();
+
+        let Ok(t) = checker.find_at_cursor(&mut module, position) else {
+            return String::new();
+        };
+
+        format!("{:?}", t)
+    }
 }
 
 fn find_position(input: &str, position: usize) -> (usize, usize) {
@@ -383,4 +399,26 @@ fn find_position(input: &str, position: usize) -> (usize, usize) {
             0
         },
     )
+}
+
+fn find_line_column_from_position(input: &str, line: usize, column: usize) -> usize {
+    let mut start = 0;
+    let mut end = input.len();
+
+    while start < end {
+        let mid = (start + end) / 2;
+        let (line_number, column_index) = find_position(input, mid);
+
+        if line_number == line && column_index == column {
+            return mid;
+        }
+
+        if line_number < line || (line_number == line && column_index < column) {
+            start = mid + 1;
+        } else {
+            end = mid;
+        }
+    }
+
+    start
 }
