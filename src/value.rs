@@ -4,6 +4,7 @@ use crate::ir::IrType;
 #[cfg_attr(test, derive(proptest_derive::Arbitrary))]
 pub enum Value {
     Bool(bool),
+    Byte(u8),
     I32(i32),
     Pointer(#[cfg_attr(test, proptest(filter = "|p| p % 4 == 0"))] u32),
 }
@@ -14,6 +15,7 @@ impl Value {
     // pointer: [32bit address][0 * 31]1
     // i32:     [32bit value  ][0 * 31]0
     // bool:    [32bit value ][0 * 30]10
+    // byte:    [32bit value][0 * 29]100
     pub fn as_i64(&self) -> i64 {
         match self {
             Value::Bool(b) => {
@@ -23,6 +25,7 @@ impl Value {
                     0b10
                 }
             }
+            Value::Byte(b) => ((*b as i64) << 32) | 0b100,
             Value::I32(i) => (*i as i64) << 32,
             Value::Pointer(p) => ((*p as i64) << 32) | 0b1,
         }
@@ -33,6 +36,8 @@ impl Value {
             Value::Pointer((i >> 32) as u32)
         } else if i & 0b10 == 0b10 {
             Value::Bool(i >> 32 == 1)
+        } else if i & 0b100 == 0b100 {
+            Value::Byte((i >> 32) as u8)
         } else {
             Value::I32((i >> 32) as i32)
         }
