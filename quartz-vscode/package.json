@@ -2,7 +2,7 @@
   "name": "quartz-mode",
   "displayName": "quartz-mode",
   "description": "",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "engines": {
     "vscode": "^1.76.0"
   },
@@ -49,6 +49,9 @@
       }
     }
   },
+  "activationEvents": [
+    "onLanguage:quartz"
+  ],
   "scripts": {
     "vscode:prepublish": "yarn run compile",
     "publish": "vsce publish",
