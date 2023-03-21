@@ -49,7 +49,11 @@ impl Parser {
             Lexeme::Fun => Ok(Decl::Func(self.func()?)),
             Lexeme::Let => {
                 let (ident, type_, value) = self.let_()?;
-                Ok(Decl::Let(ident.as_ident().unwrap().clone(), type_, value))
+                Ok(Decl::Let(
+                    ident.data.as_ident().unwrap().clone(),
+                    type_,
+                    value,
+                ))
             }
             Lexeme::Type => {
                 let (ident, type_) = self.type_decl()?;
@@ -315,7 +319,7 @@ impl Parser {
         }
     }
 
-    fn let_(&mut self) -> Result<(Pattern, Type, Source<Expr>)> {
+    fn let_(&mut self) -> Result<(Source<Pattern>, Type, Source<Expr>)> {
         self.expect(Lexeme::Let)?;
         let pattern = self.pattern()?;
 
@@ -332,17 +336,19 @@ impl Parser {
         Ok((pattern, type_, value))
     }
 
-    fn pattern(&mut self) -> Result<Pattern> {
+    fn pattern(&mut self) -> Result<Source<Pattern>> {
+        let position = self.position;
         let current = if self.peek()?.lexeme == Lexeme::Underscore {
-            Pattern::Omit
+            self.source_from(Pattern::Omit, position)
         } else {
-            Pattern::Ident(self.ident()?)
+            let ident = self.ident()?;
+            self.source_from(Pattern::Ident(ident), position)
         };
 
         if self.peek()?.lexeme == Lexeme::Or {
             self.consume()?;
             let pat = self.pattern()?;
-            Ok(Pattern::Or(Box::new(current), Box::new(pat)))
+            Ok(self.source_from(Pattern::Or(Box::new(current), Box::new(pat)), position))
         } else {
             Ok(current)
         }

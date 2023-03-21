@@ -304,7 +304,7 @@ impl IrCodeGenerator {
 
     fn statement(&mut self, statement: &mut Source<Statement>) -> Result<IrTerm> {
         match &mut statement.data {
-            Statement::Let(pattern, type_, expr) => match pattern {
+            Statement::Let(pattern, type_, expr) => match &mut pattern.data {
                 Pattern::Ident(ident) => Ok(IrTerm::Let {
                     name: ident.0.clone(),
                     type_: IrType::from_type(type_).context(ErrorInSource {
@@ -319,8 +319,8 @@ impl IrCodeGenerator {
                         Type::Or(lhs, rhs) => (lhs, rhs),
                         _ => bail!("type of or pattern must be or type"),
                     };
-                    let lhs = lhs_pattern.as_ident().unwrap();
-                    let rhs = rhs_pattern.as_ident().unwrap();
+                    let lhs = lhs_pattern.data.as_ident().unwrap();
+                    let rhs = rhs_pattern.data.as_ident().unwrap();
 
                     let var_name = format!(
                         "var_{}",

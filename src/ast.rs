@@ -258,7 +258,7 @@ impl Expr {
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Statement {
-    Let(Pattern, Type, Source<Expr>),
+    Let(Source<Pattern>, Type, Source<Expr>),
     Return(Source<Expr>),
     Expr(Source<Expr>, Type),
     Assign(Box<Source<Expr>>, Box<Source<Expr>>),
@@ -277,7 +277,7 @@ pub enum Statement {
 #[derive(PartialEq, Debug, Clone)]
 pub enum Pattern {
     Ident(Ident),
-    Or(Box<Pattern>, Box<Pattern>),
+    Or(Box<Source<Pattern>>, Box<Source<Pattern>>),
     Omit,
 }
 

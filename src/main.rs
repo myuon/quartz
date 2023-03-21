@@ -175,7 +175,7 @@ fn main() -> Result<()> {
             column,
         } => {
             let path = file.ok_or(anyhow::anyhow!("No file specified"))?;
-            let mut file = std::fs::File::open(path)?;
+            let mut file = std::fs::File::open(path.clone())?;
             let mut buffer = String::new();
             file.read_to_string(&mut buffer)?;
 
@@ -188,7 +188,7 @@ fn main() -> Result<()> {
             println!(
                 "{}",
                 serde_json::to_string_pretty(&json!({
-                    "file": result.file,
+                    "file": format!("{}", path),
                     "start": {
                         "line": result.start.0,
                         "column": result.start.1,

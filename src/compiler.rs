@@ -159,7 +159,7 @@ impl Compiler {
             visited.insert(path);
         }
 
-        let mut module = Module(
+        let module = Module(
             self.loader
                 .loaded
                 .iter()

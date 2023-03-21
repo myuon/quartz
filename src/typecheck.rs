@@ -249,7 +249,7 @@ impl TypeChecker {
                     end: expr.end.unwrap_or(0),
                 })?;
 
-                self.register_locals_with_pattern(pattern, type_)?;
+                self.register_locals_with_pattern(&pattern, type_)?;
             }
             Statement::Return(expr) => {
                 let type_ = self.expr(expr)?;
@@ -363,11 +363,15 @@ impl TypeChecker {
         Ok(())
     }
 
-    fn register_locals_with_pattern(&mut self, pattern: &Pattern, type_: &Type) -> Result<()> {
-        match pattern {
+    fn register_locals_with_pattern(
+        &mut self,
+        pattern: &Source<Pattern>,
+        type_: &Type,
+    ) -> Result<()> {
+        match &pattern.data {
             Pattern::Ident(ident) => {
                 self.locals
-                    .insert(ident.clone(), Source::unknown(type_.clone()));
+                    .insert(ident.clone(), Source::transfer(type_.clone(), pattern));
             }
             Pattern::Or(left, right) => match type_ {
                 // let a or b = A or B
