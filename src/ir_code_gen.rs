@@ -54,6 +54,7 @@ impl TypeRep {
             IrType::Bool => TypeRep::from_name("bool".to_string(), vec![]),
             IrType::Address => TypeRep::from_name("address".to_string(), vec![]),
             IrType::Any => TypeRep::from_name("any".to_string(), vec![]),
+            IrType::Byte => TypeRep::from_name("byte".to_string(), vec![]),
         }
     }
 }
@@ -1008,6 +1009,8 @@ impl IrCodeGenerator {
                         args: vec![term],
                         source: None,
                     }),
+                    (IrType::I32, IrType::Byte) => Ok(term),
+                    (IrType::Byte, IrType::I32) => Ok(term),
                     (_, IrType::Any) => Ok(term),
                     (IrType::Any, _) => Ok(term),
                     (source, target) if source == target => Ok(term),

@@ -538,6 +538,7 @@ pub enum IrType {
     I32,
     I64,
     Address,
+    Byte,
     Any,
 }
 
@@ -553,7 +554,7 @@ impl IrType {
             Type::Ident(_) => Ok(IrType::Address), // FIXME: could be other types
             Type::Ptr(_) => Ok(IrType::Address),
             Type::Array(_, _) => Ok(IrType::Address),
-            Type::Byte => Ok(IrType::I32),
+            Type::Byte => Ok(IrType::Byte),
             Type::Vec(_) => Ok(IrType::Address),
             Type::Optional(_) => Ok(IrType::Address),
             Type::Func(_, _) => todo!(),
@@ -576,6 +577,7 @@ impl IrType {
             IrType::I64 => IrTerm::Ident("i64".to_string()),
             IrType::Address => IrTerm::Ident("i64".to_string()),
             IrType::Any => IrTerm::Ident("i64".to_string()),
+            IrType::Byte => IrTerm::Ident("i64".to_string()),
         }
     }
 
@@ -590,7 +592,10 @@ impl IrType {
         self.to_term().to_string()
     }
 
-    pub fn sizeof() -> i32 {
-        8
+    pub fn sizeof(&self) -> i32 {
+        match self {
+            IrType::Byte => 1,
+            _ => 8,
+        }
     }
 }

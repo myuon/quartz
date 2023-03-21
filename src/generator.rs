@@ -332,6 +332,10 @@ impl Generator {
         if let Some(result) = result {
             match result {
                 IrType::Nil => {}
+                IrType::Byte => {
+                    self.writer.new_statement();
+                    self.writer.write("unreachable");
+                }
                 IrType::Bool => {
                     self.writer.new_statement();
                     self.writer.write("unreachable");
@@ -543,14 +547,14 @@ impl Generator {
                 self.writer.new_statement();
                 self.writer.write("br $exit");
             }
-            IrTerm::SizeOf { .. } => {
+            IrTerm::SizeOf { type_ } => {
                 if MODE_READABLE_WASM {
                     self.writer.new_statement();
                     self.writer.write(";; sizeof");
                 }
 
                 self.writer.new_statement();
-                self.write_value(Value::i32(IrType::sizeof() as i32));
+                self.write_value(Value::i32(type_.sizeof() as i32));
             }
             IrTerm::WriteMemory {
                 type_,
