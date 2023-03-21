@@ -678,8 +678,8 @@ impl IrCodeGenerator {
             }
             Expr::Call(callee, args, variadic, expansion) => match &mut callee.data {
                 Expr::Project(expr, type_, label) => {
-                    if label.0.len() == 1 {
-                        match (type_, label.0[0].as_str()) {
+                    if label.data.0.len() == 1 {
+                        match (type_, label.data.0[0].as_str()) {
                             (Type::Ptr(p), "at") => {
                                 assert_eq!(args.len(), 1);
 
@@ -708,7 +708,7 @@ impl IrCodeGenerator {
                                     Expr::Project(
                                         expr.clone(),
                                         Type::Array(p.clone(), *s),
-                                        Path::ident(Ident("data".to_string())),
+                                        Source::unknown(Path::ident(Ident("data".to_string()))),
                                     ),
                                     expr,
                                 ))?;
@@ -841,7 +841,7 @@ impl IrCodeGenerator {
                         args_with_self.extend(args.clone());
 
                         self.generate_call(
-                            &mut Source::transfer(Expr::path(label.clone()), expr),
+                            &mut Source::transfer(Expr::path(label.data.clone()), expr),
                             &mut args_with_self,
                             variadic,
                             expansion,
@@ -913,7 +913,7 @@ impl IrCodeGenerator {
 
                 let index = record_type
                     .iter()
-                    .position(|(f, _)| &Path::ident(f.clone()) == label)
+                    .position(|(f, _)| Path::ident(f.clone()) == label.data)
                     .ok_or(anyhow!("Field not found: {:?} in {:?}", label, record_type))?;
 
                 let root = self.expr(expr)?;

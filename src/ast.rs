@@ -213,7 +213,7 @@ pub enum Expr {
         Option<Box<Source<Expr>>>,
     ),
     AnonymousRecord(Vec<(Ident, Source<Expr>)>, Type),
-    Project(Box<Source<Expr>>, Type, Path),
+    Project(Box<Source<Expr>>, Type, Source<Path>),
     Make(Type, Vec<Source<Expr>>),
     SizeOf(Type),
     Range(Box<Source<Expr>>, Box<Source<Expr>>),

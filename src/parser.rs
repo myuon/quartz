@@ -696,12 +696,12 @@ impl Parser {
                         self.consume()?;
                         current = self.source_from(Expr::Try(Box::new(current)), position);
                     } else {
-                        let field = self.ident()?;
+                        let position = self.position;
+                        let ident = self.ident()?;
+                        let field = self.source_from(Path::ident(ident), position);
                         let omit = self.gen_omit()?;
-                        current = self.source_from(
-                            Expr::Project(Box::new(current), omit, Path::ident(field)),
-                            position,
-                        );
+                        current = self
+                            .source_from(Expr::Project(Box::new(current), omit, field), position);
                     }
                 }
                 Lexeme::LBrace if with_struct => {

@@ -728,7 +728,7 @@ impl TypeChecker {
                     end: project_expr.end.unwrap_or(0),
                 })?;
 
-                let label = label_path.0.last().unwrap();
+                let label = label_path.data.0.last().unwrap();
 
                 // methods for builtin types
                 if let Type::Ptr(p) = &mut expr_type {
@@ -815,17 +815,19 @@ impl TypeChecker {
 
                     match path_expr.data {
                         Expr::Path { resolved_path, .. } => {
-                            *label_path = resolved_path.unwrap();
+                            label_path.data = resolved_path.unwrap();
                         }
                         _ => unreachable!(),
                     }
+
+                    self.set_search_node_type(type_.clone(), label_path);
 
                     match type_ {
                         Type::Func(mut arg_types, result_type) => {
                             if arg_types.is_empty() {
                                 return Err(anyhow!(
                                     "method {} has no arguments",
-                                    label_path.as_str()
+                                    label_path.data.as_str()
                                 )
                                 .context(ErrorInSource {
                                     path: Some(self.current_path.clone()),
@@ -847,7 +849,7 @@ impl TypeChecker {
                             if arg_types.is_empty() {
                                 return Err(anyhow!(
                                     "method {} has no arguments",
-                                    label_path.as_str()
+                                    label_path.data.as_str()
                                 )
                                 .context(ErrorInSource {
                                     path: Some(self.current_path.clone()),
@@ -868,7 +870,7 @@ impl TypeChecker {
                         _ => {
                             return Err(anyhow!(
                                 "method {} is not a function",
-                                label_path.as_str()
+                                label_path.data.as_str()
                             )
                             .context(ErrorInSource {
                                 path: Some(self.current_path.clone()),
