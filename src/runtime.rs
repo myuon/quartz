@@ -434,6 +434,22 @@ fun main(): bool {
             (
                 r#"
 fun main(): byte {
+    let p = make[ptr[byte]](3);
+    p.at(0) = 48 as byte;
+    p.at(1) = 56 as byte;
+    p.at(2) = 72 as byte;
+
+    let s = new_string(p, 3);
+    println(s);
+
+    return s.at(0);
+}
+"#,
+                vec![Value::Byte(48)],
+            ),
+            (
+                r#"
+fun main(): byte {
     let a = "hello";
 
     return a.at(3);
