@@ -573,7 +573,11 @@ fun main(): i32 {
     let count = make[map[string, i32]]();
 
     for i in 0..paragraph.length {
-        let ch = paragraph.at(i);
+        let ch_byte = paragraph.at(i);
+        let ch_ptr = make[ptr[byte]](1);
+        ch_ptr.at(0) = ch_byte;
+        let ch = new_string(ch_ptr, 1);
+
         if !count.has(ch) {
             count.insert(ch, 0);
         }
