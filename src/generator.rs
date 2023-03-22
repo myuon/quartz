@@ -682,6 +682,15 @@ impl Generator {
 
                 let store_size = type_.sizeof() * 8;
 
+                // FIXME: adhoc fix for 64-bit store
+                if store_size != 64 {
+                    self.writer.new_statement();
+                    self.writer.write("i64.const 32");
+
+                    self.writer.new_statement();
+                    self.writer.write("i64.shr_u");
+                }
+
                 self.writer.new_statement();
                 self.writer.write(&format!(
                     "{}.store{}",

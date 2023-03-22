@@ -187,7 +187,7 @@ impl IrCodeGenerator {
                 IrTerm::ident(var_ptr.to_string()),
                 IrTerm::i32(rep_id as i32),
             )?;
-            body.push(self.assign(lhs, IrTerm::ident(var_p.clone()))?);
+            body.push(self.assign(lhs, IrType::Address, IrTerm::ident(var_p.clone()))?);
         }
 
         body.push(IrTerm::Return {
@@ -240,6 +240,7 @@ impl IrCodeGenerator {
             )?;
             body.push(self.assign(
                 lhs,
+                IrType::Address,
                 IrTerm::Call {
                     callee: Box::new(IrTerm::ident("quartz_std_new_string".to_string())),
                     args: vec![
@@ -390,10 +391,10 @@ impl IrCodeGenerator {
                     element: Box::new(expr),
                 })
             }
-            Statement::Assign(lhs, rhs) => {
+            Statement::Assign(lhs, rhs_type, rhs) => {
                 let lhs = self.expr(lhs)?;
                 let rhs = self.expr(rhs)?;
-                self.assign(lhs, rhs)
+                self.assign(lhs, IrType::from_type(rhs_type)?, rhs)
             }
             Statement::If(cond, type_, then_block, else_block) => {
                 let mut then_elements = vec![];
@@ -473,18 +474,18 @@ impl IrCodeGenerator {
         }
     }
 
-    fn assign(&mut self, lhs: IrTerm, rhs: IrTerm) -> Result<IrTerm> {
+    fn assign(&mut self, lhs: IrTerm, rhs_type: IrType, rhs: IrTerm) -> Result<IrTerm> {
         match lhs {
             IrTerm::Ident(ident) => Ok(IrTerm::Assign {
                 lhs: ident,
                 rhs: Box::new(rhs),
             }),
             IrTerm::Call { .. } => Ok(IrTerm::Store {
-                type_: IrType::Address,
+                type_: rhs_type,
                 address: Box::new(lhs),
                 offset: Box::new(IrTerm::i32(0)),
                 value: Box::new(rhs),
-                raw_offset: None,
+                raw_offset: Some(if MODE_TYPE_REP { 8 } else { 0 }),
             }),
             IrTerm::Load {
                 type_,

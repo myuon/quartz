@@ -303,15 +303,18 @@ impl TypeChecker {
                     ));
                 }
             }
-            Statement::Assign(lhs, rhs) => {
+            Statement::Assign(lhs, ast_rhs_type, rhs) => {
                 let mut lhs_type = self.expr_left_value(lhs)?;
-                let mut rhs_type = Type::Ptr(Box::new(self.expr(rhs)?));
-                self.unify(&mut lhs_type, &mut rhs_type)
+                let rhs_type = self.expr(rhs)?;
+                let mut rhs_type_wrapped = Type::Ptr(Box::new(rhs_type.clone()));
+                self.unify(&mut lhs_type, &mut rhs_type_wrapped)
                     .context(ErrorInSource {
                         path: Some(self.current_path.clone()),
                         start: lhs.start.unwrap_or(0),
                         end: lhs.end.unwrap_or(0),
                     })?;
+
+                *ast_rhs_type = rhs_type;
             }
             Statement::If(cond, type_, then_block, else_block) => {
                 let mut cond_type = self.expr(cond)?;

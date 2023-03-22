@@ -313,7 +313,11 @@ impl Parser {
                         let value = self.expr()?;
                         self.expect(Lexeme::Semicolon)?;
 
-                        Ok(Statement::Assign(Box::new(expr), Box::new(value)))
+                        Ok(Statement::Assign(
+                            Box::new(expr),
+                            self.gen_omit()?,
+                            Box::new(value),
+                        ))
                     }
                     _ => Err(anyhow!("Unexpected token {:?}", self.peek()?.lexeme)),
                 }

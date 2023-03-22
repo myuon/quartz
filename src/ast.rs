@@ -254,7 +254,7 @@ pub enum Statement {
     Let(Source<Pattern>, Type, Source<Expr>),
     Return(Source<Expr>),
     Expr(Source<Expr>, Type),
-    Assign(Box<Source<Expr>>, Box<Source<Expr>>),
+    Assign(Box<Source<Expr>>, Type, Box<Source<Expr>>),
     If(
         Source<Expr>,
         Type,
