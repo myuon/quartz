@@ -139,10 +139,7 @@ fun is_prefix(s: string, n: i32, prefix: string): bool {
 }
 
 fun vec_byte_to_string(b: vec[byte]): string {
-    return string {
-        data: b.data as ptr[byte],
-        length: b.length,
-    };
+    return new_string(b.data as ptr[byte], b.length);
 }
 
 module bool {

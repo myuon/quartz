@@ -79,7 +79,7 @@ impl Generator {
 
         self.decl(&mut IrTerm::Declare {
             name: "write_stdout".to_string(),
-            params: vec![IrType::I32],
+            params: vec![IrType::Byte],
             result: IrType::I32,
         })?;
 
@@ -98,7 +98,7 @@ impl Generator {
         self.decl(&mut IrTerm::Declare {
             name: "read_stdin".to_string(),
             params: vec![],
-            result: IrType::I32,
+            result: IrType::Byte,
         })?;
 
         self.decl(&mut IrTerm::Declare {

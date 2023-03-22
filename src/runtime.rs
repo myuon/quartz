@@ -47,7 +47,7 @@ impl Runtime {
                 "read_stdin" => Function::new_typed(&mut store, || {
                     let mut buffer = [0u8; 1];
                     std::io::stdin().lock().read(&mut buffer).unwrap();
-                    Value::i32(buffer[0] as i32).as_i64()
+                    Value::Byte(buffer[0]).as_i64()
                 }),
             }
         };
