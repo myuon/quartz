@@ -130,7 +130,7 @@ impl Generator {
                 IrTerm::Instruction("local.get $value".to_string()),
                 IrTerm::Instruction("i64.const 1".to_string()),
                 IrTerm::Instruction("i64.and".to_string()),
-                IrTerm::Instruction("i64.const 2".to_string()),
+                IrTerm::Instruction("i64.const 32".to_string()),
                 IrTerm::Instruction("i64.shl".to_string()),
                 IrTerm::Instruction("i64.const 2".to_string()),
                 IrTerm::Instruction("i64.or".to_string()),
