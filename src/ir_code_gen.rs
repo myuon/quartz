@@ -84,9 +84,6 @@ impl IrCodeGenerator {
     }
 
     pub fn run(&mut self, module: &mut Module) -> Result<IrTerm> {
-        // 8 bytes for null pointer
-        self.register_string("\00\00\00\00\00\00\00\00".to_string());
-
         let mut decls = self.module(module)?;
         // generate_prepare_type_reps should be called before generate_prepare_strings, since it uses strings
         decls.push(self.generate_prepare_type_reps()?);
@@ -221,8 +218,15 @@ impl IrCodeGenerator {
             )))?),
         });
 
+        // avoid 0-8 for null pointer
+        self.data_section_offset = 8;
+
         for (string, i) in self.strings.to_vec() {
-            let len = string.len();
+            let string_len = string.len();
+            // add 8 bytes padding for object header
+            // In quartz, ptr.at will load with offset=8
+            let string_memory_size = string_len + 8;
+            let string = "\00\00\00\00\00\00\00\00".to_string() + &string;
             terms.push(IrTerm::Data {
                 offset: self.data_section_offset,
                 data: string,
@@ -240,13 +244,13 @@ impl IrCodeGenerator {
                     callee: Box::new(IrTerm::ident("quartz_std_new_string".to_string())),
                     args: vec![
                         IrTerm::i32(self.data_section_offset as i32),
-                        IrTerm::i32(len as i32),
+                        IrTerm::i32(string_len as i32),
                     ],
                     source: None,
                 },
             )?);
 
-            self.data_section_offset += len;
+            self.data_section_offset += string_memory_size;
         }
 
         body.push(IrTerm::Return {

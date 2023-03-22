@@ -265,7 +265,7 @@ impl Generator {
             IrTerm::Data { offset, data } => {
                 self.writer.start();
                 self.writer.write("data");
-                self.writer.write(format!("(i32.const {})", offset));
+                self.writer.write(format!("(i32.const {})", *offset));
                 self.writer.write(format!("{:?}", data));
                 self.writer.end();
 
