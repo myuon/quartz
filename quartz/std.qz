@@ -82,6 +82,47 @@ fun vec_extend(v: vec[i32], other: vec[i32]) {
     }
 }
 
+fun vec_make_byte(capacity: i32): vec[byte] {
+    if capacity == 0 {
+        panic("vec_make: capacity must be greater than 0");
+    }
+
+    return vec {
+        data: make[ptr[byte]](capacity),
+        length: 0,
+        capacity: capacity,
+    };
+}
+
+fun vec_push_byte(v: vec[byte], e: i32) {
+    if (v.length + 1) == v.capacity {
+        let new_capacity = v.capacity * 2;
+        let new_data = make[ptr[byte]](new_capacity);
+        for i in 0..v.length {
+            new_data.at(i) = v.data.at(i);
+        }
+        v.data = new_data;
+        v.capacity = new_capacity;
+    }
+
+    v.data.at(v.length) = e;
+    v.length = v.length + 1;
+}
+
+fun vec_at_byte(v: vec[byte], n: i32): i32 {
+    if n >= v.length {
+        panic("vec_at: out of range: ".concat(n.to_string()));
+    }
+
+    return v.data.at(n);
+}
+
+fun vec_extend_byte(v: vec[byte], other: vec[byte]) {
+    for i in 0..other.length {
+        v.push(other.at(i));
+    }
+}
+
 fun digit_to_string(digit: i32): string {
     return char_to_string(digit as byte);
 }

@@ -723,17 +723,25 @@ impl IrCodeGenerator {
 
                                 Ok(self.generate_array_at(p, array, offset)?)
                             }
-                            (Type::Vec(_), "at") => {
+                            (Type::Vec(p), "at") => {
                                 assert_eq!(args.len(), 1);
 
                                 Ok(self.expr(&mut Source::transfer(
                                     Expr::Call(
                                         Box::new(Source::transfer(
                                             Expr::path(Path::new(
-                                                vec!["quartz", "std", "vec_at"]
-                                                    .into_iter()
-                                                    .map(|t| Ident(t.to_string()))
-                                                    .collect(),
+                                                vec![
+                                                    "quartz",
+                                                    "std",
+                                                    if matches!(**p, Type::Byte) {
+                                                        "vec_at_byte"
+                                                    } else {
+                                                        "vec_at"
+                                                    },
+                                                ]
+                                                .into_iter()
+                                                .map(|t| Ident(t.to_string()))
+                                                .collect(),
                                             )),
                                             expr,
                                         )),
@@ -744,17 +752,25 @@ impl IrCodeGenerator {
                                     expr,
                                 ))?)
                             }
-                            (Type::Vec(_), "push") => {
+                            (Type::Vec(p), "push") => {
                                 assert_eq!(args.len(), 1);
 
                                 Ok(self.expr(&mut Source::transfer(
                                     Expr::Call(
                                         Box::new(Source::transfer(
                                             Expr::path(Path::new(
-                                                vec!["quartz", "std", "vec_push"]
-                                                    .into_iter()
-                                                    .map(|t| Ident(t.to_string()))
-                                                    .collect(),
+                                                vec![
+                                                    "quartz",
+                                                    "std",
+                                                    if matches!(**p, Type::Byte) {
+                                                        "vec_push_byte"
+                                                    } else {
+                                                        "vec_push"
+                                                    },
+                                                ]
+                                                .into_iter()
+                                                .map(|t| Ident(t.to_string()))
+                                                .collect(),
                                             )),
                                             expr,
                                         )),
