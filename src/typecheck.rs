@@ -91,7 +91,7 @@ impl TypeChecker {
                 (
                     "vec",
                     Type::Record(vec![
-                        (Ident("data".to_string()), Type::Ptr(Box::new(Type::Any))),
+                        (Ident("data".to_string()), Type::RawPtr),
                         (Ident("length".to_string()), Type::I32),
                         (Ident("capacity".to_string()), Type::I32),
                     ]),
@@ -1327,6 +1327,7 @@ impl Constrains {
             Type::Ptr(p) => {
                 self.apply(p);
             }
+            Type::RawPtr => {}
             Type::Array(t, _) => {
                 self.apply(t);
             }

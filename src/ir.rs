@@ -558,6 +558,7 @@ impl IrType {
             Type::Record(_) => Ok(IrType::Address),
             Type::Ident(_) => Ok(IrType::Address), // FIXME: could be other types
             Type::Ptr(_) => Ok(IrType::Address),
+            Type::RawPtr => Ok(IrType::Address),
             Type::Array(_, _) => Ok(IrType::Address),
             Type::Byte => Ok(IrType::Byte),
             Type::Vec(_) => Ok(IrType::Address),
