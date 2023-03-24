@@ -91,6 +91,7 @@ impl TypeChecker {
                 (
                     "vec",
                     Type::Record(vec![
+                        (Ident("t_size".to_string()), Type::I32),
                         (Ident("data".to_string()), Type::RawPtr),
                         (Ident("length".to_string()), Type::I32),
                         (Ident("capacity".to_string()), Type::I32),
@@ -729,6 +730,23 @@ impl TypeChecker {
                 let label = label_path.data.0.last().unwrap();
 
                 // methods for builtin types
+                if let Type::RawPtr = &mut expr_type {
+                    match label.as_str() {
+                        "load" => {
+                            return Ok(Type::Func(
+                                vec![Type::I32, Type::I32],
+                                Box::new(Type::Any),
+                            ));
+                        }
+                        "store" => {
+                            return Ok(Type::Func(
+                                vec![Type::I32, Type::I32, Type::Any],
+                                Box::new(Type::Nil),
+                            ));
+                        }
+                        _ => (),
+                    }
+                }
                 if let Type::Ptr(p) = &mut expr_type {
                     match label.as_str() {
                         "at" => {

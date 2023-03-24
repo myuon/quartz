@@ -931,6 +931,7 @@ impl Parser {
 
                     Type::Ptr(Box::new(type_))
                 }
+                "rawptr" => Type::RawPtr,
                 "map" => {
                     self.expect(Lexeme::LBracket)?;
                     let key = self.type_()?;

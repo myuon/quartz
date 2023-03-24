@@ -89,6 +89,7 @@ impl Type {
             Type::Vec(_) => Ok(Ident("vec".to_string())),
             Type::I32 => Ok(Ident("i32".to_string())),
             Type::Bool => Ok(Ident("bool".to_string())),
+            Type::RawPtr => Ok(Ident("rawptr".to_string())),
             _ => bail!("expected identifier type, but found {}", self.to_string()),
         }
     }
