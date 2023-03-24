@@ -41,14 +41,13 @@ fun println(f: string, ..arg: vec[string]) {
     write_stdout(10 as byte);
 }
 
-fun vec_make(t_size: i32, capacity: i32): vec[any] {
+fun vec_make(capacity: i32): vec[any] {
     if capacity == 0 {
         panic("vec_make: capacity must be greater than 0");
     }
 
     return vec {
-        t_size: t_size,
-        data: make[rawptr](t_size * capacity),
+        data: make[ptr[any]](capacity),
         length: 0,
         capacity: capacity,
     };
@@ -57,7 +56,7 @@ fun vec_make(t_size: i32, capacity: i32): vec[any] {
 fun vec_push(v: vec[any], e: any) {
     if (v.length + 1) == v.capacity {
         let new_capacity = v.capacity * 2;
-        let new_data = make[ptr[i32]](new_capacity);
+        let new_data = make[ptr[any]](new_capacity);
         for i in 0..v.length {
             new_data.at(i) = v.data.at(i);
         }
@@ -83,6 +82,7 @@ fun vec_extend(v: vec[i32], other: vec[i32]) {
     }
 }
 
+// FIXME: lack of generics
 fun vec_make_byte(capacity: i32): vec[byte] {
     if capacity == 0 {
         panic("vec_make: capacity must be greater than 0");

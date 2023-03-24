@@ -91,7 +91,7 @@ impl TypeChecker {
                 (
                     "vec",
                     Type::Record(vec![
-                        (Ident("data".to_string()), Type::RawPtr),
+                        (Ident("data".to_string()), Type::Ptr(Box::new(Type::Any))),
                         (Ident("length".to_string()), Type::I32),
                         (Ident("capacity".to_string()), Type::I32),
                     ]),
