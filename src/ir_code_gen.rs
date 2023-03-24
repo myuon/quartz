@@ -687,17 +687,6 @@ impl IrCodeGenerator {
                 Expr::Project(expr, type_, label) => {
                     if label.data.0.len() == 1 {
                         match (type_, label.data.0[0].as_str()) {
-                            (Type::RawPtr, "load") => {
-                                assert_eq!(args.len(), 2);
-
-                                let ptr = self.expr(expr)?;
-                                Ok(IrTerm::Load {
-                                    type_: todo!(),
-                                    address: todo!(),
-                                    offset: todo!(),
-                                    raw_offset: todo!(),
-                                })
-                            }
                             (Type::Ptr(p), "at") => {
                                 assert_eq!(args.len(), 1);
 
@@ -958,18 +947,6 @@ impl IrCodeGenerator {
                 )?)
             }
             Expr::Make(type_, args) => match type_ {
-                Type::RawPtr => {
-                    assert_eq!(args.len(), 1);
-                    let len = self.expr(&mut args[0])?;
-
-                    Ok(self.allocate_heap_object(
-                        TypeRep::from_name(
-                            "raw_ptr".to_string(),
-                            vec![TypeRep::from_type(IrType::Address)],
-                        ),
-                        len,
-                    )?)
-                }
                 Type::Ptr(p) => {
                     assert_eq!(args.len(), 1);
                     let len = self.expr(&mut args[0])?;
