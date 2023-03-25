@@ -47,6 +47,8 @@ enum SubCommand {
     Run {
         #[clap(long)]
         stdin: bool,
+        #[clap(long)]
+        entrypoint: Option<String>,
 
         file: Option<String>,
     },
@@ -135,10 +137,14 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.subcmd {
         SubCommand::Compile { stdin, file } => {
-            compile(&mut compiler, stdin, file)?;
+            compile(&mut compiler, stdin, file, None)?;
         }
-        SubCommand::Run { stdin, file } => {
-            let wat = compile(&mut compiler, stdin, file)?;
+        SubCommand::Run {
+            stdin,
+            file,
+            entrypoint,
+        } => {
+            let wat = compile(&mut compiler, stdin, file, entrypoint.map(|t| Ident(t)))?;
             let result = runtime.run(&wat)?;
 
             if result.to_vec() != vec![Value::I64(value::Value::nil().as_i64())] {
@@ -266,7 +272,12 @@ fn replace_file_name(url: &str, new_file_name: &str) -> String {
     path.to_string_lossy().to_string()
 }
 
-fn compile(compiler: &mut Compiler, stdin: bool, file: Option<String>) -> Result<String> {
+fn compile(
+    compiler: &mut Compiler,
+    stdin: bool,
+    file: Option<String>,
+    entrypoint_name: Option<Ident>,
+) -> Result<String> {
     let cwd = std::env::current_dir()?.to_str().unwrap().to_string();
     let input = if stdin {
         read_from_stdin()
@@ -275,7 +286,7 @@ fn compile(compiler: &mut Compiler, stdin: bool, file: Option<String>) -> Result
 
         package.source
     };
-    let wat = compiler.compile(&cwd, &input)?;
+    let wat = compiler.compile(&cwd, &input, entrypoint_name)?;
 
     let file = std::fs::File::create("build/build.wat")?;
     let mut writer = std::io::BufWriter::new(file);

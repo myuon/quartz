@@ -894,7 +894,7 @@ fun main(): bool {
         for (input, expected) in cases {
             let mut compiler = Compiler::new();
             let wat = compiler
-                .compile("", input)
+                .compile("", input, None)
                 .context(format!("\n== SOURCE\n{}", input))
                 .unwrap();
             let result = runtime

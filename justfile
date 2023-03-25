@@ -15,3 +15,6 @@ run_compiler:
 
 run_wat:
   cargo run -- run-wat ./build/build.wat
+
+test_compiler:
+  cargo run --release -- run ./quartz/main.qz --entrypoint test

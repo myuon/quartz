@@ -225,7 +225,12 @@ impl Compiler {
         }
     }
 
-    fn compile_(&mut self, cwd: &str, input: &str) -> Result<String> {
+    fn compile_(
+        &mut self,
+        cwd: &str,
+        input: &str,
+        entrypoint_name: Option<Ident>,
+    ) -> Result<String> {
         let mut lexer = Lexer::new();
         let mut parser = Parser::new();
         let mut typechecker = TypeChecker::new();
@@ -283,7 +288,11 @@ impl Compiler {
             .context("ir code generator phase")?;
 
         generator.set_entrypoint(Path::new(
-            vec![main_path.0, vec![Ident("main".to_string())]].concat(),
+            vec![
+                main_path.0,
+                vec![entrypoint_name.unwrap_or(Ident("main".to_string()))],
+            ]
+            .concat(),
         ));
         generator.set_globals(typechecker.globals.keys().into_iter().cloned().collect());
         generator.set_types(typechecker.types);
@@ -304,82 +313,88 @@ impl Compiler {
         Ok(generator.writer.buffer)
     }
 
-    pub fn compile(&mut self, cwd: &str, input: &str) -> Result<String> {
+    pub fn compile(
+        &mut self,
+        cwd: &str,
+        input: &str,
+        entrypoint_name: Option<Ident>,
+    ) -> Result<String> {
         let input = input.to_string();
 
-        self.compile_(cwd, &input).map_err(|error| {
-            if let Some(source) = error.downcast_ref::<ErrorInSource>() {
-                let input = if let Some(path) = &source.path {
-                    let Some(loaded) = self.loader.matches(path) else {
+        self.compile_(cwd, &input, entrypoint_name)
+            .map_err(|error| {
+                if let Some(source) = error.downcast_ref::<ErrorInSource>() {
+                    let input = if let Some(path) = &source.path {
+                        let Some(loaded) = self.loader.matches(path) else {
                         return error
                     };
 
-                    loaded.source.clone()
-                } else {
-                    input
-                };
+                        loaded.source.clone()
+                    } else {
+                        input
+                    };
 
-                let start = source.start;
-                let end = source.end;
-                let source_path = source.path.clone();
+                    let start = source.start;
+                    let end = source.end;
+                    let source_path = source.path.clone();
 
-                let (start_line_number, start_column_index) = find_position(&input, start);
-                let (end_line_number, end_column_index) = find_position(&input, end);
+                    let (start_line_number, start_column_index) = find_position(&input, start);
+                    let (end_line_number, end_column_index) = find_position(&input, end);
 
-                let mut result = String::new();
+                    let mut result = String::new();
 
-                for (index, line) in input.lines().collect::<Vec<_>>()
-                    [start_line_number..end_line_number]
-                    .into_iter()
-                    .enumerate()
-                {
-                    let line_number_gutter = format!("{}: ", start_line_number + index + 1);
+                    for (index, line) in input.lines().collect::<Vec<_>>()
+                        [start_line_number..end_line_number]
+                        .into_iter()
+                        .enumerate()
+                    {
+                        let line_number_gutter = format!("{}: ", start_line_number + index + 1);
+                        result += &format!(
+                            "{}{}\n{}\n",
+                            line_number_gutter,
+                            line,
+                            if index == 0 {
+                                format!(
+                                    "{}{}",
+                                    " ".repeat(line_number_gutter.len() + start_column_index),
+                                    "^".repeat(line.len() - start_column_index)
+                                )
+                            } else {
+                                format!(
+                                    "{}{}",
+                                    " ".repeat(line_number_gutter.len()),
+                                    "^".repeat(line.len())
+                                )
+                            }
+                        );
+                    }
+                    let line_number_gutter = format!("{}: ", end_line_number + 1);
                     result += &format!(
                         "{}{}\n{}\n",
                         line_number_gutter,
-                        line,
-                        if index == 0 {
-                            format!(
-                                "{}{}",
-                                " ".repeat(line_number_gutter.len() + start_column_index),
-                                "^".repeat(line.len() - start_column_index)
-                            )
-                        } else {
-                            format!(
-                                "{}{}",
-                                " ".repeat(line_number_gutter.len()),
-                                "^".repeat(line.len())
-                            )
-                        }
+                        input.lines().nth(end_line_number).unwrap(),
+                        format!(
+                            "{}{}",
+                            " ".repeat(line_number_gutter.len()),
+                            "^".repeat(end_column_index)
+                        )
                     );
-                }
-                let line_number_gutter = format!("{}: ", end_line_number + 1);
-                result += &format!(
-                    "{}{}\n{}\n",
-                    line_number_gutter,
-                    input.lines().nth(end_line_number).unwrap(),
-                    format!(
-                        "{}{}",
-                        " ".repeat(line_number_gutter.len()),
-                        "^".repeat(end_column_index)
-                    )
-                );
 
-                error.context(format!(
-                    "Error at {}, (line.{}:{}) to (line.{}:{})\n{}",
-                    source_path
-                        .unwrap_or(Path::ident(Ident("main".to_string())))
-                        .as_str(),
-                    start_line_number + 1,
-                    start_column_index,
-                    end_line_number + 1,
-                    end_column_index,
-                    result,
-                ))
-            } else {
-                error
-            }
-        })
+                    error.context(format!(
+                        "Error at {}, (line.{}:{}) to (line.{}:{})\n{}",
+                        source_path
+                            .unwrap_or(Path::ident(Ident("main".to_string())))
+                            .as_str(),
+                        start_line_number + 1,
+                        start_column_index,
+                        end_line_number + 1,
+                        end_column_index,
+                        result,
+                    ))
+                } else {
+                    error
+                }
+            })
     }
 
     pub fn check_type(
