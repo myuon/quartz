@@ -551,25 +551,6 @@ impl Generator {
                 self.writer.new_statement();
                 self.write_value(Value::i32(size));
             }
-            IrTerm::WriteMemory {
-                type_,
-                address,
-                value,
-            } => {
-                for (i, v) in value.into_iter().enumerate() {
-                    self.writer.new_statement();
-                    self.expr(&mut IrTerm::Store {
-                        type_: type_.clone(),
-                        address: address.clone(),
-                        offset: Box::new(IrTerm::wrap_mult_sizeof(
-                            type_.clone(),
-                            IrTerm::I32(i as i32),
-                        )),
-                        value: Box::new(v.clone()),
-                        raw_offset: Some(if MODE_TYPE_REP { Value::sizeof() } else { 0 }),
-                    })?;
-                }
-            }
             IrTerm::Discard { element } => {
                 self.writer.new_statement();
                 self.expr(element)?;

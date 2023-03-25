@@ -57,11 +57,6 @@ pub enum IrTerm {
     SizeOf {
         type_: IrType,
     },
-    WriteMemory {
-        type_: IrType,
-        address: Box<IrTerm>,
-        value: Vec<IrTerm>,
-    },
     Module {
         elements: Vec<IrTerm>,
     },
@@ -271,24 +266,6 @@ impl IrTerm {
                 type_.to_term().to_string_writer(writer);
                 writer.end();
             }
-            IrTerm::WriteMemory {
-                type_,
-                address,
-                value,
-            } => {
-                writer.start();
-                writer.write("write-memory");
-                type_.to_term().to_string_writer(writer);
-                address.to_string_writer(writer);
-
-                writer.start();
-                writer.write("value");
-                for v in value {
-                    v.to_string_writer(writer);
-                }
-                writer.end();
-                writer.end();
-            }
             IrTerm::Continue => {
                 writer.start();
                 writer.write("continue");
@@ -460,11 +437,6 @@ impl IrTerm {
             } => todo!(),
             IrTerm::GlobalLet { name, type_, value } => todo!(),
             IrTerm::SizeOf { type_ } => vec![],
-            IrTerm::WriteMemory {
-                type_,
-                address,
-                value,
-            } => vec![],
             IrTerm::Continue => vec![],
             IrTerm::Break => vec![],
             IrTerm::Discard { element } => {
