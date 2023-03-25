@@ -1537,6 +1537,16 @@ fun main() {
     let f = Foo { a: "hello" };
 }
 "#,
+            r#"
+fun main(): string? {
+    return "foo";
+}
+"#,
+            r#"
+fun main(): i32? {
+    return 0;
+}
+"#,
         ];
         for input in cases {
             let mut compiler = Compiler::new();
