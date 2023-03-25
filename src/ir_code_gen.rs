@@ -61,7 +61,7 @@ impl TypeRep {
 
 #[derive(Debug, Clone)]
 pub struct IrCodeGenerator {
-    types: HashMap<Ident, Type>,
+    types: HashMap<Ident, (Vec<Type>, Type)>,
     current_path: Path,
     pub strings: SerialIdMap<String>,
     pub type_reps: SerialIdMap<TypeRep>,
@@ -79,7 +79,7 @@ impl IrCodeGenerator {
         }
     }
 
-    pub fn set_types(&mut self, types: HashMap<Ident, Type>) {
+    pub fn set_types(&mut self, types: HashMap<Ident, (Vec<Type>, Type)>) {
         self.types = types;
     }
 
@@ -880,6 +880,7 @@ impl IrCodeGenerator {
                     .get(&ident.data)
                     .ok_or(anyhow!("Type not found: {:?}", ident))?
                     .clone()
+                    .1
                     .to_record()?;
 
                 let expansion_term = if let Some(expansion) = expansion {
@@ -924,6 +925,7 @@ impl IrCodeGenerator {
                         .get(&ident)
                         .ok_or(anyhow!("Type not found: {:?}", type_))?
                         .clone()
+                        .1
                         .to_record()?
                 } else {
                     return Err(

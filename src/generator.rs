@@ -13,7 +13,7 @@ use crate::{
 pub struct Generator {
     pub writer: SExprWriter,
     pub globals: HashSet<String>,
-    pub types: HashMap<Ident, Type>,
+    pub types: HashMap<Ident, (Vec<Type>, Type)>,
     pub main_signature: Option<(Vec<IrType>, IrType)>,
     pub cwd: Path,
     pub strings: Vec<String>,
@@ -40,7 +40,7 @@ impl Generator {
             .collect::<HashSet<_>>();
     }
 
-    pub fn set_types(&mut self, types: HashMap<Ident, Type>) {
+    pub fn set_types(&mut self, types: HashMap<Ident, (Vec<Type>, Type)>) {
         self.types = types;
     }
 

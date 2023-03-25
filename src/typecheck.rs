@@ -11,7 +11,7 @@ use crate::{
 pub struct TypeChecker {
     locals: HashMap<Ident, Source<Type>>,
     pub globals: HashMap<Path, Source<Type>>,
-    pub types: HashMap<Ident, Type>,
+    pub types: HashMap<Ident, (Vec<Type>, Type)>,
     current_path: Path,
     imported: Vec<Path>,
     result_type: Option<Type>,
@@ -76,6 +76,7 @@ impl TypeChecker {
             types: vec![
                 (
                     "string",
+                    vec![],
                     Type::Record(vec![
                         (Ident("data".to_string()), Type::Ptr(Box::new(Type::Byte))),
                         (Ident("length".to_string()), Type::I32),
@@ -83,6 +84,7 @@ impl TypeChecker {
                 ),
                 (
                     "array",
+                    vec![],
                     Type::Record(vec![
                         (Ident("data".to_string()), Type::Ptr(Box::new(Type::Byte))),
                         (Ident("length".to_string()), Type::I32),
@@ -90,10 +92,11 @@ impl TypeChecker {
                 ),
                 (
                     "vec",
+                    vec![Type::Omit(1)],
                     Type::Record(vec![
                         (
                             Ident("data".to_string()),
-                            Type::Ptr(Box::new(Type::Omit(0))),
+                            Type::Ptr(Box::new(Type::Omit(1))),
                         ),
                         (Ident("length".to_string()), Type::I32),
                         (Ident("capacity".to_string()), Type::I32),
@@ -101,7 +104,7 @@ impl TypeChecker {
                 ),
             ]
             .into_iter()
-            .map(|(k, v)| (Ident(k.to_string()), v))
+            .map(|(k, ps, v)| (Ident(k.to_string()), (ps, v)))
             .collect(),
             current_path: Path::empty(),
             imported: vec![],
@@ -139,7 +142,7 @@ impl TypeChecker {
                         .insert(self.path_to(&ident), Source::unknown(type_.clone()));
                 }
                 Decl::Type(ident, type_) => {
-                    self.types.insert(ident.clone(), type_.clone());
+                    self.types.insert(ident.clone(), (vec![], type_.clone()));
                 }
                 Decl::Module(name, module) => {
                     let path = self.current_path.clone();
@@ -193,7 +196,7 @@ impl TypeChecker {
                     .insert(self.path_to(&ident), Source::unknown(type_.clone()));
             }
             Decl::Type(ident, type_) => {
-                self.types.insert(ident.clone(), type_.clone());
+                self.types.insert(ident.clone(), (vec![], type_.clone()));
             }
             Decl::Module(name, module) => {
                 let module_path = self.current_path.clone();
@@ -658,7 +661,7 @@ impl TypeChecker {
             }
             Expr::Record(ident, record, expansion) => {
                 let mut record_types = self
-                    .resolve_record_type(Type::Ident(ident.data.clone()))
+                    .resolve_record_type(Type::Ident(ident.data.clone()), vec![])
                     .context(ErrorInSource {
                         path: Some(self.current_path.clone()),
                         start: expr.start.unwrap_or(0),
@@ -786,7 +789,7 @@ impl TypeChecker {
                 // allow non-record type here
                 // (some types only have methods, no fields)
                 let fields = self
-                    .resolve_record_type(expr_type.clone())
+                    .resolve_record_type(expr_type.clone(), vec![])
                     .map(|v| v.into_iter().collect::<HashMap<_, _>>())
                     .unwrap_or(HashMap::new());
 
@@ -1104,20 +1107,37 @@ impl TypeChecker {
         Ok(())
     }
 
-    fn resolve_record_type(&mut self, type_: Type) -> Result<Vec<(Ident, Type)>> {
+    fn resolve_record_type(&mut self, type_: Type, args: Vec<Type>) -> Result<Vec<(Ident, Type)>> {
         match type_ {
             Type::Ident(ident) => {
-                let type_ = self
+                let (params, mut type_) = self
                     .types
                     .get(&ident)
-                    .ok_or(anyhow!("unknown type: {}", ident.as_str()))?;
+                    .ok_or(anyhow!("unknown type: {}", ident.as_str()))?
+                    .clone();
+
+                let mut apps = vec![];
+                for (param, arg) in params.into_iter().zip(args.into_iter()) {
+                    let Type::Omit(p) = param else {
+                        bail!("expected omit type, but found {}", param.to_string());
+                    };
+
+                    apps.push((p, arg));
+                }
+                let cs = Constrains::new_from_hashmap(apps.into_iter().collect::<HashMap<_, _>>());
+                cs.apply(&mut type_);
+
                 let fields = type_.clone().to_record()?;
 
                 Ok(fields)
             }
             Type::Record(fields) => Ok(fields),
-            Type::Array(_, _) => self.resolve_record_type(Type::Ident(Ident("array".to_string()))),
-            Type::Vec(_) => self.resolve_record_type(Type::Ident(Ident("vec".to_string()))),
+            Type::Array(_, _) => {
+                self.resolve_record_type(Type::Ident(Ident("array".to_string())), vec![])
+            }
+            Type::Vec(t) => {
+                self.resolve_record_type(Type::Ident(Ident("vec".to_string())), vec![*t.clone()])
+            }
             _ => bail!("expected record type, but found {}", type_.to_string()),
         }
     }
@@ -1284,7 +1304,6 @@ impl Constrains {
         }
     }
 
-    #[cfg(test)]
     pub fn new_from_hashmap(constrains: HashMap<usize, Type>) -> Constrains {
         Constrains { constrains }
     }
@@ -1330,7 +1349,6 @@ impl Constrains {
             Type::Ptr(p) => {
                 self.apply(p);
             }
-            Type::RawPtr => {}
             Type::Array(t, _) => {
                 self.apply(t);
             }
