@@ -123,6 +123,12 @@ module Lexer {
             if self.match(input, "}", "rbrace") {
                 continue;
             }
+            if self.match(input, "[", "lbracket") {
+                continue;
+            }
+            if self.match(input, "]", "rbracket") {
+                continue;
+            }
             if self.match(input, ":", "colon") {
                 continue;
             }

@@ -127,6 +127,16 @@ fun main(): i32 {
     return p.z;
 }
 "#,
+        r#"
+fun main(): i32 {
+    let p = make[ptr[i32]](20);
+    p.at(0) = 10;
+    p.at(1) = 20;
+    p.at(2) = p.at(0) + p.at(1);
+
+    return p.at(2);
+}
+"#,
     ];
 
     for input in cases {

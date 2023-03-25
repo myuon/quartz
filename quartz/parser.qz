@@ -194,6 +194,16 @@ module Parser {
                     ..nil,
                 };
             }
+            if token.string_value!.equal("ptr") {
+                self.expect("lbracket").try;
+                let t = self.type_().try;
+                self.expect("rbracket").try;
+
+                return Type {
+                    t_ptr: t?,
+                    ..nil,
+                };
+            }
             
             return _ or error::new("Unknown type ".concat(token.string_value!));
         }
@@ -566,6 +576,40 @@ module Parser {
                     }?,
                     ..nil,
                 };
+            }
+            if token.lexeme.equal("lbracket") {
+                self.expect("lbracket").try;
+
+                if current.t_ident == nil {
+                    return _ or error::new(format("Expected identifier for record name, found {}", current.to_string()));
+                }
+
+                let t = self.type_().try;
+                self.expect("rbracket").try;
+
+                self.expect("lparen").try;
+                let args = make[vec[Expression]]();
+                while !self.peek().lexeme.equal("rparen") {
+                    args.push(self.expression().try);
+
+                    if self.peek().lexeme.equal("comma") {
+                        self.expect("comma").try;
+                    } else {
+                        break;
+                    }
+                }
+                self.expect("rparen").try;
+
+                let ident = current.t_ident!.name;
+                if ident.equal("make") {
+                    current = Expression {
+                        t_make: struct {
+                            type_: t,
+                            args: args,
+                        }?,
+                        ..nil,
+                    };
+                }
             }
 
             return current;

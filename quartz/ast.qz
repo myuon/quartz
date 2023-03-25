@@ -195,6 +195,10 @@ type Expression = {
         type_: Type?,
     }?,
     t_record: RecordExpression?,
+    t_make: struct {
+        type_: Type,
+        args: vec[Expression],
+    }?,
 };
 
 module Expression {
