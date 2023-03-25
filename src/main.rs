@@ -20,7 +20,11 @@ use clap::{Parser, Subcommand};
 use serde_json::json;
 use wasmer::Value;
 
-use crate::{compiler::Compiler, runtime::Runtime};
+use crate::{
+    compiler::Compiler,
+    runtime::Runtime,
+    util::{ident::Ident, path::Path},
+};
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -167,13 +171,28 @@ fn main() -> Result<()> {
             line,
             column,
         } => {
-            let path = file.ok_or(anyhow::anyhow!("No file specified"))?;
+            let file_path = file;
+            let path = file_path
+                .clone()
+                .ok_or(anyhow::anyhow!("No file specified"))?;
             let mut file = std::fs::File::open(path)?;
             let mut buffer = String::new();
             file.read_to_string(&mut buffer)?;
 
+            let module_path = Path::new(
+                file_path
+                    .clone()
+                    .unwrap()
+                    .replace(&project.clone().unwrap(), "")
+                    .replace(".qz", "")
+                    .split("/")
+                    .map(|s| Ident(s.to_string()))
+                    .collect::<Vec<_>>(),
+            );
+
             let result = compiler.check_type(
                 &project.unwrap_or(std::env::current_dir()?.to_str().unwrap().to_string()),
+                module_path,
                 &buffer,
                 line,
                 column,

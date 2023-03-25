@@ -381,7 +381,14 @@ impl Compiler {
         })
     }
 
-    pub fn check_type(&mut self, cwd: &str, input: &str, line: usize, column: usize) -> String {
+    pub fn check_type(
+        &mut self,
+        cwd: &str,
+        module_path: Path,
+        input: &str,
+        line: usize,
+        column: usize,
+    ) -> String {
         let Ok(mut module) = self.parse(cwd, input) else {
             return String::new();
         };
@@ -389,7 +396,7 @@ impl Compiler {
 
         let mut typechecker = TypeChecker::new();
 
-        let Ok(t) = typechecker.find_at_cursor(&mut module, Self::get_main_path(), position) else {
+        let Ok(t) = typechecker.find_at_cursor(&mut module, module_path, position) else {
             return String::new();
         };
 

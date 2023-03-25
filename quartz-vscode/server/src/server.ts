@@ -68,17 +68,18 @@ documents.onDidChangeContent(async (change) => {
 
 connection.onHover(async (params) => {
   const file = params.textDocument.uri.replace("file://", "");
+  console.log(params);
 
-  const cargo = await execAsync(
-    `cargo run --manifest-path ${path.join(
-      file,
-      "..",
-      "..",
-      "Cargo.toml"
-    )} -- check-type ${file} --project ${path.join(file, "..", "..")} --line ${
-      params.position.line
-    } --column ${params.position.character}`
-  );
+  const command = `cargo run --manifest-path ${path.join(
+    file,
+    "..",
+    "..",
+    "Cargo.toml"
+  )} -- check-type ${file} --project ${path.join(file, "..", "..")} --line ${
+    params.position.line
+  } --column ${params.position.character}`;
+  console.log(command);
+  const cargo = await execAsync(command);
   if (cargo.stdout) {
     return { contents: cargo.stdout };
   }
