@@ -94,6 +94,40 @@ fn read_from_stdin() -> String {
     buffer
 }
 
+struct QuartzProject {
+    project_path: String,
+    module_path: Path,
+    source: String,
+}
+
+fn load_project(file_path: &String, project_path: &Option<String>) -> Result<QuartzProject> {
+    let project_path = project_path
+        .clone()
+        .unwrap_or(std::env::current_dir()?.to_str().unwrap().to_string());
+
+    let mut file = std::fs::File::open(file_path)?;
+    let mut buffer = String::new();
+    file.read_to_string(&mut buffer)?;
+
+    let mut module_path = Path::new(
+        file_path
+            .replace(&project_path, "")
+            .replace(".qz", "")
+            .split("/")
+            .map(|s| Ident(s.to_string()))
+            .collect::<Vec<_>>(),
+    );
+    if module_path.0[0].0 == "" {
+        module_path.0.remove(0);
+    }
+
+    Ok(QuartzProject {
+        project_path,
+        module_path,
+        source: buffer,
+    })
+}
+
 fn main() -> Result<()> {
     let mut compiler = Compiler::new();
     let mut runtime = Runtime::new();
@@ -161,6 +195,7 @@ fn main() -> Result<()> {
 
             let result = compiler.check(
                 &project.unwrap_or(std::env::current_dir()?.to_str().unwrap().to_string()),
+                Path::empty(),
                 &buffer,
             );
             println!("{}", serde_json::to_string_pretty(&result)?);
@@ -171,32 +206,12 @@ fn main() -> Result<()> {
             line,
             column,
         } => {
-            let file_path = file;
-            let path = file_path
-                .clone()
-                .ok_or(anyhow::anyhow!("No file specified"))?;
-            let mut file = std::fs::File::open(path)?;
-            let mut buffer = String::new();
-            file.read_to_string(&mut buffer)?;
-
-            let mut module_path = Path::new(
-                file_path
-                    .clone()
-                    .unwrap()
-                    .replace(&project.clone().unwrap(), "")
-                    .replace(".qz", "")
-                    .split("/")
-                    .map(|s| Ident(s.to_string()))
-                    .collect::<Vec<_>>(),
-            );
-            if module_path.0[0].0 == "" {
-                module_path.0.remove(0);
-            }
+            let package = load_project(&file.unwrap(), &project)?;
 
             let result = compiler.check_type(
-                &project.unwrap_or(std::env::current_dir()?.to_str().unwrap().to_string()),
-                module_path,
-                &buffer,
+                &package.project_path,
+                package.module_path,
+                &package.source,
                 line,
                 column,
             );
@@ -215,6 +230,7 @@ fn main() -> Result<()> {
 
             let Ok(result) = compiler.go_to_def(
                 &project.unwrap_or(std::env::current_dir()?.to_str().unwrap().to_string()),
+                Path::empty(),
                 &buffer,
                 line,
                 column,
@@ -255,12 +271,9 @@ fn compile(compiler: &mut Compiler, stdin: bool, file: Option<String>) -> Result
     let input = if stdin {
         read_from_stdin()
     } else {
-        let path = file.ok_or(anyhow::anyhow!("No file specified"))?;
-        let mut file = std::fs::File::open(path)?;
-        let mut buffer = String::new();
-        file.read_to_string(&mut buffer)?;
+        let package = load_project(&file.unwrap(), &None)?;
 
-        buffer
+        package.source
     };
     let wat = compiler.compile(&cwd, &input)?;
 

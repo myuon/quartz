@@ -126,11 +126,10 @@ impl Compiler {
         Path::ident(Ident("main".to_string()))
     }
 
-    fn parse(&mut self, cwd: &str, input: &str) -> Result<Module> {
+    fn parse(&mut self, cwd: &str, main_path: Path, input: &str) -> Result<Module> {
         let mut lexer = Lexer::new();
         let mut parser = Parser::new();
 
-        let main_path = Self::get_main_path();
         lexer.run(input, main_path.clone()).context("lexer phase")?;
         let main = parser
             .run(lexer.tokens, main_path.clone())
@@ -176,8 +175,8 @@ impl Compiler {
         Ok(module)
     }
 
-    fn check_(&mut self, cwd: &str, input: &str) -> Result<(TypeChecker, Module)> {
-        let mut module = self.parse(cwd, input)?;
+    fn check_(&mut self, cwd: &str, main_path: Path, input: &str) -> Result<(TypeChecker, Module)> {
+        let mut module = self.parse(cwd, main_path, input)?;
         let mut typechecker = TypeChecker::new();
 
         typechecker.run(&mut module).context("typechecker phase")?;
@@ -185,10 +184,10 @@ impl Compiler {
         Ok((typechecker, module))
     }
 
-    pub fn check(&mut self, cwd: &str, input: &str) -> Vec<ElaboratedError> {
+    pub fn check(&mut self, cwd: &str, main_path: Path, input: &str) -> Vec<ElaboratedError> {
         let input = input.to_string();
 
-        let Err(error) = self.check_(cwd, &input) else {
+        let Err(error) = self.check_(cwd, main_path, &input) else {
             return vec![]
         };
 
@@ -389,7 +388,7 @@ impl Compiler {
         line: usize,
         column: usize,
     ) -> String {
-        let Ok(mut module) = self.parse(cwd, input) else {
+        let Ok(mut module) = self.parse(cwd, module_path.clone(), input) else {
             return String::new();
         };
         let position = find_line_column_from_position(input, line, column);
@@ -410,11 +409,12 @@ impl Compiler {
     pub fn go_to_def(
         &mut self,
         cwd: &str,
+        module_path: Path,
         input: &str,
         line: usize,
         column: usize,
     ) -> Result<GoToDefOutput> {
-        let mut module = self.parse(cwd, input)?;
+        let mut module = self.parse(cwd, module_path, input)?;
         let position = find_line_column_from_position(input, line, column);
 
         let mut typechecker = TypeChecker::new();
