@@ -15,9 +15,8 @@ pub struct Generator {
     pub globals: HashSet<String>,
     pub types: HashMap<Ident, (Vec<Type>, Type)>,
     pub main_signature: Option<(Vec<IrType>, IrType)>,
-    pub cwd: Path,
+    pub entrypoint: Path,
     pub strings: Vec<String>,
-    pub entrypoint_symbol: String,
 }
 
 impl Generator {
@@ -27,9 +26,8 @@ impl Generator {
             globals: HashSet::new(),
             types: HashMap::new(),
             main_signature: None,
-            cwd: Path::new(vec![]),
+            entrypoint: Path::new(vec![]),
             strings: vec![],
-            entrypoint_symbol: String::new(),
         }
     }
 
@@ -44,8 +42,8 @@ impl Generator {
         self.types = types;
     }
 
-    pub fn set_cwd(&mut self, cwd: Path) {
-        self.cwd = cwd;
+    pub fn set_entrypoint(&mut self, entrypoint: Path) {
+        self.entrypoint = entrypoint;
     }
 
     pub fn set_strings(&mut self, strings: Vec<String>) {
@@ -64,15 +62,7 @@ impl Generator {
     }
 
     fn module(&mut self, elements: &mut Vec<IrTerm>, data_section_offset: usize) -> Result<()> {
-        self.entrypoint_symbol = format!(
-            "{}_main",
-            self.cwd
-                .0
-                .iter()
-                .map(|i| i.as_str())
-                .collect::<Vec<_>>()
-                .join("_")
-        );
+        let entrypoint_symbol = self.entrypoint.as_joined_str("_");
 
         self.writer.start();
         self.writer.write("module");
@@ -205,7 +195,7 @@ impl Generator {
                 },
                 IrTerm::Return {
                     value: Box::new(IrTerm::Call {
-                        callee: Box::new(IrTerm::ident(self.entrypoint_symbol.clone())),
+                        callee: Box::new(IrTerm::ident(entrypoint_symbol.clone())),
                         args: vec![],
                         source: None,
                     }),
@@ -282,7 +272,7 @@ impl Generator {
         result: &mut Option<IrType>,
         body: &mut Vec<IrTerm>,
     ) -> Result<()> {
-        if name == &self.entrypoint_symbol {
+        if name == &self.entrypoint.as_joined_str("_") {
             if let Some(result) = result {
                 self.main_signature = Some((
                     params.iter().map(|(_, t)| t.clone()).collect(),
