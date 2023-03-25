@@ -394,6 +394,7 @@ impl IrCodeGenerator {
             Statement::Assign(lhs, rhs_type, rhs) => {
                 let lhs = self.expr(lhs)?;
                 let rhs = self.expr(rhs)?;
+
                 self.assign(lhs, IrType::from_type(rhs_type)?, rhs)
             }
             Statement::If(cond, type_, then_block, else_block) => {

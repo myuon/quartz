@@ -95,7 +95,7 @@ fun vec_make_byte(capacity: i32): vec[byte] {
     };
 }
 
-fun vec_push_byte(v: vec[byte], e: i32) {
+fun vec_push_byte(v: vec[byte], e: byte) {
     if (v.length + 1) == v.capacity {
         let new_capacity = v.capacity * 2;
         let new_data = make[ptr[byte]](new_capacity);
@@ -110,7 +110,7 @@ fun vec_push_byte(v: vec[byte], e: i32) {
     v.length = v.length + 1;
 }
 
-fun vec_at_byte(v: vec[byte], n: i32): i32 {
+fun vec_at_byte(v: vec[byte], n: i32): byte {
     if n >= v.length {
         panic("vec_at: out of range: ".concat(n.to_string()));
     }
@@ -181,7 +181,7 @@ fun is_prefix(s: string, n: i32, prefix: string): bool {
 }
 
 fun vec_byte_to_string(b: vec[byte]): string {
-    return new_string(b.data as ptr[byte], b.length);
+    return new_string(b.data, b.length);
 }
 
 module bool {
