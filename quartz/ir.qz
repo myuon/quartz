@@ -44,6 +44,9 @@ type IrTerm = {
         address: IrTerm,
         offset: IrTerm,
     }?,
+    t_sizeof: struct {
+        type_: IrType,
+    }?,
 };
 
 module IrTerm {

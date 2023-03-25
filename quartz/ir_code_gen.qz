@@ -416,10 +416,7 @@ module IrCodeGenerator {
                 let rep_args = make[vec[InternalTypeRep]]();
                 rep_args.push(InternalTypeRep::from_ir_type(IrType::new(expr.t_make!.type_.t_ptr!)));
 
-                return self.allocate_heap_object(
-                    InternalTypeRep::from_name("ptr", rep_args),
-                    len,
-                );
+                return self.allocate_heap_object(len);
             }
         }
 
@@ -513,17 +510,10 @@ module IrCodeGenerator {
         };
     }
 
-    fun allocate_heap_object(self, rep: InternalTypeRep, size: IrTerm): IrTerm or error {
+    fun allocate_heap_object(self, size: IrTerm): IrTerm or error {
         let var = "object";
 
         let object = make[vec[IrTerm]]();
-
-        let args = make[vec[IrTerm]]();
-        args.push(size);
-        args.push(IrTerm {
-            t_i32: "1"?,
-            ..nil,
-        });
 
         object.push(IrTerm {
             t_let: IrLet {
@@ -538,7 +528,7 @@ module IrCodeGenerator {
                             t_ident: "alloc"?,
                             ..nil,
                         },
-                        args: IrCodeGenerator::wrap_mult_sizeof(
+                        args: make[vec[IrTerm]](IrCodeGenerator::wrap_mult_sizeof(
                             IrType {
                                 t_address: true?,
                                 ..nil,
@@ -549,11 +539,17 @@ module IrCodeGenerator {
                                         t_ident: "add"?,
                                         ..nil,
                                     },
-                                    args: args,
+                                    args: make[vec[IrTerm]](
+                                        size,
+                                        IrTerm {
+                                            t_i32: "1"?,
+                                            ..nil,
+                                        },
+                                    ),
                                 }?,
                                 ..nil,
                             },
-                        ),
+                        )),
                     }?,
                     ..nil,
                 },
@@ -569,7 +565,7 @@ module IrCodeGenerator {
                 address: IrTerm::ident(var),
                 offset: IrTerm::i32(0),
                 value: IrTerm {
-                    t_i32: rep.to_string()?,
+                    t_i32: "0"?,
                     ..nil,
                 },
             }?,
@@ -577,10 +573,14 @@ module IrCodeGenerator {
         });
         object.push(IrTerm {
             t_ident: var?,
+            ..nil,
         });
 
         return IrTerm {
-            t_seq: object,
+            t_seq: struct {
+                terms: object,
+            }?,
+            ..nil,
         };
     }
 
