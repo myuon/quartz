@@ -6,6 +6,7 @@ use crate::{ast::Type, compiler::SourcePosition, util::sexpr_writer::SExprWriter
 pub enum IrTerm {
     Nil,
     Bool(bool),
+    Byte(u8),
     I32(i32),
     U32(u32),
     I64(i64),
@@ -96,6 +97,10 @@ pub enum IrTerm {
         params: Vec<IrType>,
         result: IrType,
     },
+    Data {
+        offset: usize,
+        data: String,
+    },
 }
 
 impl IrTerm {
@@ -134,6 +139,9 @@ impl IrTerm {
                 writer.write(&i.to_string());
             }
             IrTerm::Bool(b) => {
+                writer.write(&b.to_string());
+            }
+            IrTerm::Byte(b) => {
                 writer.write(&b.to_string());
             }
             IrTerm::Ident(p) => {
@@ -365,6 +373,13 @@ impl IrTerm {
                 result.to_term().to_string_writer(writer);
                 writer.end();
             }
+            IrTerm::Data { offset, data } => {
+                writer.start();
+                writer.write("data");
+                writer.write(format!("offset={}", offset));
+                writer.write(format!("data={}", data));
+                writer.end();
+            }
         }
     }
 
@@ -378,6 +393,7 @@ impl IrTerm {
             IrTerm::Ident(_) => vec![],
             IrTerm::String(_) => vec![],
             IrTerm::Bool(_) => vec![],
+            IrTerm::Byte(_) => vec![],
             IrTerm::Call {
                 callee: _, args, ..
             } => {
@@ -497,7 +513,10 @@ impl IrTerm {
                 name,
                 params,
                 result,
-            } => vec![],
+            } => {
+                vec![]
+            }
+            IrTerm::Data { offset, data } => vec![],
         }
     }
 
@@ -524,6 +543,7 @@ pub enum IrType {
     I32,
     I64,
     Address,
+    Byte,
     Any,
 }
 
@@ -539,7 +559,7 @@ impl IrType {
             Type::Ident(_) => Ok(IrType::Address), // FIXME: could be other types
             Type::Ptr(_) => Ok(IrType::Address),
             Type::Array(_, _) => Ok(IrType::Address),
-            Type::Byte => Ok(IrType::I32),
+            Type::Byte => Ok(IrType::Byte),
             Type::Vec(_) => Ok(IrType::Address),
             Type::Optional(_) => Ok(IrType::Address),
             Type::Func(_, _) => todo!(),
@@ -562,6 +582,7 @@ impl IrType {
             IrType::I64 => IrTerm::Ident("i64".to_string()),
             IrType::Address => IrTerm::Ident("i64".to_string()),
             IrType::Any => IrTerm::Ident("i64".to_string()),
+            IrType::Byte => IrTerm::Ident("i64".to_string()),
         }
     }
 
@@ -576,7 +597,10 @@ impl IrType {
         self.to_term().to_string()
     }
 
-    pub fn sizeof() -> i32 {
-        8
+    pub fn sizeof(&self) -> i32 {
+        match self {
+            IrType::Byte => 1,
+            _ => 8,
+        }
     }
 }

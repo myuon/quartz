@@ -49,7 +49,6 @@ fun main() {
 
     let result or err = run(stdin());
     if err != nil {
-        // reflection::print_type(err as byte);
         panic(err!.message);
     }
 

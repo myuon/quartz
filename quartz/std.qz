@@ -41,22 +41,22 @@ fun println(f: string, ..arg: vec[string]) {
     write_stdout(10 as byte);
 }
 
-fun vec_make(capacity: i32): vec[i32] {
+fun vec_make(capacity: i32): vec[any] {
     if capacity == 0 {
         panic("vec_make: capacity must be greater than 0");
     }
 
     return vec {
-        data: make[ptr[i32]](capacity),
+        data: make[ptr[any]](capacity),
         length: 0,
         capacity: capacity,
     };
 }
 
-fun vec_push(v: vec[i32], e: i32) {
+fun vec_push(v: vec[any], e: any) {
     if (v.length + 1) == v.capacity {
         let new_capacity = v.capacity * 2;
-        let new_data = make[ptr[i32]](new_capacity);
+        let new_data = make[ptr[any]](new_capacity);
         for i in 0..v.length {
             new_data.at(i) = v.data.at(i);
         }
@@ -68,7 +68,7 @@ fun vec_push(v: vec[i32], e: i32) {
     v.length = v.length + 1;
 }
 
-fun vec_at(v: vec[i32], n: i32): i32 {
+fun vec_at(v: vec[any], n: i32): any {
     if n >= v.length {
         panic("vec_at: out of range: ".concat(n.to_string()));
     }
@@ -77,6 +77,48 @@ fun vec_at(v: vec[i32], n: i32): i32 {
 }
 
 fun vec_extend(v: vec[i32], other: vec[i32]) {
+    for i in 0..other.length {
+        v.push(other.at(i));
+    }
+}
+
+// FIXME: lack of generics
+fun vec_make_byte(capacity: i32): vec[byte] {
+    if capacity == 0 {
+        panic("vec_make: capacity must be greater than 0");
+    }
+
+    return vec {
+        data: make[ptr[byte]](capacity),
+        length: 0,
+        capacity: capacity,
+    };
+}
+
+fun vec_push_byte(v: vec[byte], e: byte) {
+    if (v.length + 1) == v.capacity {
+        let new_capacity = v.capacity * 2;
+        let new_data = make[ptr[byte]](new_capacity);
+        for i in 0..v.length {
+            new_data.at(i) = v.data.at(i);
+        }
+        v.data = new_data;
+        v.capacity = new_capacity;
+    }
+
+    v.data.at(v.length) = e;
+    v.length = v.length + 1;
+}
+
+fun vec_at_byte(v: vec[byte], n: i32): byte {
+    if n >= v.length {
+        panic("vec_at: out of range: ".concat(n.to_string()));
+    }
+
+    return v.data.at(n);
+}
+
+fun vec_extend_byte(v: vec[byte], other: vec[byte]) {
     for i in 0..other.length {
         v.push(other.at(i));
     }
@@ -99,6 +141,13 @@ fun char_to_string(char: byte): string {
 fun new_empty_string(length: i32): string {
     return string {
         data: make[ptr[byte]](length),
+        length: length,
+    };
+}
+
+fun new_string(p: ptr[byte], length: i32): string {
+    return string {
+        data: p,
         length: length,
     };
 }
@@ -132,10 +181,7 @@ fun is_prefix(s: string, n: i32, prefix: string): bool {
 }
 
 fun vec_byte_to_string(b: vec[byte]): string {
-    return string {
-        data: b.data as ptr[byte],
-        length: b.length,
-    };
+    return new_string(b.data, b.length);
 }
 
 module bool {
@@ -219,8 +265,8 @@ module string {
         return self.slice(start, self.length);
     }
 
-    fun at(self, n: i32): string {
-        return char_to_string(self.data.at(n));
+    fun at(self, n: i32): byte {
+        return self.data.at(n);
     }
 
     fun repeat(self, n: i32): string {
@@ -288,7 +334,8 @@ fun dump_strings() {
 
     for i in 0..strings_count {
         let s = strings_ptr as ptr[string];
-        println((i.to_string()).concat("[").concat((s.at(i) as i32).to_string()).concat("]: ").concat((strings_ptr as ptr[string]).at(i)));
+        // println((i.to_string()).concat("[").concat((s.at(i) as i32).to_string()).concat("]: ").concat((strings_ptr as ptr[string]).at(i)));
+        println(s.at(i));
     }
 }
 
@@ -397,7 +444,7 @@ fun stdin(): string {
     let str = make[vec[byte]]();
 
     let b = read_stdin();
-    while b as i32 != 0 {
+    while b != 0 as byte {
         str.push(b);
 
         b = read_stdin();
@@ -407,8 +454,7 @@ fun stdin(): string {
 }
 
 // used in compiler
-// avoid using address 0, this is for null pointers
-let alloc_ptr = 8;
+let alloc_ptr = 0;
 
 fun alloc(size: i32): ptr[any] {
     if size % sizeof[i32]() != 0 {
@@ -444,6 +490,16 @@ struct TypeRep {
     name: string,
     params: vec[TypeRep],
     fields: vec[string],
+}
+
+module TypeRep {
+    fun sizeof(self): i32 {
+        if self.name.equal("byte") {
+            return 1;
+        }
+
+        return 8;
+    }
 }
 
 module reflection {

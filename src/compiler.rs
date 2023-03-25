@@ -294,7 +294,9 @@ impl Compiler {
                 .map(|p| p.0)
                 .collect(),
         );
-        generator.run(&mut ir).context("generator phase")?;
+        generator
+            .run(&mut ir, ir_code_generator.data_section_offset)
+            .context("generator phase")?;
 
         self.ir = Some(ir);
 

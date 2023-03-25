@@ -113,7 +113,16 @@ fn main() -> Result<()> {
                                 value::Value::I32(p) => {
                                     println!("{}", p);
                                 }
-                                _ => todo!(),
+                                value::Value::Byte(b) => {
+                                    println!("{}", b as char);
+                                }
+                                value::Value::Bool(b) => {
+                                    println!("{}", b);
+                                }
+                                value::Value::Pointer(0) => {
+                                    println!("nil");
+                                }
+                                value::Value::Pointer(_) => todo!(),
                             }
                         }
                         _ => todo!(),

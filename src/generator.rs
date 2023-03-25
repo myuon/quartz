@@ -13,7 +13,7 @@ use crate::{
 pub struct Generator {
     pub writer: SExprWriter,
     pub globals: HashSet<String>,
-    pub types: HashMap<Ident, Type>,
+    pub types: HashMap<Ident, (Vec<Type>, Type)>,
     pub main_signature: Option<(Vec<IrType>, IrType)>,
     pub cwd: Path,
     pub strings: Vec<String>,
@@ -40,7 +40,7 @@ impl Generator {
             .collect::<HashSet<_>>();
     }
 
-    pub fn set_types(&mut self, types: HashMap<Ident, Type>) {
+    pub fn set_types(&mut self, types: HashMap<Ident, (Vec<Type>, Type)>) {
         self.types = types;
     }
 
@@ -52,10 +52,10 @@ impl Generator {
         self.strings = strings;
     }
 
-    pub fn run(&mut self, module: &mut IrTerm) -> Result<()> {
+    pub fn run(&mut self, module: &mut IrTerm, data_section_offset: usize) -> Result<()> {
         match module {
             IrTerm::Module { elements } => {
-                self.module(elements)?;
+                self.module(elements, data_section_offset)?;
             }
             _ => bail!("Expected module"),
         }
@@ -63,7 +63,7 @@ impl Generator {
         Ok(())
     }
 
-    fn module(&mut self, elements: &mut Vec<IrTerm>) -> Result<()> {
+    fn module(&mut self, elements: &mut Vec<IrTerm>, data_section_offset: usize) -> Result<()> {
         self.entrypoint_symbol = format!(
             "{}_main",
             self.cwd
@@ -79,7 +79,7 @@ impl Generator {
 
         self.decl(&mut IrTerm::Declare {
             name: "write_stdout".to_string(),
-            params: vec![IrType::I32],
+            params: vec![IrType::Byte],
             result: IrType::I32,
         })?;
 
@@ -98,7 +98,7 @@ impl Generator {
         self.decl(&mut IrTerm::Declare {
             name: "read_stdin".to_string(),
             params: vec![],
-            result: IrType::I32,
+            result: IrType::Byte,
         })?;
 
         self.decl(&mut IrTerm::Declare {
@@ -130,7 +130,7 @@ impl Generator {
                 IrTerm::Instruction("local.get $value".to_string()),
                 IrTerm::Instruction("i64.const 1".to_string()),
                 IrTerm::Instruction("i64.and".to_string()),
-                IrTerm::Instruction("i64.const 2".to_string()),
+                IrTerm::Instruction("i64.const 32".to_string()),
                 IrTerm::Instruction("i64.shl".to_string()),
                 IrTerm::Instruction("i64.const 2".to_string()),
                 IrTerm::Instruction("i64.or".to_string()),
@@ -146,8 +146,10 @@ impl Generator {
                 IrTerm::Instruction("local.get $value".to_string()),
                 IrTerm::Instruction("i64.const 2".to_string()),
                 IrTerm::Instruction("i64.and".to_string()),
-                IrTerm::Instruction("i64.const 1".to_string()),
+                IrTerm::Instruction("i64.const 31".to_string()),
                 IrTerm::Instruction("i64.shl".to_string()),
+                IrTerm::Instruction("i64.const 2".to_string()),
+                IrTerm::Instruction("i64.or".to_string()),
                 IrTerm::Instruction("return".to_string()),
             ],
         })?;
@@ -178,6 +180,10 @@ impl Generator {
             params: vec![],
             result: Some(result),
             body: vec![
+                IrTerm::Assign {
+                    lhs: "quartz_std_alloc_ptr".to_string(),
+                    rhs: Box::new(IrTerm::i32(data_section_offset as i32)),
+                },
                 IrTerm::Assign {
                     lhs: "quartz_std_strings_count".to_string(),
                     rhs: Box::new(IrTerm::i32(self.strings.len() as i32)),
@@ -256,6 +262,15 @@ impl Generator {
 
                 Ok(())
             }
+            IrTerm::Data { offset, data } => {
+                self.writer.start();
+                self.writer.write("data");
+                self.writer.write(format!("(i32.const {})", *offset));
+                self.writer.write(format!("{:?}", data));
+                self.writer.end();
+
+                Ok(())
+            }
             _ => bail!("Expected func or global let, got {:?}", decl),
         }
     }
@@ -319,6 +334,10 @@ impl Generator {
         if let Some(result) = result {
             match result {
                 IrType::Nil => {}
+                IrType::Byte => {
+                    self.writer.new_statement();
+                    self.writer.write("unreachable");
+                }
                 IrType::Bool => {
                     self.writer.new_statement();
                     self.writer.write("unreachable");
@@ -412,6 +431,7 @@ impl Generator {
                 self.write_value(Value::bool(*b));
             }
             IrTerm::Ident(i) => {
+                self.writer.new_statement();
                 if self.globals.contains(&i.clone()) {
                     self.writer.write(&format!("global.get ${}", i.as_str()));
                 } else {
@@ -530,14 +550,16 @@ impl Generator {
                 self.writer.new_statement();
                 self.writer.write("br $exit");
             }
-            IrTerm::SizeOf { .. } => {
+            IrTerm::SizeOf { type_ } => {
+                let size = type_.sizeof();
+
                 if MODE_READABLE_WASM {
                     self.writer.new_statement();
-                    self.writer.write(";; sizeof");
+                    self.writer.write(format!(";; {} (sizeof)", size));
                 }
 
                 self.writer.new_statement();
-                self.write_value(Value::i32(IrType::sizeof() as i32));
+                self.write_value(Value::i32(size));
             }
             IrTerm::WriteMemory {
                 type_,
@@ -601,10 +623,37 @@ impl Generator {
                 // Only 32-bit addresses are supported
                 // self.convert_stack_from_i32_1();
 
+                let load_size = type_.sizeof() * 8;
+
                 self.writer.new_statement();
-                self.writer.write(&format!("{}.load", type_.to_string()));
+                self.writer.write(&format!(
+                    "{}.load{}",
+                    Value::wasm_type(),
+                    if load_size == 64 {
+                        String::new()
+                    } else {
+                        format!("{}_u", load_size)
+                    }
+                ));
                 if let Some(raw_offset) = raw_offset {
                     self.writer.write(&format!("offset={}", raw_offset));
+                }
+
+                match type_ {
+                    IrType::Byte => {
+                        self.writer.new_statement();
+                        self.writer.write("i64.const 32");
+
+                        self.writer.new_statement();
+                        self.writer.write("i64.shl");
+
+                        self.writer.new_statement();
+                        self.writer.write("i64.const 4");
+
+                        self.writer.new_statement();
+                        self.writer.write("i64.xor");
+                    }
+                    _ => {}
                 }
             }
             IrTerm::Store {
@@ -631,8 +680,27 @@ impl Generator {
                 self.writer.new_statement();
                 self.expr(value)?;
 
+                let store_size = type_.sizeof() * 8;
+
+                // FIXME: adhoc fix for 64-bit store
+                if store_size != 64 {
+                    self.writer.new_statement();
+                    self.writer.write("i64.const 32");
+
+                    self.writer.new_statement();
+                    self.writer.write("i64.shr_u");
+                }
+
                 self.writer.new_statement();
-                self.writer.write(&format!("{}.store", type_.to_string()));
+                self.writer.write(&format!(
+                    "{}.store{}",
+                    Value::wasm_type(),
+                    if store_size == 64 {
+                        String::new()
+                    } else {
+                        format!("{}", store_size)
+                    }
+                ));
                 if let Some(raw_offset) = raw_offset {
                     self.writer.write(&format!("offset={}", raw_offset));
                 }
@@ -752,6 +820,9 @@ impl Generator {
                 }
                 "i32_to_address" => self.convert_value_i32_to_address_1(),
                 "address_to_i32" => self.convert_value_address_to_i32_1(),
+                "i32_to_byte" => self.convert_value_i32_to_byte_1(),
+                "byte_to_i32" => self.convert_value_byte_to_i32_1(),
+                "byte_to_address" => self.convert_value_byte_to_address_1(),
                 _ => {
                     self.writer.write(&format!("call ${}", ident.as_str()));
                 }
@@ -767,7 +838,7 @@ impl Generator {
         self.writer.write("i64.const 1");
 
         self.writer.new_statement();
-        self.writer.write("i64.add");
+        self.writer.write("i64.xor");
     }
 
     fn convert_value_address_to_i32_1(&mut self) {
@@ -775,7 +846,37 @@ impl Generator {
         self.writer.write("i64.const 1");
 
         self.writer.new_statement();
-        self.writer.write("i64.sub");
+        self.writer.write("i64.xor");
+    }
+
+    fn convert_value_i32_to_byte_1(&mut self) {
+        self.writer.new_statement();
+        self.writer.write("i64.const 4");
+
+        self.writer.new_statement();
+        self.writer.write("i64.xor");
+    }
+
+    fn convert_value_byte_to_i32_1(&mut self) {
+        self.writer.new_statement();
+        self.writer.write("i64.const 4");
+
+        self.writer.new_statement();
+        self.writer.write("i64.xor");
+    }
+
+    fn convert_value_byte_to_address_1(&mut self) {
+        self.writer.new_statement();
+        self.writer.write("i64.const 4");
+
+        self.writer.new_statement();
+        self.writer.write("i64.xor");
+
+        self.writer.new_statement();
+        self.writer.write("i64.const 1");
+
+        self.writer.new_statement();
+        self.writer.write("i64.xor");
     }
 
     fn convert_stack_to_i32_1(&mut self) {
@@ -817,7 +918,7 @@ impl Generator {
         self.writer.write("i64.extend_i32_s");
 
         self.writer.new_statement();
-        self.writer.write("i64.const 2");
+        self.writer.write("i64.const 32");
 
         self.writer.new_statement();
         self.writer.write("i64.shl");
@@ -831,7 +932,7 @@ impl Generator {
 
     fn convert_stack_to_bool(&mut self) {
         self.writer.new_statement();
-        self.writer.write("i64.const 2");
+        self.writer.write("i64.const 32");
 
         self.writer.new_statement();
         self.writer.write("i64.shr_u");

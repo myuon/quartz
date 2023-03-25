@@ -21,10 +21,10 @@ impl Runtime {
                 "write_stdout" => Function::new_typed(&mut store, |ch: i64| {
                     let w = Value::from_i64(ch);
                     match w {
-                        Value::I32(i) => {
-                            std::io::stdout().lock().write(&[i as u8]).unwrap();
+                        Value::Byte(b) => {
+                            std::io::stdout().lock().write(&[b]).unwrap();
                         }
-                        _ => panic!("write_stdout: invalid value, {:?}", w),
+                        _ => println!("write_stdout: invalid value, {:?}", w),
                     }
 
                     Value::i32(0).as_i64()
@@ -47,7 +47,7 @@ impl Runtime {
                 "read_stdin" => Function::new_typed(&mut store, || {
                     let mut buffer = [0u8; 1];
                     std::io::stdin().lock().read(&mut buffer).unwrap();
-                    Value::i32(buffer[0] as i32).as_i64()
+                    Value::Byte(buffer[0]).as_i64()
                 }),
             }
         };
@@ -433,6 +433,32 @@ fun main(): bool {
             ),
             (
                 r#"
+fun main(): byte {
+    let p = make[ptr[byte]](3);
+    p.at(0) = 48 as byte;
+    p.at(1) = 56 as byte;
+    p.at(2) = 72 as byte;
+
+    let s = new_string(p, 3);
+    println(s);
+
+    return s.at(0);
+}
+"#,
+                vec![Value::Byte(48)],
+            ),
+            (
+                r#"
+fun main(): byte {
+    let a = "hello";
+
+    return a.at(3);
+}
+"#,
+                vec![Value::Byte(b'l')],
+            ),
+            (
+                r#"
 fun int_to_string(n: i32): string {
     let digit = 0;
     let tmp = n;
@@ -547,7 +573,11 @@ fun main(): i32 {
     let count = make[map[string, i32]]();
 
     for i in 0..paragraph.length {
-        let ch = paragraph.at(i);
+        let ch_byte = paragraph.at(i);
+        let ch_ptr = make[ptr[byte]](1);
+        ch_ptr.at(0) = ch_byte;
+        let ch = new_string(ch_ptr, 1);
+
         if !count.has(ch) {
             count.insert(ch, 0);
         }
