@@ -169,7 +169,7 @@ module Statement {
             );
         }
 
-        panic("Unknown statement type");
+        return panic("Unknown statement type");
     }
 }
 
@@ -298,7 +298,7 @@ module Type {
             return s;
         }
 
-        panic("unimplemented: type.to_string");
+        return panic("unimplemented: type.to_string");
     }
 }
 
@@ -325,7 +325,7 @@ module TypeStruct {
                 return self.fields.at(i).type_;
             }
         }
-        panic("unimplemented: typestruct.find");
+        return panic("unimplemented: typestruct.find");
     }
 
     fun index(self, name: string): i32 {
@@ -335,6 +335,6 @@ module TypeStruct {
             }
         }
 
-        panic("unimplemented: typestruct.find");
+        return panic("unimplemented: typestruct.find");
     }
 }

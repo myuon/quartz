@@ -239,6 +239,8 @@ module Parser {
         if !i.equal(expected) {
             return _ or error::new("Expected ".concat(expected).concat(", got ").concat(i));
         }
+
+        return nil;
     }
 
     fun block(self): Block or error {

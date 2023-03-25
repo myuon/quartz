@@ -187,7 +187,7 @@ module IrCodeGenerator {
             };
         }
 
-        panic("statement exhausted: {}", stm.to_string());
+        return panic("statement exhausted: {}", stm.to_string());
     }
 
     fun expression(self, expr: Expression): IrTerm {
@@ -328,7 +328,7 @@ module IrCodeGenerator {
             };
         }
 
-        panic("expression exhausted: {}", expr.to_string());
+        return panic("expression exhausted: {}", expr.to_string());
     }
 
     fun generate_array_enumerated(self, record: vec[struct {

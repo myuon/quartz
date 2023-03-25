@@ -196,6 +196,7 @@ impl TypeChecker {
                     .insert(self.path_to(&ident), Source::unknown(type_.clone()));
             }
             Decl::Type(ident, type_) => {
+                self.resolve_type(&type_)?;
                 self.types.insert(ident.clone(), (vec![], type_.clone()));
             }
             Decl::Module(name, module) => {
@@ -205,6 +206,67 @@ impl TypeChecker {
                 self.current_path = module_path;
             }
             Decl::Import(_) => (),
+        }
+
+        Ok(())
+    }
+
+    fn resolve_type(&self, type_: &Type) -> Result<()> {
+        match type_ {
+            Type::Omit(_) => {}
+            Type::Nil => {}
+            Type::Bool => {}
+            Type::I32 => {}
+            Type::U32 => {}
+            Type::I64 => {}
+            Type::Byte => {}
+            Type::Func(ts, ret) => {
+                for t in ts {
+                    self.resolve_type(t)?;
+                }
+                self.resolve_type(ret)?;
+            }
+            Type::VariadicFunc(ts, ret, var) => {
+                for t in ts {
+                    self.resolve_type(t)?;
+                }
+                self.resolve_type(ret)?;
+                self.resolve_type(var)?;
+            }
+            Type::Record(rs) => {
+                for (_, t) in rs {
+                    self.resolve_type(t)?;
+                }
+            }
+            Type::Ident(i) => {
+                if !self.types.contains_key(&i) {
+                    bail!("type `{}` not found", i.0);
+                }
+            }
+            Type::Ptr(p) => {
+                self.resolve_type(p)?;
+            }
+            Type::Array(t, _) => {
+                self.resolve_type(t)?;
+            }
+            Type::Vec(v) => {
+                self.resolve_type(v)?;
+            }
+            Type::Range(r) => {
+                self.resolve_type(r)?;
+            }
+            Type::Optional(t) => {
+                self.resolve_type(t)?;
+            }
+            Type::Map(k, v) => {
+                self.resolve_type(k)?;
+                self.resolve_type(v)?;
+            }
+            Type::Or(a, b) => {
+                self.resolve_type(a)?;
+                self.resolve_type(b)?;
+            }
+            Type::Any => {}
         }
 
         Ok(())
@@ -226,8 +288,14 @@ impl TypeChecker {
 
         self.result_type = Some(func.result.clone());
         self.block(&mut func.body)?;
-        for statement in &mut func.body {
-            self.statement(statement)?;
+        if !matches!(self.result_type, Some(Type::Nil)) && self.can_escape_block(&func.body) {
+            return Err(
+                anyhow!("function must return a value").context(ErrorInSource {
+                    path: Some(self.current_path.clone()),
+                    start: func.name.start.unwrap_or(0),
+                    end: func.name.end.unwrap_or(0),
+                }),
+            );
         }
 
         self.locals = locals;
@@ -245,6 +313,41 @@ impl TypeChecker {
         }
 
         Ok(())
+    }
+
+    fn can_escape_block(&self, statements: &Vec<Source<Statement>>) -> bool {
+        let mut can_escape = true;
+        for statement in statements {
+            match &statement.data {
+                Statement::Return(_) => {
+                    can_escape = false;
+                }
+                Statement::If(_, _, then_block, else_block) => {
+                    if !self.can_escape_block(then_block) {
+                        if let Some(else_block) = else_block {
+                            if !self.can_escape_block(else_block) {
+                                can_escape = false;
+                            }
+                        }
+                    }
+                }
+                Statement::While(_, body) => {
+                    can_escape = self.can_escape_block(body);
+                }
+                Statement::For(_, _, body) => {
+                    can_escape = self.can_escape_block(body);
+                }
+                Statement::Let(_, _, _) => {}
+                Statement::Expr(_, _) => {}
+                Statement::Assign(_, _, _) => {}
+                Statement::Continue => {}
+                Statement::Break => {
+                    return true;
+                }
+            }
+        }
+
+        can_escape
     }
 
     fn statement(&mut self, statement: &mut Source<Statement>) -> Result<()> {
@@ -1400,5 +1503,50 @@ fn test_unify() {
             cs,
             Constrains::new_from_hashmap(result.into_iter().collect())
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        compiler::Compiler,
+        typecheck::TypeChecker,
+        util::{ident::Ident, path::Path},
+    };
+
+    #[test]
+    fn test_typechecker_fail() {
+        let cases = vec![
+            r#"
+struct Foo {
+    a: not_defined,
+}
+
+fun main() {}
+"#,
+            r#"
+fun main(): i32 {
+}
+"#,
+            r#"
+struct Foo {
+    a: i32,
+}
+
+fun main() {
+    let f = Foo { a: "hello" };
+}
+"#,
+        ];
+        for input in cases {
+            let mut compiler = Compiler::new();
+            let mut parsed = compiler
+                .parse("", Path::ident(Ident("main".to_string())), input)
+                .unwrap();
+
+            let mut typechecker = TypeChecker::new();
+            let result = typechecker.run(&mut parsed);
+            assert!(result.is_err());
+        }
     }
 }

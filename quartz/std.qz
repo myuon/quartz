@@ -316,9 +316,9 @@ module string {
     }
 }
 
-fun panic(s: string, ..arg: vec[string]) {
+fun panic(s: string, ..arg: vec[string]): any {
     println(s, ..arg);
-    abort();
+    return abort();
 }
 
 // used in compiler
@@ -360,12 +360,12 @@ fun map_make(): Map {
 
 fun map_at(map: Map, key: string): any {
     if map.count == 0 {
-        panic("map_at[empty]: key ".concat(key).concat(" not found"));
+        return panic("map_at[empty]: key ".concat(key).concat(" not found"));
     }
 
     let entry = map_find_entry(map, key);
     if entry.key == nil {
-        panic("map_at: key ".concat(key).concat(" not found"));
+        return panic("map_at: key ".concat(key).concat(" not found"));
     } else {
         return entry.value;
     }
@@ -418,7 +418,7 @@ fun map_find_entry(map: Map, key: string): MapEntry {
     let hash = hash_string(key, key.length);
     let index = (hash % (map.capacity as u32)) as i32;
     if (index < 0) {
-        panic("map_find_entry: index < 0");
+        return panic("map_find_entry: index < 0") as MapEntry;
     }
 
     let entry = map.entries.at(index);
@@ -429,6 +429,8 @@ fun map_find_entry(map: Map, key: string): MapEntry {
         index = (index + 1) % map.capacity;
         entry = map.entries.at(index);
     }
+
+    return panic("unreachable") as MapEntry;
 }
 
 fun hash_string(key: string, length: i32): u32 {
