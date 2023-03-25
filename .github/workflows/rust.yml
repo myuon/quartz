@@ -27,6 +27,13 @@ jobs:
 
       - name: Build
         run: cargo build --verbose
+
       - run: mkdir -p ./build
+
+      - uses: extractions/setup-just@v1
+
       - name: Run tests
-        run: cargo test --verbose
+        run: just test
+
+      - name: Run compiler_tests
+        run: just test_compiler
