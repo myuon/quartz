@@ -1528,6 +1528,15 @@ fun main() {}
 fun main(): i32 {
 }
 "#,
+            r#"
+struct Foo {
+    a: i32,
+}
+
+fun main() {
+    let f = Foo { a: "hello" };
+}
+"#,
         ];
         for input in cases {
             let mut compiler = Compiler::new();
