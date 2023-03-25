@@ -889,6 +889,23 @@ fun main(): bool {
                     Value::Bool(true),
                 ],
             ),
+            (
+                r#"
+fun main() {
+    let v = make[vec[i32]]();
+    for i in 0..5 {
+        v.push(i);
+    }
+
+    for n in v {
+        println(n.to_string());
+    }
+}
+"#,
+                vec![
+                    Value::nil(),
+                ],
+            ),
         ];
 
         for (input, expected) in cases {

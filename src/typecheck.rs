@@ -3,7 +3,9 @@ use std::collections::HashMap;
 use anyhow::{anyhow, bail, Context, Result};
 
 use crate::{
-    ast::{Decl, Expr, Func, Lit, Module, Pattern, Statement, Type, UnwrapMode, VariadicCall},
+    ast::{
+        Decl, Expr, ForMode, Func, Lit, Module, Pattern, Statement, Type, UnwrapMode, VariadicCall,
+    },
     compiler::ErrorInSource,
     util::{ident::Ident, path::Path, source::Source},
 };
@@ -326,7 +328,7 @@ impl TypeChecker {
                 Statement::While(_, body) => {
                     can_escape = self.can_escape_block(body);
                 }
-                Statement::For(_, _, body) => {
+                Statement::For(_, _, _, body) => {
                     can_escape = self.can_escape_block(body);
                 }
                 Statement::Let(_, _, _) => {}
@@ -451,22 +453,39 @@ impl TypeChecker {
 
                 self.block(block)?;
             }
-            Statement::For(ident, range, body) => {
+            Statement::For(mode, ident, range, body) => {
                 let type_ = self.expr(range)?;
-                let element = type_.as_range_type().context(ErrorInSource {
-                    path: Some(self.current_path.clone()),
-                    start: range.start.unwrap_or(0),
-                    end: range.end.unwrap_or(0),
-                })?;
+                if let Type::Range(range_type) = type_ {
+                    *mode = Some(ForMode::Range);
 
-                self.locals
-                    .insert(ident.clone(), Source::transfer(element.clone(), range));
+                    self.locals
+                        .insert(ident.clone(), Source::transfer(*range_type.clone(), range));
 
-                let locals = self.locals.clone();
+                    let locals = self.locals.clone();
 
-                self.block(body)?;
+                    self.block(body)?;
 
-                self.locals = locals;
+                    self.locals = locals;
+                } else if let Type::Vec(vec_type) = type_ {
+                    *mode = Some(ForMode::Vec(*vec_type.clone()));
+
+                    self.locals
+                        .insert(ident.clone(), Source::transfer(*vec_type.clone(), range));
+
+                    let locals = self.locals.clone();
+
+                    self.block(body)?;
+
+                    self.locals = locals;
+                } else {
+                    return Err(
+                        anyhow!("for range must be a range type").context(ErrorInSource {
+                            path: Some(self.current_path.clone()),
+                            start: range.start.unwrap_or(0),
+                            end: range.end.unwrap_or(0),
+                        }),
+                    );
+                }
             }
             Statement::Continue => (),
             Statement::Break => (),

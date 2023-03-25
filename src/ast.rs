@@ -250,6 +250,12 @@ impl Expr {
 }
 
 #[derive(PartialEq, Debug, Clone)]
+pub enum ForMode {
+    Range,
+    Vec(Type),
+}
+
+#[derive(PartialEq, Debug, Clone)]
 pub enum Statement {
     Let(Source<Pattern>, Type, Source<Expr>),
     Return(Source<Expr>),
@@ -262,7 +268,7 @@ pub enum Statement {
         Option<Vec<Source<Statement>>>,
     ),
     While(Source<Expr>, Vec<Source<Statement>>),
-    For(Ident, Source<Expr>, Vec<Source<Statement>>),
+    For(Option<ForMode>, Ident, Source<Expr>, Vec<Source<Statement>>),
     Continue,
     Break,
 }

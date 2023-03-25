@@ -288,7 +288,7 @@ impl Parser {
                 let body = self.block()?;
                 self.expect(Lexeme::RBrace)?;
 
-                Ok(Statement::For(ident, range, body))
+                Ok(Statement::For(None, ident, range, body))
             }
             Lexeme::Continue => {
                 self.consume()?;

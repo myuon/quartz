@@ -4,7 +4,9 @@ use anyhow::{anyhow, bail, Context, Result};
 use rand::{distributions::Alphanumeric, prelude::Distribution};
 
 use crate::{
-    ast::{Decl, Expr, Func, Lit, Module, Pattern, Statement, Type, UnwrapMode, VariadicCall},
+    ast::{
+        Decl, Expr, ForMode, Func, Lit, Module, Pattern, Statement, Type, UnwrapMode, VariadicCall,
+    },
     compiler::{ErrorInSource, SourcePosition, MODE_TYPE_REP},
     ir::{IrTerm, IrType},
     util::{ident::Ident, path::Path, serial_id_map::SerialIdMap, source::Source},
@@ -437,38 +439,89 @@ impl IrCodeGenerator {
                     cleanup: None,
                 })
             }
-            Statement::For(ident, range, body) => match &mut range.data {
-                Expr::Range(start, end) => Ok(IrTerm::Seq {
-                    elements: vec![
-                        IrTerm::Let {
-                            name: ident.as_str().to_string(),
-                            type_: IrType::I32,
-                            value: Box::new(self.expr(start.as_mut())?),
-                        },
-                        IrTerm::While {
-                            cond: Box::new(IrTerm::Call {
-                                callee: Box::new(IrTerm::Ident("lt".to_string())),
-                                args: vec![
-                                    IrTerm::Ident(ident.as_str().to_string()),
-                                    self.expr(end.as_mut())?,
-                                ],
-                                source: None,
-                            }),
-                            body: Box::new(IrTerm::Seq {
-                                elements: self.statements(body)?,
-                            }),
-                            cleanup: Some(Box::new(IrTerm::Assign {
-                                lhs: ident.0.clone(),
-                                rhs: Box::new(IrTerm::Call {
-                                    callee: Box::new(IrTerm::Ident("add".to_string())),
-                                    args: vec![IrTerm::Ident(ident.0.clone()), IrTerm::I32(1)],
+            Statement::For(mode, ident, range, body) => match mode.clone().unwrap() {
+                ForMode::Range => match &mut range.data {
+                    Expr::Range(start, end) => Ok(IrTerm::Seq {
+                        elements: vec![
+                            IrTerm::Let {
+                                name: ident.as_str().to_string(),
+                                type_: IrType::I32,
+                                value: Box::new(self.expr(start.as_mut())?),
+                            },
+                            IrTerm::While {
+                                cond: Box::new(IrTerm::Call {
+                                    callee: Box::new(IrTerm::Ident("lt".to_string())),
+                                    args: vec![
+                                        IrTerm::Ident(ident.as_str().to_string()),
+                                        self.expr(end.as_mut())?,
+                                    ],
                                     source: None,
                                 }),
-                            })),
-                        },
-                    ],
-                }),
-                _ => bail!("invalid range expression, {:?}", range),
+                                body: Box::new(IrTerm::Seq {
+                                    elements: self.statements(body)?,
+                                }),
+                                cleanup: Some(Box::new(IrTerm::Assign {
+                                    lhs: ident.0.clone(),
+                                    rhs: Box::new(IrTerm::Call {
+                                        callee: Box::new(IrTerm::Ident("add".to_string())),
+                                        args: vec![IrTerm::Ident(ident.0.clone()), IrTerm::I32(1)],
+                                        source: None,
+                                    }),
+                                })),
+                            },
+                        ],
+                    }),
+                    _ => bail!("invalid range expression, {:?}", range),
+                },
+                ForMode::Vec(vec_elem_type) => {
+                    // for v in vec { body }
+                    // =>
+                    // for i in 0..vec.length {
+                    //   let v = vec.at(i);
+                    //   body
+                    // }
+                    let var_index =
+                        format!("index_{}_{}", ident.as_str(), range.start.unwrap_or(0));
+
+                    let mut new_body = vec![Source::unknown(Statement::Let(
+                        Source::unknown(Pattern::Ident(ident.clone())),
+                        vec_elem_type.clone(),
+                        Source::unknown(Expr::Call(
+                            Box::new(Source::transfer(
+                                Expr::Project(
+                                    Box::new(range.clone()),
+                                    Type::Vec(Box::new(vec_elem_type.clone())),
+                                    Source::unknown(Path::ident(Ident("at".to_string()))),
+                                ),
+                                range,
+                            )),
+                            vec![Source::unknown(Expr::ident(Ident(var_index.clone())))],
+                            None,
+                            None,
+                        )),
+                    ))];
+                    new_body.extend(body.clone());
+
+                    self.statement(&mut Source::transfer(
+                        Statement::For(
+                            Some(ForMode::Range),
+                            Ident(var_index.clone()),
+                            Source::transfer(
+                                Expr::Range(
+                                    Box::new(Source::unknown(Expr::Lit(Lit::I32(0)))),
+                                    Box::new(Source::unknown(Expr::Project(
+                                        Box::new(range.clone()),
+                                        Type::Vec(Box::new(vec_elem_type)),
+                                        Source::unknown(Path::ident(Ident("length".to_string()))),
+                                    ))),
+                                ),
+                                range,
+                            ),
+                            new_body.clone(),
+                        ),
+                        statement,
+                    ))
+                }
             },
             Statement::Continue => Ok(IrTerm::Continue),
             Statement::Break => Ok(IrTerm::Break),
@@ -868,7 +921,9 @@ impl IrCodeGenerator {
                                     source: None,
                                 })
                             }
-                            _ => bail!("invalid project: {:?}", expr),
+                            (type_, label) => {
+                                bail!("invalid project: {:?}, {:?}.{}", type_, expr, label)
+                            }
                         }
                     } else {
                         let mut args_with_self = vec![expr.as_ref().clone()];
@@ -928,24 +983,24 @@ impl IrCodeGenerator {
                 self.generate_array("struct".to_string(), vec![], elements)
             }
             Expr::Project(expr, type_, label) => {
-                let record_type = if let Ok(record) = type_.as_record_type() {
-                    record.clone()
-                } else if let Ok(ident) = type_.clone().to_ident() {
-                    self.types
-                        .get(&ident)
-                        .ok_or(anyhow!("Type not found: {:?}", type_))?
-                        .clone()
-                        .1
-                        .to_record()?
-                } else {
-                    return Err(
-                        anyhow!("invalid project: {:?}", expr).context(ErrorInSource {
-                            path: Some(self.current_path.clone()),
-                            start: expr.start.unwrap_or(0),
-                            end: expr.end.unwrap_or(0),
-                        }),
-                    );
-                };
+                let record_type =
+                    if let Ok(record) = type_.as_record_type() {
+                        record.clone()
+                    } else if let Ok(ident) = type_.clone().to_ident() {
+                        self.types
+                            .get(&ident)
+                            .ok_or(anyhow!("Type not found: {:?}", type_))?
+                            .clone()
+                            .1
+                            .to_record()?
+                    } else {
+                        return Err(anyhow!("invalid project: {:?} for {:?}", expr, type_)
+                            .context(ErrorInSource {
+                                path: Some(self.current_path.clone()),
+                                start: expr.start.unwrap_or(0),
+                                end: expr.end.unwrap_or(0),
+                            }));
+                    };
 
                 let index = record_type
                     .iter()
