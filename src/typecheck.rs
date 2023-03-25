@@ -1506,6 +1506,15 @@ fun main(): i32? {
     return 0;
 }
 "#,
+            r#"
+fun f(): nil or error {
+    return nil;
+}
+
+fun main() {
+    f();
+}
+"#,
         ];
         for input in cases {
             let mut compiler = Compiler::new();
