@@ -126,7 +126,7 @@ impl Compiler {
         Path::ident(Ident("main".to_string()))
     }
 
-    fn parse(&mut self, cwd: &str, main_path: Path, input: &str) -> Result<Module> {
+    pub fn parse(&mut self, cwd: &str, main_path: Path, input: &str) -> Result<Module> {
         let mut lexer = Lexer::new();
         let mut parser = Parser::new();
 
