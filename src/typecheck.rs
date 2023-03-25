@@ -760,6 +760,18 @@ impl TypeChecker {
 
                         Ok(Type::Bool)
                     }
+                    Equal | NotEqual => {
+                        self.unify(&mut arg1_type, &mut arg2_type)
+                            .context(ErrorInSource {
+                                path: Some(self.current_path.clone()),
+                                start: arg1.start.unwrap_or(0),
+                                end: arg1.end.unwrap_or(0),
+                            })?;
+
+                        *type_ = arg1_type.clone();
+
+                        Ok(Type::Bool)
+                    }
                 }
             }
             Expr::Record(ident, record, expansion) => {
@@ -1034,32 +1046,6 @@ impl TypeChecker {
                     "i32" => Type::I32,
                     _ => Type::Ident(ident.clone()),
                 })
-            }
-            Expr::Equal(lhs, rhs) => {
-                let mut lhs_type = self.expr(lhs)?;
-                let mut rhs_type = self.expr(rhs)?;
-
-                self.unify(&mut lhs_type, &mut rhs_type)
-                    .context(ErrorInSource {
-                        path: Some(self.current_path.clone()),
-                        start: lhs.start.unwrap_or(0),
-                        end: lhs.end.unwrap_or(0),
-                    })?;
-
-                Ok(Type::Bool)
-            }
-            Expr::NotEqual(lhs, rhs) => {
-                let mut lhs_type = self.expr(lhs)?;
-                let mut rhs_type = self.expr(rhs)?;
-
-                self.unify(&mut lhs_type, &mut rhs_type)
-                    .context(ErrorInSource {
-                        path: Some(self.current_path.clone()),
-                        start: lhs.start.unwrap_or(0),
-                        end: lhs.end.unwrap_or(0),
-                    })?;
-
-                Ok(Type::Bool)
             }
             Expr::Wrap(type_, expr) => {
                 let expr_type = self.expr(expr)?;

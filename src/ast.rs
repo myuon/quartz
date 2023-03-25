@@ -171,6 +171,8 @@ pub enum BinOp {
     Lte,
     Gt,
     Gte,
+    Equal,
+    NotEqual,
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -215,8 +217,6 @@ pub enum Expr {
         path: Source<Path>,
         resolved_path: Option<Path>,
     },
-    Equal(Box<Source<Expr>>, Box<Source<Expr>>),
-    NotEqual(Box<Source<Expr>>, Box<Source<Expr>>),
     Wrap(Type, Box<Source<Expr>>),
     Unwrap(Type, Option<UnwrapMode>, Box<Source<Expr>>),
     Omit(Type),

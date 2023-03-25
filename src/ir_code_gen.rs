@@ -682,6 +682,16 @@ impl IrCodeGenerator {
                         args: vec![arg1, arg2],
                         source: None,
                     }),
+                    Equal => Ok(IrTerm::Call {
+                        callee: Box::new(IrTerm::Ident("equal".to_string())),
+                        args: vec![arg1, arg2],
+                        source: None,
+                    }),
+                    NotEqual => Ok(IrTerm::Call {
+                        callee: Box::new(IrTerm::Ident("not_equal".to_string())),
+                        args: vec![arg1, arg2],
+                        source: None,
+                    }),
                 }
             }
             Expr::Call(callee, args, variadic, expansion) => match &mut callee.data {
@@ -1060,26 +1070,6 @@ impl IrCodeGenerator {
             Expr::SizeOf(type_) => {
                 let type_ = IrType::from_type(type_)?;
                 Ok(IrTerm::SizeOf { type_ })
-            }
-            Expr::Equal(lhs, rhs) => {
-                let lhs = self.expr(lhs)?;
-                let rhs = self.expr(rhs)?;
-
-                Ok(IrTerm::Call {
-                    callee: Box::new(IrTerm::Ident("equal".to_string())),
-                    args: vec![lhs, rhs],
-                    source: None,
-                })
-            }
-            Expr::NotEqual(lhs, rhs) => {
-                let lhs = self.expr(lhs)?;
-                let rhs = self.expr(rhs)?;
-
-                Ok(IrTerm::Call {
-                    callee: Box::new(IrTerm::Ident("not_equal".to_string())),
-                    args: vec![lhs, rhs],
-                    source: None,
-                })
             }
             Expr::Wrap(type_, expr) => {
                 let expr = self.expr(expr)?;

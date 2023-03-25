@@ -434,15 +434,22 @@ impl Parser {
             Lexeme::DoubleEqual => {
                 self.consume()?;
                 let rhs = self.term_3(with_struct)?;
+                let t = self.gen_omit()?;
 
-                current = self.source_from(Expr::Equal(Box::new(current), Box::new(rhs)), position);
+                current = self.source_from(
+                    Expr::BinOp(BinOp::Equal, t, Box::new(current), Box::new(rhs)),
+                    position,
+                );
             }
             Lexeme::NotEqual => {
                 self.consume()?;
                 let rhs = self.term_3(with_struct)?;
+                let t = self.gen_omit()?;
 
-                current =
-                    self.source_from(Expr::NotEqual(Box::new(current), Box::new(rhs)), position);
+                current = self.source_from(
+                    Expr::BinOp(BinOp::NotEqual, t, Box::new(current), Box::new(rhs)),
+                    position,
+                );
             }
             _ => (),
         }
