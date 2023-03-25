@@ -143,11 +143,14 @@ module Generator {
             self.write("(result ".concat(func.result_type.to_string()).concat(")"));
         }
 
-        for i in 0..func.locals.length {
-            self.new_statement();
-            self.start();
-            self.write("local $".concat(func.locals.at(i)).concat(" i32"));
-            self.end();
+        for statement in func.body {
+            let locals = statement.find_locals();
+            for local in locals {
+                self.new_statement();
+                self.start();
+                self.write(format("local ${} {}", local, "i32"));
+                self.end();
+            }
         }
 
         for i in 0..func.body.length {

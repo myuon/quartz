@@ -4,7 +4,7 @@ use anyhow::{bail, Ok, Result};
 
 use crate::{
     ast::Type,
-    compiler::{MODE_OPTIMIZE_ARITH_OPS_IN_CODE_GEN, MODE_READABLE_WASM, MODE_TYPE_REP},
+    compiler::{MODE_OPTIMIZE_ARITH_OPS_IN_CODE_GEN, MODE_READABLE_WASM},
     ir::{IrTerm, IrType},
     util::{ident::Ident, path::Path, sexpr_writer::SExprWriter},
     value::Value,
@@ -180,7 +180,7 @@ impl Generator {
                 },
                 IrTerm::Discard {
                     element: Box::new(IrTerm::Instruction(
-                        "(memory.grow (i32.const 20))".to_string(),
+                        "(memory.grow (i32.const 200))".to_string(),
                     )),
                 },
                 IrTerm::Call {

@@ -869,6 +869,12 @@ impl TypeChecker {
                         "push" => {
                             return Ok(Type::Func(vec![p.as_ref().clone()], Box::new(Type::Nil)));
                         }
+                        "extend" => {
+                            return Ok(Type::Func(
+                                vec![Type::Vec(Box::new(*p.clone()))],
+                                Box::new(Type::Nil),
+                            ));
+                        }
                         _ => (),
                     }
                 }

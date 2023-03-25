@@ -239,10 +239,7 @@ module string {
             new_data.at(self.length + i) = s.data.at(i);
         }
 
-        return string {
-            data: new_data,
-            length: new_length,
-        };
+        return new_string(new_data, new_length);
     }
 
     fun equal(self, other: string): bool {

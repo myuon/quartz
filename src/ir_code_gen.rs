@@ -845,6 +845,35 @@ impl IrCodeGenerator {
                                     expr,
                                 ))?)
                             }
+                            (Type::Vec(p), "extend") => {
+                                assert_eq!(args.len(), 1);
+
+                                Ok(self.expr(&mut Source::transfer(
+                                    Expr::Call(
+                                        Box::new(Source::transfer(
+                                            Expr::path(Path::new(
+                                                vec![
+                                                    "quartz",
+                                                    "std",
+                                                    if matches!(**p, Type::Byte) {
+                                                        "vec_extend_byte"
+                                                    } else {
+                                                        "vec_extend"
+                                                    },
+                                                ]
+                                                .into_iter()
+                                                .map(|t| Ident(t.to_string()))
+                                                .collect(),
+                                            )),
+                                            expr,
+                                        )),
+                                        vec![expr.as_ref().clone(), args[0].clone()],
+                                        None,
+                                        None,
+                                    ),
+                                    expr,
+                                ))?)
+                            }
                             (Type::Map(_, _), "insert") => {
                                 assert_eq!(args.len(), 2);
 

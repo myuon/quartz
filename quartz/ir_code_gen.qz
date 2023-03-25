@@ -468,14 +468,6 @@ module IrCodeGenerator {
         type_: IrType,
         term: IrTerm,
     }]): IrTerm {
-        self.locals.push("arr");
-
-        let args = make[vec[IrTerm]]();
-        args.push(IrTerm {
-            t_i32: (terms.length * 4).to_string()?,
-            ..nil,
-        });
-
         let arr = make[vec[IrTerm]]();
         arr.push(IrTerm {
             t_let: IrLet {
@@ -490,7 +482,10 @@ module IrCodeGenerator {
                             t_ident: "alloc"?,
                             ..nil,
                         },
-                        args: args,
+                        args: make[vec[IrTerm]](IrTerm {
+                            t_i32: (terms.length * 4).to_string()?,
+                            ..nil,
+                        }),
                     }?,
                     ..nil,
                 },

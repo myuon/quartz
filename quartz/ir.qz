@@ -67,6 +67,55 @@ module IrTerm {
             ..nil,
         };
     }
+
+    fun find_locals(self): vec[string] {
+        let locals = make[vec[string]]();
+
+        if self.t_let != nil {
+            locals.push(self.t_let!.name);
+            locals.extend(self.t_let!.value.find_locals());
+        }
+        if self.t_call != nil {
+            locals.extend(self.t_call!.callee.find_locals());
+            for arg in self.t_call!.args {
+                locals.extend(arg.find_locals());
+            }
+        }
+        if self.t_seq != nil {
+            for term in self.t_seq!.terms {
+                locals.extend(term.find_locals());
+            }
+        }
+        if self.t_if != nil {
+            locals.extend(self.t_if!.condition.find_locals());
+            locals.extend(self.t_if!.then_term.find_locals());
+            locals.extend(self.t_if!.else_term.find_locals());
+        }
+        if self.t_while != nil {
+            locals.extend(self.t_while!.condition.find_locals());
+            locals.extend(self.t_while!.block.find_locals());
+            if self.t_while!.cleanup != nil {
+                locals.extend(self.t_while!.cleanup!.find_locals());
+            }
+        }
+        if self.t_store != nil {
+            locals.extend(self.t_store!.address.find_locals());
+            locals.extend(self.t_store!.offset.find_locals());
+            locals.extend(self.t_store!.value.find_locals());
+        }
+        if self.t_load != nil {
+            locals.extend(self.t_load!.address.find_locals());
+            locals.extend(self.t_load!.offset.find_locals());
+        }
+        if self.t_assign != nil {
+            locals.extend(self.t_assign!.rhs.find_locals());
+        }
+        if self.t_return != nil {
+            locals.extend(self.t_return!.value.find_locals());
+        }
+
+        return locals;
+    }
 }
 
 type IrFunc = {
