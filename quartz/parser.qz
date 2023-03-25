@@ -339,7 +339,7 @@ module Parser {
             };
         }
 
-        return _ or error::new(format("Unexpected token {}", token.to_string()));
+        return _ or error::new(format("Unexpected token {}", self.peek().to_string()));
     }
 
     fun expression_conditional(self): Expression or error {

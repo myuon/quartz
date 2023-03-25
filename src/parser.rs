@@ -254,9 +254,21 @@ impl Parser {
 
                 let else_block = if self.peek()?.lexeme == Lexeme::Else {
                     self.consume()?;
-                    self.expect(Lexeme::LBrace)?;
-                    let else_body = self.block()?;
-                    self.expect(Lexeme::RBrace)?;
+
+                    let else_body = if self.peek()?.lexeme == Lexeme::If {
+                        let position = self.position;
+                        let statement = self.statement()?;
+
+                        vec![self.source_from(statement, position)]
+                    } else if self.peek()?.lexeme == Lexeme::LBrace {
+                        self.expect(Lexeme::LBrace)?;
+                        let else_body = self.block()?;
+                        self.expect(Lexeme::RBrace)?;
+
+                        else_body
+                    } else {
+                        return Err(anyhow!("expected else {{ or else if {{"));
+                    };
 
                     Some(else_body)
                 } else {

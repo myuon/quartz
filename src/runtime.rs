@@ -906,6 +906,29 @@ fun main() {
                     Value::nil(),
                 ],
             ),
+            (
+                r#"
+fun main(): i32 {
+    let t = 3;
+    if t == 0 {
+        return t;
+    } else if t == 1 {
+        return t;
+    } else if t == 2 {
+        return t;
+    } else if t == 3 {
+        return t;
+    } else if t == 4 {
+        return t;
+    } else {
+        return t;
+    }
+}
+"#,
+                vec![
+                    Value::i32(3),
+                ],
+            ),
         ];
 
         for (input, expected) in cases {
