@@ -331,7 +331,15 @@ impl Parser {
                             Box::new(value),
                         ))
                     }
-                    _ => Err(anyhow!("Unexpected token {:?}", self.peek()?.lexeme)),
+                    _ => Err(
+                        anyhow!("Unexpected token {:?}", self.peek()?.lexeme).context(
+                            ErrorInSource {
+                                path: Some(self.current_path.clone()),
+                                start: self.input[self.position].position,
+                                end: self.input[self.position].position,
+                            },
+                        ),
+                    ),
                 }
             }
         }
