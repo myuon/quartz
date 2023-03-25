@@ -41,6 +41,11 @@ fun test() {
     v.push(2);
     v.push(3);
     assert_eq_string(derive::to_string(v), "vec(1, 2, 3)");
+
+    assert(reflection::is_pointer("foo"));
+    assert(!reflection::is_pointer(10));
+    assert(!reflection::is_pointer(true));
+    assert(!reflection::is_pointer("foo".at(1)));
 }
 
 fun main() {
