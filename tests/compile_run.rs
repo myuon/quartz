@@ -101,6 +101,32 @@ fun main(): i32 {
     return p.y;
 }
         "#,
+        r#"
+struct Point {
+    x: i32,
+    y: i32,
+}
+
+fun main(): i32 {
+    let p = Point { x: 10, y: 20 };
+
+    return p.x;
+}
+"#,
+        r#"
+struct Point {
+    x: i32,
+    y: i32,
+    z: i32,
+}
+
+fun main(): i32 {
+    let p = Point { x: 10, y: 20, z: 0 };
+    p.z = p.x + p.y;
+
+    return p.z;
+}
+"#,
     ];
 
     for input in cases {

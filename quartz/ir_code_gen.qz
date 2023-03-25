@@ -131,6 +131,19 @@ module IrCodeGenerator {
 
                 return term;
             }
+            if lhs.t_load != nil {
+                let term = IrTerm {
+                    t_store: struct {
+                        type_: lhs.t_load!.type_,
+                        address: lhs.t_load!.address,
+                        offset: lhs.t_load!.offset,
+                        value: rhs,
+                    }?,
+                    ..nil,
+                };
+
+                return term;
+            }
 
             panic("lhs: {}", stm.t_assign!.lhs.to_string());
         }
