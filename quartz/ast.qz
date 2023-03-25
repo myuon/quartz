@@ -261,57 +261,16 @@ type Type = {
 
 module Type {
     fun to_string(self): string {
-        if self.t_omit != nil {
-            return "omit";
-        }
-        if self.t_nil != nil {
-            return "nil";
-        }
-        if self.t_i32 != nil {
-            return "i32";
-        }
-        if self.t_func != nil {
-            let s = "func(";
-            for i in 0..self.t_func!.params.length {
-                let p = self.t_func!.params.at(i);
-                s = s.concat(p.to_string());
-                if i != self.t_func!.params.length - 1 {
-                    s = s.concat(", ");
-                }
-            }
-            s = s.concat(") -> ");
-            s = s.concat(self.t_func!.result.to_string());
-            return s;
-        }
-        if self.t_ptr != nil {
-            return format("ptr[{}]", self.t_ptr!.to_string());
-        }
-        if self.t_bool != nil {
-            return "bool";
-        }
-        if self.t_struct != nil {
-            let s = "record {";
-            for i in 0..self.t_struct!.fields.length {
-                let p = self.t_struct!.fields.at(i);
-                s = s.concat(p.name).concat(": ").concat(p.type_.to_string());
-                if i != self.t_struct!.fields.length - 1 {
-                    s = s.concat(", ");
-                }
-            }
-            s = s.concat("}");
-            return s;
-        }
-
-        return panic("unimplemented: type.to_string");
+        return derive::to_string(self);
     }
 }
 
-type TypeStruct = {
+struct TypeStruct {
     fields: vec[struct {
         name: string,
         type_: Type,
     }],
-};
+}
 
 module TypeStruct {
     fun has(self, name: string): bool {

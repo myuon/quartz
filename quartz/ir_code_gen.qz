@@ -354,6 +354,22 @@ module IrCodeGenerator {
             return term;
         }
         if expr.t_call != nil {
+            if expr.t_call!.callee.t_project != nil {
+                let project = expr.t_call!.callee.t_project!;
+                if project.type_!.t_ptr != nil && project.field.equal("at") {
+                    if expr.t_call!.args.length != 1 {
+                        return _ or error::new("at() takes 2 arguments");
+                    }
+
+                    let t_ptr_elem = project.type_!.t_ptr!;
+
+                    let term = self.expression(project.expr).try;
+                    let offset = self.expression(expr.t_call!.args.at(0)).try;
+
+                    return self.generate_array_at(t_ptr_elem, term, offset).try;
+                }
+            }
+
             let term = IrTerm {
                 t_call: IrCall {
                     callee: self.expression(expr.t_call!.callee).try,
@@ -601,6 +617,25 @@ module IrCodeGenerator {
                     ..nil,
                 },
                 args: args,
+            }?,
+            ..nil,
+        };
+    }
+
+    fun generate_array_at(
+        self,
+        elem_type: Type,
+        arr: IrTerm,
+        index: IrTerm,
+    ): IrTerm or error {
+        return IrTerm {
+            t_load: struct {
+                type_: IrType::new(elem_type),
+                address: arr,
+                offset: IrCodeGenerator::wrap_mult_sizeof(
+                    IrType::new(elem_type),
+                    index,
+                ),
             }?,
             ..nil,
         };

@@ -350,6 +350,17 @@ module Generator {
 
             return;
         }
+        if expr.t_sizeof != nil {
+            let size = expr.t_sizeof!.type_.sizeof().to_string();
+
+            self.new_statement();
+            self.write(format(";; {} (sizeof)", size));
+
+            self.new_statement();
+            self.write(format("i32.const {}", size));
+
+            return;
+        }
 
         panic("not implemented: expr, {}", expr.to_string());
     }
