@@ -713,15 +713,15 @@ impl TypeChecker {
 
                 let mut arg1_type = self.expr(arg1)?;
                 let mut arg2_type = self.expr(arg2)?;
+                self.unify(&mut arg1_type, &mut arg2_type)
+                    .context(ErrorInSource {
+                        path: Some(self.current_path.clone()),
+                        start: arg1.start.unwrap_or(0),
+                        end: arg1.end.unwrap_or(0),
+                    })?;
 
                 match op {
                     Add | Sub | Mul | Mod | Div => {
-                        self.unify(&mut arg1_type, &mut arg2_type)
-                            .context(ErrorInSource {
-                                path: Some(self.current_path.clone()),
-                                start: arg1.start.unwrap_or(0),
-                                end: arg1.end.unwrap_or(0),
-                            })?;
                         if !arg1_type.is_integer_type() {
                             bail!("Expected integer type, got {:?}", arg1_type)
                         }
@@ -731,12 +731,6 @@ impl TypeChecker {
                         Ok(arg1_type)
                     }
                     And | Or => {
-                        self.unify(&mut arg1_type, &mut arg2_type)
-                            .context(ErrorInSource {
-                                path: Some(self.current_path.clone()),
-                                start: arg1.start.unwrap_or(0),
-                                end: arg1.end.unwrap_or(0),
-                            })?;
                         if !arg1_type.is_bool_type() {
                             bail!("Expected bool type, got {:?}", arg1_type)
                         }
@@ -746,12 +740,6 @@ impl TypeChecker {
                         Ok(arg1_type)
                     }
                     Lt | Lte | Gt | Gte => {
-                        self.unify(&mut arg1_type, &mut arg2_type)
-                            .context(ErrorInSource {
-                                path: Some(self.current_path.clone()),
-                                start: arg1.start.unwrap_or(0),
-                                end: arg1.end.unwrap_or(0),
-                            })?;
                         if !arg1_type.is_integer_type() {
                             bail!("Expected integer type, got {:?}", arg1_type)
                         }
@@ -761,13 +749,6 @@ impl TypeChecker {
                         Ok(Type::Bool)
                     }
                     Equal | NotEqual => {
-                        self.unify(&mut arg1_type, &mut arg2_type)
-                            .context(ErrorInSource {
-                                path: Some(self.current_path.clone()),
-                                start: arg1.start.unwrap_or(0),
-                                end: arg1.end.unwrap_or(0),
-                            })?;
-
                         *type_ = arg1_type.clone();
 
                         Ok(Type::Bool)
