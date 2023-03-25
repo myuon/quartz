@@ -339,7 +339,7 @@ module Parser {
             };
         }
 
-        return _ or error::new("Unexpected token ".concat(token.lexeme).concat("{").concat(token.string_value!).concat("}"));
+        return _ or error::new(format("Unexpected token {}", token.to_string()));
     }
 
     fun expression_conditional(self): Expression or error {
@@ -638,6 +638,6 @@ module Parser {
             };
         }
 
-        return _ or error::new("Unexpected token ".concat(token.lexeme));
+        return _ or error::new(format("Unexpected token {}", token.lexeme));
     }
 }
