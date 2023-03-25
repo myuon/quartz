@@ -222,6 +222,11 @@ module i32 {
     }
 }
 
+struct string {
+    data: ptr[byte],
+    length: i32,
+}
+
 module string {
     fun concat(self, s: string): string {
         let new_length = self.length + s.length;

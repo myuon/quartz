@@ -75,14 +75,6 @@ impl TypeChecker {
             .collect(),
             types: vec![
                 (
-                    "string",
-                    vec![],
-                    Type::Record(vec![
-                        (Ident("data".to_string()), Type::Ptr(Box::new(Type::Byte))),
-                        (Ident("length".to_string()), Type::I32),
-                    ]),
-                ),
-                (
                     "array",
                     vec![],
                     Type::Record(vec![
