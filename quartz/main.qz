@@ -75,7 +75,7 @@ fun run(input: string): string or error {
 
     let irgen = IrCodeGenerator::new();
     irgen.globals = typechecker.globals;
-    let term = irgen.module_(result);
+    let term = irgen.module_(result).try;
     // println("irgen: {}", term.to_string());
 
     let gen = Generator::new();

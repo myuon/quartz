@@ -524,8 +524,7 @@ module Parser {
                     }?,
                     ..nil,
                 };
-            }
-            if token.lexeme.equal("dot") {
+            } else if token.lexeme.equal("dot") {
                 self.expect("dot").try;
                 let field = self.ident().try;
 
@@ -537,8 +536,7 @@ module Parser {
                     }?,
                     ..nil,
                 };
-            }
-            if with_struct && token.lexeme.equal("lbrace") {
+            } else if with_struct && token.lexeme.equal("lbrace") {
                 self.expect("lbrace").try;
 
                 if current.t_ident == nil {
@@ -576,8 +574,7 @@ module Parser {
                     }?,
                     ..nil,
                 };
-            }
-            if token.lexeme.equal("lbracket") {
+            } else if token.lexeme.equal("lbracket") {
                 self.expect("lbracket").try;
 
                 if current.t_ident == nil {
@@ -610,10 +607,12 @@ module Parser {
                         ..nil,
                     };
                 }
+            } else {
+                return current;
             }
-
-            return current;
         }
+
+        return panic("unreachable");
     }
 
     fun term_0_1(self): Expression or error {

@@ -221,6 +221,24 @@ module Typechecker {
             let t = self.expression(expr.t_project!.expr).try;
             expr.t_project!.type_ = t?;
 
+            if t.t_ptr != nil {
+                if expr.t_project!.field.equal("at") {
+                    let ps = make[vec[Type]]();
+                    ps.push(Type {
+                        t_i32: true?,
+                        ..nil,
+                    });
+
+                    return Type {
+                        t_func: struct {
+                            params: ps,
+                            result: t.t_ptr!,
+                        }?,
+                        ..nil,
+                    };
+                }
+            }
+
             if t.t_struct != nil {
                 if t.t_struct!.has(expr.t_project!.field) {
                     let t = t.t_struct!.at(expr.t_project!.field);
@@ -253,6 +271,20 @@ module Typechecker {
             }
 
             return t;
+        }
+        if expr.t_make != nil {
+            if expr.t_make!.args.length >= 2 {
+                return _ or error::new("too many args for make, {}".format(expr.to_string()));
+            }
+            if expr.t_make!.args.length == 1 {
+                let t = self.expression(expr.t_make!.args.at(0)).try;
+                unify(t, Type {
+                    t_i32: true?,
+                    ..nil,
+                }).try;
+            }
+
+            return expr.t_make!.type_;
         }
 
         return _ or error::new("unimplemented: expression, {}".format(expr.to_string()));

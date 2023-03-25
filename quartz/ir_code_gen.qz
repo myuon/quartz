@@ -1,6 +1,71 @@
 import quartz::ast;
 import quartz::ir;
 
+struct InternalTypeRep {
+    name: string,
+    params: vec[InternalTypeRep],
+    fields: vec[struct {
+        name: string,
+        type_: InternalTypeRep,
+    }],
+}
+
+module InternalTypeRep {
+    fun from_name(name: string, params: vec[InternalTypeRep]): InternalTypeRep {
+        return InternalTypeRep {
+            name: name,
+            params: params,
+            fields: make[vec[struct {
+                name: string,
+                type_: InternalTypeRep,
+            }]](),
+        };
+    }
+
+    fun from_struct(
+        name: string,
+        params: vec[IrType],
+        fields: vec[struct {
+            name: string,
+            type_: IrType,
+        }],
+    ): InternalTypeRep {
+        let params_t = make[vec[InternalTypeRep]]();
+        for p in params {
+            params_t.push(InternalTypeRep::from_ir_type(p));
+        }
+
+        let fields_t = make[vec[struct {
+            name: string,
+            type_: InternalTypeRep,
+        }]]();
+        for f in fields {
+            fields_t.push(struct {
+                name: f.name,
+                type_: InternalTypeRep::from_ir_type(f.type_),
+            });
+        }
+
+        return InternalTypeRep {
+            name: name,
+            params: params_t,
+            fields: fields_t,
+        };
+    }
+
+    fun from_ir_type(t: IrType): InternalTypeRep {
+        if t.t_nil != nil {
+            return InternalTypeRep::from_name("nil", make[vec[InternalTypeRep]]());
+        } else if t.t_i32 != nil {
+            return InternalTypeRep::from_name("i32", make[vec[InternalTypeRep]]());
+        } else if t.t_address != nil {
+            return InternalTypeRep::from_name("address", make[vec[InternalTypeRep]]());
+        }
+
+        return panic("unreachable");
+    }
+}
+
 type IrCodeGenerator = {
     globals: map[string, Type],
     locals: vec[string],
@@ -14,7 +79,7 @@ module IrCodeGenerator {
         };
     }
 
-    fun module_(self, m: Module): IrTerm {
+    fun module_(self, m: Module): IrTerm or error {
         let elements = make[vec[IrTerm]]();
 
         for i in 0..m.decls.length {
@@ -22,7 +87,7 @@ module IrCodeGenerator {
 
             if d.t_func != nil {
                 elements.push(IrTerm {
-                    t_func: self.function(d.t_func!)?,
+                    t_func: self.function(d.t_func!).try?,
                     ..nil,
                 });
             }
@@ -34,7 +99,7 @@ module IrCodeGenerator {
                             t_i32: true?,
                             ..nil,
                         },
-                        value: self.expression(d.t_let!.expr),
+                        value: self.expression(d.t_let!.expr).try,
                     }?,
                     ..nil,
                 });
@@ -50,9 +115,9 @@ module IrCodeGenerator {
         };
     }
 
-    fun function(self, func: Function): IrFunc {
+    fun function(self, func: Function): IrFunc or error {
         self.locals = make[vec[string]]();
-        let body = self.block(func.body);
+        let body = self.block(func.body).try;
 
         let params = make[vec[struct {
             name: string,
@@ -76,17 +141,17 @@ module IrCodeGenerator {
         };
     }
     
-    fun block(self, b: Block): vec[IrTerm] {
+    fun block(self, b: Block): vec[IrTerm] or error {
         let elements = make[vec[IrTerm]]();
 
         for i in 0..b.block.length {
-            elements.push(self.statement(b.block.at(i)));
+            elements.push(self.statement(b.block.at(i)).try);
         }
 
         return elements;
     }
 
-    fun statement(self, stm: Statement): IrTerm {
+    fun statement(self, stm: Statement): IrTerm or error {
         if stm.t_let != nil {
             let term = IrTerm {
                 t_let: IrLet {
@@ -95,7 +160,7 @@ module IrCodeGenerator {
                         t_i32: true?,
                         ..nil,
                     },
-                    value: self.expression(stm.t_let!.expr),
+                    value: self.expression(stm.t_let!.expr).try,
                 }?,
                 ..nil,
             };
@@ -106,7 +171,7 @@ module IrCodeGenerator {
         if stm.t_return != nil {
             let term = IrTerm {
                 t_return: IrReturn {
-                    value: self.expression(stm.t_return!.expr),
+                    value: self.expression(stm.t_return!.expr).try,
                 }?,
                 ..nil,
             };
@@ -117,8 +182,8 @@ module IrCodeGenerator {
             return self.expression(stm.t_expr!.expr);
         }
         if stm.t_assign != nil {
-            let lhs = self.expression(stm.t_assign!.lhs);
-            let rhs = self.expression(stm.t_assign!.rhs);
+            let lhs = self.expression(stm.t_assign!.lhs).try;
+            let rhs = self.expression(stm.t_assign!.rhs).try;
 
             if lhs.t_ident != nil {
                 let term = IrTerm {
@@ -150,19 +215,19 @@ module IrCodeGenerator {
         if stm.t_if != nil {
             let then_elements = make[vec[IrTerm]]();
             for i in 0..stm.t_if!.then_block.block.length {
-                then_elements.push(self.statement(stm.t_if!.then_block.block.at(i)));
+                then_elements.push(self.statement(stm.t_if!.then_block.block.at(i)).try);
             }
 
             let else_elements = make[vec[IrTerm]]();
             if stm.t_if!.else_block != nil {
                 for i in 0..stm.t_if!.else_block!.block.length {
-                    else_elements.push(self.statement(stm.t_if!.else_block!.block.at(i)));
+                    else_elements.push(self.statement(stm.t_if!.else_block!.block.at(i)).try);
                 }
             }
 
             return IrTerm {
                 t_if: struct {
-                    condition: self.expression(stm.t_if!.condition),
+                    condition: self.expression(stm.t_if!.condition).try,
                     then_term: IrTerm {
                         t_seq: struct {
                             terms: then_elements,
@@ -182,12 +247,12 @@ module IrCodeGenerator {
         if stm.t_while != nil {
             let body_elements = make[vec[IrTerm]]();
             for i in 0..stm.t_while!.block.block.length {
-                body_elements.push(self.statement(stm.t_while!.block.block.at(i)));
+                body_elements.push(self.statement(stm.t_while!.block.block.at(i)).try);
             }
 
             return IrTerm {
                 t_while: struct {
-                    condition: self.expression(stm.t_while!.condition),
+                    condition: self.expression(stm.t_while!.condition).try,
                     block: IrTerm {
                         t_seq: struct {
                             terms: body_elements,
@@ -203,7 +268,7 @@ module IrCodeGenerator {
         return panic("statement exhausted: {}", stm.to_string());
     }
 
-    fun expression(self, expr: Expression): IrTerm {
+    fun expression(self, expr: Expression): IrTerm or error {
         if expr.t_number != nil {
             let term = IrTerm {
                 t_i32: expr.t_number!.value?,
@@ -214,8 +279,8 @@ module IrCodeGenerator {
         }
         if expr.t_binop != nil {
             let args = make[vec[IrTerm]]();
-            args.push(self.expression(expr.t_binop!.left));
-            args.push(self.expression(expr.t_binop!.right));
+            args.push(self.expression(expr.t_binop!.left).try);
+            args.push(self.expression(expr.t_binop!.right).try);
 
             if expr.t_binop!.binop.equal("plus") {
                 return IrTerm {
@@ -291,14 +356,14 @@ module IrCodeGenerator {
         if expr.t_call != nil {
             let term = IrTerm {
                 t_call: IrCall {
-                    callee: self.expression(expr.t_call!.callee),
+                    callee: self.expression(expr.t_call!.callee).try,
                     args: make[vec[IrTerm]](),
                 }?,
                 ..nil,
             };
 
             for i in 0..expr.t_call!.args.length {
-                term.t_call!.args.push(self.expression(expr.t_call!.args.at(i)));
+                term.t_call!.args.push(self.expression(expr.t_call!.args.at(i)).try);
             }
 
             return term;
@@ -316,7 +381,7 @@ module IrCodeGenerator {
 
                 record.push(struct {
                     type_: IrType::new(field.type_),
-                    term: self.expression(value),
+                    term: self.expression(value).try,
                 });
             }
 
@@ -334,11 +399,28 @@ module IrCodeGenerator {
             return IrTerm {
                 t_load: struct {
                     type_: IrType::new(t.fields.at(index).type_),
-                    address: self.expression(expr.t_project!.expr),
+                    address: self.expression(expr.t_project!.expr).try,
                     offset: IrTerm::i32(offset),
                 }?,
                 ..nil,
             };
+        }
+        if expr.t_make != nil {
+            if expr.t_make!.type_.t_ptr != nil {
+                if expr.t_make!.args.length != 1 {
+                    panic("ptr make expects 1 argument");
+                }
+
+                let len = self.expression(expr.t_make!.args.at(0)).try;
+
+                let rep_args = make[vec[InternalTypeRep]]();
+                rep_args.push(InternalTypeRep::from_ir_type(IrType::new(expr.t_make!.type_.t_ptr!)));
+
+                return self.allocate_heap_object(
+                    InternalTypeRep::from_name("ptr", rep_args),
+                    len,
+                );
+            }
         }
 
         return panic("expression exhausted: {}", expr.to_string());
@@ -426,6 +508,99 @@ module IrCodeGenerator {
         return IrTerm {
             t_seq: struct {
                 terms: arr,
+            }?,
+            ..nil,
+        };
+    }
+
+    fun allocate_heap_object(self, rep: InternalTypeRep, size: IrTerm): IrTerm or error {
+        let var = "object";
+
+        let object = make[vec[IrTerm]]();
+
+        let args = make[vec[IrTerm]]();
+        args.push(size);
+        args.push(IrTerm {
+            t_i32: "1"?,
+            ..nil,
+        });
+
+        object.push(IrTerm {
+            t_let: IrLet {
+                name: var,
+                type_: IrType {
+                    t_address: true?,
+                    ..nil,
+                },
+                value: IrTerm {
+                    t_call: IrCall {
+                        callee: IrTerm {
+                            t_ident: "alloc"?,
+                            ..nil,
+                        },
+                        args: IrCodeGenerator::wrap_mult_sizeof(
+                            IrType {
+                                t_address: true?,
+                                ..nil,
+                            },
+                            IrTerm {
+                                t_call: IrCall {
+                                    callee: IrTerm {
+                                        t_ident: "add"?,
+                                        ..nil,
+                                    },
+                                    args: args,
+                                }?,
+                                ..nil,
+                            },
+                        ),
+                    }?,
+                    ..nil,
+                },
+            }?,
+            ..nil,
+        });
+        object.push(IrTerm {
+            t_store: struct {
+                type_: IrType {
+                    t_i32: true?,
+                    ..nil,
+                },
+                address: IrTerm::ident(var),
+                offset: IrTerm::i32(0),
+                value: IrTerm {
+                    t_i32: rep.to_string()?,
+                    ..nil,
+                },
+            }?,
+            ..nil,
+        });
+        object.push(IrTerm {
+            t_ident: var?,
+        });
+
+        return IrTerm {
+            t_seq: object,
+        };
+    }
+
+    fun wrap_mult_sizeof(ir_type: IrType, term: IrTerm): IrTerm {
+        let args = make[vec[IrTerm]]();
+        args.push(term);
+        args.push(IrTerm {
+            t_sizeof: struct {
+                type_: ir_type,
+            }?,
+            ..nil,
+        });
+
+        return IrTerm {
+            t_call: IrCall {
+                callee: IrTerm {
+                    t_ident: "mult"?,
+                    ..nil,
+                },
+                args: args,
             }?,
             ..nil,
         };
