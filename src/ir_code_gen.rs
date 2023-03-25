@@ -1051,25 +1051,64 @@ impl IrCodeGenerator {
                     )?)
                 }
                 Type::Vec(_) => {
-                    let cap = if args.is_empty() {
-                        IrTerm::i32(5)
-                    } else {
-                        self.expr(&mut args[0])?
-                    };
+                    let var_vec = format!(
+                        "vec_{}",
+                        Alphanumeric
+                            .sample_iter(&mut rand::thread_rng())
+                            .take(5)
+                            .map(char::from)
+                            .collect::<String>()
+                    );
 
-                    Ok(IrTerm::Call {
-                        callee: Box::new(IrTerm::Ident(
-                            Path::new(
-                                vec!["quartz", "std", "vec_make"]
-                                    .into_iter()
-                                    .map(|s| Ident(s.to_string()))
-                                    .collect(),
-                            )
-                            .as_joined_str("_"),
-                        )),
-                        args: vec![cap],
-                        source: None,
-                    })
+                    let mut elements = vec![IrTerm::Let {
+                        name: var_vec.clone(),
+                        type_: IrType::from_type(type_)?,
+                        value: Box::new(IrTerm::Call {
+                            callee: Box::new(IrTerm::Ident(
+                                Path::new(
+                                    vec!["quartz", "std", "vec_make"]
+                                        .into_iter()
+                                        .map(|s| Ident(s.to_string()))
+                                        .collect(),
+                                )
+                                .as_joined_str("_"),
+                            )),
+                            args: vec![IrTerm::i32(5)],
+                            source: None,
+                        }),
+                    }];
+                    for arg in args {
+                        elements.push(
+                            self.statement(&mut Source::transfer(
+                                Statement::Expr(
+                                    Source::transfer(
+                                        Expr::Call(
+                                            Box::new(Source::unknown(Expr::path(Path::new(
+                                                vec!["quartz", "std", "vec_push"]
+                                                    .into_iter()
+                                                    .map(|s| Ident(s.to_string()))
+                                                    .collect(),
+                                            )))),
+                                            vec![
+                                                Source::unknown(Expr::ident(Ident(
+                                                    var_vec.clone(),
+                                                ))),
+                                                arg.clone(),
+                                            ],
+                                            None,
+                                            None,
+                                        ),
+                                        arg,
+                                    ),
+                                    Type::Nil,
+                                ),
+                                arg,
+                            ))?,
+                        );
+                    }
+                    elements.push(IrTerm::Ident(var_vec));
+
+                    Ok(IrTerm::Seq { elements })
                 }
                 Type::Map(_, _) => Ok(IrTerm::Call {
                     callee: Box::new(IrTerm::Ident(

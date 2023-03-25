@@ -991,10 +991,17 @@ impl TypeChecker {
                 }
             }
             Expr::Make(type_, args) => {
-                assert!(args.len() <= 1);
-                if args.len() == 1 {
+                if matches!(type_, Type::Ptr(_)) {
+                    assert_eq!(args.len(), 1);
+
                     let mut type_ = self.expr(&mut args[0])?;
                     self.unify(&mut type_, &mut Type::I32)?;
+                }
+                if let Type::Vec(v) = type_ {
+                    for arg in args {
+                        let mut arg_t = self.expr(arg)?;
+                        self.unify(&mut arg_t, v)?;
+                    }
                 }
 
                 Ok(type_.clone())

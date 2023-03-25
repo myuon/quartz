@@ -929,6 +929,35 @@ fun main(): i32 {
                     Value::i32(3),
                 ],
             ),
+            (
+                r#"
+fun sum(v: vec[i32]): i32 {
+    let r = 0;
+    for n in v {
+        r = r + n;
+    }
+
+    return r;
+}
+
+fun main(): i32 {
+    return sum(make[vec[i32]](1, 2, 3, 4, 5));
+}
+"#,
+                vec![
+                    Value::i32(15),
+                ],
+            ),
+            (
+                r#"
+fun main(): i32 {
+    return make[vec[string]]("hi", "how", "are", "you", "doing").length;
+}
+"#,
+                vec![
+                    Value::i32(5),
+                ],
+            ),
         ];
 
         for (input, expected) in cases {
