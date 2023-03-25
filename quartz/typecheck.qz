@@ -45,7 +45,7 @@ module Typechecker {
             return;
         }
 
-        panic("unimplemented: decl");
+        return panic("unimplemented: decl");
     }
 
     fun function(self, f: Function): nil or error {

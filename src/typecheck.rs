@@ -288,8 +288,14 @@ impl TypeChecker {
 
         self.result_type = Some(func.result.clone());
         self.block(&mut func.body)?;
-        for statement in &mut func.body {
-            self.statement(statement)?;
+        if !matches!(self.result_type, Some(Type::Nil)) && self.can_escape_block(&func.body) {
+            return Err(
+                anyhow!("function must return a value").context(ErrorInSource {
+                    path: Some(self.current_path.clone()),
+                    start: func.name.start.unwrap_or(0),
+                    end: func.name.end.unwrap_or(0),
+                }),
+            );
         }
 
         self.locals = locals;
@@ -307,6 +313,41 @@ impl TypeChecker {
         }
 
         Ok(())
+    }
+
+    fn can_escape_block(&self, statements: &Vec<Source<Statement>>) -> bool {
+        let mut can_escape = true;
+        for statement in statements {
+            match &statement.data {
+                Statement::Return(_) => {
+                    can_escape = false;
+                }
+                Statement::If(_, _, then_block, else_block) => {
+                    if !self.can_escape_block(then_block) {
+                        if let Some(else_block) = else_block {
+                            if !self.can_escape_block(else_block) {
+                                can_escape = false;
+                            }
+                        }
+                    }
+                }
+                Statement::While(_, body) => {
+                    can_escape = self.can_escape_block(body);
+                }
+                Statement::For(_, _, body) => {
+                    can_escape = self.can_escape_block(body);
+                }
+                Statement::Let(_, _, _) => {}
+                Statement::Expr(_, _) => {}
+                Statement::Assign(_, _, _) => {}
+                Statement::Continue => {}
+                Statement::Break => {
+                    return true;
+                }
+            }
+        }
+
+        can_escape
     }
 
     fn statement(&mut self, statement: &mut Source<Statement>) -> Result<()> {
@@ -1482,6 +1523,10 @@ struct Foo {
 }
 
 fun main() {}
+"#,
+            r#"
+fun main(): i32 {
+}
 "#,
         ];
         for input in cases {
