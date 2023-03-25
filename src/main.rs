@@ -179,7 +179,7 @@ fn main() -> Result<()> {
             let mut buffer = String::new();
             file.read_to_string(&mut buffer)?;
 
-            let module_path = Path::new(
+            let mut module_path = Path::new(
                 file_path
                     .clone()
                     .unwrap()
@@ -189,6 +189,9 @@ fn main() -> Result<()> {
                     .map(|s| Ident(s.to_string()))
                     .collect::<Vec<_>>(),
             );
+            if module_path.0[0].0 == "" {
+                module_path.0.remove(0);
+            }
 
             let result = compiler.check_type(
                 &project.unwrap_or(std::env::current_dir()?.to_str().unwrap().to_string()),

@@ -1165,7 +1165,7 @@ impl TypeChecker {
 
     fn set_search_node_type<T>(&mut self, type_: Type, source: &Source<T>) {
         if let Some((path, cursor)) = &self.search_node {
-            if &self.current_path == path {
+            if is_prefix_vec(&path.0, &self.current_path.0) {
                 if let None = self.search_node_type {
                     if source.start.unwrap_or(0) <= *cursor && *cursor <= source.end.unwrap_or(0) {
                         self.search_node_type = Some(type_);
@@ -1222,6 +1222,10 @@ impl TypeChecker {
             }
         }
     }
+}
+
+fn is_prefix_vec<T: PartialEq>(a: &[T], b: &[T]) -> bool {
+    a.len() <= b.len() && a.iter().zip(b).all(|(x, y)| x == y)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
