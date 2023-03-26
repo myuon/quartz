@@ -430,7 +430,7 @@ impl Compiler {
         input: &str,
         line: usize,
         column: usize,
-    ) -> Vec<String> {
+    ) -> Vec<(String, String, String)> {
         let Ok(mut module) = self.parse(cwd, module_path.clone(), input) else {
             return vec![];
         };

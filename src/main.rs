@@ -286,7 +286,15 @@ fn main() -> Result<()> {
             );
             println!(
                 "{}",
-                serde_json::to_string_pretty(&json!({ "items": result }))?
+                serde_json::to_string_pretty(
+                    &json!({ "items": result.into_iter().map(|(kind, label, type_)| 
+                        json!({
+                            "kind": kind,
+                            "label": label,
+                            "detail": type_,
+                        })
+                    ).collect::<Vec<_>>() })
+                )?
             );
         }
     }

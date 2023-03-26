@@ -1,4 +1,5 @@
 import {
+  CompletionItemKind,
   createConnection,
   Diagnostic,
   ProposedFeatures,
@@ -151,10 +152,21 @@ connection.onCompletion(async (params) => {
 
   const cargo = await execAsync(command);
   if (cargo.stdout) {
-    const result = JSON.parse(cargo.stdout) as { items: string[] };
+    const result = JSON.parse(cargo.stdout) as {
+      items: {
+        kind: "function";
+        label: string;
+        detail: string;
+      }[];
+    };
 
     return result.items.map((item) => ({
-      label: item,
+      label: item.label,
+      kind:
+        item.kind === "function"
+          ? CompletionItemKind.Function
+          : CompletionItemKind.Text,
+      detail: item.detail,
     }));
   }
 

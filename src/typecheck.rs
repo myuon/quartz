@@ -20,7 +20,7 @@ pub struct TypeChecker {
     pub search_node: Option<(Path, usize)>,
     pub search_node_type: Option<Type>,
     pub search_node_definition: Option<(Path, usize, usize)>,
-    pub completion: Option<Vec<String>>,
+    pub completion: Option<Vec<(String, String, String)>>,
 }
 
 impl TypeChecker {
@@ -1324,21 +1324,26 @@ impl TypeChecker {
         module: &mut Module,
         path: Path,
         cursor: usize,
-    ) -> Result<Option<Vec<String>>> {
+    ) -> Result<Option<Vec<(String, String, String)>>> {
         self.search_node = Some((path, cursor));
 
         let _ = self.module(module);
 
         self.completion = Some(
             self.globals
-                .keys()
-                .map(|k| {
-                    k.remove_prefix(&Path::new(vec![
-                        Ident("quartz".to_string()),
-                        Ident("std".to_string()),
-                    ]))
-                    .as_str()
-                    .to_string()
+                .clone()
+                .into_iter()
+                .map(|(k, v)| {
+                    (
+                        "function".to_string(),
+                        k.remove_prefix(&Path::new(vec![
+                            Ident("quartz".to_string()),
+                            Ident("std".to_string()),
+                        ]))
+                        .as_str()
+                        .to_string(),
+                        v.data.to_string(),
+                    )
                 })
                 .collect::<Vec<_>>(),
         );
