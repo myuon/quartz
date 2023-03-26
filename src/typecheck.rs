@@ -20,6 +20,7 @@ pub struct TypeChecker {
     pub search_node: Option<(Path, usize)>,
     pub search_node_type: Option<Type>,
     pub search_node_definition: Option<(Path, usize, usize)>,
+    pub completion: Option<Vec<(String, String, String)>>,
 }
 
 impl TypeChecker {
@@ -106,6 +107,7 @@ impl TypeChecker {
             search_node: None,
             search_node_type: None,
             search_node_definition: None,
+            completion: None,
         }
     }
 
@@ -145,7 +147,9 @@ impl TypeChecker {
                     self.current_path = path;
                 }
                 Decl::Import(path) => {
-                    self.imported.push(path.clone());
+                    if !self.imported.iter().any(|p| p == path) {
+                        self.imported.push(path.clone());
+                    }
                 }
             }
         }
@@ -156,7 +160,10 @@ impl TypeChecker {
     fn module_typecheck(&mut self, module: &mut Module) -> Result<()> {
         for decl in &mut module.0 {
             self.locals.clear();
-            self.decl(decl)?;
+            let result = self.decl(decl);
+            if result.is_ok() || !self.search_node.is_some() {
+                result?;
+            }
         }
 
         Ok(())
@@ -562,6 +569,7 @@ impl TypeChecker {
                 if let Ok(type_) = self.ident_local(ident) {
                     self.set_search_node_type(type_.data.clone(), expr);
                     self.set_search_node_definition(self.current_path.clone(), &type_, expr);
+                    self.set_completion(type_.data.clone(), expr);
 
                     return Ok(type_.data);
                 }
@@ -911,6 +919,7 @@ impl TypeChecker {
 
                     let t = fields[label].clone();
                     self.set_search_node_type(t.clone(), expr);
+                    self.set_completion(t.clone(), expr);
 
                     Ok(t)
                 } else {
@@ -1074,6 +1083,8 @@ impl TypeChecker {
 
                     let wrapperd_type_element = *wrapped_type.to_optional()?.clone();
                     *type_ = wrapperd_type_element.clone();
+
+                    self.set_completion(type_.clone(), expr);
 
                     Ok(wrapperd_type_element)
                 } else if matches!(expr_type, Type::Or(_, _)) {
@@ -1316,6 +1327,97 @@ impl TypeChecker {
             }
         }
     }
+
+    pub fn completion(
+        &mut self,
+        module: &mut Module,
+        path: Path,
+        cursor: usize,
+        dot: bool,
+    ) -> Result<Option<Vec<(String, String, String)>>> {
+        self.search_node = Some((path, cursor));
+
+        let _ = self.module(module);
+
+        if !dot {
+            self.completion = Some(
+                self.globals
+                    .clone()
+                    .into_iter()
+                    .map(|(k, v)| {
+                        (
+                            "function".to_string(),
+                            k.remove_prefix(&Path::new(vec![
+                                Ident("quartz".to_string()),
+                                Ident("std".to_string()),
+                            ]))
+                            .as_str()
+                            .to_string(),
+                            v.data.to_string(),
+                        )
+                    })
+                    .collect::<Vec<_>>(),
+            );
+        }
+
+        Ok(self.completion.clone())
+    }
+
+    fn set_completion<T>(&mut self, type_: Type, source: &Source<T>) {
+        if let Some((path, cursor)) = self.search_node.clone() {
+            if is_prefix_vec(&path.0, &self.current_path.0) {
+                // UGLY HACK: For dot completion, some nodes are skipped. So we need to search nodes for a bit wider range.
+                if source.start.unwrap_or(0) <= cursor && cursor <= source.end.unwrap_or(0) + 5 {
+                    let mut completion = vec![];
+
+                    // field completion
+                    if let Ok(rs) = self.resolve_record_type(type_.clone(), vec![]) {
+                        for (field, type_) in rs {
+                            completion.push(("field".to_string(), field.0, type_.to_string()));
+                        }
+                    }
+
+                    // method completion
+                    if let Ok(ident) = type_.clone().to_ident() {
+                        let search_path = Path::ident(ident.clone());
+
+                        for mut import_path in self.imported.clone() {
+                            import_path.extend(&search_path);
+                            for (k, v) in &self.globals {
+                                if k.starts_with(&import_path) {
+                                    let label = k.remove_prefix(&import_path);
+
+                                    completion.push((
+                                        "function".to_string(),
+                                        label.0[0].clone().0,
+                                        v.data.to_string(),
+                                    ));
+                                }
+                            }
+                        }
+                    }
+
+                    // special syntax
+                    if let Type::Optional(_) = type_ {
+                        completion.push((
+                            "keyword".to_string(),
+                            "!".to_string(),
+                            "unwrap".to_string(),
+                        ));
+                    }
+                    if let Type::Or(_, _) = type_ {
+                        completion.push((
+                            "keyword".to_string(),
+                            "try".to_string(),
+                            "try".to_string(),
+                        ));
+                    }
+
+                    self.completion = Some(completion);
+                }
+            }
+        }
+    }
 }
 
 fn is_prefix_vec<T: PartialEq>(a: &[T], b: &[T]) -> bool {
@@ -1551,7 +1653,7 @@ fun main() {
         for input in cases {
             let mut compiler = Compiler::new();
             let mut parsed = compiler
-                .parse("", Path::ident(Ident("main".to_string())), input)
+                .parse("", Path::ident(Ident("main".to_string())), input, true)
                 .unwrap();
 
             let mut typechecker = TypeChecker::new();

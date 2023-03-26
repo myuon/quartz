@@ -1,4 +1,5 @@
 import {
+  CompletionItemKind,
   createConnection,
   Diagnostic,
   ProposedFeatures,
@@ -22,6 +23,9 @@ connection.onInitialize(() => {
       textDocumentSync: TextDocumentSyncKind.Full,
       hoverProvider: true,
       definitionProvider: true,
+      completionProvider: {
+        triggerCharacters: ["."],
+      },
     },
   };
 });
@@ -30,13 +34,17 @@ connection.onInitialized(() => {
   connection.console.log("Initialized!");
 });
 
+let currentContent = "";
+
 documents.onDidChangeContent(async (change) => {
+  currentContent = change.document.getText();
+
   const diagnostics: Diagnostic[] = [];
 
   const file = change.document.uri.replace("file://", "");
 
   const cargo = await execAsync(
-    `cargo run --manifest-path ${path.join(
+    `cargo run --release --manifest-path ${path.join(
       file,
       "..",
       "..",
@@ -70,7 +78,7 @@ connection.onHover(async (params) => {
   const file = params.textDocument.uri.replace("file://", "");
   console.log(params);
 
-  const command = `cargo run --manifest-path ${path.join(
+  const command = `cargo run --release --manifest-path ${path.join(
     file,
     "..",
     "..",
@@ -90,7 +98,7 @@ connection.onDefinition(async (params) => {
   console.log(params);
 
   const cargo = await execAsync(
-    `cargo run --manifest-path ${path.join(
+    `cargo run --release --manifest-path ${path.join(
       file,
       "..",
       "..",
@@ -130,6 +138,49 @@ connection.onDefinition(async (params) => {
   }
 
   return null;
+});
+
+connection.onCompletion(async (params) => {
+  console.log("completion", params);
+  const file = params.textDocument.uri.replace("file://", "");
+  const isDotCompletion = params.context?.triggerCharacter === ".";
+
+  const command = `cargo run --release --manifest-path ${path.join(
+    file,
+    "..",
+    "..",
+    "Cargo.toml"
+  )} -- completion ${file} --project ${path.join(file, "..", "..")} --line ${
+    params.position.line
+  } --column ${params.position.character} ${
+    isDotCompletion ? "--dot" : ""
+  } --stdin <<EOF\n${currentContent}\nEOF\n`;
+  console.log(command);
+
+  const cargo = await execAsync(command);
+  if (cargo.stdout) {
+    const result = JSON.parse(cargo.stdout) as {
+      items: {
+        kind: "function" | "field" | "keyword";
+        label: string;
+        detail: string;
+      }[];
+    };
+    const kindMap = {
+      function: CompletionItemKind.Function,
+      field: CompletionItemKind.Field,
+      keyword: CompletionItemKind.Keyword,
+    };
+
+    return result.items.map((item) => ({
+      label: item.label,
+      insertText: item.kind === "function" ? `${item.label}()` : item.label,
+      kind: kindMap[item.kind],
+      detail: item.detail,
+    }));
+  }
+
+  return undefined;
 });
 
 documents.listen(connection);

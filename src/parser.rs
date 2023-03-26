@@ -14,6 +14,7 @@ pub struct Parser {
     omit_index: usize,
     pub imports: Vec<Path>,
     current_path: Path,
+    skip_errors: bool,
 }
 
 impl Parser {
@@ -24,12 +25,14 @@ impl Parser {
             omit_index: 0,
             imports: vec![],
             current_path: Path::empty(),
+            skip_errors: false,
         }
     }
 
-    pub fn run(&mut self, input: Vec<Token>, path: Path) -> Result<Module> {
+    pub fn run(&mut self, input: Vec<Token>, path: Path, skip_errors: bool) -> Result<Module> {
         self.input = input;
         self.current_path = path;
+        self.skip_errors = skip_errors;
         self.module()
     }
 
@@ -37,7 +40,10 @@ impl Parser {
         let mut decls = vec![];
 
         while !self.is_end() && self.peek()?.lexeme != Lexeme::RBrace {
-            decls.push(self.decl()?);
+            let result = self.decl();
+            if result.is_ok() || !self.skip_errors {
+                decls.push(result?);
+            }
         }
 
         Ok(Module(decls))
@@ -216,8 +222,11 @@ impl Parser {
         let mut statements = vec![];
         while !self.is_end() && self.peek()?.lexeme != Lexeme::RBrace {
             let position = self.position;
-            let statement = self.statement()?;
-            statements.push(self.source_from(statement, position));
+            let result = self.statement();
+            if result.is_ok() || !self.skip_errors {
+                let statement = result?;
+                statements.push(self.source_from(statement, position));
+            }
         }
         Ok(statements)
     }
@@ -331,15 +340,22 @@ impl Parser {
                             Box::new(value),
                         ))
                     }
-                    _ => Err(
-                        anyhow!("Unexpected token {:?}", self.peek()?.lexeme).context(
-                            ErrorInSource {
-                                path: Some(self.current_path.clone()),
-                                start: self.input[self.position].position,
-                                end: self.input[self.position].position,
-                            },
-                        ),
-                    ),
+                    _ => {
+                        // Mainly for dot completion
+                        if self.skip_errors {
+                            Ok(Statement::Expr(expr, Type::Omit(0)))
+                        } else {
+                            Err(
+                                anyhow!("Unexpected token {:?}", self.peek()?.lexeme).context(
+                                    ErrorInSource {
+                                        path: Some(self.current_path.clone()),
+                                        start: self.input[self.position].position,
+                                        end: self.input[self.position].position,
+                                    },
+                                ),
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -723,16 +739,9 @@ impl Parser {
                 Lexeme::Dot => {
                     self.consume()?;
 
-                    if self.peek()?.lexeme == Lexeme::Try {
-                        self.consume()?;
-                        current = self.source_from(Expr::Try(Box::new(current)), position);
-                    } else {
-                        let position = self.position;
-                        let ident = self.ident()?;
-                        let field = self.source_from(Path::ident(ident), position);
-                        let omit = self.gen_omit()?;
-                        current = self
-                            .source_from(Expr::Project(Box::new(current), omit, field), position);
+                    let result = self.dot_after(current.clone(), position);
+                    if result.is_ok() || !self.skip_errors {
+                        current = result?;
                     }
                 }
                 Lexeme::LBrace if with_struct => {
@@ -884,16 +893,41 @@ impl Parser {
         Ok(current)
     }
 
+    fn dot_after(&mut self, current: Source<Expr>, position: usize) -> Result<Source<Expr>> {
+        if self.peek()?.lexeme == Lexeme::Try {
+            self.consume()?;
+
+            Ok(self.source_from(Expr::Try(Box::new(current)), position))
+        } else {
+            let position = self.position;
+            let ident = self.ident()?;
+            let field = self.source_from(Path::ident(ident), position);
+            let omit = self.gen_omit()?;
+
+            Ok(self.source_from(Expr::Project(Box::new(current), omit, field), position))
+        }
+    }
+
     fn ident(&mut self) -> Result<Ident> {
-        let current = self.consume()?;
+        let current = self.peek()?;
         if let Lexeme::Ident(ident) = &current.lexeme {
+            self.consume()?;
+
             Ok(Ident(ident.clone()))
         } else {
             Err(
                 anyhow!("Expected identifier, got {:?}", current.lexeme).context(ErrorInSource {
                     path: Some(self.current_path.clone()),
-                    start: self.input[self.position].position,
-                    end: self.input[self.position + 1].position,
+                    start: self
+                        .input
+                        .get(self.position)
+                        .map(|p| p.position)
+                        .unwrap_or(0),
+                    end: self
+                        .input
+                        .get(self.position + 1)
+                        .map(|p| p.position)
+                        .unwrap_or(0),
                 }),
             )
         }
