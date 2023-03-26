@@ -1126,26 +1126,32 @@ fn test_expr() -> Result<()> {
             Token {
                 lexeme: Lexeme::Ident("a".to_string()),
                 position: 0,
+                raw: "a".to_string(),
             },
             Token {
                 lexeme: Lexeme::Minus,
                 position: 0,
+                raw: "-".to_string(),
             },
             Token {
                 lexeme: Lexeme::Ident("b".to_string()),
                 position: 0,
+                raw: "b".to_string(),
             },
             Token {
                 lexeme: Lexeme::Minus,
                 position: 0,
+                raw: "-".to_string(),
             },
             Token {
                 lexeme: Lexeme::Ident("c".to_string()),
                 position: 0,
+                raw: "c".to_string(),
             },
             Token {
                 lexeme: Lexeme::Semicolon,
                 position: 0,
+                raw: ";".to_string(),
             },
         ],
         source(Expr::BinOp(

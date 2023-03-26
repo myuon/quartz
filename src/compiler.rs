@@ -9,7 +9,7 @@ use crate::{
     generator::Generator,
     ir::IrTerm,
     ir_code_gen::IrCodeGenerator,
-    lexer::Lexer,
+    lexer::{Lexer, Token},
     parser::Parser,
     typecheck::TypeChecker,
     util::{ident::Ident, path::Path},
@@ -126,6 +126,14 @@ impl Compiler {
         Path::ident(Ident("main".to_string()))
     }
 
+    pub fn run_lexer(input: &str, path: Path) -> Result<Vec<Token>> {
+        let mut lexer = Lexer::new();
+
+        lexer.run(input, path)?;
+
+        Ok(lexer.tokens)
+    }
+
     pub fn parse(
         &mut self,
         cwd: &str,
@@ -133,12 +141,11 @@ impl Compiler {
         input: &str,
         skip_errors: bool,
     ) -> Result<Module> {
-        let mut lexer = Lexer::new();
         let mut parser = Parser::new();
 
-        lexer.run(input, main_path.clone()).context("lexer phase")?;
+        let tokens = Compiler::run_lexer(input, main_path.clone())?;
         let main = parser
-            .run(lexer.tokens, main_path.clone(), skip_errors)
+            .run(tokens, main_path.clone(), skip_errors)
             .context("parser phase")?;
 
         self.loader.loaded.push(LoadedModule {
@@ -479,6 +486,12 @@ impl Compiler {
         } else {
             bail!("No definition found")
         }
+    }
+
+    pub fn format(input: &str) -> Result<String> {
+        let tokens = Compiler::run_lexer(input, Path::ident(Ident("main".to_string())))?;
+
+        Ok(String::new())
     }
 }
 

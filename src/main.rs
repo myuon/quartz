@@ -1,5 +1,6 @@
 mod ast;
 mod compiler;
+mod formatter;
 mod generator;
 mod ir;
 mod ir_code_gen;
@@ -100,6 +101,13 @@ enum SubCommand {
         stdin: bool,
         #[clap(long)]
         dot: bool,
+
+        file: Option<String>,
+    },
+    #[clap(name = "format", about = "Format")]
+    Format {
+        #[clap(long)]
+        write: bool,
 
         file: Option<String>,
     },
@@ -308,6 +316,20 @@ fn main() -> Result<()> {
                     ).collect::<Vec<_>>() })
                 )?
             );
+        }
+        SubCommand::Format { write, file } => {
+            let path = file.ok_or(anyhow::anyhow!("No file specified"))?;
+            let mut file = std::fs::File::open(path.clone())?;
+            let mut buffer = String::new();
+            file.read_to_string(&mut buffer)?;
+
+            let formatted = Compiler::format(&buffer)?;
+            if write {
+                let mut file = std::fs::File::create(path)?;
+                file.write_all(formatted.as_bytes())?;
+            } else {
+                println!("{}", formatted);
+            }
         }
     }
 
