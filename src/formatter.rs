@@ -4,26 +4,35 @@ use anyhow::Result;
 
 use crate::lexer::{Lexeme, Token};
 
+#[derive(Clone)]
 enum BlockType {
     Paren,   // ()
     Brace,   // {}
     Bracket, // []
 }
 
+#[derive(Clone)]
 enum Fragment {
     Token(Token),
     Block(BlockType, Vec<Sequence>),
 }
 
+#[derive(Clone)]
 struct Sequence(Vec<Fragment>);
 
 struct FWriter {
+    max_width: usize,
+    indent_size: usize,
     column: usize,
 }
 
 impl FWriter {
-    pub fn new() -> FWriter {
-        FWriter { column: 0 }
+    pub fn new(max_width: usize, indent_size: usize) -> FWriter {
+        FWriter {
+            column: 0,
+            max_width,
+            indent_size,
+        }
     }
 
     fn write(&mut self, writer: &mut impl Write, raw: String) {
@@ -46,12 +55,26 @@ impl FWriter {
                 write!(writer, "{}", token.raw).unwrap();
             }
             Fragment::Block(block_type, items) => {
-                self.block(writer, block_type, items);
+                let mut new_writer = BufWriter::new(Vec::new());
+                self.block_in_line(&mut new_writer, block_type.clone(), items.clone());
+                let new_writer_string =
+                    String::from_utf8(new_writer.into_inner().unwrap()).unwrap();
+
+                if self.column + new_writer_string.len() > self.max_width {
+                    self.block_in_block(writer, block_type.clone(), items.clone());
+                } else {
+                    write!(writer, "{}", new_writer_string).unwrap();
+                }
             }
         }
     }
 
-    fn block(&mut self, writer: &mut impl Write, block_type: BlockType, items: Vec<Sequence>) {
+    fn block_in_line(
+        &mut self,
+        writer: &mut impl Write,
+        block_type: BlockType,
+        items: Vec<Sequence>,
+    ) {
         match block_type {
             BlockType::Paren => {
                 write!(writer, "(").unwrap();
@@ -84,12 +107,56 @@ impl FWriter {
             }
         }
     }
+
+    fn block_in_block(
+        &mut self,
+        writer: &mut impl Write,
+        block_type: BlockType,
+        items: Vec<Sequence>,
+    ) {
+        match block_type {
+            BlockType::Paren => {
+                write!(writer, "(").unwrap();
+            }
+            BlockType::Brace => {
+                write!(writer, "{{").unwrap();
+            }
+            BlockType::Bracket => {
+                write!(writer, "[").unwrap();
+            }
+        }
+
+        self.column += 1;
+
+        for item in items {
+            write!(writer, "\n").unwrap();
+            write!(writer, "{}", " ".repeat(self.indent_size)).unwrap();
+            self.sequence(writer, item);
+        }
+
+        write!(writer, "\n").unwrap();
+
+        self.column -= 1;
+
+        match block_type {
+            BlockType::Paren => {
+                write!(writer, ")").unwrap();
+            }
+            BlockType::Brace => {
+                write!(writer, "}}").unwrap();
+            }
+            BlockType::Bracket => {
+                write!(writer, "]").unwrap();
+            }
+        }
+    }
 }
 
 struct Formatter {
     input: Vec<Token>,
     position: usize,
     max_width: usize,
+    indent_size: usize,
 }
 
 impl Formatter {
@@ -98,6 +165,7 @@ impl Formatter {
             input,
             position: 0,
             max_width: 110,
+            indent_size: 4,
         }
     }
 
@@ -202,7 +270,7 @@ impl Formatter {
     pub fn write_to(&mut self, writer: &mut impl Write) {
         let sequence = self.parse();
 
-        let mut fwriter = FWriter::new();
+        let mut fwriter = FWriter::new(self.max_width, self.indent_size);
         fwriter.write_to(writer, sequence);
     }
 }
@@ -230,7 +298,17 @@ mod tests {
             "(a, b, c)",
             "[a, b, c]",
             "{a, b, c}",
-            "(sooooooooooooooooo, loooooooooooooooong, loooooooooooooooong, loooooooooooooooong, loooooooooooooooong, loooooooooooooooong, text)",
+            r#"
+(
+    sooooooooooooooooo,
+    loooooooooooooooong,
+    loooooooooooooooong,
+    loooooooooooooooong,
+    loooooooooooooooong,
+    loooooooooooooooong,
+    text
+)"#
+            .trim_start(),
         ];
         for input in cases {
             let tokens = Compiler::run_lexer(input, Path::empty()).unwrap();
