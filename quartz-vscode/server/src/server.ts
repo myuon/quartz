@@ -44,7 +44,7 @@ documents.onDidChangeContent(async (change) => {
   const file = change.document.uri.replace("file://", "");
 
   const cargo = await execAsync(
-    `cargo run --manifest-path ${path.join(
+    `cargo run --release --manifest-path ${path.join(
       file,
       "..",
       "..",
@@ -78,7 +78,7 @@ connection.onHover(async (params) => {
   const file = params.textDocument.uri.replace("file://", "");
   console.log(params);
 
-  const command = `cargo run --manifest-path ${path.join(
+  const command = `cargo run --release --manifest-path ${path.join(
     file,
     "..",
     "..",
@@ -98,7 +98,7 @@ connection.onDefinition(async (params) => {
   console.log(params);
 
   const cargo = await execAsync(
-    `cargo run --manifest-path ${path.join(
+    `cargo run --release --manifest-path ${path.join(
       file,
       "..",
       "..",
@@ -145,7 +145,7 @@ connection.onCompletion(async (params) => {
   const file = params.textDocument.uri.replace("file://", "");
   const isDotCompletion = params.context?.triggerCharacter === ".";
 
-  const command = `cargo run --manifest-path ${path.join(
+  const command = `cargo run --release --manifest-path ${path.join(
     file,
     "..",
     "..",

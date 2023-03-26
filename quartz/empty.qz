@@ -1,9 +1,0 @@
-struct Foo {
-  x: i32,
-  y: Foo?,
-}
-
-fun main() {
-  let f = Foo {x: 42, y: Foo {x: 39, y: nil as Foo?}? };
-  let x = 10;
-}
