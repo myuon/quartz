@@ -96,6 +96,8 @@ enum SubCommand {
         line: usize,
         #[clap(long)]
         column: usize,
+        #[clap(long)]
+        stdin: bool,
 
         file: Option<String>,
     },
@@ -274,13 +276,19 @@ fn main() -> Result<()> {
             line,
             column,
             file,
+            stdin,
         } => {
             let package = load_project(&file.unwrap(), &project)?;
+            let input = if stdin {
+                read_from_stdin()
+            } else {
+                package.source
+            };
 
             let result = compiler.completion(
                 &package.project_path,
                 package.module_path,
-                &package.source,
+                &input,
                 line,
                 column,
             );

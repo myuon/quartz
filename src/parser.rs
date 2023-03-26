@@ -892,8 +892,16 @@ impl Parser {
             Err(
                 anyhow!("Expected identifier, got {:?}", current.lexeme).context(ErrorInSource {
                     path: Some(self.current_path.clone()),
-                    start: self.input[self.position].position,
-                    end: self.input[self.position + 1].position,
+                    start: self
+                        .input
+                        .get(self.position)
+                        .map(|p| p.position)
+                        .unwrap_or(0),
+                    end: self
+                        .input
+                        .get(self.position + 1)
+                        .map(|p| p.position)
+                        .unwrap_or(0),
                 }),
             )
         }

@@ -1,0 +1,9 @@
+struct Foo {
+  x: i32,
+}
+
+fun main() {
+  let f = Foo {x: 42};
+
+  f.
+}

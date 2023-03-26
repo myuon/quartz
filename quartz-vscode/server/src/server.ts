@@ -34,7 +34,11 @@ connection.onInitialized(() => {
   connection.console.log("Initialized!");
 });
 
+let currentContent = "";
+
 documents.onDidChangeContent(async (change) => {
+  currentContent = change.document.getText();
+
   const diagnostics: Diagnostic[] = [];
 
   const file = change.document.uri.replace("file://", "");
@@ -147,7 +151,9 @@ connection.onCompletion(async (params) => {
     "Cargo.toml"
   )} -- completion ${file} --project ${path.join(file, "..", "..")} --line ${
     params.position.line
-  } --column ${params.position.character}`;
+  } --column ${
+    params.position.character
+  } --stdin <<EOF\n${currentContent}\nEOF\n`;
   console.log(command);
 
   const cargo = await execAsync(command);
