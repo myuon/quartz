@@ -4,6 +4,7 @@ struct Foo {
 
 fun main() {
   let f = Foo {x: 42};
+  let x = 10;
 
-  f.
+  x.to_string()
 }

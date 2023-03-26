@@ -352,11 +352,6 @@ impl TypeChecker {
                 return Ok(());
             }
         }
-        if let Some((path, _)) = self.search_node.clone() {
-            if self.current_path == path {
-                println!("{:?}", statement);
-            }
-        }
 
         match &mut statement.data {
             Statement::Let(pattern, type_, expr) => {
@@ -569,6 +564,7 @@ impl TypeChecker {
                 if let Ok(type_) = self.ident_local(ident) {
                     self.set_search_node_type(type_.data.clone(), expr);
                     self.set_search_node_definition(self.current_path.clone(), &type_, expr);
+                    self.set_completion(type_.data.clone(), expr);
 
                     return Ok(type_.data);
                 }
@@ -1357,6 +1353,46 @@ impl TypeChecker {
         }
 
         Ok(self.completion.clone())
+    }
+
+    fn set_completion<T>(&mut self, type_: Type, source: &Source<T>) {
+        if let Some((path, cursor)) = self.search_node.clone() {
+            if is_prefix_vec(&path.0, &self.current_path.0) {
+                // UGLY HACK: For dot completion, some nodes are skipped. So we need to search nodes for a bit wider range.
+                if source.start.unwrap_or(0) <= cursor && cursor <= source.end.unwrap_or(0) + 5 {
+                    let mut completion = vec![];
+
+                    // field completion
+                    if let Ok(rs) = self.resolve_record_type(type_.clone(), vec![]) {
+                        for (field, type_) in rs {
+                            completion.push(("field".to_string(), field.0, type_.to_string()));
+                        }
+                    }
+
+                    // method completion
+                    if let Ok(ident) = type_.to_ident() {
+                        let search_path = Path::ident(ident.clone());
+
+                        for mut import_path in self.imported.clone() {
+                            import_path.extend(&search_path);
+                            for (k, v) in &self.globals {
+                                if k.starts_with(&import_path) {
+                                    let label = k.remove_prefix(&import_path);
+
+                                    completion.push((
+                                        "function".to_string(),
+                                        label.0[0].clone().0,
+                                        v.data.to_string(),
+                                    ));
+                                }
+                            }
+                        }
+                    }
+
+                    self.completion = Some(completion);
+                }
+            }
+        }
     }
 }
 

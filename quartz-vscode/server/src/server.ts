@@ -161,7 +161,7 @@ connection.onCompletion(async (params) => {
   if (cargo.stdout) {
     const result = JSON.parse(cargo.stdout) as {
       items: {
-        kind: "function";
+        kind: "function" | "field";
         label: string;
         detail: string;
       }[];
@@ -172,6 +172,8 @@ connection.onCompletion(async (params) => {
       kind:
         item.kind === "function"
           ? CompletionItemKind.Function
+          : item.kind === "field"
+          ? CompletionItemKind.Field
           : CompletionItemKind.Text,
       detail: item.detail,
     }));

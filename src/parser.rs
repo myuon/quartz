@@ -909,8 +909,10 @@ impl Parser {
     }
 
     fn ident(&mut self) -> Result<Ident> {
-        let current = self.consume()?;
+        let current = self.peek()?;
         if let Lexeme::Ident(ident) = &current.lexeme {
+            self.consume()?;
+
             Ok(Ident(ident.clone()))
         } else {
             Err(
