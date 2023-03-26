@@ -17,16 +17,30 @@ enum Fragment {
 
 struct Sequence(Vec<Fragment>);
 
-struct FWriter {}
+struct FWriter {
+    column: usize,
+}
 
 impl FWriter {
-    pub fn sequence(&mut self, writer: &mut impl Write, sequence: Sequence) {
+    pub fn new() -> FWriter {
+        FWriter { column: 0 }
+    }
+
+    fn write(&mut self, writer: &mut impl Write, raw: String) {
+        write!(writer, "{}", raw).unwrap();
+    }
+
+    fn write_to(&mut self, writer: &mut impl Write, sequence: Sequence) {
+        self.sequence(writer, sequence)
+    }
+
+    fn sequence(&mut self, writer: &mut impl Write, sequence: Sequence) {
         for fragment in sequence.0 {
             self.fragment(writer, fragment);
         }
     }
 
-    pub fn fragment(&mut self, writer: &mut impl Write, fragment: Fragment) {
+    fn fragment(&mut self, writer: &mut impl Write, fragment: Fragment) {
         match fragment {
             Fragment::Token(token) => {
                 write!(writer, "{}", token.raw).unwrap();
@@ -37,20 +51,24 @@ impl FWriter {
         }
     }
 
-    pub fn block(&mut self, writer: &mut impl Write, block_type: BlockType, items: Vec<Sequence>) {
+    fn block(&mut self, writer: &mut impl Write, block_type: BlockType, items: Vec<Sequence>) {
         match block_type {
             BlockType::Paren => {
-                write!(writer, "{}", "(").unwrap();
+                write!(writer, "(").unwrap();
             }
             BlockType::Brace => {
-                write!(writer, "{}", "{").unwrap();
+                write!(writer, "{{").unwrap();
             }
             BlockType::Bracket => {
-                write!(writer, "{}", "[").unwrap();
+                write!(writer, "[").unwrap();
             }
         }
 
-        for item in items {
+        for (index, item) in items.into_iter().enumerate() {
+            if index > 0 {
+                write!(writer, " ").unwrap();
+            }
+
             self.sequence(writer, item);
         }
 
@@ -71,11 +89,16 @@ impl FWriter {
 struct Formatter {
     input: Vec<Token>,
     position: usize,
+    max_width: usize,
 }
 
 impl Formatter {
     pub fn new(input: Vec<Token>) -> Formatter {
-        Formatter { input, position: 0 }
+        Formatter {
+            input,
+            position: 0,
+            max_width: 110,
+        }
     }
 
     fn peek(&self) -> Option<Token> {
@@ -87,22 +110,43 @@ impl Formatter {
     }
 
     pub fn parse(&mut self) -> Sequence {
-        self.sequence()
+        self.sequence(vec![], vec![])
     }
 
-    pub fn sequence(&mut self) -> Sequence {
+    pub fn sequence(&mut self, sep_tokens: Vec<Lexeme>, end_tokens: Vec<Lexeme>) -> Sequence {
         let mut fragments = Vec::new();
 
         while let Some(token) = self.peek() {
-            match token.lexeme {
+            match &token.lexeme {
                 Lexeme::LParen => {
+                    self.consume();
+
                     fragments.push(self.block(BlockType::Paren));
                 }
-                Lexeme::Comma => {
-                    fragments.push(Fragment::Token(token.clone()));
+                Lexeme::LBrace => {
+                    self.consume();
+
+                    fragments.push(self.block(BlockType::Brace));
+                }
+                Lexeme::LBracket => {
+                    self.consume();
+
+                    fragments.push(self.block(BlockType::Bracket));
+                }
+                lexeme if sep_tokens.contains(lexeme) => {
+                    self.consume();
+                    fragments.push(Fragment::Token(token));
+
+                    break;
+                }
+                lexeme if end_tokens.contains(lexeme) => {
+                    self.consume();
+
                     break;
                 }
                 _ => {
+                    self.consume();
+
                     fragments.push(Fragment::Token(token.clone()));
                 }
             }
@@ -115,20 +159,39 @@ impl Formatter {
         let mut items = Vec::new();
 
         while let Some(token) = self.peek() {
-            self.consume();
-
             match token.lexeme {
                 Lexeme::RParen if matches!(block_type, BlockType::Paren) => {
+                    self.consume();
+
                     break;
                 }
                 Lexeme::RBrace if matches!(block_type, BlockType::Brace) => {
+                    self.consume();
+
                     break;
                 }
                 Lexeme::RBracket if matches!(block_type, BlockType::Bracket) => {
+                    self.consume();
+
                     break;
                 }
                 _ => {
-                    items.push(self.sequence());
+                    items.push(self.sequence(
+                        match block_type {
+                            BlockType::Paren => vec![Lexeme::Comma],
+                            BlockType::Brace => {
+                                vec![Lexeme::Comma, Lexeme::Semicolon]
+                            }
+                            BlockType::Bracket => vec![Lexeme::Comma],
+                        },
+                        match block_type {
+                            BlockType::Paren => vec![Lexeme::RParen],
+                            BlockType::Brace => {
+                                vec![Lexeme::RBrace]
+                            }
+                            BlockType::Bracket => vec![Lexeme::RBracket],
+                        },
+                    ));
                 }
             }
         }
@@ -139,8 +202,8 @@ impl Formatter {
     pub fn write_to(&mut self, writer: &mut impl Write) {
         let sequence = self.parse();
 
-        let mut fwriter = FWriter {};
-        fwriter.sequence(writer, sequence);
+        let mut fwriter = FWriter::new();
+        fwriter.write_to(writer, sequence);
     }
 }
 
@@ -163,7 +226,12 @@ mod tests {
 
     #[test]
     fn test_formatter() {
-        let cases = vec!["(a, b, c)"];
+        let cases = vec![
+            "(a, b, c)",
+            "[a, b, c]",
+            "{a, b, c}",
+            "(sooooooooooooooooo, loooooooooooooooong, loooooooooooooooong, loooooooooooooooong, loooooooooooooooong, loooooooooooooooong, text)",
+        ];
         for input in cases {
             let tokens = Compiler::run_lexer(input, Path::empty()).unwrap();
             let result = run_formatter(tokens).unwrap();
