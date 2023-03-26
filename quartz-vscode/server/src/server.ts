@@ -161,20 +161,21 @@ connection.onCompletion(async (params) => {
   if (cargo.stdout) {
     const result = JSON.parse(cargo.stdout) as {
       items: {
-        kind: "function" | "field";
+        kind: "function" | "field" | "keyword";
         label: string;
         detail: string;
       }[];
     };
+    const kindMap = {
+      function: CompletionItemKind.Function,
+      field: CompletionItemKind.Field,
+      keyword: CompletionItemKind.Keyword,
+    };
 
     return result.items.map((item) => ({
       label: item.label,
-      kind:
-        item.kind === "function"
-          ? CompletionItemKind.Function
-          : item.kind === "field"
-          ? CompletionItemKind.Field
-          : CompletionItemKind.Text,
+      insertText: item.kind === "function" ? `${item.label}()` : item.label,
+      kind: kindMap[item.kind],
       detail: item.detail,
     }));
   }

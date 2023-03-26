@@ -1378,7 +1378,7 @@ impl TypeChecker {
                     }
 
                     // method completion
-                    if let Ok(ident) = type_.to_ident() {
+                    if let Ok(ident) = type_.clone().to_ident() {
                         let search_path = Path::ident(ident.clone());
 
                         for mut import_path in self.imported.clone() {
@@ -1395,6 +1395,22 @@ impl TypeChecker {
                                 }
                             }
                         }
+                    }
+
+                    // special syntax
+                    if let Type::Optional(_) = type_ {
+                        completion.push((
+                            "keyword".to_string(),
+                            "!".to_string(),
+                            "unwrap".to_string(),
+                        ));
+                    }
+                    if let Type::Or(_, _) = type_ {
+                        completion.push((
+                            "keyword".to_string(),
+                            "try".to_string(),
+                            "try".to_string(),
+                        ));
                     }
 
                     self.completion = Some(completion);
