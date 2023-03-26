@@ -147,7 +147,9 @@ impl TypeChecker {
                     self.current_path = path;
                 }
                 Decl::Import(path) => {
-                    self.imported.push(path.clone());
+                    if !self.imported.iter().any(|p| p == path) {
+                        self.imported.push(path.clone());
+                    }
                 }
             }
         }
