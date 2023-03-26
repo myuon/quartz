@@ -352,6 +352,11 @@ impl TypeChecker {
                 return Ok(());
             }
         }
+        if let Some((path, _)) = self.search_node.clone() {
+            if self.current_path == path {
+                println!("{:?}", statement);
+            }
+        }
 
         match &mut statement.data {
             Statement::Let(pattern, type_, expr) => {
@@ -1324,29 +1329,32 @@ impl TypeChecker {
         module: &mut Module,
         path: Path,
         cursor: usize,
+        dot: bool,
     ) -> Result<Option<Vec<(String, String, String)>>> {
         self.search_node = Some((path, cursor));
 
         let _ = self.module(module);
 
-        self.completion = Some(
-            self.globals
-                .clone()
-                .into_iter()
-                .map(|(k, v)| {
-                    (
-                        "function".to_string(),
-                        k.remove_prefix(&Path::new(vec![
-                            Ident("quartz".to_string()),
-                            Ident("std".to_string()),
-                        ]))
-                        .as_str()
-                        .to_string(),
-                        v.data.to_string(),
-                    )
-                })
-                .collect::<Vec<_>>(),
-        );
+        if !dot {
+            self.completion = Some(
+                self.globals
+                    .clone()
+                    .into_iter()
+                    .map(|(k, v)| {
+                        (
+                            "function".to_string(),
+                            k.remove_prefix(&Path::new(vec![
+                                Ident("quartz".to_string()),
+                                Ident("std".to_string()),
+                            ]))
+                            .as_str()
+                            .to_string(),
+                            v.data.to_string(),
+                        )
+                    })
+                    .collect::<Vec<_>>(),
+            );
+        }
 
         Ok(self.completion.clone())
     }
@@ -1585,7 +1593,7 @@ fun main() {
         for input in cases {
             let mut compiler = Compiler::new();
             let mut parsed = compiler
-                .parse("", Path::ident(Ident("main".to_string())), input)
+                .parse("", Path::ident(Ident("main".to_string())), input, true)
                 .unwrap();
 
             let mut typechecker = TypeChecker::new();

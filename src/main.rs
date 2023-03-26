@@ -98,6 +98,8 @@ enum SubCommand {
         column: usize,
         #[clap(long)]
         stdin: bool,
+        #[clap(long)]
+        dot: bool,
 
         file: Option<String>,
     },
@@ -277,6 +279,7 @@ fn main() -> Result<()> {
             column,
             file,
             stdin,
+            dot,
         } => {
             let package = load_project(&file.unwrap(), &project)?;
             let input = if stdin {
@@ -291,6 +294,7 @@ fn main() -> Result<()> {
                 &input,
                 line,
                 column,
+                dot,
             );
             println!(
                 "{}",

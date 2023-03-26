@@ -92,7 +92,7 @@ impl SourceLoader {
 
         lexer.run(&buffer, path.clone()).context("lexer phase")?;
         let module = parser
-            .run(lexer.tokens, path.clone())
+            .run(lexer.tokens, path.clone(), false)
             .context("parser phase")?;
 
         self.loaded.push(LoadedModule {
@@ -126,13 +126,19 @@ impl Compiler {
         Path::ident(Ident("main".to_string()))
     }
 
-    pub fn parse(&mut self, cwd: &str, main_path: Path, input: &str) -> Result<Module> {
+    pub fn parse(
+        &mut self,
+        cwd: &str,
+        main_path: Path,
+        input: &str,
+        skip_errors: bool,
+    ) -> Result<Module> {
         let mut lexer = Lexer::new();
         let mut parser = Parser::new();
 
         lexer.run(input, main_path.clone()).context("lexer phase")?;
         let main = parser
-            .run(lexer.tokens, main_path.clone())
+            .run(lexer.tokens, main_path.clone(), skip_errors)
             .context("parser phase")?;
 
         self.loader.loaded.push(LoadedModule {
@@ -176,7 +182,7 @@ impl Compiler {
     }
 
     fn check_(&mut self, cwd: &str, main_path: Path, input: &str) -> Result<(TypeChecker, Module)> {
-        let mut module = self.parse(cwd, main_path, input)?;
+        let mut module = self.parse(cwd, main_path, input, false)?;
         let mut typechecker = TypeChecker::new();
 
         typechecker.run(&mut module).context("typechecker phase")?;
@@ -240,7 +246,7 @@ impl Compiler {
         let main_path = Path::ident(Ident("main".to_string()));
         lexer.run(input, main_path.clone()).context("lexer phase")?;
         let main = parser
-            .run(lexer.tokens, main_path.clone())
+            .run(lexer.tokens, main_path.clone(), false)
             .context("parser phase")?;
 
         self.loader.loaded.push(LoadedModule {
@@ -405,7 +411,7 @@ impl Compiler {
         line: usize,
         column: usize,
     ) -> String {
-        let Ok(mut module) = self.parse(cwd, module_path.clone(), input) else {
+        let Ok(mut module) = self.parse(cwd, module_path.clone(), input, false) else {
             return String::new();
         };
         let position = find_line_column_from_position(input, line, column);
@@ -430,15 +436,17 @@ impl Compiler {
         input: &str,
         line: usize,
         column: usize,
+        dot: bool,
     ) -> Vec<(String, String, String)> {
-        let Ok(mut module) = self.parse(cwd, module_path.clone(), input) else {
+        let parse_result = self.parse(cwd, module_path.clone(), input, true);
+        let Ok(mut module) = parse_result else {
             return vec![];
         };
         let position = find_line_column_from_position(input, line, column);
 
         let mut typechecker = TypeChecker::new();
 
-        let Ok(t) = typechecker.completion(&mut module, module_path, position) else {
+        let Ok(t) = typechecker.completion(&mut module, module_path, position, dot) else {
             return vec![];
         };
 
@@ -453,7 +461,7 @@ impl Compiler {
         line: usize,
         column: usize,
     ) -> Result<GoToDefOutput> {
-        let mut module = self.parse(cwd, module_path, input)?;
+        let mut module = self.parse(cwd, module_path, input, false)?;
         let position = find_line_column_from_position(input, line, column);
 
         let mut typechecker = TypeChecker::new();

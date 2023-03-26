@@ -143,6 +143,7 @@ connection.onDefinition(async (params) => {
 connection.onCompletion(async (params) => {
   console.log("completion", params);
   const file = params.textDocument.uri.replace("file://", "");
+  const isDotCompletion = params.context?.triggerCharacter === ".";
 
   const command = `cargo run --manifest-path ${path.join(
     file,
@@ -151,8 +152,8 @@ connection.onCompletion(async (params) => {
     "Cargo.toml"
   )} -- completion ${file} --project ${path.join(file, "..", "..")} --line ${
     params.position.line
-  } --column ${
-    params.position.character
+  } --column ${params.position.character} ${
+    isDotCompletion ? "--dot" : ""
   } --stdin <<EOF\n${currentContent}\nEOF\n`;
   console.log(command);
 
