@@ -6,6 +6,7 @@ use thiserror::{Error, __private::PathAsDisplay};
 
 use crate::{
     ast::{Decl, Module},
+    formatter::Formatter,
     generator::Generator,
     ir::IrTerm,
     ir_code_gen::IrCodeGenerator,
@@ -495,9 +496,10 @@ impl Compiler {
     }
 
     pub fn format(input: &str) -> Result<String> {
-        let tokens = Compiler::run_lexer(input, Path::ident(Ident("main".to_string())))?;
+        let module = Compiler::run_parser(input, Path::ident(Ident("main".to_string())), true)?;
+        let mut formatter = Formatter::new();
 
-        Ok(String::new())
+        Ok(formatter.format(module))
     }
 }
 

@@ -6,15 +6,15 @@ use crate::{
 };
 
 #[derive(Clone)]
-pub struct FmtWriter {
+pub struct Formatter {
     indent_size: usize,
     depth: usize,
     column: usize,
 }
 
-impl FmtWriter {
-    pub fn new() -> FmtWriter {
-        FmtWriter {
+impl Formatter {
+    pub fn new() -> Formatter {
+        Formatter {
             indent_size: 4,
             depth: 0,
             column: 0,
@@ -66,7 +66,7 @@ impl FmtWriter {
     fn statements(&mut self, writer: &mut impl Write, stmts: Vec<Source<Statement>>) {
         let mut blocks = vec![];
         for stmt in stmts {
-            let mut fwriter = FmtWriter::new();
+            let mut fwriter = Formatter::new();
             let mut buf = BufWriter::new(Vec::new());
             fwriter.statement(&mut buf, stmt.data);
             blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
@@ -206,7 +206,7 @@ fun main() {
         for input in cases {
             let parsed = Compiler::run_parser(input, Path::empty(), true).unwrap();
 
-            let mut fmt = FmtWriter::new();
+            let mut fmt = Formatter::new();
             let formatted = fmt.format(parsed);
             assert_eq!(formatted, input);
         }
