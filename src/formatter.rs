@@ -24,6 +24,7 @@ struct FWriter {
     max_width: usize,
     indent_size: usize,
     column: usize,
+    context: Vec<String>,
 }
 
 impl FWriter {
@@ -32,7 +33,16 @@ impl FWriter {
             column: 0,
             max_width,
             indent_size,
+            context: vec![],
         }
+    }
+
+    fn is_module_context(&self) -> bool {
+        self.context.last() == Some(&"module".to_string())
+    }
+
+    fn is_function_context(&self) -> bool {
+        self.context.last() == Some(&"fun".to_string())
     }
 
     fn write(&mut self, writer: &mut impl Write, raw: String) {
@@ -44,8 +54,14 @@ impl FWriter {
     }
 
     fn sequence(&mut self, writer: &mut impl Write, sequence: Sequence) {
+        let mut first = true;
         for fragment in sequence.0 {
+            if !first {
+                write!(writer, " ").unwrap();
+            }
+
             self.fragment(writer, fragment);
+            first = false;
         }
     }
 
@@ -53,8 +69,23 @@ impl FWriter {
         match fragment {
             Fragment::Token(token) => {
                 write!(writer, "{}", token.raw).unwrap();
+
+                if matches!(token.lexeme, Lexeme::Module(_)) {
+                    self.context.push("module".to_string());
+                }
+                if matches!(token.lexeme, Lexeme::Fun) {
+                    self.context.push("fun".to_string());
+                }
+                if matches!(token.lexeme, Lexeme::RBrace) {
+                    self.context.pop();
+                }
             }
             Fragment::Block(block_type, token, items) => {
+                if !self.is_function_context() {
+                    self.block_in_block(writer, block_type.clone(), token.clone(), items.clone());
+                    return;
+                }
+
                 let mut new_writer = BufWriter::new(Vec::new());
                 self.block_in_line(
                     &mut new_writer,
@@ -316,7 +347,9 @@ mod tests {
     #[test]
     fn test_formatter_success() {
         let cases = vec![
-            "(a, b, c)",
+            r#"fun main() {
+return (a, b, c);
+}"#,
             "[a, b, c]",
             "{a, b, c}",
             r#"
@@ -329,6 +362,18 @@ mod tests {
     loooooooooooooooong,
     text,
 )"#
+            .trim_start(),
+            r#"
+module main {
+    fun main() {
+        let a = 1;
+        let b = 2;
+        let c = 3;
+
+        return Ok(a + b + c);
+    }
+}
+"#
             .trim_start(),
         ];
         for input in cases {
