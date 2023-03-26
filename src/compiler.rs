@@ -134,6 +134,12 @@ impl Compiler {
         Ok(lexer.tokens)
     }
 
+    pub fn run_parser(input: &str, path: Path, skip_errors: bool) -> Result<Module> {
+        let mut parser = Parser::new();
+
+        parser.run(Compiler::run_lexer(input, path.clone())?, path, skip_errors)
+    }
+
     pub fn parse(
         &mut self,
         cwd: &str,
