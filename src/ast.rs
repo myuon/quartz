@@ -175,6 +175,26 @@ pub enum BinOp {
     NotEqual,
 }
 
+impl BinOp {
+    pub fn to_string(&self) -> String {
+        match self {
+            BinOp::Add => "+".to_string(),
+            BinOp::Sub => "-".to_string(),
+            BinOp::Mul => "*".to_string(),
+            BinOp::Div => "/".to_string(),
+            BinOp::Mod => "%".to_string(),
+            BinOp::And => "&&".to_string(),
+            BinOp::Or => "||".to_string(),
+            BinOp::Lt => "<".to_string(),
+            BinOp::Lte => "<=".to_string(),
+            BinOp::Gt => ">".to_string(),
+            BinOp::Gte => ">=".to_string(),
+            BinOp::Equal => "==".to_string(),
+            BinOp::NotEqual => "!=".to_string(),
+        }
+    }
+}
+
 #[derive(PartialEq, Debug, Clone)]
 pub struct VariadicCall {
     pub element_type: Type,

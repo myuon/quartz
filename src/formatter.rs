@@ -1,7 +1,7 @@
 use std::io::{BufWriter, Write};
 
 use crate::{
-    ast::{Decl, Expr, Func, Lit, Module, Statement, Type},
+    ast::{BinOp, Decl, Expr, Func, Lit, Module, Pattern, Statement, Type},
     util::{ident::Ident, source::Source},
 };
 
@@ -49,6 +49,11 @@ impl Formatter {
         self.write(writer, "fun");
         self.write(writer, func.name.data.as_str());
         self.params(writer, func.params);
+        if let Type::Nil = func.result {
+        } else {
+            self.write_no_space(writer, ":");
+            self.write(writer, func.result.to_string().as_str());
+        }
         self.statements(writer, func.body);
     }
 
@@ -79,7 +84,17 @@ impl Formatter {
 
     fn statement(&mut self, writer: &mut impl Write, stmt: Statement) {
         match stmt {
-            Statement::Let(_, _, _) => todo!(),
+            Statement::Let(pattern, type_, expr) => {
+                self.write(writer, "let");
+                self.pattern(writer, pattern.data);
+                if let Type::Omit(_) = type_ {
+                } else {
+                    self.write_no_space(writer, ":");
+                    self.write(writer, type_.to_string().as_str());
+                }
+                self.write(writer, "=");
+                self.expr(writer, expr.data);
+            }
             Statement::Return(expr) => {
                 self.write(writer, "return");
                 self.expr(writer, expr.data);
@@ -94,13 +109,24 @@ impl Formatter {
         }
     }
 
+    fn pattern(&mut self, writer: &mut impl Write, pattern: Pattern) {
+        match pattern {
+            Pattern::Ident(ident) => {
+                self.write(writer, ident.as_str());
+            }
+            Pattern::Or(_, _) => todo!(),
+            Pattern::Omit => todo!(),
+        }
+    }
+
     fn expr(&mut self, writer: &mut impl Write, expr: Expr) {
         match expr {
-            Expr::Ident {
-                ident,
-                resolved_path,
-            } => todo!(),
-            Expr::Self_ => todo!(),
+            Expr::Ident { ident, .. } => {
+                self.write(writer, ident.as_str());
+            }
+            Expr::Self_ => {
+                self.write(writer, "self");
+            }
             Expr::Lit(lit) => match lit {
                 Lit::Nil => {
                     self.write(writer, "nil");
@@ -122,7 +148,11 @@ impl Formatter {
                 }
             },
             Expr::Call(_, _, _, _) => todo!(),
-            Expr::BinOp(_, _, _, _) => todo!(),
+            Expr::BinOp(op, _, lhs, rhs) => {
+                self.expr(writer, lhs.data);
+                self.write(writer, op.to_string());
+                self.expr(writer, rhs.data);
+            }
             Expr::Record(_, _, _) => todo!(),
             Expr::AnonymousRecord(_, _) => todo!(),
             Expr::Project(_, _, _) => todo!(),
@@ -168,9 +198,9 @@ impl Formatter {
         for block in blocks {
             self.write(writer, block);
             self.write_no_space(writer, separator);
+            self.write_newline(writer);
         }
         self.depth -= 1;
-        self.write_newline(writer);
     }
 
     fn write_block_oneline(
@@ -196,12 +226,23 @@ mod tests {
 
     #[test]
     fn check_format() {
-        let cases = vec![r#"
+        let cases = vec![
+            r#"
 fun main() {
     return 10;
 }
 "#
-        .trim_start()];
+            .trim_start(),
+            r#"
+fun main(): i32 {
+    let a = 1;
+    let b = (100 + 30) / 2;
+
+    return a + b;
+}
+"#
+            .trim_start(),
+        ];
 
         for input in cases {
             let parsed = Compiler::run_parser(input, Path::empty(), true).unwrap();
