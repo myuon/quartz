@@ -14,7 +14,7 @@ enum BlockType {
 #[derive(Clone)]
 enum Fragment {
     Token(Token),
-    Block(BlockType, Vec<Sequence>),
+    Block(BlockType, String, Vec<Sequence>),
 }
 
 #[derive(Clone)]
@@ -54,14 +54,19 @@ impl FWriter {
             Fragment::Token(token) => {
                 write!(writer, "{}", token.raw).unwrap();
             }
-            Fragment::Block(block_type, items) => {
+            Fragment::Block(block_type, token, items) => {
                 let mut new_writer = BufWriter::new(Vec::new());
-                self.block_in_line(&mut new_writer, block_type.clone(), items.clone());
+                self.block_in_line(
+                    &mut new_writer,
+                    block_type.clone(),
+                    token.clone(),
+                    items.clone(),
+                );
                 let new_writer_string =
                     String::from_utf8(new_writer.into_inner().unwrap()).unwrap();
 
                 if self.column + new_writer_string.len() > self.max_width {
-                    self.block_in_block(writer, block_type.clone(), items.clone());
+                    self.block_in_block(writer, block_type.clone(), token.clone(), items.clone());
                 } else {
                     write!(writer, "{}", new_writer_string).unwrap();
                 }
@@ -73,6 +78,7 @@ impl FWriter {
         &mut self,
         writer: &mut impl Write,
         block_type: BlockType,
+        separator: String,
         items: Vec<Sequence>,
     ) {
         match block_type {
@@ -89,7 +95,7 @@ impl FWriter {
 
         for (index, item) in items.into_iter().enumerate() {
             if index > 0 {
-                write!(writer, " ").unwrap();
+                write!(writer, "{} ", separator).unwrap();
             }
 
             self.sequence(writer, item);
@@ -112,6 +118,7 @@ impl FWriter {
         &mut self,
         writer: &mut impl Write,
         block_type: BlockType,
+        separator: String,
         items: Vec<Sequence>,
     ) {
         match block_type {
@@ -132,6 +139,7 @@ impl FWriter {
             write!(writer, "\n").unwrap();
             write!(writer, "{}", " ".repeat(self.indent_size)).unwrap();
             self.sequence(writer, item);
+            write!(writer, "{}", separator).unwrap();
         }
 
         write!(writer, "\n").unwrap();
@@ -226,6 +234,7 @@ impl Formatter {
 
     fn block(&mut self, block_type: BlockType) -> Fragment {
         let mut items = Vec::new();
+        let mut sep_token: Option<Token> = None;
 
         while let Some(token) = self.peek() {
             match token.lexeme {
@@ -245,11 +254,15 @@ impl Formatter {
                     break;
                 }
                 _ => {
-                    items.push(self.sequence(
+                    let item = self.sequence(
                         match block_type {
                             BlockType::Paren => vec![Lexeme::Comma],
                             BlockType::Brace => {
-                                vec![Lexeme::Comma, Lexeme::Semicolon]
+                                if let Some(token) = sep_token {
+                                    vec![token.lexeme]
+                                } else {
+                                    vec![Lexeme::Comma, Lexeme::Semicolon]
+                                }
                             }
                             BlockType::Bracket => vec![Lexeme::Comma],
                         },
@@ -260,12 +273,19 @@ impl Formatter {
                             }
                             BlockType::Bracket => vec![Lexeme::RBracket],
                         },
-                    ));
+                    );
+                    sep_token = item.1.clone();
+
+                    items.push(item);
                 }
             }
         }
 
-        Fragment::Block(block_type, items)
+        Fragment::Block(
+            block_type,
+            sep_token.map(|t| t.raw).unwrap_or(",".to_string()),
+            items,
+        )
     }
 
     pub fn write_to(&mut self, writer: &mut impl Write) {
