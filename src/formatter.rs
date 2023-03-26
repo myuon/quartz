@@ -18,7 +18,7 @@ enum Fragment {
 }
 
 #[derive(Clone)]
-struct Sequence(Vec<Fragment>);
+struct Sequence(Vec<Fragment>, Option<Token>);
 
 struct FWriter {
     max_width: usize,
@@ -183,6 +183,7 @@ impl Formatter {
 
     pub fn sequence(&mut self, sep_tokens: Vec<Lexeme>, end_tokens: Vec<Lexeme>) -> Sequence {
         let mut fragments = Vec::new();
+        let mut last_token = None;
 
         while let Some(token) = self.peek() {
             match &token.lexeme {
@@ -203,7 +204,7 @@ impl Formatter {
                 }
                 lexeme if sep_tokens.contains(lexeme) => {
                     self.consume();
-                    fragments.push(Fragment::Token(token));
+                    last_token = Some(token.clone());
 
                     break;
                 }
@@ -220,7 +221,7 @@ impl Formatter {
             }
         }
 
-        Sequence(fragments)
+        Sequence(fragments, last_token)
     }
 
     fn block(&mut self, block_type: BlockType) -> Fragment {
@@ -293,7 +294,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_formatter() {
+    fn test_formatter_success() {
         let cases = vec![
             "(a, b, c)",
             "[a, b, c]",
@@ -306,7 +307,7 @@ mod tests {
     loooooooooooooooong,
     loooooooooooooooong,
     loooooooooooooooong,
-    text
+    text,
 )"#
             .trim_start(),
         ];
@@ -315,6 +316,40 @@ mod tests {
             let result = run_formatter(tokens).unwrap();
 
             assert_eq!(result, input.to_string());
+        }
+    }
+
+    #[test]
+    fn test_formatter_forced() {
+        let cases = vec![(
+            r#"
+(
+    sooooooooooooooooo,
+    loooooooooooooooong,
+    loooooooooooooooong,
+    loooooooooooooooong,
+    loooooooooooooooong,
+    loooooooooooooooong,
+    text
+)"#
+            .trim_start(),
+            r#"
+(
+    sooooooooooooooooo,
+    loooooooooooooooong,
+    loooooooooooooooong,
+    loooooooooooooooong,
+    loooooooooooooooong,
+    loooooooooooooooong,
+    text,
+)"#
+            .trim_start(),
+        )];
+        for (input, expected) in cases {
+            let tokens = Compiler::run_lexer(input, Path::empty()).unwrap();
+            let result = run_formatter(tokens).unwrap();
+
+            assert_eq!(result, expected.to_string());
         }
     }
 }
