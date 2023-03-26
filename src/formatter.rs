@@ -1,7 +1,7 @@
 use std::io::{BufWriter, Write};
 
 use crate::{
-    ast::{BinOp, Decl, Expr, Func, Lit, Module, Pattern, Statement, Type},
+    ast::{Decl, Expr, Func, Lit, Module, Pattern, Statement, Type},
     util::{ident::Ident, source::Source},
 };
 
@@ -169,6 +169,18 @@ impl Formatter {
             Expr::Omit(_) => todo!(),
             Expr::EnumOr(_, _, _, _) => todo!(),
             Expr::Try(_) => todo!(),
+            Expr::Paren(expr) => {
+                let mut fwriter = Formatter::new();
+                let mut buf = BufWriter::new(Vec::new());
+                fwriter.expr(&mut buf, expr.data);
+
+                self.write(writer, "(");
+                self.write_no_space(
+                    writer,
+                    String::from_utf8(buf.into_inner().unwrap()).unwrap(),
+                );
+                self.write_no_space(writer, ")");
+            }
         }
     }
 

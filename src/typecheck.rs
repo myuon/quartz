@@ -1157,6 +1157,7 @@ impl TypeChecker {
                     }
                 }
             }
+            Expr::Paren(p) => self.expr(p),
         }
     }
 

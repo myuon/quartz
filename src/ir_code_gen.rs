@@ -1306,6 +1306,7 @@ impl IrCodeGenerator {
 
                 Ok(IrTerm::Seq { elements })
             }
+            Expr::Paren(p) => self.expr(p),
         }
     }
 

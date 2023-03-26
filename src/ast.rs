@@ -247,6 +247,7 @@ pub enum Expr {
         Option<Box<Source<Expr>>>,
     ),
     Try(Box<Source<Expr>>),
+    Paren(Box<Source<Expr>>),
 }
 
 impl Expr {

@@ -628,11 +628,12 @@ impl Parser {
         let position = self.position;
         let mut current = match self.peek()?.lexeme {
             Lexeme::LParen => {
+                let position = self.position;
                 self.consume()?;
                 let expr = self.expr()?;
                 self.expect(Lexeme::RParen)?;
 
-                expr
+                self.source_from(Expr::Paren(Box::new(expr)), position)
             }
             Lexeme::Ident(ident) => {
                 let expr = if ident == "nil" {
