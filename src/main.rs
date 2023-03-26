@@ -88,6 +88,17 @@ enum SubCommand {
 
         file: Option<String>,
     },
+    #[clap(name = "completion", about = "Completion")]
+    Completion {
+        #[clap(long)]
+        project: Option<String>,
+        #[clap(long)]
+        line: usize,
+        #[clap(long)]
+        column: usize,
+
+        file: Option<String>,
+    },
 }
 
 fn read_from_stdin() -> String {
@@ -256,6 +267,26 @@ fn main() -> Result<()> {
                         "column": result.end.1,
                     }
                 }))?
+            );
+        }
+        SubCommand::Completion {
+            project,
+            line,
+            column,
+            file,
+        } => {
+            let package = load_project(&file.unwrap(), &project)?;
+
+            let result = compiler.completion(
+                &package.project_path,
+                package.module_path,
+                &package.source,
+                line,
+                column,
+            );
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&json!({ "items": result }))?
             );
         }
     }

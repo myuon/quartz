@@ -38,7 +38,7 @@ impl Path {
 
     pub fn remove_prefix(&self, prefix: &Path) -> Path {
         if !self.starts_with(prefix) {
-            panic!("Tried to remove prefix from path that doesn't start with it");
+            return self.clone();
         }
 
         Path(self.0[prefix.0.len()..].to_vec())

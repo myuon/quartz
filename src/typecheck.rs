@@ -20,6 +20,7 @@ pub struct TypeChecker {
     pub search_node: Option<(Path, usize)>,
     pub search_node_type: Option<Type>,
     pub search_node_definition: Option<(Path, usize, usize)>,
+    pub completion: Option<Vec<String>>,
 }
 
 impl TypeChecker {
@@ -106,6 +107,7 @@ impl TypeChecker {
             search_node: None,
             search_node_type: None,
             search_node_definition: None,
+            completion: None,
         }
     }
 
@@ -1315,6 +1317,33 @@ impl TypeChecker {
                 }
             }
         }
+    }
+
+    pub fn completion(
+        &mut self,
+        module: &mut Module,
+        path: Path,
+        cursor: usize,
+    ) -> Result<Option<Vec<String>>> {
+        self.search_node = Some((path, cursor));
+
+        let _ = self.module(module);
+
+        self.completion = Some(
+            self.globals
+                .keys()
+                .map(|k| {
+                    k.remove_prefix(&Path::new(vec![
+                        Ident("quartz".to_string()),
+                        Ident("std".to_string()),
+                    ]))
+                    .as_str()
+                    .to_string()
+                })
+                .collect::<Vec<_>>(),
+        );
+
+        Ok(self.completion.clone())
     }
 }
 

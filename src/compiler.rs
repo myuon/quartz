@@ -423,6 +423,28 @@ impl Compiler {
         }
     }
 
+    pub fn completion(
+        &mut self,
+        cwd: &str,
+        module_path: Path,
+        input: &str,
+        line: usize,
+        column: usize,
+    ) -> Vec<String> {
+        let Ok(mut module) = self.parse(cwd, module_path.clone(), input) else {
+            return vec![];
+        };
+        let position = find_line_column_from_position(input, line, column);
+
+        let mut typechecker = TypeChecker::new();
+
+        let Ok(t) = typechecker.completion(&mut module, module_path, position) else {
+            return vec![];
+        };
+
+        t.unwrap_or(vec![])
+    }
+
     pub fn go_to_def(
         &mut self,
         cwd: &str,

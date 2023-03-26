@@ -22,6 +22,9 @@ connection.onInitialize(() => {
       textDocumentSync: TextDocumentSyncKind.Full,
       hoverProvider: true,
       definitionProvider: true,
+      completionProvider: {
+        triggerCharacters: ["."],
+      },
     },
   };
 });
@@ -130,6 +133,32 @@ connection.onDefinition(async (params) => {
   }
 
   return null;
+});
+
+connection.onCompletion(async (params) => {
+  console.log("completion", params);
+  const file = params.textDocument.uri.replace("file://", "");
+
+  const command = `cargo run --manifest-path ${path.join(
+    file,
+    "..",
+    "..",
+    "Cargo.toml"
+  )} -- completion ${file} --project ${path.join(file, "..", "..")} --line ${
+    params.position.line
+  } --column ${params.position.character}`;
+  console.log(command);
+
+  const cargo = await execAsync(command);
+  if (cargo.stdout) {
+    const result = JSON.parse(cargo.stdout) as { items: string[] };
+
+    return result.items.map((item) => ({
+      label: item,
+    }));
+  }
+
+  return undefined;
 });
 
 documents.listen(connection);
