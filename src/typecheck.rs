@@ -919,6 +919,7 @@ impl TypeChecker {
 
                     let t = fields[label].clone();
                     self.set_search_node_type(t.clone(), expr);
+                    self.set_completion(t.clone(), expr);
 
                     Ok(t)
                 } else {
@@ -1082,6 +1083,8 @@ impl TypeChecker {
 
                     let wrapperd_type_element = *wrapped_type.to_optional()?.clone();
                     *type_ = wrapperd_type_element.clone();
+
+                    self.set_completion(type_.clone(), expr);
 
                     Ok(wrapperd_type_element)
                 } else if matches!(expr_type, Type::Or(_, _)) {
