@@ -158,7 +158,10 @@ impl TypeChecker {
     fn module_typecheck(&mut self, module: &mut Module) -> Result<()> {
         for decl in &mut module.0 {
             self.locals.clear();
-            self.decl(decl)?;
+            let result = self.decl(decl);
+            if result.is_ok() || !self.search_node.is_some() {
+                result?;
+            }
         }
 
         Ok(())
