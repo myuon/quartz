@@ -58,6 +58,7 @@ pub enum Lexeme {
     Ident(String),
     Int(i64),
     String(String),
+    RawString(String),
 }
 
 static SPACE_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"^\s+").unwrap());
@@ -300,7 +301,7 @@ impl Lexer {
             match RAW_STRING_LITERAL.captures(&input[self.position..]) {
                 Some(m) => {
                     self.tokens.push(Token {
-                        lexeme: Lexeme::String(m.get(1).unwrap().as_str().to_string()),
+                        lexeme: Lexeme::RawString(m.get(1).unwrap().as_str().to_string()),
                         position: self.position,
                         raw: m.get(0).unwrap().as_str().to_string(),
                     });

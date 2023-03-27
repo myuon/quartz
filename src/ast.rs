@@ -149,13 +149,19 @@ impl Type {
 }
 
 #[derive(PartialEq, Debug, Clone)]
+pub enum StringLiteralType {
+    String,
+    Raw,
+}
+
+#[derive(PartialEq, Debug, Clone)]
 pub enum Lit {
     Nil,
     Bool(bool),
     I32(i32),
     U32(u32),
     I64(i64),
-    String(String),
+    String(String, StringLiteralType),
 }
 
 #[derive(PartialEq, Debug, Clone)]

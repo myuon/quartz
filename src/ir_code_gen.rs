@@ -588,7 +588,7 @@ impl IrCodeGenerator {
                 Lit::I32(i) => Ok(IrTerm::i32(*i)),
                 Lit::U32(i) => Ok(IrTerm::u32(*i)),
                 Lit::I64(i) => Ok(IrTerm::i64(*i)),
-                Lit::String(s) => Ok(self.register_string(s.clone())),
+                Lit::String(s, _) => Ok(self.register_string(s.clone())),
             },
             Expr::BinOp(op, type_, arg1, arg2) => {
                 use crate::ast::BinOp::*;

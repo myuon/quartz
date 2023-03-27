@@ -2,7 +2,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use pretty_assertions::assert_eq;
 
 use crate::{
-    ast::{BinOp, Decl, Expr, Func, Lit, Module, Pattern, Statement, Type},
+    ast::{BinOp, Decl, Expr, Func, Lit, Module, Pattern, Statement, StringLiteralType, Type},
     compiler::ErrorInSource,
     lexer::{Lexeme, Token},
     util::{ident::Ident, path::Path, source::Source},
@@ -940,7 +940,8 @@ impl Parser {
             Lexeme::Int(int) if int <= i32::MAX as i64 => Ok(Lit::I32(int as i32)),
             Lexeme::Int(int) if int <= u32::MAX as i64 => Ok(Lit::U32(int as u32)),
             Lexeme::Int(int) => Ok(Lit::I64(int)),
-            Lexeme::String(string) => Ok(Lit::String(string)),
+            Lexeme::String(string) => Ok(Lit::String(string, StringLiteralType::String)),
+            Lexeme::RawString(string) => Ok(Lit::String(string, StringLiteralType::Raw)),
             Lexeme::True => Ok(Lit::Bool(true)),
             Lexeme::False => Ok(Lit::Bool(false)),
             _ => {

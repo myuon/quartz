@@ -1,7 +1,7 @@
 use std::io::{BufWriter, Write};
 
 use crate::{
-    ast::{Decl, Expr, Func, Lit, Module, Pattern, Statement, Type},
+    ast::{Decl, Expr, Func, Lit, Module, Pattern, Statement, StringLiteralType, Type},
     util::{ident::Ident, source::Source},
 };
 
@@ -59,14 +59,14 @@ impl<'s> Formatter<'s> {
                 }
                 self.write(writer, "=");
                 self.expr(writer, expr.data);
-                self.write(writer, ";");
+                self.write_no_space(writer, ";");
             }
             Decl::Type(ident, type_) => {
                 self.write(writer, "type");
                 self.write(writer, ident.as_str());
                 self.write(writer, "=");
                 self.write(writer, type_.to_string().as_str());
-                self.write(writer, ";");
+                self.write_no_space(writer, ";");
             }
             Decl::Module(path, module) => {
                 let mut blocks = vec![];
@@ -95,7 +95,7 @@ impl<'s> Formatter<'s> {
     fn func(&mut self, writer: &mut impl Write, func: Func) {
         self.write(writer, "fun");
         self.write(writer, func.name.data.as_str());
-        self.params(writer, func.params);
+        self.params(writer, func.params, func.variadic);
         if let Type::Nil = func.result {
         } else {
             self.write_no_space(writer, ":");
@@ -104,12 +104,24 @@ impl<'s> Formatter<'s> {
         self.statements(writer, func.body);
     }
 
-    fn params(&mut self, writer: &mut impl Write, params: Vec<(Ident, Type)>) {
+    fn params(
+        &mut self,
+        writer: &mut impl Write,
+        params: Vec<(Ident, Type)>,
+        variadic: Option<(Ident, Type)>,
+    ) {
         self.write_no_space(writer, "(");
 
         let mut blocks = vec![];
         for (ident, type_) in params {
-            blocks.push(format!("{}: {}", ident.as_str(), type_.to_string()));
+            if ident.0.as_str() == "self" {
+                blocks.push("self".to_string());
+            } else {
+                blocks.push(format!("{}: {}", ident.as_str(), type_.to_string()));
+            }
+        }
+        if let Some((ident, type_)) = variadic {
+            blocks.push(format!("..{}: {}", ident.as_str(), type_.to_string()));
         }
         self.write_block_oneline(writer, blocks, ",");
         self.write_no_space(writer, ")");
@@ -243,13 +255,18 @@ impl<'s> Formatter<'s> {
                 Lit::I64(i) => {
                     self.write(writer, &i.to_string());
                 }
-                Lit::String(s) => {
-                    self.write(writer, format!("{:?}", s));
-                }
+                Lit::String(s, literal_type) => match literal_type {
+                    StringLiteralType::String => {
+                        self.write(writer, format!("{:?}", s));
+                    }
+                    StringLiteralType::Raw => {
+                        self.write(writer, format!("`{}`", s));
+                    }
+                },
             },
-            Expr::Call(callee, args, varadic, expansion) => {
+            Expr::Call(callee, args, _, expansion) => {
                 self.expr(writer, callee.data);
-                self.arguments(writer, args);
+                self.arguments(writer, args, expansion);
             }
             Expr::BinOp(op, _, lhs, rhs) => {
                 self.expr(writer, lhs.data);
@@ -298,7 +315,7 @@ impl<'s> Formatter<'s> {
                 self.write_no_space(writer, "[");
                 self.type_no_space(writer, type_);
                 self.write_no_space(writer, "]");
-                self.arguments(writer, args);
+                self.arguments(writer, args, None);
             }
             Expr::SizeOf(type_) => {
                 self.write(writer, "sizeof");
@@ -328,6 +345,7 @@ impl<'s> Formatter<'s> {
             }
             Expr::Wrap(_, expr) => {
                 self.expr(writer, expr.data);
+                self.write_no_space(writer, "?");
             }
             Expr::Unwrap(_, _, expr) => {
                 self.expr(writer, expr.data);
@@ -368,7 +386,12 @@ impl<'s> Formatter<'s> {
         }
     }
 
-    fn arguments(&mut self, writer: &mut impl Write, args: Vec<Source<Expr>>) {
+    fn arguments(
+        &mut self,
+        writer: &mut impl Write,
+        args: Vec<Source<Expr>>,
+        expansion: Option<Box<Source<Expr>>>,
+    ) {
         let mut blocks = vec![];
         for arg in args {
             let mut fwriter = Formatter::new(self.source);
@@ -376,6 +399,16 @@ impl<'s> Formatter<'s> {
 
             fwriter.expr(&mut buf, arg.data);
             blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
+        }
+        if let Some(expansion) = expansion {
+            let mut fwriter = Formatter::new(self.source);
+            let mut buf = BufWriter::new(Vec::new());
+
+            fwriter.expr(&mut buf, expansion.data);
+            blocks.push(format!(
+                "..{}",
+                String::from_utf8(buf.into_inner().unwrap()).unwrap()
+            ));
         }
 
         let mut fwriter = Formatter::new(self.source);

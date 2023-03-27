@@ -1172,7 +1172,7 @@ impl TypeChecker {
             Lit::I32(_) => Ok(Type::I32),
             Lit::U32(_) => Ok(Type::U32),
             Lit::I64(_) => Ok(Type::I64),
-            Lit::String(_) => Ok(Type::Ident(Ident("string".to_string()))),
+            Lit::String(_, _) => Ok(Type::Ident(Ident("string".to_string()))),
         }
     }
 
