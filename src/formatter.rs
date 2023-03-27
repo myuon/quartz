@@ -34,9 +34,16 @@ impl<'s> Formatter<'s> {
     }
 
     pub fn module(&mut self, writer: &mut impl Write, module: Module) {
+        let mut blocks = vec![];
         for decl in module.0 {
-            self.decl(writer, decl);
+            let mut fwriter = Formatter::new(self.source);
+            let mut buf = BufWriter::new(Vec::new());
+            fwriter.decl(&mut buf, decl);
+
+            blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
         }
+
+        self.write_block(writer, blocks, "\n\n", vec![], false, true);
     }
 
     fn decl(&mut self, writer: &mut impl Write, decl: Decl) {
@@ -62,10 +69,19 @@ impl<'s> Formatter<'s> {
                 self.write(writer, ";");
             }
             Decl::Module(path, module) => {
+                let mut blocks = vec![];
+                for decl in module.0 {
+                    let mut fwriter = Formatter::new(self.source);
+                    let mut buf = BufWriter::new(Vec::new());
+                    fwriter.decl(&mut buf, decl);
+
+                    blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
+                }
+
                 self.write(writer, "module");
                 self.write(writer, path.as_str());
                 self.write(writer, "{");
-                self.module(writer, module);
+                self.write_block(writer, blocks, "\n\n", vec![], false, false);
                 self.write(writer, "}");
             }
             Decl::Import(path) => {
@@ -122,7 +138,7 @@ impl<'s> Formatter<'s> {
         }
 
         self.write(writer, "{");
-        self.write_block(writer, blocks, ";", need_empty_lines);
+        self.write_block(writer, blocks, ";", need_empty_lines, true, false);
         self.write(writer, "}");
     }
 
@@ -248,7 +264,7 @@ impl<'s> Formatter<'s> {
                     self.write_no_space(writer, buf_string.as_str());
                 } else {
                     self.write_no_space(writer, "(");
-                    self.write_block(writer, blocks, ",", vec![]);
+                    self.write_block(writer, blocks, ",", vec![], true, false);
                     self.write(writer, ")");
                 }
             }
@@ -270,7 +286,7 @@ impl<'s> Formatter<'s> {
                     fwriter.expr(&mut buf, expr.data);
                     blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
                 }
-                self.write_block(writer, blocks, ",", vec![]);
+                self.write_block(writer, blocks, ",", vec![], true, false);
                 self.write(writer, "}");
             }
             Expr::AnonymousRecord(fields, _) => {
@@ -286,13 +302,13 @@ impl<'s> Formatter<'s> {
                     fwriter.expr(&mut buf, expr.data);
                     blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
                 }
-                self.write_block(writer, blocks, ",", vec![]);
+                self.write_block(writer, blocks, ",", vec![], true, false);
                 self.write(writer, "}");
             }
             Expr::Project(expr, _, field) => {
                 self.expr(writer, expr.data);
-                self.write(writer, ".");
-                self.write(writer, field.data.as_str());
+                self.write_no_space(writer, ".");
+                self.write_no_space(writer, field.data.as_str());
             }
             Expr::Make(type_, args) => {
                 self.write(writer, "make");
@@ -308,7 +324,7 @@ impl<'s> Formatter<'s> {
                     fwriter.expr(&mut buf, arg.data);
                     blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
                 }
-                self.write_block(writer, blocks, ",", vec![]);
+                self.write_block(writer, blocks, ",", vec![], true, false);
                 self.write(writer, ")");
             }
             Expr::SizeOf(type_) => {
@@ -319,8 +335,15 @@ impl<'s> Formatter<'s> {
             }
             Expr::Range(start, end) => {
                 self.expr(writer, start.data);
-                self.write(writer, "..");
-                self.expr(writer, end.data);
+                self.write_no_space(writer, "..");
+
+                let mut fwriter = Formatter::new(self.source);
+                let mut buf = BufWriter::new(Vec::new());
+                fwriter.expr(&mut buf, end.data);
+                self.write_no_space(
+                    writer,
+                    String::from_utf8(buf.into_inner().unwrap()).unwrap(),
+                );
             }
             Expr::As(expr, _, target) => {
                 self.expr(writer, expr.data);
@@ -405,9 +428,14 @@ impl<'s> Formatter<'s> {
         blocks: Vec<String>,
         separator: &str,
         empty_lines: Vec<usize>,
+        trailing_separator: bool,
+        no_depth: bool,
     ) {
         self.write_newline(writer);
-        self.depth += 1;
+        if !no_depth {
+            self.depth += 1;
+        }
+        let blocks_len = blocks.len();
         for (index, block) in blocks.into_iter().enumerate() {
             if empty_lines.contains(&index) {
                 self.write_newline(writer);
@@ -424,10 +452,14 @@ impl<'s> Formatter<'s> {
                 first = false;
             }
 
-            self.write_no_space(writer, separator);
+            if index < blocks_len - 1 || trailing_separator {
+                self.write_no_space(writer, separator);
+            }
             self.write_newline(writer);
         }
-        self.depth -= 1;
+        if !no_depth {
+            self.depth -= 1;
+        }
     }
 
     fn write_block_oneline(
