@@ -497,7 +497,7 @@ impl Compiler {
 
     pub fn format(input: &str) -> Result<String> {
         let module = Compiler::run_parser(input, Path::ident(Ident("main".to_string())), true)?;
-        let mut formatter = Formatter::new();
+        let mut formatter = Formatter::new(input);
 
         Ok(formatter.format(module))
     }

@@ -6,15 +6,17 @@ use crate::{
 };
 
 #[derive(Clone)]
-pub struct Formatter {
+pub struct Formatter<'s> {
+    source: &'s str,
     indent_size: usize,
     depth: usize,
     column: usize,
 }
 
-impl Formatter {
-    pub fn new() -> Formatter {
+impl<'s> Formatter<'s> {
+    pub fn new(source: &'s str) -> Formatter {
         Formatter {
+            source,
             indent_size: 4,
             depth: 0,
             column: 0,
@@ -70,10 +72,12 @@ impl Formatter {
 
     fn statements(&mut self, writer: &mut impl Write, stmts: Vec<Source<Statement>>) {
         let mut blocks = vec![];
+        let mut prev_line = stmts.get(0).map(|t| t.start).flatten().unwrap_or(0);
         for stmt in stmts {
-            let mut fwriter = Formatter::new();
+            let mut fwriter = Formatter::new(self.source);
             let mut buf = BufWriter::new(Vec::new());
             fwriter.statement(&mut buf, stmt.data);
+
             blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
         }
 
@@ -170,7 +174,7 @@ impl Formatter {
             Expr::EnumOr(_, _, _, _) => todo!(),
             Expr::Try(_) => todo!(),
             Expr::Paren(expr) => {
-                let mut fwriter = Formatter::new();
+                let mut fwriter = Formatter::new(self.source);
                 let mut buf = BufWriter::new(Vec::new());
                 fwriter.expr(&mut buf, expr.data);
 
@@ -259,7 +263,7 @@ fun main(): i32 {
         for input in cases {
             let parsed = Compiler::run_parser(input, Path::empty(), true).unwrap();
 
-            let mut fmt = Formatter::new();
+            let mut fmt = Formatter::new(input);
             let formatted = fmt.format(parsed);
             assert_eq!(formatted, input);
         }
