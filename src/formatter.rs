@@ -42,10 +42,37 @@ impl<'s> Formatter<'s> {
     fn decl(&mut self, writer: &mut impl Write, decl: Decl) {
         match decl {
             Decl::Func(func) => self.func(writer, func),
-            Decl::Let(_, _, _) => todo!(),
-            Decl::Type(_, _) => todo!(),
-            Decl::Module(_, _) => todo!(),
-            Decl::Import(_) => todo!(),
+            Decl::Let(ident, type_, expr) => {
+                self.write(writer, "let");
+                self.write(writer, ident.as_str());
+                if let Type::Omit(_) = type_ {
+                } else {
+                    self.write_no_space(writer, ":");
+                    self.write(writer, type_.to_string().as_str());
+                }
+                self.write(writer, "=");
+                self.expr(writer, expr.data);
+                self.write(writer, ";");
+            }
+            Decl::Type(ident, type_) => {
+                self.write(writer, "type");
+                self.write(writer, ident.as_str());
+                self.write(writer, "=");
+                self.write(writer, type_.to_string().as_str());
+                self.write(writer, ";");
+            }
+            Decl::Module(path, module) => {
+                self.write(writer, "module");
+                self.write(writer, path.as_str());
+                self.write(writer, "{");
+                self.module(writer, module);
+                self.write(writer, "}");
+            }
+            Decl::Import(path) => {
+                self.write(writer, "import");
+                self.write(writer, path.as_str());
+                self.write(writer, ";");
+            }
         }
     }
 
@@ -116,13 +143,42 @@ impl<'s> Formatter<'s> {
                 self.write(writer, "return");
                 self.expr(writer, expr.data);
             }
-            Statement::Expr(_, _) => todo!(),
-            Statement::Assign(_, _, _) => todo!(),
-            Statement::If(_, _, _, _) => todo!(),
-            Statement::While(_, _) => todo!(),
-            Statement::For(_, _, _, _) => todo!(),
-            Statement::Continue => todo!(),
-            Statement::Break => todo!(),
+            Statement::Expr(expr, _) => {
+                self.expr(writer, expr.data);
+                self.write(writer, ";");
+            }
+            Statement::Assign(lhs, _, rhs) => {
+                self.expr(writer, lhs.data);
+                self.write(writer, "=");
+                self.expr(writer, rhs.data);
+            }
+            Statement::If(cond, _, then_block, else_block) => {
+                self.write(writer, "if");
+                self.expr(writer, cond.data);
+                self.statements(writer, then_block);
+                if let Some(else_block) = else_block {
+                    self.write(writer, "else");
+                    self.statements(writer, else_block);
+                }
+            }
+            Statement::While(cond, body) => {
+                self.write(writer, "while");
+                self.expr(writer, cond.data);
+                self.statements(writer, body);
+            }
+            Statement::For(_, ident, range, body) => {
+                self.write(writer, "for");
+                self.write(writer, ident.as_str());
+                self.write(writer, "in");
+                self.expr(writer, range.data);
+                self.statements(writer, body);
+            }
+            Statement::Continue => {
+                self.write(writer, "continue");
+            }
+            Statement::Break => {
+                self.write(writer, "break");
+            }
         }
     }
 
@@ -131,8 +187,14 @@ impl<'s> Formatter<'s> {
             Pattern::Ident(ident) => {
                 self.write(writer, ident.as_str());
             }
-            Pattern::Or(_, _) => todo!(),
-            Pattern::Omit => todo!(),
+            Pattern::Or(lhs, rhs) => {
+                self.pattern(writer, lhs.data);
+                self.write(writer, "or");
+                self.pattern(writer, rhs.data);
+            }
+            Pattern::Omit => {
+                self.write(writer, "_");
+            }
         }
     }
 
@@ -195,22 +257,105 @@ impl<'s> Formatter<'s> {
                 self.write(writer, op.to_string());
                 self.expr(writer, rhs.data);
             }
-            Expr::Record(_, _, _) => todo!(),
-            Expr::AnonymousRecord(_, _) => todo!(),
-            Expr::Project(_, _, _) => todo!(),
-            Expr::Make(_, _) => todo!(),
-            Expr::SizeOf(_) => todo!(),
-            Expr::Range(_, _) => todo!(),
-            Expr::As(_, _, _) => todo!(),
-            Expr::Path {
-                path,
-                resolved_path,
-            } => todo!(),
-            Expr::Wrap(_, _) => todo!(),
-            Expr::Unwrap(_, _, _) => todo!(),
-            Expr::Omit(_) => todo!(),
-            Expr::EnumOr(_, _, _, _) => todo!(),
-            Expr::Try(_) => todo!(),
+            Expr::Record(name, fields, expansion) => {
+                self.write(writer, name.data.as_str());
+                self.write(writer, "{");
+                let mut blocks = vec![];
+                for (name, expr) in fields {
+                    let mut fwriter = Formatter::new(self.source);
+                    let mut buf = BufWriter::new(Vec::new());
+
+                    fwriter.write_no_space(&mut buf, name.as_str());
+                    fwriter.write_no_space(&mut buf, ":");
+                    fwriter.expr(&mut buf, expr.data);
+                    blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
+                }
+                self.write_block(writer, blocks, ",", vec![]);
+                self.write(writer, "}");
+            }
+            Expr::AnonymousRecord(fields, _) => {
+                self.write(writer, "struct");
+                self.write(writer, "{");
+                let mut blocks = vec![];
+                for (name, expr) in fields {
+                    let mut fwriter = Formatter::new(self.source);
+                    let mut buf = BufWriter::new(Vec::new());
+
+                    fwriter.write_no_space(&mut buf, name.as_str());
+                    fwriter.write_no_space(&mut buf, ":");
+                    fwriter.expr(&mut buf, expr.data);
+                    blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
+                }
+                self.write_block(writer, blocks, ",", vec![]);
+                self.write(writer, "}");
+            }
+            Expr::Project(expr, _, field) => {
+                self.expr(writer, expr.data);
+                self.write(writer, ".");
+                self.write(writer, field.data.as_str());
+            }
+            Expr::Make(type_, args) => {
+                self.write(writer, "make");
+                self.write(writer, "[");
+                self.type_(writer, type_);
+                self.write(writer, "]");
+                self.write(writer, "(");
+                let mut blocks = vec![];
+                for arg in args {
+                    let mut fwriter = Formatter::new(self.source);
+                    let mut buf = BufWriter::new(Vec::new());
+
+                    fwriter.expr(&mut buf, arg.data);
+                    blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
+                }
+                self.write_block(writer, blocks, ",", vec![]);
+                self.write(writer, ")");
+            }
+            Expr::SizeOf(type_) => {
+                self.write(writer, "sizeof");
+                self.write(writer, "[");
+                self.type_(writer, type_);
+                self.write(writer, "]");
+            }
+            Expr::Range(start, end) => {
+                self.expr(writer, start.data);
+                self.write(writer, "..");
+                self.expr(writer, end.data);
+            }
+            Expr::As(expr, _, target) => {
+                self.expr(writer, expr.data);
+                self.write(writer, "as");
+                self.type_(writer, target);
+            }
+            Expr::Path { path, .. } => {
+                self.write(writer, path.data.as_str());
+            }
+            Expr::Wrap(_, expr) => {
+                self.expr(writer, expr.data);
+            }
+            Expr::Unwrap(_, _, expr) => {
+                self.expr(writer, expr.data);
+            }
+            Expr::Omit(_) => {
+                self.write(writer, "_");
+            }
+            Expr::EnumOr(_, _, lhs, rhs) => {
+                if let Some(lhs) = lhs {
+                    self.expr(writer, lhs.data);
+                } else {
+                    self.write(writer, "_");
+                }
+                self.write(writer, "or");
+                if let Some(rhs) = rhs {
+                    self.expr(writer, rhs.data);
+                } else {
+                    self.write(writer, "_");
+                }
+            }
+            Expr::Try(expr) => {
+                self.expr(writer, expr.data);
+                self.write_no_space(writer, ".try");
+            }
             Expr::Paren(expr) => {
                 let mut fwriter = Formatter::new(self.source);
                 let mut buf = BufWriter::new(Vec::new());
@@ -224,6 +369,10 @@ impl<'s> Formatter<'s> {
                 self.write_no_space(writer, ")");
             }
         }
+    }
+
+    fn type_(&mut self, writer: &mut impl Write, type_: Type) {
+        self.write(writer, type_.to_string());
     }
 
     fn write(&mut self, writer: &mut impl Write, s: impl AsRef<str>) {
