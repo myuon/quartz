@@ -249,29 +249,7 @@ impl<'s> Formatter<'s> {
             },
             Expr::Call(callee, args, varadic, expansion) => {
                 self.expr(writer, callee.data);
-
-                let mut blocks = vec![];
-                for arg in args {
-                    let mut fwriter = Formatter::new(self.source);
-                    let mut buf = BufWriter::new(Vec::new());
-
-                    fwriter.expr(&mut buf, arg.data);
-                    blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
-                }
-
-                let mut fwriter = Formatter::new(self.source);
-                let mut buf = BufWriter::new(Vec::new());
-                fwriter.write_no_space(&mut buf, "(");
-                fwriter.write_block_oneline(&mut buf, blocks.clone(), ",");
-                fwriter.write_no_space(&mut buf, ")");
-                let buf_string = String::from_utf8(buf.into_inner().unwrap()).unwrap();
-                if self.depth * self.indent_size + buf_string.len() < self.max_width {
-                    self.write_no_space(writer, buf_string.as_str());
-                } else {
-                    self.write_no_space(writer, "(");
-                    self.write_block(writer, blocks, ",", vec![], true, false);
-                    self.write(writer, ")");
-                }
+                self.arguments(writer, args);
             }
             Expr::BinOp(op, _, lhs, rhs) => {
                 self.expr(writer, lhs.data);
@@ -317,26 +295,16 @@ impl<'s> Formatter<'s> {
             }
             Expr::Make(type_, args) => {
                 self.write(writer, "make");
-                self.write(writer, "[");
-                self.type_(writer, type_);
-                self.write(writer, "]");
-                self.write(writer, "(");
-                let mut blocks = vec![];
-                for arg in args {
-                    let mut fwriter = Formatter::new(self.source);
-                    let mut buf = BufWriter::new(Vec::new());
-
-                    fwriter.expr(&mut buf, arg.data);
-                    blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
-                }
-                self.write_block(writer, blocks, ",", vec![], true, false);
-                self.write(writer, ")");
+                self.write_no_space(writer, "[");
+                self.type_no_space(writer, type_);
+                self.write_no_space(writer, "]");
+                self.arguments(writer, args);
             }
             Expr::SizeOf(type_) => {
                 self.write(writer, "sizeof");
-                self.write(writer, "[");
-                self.type_(writer, type_);
-                self.write(writer, "]");
+                self.write_no_space(writer, "[");
+                self.type_no_space(writer, type_);
+                self.write_no_space(writer, "]");
             }
             Expr::Range(start, end) => {
                 self.expr(writer, start.data);
@@ -363,6 +331,7 @@ impl<'s> Formatter<'s> {
             }
             Expr::Unwrap(_, _, expr) => {
                 self.expr(writer, expr.data);
+                self.write_no_space(writer, "!");
             }
             Expr::Omit(_) => {
                 self.write(writer, "_");
@@ -399,8 +368,37 @@ impl<'s> Formatter<'s> {
         }
     }
 
+    fn arguments(&mut self, writer: &mut impl Write, args: Vec<Source<Expr>>) {
+        let mut blocks = vec![];
+        for arg in args {
+            let mut fwriter = Formatter::new(self.source);
+            let mut buf = BufWriter::new(Vec::new());
+
+            fwriter.expr(&mut buf, arg.data);
+            blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
+        }
+
+        let mut fwriter = Formatter::new(self.source);
+        let mut buf = BufWriter::new(Vec::new());
+        fwriter.write_no_space(&mut buf, "(");
+        fwriter.write_block_oneline(&mut buf, blocks.clone(), ",");
+        fwriter.write_no_space(&mut buf, ")");
+        let buf_string = String::from_utf8(buf.into_inner().unwrap()).unwrap();
+        if self.depth * self.indent_size + buf_string.len() < self.max_width {
+            self.write_no_space(writer, buf_string.as_str());
+        } else {
+            self.write_no_space(writer, "(");
+            self.write_block(writer, blocks, ",", vec![], true, false);
+            self.write(writer, ")");
+        }
+    }
+
     fn type_(&mut self, writer: &mut impl Write, type_: Type) {
         self.write(writer, type_.to_string());
+    }
+
+    fn type_no_space(&mut self, writer: &mut impl Write, type_: Type) {
+        self.write_no_space(writer, type_.to_string());
     }
 
     fn write(&mut self, writer: &mut impl Write, s: impl AsRef<str>) {
@@ -453,7 +451,11 @@ impl<'s> Formatter<'s> {
                     self.write_newline(writer);
                 }
 
-                self.write(writer, line);
+                if line.trim().is_empty() {
+                    self.write_no_space(writer, line);
+                } else {
+                    self.write(writer, line);
+                }
                 first = false;
             }
 
