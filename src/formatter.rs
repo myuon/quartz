@@ -43,7 +43,7 @@ impl<'s> Formatter<'s> {
             blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
         }
 
-        self.write_block(writer, blocks, "\n\n", vec![], false, true);
+        self.write_block(writer, blocks, "\n", vec![], false, true);
     }
 
     fn decl(&mut self, writer: &mut impl Write, decl: Decl) {
@@ -81,7 +81,7 @@ impl<'s> Formatter<'s> {
                 self.write(writer, "module");
                 self.write(writer, path.as_str());
                 self.write(writer, "{");
-                self.write_block(writer, blocks, "\n\n", vec![], false, false);
+                self.write_block(writer, blocks, "\n", vec![], false, false);
                 self.write(writer, "}");
             }
             Decl::Import(path) => {
@@ -138,7 +138,7 @@ impl<'s> Formatter<'s> {
         }
 
         self.write(writer, "{");
-        self.write_block(writer, blocks, ";", need_empty_lines, true, false);
+        self.write_block(writer, blocks, "", need_empty_lines, true, false);
         self.write(writer, "}");
     }
 
@@ -154,19 +154,22 @@ impl<'s> Formatter<'s> {
                 }
                 self.write(writer, "=");
                 self.expr(writer, expr.data);
+                self.write_no_space(writer, ";");
             }
             Statement::Return(expr) => {
                 self.write(writer, "return");
                 self.expr(writer, expr.data);
+                self.write_no_space(writer, ";");
             }
             Statement::Expr(expr, _) => {
                 self.expr(writer, expr.data);
-                self.write(writer, ";");
+                self.write_no_space(writer, ";");
             }
             Statement::Assign(lhs, _, rhs) => {
                 self.expr(writer, lhs.data);
                 self.write(writer, "=");
                 self.expr(writer, rhs.data);
+                self.write_no_space(writer, ";");
             }
             Statement::If(cond, _, then_block, else_block) => {
                 self.write(writer, "if");
@@ -191,9 +194,11 @@ impl<'s> Formatter<'s> {
             }
             Statement::Continue => {
                 self.write(writer, "continue");
+                self.write_no_space(writer, ";");
             }
             Statement::Break => {
                 self.write(writer, "break");
+                self.write_no_space(writer, ";");
             }
         }
     }
