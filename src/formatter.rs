@@ -159,10 +159,25 @@ impl<'s> Formatter<'s> {
                     self.write(writer, &i.to_string());
                 }
                 Lit::String(s) => {
-                    self.write(writer, &s);
+                    self.write(writer, format!("{:?}", s));
                 }
             },
-            Expr::Call(_, _, _, _) => todo!(),
+            Expr::Call(callee, args, varadic, expansion) => {
+                self.expr(writer, callee.data);
+
+                let mut blocks = vec![];
+                for arg in args {
+                    let mut fwriter = Formatter::new(self.source);
+                    let mut buf = BufWriter::new(Vec::new());
+
+                    fwriter.expr(&mut buf, arg.data);
+                    blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
+                }
+
+                self.write_no_space(writer, "(");
+                self.write_block(writer, blocks, ",", vec![]);
+                self.write(writer, ")");
+            }
             Expr::BinOp(op, _, lhs, rhs) => {
                 self.expr(writer, lhs.data);
                 self.write(writer, op.to_string());
@@ -232,7 +247,18 @@ impl<'s> Formatter<'s> {
             if empty_lines.contains(&index) {
                 self.write_newline(writer);
             }
-            self.write(writer, block);
+
+            // each block may have multiple lines
+            let mut first = true;
+            for line in block.lines() {
+                if !first {
+                    self.write_newline(writer);
+                }
+
+                self.write(writer, line);
+                first = false;
+            }
+
             self.write_no_space(writer, separator);
             self.write_newline(writer);
         }
@@ -286,6 +312,42 @@ fun main(): i32 {
             let mut fmt = Formatter::new(input);
             let formatted = fmt.format(parsed);
             assert_eq!(formatted, input);
+        }
+    }
+
+    #[test]
+    fn format_forced() {
+        let cases = vec![
+            (r#"
+fun main() {
+    let a = 10;
+
+    return f("looooooooooooooooooooooong", "looooooooooooooooooooooong", "looooooooooooooooooooooong", "looooooooooooooooooooooong", "text");
+}
+"#
+            .trim_start(),
+            r#"
+fun main() {
+    let a = 10;
+
+    return f(
+        "looooooooooooooooooooooong",
+        "looooooooooooooooooooooong",
+        "looooooooooooooooooooooong",
+        "looooooooooooooooooooooong",
+        "text",
+    );
+}
+"#
+            .trim_start())
+        ];
+
+        for (input, output) in cases {
+            let parsed = Compiler::run_parser(input, Path::empty(), true).unwrap();
+
+            let mut fmt = Formatter::new(input);
+            let formatted = fmt.format(parsed);
+            assert_eq!(formatted, output);
         }
     }
 }
