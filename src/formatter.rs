@@ -2,6 +2,7 @@ use std::io::{BufWriter, Write};
 
 use crate::{
     ast::{Decl, Expr, Func, Lit, Module, Pattern, Statement, StringLiteralType, Type},
+    lexer::Token,
     util::{ident::Ident, source::Source},
 };
 
@@ -12,16 +13,18 @@ pub struct Formatter<'s> {
     indent_size: usize,
     depth: usize,
     column: usize,
+    comments: &'s Vec<Token>,
 }
 
 impl<'s> Formatter<'s> {
-    pub fn new(source: &'s str) -> Formatter {
+    pub fn new(source: &'s str, comments: &'s Vec<Token>) -> Formatter<'s> {
         Formatter {
             source,
             max_width: 110,
             indent_size: 4,
             depth: 0,
             column: 0,
+            comments,
         }
     }
 
@@ -36,7 +39,7 @@ impl<'s> Formatter<'s> {
     pub fn module(&mut self, writer: &mut impl Write, module: Module) {
         let mut blocks = vec![];
         for decl in module.0 {
-            let mut fwriter = Formatter::new(self.source);
+            let mut fwriter = Formatter::new(self.source, self.comments);
             let mut buf = BufWriter::new(Vec::new());
             fwriter.decl(&mut buf, decl);
 
@@ -71,7 +74,7 @@ impl<'s> Formatter<'s> {
             Decl::Module(path, module) => {
                 let mut blocks = vec![];
                 for decl in module.0 {
-                    let mut fwriter = Formatter::new(self.source);
+                    let mut fwriter = Formatter::new(self.source, self.comments);
                     let mut buf = BufWriter::new(Vec::new());
                     fwriter.decl(&mut buf, decl);
 
@@ -132,7 +135,7 @@ impl<'s> Formatter<'s> {
         let mut prev_position = stmts.get(0).map(|t| t.start).flatten().unwrap_or(0);
         let mut need_empty_lines = vec![];
         for (index, stmt) in stmts.into_iter().enumerate() {
-            let mut fwriter = Formatter::new(self.source);
+            let mut fwriter = Formatter::new(self.source, self.comments);
             let mut buf = BufWriter::new(Vec::new());
             let current_position = stmt.start.unwrap_or(0);
             let need_empty_line = self.source[prev_position..current_position]
@@ -278,7 +281,7 @@ impl<'s> Formatter<'s> {
                 self.write(writer, "{");
                 let mut blocks = vec![];
                 for (name, expr) in fields {
-                    let mut fwriter = Formatter::new(self.source);
+                    let mut fwriter = Formatter::new(self.source, self.comments);
                     let mut buf = BufWriter::new(Vec::new());
 
                     fwriter.write_no_space(&mut buf, name.as_str());
@@ -294,7 +297,7 @@ impl<'s> Formatter<'s> {
                 self.write(writer, "{");
                 let mut blocks = vec![];
                 for (name, expr) in fields {
-                    let mut fwriter = Formatter::new(self.source);
+                    let mut fwriter = Formatter::new(self.source, self.comments);
                     let mut buf = BufWriter::new(Vec::new());
 
                     fwriter.write_no_space(&mut buf, name.as_str());
@@ -327,7 +330,7 @@ impl<'s> Formatter<'s> {
                 self.expr(writer, start.data);
                 self.write_no_space(writer, "..");
 
-                let mut fwriter = Formatter::new(self.source);
+                let mut fwriter = Formatter::new(self.source, self.comments);
                 let mut buf = BufWriter::new(Vec::new());
                 fwriter.expr(&mut buf, end.data);
                 self.write_no_space(
@@ -372,7 +375,7 @@ impl<'s> Formatter<'s> {
                 self.write_no_space(writer, ".try");
             }
             Expr::Paren(expr) => {
-                let mut fwriter = Formatter::new(self.source);
+                let mut fwriter = Formatter::new(self.source, self.comments);
                 let mut buf = BufWriter::new(Vec::new());
                 fwriter.expr(&mut buf, expr.data);
 
@@ -394,14 +397,14 @@ impl<'s> Formatter<'s> {
     ) {
         let mut blocks = vec![];
         for arg in args {
-            let mut fwriter = Formatter::new(self.source);
+            let mut fwriter = Formatter::new(self.source, self.comments);
             let mut buf = BufWriter::new(Vec::new());
 
             fwriter.expr(&mut buf, arg.data);
             blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
         }
         if let Some(expansion) = expansion {
-            let mut fwriter = Formatter::new(self.source);
+            let mut fwriter = Formatter::new(self.source, self.comments);
             let mut buf = BufWriter::new(Vec::new());
 
             fwriter.expr(&mut buf, expansion.data);
@@ -411,7 +414,7 @@ impl<'s> Formatter<'s> {
             ));
         }
 
-        let mut fwriter = Formatter::new(self.source);
+        let mut fwriter = Formatter::new(self.source, self.comments);
         let mut buf = BufWriter::new(Vec::new());
         fwriter.write_no_space(&mut buf, "(");
         fwriter.write_block_oneline(&mut buf, blocks.clone(), ",");
@@ -551,8 +554,9 @@ fun main(): i32 {
 
         for input in cases {
             let parsed = Compiler::run_parser(input, Path::empty(), true).unwrap();
+            let comments = vec![];
 
-            let mut fmt = Formatter::new(input);
+            let mut fmt = Formatter::new(input, &comments);
             let formatted = fmt.format(parsed);
             assert_eq!(formatted, input);
         }
@@ -587,8 +591,9 @@ fun main() {
 
         for (input, output) in cases {
             let parsed = Compiler::run_parser(input, Path::empty(), true).unwrap();
+            let comments = vec![];
 
-            let mut fmt = Formatter::new(input);
+            let mut fmt = Formatter::new(input, &comments);
             let formatted = fmt.format(parsed);
             assert_eq!(formatted, output);
         }
