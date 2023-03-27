@@ -72,17 +72,28 @@ impl<'s> Formatter<'s> {
 
     fn statements(&mut self, writer: &mut impl Write, stmts: Vec<Source<Statement>>) {
         let mut blocks = vec![];
-        let mut prev_line = stmts.get(0).map(|t| t.start).flatten().unwrap_or(0);
-        for stmt in stmts {
+        let mut prev_position = stmts.get(0).map(|t| t.start).flatten().unwrap_or(0);
+        let mut need_empty_lines = vec![];
+        for (index, stmt) in stmts.into_iter().enumerate() {
             let mut fwriter = Formatter::new(self.source);
             let mut buf = BufWriter::new(Vec::new());
-            fwriter.statement(&mut buf, stmt.data);
+            let current_position = stmt.start.unwrap_or(0);
+            let need_empty_line = self.source[prev_position..current_position]
+                .chars()
+                .filter(|p| p == &'\n')
+                .count()
+                >= 2;
+            if need_empty_line {
+                need_empty_lines.push(index);
+            }
+            prev_position = current_position;
 
+            fwriter.statement(&mut buf, stmt.data);
             blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
         }
 
         self.write(writer, "{");
-        self.write_block(writer, blocks, ";");
+        self.write_block(writer, blocks, ";", need_empty_lines);
         self.write(writer, "}");
     }
 
@@ -208,10 +219,19 @@ impl<'s> Formatter<'s> {
         self.column = 0;
     }
 
-    fn write_block(&mut self, writer: &mut impl Write, blocks: Vec<String>, separator: &str) {
+    fn write_block(
+        &mut self,
+        writer: &mut impl Write,
+        blocks: Vec<String>,
+        separator: &str,
+        empty_lines: Vec<usize>,
+    ) {
         self.write_newline(writer);
         self.depth += 1;
-        for block in blocks {
+        for (index, block) in blocks.into_iter().enumerate() {
+            if empty_lines.contains(&index) {
+                self.write_newline(writer);
+            }
             self.write(writer, block);
             self.write_no_space(writer, separator);
             self.write_newline(writer);
