@@ -8,6 +8,7 @@ use crate::{
 #[derive(Clone)]
 pub struct Formatter<'s> {
     source: &'s str,
+    max_width: usize,
     indent_size: usize,
     depth: usize,
     column: usize,
@@ -17,6 +18,7 @@ impl<'s> Formatter<'s> {
     pub fn new(source: &'s str) -> Formatter {
         Formatter {
             source,
+            max_width: 110,
             indent_size: 4,
             depth: 0,
             column: 0,
@@ -174,9 +176,19 @@ impl<'s> Formatter<'s> {
                     blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
                 }
 
-                self.write_no_space(writer, "(");
-                self.write_block(writer, blocks, ",", vec![]);
-                self.write(writer, ")");
+                let mut fwriter = Formatter::new(self.source);
+                let mut buf = BufWriter::new(Vec::new());
+                fwriter.write_no_space(&mut buf, "(");
+                fwriter.write_block_oneline(&mut buf, blocks.clone(), ",");
+                fwriter.write_no_space(&mut buf, ")");
+                let buf_string = String::from_utf8(buf.into_inner().unwrap()).unwrap();
+                if self.depth * self.indent_size + buf_string.len() < self.max_width {
+                    self.write_no_space(writer, buf_string.as_str());
+                } else {
+                    self.write_no_space(writer, "(");
+                    self.write_block(writer, blocks, ",", vec![]);
+                    self.write(writer, ")");
+                }
             }
             Expr::BinOp(op, _, lhs, rhs) => {
                 self.expr(writer, lhs.data);
@@ -229,6 +241,10 @@ impl<'s> Formatter<'s> {
         self.column += 1;
     }
 
+    fn write_space(&mut self, writer: &mut impl Write) {
+        self.write_no_space(writer, " ");
+    }
+
     fn write_newline(&mut self, writer: &mut impl Write) {
         write!(writer, "\n").unwrap();
         self.column = 0;
@@ -271,9 +287,15 @@ impl<'s> Formatter<'s> {
         blocks: Vec<String>,
         separator: &str,
     ) {
+        let mut first = true;
         for block in blocks {
-            self.write(writer, block);
-            self.write_no_space(writer, separator);
+            if !first {
+                self.write_no_space(writer, separator);
+                self.write_space(writer);
+            }
+            self.write_no_space(writer, block);
+
+            first = false;
         }
     }
 }
@@ -320,7 +342,7 @@ fun main(): i32 {
         let cases = vec![
             (r#"
 fun main() {
-    let a = 10;
+    let a = f("short", "text");
 
     return f("looooooooooooooooooooooong", "looooooooooooooooooooooong", "looooooooooooooooooooooong", "looooooooooooooooooooooong", "text");
 }
@@ -328,7 +350,7 @@ fun main() {
             .trim_start(),
             r#"
 fun main() {
-    let a = 10;
+    let a = f("short", "text");
 
     return f(
         "looooooooooooooooooooooong",
