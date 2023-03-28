@@ -47,11 +47,7 @@ impl<'s> Formatter<'s> {
             let mut fwriter = Formatter::new(self.source, self.comments, self.comment_position);
             let mut buf = BufWriter::new(Vec::new());
 
-            let comments = fwriter.consume_comments(decl.start.unwrap_or(0));
-            for comment in comments {
-                fwriter.write(writer, comment.raw);
-                fwriter.write_newline(writer);
-            }
+            fwriter.restore_comments(decl.start.unwrap_or(0), &mut buf);
             fwriter.decl(&mut buf, decl.data);
             self.comment_position = fwriter.comment_position;
 
@@ -151,11 +147,7 @@ impl<'s> Formatter<'s> {
             let mut fwriter = Formatter::new(self.source, self.comments, self.comment_position);
             let mut buf = BufWriter::new(Vec::new());
 
-            let comments = fwriter.consume_comments(stmt.start.unwrap_or(0));
-            for comment in comments {
-                fwriter.write(&mut buf, comment.raw);
-                fwriter.write_newline(&mut buf);
-            }
+            fwriter.restore_comments(stmt.start.unwrap_or(0), &mut buf);
 
             // restore comments
             if self.need_empty_lines(current_position, stmt.start.unwrap_or(0)) {
@@ -165,11 +157,7 @@ impl<'s> Formatter<'s> {
 
             fwriter.statement(&mut buf, stmt.data.clone());
 
-            let comments = fwriter.consume_comments(stmt.end.unwrap_or(0));
-            for comment in comments {
-                fwriter.write_newline(&mut buf);
-                fwriter.write(&mut buf, comment.raw);
-            }
+            fwriter.restore_comments(stmt.end.unwrap_or(0), &mut buf);
 
             blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
             self.comment_position = fwriter.comment_position;
@@ -490,6 +478,14 @@ impl<'s> Formatter<'s> {
         }
 
         comments
+    }
+
+    fn restore_comments(&mut self, start: usize, writer: &mut impl Write) {
+        let comments = self.consume_comments(start);
+        for comment in comments {
+            self.write(writer, comment.raw);
+            self.write_newline(writer);
+        }
     }
 
     fn write(&mut self, writer: &mut impl Write, s: impl AsRef<str>) {
