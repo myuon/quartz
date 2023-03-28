@@ -152,12 +152,7 @@ impl<'s> Formatter<'s> {
             let mut fwriter = Formatter::new(self.source, self.comments, self.comment_position);
             let mut buf = BufWriter::new(Vec::new());
             let current_position = stmt.start.unwrap_or(0);
-            let need_empty_line = self.source[prev_position..current_position]
-                .chars()
-                .filter(|p| p == &'\n')
-                .count()
-                >= 2;
-            if need_empty_line {
+            if self.need_empty_lines(prev_position, current_position) {
                 need_empty_lines.push(index);
             }
             prev_position = current_position;
@@ -475,6 +470,14 @@ impl<'s> Formatter<'s> {
 
     fn type_no_space(&mut self, writer: &mut impl Write, type_: Type) {
         self.write_no_space(writer, type_.to_string());
+    }
+
+    fn need_empty_lines(&self, start: usize, end: usize) -> bool {
+        self.source[start..end]
+            .chars()
+            .filter(|p| p == &'\n')
+            .count()
+            >= 2
     }
 
     fn consume_comments(&mut self, start: usize) -> Vec<Token> {
