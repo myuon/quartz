@@ -352,4 +352,4 @@ pub enum Decl {
 }
 
 #[derive(PartialEq, Debug, Clone)]
-pub struct Module(pub Vec<Decl>);
+pub struct Module(pub Vec<Source<Decl>>);

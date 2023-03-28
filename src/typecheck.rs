@@ -126,7 +126,7 @@ impl TypeChecker {
 
     fn module_register_for_back_reference(&mut self, module: &mut Module) -> Result<()> {
         for decl in &mut module.0 {
-            match decl {
+            match &mut decl.data {
                 Decl::Func(func) => {
                     self.globals.insert(
                         self.path_to(&func.name.data),
@@ -160,7 +160,7 @@ impl TypeChecker {
     fn module_typecheck(&mut self, module: &mut Module) -> Result<()> {
         for decl in &mut module.0 {
             self.locals.clear();
-            let result = self.decl(decl);
+            let result = self.decl(&mut decl.data);
             if result.is_ok() || !self.search_node.is_some() {
                 result?;
             }

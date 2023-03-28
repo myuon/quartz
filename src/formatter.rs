@@ -14,6 +14,7 @@ pub struct Formatter<'s> {
     depth: usize,
     column: usize,
     comments: &'s Vec<Token>,
+    comment_position: usize,
 }
 
 impl<'s> Formatter<'s> {
@@ -25,6 +26,7 @@ impl<'s> Formatter<'s> {
             depth: 0,
             column: 0,
             comments,
+            comment_position: 0,
         }
     }
 
@@ -40,7 +42,13 @@ impl<'s> Formatter<'s> {
         for decl in module.0 {
             let mut fwriter = Formatter::new(self.source, self.comments);
             let mut buf = BufWriter::new(Vec::new());
-            fwriter.decl(&mut buf, decl);
+
+            let comments = self.consume_comments(decl.start.unwrap_or(0));
+            for comment in comments {
+                fwriter.write(writer, comment.raw);
+                fwriter.write_newline(writer);
+            }
+            fwriter.decl(&mut buf, decl.data);
 
             blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
         }
@@ -75,7 +83,7 @@ impl<'s> Formatter<'s> {
                 for decl in module.0 {
                     let mut fwriter = Formatter::new(self.source, self.comments);
                     let mut buf = BufWriter::new(Vec::new());
-                    fwriter.decl(&mut buf, decl);
+                    fwriter.decl(&mut buf, decl.data);
 
                     blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
                 }
@@ -439,6 +447,18 @@ impl<'s> Formatter<'s> {
         self.write_no_space(writer, type_.to_string());
     }
 
+    fn consume_comments(&mut self, start: usize) -> Vec<Token> {
+        let mut comments = vec![];
+        while self.comment_position < self.comments.len()
+            && self.comments[self.comment_position].position <= start
+        {
+            comments.push(self.comments[self.comment_position].clone());
+            self.comment_position += 1;
+        }
+
+        comments
+    }
+
     fn write(&mut self, writer: &mut impl Write, s: impl AsRef<str>) {
         if self.column == 0 {
             write!(writer, "{}", " ".repeat(self.depth * self.indent_size)).unwrap();
@@ -536,22 +556,21 @@ mod tests {
     #[test]
     fn check_format() {
         let cases = vec![
-            /*
-                        r#"
-            fun main() {
-                return 10;
-            }
-            "#
-                        .trim_start(),
-                        r#"
-            fun main(): i32 {
-                let a = 1;
-                let b = (100 + 30) / 2;
+            r#"
+fun main() {
+    return 10;
+}
+"#
+            .trim_start(),
+            r#"
+fun main(): i32 {
+    let a = 1;
+    let b = (100 + 30) / 2;
 
-                return a + b;
-            }
-            "#
-                        .trim_start(), */
+    return a + b;
+}
+"#
+            .trim_start(),
             r#"
 // function
 fun main(): i32 {
@@ -609,7 +628,6 @@ fun main() {
         for (input, output) in cases {
             let (parsed, comments) =
                 Compiler::run_parser_with_comments(input, Path::empty(), true).unwrap();
-            let comments = vec![];
 
             let mut fmt = Formatter::new(input, &comments);
             let formatted = fmt.format(parsed);

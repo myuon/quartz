@@ -13,7 +13,7 @@ use crate::{
     lexer::{Lexeme, Lexer, Token},
     parser::Parser,
     typecheck::TypeChecker,
-    util::{ident::Ident, path::Path},
+    util::{ident::Ident, path::Path, source::Source},
 };
 
 pub const MODE_TYPE_REP: bool = true;
@@ -149,7 +149,6 @@ impl Compiler {
         let (comments, no_comments): (Vec<_>, Vec<_>) = tokens
             .iter()
             .partition(|v| matches!(v.lexeme, Lexeme::Comment(_)));
-        println!("{:?}", comments);
 
         Ok((
             parser.run(
@@ -201,10 +200,10 @@ impl Compiler {
                 .iter()
                 .map(|v| {
                     // HACK: Add import quartz::std to the top of the file
-                    let mut decls = vec![Decl::Import(v.path.clone())];
+                    let mut decls = vec![Source::unknown(Decl::Import(v.path.clone()))];
                     decls.extend(v.module.0.clone());
 
-                    Decl::Module(v.path.clone(), Module(decls))
+                    Source::unknown(Decl::Module(v.path.clone(), Module(decls)))
                 })
                 .collect::<Vec<_>>(),
         );
@@ -309,10 +308,10 @@ impl Compiler {
                 .iter()
                 .map(|v| {
                     // HACK: Add import quartz::std to the top of the file
-                    let mut decls = vec![Decl::Import(v.path.clone())];
+                    let mut decls = vec![Source::unknown(Decl::Import(v.path.clone()))];
                     decls.extend(v.module.0.clone());
 
-                    Decl::Module(v.path.clone(), Module(decls))
+                    Source::unknown(Decl::Module(v.path.clone(), Module(decls)))
                 })
                 .collect::<Vec<_>>(),
         );

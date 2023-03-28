@@ -43,9 +43,10 @@ impl Parser {
         let mut decls = vec![];
 
         while !self.is_end() && self.peek()?.lexeme != Lexeme::RBrace {
+            let position = self.position;
             let result = self.decl();
             if result.is_ok() || !self.skip_errors {
-                decls.push(result?);
+                decls.push(self.source_from(result?, position));
             }
         }
 

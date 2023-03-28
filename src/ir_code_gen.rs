@@ -127,7 +127,7 @@ impl IrCodeGenerator {
         let mut elements = vec![];
 
         for decl in &mut module.0 {
-            match decl {
+            match &mut decl.data {
                 Decl::Func(func) => {
                     elements.push(self.func(func)?);
                 }

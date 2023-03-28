@@ -69,7 +69,7 @@ static STRING_LITERAL: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"^"((([^"]|\\")*[^\\])?)""#).unwrap());
 static RAW_STRING_LITERAL: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"^`((([^`]|\\`)*[^\\])?)`"#).unwrap());
-static COMMENT_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^//[^\n]*\n"#).unwrap());
+static COMMENT_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^//[^\n]*"#).unwrap());
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Token {
