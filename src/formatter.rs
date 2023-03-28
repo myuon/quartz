@@ -147,13 +147,12 @@ impl<'s> Formatter<'s> {
     fn statements(&mut self, writer: &mut impl Write, stmts: Vec<Source<Statement>>) {
         let mut blocks = vec![];
         let mut prev_position = stmts.get(0).map(|t| t.start).flatten().unwrap_or(0);
-        let mut need_empty_lines = vec![];
-        for (index, stmt) in stmts.into_iter().enumerate() {
+        for stmt in stmts {
             let mut fwriter = Formatter::new(self.source, self.comments, self.comment_position);
             let mut buf = BufWriter::new(Vec::new());
             let current_position = stmt.start.unwrap_or(0);
             if self.need_empty_lines(prev_position, current_position) {
-                need_empty_lines.push(index);
+                fwriter.write_newline(&mut buf);
             }
             prev_position = current_position;
 
@@ -177,7 +176,7 @@ impl<'s> Formatter<'s> {
 
         self.write(writer, "{");
         self.write_newline(writer);
-        self.write_block(writer, blocks, "", need_empty_lines, true, false);
+        self.write_block(writer, blocks, "", vec![], true, false);
         self.write(writer, "}");
         self.write_newline(writer);
     }
