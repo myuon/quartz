@@ -146,15 +146,10 @@ impl<'s> Formatter<'s> {
 
     fn statements(&mut self, writer: &mut impl Write, stmts: Vec<Source<Statement>>) {
         let mut blocks = vec![];
-        let mut prev_position = stmts.get(0).map(|t| t.start).flatten().unwrap_or(0);
-        for stmt in stmts {
+        let mut current_position = 0; // for empty lines
+        for stmt in &stmts {
             let mut fwriter = Formatter::new(self.source, self.comments, self.comment_position);
             let mut buf = BufWriter::new(Vec::new());
-            let current_position = stmt.start.unwrap_or(0);
-            if self.need_empty_lines(prev_position, current_position) {
-                fwriter.write_newline(&mut buf);
-            }
-            prev_position = current_position;
 
             let comments = fwriter.consume_comments(stmt.start.unwrap_or(0));
             for comment in comments {
@@ -162,7 +157,13 @@ impl<'s> Formatter<'s> {
                 fwriter.write_newline(&mut buf);
             }
 
-            fwriter.statement(&mut buf, stmt.data);
+            // restore comments
+            if self.need_empty_lines(current_position, stmt.start.unwrap_or(0)) {
+                fwriter.write_newline(&mut buf);
+            }
+            current_position = stmt.start.unwrap_or(0);
+
+            fwriter.statement(&mut buf, stmt.data.clone());
 
             let comments = fwriter.consume_comments(stmt.end.unwrap_or(0));
             for comment in comments {
