@@ -47,15 +47,15 @@ impl<'s> Formatter<'s> {
             let mut fwriter = Formatter::new(self.source, self.comments, self.comment_position);
             let mut buf = BufWriter::new(Vec::new());
 
-            let comments = self.consume_comments(decl.start.unwrap_or(0));
+            let comments = fwriter.consume_comments(decl.start.unwrap_or(0));
             for comment in comments {
                 fwriter.write(writer, comment.raw);
                 fwriter.write_newline(writer);
             }
             fwriter.decl(&mut buf, decl.data);
+            self.comment_position = fwriter.comment_position;
 
             blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
-            self.comment_position = fwriter.comment_position;
         }
 
         self.write_block(writer, blocks, "\n", vec![], false, true);
@@ -162,7 +162,20 @@ impl<'s> Formatter<'s> {
             }
             prev_position = current_position;
 
+            let comments = fwriter.consume_comments(stmt.start.unwrap_or(0));
+            for comment in comments {
+                fwriter.write(&mut buf, comment.raw);
+                fwriter.write_newline(&mut buf);
+            }
+
             fwriter.statement(&mut buf, stmt.data);
+
+            let comments = fwriter.consume_comments(stmt.end.unwrap_or(0));
+            for comment in comments {
+                fwriter.write_newline(&mut buf);
+                fwriter.write(&mut buf, comment.raw);
+            }
+
             blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
             self.comment_position = fwriter.comment_position;
         }
