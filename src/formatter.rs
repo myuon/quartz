@@ -141,27 +141,44 @@ impl<'s> Formatter<'s> {
     }
 
     fn statements(&mut self, writer: &mut impl Write, stmts: Vec<Source<Statement>>) {
-        let mut blocks = vec![];
-        let mut current_position = 0; // for empty lines
+        let mut lines = vec![];
         for stmt in &stmts {
             let mut fwriter = Formatter::new(self.source, self.comments, self.comment_position);
             let mut buf = BufWriter::new(Vec::new());
 
-            fwriter.restore_comments(stmt.start.unwrap_or(0), &mut buf);
-
-            // restore comments
-            if self.need_empty_lines(current_position, stmt.start.unwrap_or(0)) {
-                fwriter.write_newline(&mut buf);
+            let comments = fwriter.consume_comments(stmt.start.unwrap_or(0));
+            for comment in comments {
+                lines.push((comment.position, comment.raw.to_string()));
             }
-            current_position = stmt.start.unwrap_or(0);
 
             fwriter.statement(&mut buf, stmt.data.clone());
+            let block_string = String::from_utf8(buf.into_inner().unwrap()).unwrap();
+            lines.push((stmt.start.unwrap_or(0), block_string));
 
-            fwriter.restore_comments(stmt.end.unwrap_or(0), &mut buf);
+            let comments = fwriter.consume_comments(stmt.end.unwrap_or(0));
+            for comment in comments {
+                lines.push((comment.position, comment.raw.to_string()));
+            }
 
-            blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
             self.comment_position = fwriter.comment_position;
         }
+
+        let mut blocks = vec![];
+        let mut current_pos = 0; // for empty lines
+        for (pos, line) in lines {
+            let mut fwriter = Formatter::new(self.source, self.comments, self.comment_position);
+            let mut buf = BufWriter::new(Vec::new());
+
+            if self.need_empty_lines(current_pos, pos) {
+                fwriter.write_newline(&mut buf);
+            }
+            current_pos = pos;
+
+            fwriter.write(&mut buf, line.as_str());
+
+            blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
+        }
+        println!("{:?}", blocks);
 
         self.write(writer, "{");
         self.write_newline(writer);
@@ -619,7 +636,7 @@ fun main(): i32 {
         (100 + 30) / 2;
 
     // return
-    return a + b;
+    return a + b; // a + b
 
     // last line
 }
