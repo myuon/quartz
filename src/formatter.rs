@@ -31,7 +31,6 @@ impl<'s> Formatter<'s> {
     pub fn format(&mut self, module: Module) -> String {
         let mut buf = BufWriter::new(Vec::new());
         self.module(&mut buf, module);
-        self.write_newline(&mut buf);
 
         String::from_utf8(buf.into_inner().unwrap()).unwrap()
     }
@@ -153,8 +152,10 @@ impl<'s> Formatter<'s> {
         }
 
         self.write(writer, "{");
+        self.write_newline(writer);
         self.write_block(writer, blocks, "", need_empty_lines, true, false);
         self.write(writer, "}");
+        self.write_newline(writer);
     }
 
     fn statement(&mut self, writer: &mut impl Write, stmt: Statement) {
@@ -424,6 +425,7 @@ impl<'s> Formatter<'s> {
             self.write_no_space(writer, buf_string.as_str());
         } else {
             self.write_no_space(writer, "(");
+            self.write_newline(writer);
             self.write_block(writer, blocks, ",", vec![], true, false);
             self.write(writer, ")");
         }
@@ -470,7 +472,6 @@ impl<'s> Formatter<'s> {
         trailing_separator: bool,
         no_depth: bool,
     ) {
-        self.write_newline(writer);
         if !no_depth {
             self.depth += 1;
         }
@@ -535,26 +536,42 @@ mod tests {
     #[test]
     fn check_format() {
         let cases = vec![
-            r#"
-fun main() {
-    return 10;
-}
-"#
-            .trim_start(),
-            r#"
-fun main(): i32 {
-    let a = 1;
-    let b = (100 + 30) / 2;
+            /*
+                        r#"
+            fun main() {
+                return 10;
+            }
+            "#
+                        .trim_start(),
+                        r#"
+            fun main(): i32 {
+                let a = 1;
+                let b = (100 + 30) / 2;
 
+                return a + b;
+            }
+            "#
+                        .trim_start(), */
+            r#"
+// function
+fun main(): i32 {
+    // let foo
+    let b =
+        // definition of b
+        (100 + 30) / 2;
+
+    // return
     return a + b;
+
+    // last line
 }
 "#
             .trim_start(),
         ];
 
         for input in cases {
-            let parsed = Compiler::run_parser(input, Path::empty(), true).unwrap();
-            let comments = vec![];
+            let (parsed, comments) =
+                Compiler::run_parser_with_comments(input, Path::empty(), true).unwrap();
 
             let mut fmt = Formatter::new(input, &comments);
             let formatted = fmt.format(parsed);
@@ -590,7 +607,8 @@ fun main() {
         ];
 
         for (input, output) in cases {
-            let parsed = Compiler::run_parser(input, Path::empty(), true).unwrap();
+            let (parsed, comments) =
+                Compiler::run_parser_with_comments(input, Path::empty(), true).unwrap();
             let comments = vec![];
 
             let mut fmt = Formatter::new(input, &comments);

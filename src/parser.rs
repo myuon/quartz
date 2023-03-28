@@ -30,7 +30,10 @@ impl Parser {
     }
 
     pub fn run(&mut self, input: Vec<Token>, path: Path, skip_errors: bool) -> Result<Module> {
-        self.input = input;
+        self.input = input
+            .into_iter()
+            .filter(|t| !matches!(t.lexeme, Lexeme::Comment(_)))
+            .collect();
         self.current_path = path;
         self.skip_errors = skip_errors;
         self.module()

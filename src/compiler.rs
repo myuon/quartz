@@ -10,7 +10,7 @@ use crate::{
     generator::Generator,
     ir::IrTerm,
     ir_code_gen::IrCodeGenerator,
-    lexer::{Lexer, Token},
+    lexer::{Lexeme, Lexer, Token},
     parser::Parser,
     typecheck::TypeChecker,
     util::{ident::Ident, path::Path},
@@ -136,9 +136,29 @@ impl Compiler {
     }
 
     pub fn run_parser(input: &str, path: Path, skip_errors: bool) -> Result<Module> {
-        let mut parser = Parser::new();
+        Ok(Compiler::run_parser_with_comments(input, path, skip_errors)?.0)
+    }
 
-        parser.run(Compiler::run_lexer(input, path.clone())?, path, skip_errors)
+    pub fn run_parser_with_comments(
+        input: &str,
+        path: Path,
+        skip_errors: bool,
+    ) -> Result<(Module, Vec<Token>)> {
+        let mut parser = Parser::new();
+        let tokens = Compiler::run_lexer(input, path.clone())?;
+        let (comments, no_comments): (Vec<_>, Vec<_>) = tokens
+            .iter()
+            .partition(|v| matches!(v.lexeme, Lexeme::Comment(_)));
+        println!("{:?}", comments);
+
+        Ok((
+            parser.run(
+                no_comments.into_iter().cloned().collect::<Vec<_>>(),
+                path,
+                skip_errors,
+            )?,
+            comments.into_iter().cloned().collect::<Vec<_>>(),
+        ))
     }
 
     pub fn parse(
@@ -150,10 +170,7 @@ impl Compiler {
     ) -> Result<Module> {
         let mut parser = Parser::new();
 
-        let tokens = Compiler::run_lexer(input, main_path.clone())?;
-        let main = parser
-            .run(tokens, main_path.clone(), skip_errors)
-            .context("parser phase")?;
+        let main = Compiler::run_parser(input, main_path.clone(), skip_errors)?;
 
         self.loader.loaded.push(LoadedModule {
             path: main_path.clone(),
@@ -496,8 +513,11 @@ impl Compiler {
     }
 
     pub fn format(input: &str) -> Result<String> {
-        let module = Compiler::run_parser(input, Path::ident(Ident("main".to_string())), true)?;
-        let comments = vec![];
+        let (module, comments) = Compiler::run_parser_with_comments(
+            input,
+            Path::ident(Ident("main".to_string())),
+            true,
+        )?;
         let mut formatter = Formatter::new(input, &comments);
 
         Ok(formatter.format(module))
