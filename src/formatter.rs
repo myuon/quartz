@@ -181,8 +181,17 @@ impl<'s> Formatter<'s> {
                     self.write(writer, type_.to_string().as_str());
                 }
                 self.write(writer, "=");
-                self.expr(writer, expr.data);
-                self.write_no_space(writer, ";");
+                if self.has_comments(expr.start.unwrap_or(0)) {
+                    self.write_newline(writer);
+                    self.depth += 1;
+                    self.restore_comments(expr.start.unwrap_or(0), writer);
+                    self.expr(writer, expr.data);
+                    self.write_no_space(writer, ";");
+                    self.depth -= 1;
+                } else {
+                    self.expr(writer, expr.data);
+                    self.write_no_space(writer, ";");
+                }
             }
             Statement::Return(expr) => {
                 self.write(writer, "return");
@@ -196,6 +205,7 @@ impl<'s> Formatter<'s> {
             Statement::Assign(lhs, _, rhs) => {
                 self.expr(writer, lhs.data);
                 self.write(writer, "=");
+                self.restore_comments(rhs.start.unwrap_or(0), writer);
                 self.expr(writer, rhs.data);
                 self.write_no_space(writer, ";");
             }
@@ -478,6 +488,11 @@ impl<'s> Formatter<'s> {
         }
 
         comments
+    }
+
+    fn has_comments(&self, start: usize) -> bool {
+        self.comment_position < self.comments.len()
+            && self.comments[self.comment_position].position <= start
     }
 
     fn restore_comments(&mut self, start: usize, writer: &mut impl Write) {
