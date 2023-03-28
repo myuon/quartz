@@ -18,7 +18,11 @@ pub struct Formatter<'s> {
 }
 
 impl<'s> Formatter<'s> {
-    pub fn new(source: &'s str, comments: &'s Vec<Token>) -> Formatter<'s> {
+    pub fn new(
+        source: &'s str,
+        comments: &'s Vec<Token>,
+        comment_position: usize,
+    ) -> Formatter<'s> {
         Formatter {
             source,
             max_width: 110,
@@ -26,7 +30,7 @@ impl<'s> Formatter<'s> {
             depth: 0,
             column: 0,
             comments,
-            comment_position: 0,
+            comment_position,
         }
     }
 
@@ -40,7 +44,7 @@ impl<'s> Formatter<'s> {
     pub fn module(&mut self, writer: &mut impl Write, module: Module) {
         let mut blocks = vec![];
         for decl in module.0 {
-            let mut fwriter = Formatter::new(self.source, self.comments);
+            let mut fwriter = Formatter::new(self.source, self.comments, self.comment_position);
             let mut buf = BufWriter::new(Vec::new());
 
             let comments = self.consume_comments(decl.start.unwrap_or(0));
@@ -51,6 +55,7 @@ impl<'s> Formatter<'s> {
             fwriter.decl(&mut buf, decl.data);
 
             blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
+            self.comment_position = fwriter.comment_position;
         }
 
         self.write_block(writer, blocks, "\n", vec![], false, true);
@@ -81,11 +86,13 @@ impl<'s> Formatter<'s> {
             Decl::Module(path, module) => {
                 let mut blocks = vec![];
                 for decl in module.0 {
-                    let mut fwriter = Formatter::new(self.source, self.comments);
+                    let mut fwriter =
+                        Formatter::new(self.source, self.comments, self.comment_position);
                     let mut buf = BufWriter::new(Vec::new());
                     fwriter.decl(&mut buf, decl.data);
 
                     blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
+                    self.comment_position = fwriter.comment_position;
                 }
 
                 self.write(writer, "module");
@@ -142,7 +149,7 @@ impl<'s> Formatter<'s> {
         let mut prev_position = stmts.get(0).map(|t| t.start).flatten().unwrap_or(0);
         let mut need_empty_lines = vec![];
         for (index, stmt) in stmts.into_iter().enumerate() {
-            let mut fwriter = Formatter::new(self.source, self.comments);
+            let mut fwriter = Formatter::new(self.source, self.comments, self.comment_position);
             let mut buf = BufWriter::new(Vec::new());
             let current_position = stmt.start.unwrap_or(0);
             let need_empty_line = self.source[prev_position..current_position]
@@ -157,6 +164,7 @@ impl<'s> Formatter<'s> {
 
             fwriter.statement(&mut buf, stmt.data);
             blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
+            self.comment_position = fwriter.comment_position;
         }
 
         self.write(writer, "{");
@@ -290,13 +298,15 @@ impl<'s> Formatter<'s> {
                 self.write(writer, "{");
                 let mut blocks = vec![];
                 for (name, expr) in fields {
-                    let mut fwriter = Formatter::new(self.source, self.comments);
+                    let mut fwriter =
+                        Formatter::new(self.source, self.comments, self.comment_position);
                     let mut buf = BufWriter::new(Vec::new());
 
                     fwriter.write_no_space(&mut buf, name.as_str());
                     fwriter.write_no_space(&mut buf, ":");
                     fwriter.expr(&mut buf, expr.data);
                     blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
+                    self.comment_position = fwriter.comment_position;
                 }
                 self.write_block(writer, blocks, ",", vec![], true, false);
                 self.write(writer, "}");
@@ -306,13 +316,15 @@ impl<'s> Formatter<'s> {
                 self.write(writer, "{");
                 let mut blocks = vec![];
                 for (name, expr) in fields {
-                    let mut fwriter = Formatter::new(self.source, self.comments);
+                    let mut fwriter =
+                        Formatter::new(self.source, self.comments, self.comment_position);
                     let mut buf = BufWriter::new(Vec::new());
 
                     fwriter.write_no_space(&mut buf, name.as_str());
                     fwriter.write_no_space(&mut buf, ":");
                     fwriter.expr(&mut buf, expr.data);
                     blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
+                    self.comment_position = fwriter.comment_position;
                 }
                 self.write_block(writer, blocks, ",", vec![], true, false);
                 self.write(writer, "}");
@@ -339,13 +351,14 @@ impl<'s> Formatter<'s> {
                 self.expr(writer, start.data);
                 self.write_no_space(writer, "..");
 
-                let mut fwriter = Formatter::new(self.source, self.comments);
+                let mut fwriter = Formatter::new(self.source, self.comments, self.comment_position);
                 let mut buf = BufWriter::new(Vec::new());
                 fwriter.expr(&mut buf, end.data);
                 self.write_no_space(
                     writer,
                     String::from_utf8(buf.into_inner().unwrap()).unwrap(),
                 );
+                self.comment_position = fwriter.comment_position;
             }
             Expr::As(expr, _, target) => {
                 self.expr(writer, expr.data);
@@ -384,9 +397,10 @@ impl<'s> Formatter<'s> {
                 self.write_no_space(writer, ".try");
             }
             Expr::Paren(expr) => {
-                let mut fwriter = Formatter::new(self.source, self.comments);
+                let mut fwriter = Formatter::new(self.source, self.comments, self.comment_position);
                 let mut buf = BufWriter::new(Vec::new());
                 fwriter.expr(&mut buf, expr.data);
+                self.comment_position = fwriter.comment_position;
 
                 self.write(writer, "(");
                 self.write_no_space(
@@ -406,28 +420,31 @@ impl<'s> Formatter<'s> {
     ) {
         let mut blocks = vec![];
         for arg in args {
-            let mut fwriter = Formatter::new(self.source, self.comments);
+            let mut fwriter = Formatter::new(self.source, self.comments, self.comment_position);
             let mut buf = BufWriter::new(Vec::new());
 
             fwriter.expr(&mut buf, arg.data);
+            self.comment_position = fwriter.comment_position;
             blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
         }
         if let Some(expansion) = expansion {
-            let mut fwriter = Formatter::new(self.source, self.comments);
+            let mut fwriter = Formatter::new(self.source, self.comments, self.comment_position);
             let mut buf = BufWriter::new(Vec::new());
 
             fwriter.expr(&mut buf, expansion.data);
+            self.comment_position = fwriter.comment_position;
             blocks.push(format!(
                 "..{}",
                 String::from_utf8(buf.into_inner().unwrap()).unwrap()
             ));
         }
 
-        let mut fwriter = Formatter::new(self.source, self.comments);
+        let mut fwriter = Formatter::new(self.source, self.comments, self.comment_position);
         let mut buf = BufWriter::new(Vec::new());
         fwriter.write_no_space(&mut buf, "(");
         fwriter.write_block_oneline(&mut buf, blocks.clone(), ",");
         fwriter.write_no_space(&mut buf, ")");
+        self.comment_position = fwriter.comment_position;
         let buf_string = String::from_utf8(buf.into_inner().unwrap()).unwrap();
         if self.depth * self.indent_size + buf_string.len() < self.max_width {
             self.write_no_space(writer, buf_string.as_str());
@@ -592,7 +609,7 @@ fun main(): i32 {
             let (parsed, comments) =
                 Compiler::run_parser_with_comments(input, Path::empty(), true).unwrap();
 
-            let mut fmt = Formatter::new(input, &comments);
+            let mut fmt = Formatter::new(input, &comments, 0);
             let formatted = fmt.format(parsed);
             assert_eq!(formatted, input);
         }
@@ -629,7 +646,7 @@ fun main() {
             let (parsed, comments) =
                 Compiler::run_parser_with_comments(input, Path::empty(), true).unwrap();
 
-            let mut fmt = Formatter::new(input, &comments);
+            let mut fmt = Formatter::new(input, &comments, 0);
             let formatted = fmt.format(parsed);
             assert_eq!(formatted, output);
         }

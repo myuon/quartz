@@ -517,7 +517,7 @@ impl Compiler {
             Path::ident(Ident("main".to_string())),
             true,
         )?;
-        let mut formatter = Formatter::new(input, &comments);
+        let mut formatter = Formatter::new(input, &comments, 0);
 
         Ok(formatter.format(module))
     }
