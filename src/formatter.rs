@@ -58,7 +58,7 @@ impl<'s> Formatter<'s> {
             blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
         }
 
-        self.write_block(writer, blocks, "\n", vec![], false, true);
+        self.write_block(writer, blocks, "\n", false, true);
     }
 
     fn decl(&mut self, writer: &mut impl Write, decl: Decl) {
@@ -98,7 +98,7 @@ impl<'s> Formatter<'s> {
                 self.write(writer, "module");
                 self.write(writer, path.as_str());
                 self.write(writer, "{");
-                self.write_block(writer, blocks, "\n", vec![], false, false);
+                self.write_block(writer, blocks, "\n", false, false);
                 self.write(writer, "}");
             }
             Decl::Import(path) => {
@@ -176,7 +176,7 @@ impl<'s> Formatter<'s> {
 
         self.write(writer, "{");
         self.write_newline(writer);
-        self.write_block(writer, blocks, "", vec![], true, false);
+        self.write_block(writer, blocks, "", true, false);
         self.write(writer, "}");
         self.write_newline(writer);
     }
@@ -315,7 +315,7 @@ impl<'s> Formatter<'s> {
                     blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
                     self.comment_position = fwriter.comment_position;
                 }
-                self.write_block(writer, blocks, ",", vec![], true, false);
+                self.write_block(writer, blocks, ",", true, false);
                 self.write(writer, "}");
             }
             Expr::AnonymousRecord(fields, _) => {
@@ -333,7 +333,7 @@ impl<'s> Formatter<'s> {
                     blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
                     self.comment_position = fwriter.comment_position;
                 }
-                self.write_block(writer, blocks, ",", vec![], true, false);
+                self.write_block(writer, blocks, ",", true, false);
                 self.write(writer, "}");
             }
             Expr::Project(expr, _, field) => {
@@ -458,7 +458,7 @@ impl<'s> Formatter<'s> {
         } else {
             self.write_no_space(writer, "(");
             self.write_newline(writer);
-            self.write_block(writer, blocks, ",", vec![], true, false);
+            self.write_block(writer, blocks, ",", true, false);
             self.write(writer, ")");
         }
     }
@@ -520,7 +520,6 @@ impl<'s> Formatter<'s> {
         writer: &mut impl Write,
         blocks: Vec<String>,
         separator: &str,
-        empty_lines: Vec<usize>,
         trailing_separator: bool,
         no_depth: bool,
     ) {
@@ -529,10 +528,6 @@ impl<'s> Formatter<'s> {
         }
         let blocks_len = blocks.len();
         for (index, block) in blocks.into_iter().enumerate() {
-            if empty_lines.contains(&index) {
-                self.write_newline(writer);
-            }
-
             // each block may have multiple lines
             let mut first = true;
             for line in block.lines() {
