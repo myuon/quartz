@@ -100,7 +100,7 @@ impl<'s> Formatter<'s> {
             Decl::Import(path) => {
                 self.write(writer, "import");
                 self.write(writer, path.as_str());
-                self.write(writer, ";");
+                self.write_no_space(writer, ";");
             }
         }
     }
@@ -356,6 +356,7 @@ impl<'s> Formatter<'s> {
             Expr::AnonymousRecord(fields, _) => {
                 self.write(writer, "struct");
                 self.write(writer, "{");
+                self.write_newline(writer);
                 let mut blocks = vec![];
                 for (name, expr) in fields {
                     let mut fwriter =
