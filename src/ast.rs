@@ -228,6 +228,7 @@ pub enum Expr {
         Option<Box<Source<Expr>>>,
     ),
     BinOp(BinOp, Type, Box<Source<Expr>>, Box<Source<Expr>>),
+    Not(Box<Source<Expr>>),
     Record(
         Source<Ident>,
         Vec<(Ident, Source<Expr>)>,

@@ -662,19 +662,7 @@ impl Parser {
                 self.consume()?;
                 let expr = self.term_0(with_struct)?;
 
-                self.source_from(
-                    Expr::Call(
-                        Box::new(self.source(
-                            Expr::ident(Ident("not".to_string())),
-                            position,
-                            position,
-                        )),
-                        vec![expr],
-                        None,
-                        None,
-                    ),
-                    position,
-                )
+                self.source_from(Expr::Not(Box::new(expr)), position)
             }
             Lexeme::Struct => {
                 self.consume()?;

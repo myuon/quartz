@@ -318,6 +318,18 @@ impl<'s> Formatter<'s> {
                 self.expr(writer, callee.data);
                 self.arguments(writer, args, expansion);
             }
+            Expr::Not(expr) => {
+                self.write(writer, "!");
+
+                let mut fwriter = Formatter::new(self.source, self.comments, self.comment_position);
+                let mut buf = BufWriter::new(Vec::new());
+                fwriter.expr(&mut buf, expr.data);
+
+                self.write_no_space(
+                    writer,
+                    &String::from_utf8(buf.into_inner().unwrap()).unwrap(),
+                );
+            }
             Expr::BinOp(op, _, lhs, rhs) => {
                 self.expr(writer, lhs.data);
                 self.write(writer, op.to_string());

@@ -727,6 +727,17 @@ impl TypeChecker {
                     }
                 }
             }
+            Expr::Not(expr) => {
+                let type_ = self.expr(expr)?;
+                self.unify(&mut Type::Bool, &mut type_.clone())
+                    .context(ErrorInSource {
+                        path: Some(self.current_path.clone()),
+                        start: expr.start.unwrap_or(0),
+                        end: expr.end.unwrap_or(0),
+                    })?;
+
+                Ok(Type::Bool)
+            }
             Expr::BinOp(op, type_, arg1, arg2) => {
                 use crate::ast::BinOp::*;
 

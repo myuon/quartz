@@ -590,6 +590,15 @@ impl IrCodeGenerator {
                 Lit::I64(i) => Ok(IrTerm::i64(*i)),
                 Lit::String(s, _) => Ok(self.register_string(s.clone())),
             },
+            Expr::Not(expr) => {
+                let expr = self.expr(expr)?;
+
+                Ok(IrTerm::Call {
+                    callee: Box::new(IrTerm::Ident("not".to_string())),
+                    args: vec![expr],
+                    source: None,
+                })
+            }
             Expr::BinOp(op, type_, arg1, arg2) => {
                 use crate::ast::BinOp::*;
 
