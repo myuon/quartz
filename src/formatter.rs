@@ -164,25 +164,27 @@ impl<'s> Formatter<'s> {
         }
 
         let mut blocks = vec![];
-        let mut current_pos = 0;
-        for (pos, line) in lines {
-            let mut fwriter = Formatter::new(self.source, self.comments, self.comment_position);
-            let mut buf = BufWriter::new(Vec::new());
+        if !lines.is_empty() {
+            let mut current_pos = lines[0].0;
+            for (pos, line) in lines {
+                let mut fwriter = Formatter::new(self.source, self.comments, self.comment_position);
+                let mut buf = BufWriter::new(Vec::new());
 
-            if self.need_empty_lines(current_pos, pos) {
-                fwriter.write_newline(&mut buf);
+                if self.need_empty_lines(current_pos, pos) {
+                    fwriter.write_newline(&mut buf);
+                }
+
+                fwriter.write(&mut buf, line.as_str());
+
+                if !blocks.is_empty() && self.need_line_follow(current_pos, pos) {
+                    let last_line = blocks.pop().unwrap();
+                    blocks.push(format!("{} {}", last_line, line));
+                } else {
+                    blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
+                }
+
+                current_pos = pos;
             }
-
-            fwriter.write(&mut buf, line.as_str());
-
-            if self.need_line_follow(current_pos, pos) {
-                let last_line = blocks.pop().unwrap();
-                blocks.push(format!("{} {}", last_line, line));
-            } else {
-                blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
-            }
-
-            current_pos = pos;
         }
 
         self.write(writer, "{");
