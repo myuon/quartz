@@ -42,8 +42,28 @@ impl<'s> Formatter<'s> {
     }
 
     pub fn module(&mut self, writer: &mut impl Write, module: Module) {
+        let (imports, decls) = module
+            .0
+            .into_iter()
+            .partition::<Vec<_>, _>(|d| matches!(d.data, Decl::Import(_)));
+
         let mut blocks = vec![];
-        for decl in module.0 {
+        for decl in imports {
+            let mut fwriter = Formatter::new(self.source, self.comments, self.comment_position);
+            let mut buf = BufWriter::new(Vec::new());
+
+            fwriter.restore_comments(decl.start.unwrap_or(0), &mut buf);
+            fwriter.decl(&mut buf, decl.data);
+            self.comment_position = fwriter.comment_position;
+
+            blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
+        }
+
+        self.write_block(writer, blocks, "", false, true);
+        self.write_newline(writer);
+
+        let mut blocks = vec![];
+        for decl in decls {
             let mut fwriter = Formatter::new(self.source, self.comments, self.comment_position);
             let mut buf = BufWriter::new(Vec::new());
 
