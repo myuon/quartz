@@ -96,7 +96,7 @@ impl<'s> Formatter<'s> {
                 self.write(writer, "type");
                 self.write(writer, ident.as_str());
                 self.write(writer, "=");
-                self.write(writer, type_.to_string().as_str());
+                self.type_(writer, type_);
                 self.write_no_space(writer, ";");
             }
             Decl::Module(path, module) => {
@@ -114,6 +114,7 @@ impl<'s> Formatter<'s> {
                 self.write(writer, "module");
                 self.write(writer, path.as_str());
                 self.write(writer, "{");
+                self.write_newline(writer);
                 self.write_block(writer, blocks, "\n", false, false);
                 self.write(writer, "}");
             }
@@ -358,6 +359,7 @@ impl<'s> Formatter<'s> {
             Expr::Record(name, fields, expansion) => {
                 self.write(writer, name.data.as_str());
                 self.write(writer, "{");
+                self.write_newline(writer);
                 let mut blocks = vec![];
                 for (name, expr) in fields {
                     let mut fwriter =
@@ -520,7 +522,25 @@ impl<'s> Formatter<'s> {
     }
 
     fn type_(&mut self, writer: &mut impl Write, type_: Type) {
-        self.write(writer, type_.to_string());
+        match type_ {
+            Type::Record(rs) => {
+                self.write(writer, "{");
+                self.write_newline(writer);
+                self.depth += 1;
+                for (name, type_) in rs {
+                    self.write(writer, name.as_str());
+                    self.write_no_space(writer, ":");
+                    self.type_(writer, type_);
+                    self.write_no_space(writer, ",");
+                    self.write_newline(writer);
+                }
+                self.depth -= 1;
+                self.write(writer, "}");
+            }
+            _ => {
+                self.write(writer, type_.to_string());
+            }
+        }
     }
 
     fn type_no_space(&mut self, writer: &mut impl Write, type_: Type) {
