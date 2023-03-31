@@ -47,34 +47,22 @@ impl<'s> Formatter<'s> {
             .into_iter()
             .partition::<Vec<_>, _>(|d| matches!(d.data, Decl::Import(_)));
 
-        let mut blocks = vec![];
+        let imports_is_empty = imports.is_empty();
         for decl in imports {
-            let mut fwriter = Formatter::new(self.source, self.comments, self.comment_position);
-            let mut buf = BufWriter::new(Vec::new());
-
-            fwriter.restore_comments(decl.start.unwrap_or(0), &mut buf);
-            fwriter.decl(&mut buf, decl.data);
-            self.comment_position = fwriter.comment_position;
-
-            blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
+            self.restore_comments(decl.start.unwrap_or(0), writer);
+            self.decl(writer, decl.data);
+            self.write_newline(writer);
         }
 
-        self.write_block(writer, blocks, "", false, true);
-        self.write_newline(writer);
+        if !imports_is_empty {
+            self.write_newline(writer);
+        }
 
-        let mut blocks = vec![];
         for decl in decls {
-            let mut fwriter = Formatter::new(self.source, self.comments, self.comment_position);
-            let mut buf = BufWriter::new(Vec::new());
-
-            fwriter.restore_comments(decl.start.unwrap_or(0), &mut buf);
-            fwriter.decl(&mut buf, decl.data);
-            self.comment_position = fwriter.comment_position;
-
-            blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
+            self.restore_comments(decl.start.unwrap_or(0), writer);
+            self.decl(writer, decl.data);
+            self.write_newline(writer);
         }
-
-        self.write_block(writer, blocks, "\n", false, true);
     }
 
     fn decl(&mut self, writer: &mut impl Write, decl: Decl) {
@@ -212,7 +200,6 @@ impl<'s> Formatter<'s> {
         self.write_newline(writer);
         self.write_block(writer, blocks, "", true, false);
         self.write(writer, "}");
-        self.write_newline(writer);
     }
 
     fn statement(&mut self, writer: &mut impl Write, stmt: Statement) {
