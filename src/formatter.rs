@@ -324,15 +324,7 @@ impl<'s> Formatter<'s> {
             }
             Expr::Not(expr) => {
                 self.write_if(writer, "!", skip_space);
-
-                let mut fwriter = Formatter::new(self.source, self.comments, self.comment_position);
-                let mut buf = BufWriter::new(Vec::new());
-                fwriter.expr(&mut buf, expr.data, false);
-
-                self.write_no_space(
-                    writer,
-                    &String::from_utf8(buf.into_inner().unwrap()).unwrap(),
-                );
+                self.expr(writer, expr.data, true);
             }
             Expr::BinOp(op, _, lhs, rhs) => {
                 self.expr(writer, lhs.data, skip_space);
@@ -348,6 +340,12 @@ impl<'s> Formatter<'s> {
                     self.write(writer, name.as_str());
                     self.write_no_space(writer, ":");
                     self.expr(writer, expr.data, false);
+                    self.write_no_space(writer, ",");
+                    self.write_newline(writer);
+                }
+                if let Some(expansion) = expansion {
+                    self.write(writer, "..");
+                    self.expr(writer, expansion.data, true);
                     self.write_no_space(writer, ",");
                     self.write_newline(writer);
                 }
