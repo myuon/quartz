@@ -472,7 +472,7 @@ impl<'s> Formatter<'s> {
         }
         fwriter.write_no_space(&mut buf, ")");
         let buf_string = String::from_utf8(buf.into_inner().unwrap()).unwrap();
-        if buf_string.len() < self.max_width {
+        if buf_string.lines().all(|line| line.len() < self.max_width) {
             self.write_no_space(writer, buf_string.as_str());
             *self = fwriter;
         } else {
