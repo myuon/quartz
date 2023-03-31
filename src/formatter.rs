@@ -243,7 +243,13 @@ impl<'s> Formatter<'s> {
                 self.statements(writer, then_block);
                 if let Some(else_block) = else_block {
                     self.write(writer, "else");
-                    self.statements(writer, else_block);
+                    if else_block.len() == 1
+                        && matches!(else_block[0].data, Statement::If(_, _, _, _))
+                    {
+                        self.statement(writer, else_block[0].data.clone());
+                    } else {
+                        self.statements(writer, else_block);
+                    }
                 }
             }
             Statement::While(cond, body) => {
