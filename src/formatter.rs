@@ -81,7 +81,7 @@ impl<'s> Formatter<'s> {
                     self.write(writer, type_.to_string().as_str());
                 }
                 self.write(writer, "=");
-                self.expr(writer, expr.data);
+                self.expr(writer, expr.data, false);
                 self.write_no_space(writer, ";");
             }
             Decl::Type(ident, type_) => {
@@ -212,33 +212,33 @@ impl<'s> Formatter<'s> {
                     self.write_newline(writer);
                     self.depth += 1;
                     self.restore_comments(expr.start.unwrap_or(0), writer);
-                    self.expr(writer, expr.data);
+                    self.expr(writer, expr.data, false);
                     self.write_no_space(writer, ";");
                     self.depth -= 1;
                 } else {
-                    self.expr(writer, expr.data);
+                    self.expr(writer, expr.data, false);
                     self.write_no_space(writer, ";");
                 }
             }
             Statement::Return(expr) => {
                 self.write(writer, "return");
-                self.expr(writer, expr.data);
+                self.expr(writer, expr.data, false);
                 self.write_no_space(writer, ";");
             }
             Statement::Expr(expr, _) => {
-                self.expr(writer, expr.data);
+                self.expr(writer, expr.data, false);
                 self.write_no_space(writer, ";");
             }
             Statement::Assign(lhs, _, rhs) => {
-                self.expr(writer, lhs.data);
+                self.expr(writer, lhs.data, false);
                 self.write(writer, "=");
                 self.restore_comments(rhs.start.unwrap_or(0), writer);
-                self.expr(writer, rhs.data);
+                self.expr(writer, rhs.data, false);
                 self.write_no_space(writer, ";");
             }
             Statement::If(cond, _, then_block, else_block) => {
                 self.write(writer, "if");
-                self.expr(writer, cond.data);
+                self.expr(writer, cond.data, false);
                 self.statements(writer, then_block);
                 if let Some(else_block) = else_block {
                     self.write(writer, "else");
@@ -247,14 +247,14 @@ impl<'s> Formatter<'s> {
             }
             Statement::While(cond, body) => {
                 self.write(writer, "while");
-                self.expr(writer, cond.data);
+                self.expr(writer, cond.data, false);
                 self.statements(writer, body);
             }
             Statement::For(_, ident, range, body) => {
                 self.write(writer, "for");
                 self.write(writer, ident.as_str());
                 self.write(writer, "in");
-                self.expr(writer, range.data);
+                self.expr(writer, range.data, false);
                 self.statements(writer, body);
             }
             Statement::Continue => {
@@ -284,49 +284,49 @@ impl<'s> Formatter<'s> {
         }
     }
 
-    fn expr(&mut self, writer: &mut impl Write, expr: Expr) {
+    fn expr(&mut self, writer: &mut impl Write, expr: Expr, skip_space: bool) {
         match expr {
             Expr::Ident { ident, .. } => {
-                self.write(writer, ident.as_str());
+                self.write_if(writer, ident.as_str(), skip_space);
             }
             Expr::Self_ => {
-                self.write(writer, "self");
+                self.write_if(writer, "self", skip_space);
             }
             Expr::Lit(lit) => match lit {
                 Lit::Nil => {
-                    self.write(writer, "nil");
+                    self.write_if(writer, "nil", skip_space);
                 }
                 Lit::Bool(b) => {
-                    self.write(writer, if b { "true" } else { "false" });
+                    self.write_if(writer, if b { "true" } else { "false" }, skip_space);
                 }
                 Lit::I32(i) => {
-                    self.write(writer, &i.to_string());
+                    self.write_if(writer, &i.to_string(), skip_space);
                 }
                 Lit::U32(u) => {
-                    self.write(writer, &u.to_string());
+                    self.write_if(writer, &u.to_string(), skip_space);
                 }
                 Lit::I64(i) => {
-                    self.write(writer, &i.to_string());
+                    self.write_if(writer, &i.to_string(), skip_space);
                 }
                 Lit::String(s, literal_type) => match literal_type {
                     StringLiteralType::String => {
-                        self.write(writer, format!("{:?}", s));
+                        self.write_if(writer, format!("{:?}", s), skip_space);
                     }
                     StringLiteralType::Raw => {
-                        self.write(writer, format!("`{}`", s));
+                        self.write_if(writer, format!("`{}`", s), skip_space);
                     }
                 },
             },
             Expr::Call(callee, args, _, expansion) => {
-                self.expr(writer, callee.data);
+                self.expr(writer, callee.data, skip_space);
                 self.arguments(writer, args, expansion);
             }
             Expr::Not(expr) => {
-                self.write(writer, "!");
+                self.write_if(writer, "!", skip_space);
 
                 let mut fwriter = Formatter::new(self.source, self.comments, self.comment_position);
                 let mut buf = BufWriter::new(Vec::new());
-                fwriter.expr(&mut buf, expr.data);
+                fwriter.expr(&mut buf, expr.data, false);
 
                 self.write_no_space(
                     writer,
@@ -334,19 +334,19 @@ impl<'s> Formatter<'s> {
                 );
             }
             Expr::BinOp(op, _, lhs, rhs) => {
-                self.expr(writer, lhs.data);
+                self.expr(writer, lhs.data, skip_space);
                 self.write(writer, op.to_string());
-                self.expr(writer, rhs.data);
+                self.expr(writer, rhs.data, false);
             }
             Expr::Record(name, fields, expansion) => {
-                self.write(writer, name.data.as_str());
+                self.write_if(writer, name.data.as_str(), skip_space);
                 self.write(writer, "{");
                 self.write_newline(writer);
                 self.depth += 1;
                 for (name, expr) in fields {
                     self.write(writer, name.as_str());
                     self.write_no_space(writer, ":");
-                    self.expr(writer, expr.data);
+                    self.expr(writer, expr.data, false);
                     self.write_no_space(writer, ",");
                     self.write_newline(writer);
                 }
@@ -361,7 +361,7 @@ impl<'s> Formatter<'s> {
                 for (name, expr) in fields {
                     self.write(writer, name.as_str());
                     self.write_no_space(writer, ":");
-                    self.expr(writer, expr.data);
+                    self.expr(writer, expr.data, false);
                     self.write_no_space(writer, ",");
                     self.write_newline(writer);
                 }
@@ -369,30 +369,30 @@ impl<'s> Formatter<'s> {
                 self.write(writer, "}");
             }
             Expr::Project(expr, _, field) => {
-                self.expr(writer, expr.data);
+                self.expr(writer, expr.data, skip_space);
                 self.write_no_space(writer, ".");
                 self.write_no_space(writer, field.data.as_str());
             }
             Expr::Make(type_, args) => {
-                self.write(writer, "make");
+                self.write_if(writer, "make", skip_space);
                 self.write_no_space(writer, "[");
                 self.type_no_space(writer, type_);
                 self.write_no_space(writer, "]");
                 self.arguments(writer, args, None);
             }
             Expr::SizeOf(type_) => {
-                self.write(writer, "sizeof");
+                self.write_if(writer, "sizeof", skip_space);
                 self.write_no_space(writer, "[");
                 self.type_no_space(writer, type_);
                 self.write_no_space(writer, "]");
             }
             Expr::Range(start, end) => {
-                self.expr(writer, start.data);
+                self.expr(writer, start.data, skip_space);
                 self.write_no_space(writer, "..");
 
                 let mut fwriter = Formatter::new(self.source, self.comments, self.comment_position);
                 let mut buf = BufWriter::new(Vec::new());
-                fwriter.expr(&mut buf, end.data);
+                fwriter.expr(&mut buf, end.data, false);
                 self.write_no_space(
                     writer,
                     String::from_utf8(buf.into_inner().unwrap()).unwrap(),
@@ -400,19 +400,19 @@ impl<'s> Formatter<'s> {
                 self.comment_position = fwriter.comment_position;
             }
             Expr::As(expr, _, target) => {
-                self.expr(writer, expr.data);
+                self.expr(writer, expr.data, skip_space);
                 self.write(writer, "as");
                 self.type_(writer, target);
             }
             Expr::Path { path, .. } => {
-                self.write(writer, path.data.as_str());
+                self.write_if(writer, path.data.as_str(), skip_space);
             }
             Expr::Wrap(_, expr) => {
-                self.expr(writer, expr.data);
+                self.expr(writer, expr.data, skip_space);
                 self.write_no_space(writer, "?");
             }
             Expr::Unwrap(_, _, expr) => {
-                self.expr(writer, expr.data);
+                self.expr(writer, expr.data, skip_space);
                 self.write_no_space(writer, "!");
             }
             Expr::Omit(_) => {
@@ -420,25 +420,25 @@ impl<'s> Formatter<'s> {
             }
             Expr::EnumOr(_, _, lhs, rhs) => {
                 if let Some(lhs) = lhs {
-                    self.expr(writer, lhs.data);
+                    self.expr(writer, lhs.data, skip_space);
                 } else {
                     self.write(writer, "_");
                 }
                 self.write(writer, "or");
                 if let Some(rhs) = rhs {
-                    self.expr(writer, rhs.data);
+                    self.expr(writer, rhs.data, false);
                 } else {
                     self.write(writer, "_");
                 }
             }
             Expr::Try(expr) => {
-                self.expr(writer, expr.data);
+                self.expr(writer, expr.data, skip_space);
                 self.write_no_space(writer, ".try");
             }
             Expr::Paren(expr) => {
                 let mut fwriter = Formatter::new(self.source, self.comments, self.comment_position);
                 let mut buf = BufWriter::new(Vec::new());
-                fwriter.expr(&mut buf, expr.data);
+                fwriter.expr(&mut buf, expr.data, skip_space);
                 self.comment_position = fwriter.comment_position;
 
                 self.write(writer, "(");
@@ -460,13 +460,15 @@ impl<'s> Formatter<'s> {
         let mut fwriter = self.clone();
         let mut buf = BufWriter::new(Vec::new());
         fwriter.write_no_space(&mut buf, "(");
-        for arg in args.clone() {
-            fwriter.expr(&mut buf, arg.data);
-            fwriter.write_no_space(&mut buf, ",");
+        for (i, arg) in args.clone().into_iter().enumerate() {
+            fwriter.expr(&mut buf, arg.data, true);
+            if i < args.len() - 1 {
+                fwriter.write_no_space(&mut buf, ", ");
+            }
         }
         if let Some(expansion) = expansion.clone() {
             fwriter.write_no_space(&mut buf, "..");
-            fwriter.expr(&mut buf, expansion.data);
+            fwriter.expr(&mut buf, expansion.data, false);
         }
         fwriter.write_no_space(&mut buf, ")");
         let buf_string = String::from_utf8(buf.into_inner().unwrap()).unwrap();
@@ -476,16 +478,20 @@ impl<'s> Formatter<'s> {
         } else {
             self.write_no_space(writer, "(");
             self.write_newline(writer);
+            self.depth += 1;
 
             for arg in args {
-                self.expr(writer, arg.data);
+                self.expr(writer, arg.data, false);
                 self.write_no_space(writer, ",");
+                self.write_newline(writer);
             }
             if let Some(expansion) = expansion {
                 self.write_no_space(writer, "..");
-                self.expr(writer, expansion.data);
+                self.expr(writer, expansion.data, false);
+                self.write_newline(writer);
             }
 
+            self.depth -= 1;
             self.write(writer, ")");
         }
     }
@@ -570,6 +576,14 @@ impl<'s> Formatter<'s> {
     fn write_no_space(&mut self, writer: &mut impl Write, s: impl AsRef<str>) {
         write!(writer, "{}", s.as_ref()).unwrap();
         self.column += 1;
+    }
+
+    fn write_if(&mut self, writer: &mut impl Write, s: impl AsRef<str>, skip_space: bool) {
+        if skip_space {
+            self.write_no_space(writer, s);
+        } else {
+            self.write(writer, s);
+        }
     }
 
     fn write_space(&mut self, writer: &mut impl Write) {
