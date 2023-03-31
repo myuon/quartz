@@ -62,10 +62,14 @@ impl<'s> Formatter<'s> {
     }
 
     pub fn decls(&mut self, writer: &mut impl Write, decls: Vec<Source<Decl>>) {
-        for decl in decls {
+        let decls_len = decls.len();
+        for (i, decl) in decls.into_iter().enumerate() {
             self.restore_comments(decl.start.unwrap_or(0), writer);
             self.decl(writer, decl.data);
             self.write_newline(writer);
+            if i != decls_len - 1 {
+                self.write_newline(writer);
+            }
         }
     }
 
@@ -169,25 +173,22 @@ impl<'s> Formatter<'s> {
             }};
         }
 
-        for stmt in &stmts {
+        for stmt in stmts {
             let comments = self.consume_comments(stmt.start.unwrap_or(0));
             for comment in comments {
                 update!(
                     comment.position,
-                    self.write(writer, comment.raw.to_string().as_str())
+                    self.write(writer, comment.raw.to_string())
                 );
             }
 
-            update!(
-                stmt.start.unwrap_or(0),
-                self.statement(writer, stmt.data.clone())
-            );
+            update!(stmt.start.unwrap_or(0), self.statement(writer, stmt.data));
 
             let comments = self.consume_comments(stmt.end.unwrap_or(0));
             for comment in comments {
                 update!(
                     comment.position,
-                    self.write(writer, comment.raw.to_string().as_str())
+                    self.write(writer, comment.raw.to_string())
                 );
             }
         }
