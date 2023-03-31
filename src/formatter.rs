@@ -342,38 +342,30 @@ impl<'s> Formatter<'s> {
                 self.write(writer, name.data.as_str());
                 self.write(writer, "{");
                 self.write_newline(writer);
-                let mut blocks = vec![];
+                self.depth += 1;
                 for (name, expr) in fields {
-                    let mut fwriter =
-                        Formatter::new(self.source, self.comments, self.comment_position);
-                    let mut buf = BufWriter::new(Vec::new());
-
-                    fwriter.write_no_space(&mut buf, name.as_str());
-                    fwriter.write_no_space(&mut buf, ":");
-                    fwriter.expr(&mut buf, expr.data);
-                    blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
-                    self.comment_position = fwriter.comment_position;
+                    self.write(writer, name.as_str());
+                    self.write_no_space(writer, ":");
+                    self.expr(writer, expr.data);
+                    self.write_no_space(writer, ",");
+                    self.write_newline(writer);
                 }
-                self.write_block(writer, blocks, ",", true, false);
+                self.depth -= 1;
                 self.write(writer, "}");
             }
             Expr::AnonymousRecord(fields, _) => {
                 self.write(writer, "struct");
                 self.write(writer, "{");
+                self.depth += 1;
                 self.write_newline(writer);
-                let mut blocks = vec![];
                 for (name, expr) in fields {
-                    let mut fwriter =
-                        Formatter::new(self.source, self.comments, self.comment_position);
-                    let mut buf = BufWriter::new(Vec::new());
-
-                    fwriter.write_no_space(&mut buf, name.as_str());
-                    fwriter.write_no_space(&mut buf, ":");
-                    fwriter.expr(&mut buf, expr.data);
-                    blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
-                    self.comment_position = fwriter.comment_position;
+                    self.write(writer, name.as_str());
+                    self.write_no_space(writer, ":");
+                    self.expr(writer, expr.data);
+                    self.write_no_space(writer, ",");
+                    self.write_newline(writer);
                 }
-                self.write_block(writer, blocks, ",", true, false);
+                self.depth -= 1;
                 self.write(writer, "}");
             }
             Expr::Project(expr, _, field) => {
@@ -465,40 +457,35 @@ impl<'s> Formatter<'s> {
         args: Vec<Source<Expr>>,
         expansion: Option<Box<Source<Expr>>>,
     ) {
-        let mut blocks = vec![];
-        for arg in args {
-            let mut fwriter = Formatter::new(self.source, self.comments, self.comment_position);
-            let mut buf = BufWriter::new(Vec::new());
-
-            fwriter.expr(&mut buf, arg.data);
-            self.comment_position = fwriter.comment_position;
-            blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
-        }
-        if let Some(expansion) = expansion {
-            let mut fwriter = Formatter::new(self.source, self.comments, self.comment_position);
-            let mut buf = BufWriter::new(Vec::new());
-
-            fwriter.expr(&mut buf, expansion.data);
-            self.comment_position = fwriter.comment_position;
-            blocks.push(format!(
-                "..{}",
-                String::from_utf8(buf.into_inner().unwrap()).unwrap()
-            ));
-        }
-
-        let mut fwriter = Formatter::new(self.source, self.comments, self.comment_position);
+        let mut fwriter = self.clone();
         let mut buf = BufWriter::new(Vec::new());
         fwriter.write_no_space(&mut buf, "(");
-        fwriter.write_block_oneline(&mut buf, blocks.clone(), ",");
+        for arg in args.clone() {
+            fwriter.expr(&mut buf, arg.data);
+            fwriter.write_no_space(&mut buf, ",");
+        }
+        if let Some(expansion) = expansion.clone() {
+            fwriter.write_no_space(&mut buf, "..");
+            fwriter.expr(&mut buf, expansion.data);
+        }
         fwriter.write_no_space(&mut buf, ")");
-        self.comment_position = fwriter.comment_position;
         let buf_string = String::from_utf8(buf.into_inner().unwrap()).unwrap();
-        if self.depth * self.indent_size + buf_string.len() < self.max_width {
+        if buf_string.len() < self.max_width {
             self.write_no_space(writer, buf_string.as_str());
+            *self = fwriter;
         } else {
             self.write_no_space(writer, "(");
             self.write_newline(writer);
-            self.write_block(writer, blocks, ",", true, false);
+
+            for arg in args {
+                self.expr(writer, arg.data);
+                self.write_no_space(writer, ",");
+            }
+            if let Some(expansion) = expansion {
+                self.write_no_space(writer, "..");
+                self.expr(writer, expansion.data);
+            }
+
             self.write(writer, ")");
         }
     }
@@ -592,44 +579,6 @@ impl<'s> Formatter<'s> {
     fn write_newline(&mut self, writer: &mut impl Write) {
         write!(writer, "\n").unwrap();
         self.column = 0;
-    }
-
-    fn write_block(
-        &mut self,
-        writer: &mut impl Write,
-        blocks: Vec<String>,
-        separator: &str,
-        trailing_separator: bool,
-        no_depth: bool,
-    ) {
-        if !no_depth {
-            self.depth += 1;
-        }
-        let blocks_len = blocks.len();
-        for (index, block) in blocks.into_iter().enumerate() {
-            // each block may have multiple lines
-            let mut first = true;
-            for line in block.lines() {
-                if !first {
-                    self.write_newline(writer);
-                }
-
-                if line.trim().is_empty() {
-                    self.write_no_space(writer, line);
-                } else {
-                    self.write(writer, line);
-                }
-                first = false;
-            }
-
-            if index < blocks_len - 1 || trailing_separator {
-                self.write_no_space(writer, separator);
-            }
-            self.write_newline(writer);
-        }
-        if !no_depth {
-            self.depth -= 1;
-        }
     }
 
     fn write_block_oneline(
