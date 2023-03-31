@@ -58,6 +58,10 @@ impl<'s> Formatter<'s> {
             self.write_newline(writer);
         }
 
+        self.decls(writer, decls);
+    }
+
+    pub fn decls(&mut self, writer: &mut impl Write, decls: Vec<Source<Decl>>) {
         for decl in decls {
             self.restore_comments(decl.start.unwrap_or(0), writer);
             self.decl(writer, decl.data);
@@ -88,22 +92,15 @@ impl<'s> Formatter<'s> {
                 self.write_no_space(writer, ";");
             }
             Decl::Module(path, module) => {
-                let mut blocks = vec![];
-                for decl in module.0 {
-                    let mut fwriter =
-                        Formatter::new(self.source, self.comments, self.comment_position);
-                    let mut buf = BufWriter::new(Vec::new());
-                    fwriter.decl(&mut buf, decl.data);
-
-                    blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
-                    self.comment_position = fwriter.comment_position;
-                }
-
                 self.write(writer, "module");
                 self.write(writer, path.as_str());
                 self.write(writer, "{");
                 self.write_newline(writer);
-                self.write_block(writer, blocks, "\n", false, false);
+
+                self.depth += 1;
+                self.decls(writer, module.0);
+                self.depth -= 1;
+
                 self.write(writer, "}");
             }
             Decl::Import(path) => {
@@ -150,55 +147,53 @@ impl<'s> Formatter<'s> {
     }
 
     fn statements(&mut self, writer: &mut impl Write, stmts: Vec<Source<Statement>>) {
-        let mut lines = vec![];
-        for stmt in &stmts {
-            let mut fwriter = Formatter::new(self.source, self.comments, self.comment_position);
-            let mut buf = BufWriter::new(Vec::new());
-
-            let comments = fwriter.consume_comments(stmt.start.unwrap_or(0));
-            for comment in comments {
-                lines.push((comment.position, comment.raw.to_string()));
-            }
-
-            fwriter.statement(&mut buf, stmt.data.clone());
-            let block_string = String::from_utf8(buf.into_inner().unwrap()).unwrap();
-            lines.push((stmt.start.unwrap_or(0), block_string));
-
-            let comments = fwriter.consume_comments(stmt.end.unwrap_or(0));
-            for comment in comments {
-                lines.push((comment.position, comment.raw.to_string()));
-            }
-
-            self.comment_position = fwriter.comment_position;
-        }
-
-        let mut blocks = vec![];
-        if !lines.is_empty() {
-            let mut current_pos = lines[0].0;
-            for (pos, line) in lines {
-                let mut fwriter = Formatter::new(self.source, self.comments, self.comment_position);
-                let mut buf = BufWriter::new(Vec::new());
-
-                if self.need_empty_lines(current_pos, pos) {
-                    fwriter.write_newline(&mut buf);
-                }
-
-                fwriter.write(&mut buf, line.as_str());
-
-                if !blocks.is_empty() && self.need_line_follow(current_pos, pos) {
-                    let last_line = blocks.pop().unwrap();
-                    blocks.push(format!("{} {}", last_line, line));
-                } else {
-                    blocks.push(String::from_utf8(buf.into_inner().unwrap()).unwrap());
-                }
-
-                current_pos = pos;
-            }
-        }
-
         self.write(writer, "{");
+        self.depth += 1;
+
+        let mut current_pos = 0;
+
+        macro_rules! update {
+            ($p:expr,$write:expr) => {{
+                if current_pos > 0 && self.need_empty_lines(current_pos, $p) {
+                    self.write_newline(writer);
+                }
+
+                if self.need_line_follow(current_pos, $p) {
+                    $write;
+                } else {
+                    self.write_newline(writer);
+                    $write;
+                }
+
+                current_pos = $p;
+            }};
+        }
+
+        for stmt in &stmts {
+            let comments = self.consume_comments(stmt.start.unwrap_or(0));
+            for comment in comments {
+                update!(
+                    comment.position,
+                    self.write(writer, comment.raw.to_string().as_str())
+                );
+            }
+
+            update!(
+                stmt.start.unwrap_or(0),
+                self.statement(writer, stmt.data.clone())
+            );
+
+            let comments = self.consume_comments(stmt.end.unwrap_or(0));
+            for comment in comments {
+                update!(
+                    comment.position,
+                    self.write(writer, comment.raw.to_string().as_str())
+                );
+            }
+        }
+
+        self.depth -= 1;
         self.write_newline(writer);
-        self.write_block(writer, blocks, "", true, false);
         self.write(writer, "}");
     }
 
