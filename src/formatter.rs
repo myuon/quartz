@@ -123,14 +123,33 @@ impl<'s> Formatter<'s> {
     }
 
     fn func(&mut self, writer: &mut impl Write, func: Func) {
-        self.write(writer, "fun");
-        self.write(writer, func.name.data.as_str());
-        self.params(writer, func.params, func.variadic);
-        if let Type::Nil = func.result {
+        let mut fwriter = self.clone();
+        let mut buf = BufWriter::new(Vec::new());
+
+        fwriter.write(&mut buf, "fun");
+        fwriter.write(&mut buf, func.name.data.as_str());
+        fwriter.params(&mut buf, func.params.clone(), func.variadic.clone());
+        if let Type::Nil = func.result.clone() {
         } else {
-            self.write_no_space(writer, ":");
-            self.type_(writer, func.result, false);
+            fwriter.write_no_space(&mut buf, ":");
+            fwriter.type_(&mut buf, func.result.clone(), false);
         }
+
+        let buf_string = String::from_utf8(buf.into_inner().unwrap()).unwrap();
+        if buf_string.lines().all(|line| line.len() < self.max_width) {
+            self.write_no_space(writer, buf_string.as_str());
+            *self = fwriter;
+        } else {
+            self.write(writer, "fun");
+            self.write(writer, func.name.data.as_str());
+            self.params_multilines(writer, func.params, func.variadic);
+            if let Type::Nil = func.result {
+            } else {
+                fwriter.write_no_space(writer, ":");
+                fwriter.type_(writer, func.result, false);
+            }
+        }
+
         self.statements(writer, func.body);
     }
 
@@ -166,6 +185,47 @@ impl<'s> Formatter<'s> {
             self.type_(writer, type_, false);
         }
 
+        self.write_no_space(writer, ")");
+    }
+
+    fn params_multilines(
+        &mut self,
+        writer: &mut impl Write,
+        params: Vec<(Ident, Type)>,
+        variadic: Option<(Ident, Type)>,
+    ) {
+        self.write_no_space(writer, "(");
+        self.depth += 1;
+
+        for (index, (ident, type_)) in params.clone().into_iter().enumerate() {
+            if ident.0.as_str() == "self" {
+                self.write_no_space(writer, "self");
+            } else {
+                self.write_no_space(writer, ident.as_str());
+                self.write_no_space(writer, ":");
+                self.type_(writer, type_, false);
+            }
+
+            if index != params.len() - 1 {
+                self.write_no_space(writer, ",");
+                self.write_newline(writer);
+            }
+        }
+        if let Some((ident, type_)) = variadic {
+            if !params.is_empty() {
+                self.write_no_space(writer, ",");
+                self.write_newline(writer);
+            }
+
+            self.write_no_space(writer, "..");
+            self.write_if(writer, ident.as_str(), true);
+            self.write_no_space(writer, ":");
+            self.type_(writer, type_, false);
+            self.write_no_space(writer, ",");
+            self.write_newline(writer);
+        }
+
+        self.depth -= 1;
         self.write_no_space(writer, ")");
     }
 
@@ -509,6 +569,7 @@ impl<'s> Formatter<'s> {
         }
         fwriter.write_no_space(&mut buf, ")");
         let buf_string = String::from_utf8(buf.into_inner().unwrap()).unwrap();
+
         if buf_string.lines().all(|line| line.len() < self.max_width) {
             self.write_no_space(writer, buf_string.as_str());
             *self = fwriter;
