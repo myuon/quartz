@@ -177,8 +177,8 @@ impl<'s> Formatter<'s> {
             let comments = self.consume_comments(stmt.start.unwrap_or(0));
             for comment in comments {
                 update!(
-                    comment.position,
-                    comment.position + comment.raw.len(),
+                    comment.start,
+                    comment.start + comment.raw.len(),
                     self.write(writer, comment.raw.to_string())
                 );
             }
@@ -192,8 +192,8 @@ impl<'s> Formatter<'s> {
             let comments = self.consume_comments(stmt.end.unwrap_or(0));
             for comment in comments {
                 update!(
-                    comment.position,
-                    comment.position + comment.raw.len(),
+                    comment.start,
+                    comment.start + comment.raw.len(),
                     self.write(writer, comment.raw.to_string())
                 );
             }
@@ -585,7 +585,7 @@ impl<'s> Formatter<'s> {
     fn consume_comments(&mut self, start: usize) -> Vec<Token> {
         let mut comments = vec![];
         while self.comment_position < self.comments.len()
-            && self.comments[self.comment_position].position <= start
+            && self.comments[self.comment_position].start <= start
         {
             comments.push(self.comments[self.comment_position].clone());
             self.comment_position += 1;
@@ -596,7 +596,7 @@ impl<'s> Formatter<'s> {
 
     fn has_comments(&self, start: usize) -> bool {
         self.comment_position < self.comments.len()
-            && self.comments[self.comment_position].position <= start
+            && self.comments[self.comment_position].start <= start
     }
 
     fn restore_comments(&mut self, start: usize, writer: &mut impl Write) {

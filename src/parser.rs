@@ -355,8 +355,8 @@ impl Parser {
                                 anyhow!("Unexpected token {:?}", self.peek()?.lexeme).context(
                                     ErrorInSource {
                                         path: Some(self.current_path.clone()),
-                                        start: self.input[self.position].position,
-                                        end: self.input[self.position].position,
+                                        start: self.input[self.position].start,
+                                        end: self.input[self.position].start,
                                     },
                                 ),
                             )
@@ -913,15 +913,11 @@ impl Parser {
             Err(
                 anyhow!("Expected identifier, got {:?}", current.lexeme).context(ErrorInSource {
                     path: Some(self.current_path.clone()),
-                    start: self
-                        .input
-                        .get(self.position)
-                        .map(|p| p.position)
-                        .unwrap_or(0),
+                    start: self.input.get(self.position).map(|p| p.start).unwrap_or(0),
                     end: self
                         .input
                         .get(self.position + 1)
-                        .map(|p| p.position)
+                        .map(|p| p.start)
                         .unwrap_or(0),
                 }),
             )
@@ -942,8 +938,8 @@ impl Parser {
                 return Err(
                     anyhow!("Expected literal, got {:?}", current.lexeme).context(ErrorInSource {
                         path: Some(self.current_path.clone()),
-                        start: self.input[self.position].position,
-                        end: self.input[self.position].position,
+                        start: self.input[self.position].start,
+                        end: self.input[self.position].start,
                     }),
                 )
             }
@@ -1082,8 +1078,8 @@ impl Parser {
             return Err(
                 anyhow!("Expected {:?}, got {:?}", lexeme, token.lexeme).context(ErrorInSource {
                     path: Some(self.current_path.clone()),
-                    start: self.input[self.position].position,
-                    end: self.input[self.position].position,
+                    start: self.input[self.position].start,
+                    end: self.input[self.position].start,
                 }),
             );
         }
@@ -1098,8 +1094,8 @@ impl Parser {
     fn source<T>(&self, data: T, start: usize, end: usize) -> Source<T> {
         Source {
             data,
-            start: Some(self.input.get(start).map(|p| p.position).unwrap_or(0)),
-            end: Some(self.input.get(end).map(|p| p.position).unwrap_or(0)),
+            start: Some(self.input.get(start).map(|p| p.start).unwrap_or(0)),
+            end: Some(self.input.get(end).map(|p| p.start).unwrap_or(0)),
         }
     }
 
@@ -1121,32 +1117,32 @@ fn test_expr() -> Result<()> {
         vec![
             Token {
                 lexeme: Lexeme::Ident("a".to_string()),
-                position: 0,
+                start: 0,
                 raw: "a".to_string(),
             },
             Token {
                 lexeme: Lexeme::Minus,
-                position: 0,
+                start: 0,
                 raw: "-".to_string(),
             },
             Token {
                 lexeme: Lexeme::Ident("b".to_string()),
-                position: 0,
+                start: 0,
                 raw: "b".to_string(),
             },
             Token {
                 lexeme: Lexeme::Minus,
-                position: 0,
+                start: 0,
                 raw: "-".to_string(),
             },
             Token {
                 lexeme: Lexeme::Ident("c".to_string()),
-                position: 0,
+                start: 0,
                 raw: "c".to_string(),
             },
             Token {
                 lexeme: Lexeme::Semicolon,
-                position: 0,
+                start: 0,
                 raw: ";".to_string(),
             },
         ],

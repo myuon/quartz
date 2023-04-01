@@ -74,7 +74,7 @@ static COMMENT_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^//[^\n]*"#).un
 #[derive(PartialEq, Debug, Clone)]
 pub struct Token {
     pub lexeme: Lexeme,
-    pub position: usize,
+    pub start: usize,
     pub raw: String,
 }
 
@@ -106,7 +106,7 @@ impl Lexer {
         if input[self.position..].starts_with(keyword) {
             self.tokens.push(Token {
                 lexeme,
-                position: self.position,
+                start: self.position,
                 raw: keyword.to_string(),
             });
             self.position += keyword.len();
@@ -123,7 +123,7 @@ impl Lexer {
         {
             self.tokens.push(Token {
                 lexeme,
-                position: self.position,
+                start: self.position,
                 raw: keyword.to_string(),
             });
             self.position += keyword.len();
@@ -171,7 +171,7 @@ impl Lexer {
                 Some(m) => {
                     self.tokens.push(Token {
                         lexeme: Lexeme::Comment(m.as_str().to_string()),
-                        position: self.position,
+                        start: self.position,
                         raw: m.as_str().to_string(),
                     });
 
@@ -214,7 +214,7 @@ impl Lexer {
                     if m.as_str() == "_" {
                         self.tokens.push(Token {
                             lexeme: Lexeme::Underscore,
-                            position: self.position,
+                            start: self.position,
                             raw: m.as_str().to_string(),
                         });
 
@@ -224,7 +224,7 @@ impl Lexer {
 
                     self.tokens.push(Token {
                         lexeme: Lexeme::Ident(m.as_str().to_string()),
-                        position: self.position,
+                        start: self.position,
                         raw: m.as_str().to_string(),
                     });
 
@@ -274,7 +274,7 @@ impl Lexer {
                 Some(m) => {
                     self.tokens.push(Token {
                         lexeme: Lexeme::Int(m.as_str().parse::<i64>().unwrap()),
-                        position: self.position,
+                        start: self.position,
                         raw: m.as_str().to_string(),
                     });
 
@@ -295,7 +295,7 @@ impl Lexer {
                                 .replace("\\n", "\n")
                                 .replace("\\\"", "\""),
                         ),
-                        position: self.position,
+                        start: self.position,
                         raw: m.get(0).unwrap().as_str().to_string(),
                     });
 
@@ -308,7 +308,7 @@ impl Lexer {
                 Some(m) => {
                     self.tokens.push(Token {
                         lexeme: Lexeme::RawString(m.get(1).unwrap().as_str().to_string()),
-                        position: self.position,
+                        start: self.position,
                         raw: m.get(0).unwrap().as_str().to_string(),
                     });
 
