@@ -136,7 +136,9 @@ impl<'s> Formatter<'s> {
         }
 
         let buf_string = String::from_utf8(buf.into_inner().unwrap()).unwrap();
-        if buf_string.lines().all(|line| line.len() < self.max_width) {
+        if buf_string.lines().count() == 1
+            && self.indent_size * self.depth + buf_string.len() < self.max_width
+        {
             self.write_no_space(writer, buf_string.as_str());
             *self = fwriter;
         } else {
@@ -220,7 +222,7 @@ impl<'s> Formatter<'s> {
         }
 
         self.depth -= 1;
-        self.write_no_space(writer, ")");
+        self.write(writer, ")");
     }
 
     fn statements(&mut self, writer: &mut impl Write, stmts: Source<Vec<Source<Statement>>>) {
@@ -564,7 +566,7 @@ impl<'s> Formatter<'s> {
         fwriter.write_no_space(&mut buf, ")");
         let buf_string = String::from_utf8(buf.into_inner().unwrap()).unwrap();
 
-        if buf_string.lines().all(|line| line.len() < self.max_width) {
+        if (buf_string.lines().count() == 1 || args.len() == 1) && fwriter.column < self.max_width {
             self.write_no_space(writer, buf_string.as_str());
             *self = fwriter;
         } else {
@@ -690,17 +692,19 @@ impl<'s> Formatter<'s> {
 
     fn write(&mut self, writer: &mut impl Write, s: impl AsRef<str>) {
         if self.column == 0 {
-            write!(writer, "{}", " ".repeat(self.depth * self.indent_size)).unwrap();
+            self.write_no_space(writer, " ".repeat(self.depth * self.indent_size));
         } else {
-            write!(writer, " ").unwrap();
+            self.write_no_space(writer, " ");
         }
 
         self.write_no_space(writer, s);
     }
 
     fn write_no_space(&mut self, writer: &mut impl Write, s: impl AsRef<str>) {
-        write!(writer, "{}", s.as_ref()).unwrap();
-        self.column += 1;
+        let s = s.as_ref();
+        let s_len = s.len();
+        write!(writer, "{}", s).unwrap();
+        self.column += s_len;
     }
 
     fn write_if(&mut self, writer: &mut impl Write, s: impl AsRef<str>, skip_space: bool) {
@@ -843,7 +847,31 @@ fun main() {
     );
 }
 "#
-            .trim_start())
+            .trim_start()),
+            (
+                r#"
+module M {
+    fun main() {
+        if self.t_if != nil {
+            let result = format("if ({}) {\n{}}", self.t_if!.condition.to_string(), self.t_if!.then_block.to_string());
+        }
+    }
+}"#
+                .trim_start(),
+                r#"
+module M {
+    fun main() {
+        if self.t_if != nil {
+            let result = format(
+                "if ({}) {\n{}}",
+                self.t_if!.condition.to_string(),
+                self.t_if!.then_block.to_string(),
+            );
+        }
+    }
+}
+"#.trim_start()
+            ),
         ];
 
         for (input, output) in cases {
