@@ -92,7 +92,7 @@ impl<'s> Formatter<'s> {
                 self.write(writer, "type");
                 self.write(writer, ident.as_str());
                 self.write(writer, "=");
-                self.type_(writer, type_);
+                self.type_(writer, type_, false);
                 self.write_no_space(writer, ";");
             }
             Decl::Module(path, module) => {
@@ -122,7 +122,7 @@ impl<'s> Formatter<'s> {
         if let Type::Nil = func.result {
         } else {
             self.write_no_space(writer, ":");
-            self.write(writer, func.result.to_string().as_str());
+            self.type_(writer, func.result, false);
         }
         self.statements(writer, func.body);
     }
@@ -359,7 +359,7 @@ impl<'s> Formatter<'s> {
                 self.write(writer, "}");
             }
             Expr::AnonymousRecord(fields, _) => {
-                self.write(writer, "struct");
+                self.write_if(writer, "struct", skip_space);
                 self.write(writer, "{");
                 self.depth += 1;
                 self.write_newline(writer);
@@ -381,14 +381,14 @@ impl<'s> Formatter<'s> {
             Expr::Make(type_, args) => {
                 self.write_if(writer, "make", skip_space);
                 self.write_no_space(writer, "[");
-                self.type_no_space(writer, type_);
+                self.type_(writer, type_, true);
                 self.write_no_space(writer, "]");
                 self.arguments(writer, args, None);
             }
             Expr::SizeOf(type_) => {
                 self.write_if(writer, "sizeof", skip_space);
                 self.write_no_space(writer, "[");
-                self.type_no_space(writer, type_);
+                self.type_(writer, type_, true);
                 self.write_no_space(writer, "]");
             }
             Expr::Range(start, end) => {
@@ -407,7 +407,7 @@ impl<'s> Formatter<'s> {
             Expr::As(expr, _, target) => {
                 self.expr(writer, expr.data, skip_space);
                 self.write(writer, "as");
-                self.type_(writer, target);
+                self.type_(writer, target, false);
             }
             Expr::Path { path, .. } => {
                 self.write_if(writer, path.data.as_str(), skip_space);
@@ -501,30 +501,63 @@ impl<'s> Formatter<'s> {
         }
     }
 
-    fn type_(&mut self, writer: &mut impl Write, type_: Type) {
+    fn type_(&mut self, writer: &mut impl Write, type_: Type, skip_space: bool) {
         match type_ {
             Type::Record(rs) => {
-                self.write(writer, "{");
+                self.write_if(writer, "struct {", skip_space);
                 self.write_newline(writer);
                 self.depth += 1;
                 for (name, type_) in rs {
                     self.write(writer, name.as_str());
                     self.write_no_space(writer, ":");
-                    self.type_(writer, type_);
+                    self.type_(writer, type_, false);
                     self.write_no_space(writer, ",");
                     self.write_newline(writer);
                 }
                 self.depth -= 1;
                 self.write(writer, "}");
             }
+            Type::Vec(v) => {
+                self.write_if(writer, "vec", skip_space);
+                self.write_no_space(writer, "[");
+                self.type_(writer, *v, true);
+                self.write_no_space(writer, "]");
+            }
+            Type::Func(_, _) => todo!(),
+            Type::VariadicFunc(_, _, _) => todo!(),
+            Type::Ident(i) => {
+                self.write_if(writer, i.as_str(), skip_space);
+            }
+            Type::Ptr(p) => {
+                self.write_if(writer, "ptr", skip_space);
+                self.write_no_space(writer, "[");
+                self.type_(writer, *p, true);
+                self.write_no_space(writer, "]");
+            }
+            Type::Array(_, _) => todo!(),
+            Type::Range(_) => todo!(),
+            Type::Optional(t) => {
+                self.type_(writer, *t, skip_space);
+                self.write_no_space(writer, "?");
+            }
+            Type::Map(k, v) => {
+                self.write_if(writer, "map", skip_space);
+                self.write_no_space(writer, "[");
+                self.type_(writer, *k, true);
+                self.write_no_space(writer, ",");
+                self.type_(writer, *v, false);
+                self.write_no_space(writer, "]");
+            }
+            Type::Or(lhs, rhs) => {
+                self.type_(writer, *lhs, skip_space);
+                self.write(writer, "or");
+                self.type_(writer, *rhs, false);
+            }
+            Type::Any => todo!(),
             _ => {
-                self.write(writer, type_.to_string());
+                self.write_if(writer, type_.to_string(), skip_space);
             }
         }
-    }
-
-    fn type_no_space(&mut self, writer: &mut impl Write, type_: Type) {
-        self.write_no_space(writer, type_.to_string());
     }
 
     fn need_empty_lines(&self, start: usize, end: usize) -> bool {
