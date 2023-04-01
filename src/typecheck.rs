@@ -139,7 +139,7 @@ impl TypeChecker {
                 }
                 Decl::Type(ident, type_) => {
                     self.types.insert(
-                        ident.clone(),
+                        ident.data.clone(),
                         (
                             vec![],
                             Type::Record(type_.clone().into_iter().map(|t| t.data).collect()),
@@ -204,8 +204,12 @@ impl TypeChecker {
             }
             Decl::Type(ident, type_) => {
                 let t = Type::Record(type_.clone().into_iter().map(|t| t.data).collect());
-                self.resolve_type(&t)?;
-                self.types.insert(ident.clone(), (vec![], t));
+                self.resolve_type(&t).context(ErrorInSource {
+                    path: Some(self.current_path.clone()),
+                    start: ident.start.unwrap_or(0),
+                    end: ident.end.unwrap_or(0),
+                })?;
+                self.types.insert(ident.data.clone(), (vec![], t));
             }
             Decl::Module(name, module) => {
                 let module_path = self.current_path.clone();

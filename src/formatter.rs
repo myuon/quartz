@@ -90,7 +90,7 @@ impl<'s> Formatter<'s> {
             }
             Decl::Type(ident, rs) => {
                 self.write(writer, "struct");
-                self.write(writer, ident.as_str());
+                self.write(writer, ident.data.as_str());
                 self.record_fields(writer, rs);
             }
             Decl::Module(path, module) => {

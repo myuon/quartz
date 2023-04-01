@@ -136,18 +136,18 @@ impl Parser {
         })
     }
 
-    fn struct_decl(&mut self) -> Result<(Ident, Vec<Source<(Ident, Type)>>)> {
+    fn struct_decl(&mut self) -> Result<(Source<Ident>, Vec<Source<(Ident, Type)>>)> {
         self.expect(Lexeme::Struct)?;
-        let ident = self.ident()?.data;
+        let ident = self.ident()?;
 
         let t = self.record_type_decl()?;
 
         Ok((ident, t))
     }
 
-    fn type_decl(&mut self) -> Result<(Ident, Vec<Source<(Ident, Type)>>)> {
+    fn type_decl(&mut self) -> Result<(Source<Ident>, Vec<Source<(Ident, Type)>>)> {
         self.expect(Lexeme::Type)?;
-        let ident = self.ident()?.data;
+        let ident = self.ident()?;
         self.expect(Lexeme::Equal)?;
 
         let t = self.record_type_decl()?;

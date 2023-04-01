@@ -352,7 +352,7 @@ impl Func {
 pub enum Decl {
     Func(Func),
     Let(Ident, Type, Source<Expr>),
-    Type(Ident, Vec<Source<(Ident, Type)>>),
+    Type(Source<Ident>, Vec<Source<(Ident, Type)>>),
     Module(Path, Module),
     Import(Path),
 }
