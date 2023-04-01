@@ -151,16 +151,16 @@ impl Parser {
             result = self.type_()?;
         }
 
-        self.expect(Lexeme::LBrace)?;
+        let start = self.expect(Lexeme::LBrace)?;
         let body = self.block()?;
-        self.expect(Lexeme::RBrace)?;
+        let end = self.expect(Lexeme::RBrace)?;
 
         Ok(Func {
             name,
             params,
             variadic,
             result,
-            body,
+            body: self.span_source(body, start, end),
         })
     }
 
@@ -235,6 +235,14 @@ impl Parser {
         Ok(statements)
     }
 
+    fn block_source(&mut self) -> Result<Source<Vec<Source<Statement>>>> {
+        let start = self.expect(Lexeme::LBrace)?;
+        let statements = self.block()?;
+        let end = self.expect(Lexeme::RBrace)?;
+
+        Ok(self.span_source(statements, start, end))
+    }
+
     fn statement(&mut self) -> Result<Source<Statement>> {
         let position = self.position;
         match self.peek()?.lexeme {
@@ -267,9 +275,14 @@ impl Parser {
             Lexeme::If => {
                 let start = self.consume()?;
                 let condition = self.expr_conditional()?;
-                self.expect(Lexeme::LBrace)?;
+                let then_block_start = self.expect(Lexeme::LBrace)?;
                 let then_block = self.block()?;
-                let mut end = self.expect(Lexeme::RBrace)?;
+                let then_block_end = self.expect(Lexeme::RBrace)?;
+
+                let then_block =
+                    self.span_source(then_block, then_block_start, then_block_end.clone());
+
+                let mut else_end = None;
 
                 let else_block = if self.peek()?.lexeme == Lexeme::Else {
                     self.consume()?;
@@ -277,13 +290,14 @@ impl Parser {
                     let else_body = if self.peek()?.lexeme == Lexeme::If {
                         let statement = self.statement()?;
 
-                        vec![statement]
+                        Source::transfer(vec![statement.clone()], &statement)
                     } else if self.peek()?.lexeme == Lexeme::LBrace {
-                        self.expect(Lexeme::LBrace)?;
+                        let else_block_start = self.expect(Lexeme::LBrace)?;
                         let else_body = self.block()?;
-                        end = self.expect(Lexeme::RBrace)?;
+                        let else_block_end = self.expect(Lexeme::RBrace)?;
+                        else_end = Some(else_block_end.clone());
 
-                        else_body
+                        self.span_source(else_body, else_block_start, else_block_end)
                     } else {
                         return Err(anyhow!("expected else {{ or else if {{"));
                     };
@@ -297,28 +311,36 @@ impl Parser {
                 Ok(self.span_source(
                     Statement::If(condition, t, then_block, else_block),
                     start,
-                    end,
+                    else_end.unwrap_or(then_block_end),
                 ))
             }
             Lexeme::While => {
                 let start = self.consume()?;
                 let condition = self.expr_conditional()?;
-                self.expect(Lexeme::LBrace)?;
-                let body = self.block()?;
-                let end = self.expect(Lexeme::RBrace)?;
+                let body = self.block_source()?;
 
-                Ok(self.span_source(Statement::While(condition, body), start, end))
+                let end = body.end.clone().unwrap();
+
+                Ok(Source::new(
+                    Statement::While(condition, body),
+                    start.start,
+                    end,
+                ))
             }
             Lexeme::For => {
                 let start = self.consume()?;
                 let ident = self.ident()?;
                 self.expect(Lexeme::In)?;
                 let range = self.expr_conditional()?;
-                self.expect(Lexeme::LBrace)?;
-                let body = self.block()?;
-                let end = self.expect(Lexeme::RBrace)?;
+                let body = self.block_source()?;
 
-                Ok(self.span_source(Statement::For(None, ident, range, body), start, end))
+                let end = body.end.clone().unwrap();
+
+                Ok(Source::new(
+                    Statement::For(None, ident, range, body),
+                    start.start,
+                    end,
+                ))
             }
             Lexeme::Continue => {
                 let start = self.consume()?;

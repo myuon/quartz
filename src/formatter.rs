@@ -150,7 +150,7 @@ impl<'s> Formatter<'s> {
         self.write_no_space(writer, ")");
     }
 
-    fn statements(&mut self, writer: &mut impl Write, stmts: Vec<Source<Statement>>) {
+    fn statements(&mut self, writer: &mut impl Write, stmts: Source<Vec<Source<Statement>>>) {
         self.write(writer, "{");
         self.depth += 1;
 
@@ -173,7 +173,7 @@ impl<'s> Formatter<'s> {
             }};
         }
 
-        for stmt in stmts {
+        for stmt in stmts.data {
             let comments = self.consume_comments(stmt.start.unwrap_or(0));
             for comment in comments {
                 update!(
@@ -197,6 +197,15 @@ impl<'s> Formatter<'s> {
                     self.write(writer, comment.raw.to_string())
                 );
             }
+        }
+
+        let comments = self.consume_comments(stmts.end.unwrap_or(0));
+        for comment in comments {
+            update!(
+                comment.start,
+                comment.start + comment.raw.len(),
+                self.write(writer, comment.raw.to_string())
+            );
         }
 
         self.depth -= 1;
@@ -249,10 +258,10 @@ impl<'s> Formatter<'s> {
                 self.statements(writer, then_block);
                 if let Some(else_block) = else_block {
                     self.write(writer, "else");
-                    if else_block.len() == 1
-                        && matches!(else_block[0].data, Statement::If(_, _, _, _))
+                    if else_block.data.len() == 1
+                        && matches!(else_block.data[0].data, Statement::If(_, _, _, _))
                     {
-                        self.statement(writer, else_block[0].data.clone());
+                        self.statement(writer, else_block.data[0].data.clone());
                     } else {
                         self.statements(writer, else_block);
                     }

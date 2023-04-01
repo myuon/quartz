@@ -292,11 +292,16 @@ pub enum Statement {
     If(
         Source<Expr>,
         Type,
-        Vec<Source<Statement>>,
-        Option<Vec<Source<Statement>>>,
+        Source<Vec<Source<Statement>>>,
+        Option<Source<Vec<Source<Statement>>>>,
     ),
-    While(Source<Expr>, Vec<Source<Statement>>),
-    For(Option<ForMode>, Ident, Source<Expr>, Vec<Source<Statement>>),
+    While(Source<Expr>, Source<Vec<Source<Statement>>>),
+    For(
+        Option<ForMode>,
+        Ident,
+        Source<Expr>,
+        Source<Vec<Source<Statement>>>,
+    ),
     Continue,
     Break,
 }
@@ -323,7 +328,7 @@ pub struct Func {
     pub params: Vec<(Ident, Type)>,
     pub variadic: Option<(Ident, Type)>,
     pub result: Type,
-    pub body: Vec<Source<Statement>>,
+    pub body: Source<Vec<Source<Statement>>>,
 }
 
 impl Func {

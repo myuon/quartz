@@ -271,7 +271,7 @@ impl IrCodeGenerator {
     }
 
     fn func(&mut self, func: &mut Func) -> Result<IrTerm> {
-        let elements = self.statements(&mut func.body)?;
+        let elements = self.statements(&mut func.body.data)?;
 
         let mut params = vec![];
         for (ident, type_) in &func.params {
@@ -401,13 +401,13 @@ impl IrCodeGenerator {
             }
             Statement::If(cond, type_, then_block, else_block) => {
                 let mut then_elements = vec![];
-                for statement in then_block {
+                for statement in &mut then_block.data {
                     then_elements.push(self.statement(statement)?);
                 }
 
                 let mut else_elements = vec![];
                 if let Some(else_block) = else_block {
-                    for statement in else_block {
+                    for statement in &mut else_block.data {
                         else_elements.push(self.statement(statement)?);
                     }
                 }
@@ -429,7 +429,7 @@ impl IrCodeGenerator {
             }
             Statement::While(cond, block) => {
                 let mut elements = vec![];
-                for statement in block {
+                for statement in &mut block.data {
                     elements.push(self.statement(statement)?);
                 }
 
@@ -458,7 +458,7 @@ impl IrCodeGenerator {
                                     source: None,
                                 }),
                                 body: Box::new(IrTerm::Seq {
-                                    elements: self.statements(body)?,
+                                    elements: self.statements(&mut body.data)?,
                                 }),
                                 cleanup: Some(Box::new(IrTerm::Assign {
                                     lhs: ident.0.clone(),
@@ -500,7 +500,7 @@ impl IrCodeGenerator {
                             None,
                         )),
                     ))];
-                    new_body.extend(body.clone());
+                    new_body.extend(body.data.clone());
 
                     self.statement(&mut Source::transfer(
                         Statement::For(
@@ -517,7 +517,7 @@ impl IrCodeGenerator {
                                 ),
                                 range,
                             ),
-                            new_body.clone(),
+                            Source::transfer(new_body.clone(), &body),
                         ),
                         statement,
                     ))
