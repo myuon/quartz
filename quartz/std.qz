@@ -622,7 +622,7 @@ module derive {
         if rep.name.equal("nil") {
             return "nil";
         }
-        
+
         let s = format("{} {{}", rep.name, sep);
         for i in 0..rep.fields.length {
             if i > 0 {

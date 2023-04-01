@@ -58,6 +58,8 @@ pub enum Lexeme {
     Ident(String),
     Int(i64),
     String(String),
+    RawString(String),
+    Comment(String),
 }
 
 static SPACE_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"^\s+").unwrap());
@@ -67,12 +69,14 @@ static STRING_LITERAL: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"^"((([^"]|\\")*[^\\])?)""#).unwrap());
 static RAW_STRING_LITERAL: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"^`((([^`]|\\`)*[^\\])?)`"#).unwrap());
-static COMMENT_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^//[^\n]*\n"#).unwrap());
+static COMMENT_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^//[^\n]*"#).unwrap());
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Token {
     pub lexeme: Lexeme,
-    pub position: usize,
+    pub start: usize,
+    pub end: usize,
+    pub raw: String,
 }
 
 fn is_term_boundary(s: &str) -> bool {
@@ -103,7 +107,9 @@ impl Lexer {
         if input[self.position..].starts_with(keyword) {
             self.tokens.push(Token {
                 lexeme,
-                position: self.position,
+                start: self.position,
+                end: self.position + keyword.len(),
+                raw: keyword.to_string(),
             });
             self.position += keyword.len();
 
@@ -119,7 +125,9 @@ impl Lexer {
         {
             self.tokens.push(Token {
                 lexeme,
-                position: self.position,
+                start: self.position,
+                end: self.position + keyword.len(),
+                raw: keyword.to_string(),
             });
             self.position += keyword.len();
 
@@ -164,8 +172,14 @@ impl Lexer {
 
             match COMMENT_PATTERN.find(&input[self.position..]) {
                 Some(m) => {
-                    self.position += m.end();
+                    self.tokens.push(Token {
+                        lexeme: Lexeme::Comment(m.as_str().to_string()),
+                        start: self.position,
+                        end: self.position + m.end(),
+                        raw: m.as_str().to_string(),
+                    });
 
+                    self.position += m.end();
                     continue;
                 }
                 None => (),
@@ -204,7 +218,9 @@ impl Lexer {
                     if m.as_str() == "_" {
                         self.tokens.push(Token {
                             lexeme: Lexeme::Underscore,
-                            position: self.position,
+                            start: self.position,
+                            end: self.position + m.end(),
+                            raw: m.as_str().to_string(),
                         });
 
                         self.position += m.end();
@@ -213,7 +229,9 @@ impl Lexer {
 
                     self.tokens.push(Token {
                         lexeme: Lexeme::Ident(m.as_str().to_string()),
-                        position: self.position,
+                        start: self.position,
+                        end: self.position + m.end(),
+                        raw: m.as_str().to_string(),
                     });
 
                     self.position += m.end();
@@ -262,7 +280,9 @@ impl Lexer {
                 Some(m) => {
                     self.tokens.push(Token {
                         lexeme: Lexeme::Int(m.as_str().parse::<i64>().unwrap()),
-                        position: self.position,
+                        start: self.position,
+                        end: self.position + m.end(),
+                        raw: m.as_str().to_string(),
                     });
 
                     self.position += m.end();
@@ -282,7 +302,9 @@ impl Lexer {
                                 .replace("\\n", "\n")
                                 .replace("\\\"", "\""),
                         ),
-                        position: self.position,
+                        start: self.position,
+                        end: self.position + m.get(0).unwrap().end(),
+                        raw: m.get(0).unwrap().as_str().to_string(),
                     });
 
                     self.position += m.get(0).unwrap().end();
@@ -293,8 +315,10 @@ impl Lexer {
             match RAW_STRING_LITERAL.captures(&input[self.position..]) {
                 Some(m) => {
                     self.tokens.push(Token {
-                        lexeme: Lexeme::String(m.get(1).unwrap().as_str().to_string()),
-                        position: self.position,
+                        lexeme: Lexeme::RawString(m.get(1).unwrap().as_str().to_string()),
+                        start: self.position,
+                        end: self.position + m.get(0).unwrap().end(),
+                        raw: m.get(0).unwrap().as_str().to_string(),
                     });
 
                     self.position += m.get(0).unwrap().end();

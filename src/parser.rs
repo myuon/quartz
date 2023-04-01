@@ -2,7 +2,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use pretty_assertions::assert_eq;
 
 use crate::{
-    ast::{BinOp, Decl, Expr, Func, Lit, Module, Pattern, Statement, Type},
+    ast::{BinOp, Decl, Expr, Func, Lit, Module, Pattern, Statement, StringLiteralType, Type},
     compiler::ErrorInSource,
     lexer::{Lexeme, Token},
     util::{ident::Ident, path::Path, source::Source},
@@ -30,7 +30,10 @@ impl Parser {
     }
 
     pub fn run(&mut self, input: Vec<Token>, path: Path, skip_errors: bool) -> Result<Module> {
-        self.input = input;
+        self.input = input
+            .into_iter()
+            .filter(|t| !matches!(t.lexeme, Lexeme::Comment(_)))
+            .collect();
         self.current_path = path;
         self.skip_errors = skip_errors;
         self.module()
@@ -40,9 +43,10 @@ impl Parser {
         let mut decls = vec![];
 
         while !self.is_end() && self.peek()?.lexeme != Lexeme::RBrace {
+            let position = self.position;
             let result = self.decl();
             if result.is_ok() || !self.skip_errors {
-                decls.push(result?);
+                decls.push(self.source_from(result?, position));
             }
         }
 
@@ -54,7 +58,7 @@ impl Parser {
         match consume.lexeme {
             Lexeme::Fun => Ok(Decl::Func(self.func()?)),
             Lexeme::Let => {
-                let (ident, type_, value) = self.let_()?;
+                let (ident, type_, value) = self.let_()?.data;
                 Ok(Decl::Let(
                     ident.data.as_ident().unwrap().clone(),
                     type_,
@@ -71,7 +75,7 @@ impl Parser {
             }
             Lexeme::Module(_path) => {
                 self.consume()?;
-                let ident = self.ident()?;
+                let ident = self.ident()?.data;
                 self.expect(Lexeme::LBrace)?;
                 let module = self.module()?;
                 self.expect(Lexeme::RBrace)?;
@@ -91,34 +95,8 @@ impl Parser {
         }
     }
 
-    fn struct_decl(&mut self) -> Result<(Ident, Type)> {
-        self.expect(Lexeme::Struct)?;
-        let ident = self.ident()?;
-
-        self.expect(Lexeme::LBrace)?;
-
-        let mut record_type = vec![];
-        while self.peek()?.lexeme != Lexeme::RBrace {
-            let field = self.ident()?;
-            self.expect(Lexeme::Colon)?;
-            let type_ = self.type_()?;
-
-            record_type.push((field, type_));
-
-            if self.peek()?.lexeme == Lexeme::Comma {
-                self.consume()?;
-            } else {
-                break;
-            }
-        }
-
-        self.expect(Lexeme::RBrace)?;
-
-        Ok((ident, Type::Record(record_type)))
-    }
-
     fn path(&mut self) -> Result<Path> {
-        let mut path = vec![self.ident()?];
+        let mut path = vec![self.ident()?.data];
         loop {
             if self.peek()?.lexeme == Lexeme::DoubleColon {
                 self.consume()?;
@@ -126,7 +104,7 @@ impl Parser {
                 break;
             }
 
-            path.push(self.ident()?);
+            path.push(self.ident()?.data);
         }
 
         Ok(Path(path))
@@ -134,9 +112,7 @@ impl Parser {
 
     fn func(&mut self) -> Result<Func> {
         self.expect(Lexeme::Fun)?;
-        let start = self.position;
-        let ident = self.ident()?;
-        let name = self.source_from(ident, start);
+        let name = self.ident()?;
         self.expect(Lexeme::LParen)?;
         let (params, variadic) = self.params()?;
         self.expect(Lexeme::RParen)?;
@@ -147,24 +123,40 @@ impl Parser {
             result = self.type_()?;
         }
 
-        self.expect(Lexeme::LBrace)?;
+        let start = self.expect(Lexeme::LBrace)?;
         let body = self.block()?;
-        self.expect(Lexeme::RBrace)?;
+        let end = self.expect(Lexeme::RBrace)?;
 
         Ok(Func {
             name,
             params,
             variadic,
             result,
-            body,
+            body: self.span_source(body, start, end),
         })
     }
 
-    fn type_decl(&mut self) -> Result<(Ident, Type)> {
+    fn struct_decl(&mut self) -> Result<(Ident, Vec<Source<(Ident, Type)>>)> {
+        self.expect(Lexeme::Struct)?;
+        let ident = self.ident()?.data;
+
+        let t = self.record_type_decl()?;
+
+        Ok((ident, t))
+    }
+
+    fn type_decl(&mut self) -> Result<(Ident, Vec<Source<(Ident, Type)>>)> {
         self.expect(Lexeme::Type)?;
-        let ident = self.ident()?;
+        let ident = self.ident()?.data;
         self.expect(Lexeme::Equal)?;
 
+        let t = self.record_type_decl()?;
+        self.expect(Lexeme::Semicolon)?;
+
+        Ok((ident, t))
+    }
+
+    fn record_type_decl(&mut self) -> Result<Vec<Source<(Ident, Type)>>> {
         self.expect(Lexeme::LBrace)?;
 
         let mut record_type = vec![];
@@ -173,19 +165,26 @@ impl Parser {
             self.expect(Lexeme::Colon)?;
             let type_ = self.type_()?;
 
-            record_type.push((field, type_));
-
             if self.peek()?.lexeme == Lexeme::Comma {
-                self.consume()?;
+                let end = self.consume()?;
+                record_type.push(Source::new(
+                    (field.data, type_),
+                    field.start.unwrap_or(0),
+                    end.end,
+                ));
             } else {
+                record_type.push(Source::new(
+                    (field.data, type_),
+                    field.start.unwrap_or(0),
+                    self.get_source_from_position(self.position).unwrap_or(0),
+                ));
                 break;
             }
         }
 
         self.expect(Lexeme::RBrace)?;
-        self.expect(Lexeme::Semicolon)?;
 
-        Ok((ident, Type::Record(record_type)))
+        Ok(record_type)
     }
 
     fn params(&mut self) -> Result<(Vec<(Ident, Type)>, Option<(Ident, Type)>)> {
@@ -197,12 +196,12 @@ impl Parser {
                 params.push((Ident("self".to_string()), self.gen_omit()?));
             } else if self.peek()?.lexeme == Lexeme::DoubleDot {
                 self.consume()?;
-                let name = self.ident()?;
+                let name = self.ident()?.data;
                 self.expect(Lexeme::Colon)?;
                 let type_ = self.type_()?;
                 variadic = Some((name, type_));
             } else {
-                let name = self.ident()?;
+                let name = self.ident()?.data;
                 self.expect(Lexeme::Colon)?;
                 let type_ = self.type_()?;
                 params.push((name, type_));
@@ -221,60 +220,79 @@ impl Parser {
     fn block(&mut self) -> Result<Vec<Source<Statement>>> {
         let mut statements = vec![];
         while !self.is_end() && self.peek()?.lexeme != Lexeme::RBrace {
-            let position = self.position;
             let result = self.statement();
             if result.is_ok() || !self.skip_errors {
                 let statement = result?;
-                statements.push(self.source_from(statement, position));
+                statements.push(statement);
             }
         }
+
         Ok(statements)
     }
 
-    fn statement(&mut self) -> Result<Statement> {
+    fn block_source(&mut self) -> Result<Source<Vec<Source<Statement>>>> {
+        let start = self.expect(Lexeme::LBrace)?;
+        let statements = self.block()?;
+        let end = self.expect(Lexeme::RBrace)?;
+
+        Ok(self.span_source(statements, start, end))
+    }
+
+    fn statement(&mut self) -> Result<Source<Statement>> {
+        let position = self.position;
         match self.peek()?.lexeme {
             Lexeme::Let => {
-                let (ident, type_, value) = self.let_()?;
-                Ok(Statement::Let(ident, type_, value))
+                let result = self.let_()?;
+                let (ident, type_, value) = result.data.clone();
+                Ok(Source::transfer(
+                    Statement::Let(ident, type_, value),
+                    &result,
+                ))
             }
             Lexeme::Return => {
-                let position = self.position;
-                self.consume()?;
+                let start = self.consume()?;
 
                 if self.peek()?.lexeme == Lexeme::Semicolon {
-                    self.consume()?;
+                    let end = self.consume()?;
 
-                    Ok(Statement::Return(
-                        self.source_from(Expr::Lit(Lit::Nil), position),
+                    Ok(self.span_source(
+                        Statement::Return(self.source_from(Expr::Lit(Lit::Nil(false)), position)),
+                        start,
+                        end,
                     ))
                 } else {
                     let value = self.expr()?;
-                    self.expect(Lexeme::Semicolon)?;
+                    let end = self.expect(Lexeme::Semicolon)?;
 
-                    Ok(Statement::Return(value))
+                    Ok(self.span_source(Statement::Return(value), start, end))
                 }
             }
             Lexeme::If => {
-                self.consume()?;
+                let start = self.consume()?;
                 let condition = self.expr_conditional()?;
-                self.expect(Lexeme::LBrace)?;
+                let then_block_start = self.expect(Lexeme::LBrace)?;
                 let then_block = self.block()?;
-                self.expect(Lexeme::RBrace)?;
+                let then_block_end = self.expect(Lexeme::RBrace)?;
+
+                let then_block =
+                    self.span_source(then_block, then_block_start, then_block_end.clone());
+
+                let mut else_end = None;
 
                 let else_block = if self.peek()?.lexeme == Lexeme::Else {
                     self.consume()?;
 
                     let else_body = if self.peek()?.lexeme == Lexeme::If {
-                        let position = self.position;
                         let statement = self.statement()?;
 
-                        vec![self.source_from(statement, position)]
+                        Source::transfer(vec![statement.clone()], &statement)
                     } else if self.peek()?.lexeme == Lexeme::LBrace {
-                        self.expect(Lexeme::LBrace)?;
+                        let else_block_start = self.expect(Lexeme::LBrace)?;
                         let else_body = self.block()?;
-                        self.expect(Lexeme::RBrace)?;
+                        let else_block_end = self.expect(Lexeme::RBrace)?;
+                        else_end = Some(else_block_end.clone());
 
-                        else_body
+                        self.span_source(else_body, else_block_start, else_block_end)
                     } else {
                         return Err(anyhow!("expected else {{ or else if {{"));
                     };
@@ -284,73 +302,89 @@ impl Parser {
                     None
                 };
 
-                Ok(Statement::If(
-                    condition,
-                    self.gen_omit()?,
-                    then_block,
-                    else_block,
+                let t = self.gen_omit()?;
+                Ok(self.span_source(
+                    Statement::If(condition, t, then_block, else_block),
+                    start,
+                    else_end.unwrap_or(then_block_end),
                 ))
             }
             Lexeme::While => {
-                self.consume()?;
+                let start = self.consume()?;
                 let condition = self.expr_conditional()?;
-                self.expect(Lexeme::LBrace)?;
-                let body = self.block()?;
-                self.expect(Lexeme::RBrace)?;
+                let body = self.block_source()?;
 
-                Ok(Statement::While(condition, body))
+                let end = body.end.clone().unwrap();
+
+                Ok(Source::new(
+                    Statement::While(condition, body),
+                    start.start,
+                    end,
+                ))
             }
             Lexeme::For => {
-                self.consume()?;
-                let ident = self.ident()?;
+                let start = self.consume()?;
+                let ident = self.ident()?.data;
                 self.expect(Lexeme::In)?;
                 let range = self.expr_conditional()?;
-                self.expect(Lexeme::LBrace)?;
-                let body = self.block()?;
-                self.expect(Lexeme::RBrace)?;
+                let body = self.block_source()?;
 
-                Ok(Statement::For(None, ident, range, body))
+                let end = body.end.clone().unwrap();
+
+                Ok(Source::new(
+                    Statement::For(None, ident, range, body),
+                    start.start,
+                    end,
+                ))
             }
             Lexeme::Continue => {
-                self.consume()?;
-                self.expect(Lexeme::Semicolon)?;
-                Ok(Statement::Continue)
+                let start = self.consume()?;
+                let end = self.expect(Lexeme::Semicolon)?;
+
+                Ok(self.span_source(Statement::Continue, start, end))
             }
             Lexeme::Break => {
-                self.consume()?;
-                self.expect(Lexeme::Semicolon)?;
-                Ok(Statement::Break)
+                let start = self.consume()?;
+                let end = self.expect(Lexeme::Semicolon)?;
+
+                Ok(self.span_source(Statement::Break, start, end))
             }
             _ => {
                 let expr = self.expr()?;
 
                 match self.peek()?.lexeme {
                     Lexeme::Semicolon => {
-                        self.consume()?;
-                        Ok(Statement::Expr(expr, Type::Omit(0)))
+                        let end = self.consume()?;
+
+                        Ok(self.source_position_token(
+                            Statement::Expr(expr, Type::Omit(0)),
+                            position,
+                            end,
+                        ))
                     }
                     Lexeme::Equal => {
                         self.consume()?;
                         let value = self.expr()?;
-                        self.expect(Lexeme::Semicolon)?;
+                        let end = self.expect(Lexeme::Semicolon)?;
 
-                        Ok(Statement::Assign(
-                            Box::new(expr),
-                            self.gen_omit()?,
-                            Box::new(value),
+                        let t = self.gen_omit()?;
+                        Ok(self.source_position_token(
+                            Statement::Assign(Box::new(expr), t, Box::new(value)),
+                            position,
+                            end,
                         ))
                     }
                     _ => {
                         // Mainly for dot completion
                         if self.skip_errors {
-                            Ok(Statement::Expr(expr, Type::Omit(0)))
+                            Ok(self.source_from(Statement::Expr(expr, Type::Omit(0)), position))
                         } else {
                             Err(
                                 anyhow!("Unexpected token {:?}", self.peek()?.lexeme).context(
                                     ErrorInSource {
                                         path: Some(self.current_path.clone()),
-                                        start: self.input[self.position].position,
-                                        end: self.input[self.position].position,
+                                        start: self.input[self.position].start,
+                                        end: self.input[self.position].start,
                                     },
                                 ),
                             )
@@ -361,7 +395,8 @@ impl Parser {
         }
     }
 
-    fn let_(&mut self) -> Result<(Source<Pattern>, Type, Source<Expr>)> {
+    fn let_(&mut self) -> Result<Source<(Source<Pattern>, Type, Source<Expr>)>> {
+        let position = self.position;
         self.expect(Lexeme::Let)?;
         let pattern = self.pattern()?;
 
@@ -373,9 +408,9 @@ impl Parser {
 
         self.expect(Lexeme::Equal)?;
         let value = self.expr()?;
-        self.expect(Lexeme::Semicolon).context("let:end")?;
+        let token = self.expect(Lexeme::Semicolon).context("let:end")?;
 
-        Ok((pattern, type_, value))
+        Ok(self.source_position_token((pattern, type_, value), position, token))
     }
 
     fn pattern(&mut self) -> Result<Source<Pattern>> {
@@ -383,7 +418,7 @@ impl Parser {
         let current = if self.peek()?.lexeme == Lexeme::Underscore {
             self.source_from(Pattern::Omit, position)
         } else {
-            let ident = self.ident()?;
+            let ident = self.ident()?.data;
             self.source_from(Pattern::Ident(ident), position)
         };
 
@@ -628,19 +663,20 @@ impl Parser {
         let position = self.position;
         let mut current = match self.peek()?.lexeme {
             Lexeme::LParen => {
+                let position = self.position;
                 self.consume()?;
                 let expr = self.expr()?;
                 self.expect(Lexeme::RParen)?;
 
-                expr
+                self.source_from(Expr::Paren(Box::new(expr)), position)
             }
             Lexeme::Ident(ident) => {
                 let expr = if ident == "nil" {
                     self.consume()?;
 
-                    Expr::Lit(Lit::Nil)
+                    Expr::Lit(Lit::Nil(true))
                 } else {
-                    let ident = self.ident()?;
+                    let ident = self.ident()?.data;
 
                     Expr::ident(ident.clone())
                 };
@@ -657,19 +693,7 @@ impl Parser {
                 self.consume()?;
                 let expr = self.term_0(with_struct)?;
 
-                self.source_from(
-                    Expr::Call(
-                        Box::new(self.source(
-                            Expr::ident(Ident("not".to_string())),
-                            position,
-                            position,
-                        )),
-                        vec![expr],
-                        None,
-                        None,
-                    ),
-                    position,
-                )
+                self.source_from(Expr::Not(Box::new(expr)), position)
             }
             Lexeme::Struct => {
                 self.consume()?;
@@ -677,7 +701,7 @@ impl Parser {
 
                 let mut fields = vec![];
                 while self.peek()?.lexeme != Lexeme::RBrace {
-                    let ident = self.ident()?;
+                    let ident = self.ident()?.data;
                     self.expect(Lexeme::Colon)?;
                     let expr = self.expr()?;
 
@@ -765,7 +789,7 @@ impl Parser {
                     let mut fields = vec![];
                     let mut expansion = None;
                     while self.peek()?.lexeme != Lexeme::RBrace {
-                        let field = self.ident()?;
+                        let field = self.ident()?.data;
                         self.expect(Lexeme::Colon)
                             .context("record:initialization")?;
                         let value = self.expr()?;
@@ -864,7 +888,7 @@ impl Parser {
 
                     let ident_position = self.position;
 
-                    let name = self.ident()?;
+                    let name = self.ident()?.data;
                     current = self.source_from(
                         Expr::Path {
                             path: self.source_from(Path::new(vec![ident, name]), ident_position),
@@ -900,7 +924,7 @@ impl Parser {
             Ok(self.source_from(Expr::Try(Box::new(current)), position))
         } else {
             let position = self.position;
-            let ident = self.ident()?;
+            let ident = self.ident()?.data;
             let field = self.source_from(Path::ident(ident), position);
             let omit = self.gen_omit()?;
 
@@ -908,25 +932,21 @@ impl Parser {
         }
     }
 
-    fn ident(&mut self) -> Result<Ident> {
+    fn ident(&mut self) -> Result<Source<Ident>> {
         let current = self.peek()?;
         if let Lexeme::Ident(ident) = &current.lexeme {
-            self.consume()?;
+            let t = self.consume()?;
 
-            Ok(Ident(ident.clone()))
+            Ok(Source::new(Ident(ident.clone()), t.start, t.end))
         } else {
             Err(
                 anyhow!("Expected identifier, got {:?}", current.lexeme).context(ErrorInSource {
                     path: Some(self.current_path.clone()),
-                    start: self
-                        .input
-                        .get(self.position)
-                        .map(|p| p.position)
-                        .unwrap_or(0),
+                    start: self.input.get(self.position).map(|p| p.start).unwrap_or(0),
                     end: self
                         .input
                         .get(self.position + 1)
-                        .map(|p| p.position)
+                        .map(|p| p.start)
                         .unwrap_or(0),
                 }),
             )
@@ -939,15 +959,16 @@ impl Parser {
             Lexeme::Int(int) if int <= i32::MAX as i64 => Ok(Lit::I32(int as i32)),
             Lexeme::Int(int) if int <= u32::MAX as i64 => Ok(Lit::U32(int as u32)),
             Lexeme::Int(int) => Ok(Lit::I64(int)),
-            Lexeme::String(string) => Ok(Lit::String(string)),
+            Lexeme::String(string) => Ok(Lit::String(string, StringLiteralType::String)),
+            Lexeme::RawString(string) => Ok(Lit::String(string, StringLiteralType::Raw)),
             Lexeme::True => Ok(Lit::Bool(true)),
             Lexeme::False => Ok(Lit::Bool(false)),
             _ => {
                 return Err(
                     anyhow!("Expected literal, got {:?}", current.lexeme).context(ErrorInSource {
                         path: Some(self.current_path.clone()),
-                        start: self.input[self.position].position,
-                        end: self.input[self.position].position,
+                        start: self.input[self.position].start,
+                        end: self.input[self.position].start,
                     }),
                 )
             }
@@ -1007,7 +1028,7 @@ impl Parser {
             Lexeme::LBrace => {
                 let mut fields = vec![];
                 while self.peek()?.lexeme != Lexeme::RBrace {
-                    let ident = self.ident()?;
+                    let ident = self.ident()?.data;
                     self.expect(Lexeme::Colon)?;
                     let type_ = self.type_()?;
                     fields.push((ident, type_));
@@ -1027,7 +1048,7 @@ impl Parser {
                 self.expect(Lexeme::LBrace)?;
                 let mut fields = vec![];
                 while self.peek()?.lexeme != Lexeme::RBrace {
-                    let ident = self.ident()?;
+                    let ident = self.ident()?.data;
                     self.expect(Lexeme::Colon)?;
                     let type_ = self.type_()?;
                     fields.push((ident, type_));
@@ -1086,8 +1107,8 @@ impl Parser {
             return Err(
                 anyhow!("Expected {:?}, got {:?}", lexeme, token.lexeme).context(ErrorInSource {
                     path: Some(self.current_path.clone()),
-                    start: self.input[self.position].position,
-                    end: self.input[self.position].position,
+                    start: self.input[self.position].start,
+                    end: self.input[self.position].start,
                 }),
             );
         }
@@ -1099,16 +1120,32 @@ impl Parser {
         Ok(Type::Omit(self.omit_index))
     }
 
+    fn get_source_from_position(&self, start: usize) -> Option<usize> {
+        self.input.get(start).map(|p| p.start)
+    }
+
     fn source<T>(&self, data: T, start: usize, end: usize) -> Source<T> {
         Source {
             data,
-            start: Some(self.input.get(start).map(|p| p.position).unwrap_or(0)),
-            end: Some(self.input.get(end).map(|p| p.position).unwrap_or(0)),
+            start: Some(self.input.get(start).map(|p| p.start).unwrap_or(0)),
+            end: Some(self.input.get(end).map(|p| p.start).unwrap_or(0)),
         }
     }
 
     fn source_from<T>(&self, data: T, start: usize) -> Source<T> {
         self.source(data, start, self.position)
+    }
+
+    fn source_position_token<T>(&self, data: T, start: usize, end: Token) -> Source<T> {
+        Source::new(
+            data,
+            self.input.get(start).map(|p| p.start).unwrap_or(0),
+            end.end,
+        )
+    }
+
+    fn span_source<T>(&self, data: T, start: Token, end: Token) -> Source<T> {
+        Source::new(data, start.start, end.end)
     }
 }
 
@@ -1125,27 +1162,39 @@ fn test_expr() -> Result<()> {
         vec![
             Token {
                 lexeme: Lexeme::Ident("a".to_string()),
-                position: 0,
+                start: 0,
+                end: 0,
+                raw: "a".to_string(),
             },
             Token {
                 lexeme: Lexeme::Minus,
-                position: 0,
+                start: 0,
+                end: 0,
+                raw: "-".to_string(),
             },
             Token {
                 lexeme: Lexeme::Ident("b".to_string()),
-                position: 0,
+                start: 0,
+                end: 0,
+                raw: "b".to_string(),
             },
             Token {
                 lexeme: Lexeme::Minus,
-                position: 0,
+                start: 0,
+                end: 0,
+                raw: "-".to_string(),
             },
             Token {
                 lexeme: Lexeme::Ident("c".to_string()),
-                position: 0,
+                start: 0,
+                end: 0,
+                raw: "c".to_string(),
             },
             Token {
                 lexeme: Lexeme::Semicolon,
-                position: 0,
+                start: 0,
+                end: 0,
+                raw: ";".to_string(),
             },
         ],
         source(Expr::BinOp(

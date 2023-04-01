@@ -60,12 +60,12 @@ impl Type {
                     .join(", ")
             ),
             Type::Ident(name) => format!("{}", name.as_str()),
-            Type::Ptr(t) => format!("pointer[{}]", t.to_string()),
+            Type::Ptr(t) => format!("ptr[{}]", t.to_string()),
             Type::Array(type_, size) => format!("array[{}, {}]", type_.to_string(), size),
             Type::Byte => "byte".to_string(),
             Type::Range(type_) => format!("range[{}]", type_.to_string()),
             Type::Vec(type_) => format!("vec[{}]", type_.to_string()),
-            Type::Optional(type_) => format!("optional[{}]", type_.to_string()),
+            Type::Optional(type_) => format!("{}?", type_.to_string()),
             Type::Map(key, value) => format!("map[{}, {}]", key.to_string(), value.to_string()),
             Type::Or(left, right) => format!("{} or {}", left.to_string(), right.to_string()),
             Type::Any => "any".to_string(),
@@ -149,13 +149,19 @@ impl Type {
 }
 
 #[derive(PartialEq, Debug, Clone)]
+pub enum StringLiteralType {
+    String,
+    Raw,
+}
+
+#[derive(PartialEq, Debug, Clone)]
 pub enum Lit {
-    Nil,
+    Nil(bool),
     Bool(bool),
     I32(i32),
     U32(u32),
     I64(i64),
-    String(String),
+    String(String, StringLiteralType),
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -173,6 +179,26 @@ pub enum BinOp {
     Gte,
     Equal,
     NotEqual,
+}
+
+impl BinOp {
+    pub fn to_string(&self) -> String {
+        match self {
+            BinOp::Add => "+".to_string(),
+            BinOp::Sub => "-".to_string(),
+            BinOp::Mul => "*".to_string(),
+            BinOp::Div => "/".to_string(),
+            BinOp::Mod => "%".to_string(),
+            BinOp::And => "&&".to_string(),
+            BinOp::Or => "||".to_string(),
+            BinOp::Lt => "<".to_string(),
+            BinOp::Lte => "<=".to_string(),
+            BinOp::Gt => ">".to_string(),
+            BinOp::Gte => ">=".to_string(),
+            BinOp::Equal => "==".to_string(),
+            BinOp::NotEqual => "!=".to_string(),
+        }
+    }
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -202,6 +228,7 @@ pub enum Expr {
         Option<Box<Source<Expr>>>,
     ),
     BinOp(BinOp, Type, Box<Source<Expr>>, Box<Source<Expr>>),
+    Not(Box<Source<Expr>>),
     Record(
         Source<Ident>,
         Vec<(Ident, Source<Expr>)>,
@@ -227,6 +254,7 @@ pub enum Expr {
         Option<Box<Source<Expr>>>,
     ),
     Try(Box<Source<Expr>>),
+    Paren(Box<Source<Expr>>),
 }
 
 impl Expr {
@@ -264,11 +292,16 @@ pub enum Statement {
     If(
         Source<Expr>,
         Type,
-        Vec<Source<Statement>>,
-        Option<Vec<Source<Statement>>>,
+        Source<Vec<Source<Statement>>>,
+        Option<Source<Vec<Source<Statement>>>>,
     ),
-    While(Source<Expr>, Vec<Source<Statement>>),
-    For(Option<ForMode>, Ident, Source<Expr>, Vec<Source<Statement>>),
+    While(Source<Expr>, Source<Vec<Source<Statement>>>),
+    For(
+        Option<ForMode>,
+        Ident,
+        Source<Expr>,
+        Source<Vec<Source<Statement>>>,
+    ),
     Continue,
     Break,
 }
@@ -295,7 +328,7 @@ pub struct Func {
     pub params: Vec<(Ident, Type)>,
     pub variadic: Option<(Ident, Type)>,
     pub result: Type,
-    pub body: Vec<Source<Statement>>,
+    pub body: Source<Vec<Source<Statement>>>,
 }
 
 impl Func {
@@ -319,10 +352,10 @@ impl Func {
 pub enum Decl {
     Func(Func),
     Let(Ident, Type, Source<Expr>),
-    Type(Ident, Type),
+    Type(Ident, Vec<Source<(Ident, Type)>>),
     Module(Path, Module),
     Import(Path),
 }
 
 #[derive(PartialEq, Debug, Clone)]
-pub struct Module(pub Vec<Decl>);
+pub struct Module(pub Vec<Source<Decl>>);

@@ -204,7 +204,7 @@ module Parser {
                     ..nil,
                 };
             }
-            
+
             return _ or error::new("Unknown type ".concat(token.string_value!));
         }
 

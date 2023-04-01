@@ -6,13 +6,14 @@ use thiserror::{Error, __private::PathAsDisplay};
 
 use crate::{
     ast::{Decl, Module},
+    formatter::Formatter,
     generator::Generator,
     ir::IrTerm,
     ir_code_gen::IrCodeGenerator,
-    lexer::Lexer,
+    lexer::{Lexeme, Lexer, Token},
     parser::Parser,
     typecheck::TypeChecker,
-    util::{ident::Ident, path::Path},
+    util::{ident::Ident, path::Path, source::Source},
 };
 
 pub const MODE_TYPE_REP: bool = true;
@@ -126,6 +127,39 @@ impl Compiler {
         Path::ident(Ident("main".to_string()))
     }
 
+    pub fn run_lexer(input: &str, path: Path) -> Result<Vec<Token>> {
+        let mut lexer = Lexer::new();
+
+        lexer.run(input, path)?;
+
+        Ok(lexer.tokens)
+    }
+
+    pub fn run_parser(input: &str, path: Path, skip_errors: bool) -> Result<Module> {
+        Ok(Compiler::run_parser_with_comments(input, path, skip_errors)?.0)
+    }
+
+    pub fn run_parser_with_comments(
+        input: &str,
+        path: Path,
+        skip_errors: bool,
+    ) -> Result<(Module, Vec<Token>)> {
+        let mut parser = Parser::new();
+        let tokens = Compiler::run_lexer(input, path.clone())?;
+        let (comments, no_comments): (Vec<_>, Vec<_>) = tokens
+            .iter()
+            .partition(|v| matches!(v.lexeme, Lexeme::Comment(_)));
+
+        Ok((
+            parser.run(
+                no_comments.into_iter().cloned().collect::<Vec<_>>(),
+                path,
+                skip_errors,
+            )?,
+            comments.into_iter().cloned().collect::<Vec<_>>(),
+        ))
+    }
+
     pub fn parse(
         &mut self,
         cwd: &str,
@@ -133,13 +167,9 @@ impl Compiler {
         input: &str,
         skip_errors: bool,
     ) -> Result<Module> {
-        let mut lexer = Lexer::new();
         let mut parser = Parser::new();
 
-        lexer.run(input, main_path.clone()).context("lexer phase")?;
-        let main = parser
-            .run(lexer.tokens, main_path.clone(), skip_errors)
-            .context("parser phase")?;
+        let main = Compiler::run_parser(input, main_path.clone(), skip_errors)?;
 
         self.loader.loaded.push(LoadedModule {
             path: main_path.clone(),
@@ -170,10 +200,10 @@ impl Compiler {
                 .iter()
                 .map(|v| {
                     // HACK: Add import quartz::std to the top of the file
-                    let mut decls = vec![Decl::Import(v.path.clone())];
+                    let mut decls = vec![Source::unknown(Decl::Import(v.path.clone()))];
                     decls.extend(v.module.0.clone());
 
-                    Decl::Module(v.path.clone(), Module(decls))
+                    Source::unknown(Decl::Module(v.path.clone(), Module(decls)))
                 })
                 .collect::<Vec<_>>(),
         );
@@ -278,10 +308,10 @@ impl Compiler {
                 .iter()
                 .map(|v| {
                     // HACK: Add import quartz::std to the top of the file
-                    let mut decls = vec![Decl::Import(v.path.clone())];
+                    let mut decls = vec![Source::unknown(Decl::Import(v.path.clone()))];
                     decls.extend(v.module.0.clone());
 
-                    Decl::Module(v.path.clone(), Module(decls))
+                    Source::unknown(Decl::Module(v.path.clone(), Module(decls)))
                 })
                 .collect::<Vec<_>>(),
         );
@@ -479,6 +509,17 @@ impl Compiler {
         } else {
             bail!("No definition found")
         }
+    }
+
+    pub fn format(input: &str) -> Result<String> {
+        let (module, comments) = Compiler::run_parser_with_comments(
+            input,
+            Path::ident(Ident("main".to_string())),
+            true,
+        )?;
+        let mut formatter = Formatter::new(input, &comments, 0);
+
+        Ok(formatter.format(module))
     }
 }
 

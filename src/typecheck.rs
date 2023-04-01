@@ -126,7 +126,7 @@ impl TypeChecker {
 
     fn module_register_for_back_reference(&mut self, module: &mut Module) -> Result<()> {
         for decl in &mut module.0 {
-            match decl {
+            match &mut decl.data {
                 Decl::Func(func) => {
                     self.globals.insert(
                         self.path_to(&func.name.data),
@@ -138,7 +138,13 @@ impl TypeChecker {
                         .insert(self.path_to(&ident), Source::unknown(type_.clone()));
                 }
                 Decl::Type(ident, type_) => {
-                    self.types.insert(ident.clone(), (vec![], type_.clone()));
+                    self.types.insert(
+                        ident.clone(),
+                        (
+                            vec![],
+                            Type::Record(type_.clone().into_iter().map(|t| t.data).collect()),
+                        ),
+                    );
                 }
                 Decl::Module(name, module) => {
                     let path = self.current_path.clone();
@@ -160,7 +166,7 @@ impl TypeChecker {
     fn module_typecheck(&mut self, module: &mut Module) -> Result<()> {
         for decl in &mut module.0 {
             self.locals.clear();
-            let result = self.decl(decl);
+            let result = self.decl(&mut decl.data);
             if result.is_ok() || !self.search_node.is_some() {
                 result?;
             }
@@ -197,8 +203,9 @@ impl TypeChecker {
                     .insert(self.path_to(&ident), Source::unknown(type_.clone()));
             }
             Decl::Type(ident, type_) => {
-                self.resolve_type(&type_)?;
-                self.types.insert(ident.clone(), (vec![], type_.clone()));
+                let t = Type::Record(type_.clone().into_iter().map(|t| t.data).collect());
+                self.resolve_type(&t)?;
+                self.types.insert(ident.clone(), (vec![], t));
             }
             Decl::Module(name, module) => {
                 let module_path = self.current_path.clone();
@@ -288,8 +295,8 @@ impl TypeChecker {
         }
 
         self.result_type = Some(func.result.clone());
-        self.block(&mut func.body)?;
-        if !matches!(self.result_type, Some(Type::Nil)) && self.can_escape_block(&func.body) {
+        self.block(&mut func.body.data)?;
+        if !matches!(self.result_type, Some(Type::Nil)) && self.can_escape_block(&func.body.data) {
             return Err(
                 anyhow!("function must return a value").context(ErrorInSource {
                     path: Some(self.current_path.clone()),
@@ -324,19 +331,19 @@ impl TypeChecker {
                     can_escape = false;
                 }
                 Statement::If(_, _, then_block, else_block) => {
-                    if !self.can_escape_block(then_block) {
+                    if !self.can_escape_block(&then_block.data) {
                         if let Some(else_block) = else_block {
-                            if !self.can_escape_block(else_block) {
+                            if !self.can_escape_block(&else_block.data) {
                                 can_escape = false;
                             }
                         }
                     }
                 }
                 Statement::While(_, body) => {
-                    can_escape = self.can_escape_block(body);
+                    can_escape = self.can_escape_block(&body.data);
                 }
                 Statement::For(_, _, _, body) => {
-                    can_escape = self.can_escape_block(body);
+                    can_escape = self.can_escape_block(&body.data);
                 }
                 Statement::Let(_, _, _) => {}
                 Statement::Expr(_, _) => {}
@@ -435,10 +442,10 @@ impl TypeChecker {
                         end: cond.end.unwrap_or(0),
                     })?;
 
-                self.block(then_block).context("then block")?;
+                self.block(&mut then_block.data).context("then block")?;
 
                 if let Some(else_block) = else_block {
-                    self.block(else_block).context("else block")?;
+                    self.block(&mut else_block.data).context("else block")?;
                 }
 
                 self.unify(type_, &mut Type::Nil)
@@ -458,7 +465,7 @@ impl TypeChecker {
                         end: cond.end.unwrap_or(0),
                     })?;
 
-                self.block(block)?;
+                self.block(&mut block.data)?;
             }
             Statement::For(mode, ident, range, body) => {
                 let type_ = self.expr(range)?;
@@ -470,7 +477,7 @@ impl TypeChecker {
 
                     let locals = self.locals.clone();
 
-                    self.block(body)?;
+                    self.block(&mut body.data)?;
 
                     self.locals = locals;
                 } else if let Type::Vec(vec_type) = type_ {
@@ -481,7 +488,7 @@ impl TypeChecker {
 
                     let locals = self.locals.clone();
 
-                    self.block(body)?;
+                    self.block(&mut body.data)?;
 
                     self.locals = locals;
                 } else {
@@ -726,6 +733,17 @@ impl TypeChecker {
                         }))
                     }
                 }
+            }
+            Expr::Not(expr) => {
+                let type_ = self.expr(expr)?;
+                self.unify(&mut Type::Bool, &mut type_.clone())
+                    .context(ErrorInSource {
+                        path: Some(self.current_path.clone()),
+                        start: expr.start.unwrap_or(0),
+                        end: expr.end.unwrap_or(0),
+                    })?;
+
+                Ok(Type::Bool)
             }
             Expr::BinOp(op, type_, arg1, arg2) => {
                 use crate::ast::BinOp::*;
@@ -1157,6 +1175,7 @@ impl TypeChecker {
                     }
                 }
             }
+            Expr::Paren(p) => self.expr(p),
         }
     }
 
@@ -1166,12 +1185,12 @@ impl TypeChecker {
 
     fn lit(&mut self, lit: &mut Lit) -> Result<Type> {
         match lit {
-            Lit::Nil => Ok(Type::Nil),
+            Lit::Nil(_) => Ok(Type::Nil),
             Lit::Bool(_) => Ok(Type::Bool),
             Lit::I32(_) => Ok(Type::I32),
             Lit::U32(_) => Ok(Type::U32),
             Lit::I64(_) => Ok(Type::I64),
-            Lit::String(_) => Ok(Type::Ident(Ident("string".to_string()))),
+            Lit::String(_, _) => Ok(Type::Ident(Ident("string".to_string()))),
         }
     }
 

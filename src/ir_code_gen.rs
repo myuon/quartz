@@ -127,7 +127,7 @@ impl IrCodeGenerator {
         let mut elements = vec![];
 
         for decl in &mut module.0 {
-            match decl {
+            match &mut decl.data {
                 Decl::Func(func) => {
                     elements.push(self.func(func)?);
                 }
@@ -271,7 +271,7 @@ impl IrCodeGenerator {
     }
 
     fn func(&mut self, func: &mut Func) -> Result<IrTerm> {
-        let elements = self.statements(&mut func.body)?;
+        let elements = self.statements(&mut func.body.data)?;
 
         let mut params = vec![];
         for (ident, type_) in &func.params {
@@ -401,13 +401,13 @@ impl IrCodeGenerator {
             }
             Statement::If(cond, type_, then_block, else_block) => {
                 let mut then_elements = vec![];
-                for statement in then_block {
+                for statement in &mut then_block.data {
                     then_elements.push(self.statement(statement)?);
                 }
 
                 let mut else_elements = vec![];
                 if let Some(else_block) = else_block {
-                    for statement in else_block {
+                    for statement in &mut else_block.data {
                         else_elements.push(self.statement(statement)?);
                     }
                 }
@@ -429,7 +429,7 @@ impl IrCodeGenerator {
             }
             Statement::While(cond, block) => {
                 let mut elements = vec![];
-                for statement in block {
+                for statement in &mut block.data {
                     elements.push(self.statement(statement)?);
                 }
 
@@ -458,7 +458,7 @@ impl IrCodeGenerator {
                                     source: None,
                                 }),
                                 body: Box::new(IrTerm::Seq {
-                                    elements: self.statements(body)?,
+                                    elements: self.statements(&mut body.data)?,
                                 }),
                                 cleanup: Some(Box::new(IrTerm::Assign {
                                     lhs: ident.0.clone(),
@@ -500,7 +500,7 @@ impl IrCodeGenerator {
                             None,
                         )),
                     ))];
-                    new_body.extend(body.clone());
+                    new_body.extend(body.data.clone());
 
                     self.statement(&mut Source::transfer(
                         Statement::For(
@@ -517,7 +517,7 @@ impl IrCodeGenerator {
                                 ),
                                 range,
                             ),
-                            new_body.clone(),
+                            Source::transfer(new_body.clone(), &body),
                         ),
                         statement,
                     ))
@@ -583,13 +583,22 @@ impl IrCodeGenerator {
                 Ok(IrTerm::ident(resolved_path.as_joined_str("_")))
             }
             Expr::Lit(lit) => match lit {
-                Lit::Nil => Ok(IrTerm::nil()),
+                Lit::Nil(_) => Ok(IrTerm::nil()),
                 Lit::Bool(b) => Ok(IrTerm::Bool(*b)),
                 Lit::I32(i) => Ok(IrTerm::i32(*i)),
                 Lit::U32(i) => Ok(IrTerm::u32(*i)),
                 Lit::I64(i) => Ok(IrTerm::i64(*i)),
-                Lit::String(s) => Ok(self.register_string(s.clone())),
+                Lit::String(s, _) => Ok(self.register_string(s.clone())),
             },
+            Expr::Not(expr) => {
+                let expr = self.expr(expr)?;
+
+                Ok(IrTerm::Call {
+                    callee: Box::new(IrTerm::Ident("not".to_string())),
+                    args: vec![expr],
+                    source: None,
+                })
+            }
             Expr::BinOp(op, type_, arg1, arg2) => {
                 use crate::ast::BinOp::*;
 
@@ -1306,6 +1315,7 @@ impl IrCodeGenerator {
 
                 Ok(IrTerm::Seq { elements })
             }
+            Expr::Paren(p) => self.expr(p),
         }
     }
 

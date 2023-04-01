@@ -26,6 +26,7 @@ connection.onInitialize(() => {
       completionProvider: {
         triggerCharacters: ["."],
       },
+      documentFormattingProvider: true,
     },
   };
 });
@@ -178,6 +179,34 @@ connection.onCompletion(async (params) => {
       kind: kindMap[item.kind],
       detail: item.detail,
     }));
+  }
+
+  return undefined;
+});
+
+connection.onDocumentFormatting(async (params) => {
+  console.log("format", params);
+  const file = params.textDocument.uri.replace("file://", "");
+
+  const command = `cargo run --release --manifest-path ${path.join(
+    file,
+    "..",
+    "..",
+    "Cargo.toml"
+  )} -- format ${file}`;
+  console.log(command);
+
+  const cargo = await execAsync(command);
+  if (cargo.stdout) {
+    return [
+      {
+        range: {
+          start: { line: 0, character: 0 },
+          end: { line: 100000, character: 100000 },
+        },
+        newText: cargo.stdout,
+      },
+    ];
   }
 
   return undefined;
