@@ -1,8 +1,8 @@
 import quartz::ast;
 
-type Module = {
+struct Module {
     decls: vec[Decl],
-};
+}
 
 module Module {
     fun to_string(self): string {
@@ -16,14 +16,14 @@ module Module {
     }
 }
 
-type Decl = {
+struct Decl {
     t_func: Function?,
     t_let: Let?,
     t_type: struct {
         name: string,
         type_: Type,
     }?,
-};
+}
 
 module Decl {
     fun to_string(self): string {
@@ -31,24 +31,19 @@ module Decl {
     }
 }
 
-type Let = {
+struct Let {
     name: string,
     name_type: Type,
     expr: Expression,
-};
+}
 
 module Let {
     fun to_string(self): string {
-        return format(
-            "let {} : {} = {};",
-            self.name,
-            self.name_type.to_string(),
-            self.expr.to_string(),
-        );
+        return format("let {} : {} = {};", self.name, self.name_type.to_string(), self.expr.to_string());
     }
 }
 
-type Function = {
+struct Function {
     name: string,
     result_type: Type,
     body: Block,
@@ -56,7 +51,7 @@ type Function = {
         name: string,
         type_: Type,
     }],
-};
+}
 
 module Function {
     fun to_string(self): string {
@@ -80,9 +75,9 @@ module Function {
     }
 }
 
-type Block = {
+struct Block {
     block: vec[Statement],
-};
+}
 
 module Block {
     fun to_string(self): string {
@@ -96,7 +91,7 @@ module Block {
     }
 }
 
-type Statement = {
+struct Statement {
     t_let: struct {
         name: string,
         name_type: Type,
@@ -121,28 +116,23 @@ type Statement = {
         condition: Expression,
         block: Block,
     }?,
-};
+}
 
 module Statement {
     fun to_string(self): string {
         if self.t_let != nil {
-            return "let ".concat(self.t_let!.name).concat(": ").concat(self.t_let!.name_type.to_string()).concat(" = ").concat(self.t_let!.expr.to_string()).concat(";\n");
+            return "let ".concat(self.t_let!.name).concat(": ").concat(self.t_let!.name_type.to_string()).concat(
+                " = ",
+            ).concat(self.t_let!.expr.to_string()).concat(";\n");
         }
         if self.t_return != nil {
             return "return ".concat(self.t_return!.expr.to_string()).concat(";\n");
         }
         if self.t_assign != nil {
-            return format(
-                "{} = {};",
-                self.t_assign!.lhs.to_string(),
-                self.t_assign!.rhs.to_string(),
-            );
+            return format("{} = {};", self.t_assign!.lhs.to_string(), self.t_assign!.rhs.to_string());
         }
         if self.t_expr != nil {
-            return format(
-                "{};",
-                self.t_expr!.expr.to_string(),
-            );
+            return format("{};", self.t_expr!.expr.to_string());
         }
         if self.t_if != nil {
             let result = format(
@@ -152,11 +142,7 @@ module Statement {
             );
 
             if self.t_if!.else_block != nil {
-                result = format(
-                    "{} else {\n{}}",
-                    result,
-                    self.t_if!.else_block!.to_string(),
-                );
+                result = format("{} else {\n{}}", result, self.t_if!.else_block!.to_string());
             }
 
             return result.concat("\n");
@@ -173,7 +159,7 @@ module Statement {
     }
 }
 
-type Expression = {
+struct Expression {
     t_ident: struct {
         name: string,
     }?,
@@ -199,7 +185,7 @@ type Expression = {
         type_: Type,
         args: vec[Expression],
     }?,
-};
+}
 
 module Expression {
     fun to_string(self): string {
@@ -207,20 +193,17 @@ module Expression {
     }
 }
 
-type RecordExpression = {
+struct RecordExpression {
     name: string,
     fields: vec[struct {
         field: string,
         value: Expression,
-    }]
-};
+    }],
+}
 
 module RecordExpression {
     fun to_string(self): string {
-        let result = format(
-            "{} {{",
-            self.name,
-        );
+        let result = format("{} {{", self.name);
 
         for i in 0..self.fields.length {
             let f = self.fields.at(i);
@@ -246,7 +229,7 @@ module RecordExpression {
     }
 }
 
-type Type = {
+struct Type {
     t_omit: bool?, // for unification
     t_nil: bool?,
     t_i32: bool?,
@@ -257,7 +240,7 @@ type Type = {
     t_ptr: Type?,
     t_bool: bool?,
     t_struct: TypeStruct?,
-};
+}
 
 module Type {
     fun to_string(self): string {
@@ -302,3 +285,4 @@ module TypeStruct {
         return panic("unimplemented: typestruct.find");
     }
 }
+

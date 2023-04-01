@@ -1,12 +1,12 @@
 import quartz::ast;
 import quartz::ir;
 
-type Generator = {
+struct Generator {
     writer: string,
     depth: i32,
     index: i32,
     globals: map[string, Type],
-};
+}
 
 module Generator {
     fun new(): Generator {
@@ -88,7 +88,8 @@ module Generator {
         self.end();
 
         self.start();
-        self.write(`func $alloc (param $size i32) (result i32)
+        self.write(
+            `func $alloc (param $size i32) (result i32)
     (local $p i32)
 
     global.get $heap_ptr
@@ -100,7 +101,8 @@ module Generator {
     global.set $heap_ptr
 
     local.get $p
-`);
+`,
+        );
         self.end();
 
         self.start();
@@ -112,17 +114,16 @@ module Generator {
         return self.generate();
     }
 
-    fun global_let(self, global_let: struct {
-        name: string,
-        type_: IrType,
-        value: IrTerm,
-    }) {
+    fun global_let(
+        self,
+        global_let: struct {
+            name: string,
+            type_: IrType,
+            value: IrTerm,
+        },
+    ) {
         self.start();
-        self.write(format(
-            "global ${} (mut {})",
-            global_let.name,
-            global_let.type_.to_string(),
-        ));
+        self.write(format("global ${} (mut {})", global_let.name, global_let.type_.to_string()));
         self.start();
         self.expression(global_let.value);
         self.end();
@@ -156,7 +157,7 @@ module Generator {
         for i in 0..func.body.length {
             self.expression(func.body.at(i));
         }
-        
+
         self.end();
     }
 
@@ -383,3 +384,4 @@ module Generator {
         panic("not implemented: expr_lhs");
     }
 }
+

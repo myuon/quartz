@@ -66,10 +66,10 @@ module InternalTypeRep {
     }
 }
 
-type IrCodeGenerator = {
+struct IrCodeGenerator {
     globals: map[string, Type],
     locals: vec[string],
-};
+}
 
 module IrCodeGenerator {
     fun new(): IrCodeGenerator {
@@ -104,14 +104,15 @@ module IrCodeGenerator {
                     ..nil,
                 });
             }
-            if d.t_type != nil {}
+            if d.t_type != nil {
+            }
         }
 
         return IrTerm {
             t_module: struct {
                 elements: elements,
             }?,
-            ..nil
+            ..nil,
         };
     }
 
@@ -140,7 +141,7 @@ module IrCodeGenerator {
             locals: self.locals,
         };
     }
-    
+
     fun block(self, b: Block): vec[IrTerm] or error {
         let elements = make[vec[IrTerm]]();
 
@@ -439,10 +440,13 @@ module IrCodeGenerator {
         return panic("expression exhausted: {}", expr.to_string());
     }
 
-    fun generate_array_enumerated(self, record: vec[struct {
-        type_: IrType,
-        term: IrTerm,
-    }]): IrTerm {
+    fun generate_array_enumerated(
+        self,
+        record: vec[struct {
+            type_: IrType,
+            term: IrTerm,
+        }],
+    ): IrTerm {
         let terms = make[vec[struct {
             offset: i32,
             type_: IrType,
@@ -463,11 +467,14 @@ module IrCodeGenerator {
         return self.generate_array(terms);
     }
 
-    fun generate_array(self, terms: vec[struct {
-        offset: i32,
-        type_: IrType,
-        term: IrTerm,
-    }]): IrTerm {
+    fun generate_array(
+        self,
+        terms: vec[struct {
+            offset: i32,
+            type_: IrType,
+            term: IrTerm,
+        }],
+    ): IrTerm {
         let arr = make[vec[IrTerm]]();
         arr.push(IrTerm {
             t_let: IrLet {
@@ -617,22 +624,15 @@ module IrCodeGenerator {
         };
     }
 
-    fun generate_array_at(
-        self,
-        elem_type: Type,
-        arr: IrTerm,
-        index: IrTerm,
-    ): IrTerm or error {
+    fun generate_array_at(self, elem_type: Type, arr: IrTerm, index: IrTerm): IrTerm or error {
         return IrTerm {
             t_load: struct {
                 type_: IrType::new(elem_type),
                 address: arr,
-                offset: IrCodeGenerator::wrap_mult_sizeof(
-                    IrType::new(elem_type),
-                    index,
-                ),
+                offset: IrCodeGenerator::wrap_mult_sizeof(IrType::new(elem_type), index),
             }?,
             ..nil,
         };
     }
 }
+

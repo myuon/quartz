@@ -1,9 +1,9 @@
 import quartz::ast;
 
-type Typechecker = {
+struct Typechecker {
     locals: map[string, Type],
     globals: map[string, Type],
-};
+}
 
 module Typechecker {
     fun new(): Typechecker {
@@ -106,10 +106,13 @@ module Typechecker {
         }
         if s.t_if != nil {
             let condition_type = self.expression(s.t_if!.condition).try;
-            unify(condition_type, Type {
-                t_bool: true?,
-                ..nil,
-            }).try;
+            unify(
+                condition_type,
+                Type {
+                    t_bool: true?,
+                    ..nil,
+                },
+            ).try;
 
             let type_ = Type {
                 t_omit: true?,
@@ -123,10 +126,13 @@ module Typechecker {
         }
         if s.t_while != nil {
             let condition_type = self.expression(s.t_while!.condition).try;
-            unify(condition_type, Type {
-                t_bool: true?,
-                ..nil,
-            }).try;
+            unify(
+                condition_type,
+                Type {
+                    t_bool: true?,
+                    ..nil,
+                },
+            ).try;
 
             let type_ = Type {
                 t_omit: true?,
@@ -156,25 +162,30 @@ module Typechecker {
             };
         }
         if expr.t_binop != nil {
-            if (expr.t_binop!.binop.equal("plus")
-                || expr.t_binop!.binop.equal("minus")
-                || expr.t_binop!.binop.equal("mult")) {
+            if (expr.t_binop!.binop.equal("plus") || expr.t_binop!.binop.equal("minus") || expr.t_binop!.binop.equal(
+                "mult",
+            )) {
                 let t1 = self.expression(expr.t_binop!.left).try;
-                unify(t1, Type {
-                    t_i32: true?,
-                    ..nil,
-                }).try;
+                unify(
+                    t1,
+                    Type {
+                        t_i32: true?,
+                        ..nil,
+                    },
+                ).try;
 
                 let t2 = self.expression(expr.t_binop!.right).try;
-                unify(t2, Type {
-                    t_i32: true?,
-                    ..nil,
-                }).try;
+                unify(
+                    t2,
+                    Type {
+                        t_i32: true?,
+                        ..nil,
+                    },
+                ).try;
 
                 return t1;
             }
-            if (expr.t_binop!.binop.equal("equal")
-                || expr.t_binop!.binop.equal("lt")) {
+            if (expr.t_binop!.binop.equal("equal") || expr.t_binop!.binop.equal("lt")) {
                 let t1 = self.expression(expr.t_binop!.left).try;
                 let t2 = self.expression(expr.t_binop!.right).try;
                 unify(t1, t2).try;
@@ -278,10 +289,13 @@ module Typechecker {
             }
             if expr.t_make!.args.length == 1 {
                 let t = self.expression(expr.t_make!.args.at(0)).try;
-                unify(t, Type {
-                    t_i32: true?,
-                    ..nil,
-                }).try;
+                unify(
+                    t,
+                    Type {
+                        t_i32: true?,
+                        ..nil,
+                    },
+                ).try;
             }
 
             return expr.t_make!.type_;
@@ -312,5 +326,7 @@ fun unify(type1: Type, type2: Type): nil or error {
         return;
     }
 
-    return _ or error::new("unification failed: ".concat(type1.to_string()).concat(" != ").concat(type2.to_string()));
+    return _ or error::new("unification failed: ".concat(type1.to_string()).concat(" != ").concat(type2.to_string(
+    )));
 }
+
