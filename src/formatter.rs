@@ -142,18 +142,30 @@ impl<'s> Formatter<'s> {
     ) {
         self.write_no_space(writer, "(");
 
-        let mut blocks = vec![];
-        for (ident, type_) in params {
+        for (index, (ident, type_)) in params.clone().into_iter().enumerate() {
             if ident.0.as_str() == "self" {
-                blocks.push("self".to_string());
+                self.write_no_space(writer, "self");
             } else {
-                blocks.push(format!("{}: {}", ident.as_str(), type_.to_string()));
+                self.write_no_space(writer, ident.as_str());
+                self.write_no_space(writer, ":");
+                self.type_(writer, type_, false);
+            }
+
+            if index != params.len() - 1 {
+                self.write_no_space(writer, ", ");
             }
         }
         if let Some((ident, type_)) = variadic {
-            blocks.push(format!("..{}: {}", ident.as_str(), type_.to_string()));
+            if !params.is_empty() {
+                self.write_no_space(writer, ", ");
+            }
+
+            self.write_no_space(writer, "..");
+            self.write_if(writer, ident.as_str(), true);
+            self.write_no_space(writer, ":");
+            self.type_(writer, type_, false);
         }
-        self.write_block_oneline(writer, blocks, ",");
+
         self.write_no_space(writer, ")");
     }
 
@@ -493,7 +505,7 @@ impl<'s> Formatter<'s> {
                 fwriter.write_no_space(&mut buf, ", ");
             }
             fwriter.write_no_space(&mut buf, "..");
-            fwriter.expr(&mut buf, expansion.data, false);
+            fwriter.expr(&mut buf, expansion.data, true);
         }
         fwriter.write_no_space(&mut buf, ")");
         let buf_string = String::from_utf8(buf.into_inner().unwrap()).unwrap();
@@ -512,7 +524,7 @@ impl<'s> Formatter<'s> {
             }
             if let Some(expansion) = expansion {
                 self.write_no_space(writer, "..");
-                self.expr(writer, expansion.data, false);
+                self.expr(writer, expansion.data, true);
                 self.write_newline(writer);
             }
 
