@@ -636,9 +636,11 @@ impl<'s> Formatter<'s> {
             self.type_(writer, type_, false);
             self.write_no_space(writer, ",");
 
-            self.restore_comments(item.end.unwrap_or(0), writer);
-
-            self.write_newline(writer);
+            let has_comments =
+                self.restore_comments(self.find_next_newline(item.end.unwrap_or(0)), writer);
+            if !has_comments {
+                self.write_newline(writer);
+            }
         }
         self.depth -= 1;
         self.write(writer, "}");
@@ -677,12 +679,15 @@ impl<'s> Formatter<'s> {
             && self.comments[self.comment_position].start <= start
     }
 
-    fn restore_comments(&mut self, start: usize, writer: &mut impl Write) {
+    fn restore_comments(&mut self, start: usize, writer: &mut impl Write) -> bool {
         let comments = self.consume_comments(start);
+        let is_comments_empty = comments.is_empty();
         for comment in comments {
             self.write(writer, comment.raw);
             self.write_newline(writer);
         }
+
+        !is_comments_empty
     }
 
     fn write(&mut self, writer: &mut impl Write, s: impl AsRef<str>) {
@@ -735,6 +740,13 @@ impl<'s> Formatter<'s> {
 
             first = false;
         }
+    }
+
+    fn find_next_newline(&self, start: usize) -> usize {
+        self.source[start..]
+            .find('\n')
+            .map(|p| p + start)
+            .unwrap_or(self.source.len())
     }
 }
 

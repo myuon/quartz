@@ -75,7 +75,7 @@ impl Parser {
             }
             Lexeme::Module(_path) => {
                 self.consume()?;
-                let ident = self.ident()?;
+                let ident = self.ident()?.data;
                 self.expect(Lexeme::LBrace)?;
                 let module = self.module()?;
                 self.expect(Lexeme::RBrace)?;
@@ -96,7 +96,7 @@ impl Parser {
     }
 
     fn path(&mut self) -> Result<Path> {
-        let mut path = vec![self.ident()?];
+        let mut path = vec![self.ident()?.data];
         loop {
             if self.peek()?.lexeme == Lexeme::DoubleColon {
                 self.consume()?;
@@ -104,7 +104,7 @@ impl Parser {
                 break;
             }
 
-            path.push(self.ident()?);
+            path.push(self.ident()?.data);
         }
 
         Ok(Path(path))
@@ -112,9 +112,7 @@ impl Parser {
 
     fn func(&mut self) -> Result<Func> {
         self.expect(Lexeme::Fun)?;
-        let start = self.position;
-        let ident = self.ident()?;
-        let name = self.source_from(ident, start);
+        let name = self.ident()?;
         self.expect(Lexeme::LParen)?;
         let (params, variadic) = self.params()?;
         self.expect(Lexeme::RParen)?;
@@ -140,7 +138,7 @@ impl Parser {
 
     fn struct_decl(&mut self) -> Result<(Ident, Vec<Source<(Ident, Type)>>)> {
         self.expect(Lexeme::Struct)?;
-        let ident = self.ident()?;
+        let ident = self.ident()?.data;
 
         let t = self.record_type_decl()?;
 
@@ -149,7 +147,7 @@ impl Parser {
 
     fn type_decl(&mut self) -> Result<(Ident, Vec<Source<(Ident, Type)>>)> {
         self.expect(Lexeme::Type)?;
-        let ident = self.ident()?;
+        let ident = self.ident()?.data;
         self.expect(Lexeme::Equal)?;
 
         let t = self.record_type_decl()?;
@@ -163,16 +161,23 @@ impl Parser {
 
         let mut record_type = vec![];
         while self.peek()?.lexeme != Lexeme::RBrace {
-            let position = self.position;
             let field = self.ident()?;
             self.expect(Lexeme::Colon)?;
             let type_ = self.type_()?;
 
-            record_type.push(self.source_from((field, type_), position));
-
             if self.peek()?.lexeme == Lexeme::Comma {
-                self.consume()?;
+                let end = self.consume()?;
+                record_type.push(Source::new(
+                    (field.data, type_),
+                    field.start.unwrap_or(0),
+                    end.end,
+                ));
             } else {
+                record_type.push(Source::new(
+                    (field.data, type_),
+                    field.start.unwrap_or(0),
+                    self.get_source_from_position(self.position).unwrap_or(0),
+                ));
                 break;
             }
         }
@@ -191,12 +196,12 @@ impl Parser {
                 params.push((Ident("self".to_string()), self.gen_omit()?));
             } else if self.peek()?.lexeme == Lexeme::DoubleDot {
                 self.consume()?;
-                let name = self.ident()?;
+                let name = self.ident()?.data;
                 self.expect(Lexeme::Colon)?;
                 let type_ = self.type_()?;
                 variadic = Some((name, type_));
             } else {
-                let name = self.ident()?;
+                let name = self.ident()?.data;
                 self.expect(Lexeme::Colon)?;
                 let type_ = self.type_()?;
                 params.push((name, type_));
@@ -319,7 +324,7 @@ impl Parser {
             }
             Lexeme::For => {
                 let start = self.consume()?;
-                let ident = self.ident()?;
+                let ident = self.ident()?.data;
                 self.expect(Lexeme::In)?;
                 let range = self.expr_conditional()?;
                 let body = self.block_source()?;
@@ -413,7 +418,7 @@ impl Parser {
         let current = if self.peek()?.lexeme == Lexeme::Underscore {
             self.source_from(Pattern::Omit, position)
         } else {
-            let ident = self.ident()?;
+            let ident = self.ident()?.data;
             self.source_from(Pattern::Ident(ident), position)
         };
 
@@ -671,7 +676,7 @@ impl Parser {
 
                     Expr::Lit(Lit::Nil(true))
                 } else {
-                    let ident = self.ident()?;
+                    let ident = self.ident()?.data;
 
                     Expr::ident(ident.clone())
                 };
@@ -696,7 +701,7 @@ impl Parser {
 
                 let mut fields = vec![];
                 while self.peek()?.lexeme != Lexeme::RBrace {
-                    let ident = self.ident()?;
+                    let ident = self.ident()?.data;
                     self.expect(Lexeme::Colon)?;
                     let expr = self.expr()?;
 
@@ -784,7 +789,7 @@ impl Parser {
                     let mut fields = vec![];
                     let mut expansion = None;
                     while self.peek()?.lexeme != Lexeme::RBrace {
-                        let field = self.ident()?;
+                        let field = self.ident()?.data;
                         self.expect(Lexeme::Colon)
                             .context("record:initialization")?;
                         let value = self.expr()?;
@@ -883,7 +888,7 @@ impl Parser {
 
                     let ident_position = self.position;
 
-                    let name = self.ident()?;
+                    let name = self.ident()?.data;
                     current = self.source_from(
                         Expr::Path {
                             path: self.source_from(Path::new(vec![ident, name]), ident_position),
@@ -919,7 +924,7 @@ impl Parser {
             Ok(self.source_from(Expr::Try(Box::new(current)), position))
         } else {
             let position = self.position;
-            let ident = self.ident()?;
+            let ident = self.ident()?.data;
             let field = self.source_from(Path::ident(ident), position);
             let omit = self.gen_omit()?;
 
@@ -927,12 +932,12 @@ impl Parser {
         }
     }
 
-    fn ident(&mut self) -> Result<Ident> {
+    fn ident(&mut self) -> Result<Source<Ident>> {
         let current = self.peek()?;
         if let Lexeme::Ident(ident) = &current.lexeme {
-            self.consume()?;
+            let t = self.consume()?;
 
-            Ok(Ident(ident.clone()))
+            Ok(Source::new(Ident(ident.clone()), t.start, t.end))
         } else {
             Err(
                 anyhow!("Expected identifier, got {:?}", current.lexeme).context(ErrorInSource {
@@ -1023,7 +1028,7 @@ impl Parser {
             Lexeme::LBrace => {
                 let mut fields = vec![];
                 while self.peek()?.lexeme != Lexeme::RBrace {
-                    let ident = self.ident()?;
+                    let ident = self.ident()?.data;
                     self.expect(Lexeme::Colon)?;
                     let type_ = self.type_()?;
                     fields.push((ident, type_));
@@ -1043,7 +1048,7 @@ impl Parser {
                 self.expect(Lexeme::LBrace)?;
                 let mut fields = vec![];
                 while self.peek()?.lexeme != Lexeme::RBrace {
-                    let ident = self.ident()?;
+                    let ident = self.ident()?.data;
                     self.expect(Lexeme::Colon)?;
                     let type_ = self.type_()?;
                     fields.push((ident, type_));
@@ -1113,6 +1118,10 @@ impl Parser {
         self.omit_index += 1;
 
         Ok(Type::Omit(self.omit_index))
+    }
+
+    fn get_source_from_position(&self, start: usize) -> Option<usize> {
+        self.input.get(start).map(|p| p.start)
     }
 
     fn source<T>(&self, data: T, start: usize, end: usize) -> Source<T> {
