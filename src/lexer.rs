@@ -75,6 +75,7 @@ static COMMENT_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^//[^\n]*"#).un
 pub struct Token {
     pub lexeme: Lexeme,
     pub start: usize,
+    pub end: usize,
     pub raw: String,
 }
 
@@ -107,6 +108,7 @@ impl Lexer {
             self.tokens.push(Token {
                 lexeme,
                 start: self.position,
+                end: self.position + keyword.len(),
                 raw: keyword.to_string(),
             });
             self.position += keyword.len();
@@ -124,6 +126,7 @@ impl Lexer {
             self.tokens.push(Token {
                 lexeme,
                 start: self.position,
+                end: self.position + keyword.len(),
                 raw: keyword.to_string(),
             });
             self.position += keyword.len();
@@ -172,6 +175,7 @@ impl Lexer {
                     self.tokens.push(Token {
                         lexeme: Lexeme::Comment(m.as_str().to_string()),
                         start: self.position,
+                        end: self.position + m.end(),
                         raw: m.as_str().to_string(),
                     });
 
@@ -215,6 +219,7 @@ impl Lexer {
                         self.tokens.push(Token {
                             lexeme: Lexeme::Underscore,
                             start: self.position,
+                            end: self.position + m.end(),
                             raw: m.as_str().to_string(),
                         });
 
@@ -225,6 +230,7 @@ impl Lexer {
                     self.tokens.push(Token {
                         lexeme: Lexeme::Ident(m.as_str().to_string()),
                         start: self.position,
+                        end: self.position + m.end(),
                         raw: m.as_str().to_string(),
                     });
 
@@ -275,6 +281,7 @@ impl Lexer {
                     self.tokens.push(Token {
                         lexeme: Lexeme::Int(m.as_str().parse::<i64>().unwrap()),
                         start: self.position,
+                        end: self.position + m.end(),
                         raw: m.as_str().to_string(),
                     });
 
@@ -296,6 +303,7 @@ impl Lexer {
                                 .replace("\\\"", "\""),
                         ),
                         start: self.position,
+                        end: self.position + m.get(0).unwrap().end(),
                         raw: m.get(0).unwrap().as_str().to_string(),
                     });
 
@@ -309,6 +317,7 @@ impl Lexer {
                     self.tokens.push(Token {
                         lexeme: Lexeme::RawString(m.get(1).unwrap().as_str().to_string()),
                         start: self.position,
+                        end: self.position + m.get(0).unwrap().end(),
                         raw: m.get(0).unwrap().as_str().to_string(),
                     });
 

@@ -58,7 +58,7 @@ impl Parser {
         match consume.lexeme {
             Lexeme::Fun => Ok(Decl::Func(self.func()?)),
             Lexeme::Let => {
-                let (ident, type_, value) = self.let_()?;
+                let (ident, type_, value) = self.let_()?.data;
                 Ok(Decl::Let(
                     ident.data.as_ident().unwrap().clone(),
                     type_,
@@ -239,32 +239,37 @@ impl Parser {
         let position = self.position;
         match self.peek()?.lexeme {
             Lexeme::Let => {
-                let (ident, type_, value) = self.let_()?;
-                Ok(self.source_from(Statement::Let(ident, type_, value), position))
+                let result = self.let_()?;
+                let (ident, type_, value) = result.data.clone();
+                Ok(Source::transfer(
+                    Statement::Let(ident, type_, value),
+                    &result,
+                ))
             }
             Lexeme::Return => {
-                self.consume()?;
+                let start = self.consume()?;
 
                 if self.peek()?.lexeme == Lexeme::Semicolon {
-                    self.consume()?;
+                    let end = self.consume()?;
 
-                    Ok(self.source_from(
+                    Ok(self.span_source(
                         Statement::Return(self.source_from(Expr::Lit(Lit::Nil), position)),
-                        position,
+                        start,
+                        end,
                     ))
                 } else {
                     let value = self.expr()?;
-                    self.expect(Lexeme::Semicolon)?;
+                    let end = self.expect(Lexeme::Semicolon)?;
 
-                    Ok(self.source_from(Statement::Return(value), position))
+                    Ok(self.span_source(Statement::Return(value), start, end))
                 }
             }
             Lexeme::If => {
-                self.consume()?;
+                let start = self.consume()?;
                 let condition = self.expr_conditional()?;
                 self.expect(Lexeme::LBrace)?;
                 let then_block = self.block()?;
-                self.expect(Lexeme::RBrace)?;
+                let mut end = self.expect(Lexeme::RBrace)?;
 
                 let else_block = if self.peek()?.lexeme == Lexeme::Else {
                     self.consume()?;
@@ -276,7 +281,7 @@ impl Parser {
                     } else if self.peek()?.lexeme == Lexeme::LBrace {
                         self.expect(Lexeme::LBrace)?;
                         let else_body = self.block()?;
-                        self.expect(Lexeme::RBrace)?;
+                        end = self.expect(Lexeme::RBrace)?;
 
                         else_body
                     } else {
@@ -289,61 +294,67 @@ impl Parser {
                 };
 
                 let t = self.gen_omit()?;
-                Ok(self.source_from(
+                Ok(self.span_source(
                     Statement::If(condition, t, then_block, else_block),
-                    position,
+                    start,
+                    end,
                 ))
             }
             Lexeme::While => {
-                self.consume()?;
+                let start = self.consume()?;
                 let condition = self.expr_conditional()?;
                 self.expect(Lexeme::LBrace)?;
                 let body = self.block()?;
-                self.expect(Lexeme::RBrace)?;
+                let end = self.expect(Lexeme::RBrace)?;
 
-                Ok(self.source_from(Statement::While(condition, body), position))
+                Ok(self.span_source(Statement::While(condition, body), start, end))
             }
             Lexeme::For => {
-                self.consume()?;
+                let start = self.consume()?;
                 let ident = self.ident()?;
                 self.expect(Lexeme::In)?;
                 let range = self.expr_conditional()?;
                 self.expect(Lexeme::LBrace)?;
                 let body = self.block()?;
-                self.expect(Lexeme::RBrace)?;
+                let end = self.expect(Lexeme::RBrace)?;
 
-                Ok(self.source_from(Statement::For(None, ident, range, body), position))
+                Ok(self.span_source(Statement::For(None, ident, range, body), start, end))
             }
             Lexeme::Continue => {
-                self.consume()?;
-                self.expect(Lexeme::Semicolon)?;
+                let start = self.consume()?;
+                let end = self.expect(Lexeme::Semicolon)?;
 
-                Ok(self.source_from(Statement::Continue, position))
+                Ok(self.span_source(Statement::Continue, start, end))
             }
             Lexeme::Break => {
-                self.consume()?;
-                self.expect(Lexeme::Semicolon)?;
+                let start = self.consume()?;
+                let end = self.expect(Lexeme::Semicolon)?;
 
-                Ok(self.source_from(Statement::Break, position))
+                Ok(self.span_source(Statement::Break, start, end))
             }
             _ => {
                 let expr = self.expr()?;
 
                 match self.peek()?.lexeme {
                     Lexeme::Semicolon => {
-                        self.consume()?;
+                        let end = self.consume()?;
 
-                        Ok(self.source_from(Statement::Expr(expr, Type::Omit(0)), position))
+                        Ok(self.source_position_token(
+                            Statement::Expr(expr, Type::Omit(0)),
+                            position,
+                            end,
+                        ))
                     }
                     Lexeme::Equal => {
                         self.consume()?;
                         let value = self.expr()?;
-                        self.expect(Lexeme::Semicolon)?;
+                        let end = self.expect(Lexeme::Semicolon)?;
 
                         let t = self.gen_omit()?;
-                        Ok(self.source_from(
+                        Ok(self.source_position_token(
                             Statement::Assign(Box::new(expr), t, Box::new(value)),
                             position,
+                            end,
                         ))
                     }
                     _ => {
@@ -367,7 +378,8 @@ impl Parser {
         }
     }
 
-    fn let_(&mut self) -> Result<(Source<Pattern>, Type, Source<Expr>)> {
+    fn let_(&mut self) -> Result<Source<(Source<Pattern>, Type, Source<Expr>)>> {
+        let position = self.position;
         self.expect(Lexeme::Let)?;
         let pattern = self.pattern()?;
 
@@ -379,9 +391,9 @@ impl Parser {
 
         self.expect(Lexeme::Equal)?;
         let value = self.expr()?;
-        self.expect(Lexeme::Semicolon).context("let:end")?;
+        let token = self.expect(Lexeme::Semicolon).context("let:end")?;
 
-        Ok((pattern, type_, value))
+        Ok(self.source_position_token((pattern, type_, value), position, token))
     }
 
     fn pattern(&mut self) -> Result<Source<Pattern>> {
@@ -1102,6 +1114,18 @@ impl Parser {
     fn source_from<T>(&self, data: T, start: usize) -> Source<T> {
         self.source(data, start, self.position)
     }
+
+    fn source_position_token<T>(&self, data: T, start: usize, end: Token) -> Source<T> {
+        Source::new(
+            data,
+            self.input.get(start).map(|p| p.start).unwrap_or(0),
+            end.end,
+        )
+    }
+
+    fn span_source<T>(&self, data: T, start: Token, end: Token) -> Source<T> {
+        Source::new(data, start.start, end.end)
+    }
 }
 
 #[test]
@@ -1118,31 +1142,37 @@ fn test_expr() -> Result<()> {
             Token {
                 lexeme: Lexeme::Ident("a".to_string()),
                 start: 0,
+                end: 0,
                 raw: "a".to_string(),
             },
             Token {
                 lexeme: Lexeme::Minus,
                 start: 0,
+                end: 0,
                 raw: "-".to_string(),
             },
             Token {
                 lexeme: Lexeme::Ident("b".to_string()),
                 start: 0,
+                end: 0,
                 raw: "b".to_string(),
             },
             Token {
                 lexeme: Lexeme::Minus,
                 start: 0,
+                end: 0,
                 raw: "-".to_string(),
             },
             Token {
                 lexeme: Lexeme::Ident("c".to_string()),
                 start: 0,
+                end: 0,
                 raw: "c".to_string(),
             },
             Token {
                 lexeme: Lexeme::Semicolon,
                 start: 0,
+                end: 0,
                 raw: ";".to_string(),
             },
         ],

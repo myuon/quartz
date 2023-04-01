@@ -7,6 +7,8 @@ pub struct Source<T> {
 
 impl<T> Source<T> {
     pub fn new(data: T, start: usize, end: usize) -> Source<T> {
+        assert!(start <= end);
+
         Source {
             data,
             start: Some(start),
