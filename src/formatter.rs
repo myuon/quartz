@@ -88,20 +88,11 @@ impl<'s> Formatter<'s> {
                 self.expr(writer, expr.data, false);
                 self.write_no_space(writer, ";");
             }
-            Decl::Type(ident, type_) => match type_ {
-                Type::Record(rs) => {
-                    self.write(writer, "struct");
-                    self.write(writer, ident.as_str());
-                    self.record_fields(writer, rs);
-                }
-                _ => {
-                    self.write(writer, "type");
-                    self.write(writer, ident.as_str());
-                    self.write(writer, "=");
-                    self.type_(writer, type_, false);
-                    self.write_no_space(writer, ";");
-                }
-            },
+            Decl::Type(ident, rs) => {
+                self.write(writer, "struct");
+                self.write(writer, ident.as_str());
+                self.record_fields(writer, rs);
+            }
             Decl::Module(path, module) => {
                 self.write(writer, "module");
                 self.write(writer, path.as_str());
@@ -594,7 +585,7 @@ impl<'s> Formatter<'s> {
         match type_ {
             Type::Record(rs) => {
                 self.write_if(writer, "struct", skip_space);
-                self.record_fields(writer, rs);
+                self.record_fields(writer, rs.into_iter().map(Source::unknown).collect());
             }
             Type::Vec(v) => {
                 self.write_if(writer, "vec", skip_space);
@@ -634,15 +625,19 @@ impl<'s> Formatter<'s> {
         }
     }
 
-    fn record_fields(&mut self, writer: &mut impl Write, fields: Vec<(Ident, Type)>) {
+    fn record_fields(&mut self, writer: &mut impl Write, fields: Vec<Source<(Ident, Type)>>) {
         self.write(writer, "{");
         self.write_newline(writer);
         self.depth += 1;
-        for (name, type_) in fields {
+        for item in fields {
+            let (name, type_) = item.data;
             self.write(writer, name.as_str());
             self.write_no_space(writer, ":");
             self.type_(writer, type_, false);
             self.write_no_space(writer, ",");
+
+            self.restore_comments(item.end.unwrap_or(0), writer);
+
             self.write_newline(writer);
         }
         self.depth -= 1;

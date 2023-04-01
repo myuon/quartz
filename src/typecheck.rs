@@ -138,7 +138,13 @@ impl TypeChecker {
                         .insert(self.path_to(&ident), Source::unknown(type_.clone()));
                 }
                 Decl::Type(ident, type_) => {
-                    self.types.insert(ident.clone(), (vec![], type_.clone()));
+                    self.types.insert(
+                        ident.clone(),
+                        (
+                            vec![],
+                            Type::Record(type_.clone().into_iter().map(|t| t.data).collect()),
+                        ),
+                    );
                 }
                 Decl::Module(name, module) => {
                     let path = self.current_path.clone();
@@ -197,8 +203,9 @@ impl TypeChecker {
                     .insert(self.path_to(&ident), Source::unknown(type_.clone()));
             }
             Decl::Type(ident, type_) => {
-                self.resolve_type(&type_)?;
-                self.types.insert(ident.clone(), (vec![], type_.clone()));
+                let t = Type::Record(type_.clone().into_iter().map(|t| t.data).collect());
+                self.resolve_type(&t)?;
+                self.types.insert(ident.clone(), (vec![], t));
             }
             Decl::Module(name, module) => {
                 let module_path = self.current_path.clone();

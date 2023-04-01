@@ -95,32 +95,6 @@ impl Parser {
         }
     }
 
-    fn struct_decl(&mut self) -> Result<(Ident, Type)> {
-        self.expect(Lexeme::Struct)?;
-        let ident = self.ident()?;
-
-        self.expect(Lexeme::LBrace)?;
-
-        let mut record_type = vec![];
-        while self.peek()?.lexeme != Lexeme::RBrace {
-            let field = self.ident()?;
-            self.expect(Lexeme::Colon)?;
-            let type_ = self.type_()?;
-
-            record_type.push((field, type_));
-
-            if self.peek()?.lexeme == Lexeme::Comma {
-                self.consume()?;
-            } else {
-                break;
-            }
-        }
-
-        self.expect(Lexeme::RBrace)?;
-
-        Ok((ident, Type::Record(record_type)))
-    }
-
     fn path(&mut self) -> Result<Path> {
         let mut path = vec![self.ident()?];
         loop {
@@ -164,20 +138,37 @@ impl Parser {
         })
     }
 
-    fn type_decl(&mut self) -> Result<(Ident, Type)> {
+    fn struct_decl(&mut self) -> Result<(Ident, Vec<Source<(Ident, Type)>>)> {
+        self.expect(Lexeme::Struct)?;
+        let ident = self.ident()?;
+
+        let t = self.record_type_decl()?;
+
+        Ok((ident, t))
+    }
+
+    fn type_decl(&mut self) -> Result<(Ident, Vec<Source<(Ident, Type)>>)> {
         self.expect(Lexeme::Type)?;
         let ident = self.ident()?;
         self.expect(Lexeme::Equal)?;
 
+        let t = self.record_type_decl()?;
+        self.expect(Lexeme::Semicolon)?;
+
+        Ok((ident, t))
+    }
+
+    fn record_type_decl(&mut self) -> Result<Vec<Source<(Ident, Type)>>> {
         self.expect(Lexeme::LBrace)?;
 
         let mut record_type = vec![];
         while self.peek()?.lexeme != Lexeme::RBrace {
+            let position = self.position;
             let field = self.ident()?;
             self.expect(Lexeme::Colon)?;
             let type_ = self.type_()?;
 
-            record_type.push((field, type_));
+            record_type.push(self.source_from((field, type_), position));
 
             if self.peek()?.lexeme == Lexeme::Comma {
                 self.consume()?;
@@ -187,9 +178,8 @@ impl Parser {
         }
 
         self.expect(Lexeme::RBrace)?;
-        self.expect(Lexeme::Semicolon)?;
 
-        Ok((ident, Type::Record(record_type)))
+        Ok(record_type)
     }
 
     fn params(&mut self) -> Result<(Vec<(Ident, Type)>, Option<(Ident, Type)>)> {
