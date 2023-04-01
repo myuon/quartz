@@ -195,28 +195,22 @@ impl<'s> Formatter<'s> {
         variadic: Option<(Ident, Type)>,
     ) {
         self.write_no_space(writer, "(");
+        self.write_newline(writer);
         self.depth += 1;
 
-        for (index, (ident, type_)) in params.clone().into_iter().enumerate() {
+        for (ident, type_) in params {
             if ident.0.as_str() == "self" {
-                self.write_no_space(writer, "self");
+                self.write(writer, "self");
             } else {
-                self.write_no_space(writer, ident.as_str());
+                self.write(writer, ident.as_str());
                 self.write_no_space(writer, ":");
                 self.type_(writer, type_, false);
             }
 
-            if index != params.len() - 1 {
-                self.write_no_space(writer, ",");
-                self.write_newline(writer);
-            }
+            self.write_no_space(writer, ",");
+            self.write_newline(writer);
         }
         if let Some((ident, type_)) = variadic {
-            if !params.is_empty() {
-                self.write_no_space(writer, ",");
-                self.write_newline(writer);
-            }
-
             self.write_no_space(writer, "..");
             self.write_if(writer, ident.as_str(), true);
             self.write_no_space(writer, ":");
@@ -798,6 +792,17 @@ fun main(): i32 {
         return 3;
     }
 
+    return 0;
+}
+"#
+            .trim_start(),
+            r#"
+fun main(
+    loooooooooooong: string,
+    loooooooooooong: string,
+    loooooooooooong: string,
+    arguments: string,
+): string {
     return 0;
 }
 "#
