@@ -225,37 +225,38 @@ impl Parser {
     fn block(&mut self) -> Result<Vec<Source<Statement>>> {
         let mut statements = vec![];
         while !self.is_end() && self.peek()?.lexeme != Lexeme::RBrace {
-            let position = self.position;
             let result = self.statement();
             if result.is_ok() || !self.skip_errors {
                 let statement = result?;
-                statements.push(self.source_from(statement, position));
+                statements.push(statement);
             }
         }
+
         Ok(statements)
     }
 
-    fn statement(&mut self) -> Result<Statement> {
+    fn statement(&mut self) -> Result<Source<Statement>> {
+        let position = self.position;
         match self.peek()?.lexeme {
             Lexeme::Let => {
                 let (ident, type_, value) = self.let_()?;
-                Ok(Statement::Let(ident, type_, value))
+                Ok(self.source_from(Statement::Let(ident, type_, value), position))
             }
             Lexeme::Return => {
-                let position = self.position;
                 self.consume()?;
 
                 if self.peek()?.lexeme == Lexeme::Semicolon {
                     self.consume()?;
 
-                    Ok(Statement::Return(
-                        self.source_from(Expr::Lit(Lit::Nil), position),
+                    Ok(self.source_from(
+                        Statement::Return(self.source_from(Expr::Lit(Lit::Nil), position)),
+                        position,
                     ))
                 } else {
                     let value = self.expr()?;
                     self.expect(Lexeme::Semicolon)?;
 
-                    Ok(Statement::Return(value))
+                    Ok(self.source_from(Statement::Return(value), position))
                 }
             }
             Lexeme::If => {
@@ -269,10 +270,9 @@ impl Parser {
                     self.consume()?;
 
                     let else_body = if self.peek()?.lexeme == Lexeme::If {
-                        let position = self.position;
                         let statement = self.statement()?;
 
-                        vec![self.source_from(statement, position)]
+                        vec![statement]
                     } else if self.peek()?.lexeme == Lexeme::LBrace {
                         self.expect(Lexeme::LBrace)?;
                         let else_body = self.block()?;
@@ -288,11 +288,10 @@ impl Parser {
                     None
                 };
 
-                Ok(Statement::If(
-                    condition,
-                    self.gen_omit()?,
-                    then_block,
-                    else_block,
+                let t = self.gen_omit()?;
+                Ok(self.source_from(
+                    Statement::If(condition, t, then_block, else_block),
+                    position,
                 ))
             }
             Lexeme::While => {
@@ -302,7 +301,7 @@ impl Parser {
                 let body = self.block()?;
                 self.expect(Lexeme::RBrace)?;
 
-                Ok(Statement::While(condition, body))
+                Ok(self.source_from(Statement::While(condition, body), position))
             }
             Lexeme::For => {
                 self.consume()?;
@@ -313,17 +312,19 @@ impl Parser {
                 let body = self.block()?;
                 self.expect(Lexeme::RBrace)?;
 
-                Ok(Statement::For(None, ident, range, body))
+                Ok(self.source_from(Statement::For(None, ident, range, body), position))
             }
             Lexeme::Continue => {
                 self.consume()?;
                 self.expect(Lexeme::Semicolon)?;
-                Ok(Statement::Continue)
+
+                Ok(self.source_from(Statement::Continue, position))
             }
             Lexeme::Break => {
                 self.consume()?;
                 self.expect(Lexeme::Semicolon)?;
-                Ok(Statement::Break)
+
+                Ok(self.source_from(Statement::Break, position))
             }
             _ => {
                 let expr = self.expr()?;
@@ -331,23 +332,24 @@ impl Parser {
                 match self.peek()?.lexeme {
                     Lexeme::Semicolon => {
                         self.consume()?;
-                        Ok(Statement::Expr(expr, Type::Omit(0)))
+
+                        Ok(self.source_from(Statement::Expr(expr, Type::Omit(0)), position))
                     }
                     Lexeme::Equal => {
                         self.consume()?;
                         let value = self.expr()?;
                         self.expect(Lexeme::Semicolon)?;
 
-                        Ok(Statement::Assign(
-                            Box::new(expr),
-                            self.gen_omit()?,
-                            Box::new(value),
+                        let t = self.gen_omit()?;
+                        Ok(self.source_from(
+                            Statement::Assign(Box::new(expr), t, Box::new(value)),
+                            position,
                         ))
                     }
                     _ => {
                         // Mainly for dot completion
                         if self.skip_errors {
-                            Ok(Statement::Expr(expr, Type::Omit(0)))
+                            Ok(self.source_from(Statement::Expr(expr, Type::Omit(0)), position))
                         } else {
                             Err(
                                 anyhow!("Unexpected token {:?}", self.peek()?.lexeme).context(
