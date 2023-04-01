@@ -583,7 +583,7 @@ impl IrCodeGenerator {
                 Ok(IrTerm::ident(resolved_path.as_joined_str("_")))
             }
             Expr::Lit(lit) => match lit {
-                Lit::Nil => Ok(IrTerm::nil()),
+                Lit::Nil(_) => Ok(IrTerm::nil()),
                 Lit::Bool(b) => Ok(IrTerm::Bool(*b)),
                 Lit::I32(i) => Ok(IrTerm::i32(*i)),
                 Lit::U32(i) => Ok(IrTerm::u32(*i)),

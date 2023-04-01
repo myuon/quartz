@@ -261,7 +261,7 @@ impl Parser {
                     let end = self.consume()?;
 
                     Ok(self.span_source(
-                        Statement::Return(self.source_from(Expr::Lit(Lit::Nil), position)),
+                        Statement::Return(self.source_from(Expr::Lit(Lit::Nil(false)), position)),
                         start,
                         end,
                     ))
@@ -679,7 +679,7 @@ impl Parser {
                 let expr = if ident == "nil" {
                     self.consume()?;
 
-                    Expr::Lit(Lit::Nil)
+                    Expr::Lit(Lit::Nil(true))
                 } else {
                     let ident = self.ident()?;
 

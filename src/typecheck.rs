@@ -1178,7 +1178,7 @@ impl TypeChecker {
 
     fn lit(&mut self, lit: &mut Lit) -> Result<Type> {
         match lit {
-            Lit::Nil => Ok(Type::Nil),
+            Lit::Nil(_) => Ok(Type::Nil),
             Lit::Bool(_) => Ok(Type::Bool),
             Lit::I32(_) => Ok(Type::I32),
             Lit::U32(_) => Ok(Type::U32),

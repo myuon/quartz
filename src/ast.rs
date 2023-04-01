@@ -156,7 +156,7 @@ pub enum StringLiteralType {
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Lit {
-    Nil,
+    Nil(bool),
     Bool(bool),
     I32(i32),
     U32(u32),

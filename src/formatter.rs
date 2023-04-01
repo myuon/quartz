@@ -315,8 +315,10 @@ impl<'s> Formatter<'s> {
                 self.write_if(writer, "self", skip_space);
             }
             Expr::Lit(lit) => match lit {
-                Lit::Nil => {
-                    self.write_if(writer, "nil", skip_space);
+                Lit::Nil(raw) => {
+                    if raw {
+                        self.write_if(writer, "nil", skip_space);
+                    }
                 }
                 Lit::Bool(b) => {
                     self.write_if(writer, if b { "true" } else { "false" }, skip_space);
