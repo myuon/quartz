@@ -88,13 +88,20 @@ impl<'s> Formatter<'s> {
                 self.expr(writer, expr.data, false);
                 self.write_no_space(writer, ";");
             }
-            Decl::Type(ident, type_) => {
-                self.write(writer, "type");
-                self.write(writer, ident.as_str());
-                self.write(writer, "=");
-                self.type_(writer, type_, false);
-                self.write_no_space(writer, ";");
-            }
+            Decl::Type(ident, type_) => match type_ {
+                Type::Record(rs) => {
+                    self.write(writer, "struct");
+                    self.write(writer, ident.as_str());
+                    self.record_fields(writer, rs);
+                }
+                _ => {
+                    self.write(writer, "type");
+                    self.write(writer, ident.as_str());
+                    self.write(writer, "=");
+                    self.type_(writer, type_, false);
+                    self.write_no_space(writer, ";");
+                }
+            },
             Decl::Module(path, module) => {
                 self.write(writer, "module");
                 self.write(writer, path.as_str());
@@ -521,18 +528,8 @@ impl<'s> Formatter<'s> {
     fn type_(&mut self, writer: &mut impl Write, type_: Type, skip_space: bool) {
         match type_ {
             Type::Record(rs) => {
-                self.write_if(writer, "struct {", skip_space);
-                self.write_newline(writer);
-                self.depth += 1;
-                for (name, type_) in rs {
-                    self.write(writer, name.as_str());
-                    self.write_no_space(writer, ":");
-                    self.type_(writer, type_, false);
-                    self.write_no_space(writer, ",");
-                    self.write_newline(writer);
-                }
-                self.depth -= 1;
-                self.write(writer, "}");
+                self.write_if(writer, "struct", skip_space);
+                self.record_fields(writer, rs);
             }
             Type::Vec(v) => {
                 self.write_if(writer, "vec", skip_space);
@@ -575,6 +572,21 @@ impl<'s> Formatter<'s> {
                 self.write_if(writer, type_.to_string(), skip_space);
             }
         }
+    }
+
+    fn record_fields(&mut self, writer: &mut impl Write, fields: Vec<(Ident, Type)>) {
+        self.write(writer, "{");
+        self.write_newline(writer);
+        self.depth += 1;
+        for (name, type_) in fields {
+            self.write(writer, name.as_str());
+            self.write_no_space(writer, ":");
+            self.type_(writer, type_, false);
+            self.write_no_space(writer, ",");
+            self.write_newline(writer);
+        }
+        self.depth -= 1;
+        self.write(writer, "}");
     }
 
     fn need_empty_lines(&self, start: usize, end: usize) -> bool {
