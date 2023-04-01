@@ -157,19 +157,19 @@ impl<'s> Formatter<'s> {
         let mut current_pos = 0;
 
         macro_rules! update {
-            ($p:expr,$write:expr) => {{
-                if current_pos > 0 && self.need_empty_lines(current_pos, $p) {
+            ($start:expr, $end:expr, $write:expr) => {{
+                if current_pos > 0 && self.need_empty_lines(current_pos, $start) {
                     self.write_newline(writer);
                 }
 
-                if self.need_line_follow(current_pos, $p) {
+                if self.need_line_follow(current_pos, $start) {
                     $write;
                 } else {
                     self.write_newline(writer);
                     $write;
                 }
 
-                current_pos = $p;
+                current_pos = $end;
             }};
         }
 
@@ -178,16 +178,22 @@ impl<'s> Formatter<'s> {
             for comment in comments {
                 update!(
                     comment.position,
+                    comment.position + comment.raw.len(),
                     self.write(writer, comment.raw.to_string())
                 );
             }
 
-            update!(stmt.start.unwrap_or(0), self.statement(writer, stmt.data));
+            update!(
+                stmt.start.unwrap_or(0),
+                stmt.end.unwrap_or(0),
+                self.statement(writer, stmt.data)
+            );
 
             let comments = self.consume_comments(stmt.end.unwrap_or(0));
             for comment in comments {
                 update!(
                     comment.position,
+                    comment.position + comment.raw.len(),
                     self.write(writer, comment.raw.to_string())
                 );
             }
@@ -690,6 +696,22 @@ fun main(): i32 {
     return a + b; // a + b
 
     // last line
+}
+"#
+            .trim_start(),
+            r#"
+fun main(): i32 {
+    if a == 1 {
+        return 1;
+    }
+    if a == 2 {
+        return 2;
+    }
+    if a == 3 {
+        return 3;
+    }
+
+    return 0;
 }
 "#
             .trim_start(),
