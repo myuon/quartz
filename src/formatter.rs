@@ -414,6 +414,7 @@ impl<'s> Formatter<'s> {
                 self.write_no_space(writer, "[");
                 self.type_(writer, type_, true);
                 self.write_no_space(writer, "]");
+                self.write_no_space(writer, "()");
             }
             Expr::Range(start, end) => {
                 self.expr(writer, start.data, skip_space);
@@ -465,16 +466,8 @@ impl<'s> Formatter<'s> {
                 self.write_no_space(writer, ".try");
             }
             Expr::Paren(expr) => {
-                let mut fwriter = Formatter::new(self.source, self.comments, self.comment_position);
-                let mut buf = BufWriter::new(Vec::new());
-                fwriter.expr(&mut buf, expr.data, skip_space);
-                self.comment_position = fwriter.comment_position;
-
-                self.write(writer, "(");
-                self.write_no_space(
-                    writer,
-                    String::from_utf8(buf.into_inner().unwrap()).unwrap(),
-                );
+                self.write_if(writer, "(", skip_space);
+                self.expr(writer, expr.data, true);
                 self.write_no_space(writer, ")");
             }
         }
@@ -496,6 +489,9 @@ impl<'s> Formatter<'s> {
             }
         }
         if let Some(expansion) = expansion.clone() {
+            if !args.is_empty() {
+                fwriter.write_no_space(&mut buf, ", ");
+            }
             fwriter.write_no_space(&mut buf, "..");
             fwriter.expr(&mut buf, expansion.data, false);
         }
@@ -537,8 +533,6 @@ impl<'s> Formatter<'s> {
                 self.type_(writer, *v, true);
                 self.write_no_space(writer, "]");
             }
-            Type::Func(_, _) => todo!(),
-            Type::VariadicFunc(_, _, _) => todo!(),
             Type::Ident(i) => {
                 self.write_if(writer, i.as_str(), skip_space);
             }
@@ -548,8 +542,6 @@ impl<'s> Formatter<'s> {
                 self.type_(writer, *p, true);
                 self.write_no_space(writer, "]");
             }
-            Type::Array(_, _) => todo!(),
-            Type::Range(_) => todo!(),
             Type::Optional(t) => {
                 self.type_(writer, *t, skip_space);
                 self.write_no_space(writer, "?");
@@ -567,7 +559,6 @@ impl<'s> Formatter<'s> {
                 self.write(writer, "or");
                 self.type_(writer, *rhs, false);
             }
-            Type::Any => todo!(),
             _ => {
                 self.write_if(writer, type_.to_string(), skip_space);
             }
