@@ -1,5 +1,6 @@
 import quartz::ast;
 import quartz::ir;
+import quartz::value;
 
 struct Generator {
     writer: string,
@@ -172,7 +173,13 @@ module Generator {
             return;
         }
         if expr.t_i32 != nil {
-            self.write("i32.const ".concat(expr.t_i32!));
+            self.new_statement();
+            self.writer.write(format(";; {}", expr.t_i32!));
+
+            self.write_value(Value {
+                t_i32: expr.t_i32!?,
+                ..nil,
+            });
             return;
         }
         if expr.t_let != nil {
@@ -383,5 +390,9 @@ module Generator {
 
         panic("not implemented: expr_lhs");
     }
-}
 
+    fun write_value(self, value: Value) {
+        self.new_statement();
+        self.write(format("{}.const {}", Value::wasm_type(), value.to_string()));
+    }
+}
