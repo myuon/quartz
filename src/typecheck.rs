@@ -954,7 +954,12 @@ impl TypeChecker {
                         })?,
                         label.clone(),
                     ]);
-                    let (resolved_path, defined_type) = self.resolve_path(&mut path)?;
+                    let (resolved_path, defined_type) =
+                        self.resolve_path(&mut path).context(ErrorInSource {
+                            path: Some(self.current_path.clone()),
+                            start: project_expr.start.unwrap_or(0),
+                            end: project_expr.end.unwrap_or(0),
+                        })?;
                     label_path.data = resolved_path.clone();
                     let type_ = defined_type.data.clone();
 
@@ -1080,6 +1085,7 @@ impl TypeChecker {
                 // FIXME: adhoc type convertion
                 Ok(match ident.as_str() {
                     "i32" => Type::I32,
+                    "i64" => Type::I64,
                     _ => Type::Ident(ident.clone()),
                 })
             }

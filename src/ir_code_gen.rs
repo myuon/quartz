@@ -1214,6 +1214,16 @@ impl IrCodeGenerator {
                         args: vec![term],
                         source: None,
                     }),
+                    (IrType::I32, IrType::I64) => Ok(IrTerm::Call {
+                        callee: Box::new(IrTerm::Ident("i32_to_i64".to_string())),
+                        args: vec![term],
+                        source: None,
+                    }),
+                    (IrType::I64, IrType::I32) => Ok(IrTerm::Call {
+                        callee: Box::new(IrTerm::Ident("i64_to_i32".to_string())),
+                        args: vec![term],
+                        source: None,
+                    }),
                     (_, IrType::Any) => Ok(term),
                     (IrType::Any, _) => Ok(term),
                     (source, target) if source == target => Ok(term),

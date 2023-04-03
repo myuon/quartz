@@ -86,6 +86,8 @@ impl Type {
             Type::Array(_, _) => Ok(Ident("array".to_string())),
             Type::Vec(_) => Ok(Ident("vec".to_string())),
             Type::I32 => Ok(Ident("i32".to_string())),
+            Type::U32 => Ok(Ident("u32".to_string())),
+            Type::I64 => Ok(Ident("i64".to_string())),
             Type::Bool => Ok(Ident("bool".to_string())),
             _ => bail!("expected identifier type, but found {}", self.to_string()),
         }

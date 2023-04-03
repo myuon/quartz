@@ -2,7 +2,7 @@ import quartz::ast;
 
 struct IrTerm {
     t_nil: bool?,
-    t_i32: string?,
+    t_i32: i32?,
     t_ident: string?,
     t_func: IrFunc?,
     t_call: IrCall?,

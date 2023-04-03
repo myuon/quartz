@@ -222,6 +222,34 @@ module i32 {
     }
 }
 
+module i64 {
+    fun to_string(self): string {
+        if self == 0 as i64 {
+            return "0";
+        }
+
+        let digit = 0;
+        let tmp = self;
+        while tmp > 0 as i64 {
+            tmp = tmp / (10 as i64);
+            digit = digit + 1;
+        }
+
+        let str = make[ptr[byte]](digit);
+        tmp = self;
+        for i in 0..digit {
+            let d = (tmp % (10 as i64)) as i32;
+            str.at(digit - i - 1) = ((d + 48) as byte);
+            tmp = tmp / (10 as i64);
+        }
+
+        return string {
+            data: str,
+            length: digit,
+        };
+    }
+}
+
 struct string {
     data: ptr[byte],
     length: i32,
