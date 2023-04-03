@@ -174,7 +174,7 @@ module Generator {
         }
         if expr.t_i32 != nil {
             self.new_statement();
-            self.writer.write(format(";; {}", expr.t_i32!));
+            self.write(format(";; {}", expr.t_i32!));
 
             self.write_value(Value {
                 t_i32: expr.t_i32!?,

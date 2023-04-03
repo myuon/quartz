@@ -392,6 +392,9 @@ impl<'s> Formatter<'s> {
                 Lit::I32(i) => {
                     self.write_if(writer, &i.to_string(), skip_space);
                 }
+                Lit::I32Base2(i) => {
+                    self.write_if(writer, &format!("0b{:b}", i), skip_space);
+                }
                 Lit::U32(u) => {
                     self.write_if(writer, &u.to_string(), skip_space);
                 }

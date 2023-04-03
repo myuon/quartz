@@ -7,23 +7,23 @@ struct Value {
 }
 
 module Value {
-    fun wasm_type() -> string {
-        "i64"
+    fun wasm_type(): string {
+        return "i64";
     }
 
-    fun as_i64(self) -> i64 {
+    fun as_i64(self): i64 {
         if self.t_bool != nil {
-            if self.t_bool {
-                return (0b1 << 32) | 0b10;
+            if self.t_bool! {
+                return 0b1 << 32 | 0b10;
             } else {
                 return 0b10;
             }
         } else if self.t_byte != nil {
-            return (self.t_byte as i64) << 32 | 0b100;
+            return (self.t_byte! as i64) << 32 | 0b100;
         } else if self.t_i32 != nil {
-            return (self.t_i32 as i64) << 32;
+            return (self.t_i32! as i64) << 32;
         } else if self.t_pointer != nil {
-            return (self.t_pointer as i64) << 32 | 0b1;
+            return (self.t_pointer! as i64) << 32 | 0b1;
         } else {
             panic("unreachable");
         }

@@ -57,6 +57,7 @@ pub enum Lexeme {
     DoublePipe,
     Ident(String),
     Int(i64),
+    IntBase2(i64),
     String(String),
     RawString(String),
     Comment(String),
@@ -65,6 +66,7 @@ pub enum Lexeme {
 static SPACE_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"^\s+").unwrap());
 static IDENT_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[a-zA-Z_][a-zA-Z0-9_]*").unwrap());
 static INT_LITERAL: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[0-9]+").unwrap());
+static INT_BASE_2_LITERAL: Lazy<Regex> = Lazy::new(|| Regex::new(r"^0b[01]+").unwrap());
 static STRING_LITERAL: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"^"((([^"]|\\")*[^\\])?)""#).unwrap());
 static RAW_STRING_LITERAL: Lazy<Regex> =
@@ -273,6 +275,20 @@ impl Lexer {
                     ("||", Lexeme::DoublePipe),
                 ],
             ) {
+                continue;
+            }
+
+            if let Some(m) = INT_BASE_2_LITERAL.find(&input[self.position..]) {
+                self.tokens.push(Token {
+                    lexeme: Lexeme::IntBase2(
+                        i64::from_str_radix(&m.as_str()[2..], 2).expect("Invalid binary literal"),
+                    ),
+                    start: self.position,
+                    end: self.position + m.end(),
+                    raw: m.as_str().to_string(),
+                });
+
+                self.position += m.end();
                 continue;
             }
 

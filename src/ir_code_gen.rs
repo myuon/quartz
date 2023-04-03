@@ -586,6 +586,7 @@ impl IrCodeGenerator {
                 Lit::Nil(_) => Ok(IrTerm::nil()),
                 Lit::Bool(b) => Ok(IrTerm::Bool(*b)),
                 Lit::I32(i) => Ok(IrTerm::i32(*i)),
+                Lit::I32Base2(i) => Ok(IrTerm::I64(*i)),
                 Lit::U32(i) => Ok(IrTerm::u32(*i)),
                 Lit::I64(i) => Ok(IrTerm::i64(*i)),
                 Lit::String(s, _) => Ok(self.register_string(s.clone())),
