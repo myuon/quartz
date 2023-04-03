@@ -180,6 +180,10 @@ pub enum BinOp {
     Gte,
     Equal,
     NotEqual,
+    BitOr,
+    BitAnd,
+    BitShiftL,
+    BitShiftR,
 }
 
 impl BinOp {
@@ -198,6 +202,10 @@ impl BinOp {
             BinOp::Gte => ">=".to_string(),
             BinOp::Equal => "==".to_string(),
             BinOp::NotEqual => "!=".to_string(),
+            BinOp::BitOr => "|".to_string(),
+            BinOp::BitAnd => "&".to_string(),
+            BinOp::BitShiftL => "<<".to_string(),
+            BinOp::BitShiftR => ">>".to_string(),
         }
     }
 }

@@ -1,4 +1,3 @@
-
 struct Value {
     t_bool: bool?,
     t_byte: byte?,
@@ -14,18 +13,19 @@ module Value {
     fun as_i64(self): i64 {
         if self.t_bool != nil {
             if self.t_bool! {
-                return 0b1 << 32 | 0b10;
+                return (0b1 as i64) << (32 as i64) | (0b10 as i64);
             } else {
-                return 0b10;
+                return 0b10 as i64;
             }
         } else if self.t_byte != nil {
-            return (self.t_byte! as i64) << 32 | 0b100;
+            return (self.t_byte! as i64) << (32 as i64) | (0b100 as i64);
         } else if self.t_i32 != nil {
-            return (self.t_i32! as i64) << 32;
+            return (self.t_i32! as i64) << (32 as i64);
         } else if self.t_pointer != nil {
-            return (self.t_pointer! as i64) << 32 | 0b1;
+            return (self.t_pointer! as i64) << (32 as i64) | (0b1 as i64);
         } else {
-            panic("unreachable");
+            return panic("unreachable") as i64;
         }
     }
 }
+

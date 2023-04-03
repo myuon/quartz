@@ -25,6 +25,10 @@ pub enum Lexeme {
     Import,
     Struct,
     Or,
+    BitOr,
+    BitAnd,
+    BitShiftL,
+    BitShiftR,
     Try,
     LParen,
     RParen,
@@ -265,6 +269,8 @@ impl Lexer {
                     (",", Lexeme::Comma),
                     ("..", Lexeme::DoubleDot),
                     (".", Lexeme::Dot),
+                    ("<<", Lexeme::BitShiftL),
+                    (">>", Lexeme::BitShiftR),
                     ("<=", Lexeme::Lte),
                     (">=", Lexeme::Gte),
                     ("<", Lexeme::Lt),
@@ -273,6 +279,8 @@ impl Lexer {
                     ("!", Lexeme::Bang),
                     ("&&", Lexeme::DoubleAmp),
                     ("||", Lexeme::DoublePipe),
+                    ("|", Lexeme::BitOr),
+                    ("&", Lexeme::BitAnd),
                 ],
             ) {
                 continue;

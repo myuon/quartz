@@ -762,7 +762,7 @@ impl TypeChecker {
                     })?;
 
                 match op {
-                    Add | Sub | Mul | Mod | Div => {
+                    Add | Sub | Mul | Mod | Div | BitOr | BitAnd | BitShiftL | BitShiftR => {
                         if !arg1_type.is_integer_type() {
                             bail!("Expected integer type, got {:?}", arg1_type)
                         }

@@ -613,6 +613,24 @@ impl Parser {
                     current = self
                         .source_from(Expr::As(Box::new(current), Type::Omit(0), type_), position);
                 }
+                Lexeme::BitAnd => {
+                    self.consume()?;
+                    let rhs = self.term_4(with_struct)?;
+
+                    current = self.source_from(
+                        Expr::BinOp(BinOp::BitAnd, Type::I32, Box::new(current), Box::new(rhs)),
+                        position,
+                    );
+                }
+                Lexeme::BitOr => {
+                    self.consume()?;
+                    let rhs = self.term_4(with_struct)?;
+
+                    current = self.source_from(
+                        Expr::BinOp(BinOp::BitOr, Type::I32, Box::new(current), Box::new(rhs)),
+                        position,
+                    );
+                }
                 _ => break,
             }
         }
@@ -650,6 +668,34 @@ impl Parser {
 
                 current = self.source_from(
                     Expr::BinOp(BinOp::Mod, Type::Omit(0), Box::new(current), Box::new(rhs)),
+                    position,
+                );
+            }
+            Lexeme::BitShiftL => {
+                self.consume()?;
+                let rhs = self.term_1(with_struct)?;
+
+                current = self.source_from(
+                    Expr::BinOp(
+                        BinOp::BitShiftL,
+                        Type::I32,
+                        Box::new(current),
+                        Box::new(rhs),
+                    ),
+                    position,
+                );
+            }
+            Lexeme::BitShiftR => {
+                self.consume()?;
+                let rhs = self.term_1(with_struct)?;
+
+                current = self.source_from(
+                    Expr::BinOp(
+                        BinOp::BitShiftR,
+                        Type::I32,
+                        Box::new(current),
+                        Box::new(rhs),
+                    ),
                     position,
                 );
             }

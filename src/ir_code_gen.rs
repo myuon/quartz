@@ -755,6 +755,26 @@ impl IrCodeGenerator {
                         args: vec![arg1, arg2],
                         source: None,
                     }),
+                    BitOr => Ok(IrTerm::Call {
+                        callee: Box::new(IrTerm::Ident("bit_or".to_string())),
+                        args: vec![arg1, arg2],
+                        source: None,
+                    }),
+                    BitAnd => Ok(IrTerm::Call {
+                        callee: Box::new(IrTerm::Ident("bit_and".to_string())),
+                        args: vec![arg1, arg2],
+                        source: None,
+                    }),
+                    BitShiftL => Ok(IrTerm::Call {
+                        callee: Box::new(IrTerm::Ident("bit_shift_left".to_string())),
+                        args: vec![arg1, arg2],
+                        source: None,
+                    }),
+                    BitShiftR => Ok(IrTerm::Call {
+                        callee: Box::new(IrTerm::Ident("bit_shift_right".to_string())),
+                        args: vec![arg1, arg2],
+                        source: None,
+                    }),
                 }
             }
             Expr::Call(callee, args, variadic, expansion) => match &mut callee.data {
