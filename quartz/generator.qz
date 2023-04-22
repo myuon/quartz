@@ -144,7 +144,7 @@ module Generator {
         }
 
         if !func.result_type.is_nil() {
-            self.write("(result ".concat(func.result_type.to_string()).concat(")"));
+            self.write("(result ".concat(self.type_(func.result_type)).concat(")"));
         }
 
         for statement in func.body {
@@ -162,6 +162,16 @@ module Generator {
         }
 
         self.end();
+    }
+
+    fun type_(self, t: IrType): string {
+        if t.t_i32 != nil {
+            return "i32";
+        } else if t.t_nil != nil {
+            return panic("unreachable") as string;
+        } else {
+            return panic("unknown type") as string;
+        }
     }
 
     fun expression(self, expr: IrTerm) {
