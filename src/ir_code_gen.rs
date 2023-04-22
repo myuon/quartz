@@ -648,6 +648,8 @@ impl IrCodeGenerator {
                         callee: Box::new(IrTerm::Ident(
                             if matches!(type_, Type::I32) {
                                 "div"
+                            } else if *type_ == Type::Ident(Ident("i64".to_string())) {
+                                "div_i64"
                             } else {
                                 bail!("invalid type for div: {:?}", type_)
                             }
@@ -662,6 +664,8 @@ impl IrCodeGenerator {
                                 "mod"
                             } else if matches!(type_, Type::U32) {
                                 "mod_u32"
+                            } else if *type_ == Type::Ident(Ident("i64".to_string())) {
+                                "mod_i64"
                             } else {
                                 bail!("invalid type for mod: {:?}", type_)
                             }
