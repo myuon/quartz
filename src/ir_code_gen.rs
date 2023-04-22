@@ -1227,7 +1227,14 @@ impl IrCodeGenerator {
                     (_, IrType::Any) => Ok(term),
                     (IrType::Any, _) => Ok(term),
                     (source, target) if source == target => Ok(term),
-                    (source, target) => bail!("unsupported as: {:?} -> {:?}", source, target),
+                    (source, target) => {
+                        return Err(anyhow!("unsupported as: {:?} -> {:?}", source, target)
+                            .context(ErrorInSource {
+                                path: Some(self.current_path.clone()),
+                                start: expr.start.unwrap_or(0),
+                                end: expr.end.unwrap_or(0),
+                            }));
+                    }
                 }
             }
             Expr::SizeOf(type_) => {

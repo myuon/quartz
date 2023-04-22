@@ -270,9 +270,9 @@ module IrCodeGenerator {
     }
 
     fun expression(self, expr: Expression): IrTerm or error {
-        if expr.t_number != nil {
+        if expr.t_i32 != nil {
             let term = IrTerm {
-                t_i32: expr.t_number!.value?,
+                t_i32: expr.t_i32!.value?,
                 ..nil,
             };
 
@@ -490,7 +490,7 @@ module IrCodeGenerator {
                             ..nil,
                         },
                         args: make[vec[IrTerm]](IrTerm {
-                            t_i32: (terms.length * 4).to_string()?,
+                            t_i32: (terms.length * 4)?,
                             ..nil,
                         }),
                     }?,
@@ -560,7 +560,7 @@ module IrCodeGenerator {
                                     args: make[vec[IrTerm]](
                                         size,
                                         IrTerm {
-                                            t_i32: "1"?,
+                                            t_i32: 1?,
                                             ..nil,
                                         },
                                     ),
@@ -583,7 +583,7 @@ module IrCodeGenerator {
                 address: IrTerm::ident(var),
                 offset: IrTerm::i32(0),
                 value: IrTerm {
-                    t_i32: "0"?,
+                    t_i32: 0?,
                     ..nil,
                 },
             }?,

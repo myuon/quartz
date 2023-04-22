@@ -220,6 +220,18 @@ module i32 {
             length: digit,
         };
     }
+
+    fun parse(s: string): i32 {
+        let n = 0;
+        for i in 0..s.length {
+            let c = s.data.at(i) as i32;
+            if (c < 48 || c > 57) {
+                panic("i32.parse: invalid character: ".concat(digit_to_string(c)));
+            }
+            n = n * 10 + (c - 48);
+        }
+        return n;
+    }
 }
 
 module i64 {

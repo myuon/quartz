@@ -63,7 +63,7 @@ module IrTerm {
 
     fun i32(value: i32): IrTerm {
         return IrTerm {
-            t_i32: value.to_string()?,
+            t_i32: value?,
             ..nil,
         };
     }

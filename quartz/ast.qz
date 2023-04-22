@@ -168,8 +168,8 @@ struct Expression {
         left: Expression,
         right: Expression,
     }?,
-    t_number: struct {
-        value: string,
+    t_i32: struct {
+        value: i32,
     }?,
     t_call: struct {
         callee: Expression,

@@ -155,7 +155,7 @@ module Typechecker {
     }
 
     fun expression(self, expr: Expression): Type or error {
-        if expr.t_number != nil {
+        if expr.t_i32 != nil {
             return Type {
                 t_i32: true?,
                 ..nil,
