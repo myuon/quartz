@@ -165,7 +165,7 @@ fun main(): i32 {
             &["run", "--release", "--quiet", "--", "run-wat", "--stdin"],
             stdout.as_bytes(),
         )
-        .unwrap();
+        .expect("stdout_gen1");
         assert_eq!(stdout_gen0, stdout_gen1, "[INPUT]\n{}\n", input);
     }
 }

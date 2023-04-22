@@ -784,6 +784,18 @@ impl Generator {
                 "i32_to_byte" => self.convert_value_i32_to_byte_1(),
                 "byte_to_i32" => self.convert_value_byte_to_i32_1(),
                 "byte_to_address" => self.convert_value_byte_to_address_1(),
+                "bit_shift_left" => {
+                    self.generate_op_arithmetic("shl");
+                }
+                "bit_shift_right" => {
+                    self.generate_op_arithmetic("shr_s");
+                }
+                "bit_or" => {
+                    self.generate_op_arithmetic("or");
+                }
+                "bit_and" => {
+                    self.generate_op_arithmetic("and");
+                }
                 _ => {
                     self.writer.write(&format!("call ${}", ident.as_str()));
                 }

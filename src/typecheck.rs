@@ -1661,14 +1661,6 @@ fun main() {
     f();
 }
 "#,
-            r#"
-fun main() {
-    let c = 40;
-    if c < 48 || c > 57 {
-        return;
-    }
-}
-"#,
         ];
         for input in cases {
             let mut compiler = Compiler::new();
