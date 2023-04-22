@@ -159,7 +159,7 @@ pub enum Lit {
     Nil(bool),
     Bool(bool),
     I32(i32),
-    I32Base2(i64),
+    I32Base2(i32),
     U32(u32),
     String(String, StringLiteralType),
 }

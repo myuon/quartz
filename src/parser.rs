@@ -1004,7 +1004,7 @@ impl Parser {
         match current.lexeme {
             Lexeme::Int(int) if int <= i32::MAX as i64 => Ok(Lit::I32(int as i32)),
             Lexeme::Int(int) if int <= u32::MAX as i64 => Ok(Lit::U32(int as u32)),
-            Lexeme::IntBase2(int) => Ok(Lit::I32Base2(int)),
+            Lexeme::IntBase2(int) if int <= i32::MAX as i64 => Ok(Lit::I32Base2(int as i32)),
             Lexeme::String(string) => Ok(Lit::String(string, StringLiteralType::String)),
             Lexeme::RawString(string) => Ok(Lit::String(string, StringLiteralType::Raw)),
             Lexeme::True => Ok(Lit::Bool(true)),
