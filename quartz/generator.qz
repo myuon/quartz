@@ -259,6 +259,7 @@ module Generator {
         if expr.t_if != nil {
             self.new_statement();
             self.expression(expr.t_if!.condition);
+            self.convert_stack_to_bool();
 
             self.start();
             self.write("if");
@@ -312,6 +313,8 @@ module Generator {
             self.write("$continue");
 
             self.expression(expr.t_while!.condition);
+            self.convert_stack_to_bool();
+
             self.new_statement();
             self.write("i32.eqz");
             self.new_statement();
@@ -342,8 +345,29 @@ module Generator {
             self.new_statement();
             self.write("i32.add");
 
+            let load_size = expr.t_load!.type_.sizeof() * 8;
+            let suffix = "";
+            if load_size != 64 {
+                suffix = format("{}_u", load_size.to_string());
+            }
+
             self.new_statement();
-            self.write("i32.load");
+            self.write(format("{}.load{}", Value::wasm_type(), suffix));
+            self.write("offset=8");
+
+            if expr.t_load!.type_.t_byte != nil {
+                self.new_statement();
+                self.write("i64.const 32");
+
+                self.new_statement();
+                self.write("i64.shl");
+
+                self.new_statement();
+                self.write("i64.const 4");
+
+                self.new_statement();
+                self.write("i64.xor");
+            }
 
             return;
         }
@@ -354,25 +378,46 @@ module Generator {
             self.new_statement();
             self.expression(expr.t_store!.offset);
 
+            self.convert_stack_to_i32_2();
+
             self.new_statement();
             self.write("i32.add");
 
             self.new_statement();
             self.expression(expr.t_store!.value);
 
+            let store_size = expr.t_store!.type_.sizeof() * 8;
+
+            if store_size != 64 {
+                self.new_statement();
+                self.write(format("i64.const 32"));
+
+                self.new_statement();
+                self.write(format("i64.shr_u"));
+            }
+
+            let suffix = "";
+            if store_size != 64 {
+                suffix = format("{}", store_size.to_string());
+            }
+
             self.new_statement();
-            self.write("i32.store");
+            self.write(format("i64.store{}", suffix));
+            self.write("offset=8");
 
             return;
         }
         if expr.t_sizeof != nil {
-            let size = expr.t_sizeof!.type_.sizeof().to_string();
+            let size = expr.t_sizeof!.type_.sizeof();
 
             self.new_statement();
-            self.write(format(";; {} (sizeof)", size));
+            self.write(format(";; {} (sizeof)", size.to_string()));
 
             self.new_statement();
-            self.write(format("i32.const {}", size));
+            self.write_value(Value {
+                t_i32: size?,
+                ..nil,
+            });
 
             return;
         }
@@ -421,6 +466,51 @@ module Generator {
 
         self.new_statement();
         self.write("i64.extend_i32_u");
+    }
+
+    fun convert_stack_from_i32_1(self) {
+        self.new_statement();
+        self.write("i64.extend_i32_s");
+
+        self.new_statement();
+        self.write("i64.const 32");
+
+        self.new_statement();
+        self.write("i64.shl");
+    }
+
+    fun convert_stack_from_bool_1(self) {
+        self.new_statement();
+        self.write("i64.extend_i32_s");
+
+        self.new_statement();
+        self.write("i64.const 32");
+
+        self.new_statement();
+        self.write("i64.shl");
+
+        self.new_statement();
+        self.write("i64.const 2");
+
+        self.new_statement();
+        self.write("i64.or");
+    }
+
+    fun convert_stack_to_bool(self) {
+        self.new_statement();
+        self.write("i64.const 32");
+
+        self.new_statement();
+        self.write("i64.shr_u");
+
+        self.new_statement();
+        self.write("i64.const 1");
+
+        self.new_statement();
+        self.write("i64.and");
+
+        self.new_statement();
+        self.write("i32.wrap_i64");
     }
 
     fun generate_op_arithmetic(self, code: string) {

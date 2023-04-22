@@ -415,7 +415,7 @@ impl Generator {
             IrTerm::Bool(b) => {
                 if MODE_READABLE_WASM {
                     self.writer.new_statement();
-                    self.writer.write(&format!(";; {}", b));
+                    self.writer.write(&format!(" ;; {}", b));
                 }
 
                 self.write_value(Value::bool(*b));
