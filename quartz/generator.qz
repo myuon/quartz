@@ -2,6 +2,8 @@ import quartz::ast;
 import quartz::ir;
 import quartz::value;
 
+let MODE_READABLE_WASM = true;
+
 struct Generator {
     writer: string,
     depth: i32,
@@ -173,8 +175,10 @@ module Generator {
             return;
         }
         if expr.t_i32 != nil {
-            self.new_statement();
-            self.write(format(";; {}", expr.t_i32!.to_string()));
+            if MODE_READABLE_WASM {
+                self.new_statement();
+                self.write(format(";; {}", expr.t_i32!.to_string()));
+            }
 
             self.write_value(Value {
                 t_i32: expr.t_i32!?,
@@ -211,23 +215,23 @@ module Generator {
             if callee.t_ident != nil {
                 let ident = callee.t_ident!;
                 if ident.equal("add") {
-                    self.write("i32.add");
+                    self.write("i64.add");
                     return;
                 }
                 if ident.equal("sub") {
-                    self.write("i32.sub");
+                    self.write("i64.sub");
                     return;
                 }
                 if ident.equal("mult") {
-                    self.write("i32.mul");
+                    self.write("call $i32_mul");
                     return;
                 }
                 if ident.equal("equal") {
-                    self.write("i32.eq");
+                    self.write("i64.eq");
                     return;
                 }
                 if ident.equal("lt") {
-                    self.write("i32.lt_s");
+                    self.write("i64.lt_s");
                     return;
                 }
 
@@ -394,6 +398,41 @@ module Generator {
     fun write_value(self, value: Value) {
         self.new_statement();
         self.write(format("{}.const {}", Value::wasm_type(), value.as_i64().to_string()));
+    }
+
+    fun convert_stack_to_i32_2(self) {
+        self.new_statement();
+        self.write("global.set $_value_i32_1");
+
+        self.convert_stack_to_i32_1();
+
+        self.new_statement();
+        self.write("global.get $_value_i32_1");
+
+        self.convert_stack_to_i32_1();
+    }
+
+    fun convert_stack_to_i32_1(self) {
+        self.new_statement();
+        self.write("global.set $_value_i32_0");
+
+        self.new_statement();
+        self.write("global.get $_value_i32_0");
+
+        self.new_statement();
+        self.write("i64.extend_i32_u");
+    }
+
+    fun generate_op_arithmetic(self, code: string) {
+        self.convert_stack_to_i32_2();
+        self.write(format("i32.{}", code));
+        self.convert_stack_from_i32_1();
+    }
+
+    fun generate_op_comparison(self, code: string) {
+        self.convert_stack_to_i32_2();
+        self.write(format("i32.{}", code));
+        self.convert_stack_from_bool_1();
     }
 }
 

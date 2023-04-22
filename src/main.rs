@@ -108,6 +108,8 @@ enum SubCommand {
     Format {
         #[clap(long)]
         write: bool,
+        #[clap(long)]
+        stdin: bool,
 
         file: Option<String>,
     },
@@ -317,11 +319,20 @@ fn main() -> Result<()> {
                 )?
             );
         }
-        SubCommand::Format { write, file } => {
+        SubCommand::Format { write, file, stdin } => {
             let path = file.ok_or(anyhow::anyhow!("No file specified"))?;
-            let mut file = std::fs::File::open(path.clone())?;
-            let mut buffer = String::new();
-            file.read_to_string(&mut buffer)?;
+            let buffer = if stdin {
+                let mut buffer = String::new();
+                std::io::stdin().read_to_string(&mut buffer)?;
+
+                buffer
+            } else {
+                let mut file = std::fs::File::open(path.clone())?;
+                let mut buffer = String::new();
+                file.read_to_string(&mut buffer)?;
+
+                buffer
+            };
 
             let formatted = Compiler::format(&buffer)?;
             if write {

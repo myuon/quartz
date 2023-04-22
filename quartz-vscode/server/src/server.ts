@@ -155,7 +155,7 @@ connection.onCompletion(async (params) => {
     params.position.line
   } --column ${params.position.character} ${
     isDotCompletion ? "--dot" : ""
-  } --stdin <<EOF\n${currentContent}\nEOF\n`;
+  } --stdin << 'EOF'\n${currentContent}\nEOF\n`;
   console.log(command);
 
   const cargo = await execAsync(command);
@@ -193,8 +193,7 @@ connection.onDocumentFormatting(async (params) => {
     "..",
     "..",
     "Cargo.toml"
-  )} -- format ${file}`;
-  console.log(command);
+  )} -- format --stdin << 'EOF'\n${currentContent}\nEOF\n`;
 
   const cargo = await execAsync(command);
   if (cargo.stdout) {
