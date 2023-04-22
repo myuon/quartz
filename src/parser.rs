@@ -536,7 +536,7 @@ impl Parser {
         match token.lexeme {
             Lexeme::Lt => {
                 self.consume()?;
-                let rhs = self.expr_(with_struct)?;
+                let rhs = self.term_3(with_struct)?;
 
                 current = self.source_from(
                     Expr::BinOp(BinOp::Lt, Type::Omit(0), Box::new(current), Box::new(rhs)),
@@ -545,7 +545,7 @@ impl Parser {
             }
             Lexeme::Gt => {
                 self.consume()?;
-                let rhs = self.expr_(with_struct)?;
+                let rhs = self.term_3(with_struct)?;
 
                 current = self.source_from(
                     Expr::BinOp(BinOp::Gt, Type::Omit(0), Box::new(current), Box::new(rhs)),
@@ -554,7 +554,7 @@ impl Parser {
             }
             Lexeme::Gte => {
                 self.consume()?;
-                let rhs = self.expr_(with_struct)?;
+                let rhs = self.term_3(with_struct)?;
 
                 current = self.source_from(
                     Expr::BinOp(BinOp::Gte, Type::Omit(0), Box::new(current), Box::new(rhs)),
@@ -563,7 +563,7 @@ impl Parser {
             }
             Lexeme::Lte => {
                 self.consume()?;
-                let rhs = self.expr_(with_struct)?;
+                let rhs = self.term_3(with_struct)?;
 
                 current = self.source_from(
                     Expr::BinOp(BinOp::Lte, Type::Omit(0), Box::new(current), Box::new(rhs)),
@@ -572,7 +572,7 @@ impl Parser {
             }
             Lexeme::DoubleDot => {
                 self.consume()?;
-                let rhs = self.expr_(with_struct)?;
+                let rhs = self.term_3(with_struct)?;
 
                 current = self.source_from(Expr::Range(Box::new(current), Box::new(rhs)), position);
             }
