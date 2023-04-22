@@ -234,32 +234,28 @@ module i32 {
     }
 }
 
+struct i64 {
+    hi: i32,
+    lo: i32,
+}
+
 module i64 {
     fun to_string(self): string {
-        if self == 0 as i64 {
-            return "0";
+        if self.hi == 0 {
+            return self.lo.to_string();
         }
 
-        let digit = 0;
-        let tmp = self;
-        while tmp > 0 as i64 {
-            tmp = tmp / (10 as i64);
-            digit = digit + 1;
-        }
-
-        let str = make[ptr[byte]](digit);
-        tmp = self;
-        for i in 0..digit {
-            let d = (tmp % (10 as i64)) as i32;
-            str.at(digit - i - 1) = ((d + 48) as byte);
-            tmp = tmp / (10 as i64);
-        }
-
-        return string {
-            data: str,
-            length: digit,
-        };
+        let hi_string = self.hi.to_string();
+        let lo_string = self.lo.to_string();
+        return hi_string.concat(lo_string);
     }
+}
+
+fun i32_to_i64(i: i32): i64 {
+    return i64 {
+        hi: 0,
+        lo: i,
+    };
 }
 
 struct string {

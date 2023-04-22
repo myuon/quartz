@@ -588,7 +588,6 @@ impl IrCodeGenerator {
                 Lit::I32(i) => Ok(IrTerm::i32(*i)),
                 Lit::I32Base2(i) => Ok(IrTerm::I64(*i)),
                 Lit::U32(i) => Ok(IrTerm::u32(*i)),
-                Lit::I64(i) => Ok(IrTerm::i64(*i)),
                 Lit::String(s, _) => Ok(self.register_string(s.clone())),
             },
             Expr::Not(expr) => {
@@ -611,8 +610,6 @@ impl IrCodeGenerator {
                         callee: Box::new(IrTerm::Ident(
                             if matches!(type_, Type::I32) {
                                 "add"
-                            } else if matches!(type_, Type::I64) {
-                                "add_i64"
                             } else {
                                 bail!("invalid type for add: {:?}", type_)
                             }
@@ -625,8 +622,6 @@ impl IrCodeGenerator {
                         callee: Box::new(IrTerm::Ident(
                             if matches!(type_, Type::I32) {
                                 "sub"
-                            } else if matches!(type_, Type::I64) {
-                                "sub_i64"
                             } else {
                                 bail!("invalid type for sub: {:?}", type_)
                             }
@@ -641,8 +636,6 @@ impl IrCodeGenerator {
                                 "mult"
                             } else if matches!(type_, Type::U32) {
                                 "mult_u32"
-                            } else if matches!(type_, Type::I64) {
-                                "mult_i64"
                             } else {
                                 bail!("invalid type for mul: {:?}", type_)
                             }
@@ -655,8 +648,6 @@ impl IrCodeGenerator {
                         callee: Box::new(IrTerm::Ident(
                             if matches!(type_, Type::I32) {
                                 "div"
-                            } else if matches!(type_, Type::I64) {
-                                "div_i64"
                             } else {
                                 bail!("invalid type for div: {:?}", type_)
                             }
@@ -671,8 +662,6 @@ impl IrCodeGenerator {
                                 "mod"
                             } else if matches!(type_, Type::U32) {
                                 "mod_u32"
-                            } else if matches!(type_, Type::I64) {
-                                "mod_i64"
                             } else {
                                 bail!("invalid type for mod: {:?}", type_)
                             }
@@ -693,8 +682,6 @@ impl IrCodeGenerator {
                         callee: Box::new(IrTerm::Ident(
                             if matches!(type_, Type::I32) {
                                 "lt"
-                            } else if matches!(type_, Type::I64) {
-                                "lt_i64"
                             } else {
                                 bail!("invalid type for lt: {:?}", type_)
                             }
@@ -707,8 +694,6 @@ impl IrCodeGenerator {
                         callee: Box::new(IrTerm::Ident(
                             if matches!(type_, Type::I32) {
                                 "lte"
-                            } else if matches!(type_, Type::I64) {
-                                "lte_i64"
                             } else {
                                 bail!("invalid type for lte: {:?}", type_)
                             }
@@ -721,8 +706,6 @@ impl IrCodeGenerator {
                         callee: Box::new(IrTerm::Ident(
                             if matches!(type_, Type::I32) {
                                 "gt"
-                            } else if matches!(type_, Type::I64) {
-                                "gt_i64"
                             } else {
                                 bail!("invalid type for gt: {:?}", type_)
                             }
@@ -735,8 +718,6 @@ impl IrCodeGenerator {
                         callee: Box::new(IrTerm::Ident(
                             if matches!(type_, Type::I32) {
                                 "gte"
-                            } else if matches!(type_, Type::I64) {
-                                "gte_i64"
                             } else {
                                 bail!("invalid type for gte: {:?}", type_)
                             }
@@ -1215,7 +1196,15 @@ impl IrCodeGenerator {
                         source: None,
                     }),
                     (IrType::I32, IrType::I64) => Ok(IrTerm::Call {
-                        callee: Box::new(IrTerm::Ident("i32_to_i64".to_string())),
+                        callee: Box::new(IrTerm::Ident(
+                            Path::new(
+                                vec!["quartz", "std", "i32_to_i64"]
+                                    .into_iter()
+                                    .map(|s| Ident(s.to_string()))
+                                    .collect(),
+                            )
+                            .as_joined_str("_"),
+                        )),
                         args: vec![term],
                         source: None,
                     }),

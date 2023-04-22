@@ -40,20 +40,8 @@ impl TypeChecker {
                 ),
                 ("debug", Type::Func(vec![Type::Any], Box::new(Type::Nil))),
                 (
-                    "xor_i64",
-                    Type::Func(vec![Type::I64, Type::I64], Box::new(Type::I64)),
-                ),
-                (
                     "xor_u32",
                     Type::Func(vec![Type::U32, Type::U32], Box::new(Type::U32)),
-                ),
-                (
-                    "i32_to_i64",
-                    Type::Func(vec![Type::I32], Box::new(Type::I64)),
-                ),
-                (
-                    "i64_to_i32",
-                    Type::Func(vec![Type::I64], Box::new(Type::I32)),
                 ),
                 ("abort", Type::Func(vec![], Box::new(Type::Nil))),
                 (
@@ -230,7 +218,6 @@ impl TypeChecker {
             Type::Bool => {}
             Type::I32 => {}
             Type::U32 => {}
-            Type::I64 => {}
             Type::Byte => {}
             Type::Func(ts, ret) => {
                 for t in ts {
@@ -1085,7 +1072,6 @@ impl TypeChecker {
                 // FIXME: adhoc type convertion
                 Ok(match ident.as_str() {
                     "i32" => Type::I32,
-                    "i64" => Type::I64,
                     _ => Type::Ident(ident.clone()),
                 })
             }
@@ -1200,7 +1186,6 @@ impl TypeChecker {
             Lit::I32(_) => Ok(Type::I32),
             Lit::I32Base2(_) => Ok(Type::I32),
             Lit::U32(_) => Ok(Type::U32),
-            Lit::I64(_) => Ok(Type::I64),
             Lit::String(_, _) => Ok(Type::Ident(Ident("string".to_string()))),
         }
     }
@@ -1513,8 +1498,6 @@ impl Constrains {
             }
             (Type::Bool, Type::Ident(ident)) if ident.as_str() == "bool" => Ok(Constrains::empty()),
             (Type::Ident(ident), Type::Bool) if ident.as_str() == "bool" => Ok(Constrains::empty()),
-            (Type::I64, Type::Ident(ident)) if ident.as_str() == "i64" => Ok(Constrains::empty()),
-            (Type::Ident(ident), Type::I64) if ident.as_str() == "i64" => Ok(Constrains::empty()),
             (Type::Or(type1, type2), Type::Or(type3, type4)) => {
                 let mut constrains = Constrains::empty();
                 constrains.merge(&Constrains::unify(type1.as_mut(), type3.as_mut())?);
@@ -1568,7 +1551,6 @@ impl Constrains {
             Type::Bool => {}
             Type::I32 => {}
             Type::U32 => {}
-            Type::I64 => {}
             Type::Byte => {}
             Type::Record(r) => {
                 for (_, type_) in r {

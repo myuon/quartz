@@ -779,16 +779,6 @@ impl Generator {
                 "xor_i64" => {
                     todo!();
                 }
-                "i32_to_i64" => {
-                    self.convert_stack_to_i32_1();
-                    self.writer.write("i64.extend_i32_s");
-                    self.convert_stack_from_i32_1();
-                }
-                "i64_to_i32" => {
-                    self.convert_stack_to_i32_1();
-                    self.writer.write("i32.wrap_i64");
-                    self.convert_stack_from_i32_1();
-                }
                 "i32_to_address" => self.convert_value_i32_to_address_1(),
                 "address_to_i32" => self.convert_value_address_to_i32_1(),
                 "i32_to_byte" => self.convert_value_i32_to_byte_1(),

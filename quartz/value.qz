@@ -18,7 +18,7 @@ module Value {
                 return 0b10 as i64;
             }
         } else if self.t_byte != nil {
-            return (self.t_byte! as i64) << (32 as i64) | (0b100 as i64);
+            return ((self.t_byte! as i32) as i64) << (32 as i64) | (0b100 as i64);
         } else if self.t_i32 != nil {
             return (self.t_i32! as i64) << (32 as i64);
         } else if self.t_pointer != nil {

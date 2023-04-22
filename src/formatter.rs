@@ -398,9 +398,6 @@ impl<'s> Formatter<'s> {
                 Lit::U32(u) => {
                     self.write_if(writer, &u.to_string(), skip_space);
                 }
-                Lit::I64(i) => {
-                    self.write_if(writer, &i.to_string(), skip_space);
-                }
                 Lit::String(s, literal_type) => match literal_type {
                     StringLiteralType::String => {
                         self.write_if(writer, format!("{:?}", s), skip_space);
