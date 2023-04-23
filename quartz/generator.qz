@@ -126,7 +126,7 @@ module Generator {
         },
     ) {
         self.start();
-        self.write(format("global ${} (mut {})", global_let.name, global_let.type_.to_string()));
+        self.write(format("global ${} (mut {})", global_let.name, "i64"));
         self.start();
         self.expression(global_let.value);
         self.end();
@@ -140,7 +140,7 @@ module Generator {
 
         for i in 0..func.params.length {
             let p = func.params.at(i);
-            self.write("(param $".concat(p.name).concat(" ").concat(p.type_.to_string()).concat(")"));
+            self.write("(param $".concat(p.name).concat(" ").concat("i64").concat(")"));
         }
 
         if !func.result_type.is_nil() {
@@ -177,7 +177,7 @@ module Generator {
         if expr.t_i32 != nil {
             if MODE_READABLE_WASM {
                 self.new_statement();
-                self.write(format(";; {}", expr.t_i32!.to_string()));
+                self.write(format(" ;; {}", expr.t_i32!.to_string()));
             }
 
             self.write_value(Value {
@@ -413,7 +413,7 @@ module Generator {
             let size = expr.t_sizeof!.type_.sizeof();
 
             self.new_statement();
-            self.write(format(";; {} (sizeof)", size.to_string()));
+            self.write(format(" ;; {} (sizeof)", size.to_string()));
 
             self.new_statement();
             self.write_value(Value {
