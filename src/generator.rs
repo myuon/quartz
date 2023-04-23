@@ -115,19 +115,19 @@ impl Generator {
         self.decl(&mut IrTerm::GlobalLet {
             name: "_value_i64_1".to_string(),
             type_: IrType::Address,
-            value: Box::new(IrTerm::i64(0)),
+            value: Box::new(IrTerm::i32(0)), // generate 0
         })?;
 
         self.decl(&mut IrTerm::GlobalLet {
             name: "_raw_i64_1".to_string(),
             type_: IrType::Address,
-            value: Box::new(IrTerm::i64(0)),
+            value: Box::new(IrTerm::i32(0)), // generate 0
         })?;
 
         self.decl(&mut IrTerm::GlobalLet {
             name: "_raw_i64_2".to_string(),
             type_: IrType::Address,
-            value: Box::new(IrTerm::i64(0)),
+            value: Box::new(IrTerm::i32(0)), // generate 0
         })?;
 
         self.decl(&mut IrTerm::Func {
@@ -954,6 +954,11 @@ impl Generator {
         self.writer.new_statement();
         self.writer.write("global.set $_value_i64_1");
 
+        self.writer.new_statement();
+        self.writer.write("global.get $_value_i64_1");
+
+        self.convert_stack_to_i32_1();
+
         // load hi address
         self.writer.new_statement();
         self.writer.write("i64.load offset=8");
@@ -961,6 +966,8 @@ impl Generator {
         // load lo address
         self.writer.new_statement();
         self.writer.write("global.get $_value_i64_1");
+
+        self.convert_stack_to_i32_1();
 
         self.writer.new_statement();
         self.writer.write("i64.load offset=16");
