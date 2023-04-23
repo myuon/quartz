@@ -175,7 +175,9 @@ fn print_result_value(result: Box<[Value]>) {
                         value::Value::Pointer(0) => {
                             println!("nil");
                         }
-                        value::Value::Pointer(_) => todo!(),
+                        value::Value::Pointer(p) => {
+                            println!("<address 0x{:x}>", p);
+                        }
                     }
                 }
                 _ => todo!(),

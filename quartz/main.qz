@@ -50,6 +50,9 @@ fun test() {
     assert(!reflection::is_pointer(10));
     assert(!reflection::is_pointer(true));
     assert(!reflection::is_pointer("foo".at(1)));
+
+    assert_eq_string((1024 as i64).to_string(), "1024");
+    assert_eq_string((1 as i64).to_string(), "1");
 }
 
 fun main() {

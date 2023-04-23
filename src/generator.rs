@@ -824,6 +824,15 @@ impl Generator {
                 "bit_and" => {
                     self.generate_op_arithmetic("and");
                 }
+                "bit_or_i64" => {
+                    self.generate_op_arithmetic_i64("i64.or");
+                }
+                "bit_shift_left_i64" => {
+                    self.generate_op_arithmetic_i64("i64.shl");
+                }
+                "bit_shift_right_i64" => {
+                    self.generate_op_arithmetic_i64("i64.shr_s");
+                }
                 _ => {
                     self.writer.write(&format!("call ${}", ident.as_str()));
                 }

@@ -152,7 +152,7 @@ module Generator {
             for local in locals {
                 self.new_statement();
                 self.start();
-                self.write(format("local ${} {}", local, "i32"));
+                self.write(format("local ${} {}", local, "i64"));
                 self.end();
             }
         }

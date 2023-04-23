@@ -741,22 +741,58 @@ impl IrCodeGenerator {
                         source: None,
                     }),
                     BitOr => Ok(IrTerm::Call {
-                        callee: Box::new(IrTerm::Ident("bit_or".to_string())),
+                        callee: Box::new(IrTerm::Ident(
+                            if matches!(type_, Type::I32) {
+                                "bit_or"
+                            } else if *type_ == Type::Ident(Ident("i64".to_string())) {
+                                "bit_or_i64"
+                            } else {
+                                bail!("invalid type for bit_or: {:?}", type_)
+                            }
+                            .to_string(),
+                        )),
                         args: vec![arg1, arg2],
                         source: None,
                     }),
                     BitAnd => Ok(IrTerm::Call {
-                        callee: Box::new(IrTerm::Ident("bit_and".to_string())),
+                        callee: Box::new(IrTerm::Ident(
+                            if matches!(type_, Type::I32) {
+                                "bit_and"
+                            } else if *type_ == Type::Ident(Ident("i64".to_string())) {
+                                "bit_and_i64"
+                            } else {
+                                bail!("invalid type for bit_or: {:?}", type_)
+                            }
+                            .to_string(),
+                        )),
                         args: vec![arg1, arg2],
                         source: None,
                     }),
                     BitShiftL => Ok(IrTerm::Call {
-                        callee: Box::new(IrTerm::Ident("bit_shift_left".to_string())),
+                        callee: Box::new(IrTerm::Ident(
+                            if matches!(type_, Type::I32) {
+                                "bit_shift_left"
+                            } else if *type_ == Type::Ident(Ident("i64".to_string())) {
+                                "bit_shift_left_i64"
+                            } else {
+                                bail!("invalid type for bit_or: {:?}", type_)
+                            }
+                            .to_string(),
+                        )),
                         args: vec![arg1, arg2],
                         source: None,
                     }),
                     BitShiftR => Ok(IrTerm::Call {
-                        callee: Box::new(IrTerm::Ident("bit_shift_right".to_string())),
+                        callee: Box::new(IrTerm::Ident(
+                            if matches!(type_, Type::I32) {
+                                "bit_shift_right"
+                            } else if *type_ == Type::Ident(Ident("i64".to_string())) {
+                                "bit_shift_right_i64"
+                            } else {
+                                bail!("invalid type for bit_or: {:?}", type_)
+                            }
+                            .to_string(),
+                        )),
                         args: vec![arg1, arg2],
                         source: None,
                     }),
