@@ -1213,7 +1213,15 @@ impl IrCodeGenerator {
                         source: None,
                     }),
                     (IrType::I64, IrType::I32) => Ok(IrTerm::Call {
-                        callee: Box::new(IrTerm::Ident("i64_to_i32".to_string())),
+                        callee: Box::new(IrTerm::Ident(
+                            Path::new(
+                                vec!["quartz", "std", "i64_to_i32"]
+                                    .into_iter()
+                                    .map(|s| Ident(s.to_string()))
+                                    .collect(),
+                            )
+                            .as_joined_str("_"),
+                        )),
                         args: vec![term],
                         source: None,
                     }),

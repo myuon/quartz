@@ -234,6 +234,24 @@ module i32 {
     }
 }
 
+fun i32_to_i64(n: i32): i64 {
+    if n < 0 {
+        return i64 {
+            hi: 0-1,
+            lo: n,
+        };
+    } else {
+        return i64 {
+            hi: 0,
+            lo: n,
+        };
+    }
+}
+
+fun i64_to_i32(n: i64): i32 {
+    return n.lo;
+}
+
 struct i64 {
     hi: i32,
     lo: i32,

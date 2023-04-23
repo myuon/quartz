@@ -527,6 +527,7 @@ impl IrType {
             Type::I32 => Ok(IrType::I32),
             Type::U32 => Ok(IrType::I32),
             Type::Record(_) => Ok(IrType::Address),
+            Type::Ident(name) if name.as_str() == "i64" => Ok(IrType::I64),
             Type::Ident(_) => Ok(IrType::Address), // FIXME: could be other types
             Type::Ptr(_) => Ok(IrType::Address),
             Type::Array(_, _) => Ok(IrType::Address),
