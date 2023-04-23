@@ -265,6 +265,13 @@ module i64 {
             length: digit,
         };
     }
+
+    fun new(hi: i32, lo: i32): i64 {
+        return i64 {
+            hi: hi,
+            lo: lo,
+        };
+    }
 }
 
 struct string {

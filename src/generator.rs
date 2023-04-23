@@ -112,6 +112,24 @@ impl Generator {
             value: Box::new(IrTerm::i32(1)),
         })?;
 
+        self.decl(&mut IrTerm::GlobalLet {
+            name: "_value_i64_1".to_string(),
+            type_: IrType::Address,
+            value: Box::new(IrTerm::i64(0)),
+        })?;
+
+        self.decl(&mut IrTerm::GlobalLet {
+            name: "_raw_i64_1".to_string(),
+            type_: IrType::Address,
+            value: Box::new(IrTerm::i64(0)),
+        })?;
+
+        self.decl(&mut IrTerm::GlobalLet {
+            name: "_raw_i64_2".to_string(),
+            type_: IrType::Address,
+            value: Box::new(IrTerm::i64(0)),
+        })?;
+
         self.decl(&mut IrTerm::Func {
             name: "reflection_is_pointer".to_string(),
             params: vec![("value".to_string(), IrType::Any)],
@@ -402,7 +420,14 @@ impl Generator {
                 self.write_value(Value::i32(*i));
             }
             IrTerm::I64(i) => {
-                todo!("{}", i);
+                let hi = (*i >> 32) as i32;
+                let lo = *i as i32;
+
+                self.write_value(Value::i32(hi));
+                self.write_value(Value::i32(lo));
+
+                self.writer.new_statement();
+                self.writer.write("call $quartz_std_i64_new");
             }
             IrTerm::U32(i) => {
                 if MODE_READABLE_WASM {
@@ -735,10 +760,13 @@ impl Generator {
                     }
                 }
                 "mult_i64" => {
-                    todo!();
+                    self.generate_op_arithmetic_i64("i64.mul");
                 }
                 "div" => {
                     self.generate_op_arithmetic("div_s");
+                }
+                "div_i64" => {
+                    self.generate_op_arithmetic_i64("i64.div_s");
                 }
                 "mod" => {
                     self.generate_op_arithmetic("rem_s");
@@ -747,7 +775,7 @@ impl Generator {
                     self.generate_op_arithmetic("rem_u");
                 }
                 "mod_i64" => {
-                    todo!();
+                    self.generate_op_arithmetic_i64("i64.rem_s");
                 }
                 "equal" => {
                     self.writer.write("i64.eq");
@@ -777,7 +805,7 @@ impl Generator {
                     self.generate_op_arithmetic("xor");
                 }
                 "xor_i64" => {
-                    todo!();
+                    self.generate_op_arithmetic_i64("i64.xor");
                 }
                 "i32_to_address" => self.convert_value_i32_to_address_1(),
                 "address_to_i32" => self.convert_value_address_to_i32_1(),
@@ -918,6 +946,78 @@ impl Generator {
 
         self.writer.new_statement();
         self.writer.write("i32.wrap_i64");
+    }
+
+    // FIXME: need GC lock
+    // For GC locks, keep value n, which is the number of values to lock (not a standard value)
+    fn load_i64(&mut self) {
+        self.writer.new_statement();
+        self.writer.write("global.set $_value_i64_1");
+
+        // load hi address
+        self.writer.new_statement();
+        self.writer.write("i64.load offset=8");
+
+        // load lo address
+        self.writer.new_statement();
+        self.writer.write("global.get $_value_i64_1");
+
+        self.writer.new_statement();
+        self.writer.write("i64.load offset=16");
+
+        self.writer.new_statement();
+        self.writer.write("i64.const 32");
+
+        self.writer.new_statement();
+        self.writer.write("i64.shr_u");
+
+        self.writer.new_statement();
+        self.writer.write("i64.add");
+    }
+
+    fn generate_op_arithmetic_i64(&mut self, op: &str) {
+        self.load_i64();
+
+        self.writer.new_statement();
+        self.writer.write("global.set $_raw_i64_1");
+
+        self.load_i64();
+
+        self.writer.new_statement();
+        self.writer.write("global.get $_raw_i64_1");
+
+        self.writer.new_statement();
+        self.writer.write(op);
+
+        self.writer.new_statement();
+        self.writer.write("global.set $_raw_i64_1");
+
+        self.writer.new_statement();
+        self.writer.write("global.get $_raw_i64_1");
+
+        self.writer.new_statement();
+        self.writer.write("i64.const 32");
+
+        self.writer.new_statement();
+        self.writer.write("i64.shl");
+
+        self.writer.new_statement();
+        self.writer.write("global.get $_raw_i64_1");
+
+        self.writer.new_statement();
+        self.writer.write("i64.const 32");
+
+        self.writer.new_statement();
+        self.writer.write("i64.shr_u");
+
+        self.writer.new_statement();
+        self.writer.write("i64.const 32");
+
+        self.writer.new_statement();
+        self.writer.write("i64.shl");
+
+        self.writer.new_statement();
+        self.writer.write("call $quartz_std_i64_new");
     }
 
     fn generate_if(
