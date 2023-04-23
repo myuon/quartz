@@ -999,15 +999,7 @@ impl Generator {
         self.writer.new_statement();
         self.writer.write("global.set $_raw_i64_1");
 
-        self.writer.new_statement();
-        self.writer.write("global.get $_raw_i64_1");
-
-        self.writer.new_statement();
-        self.writer.write("i64.const 32");
-
-        self.writer.new_statement();
-        self.writer.write("i64.shl");
-
+        // prepare hi
         self.writer.new_statement();
         self.writer.write("global.get $_raw_i64_1");
 
@@ -1016,6 +1008,16 @@ impl Generator {
 
         self.writer.new_statement();
         self.writer.write("i64.shr_u");
+
+        self.writer.new_statement();
+        self.writer.write("i64.const 32");
+
+        self.writer.new_statement();
+        self.writer.write("i64.shl");
+
+        // prepare lo
+        self.writer.new_statement();
+        self.writer.write("global.get $_raw_i64_1");
 
         self.writer.new_statement();
         self.writer.write("i64.const 32");
