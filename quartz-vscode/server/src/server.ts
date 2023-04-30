@@ -98,16 +98,18 @@ connection.onDefinition(async (params) => {
   const file = params.textDocument.uri.replace("file://", "");
   console.log(params);
 
-  const cargo = await execAsync(
-    `cargo run --release --manifest-path ${path.join(
-      file,
-      "..",
-      "..",
-      "Cargo.toml"
-    )} -- go-to-def ${file} --project ${path.join(file, "..", "..")} --line ${
-      params.position.line
-    } --column ${params.position.character}`
-  );
+  const command = `cargo run --release --manifest-path ${path.join(
+    file,
+    "..",
+    "..",
+    "Cargo.toml"
+  )} -- go-to-def ${file} --project ${path.join(file, "..", "..")} --line ${
+    params.position.line
+  } --column ${params.position.character}`;
+  console.log(command);
+
+  const cargo = await execAsync(command);
+
   if (cargo.stdout) {
     const result = JSON.parse(cargo.stdout) as {
       file: string;

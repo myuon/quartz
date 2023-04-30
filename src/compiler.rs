@@ -500,12 +500,12 @@ impl Compiler {
         line: usize,
         column: usize,
     ) -> Result<GoToDefOutput> {
-        let mut module = self.parse(cwd, module_path, input, false)?;
+        let mut module = self.parse(cwd, module_path.clone(), input, false)?;
         let position = find_line_column_from_position(input, line, column);
 
         let mut typechecker = TypeChecker::new();
 
-        let result = typechecker.find_definition(&mut module, Self::get_main_path(), position)?;
+        let result = typechecker.find_definition(&mut module, module_path, position)?;
 
         if let Some((path, start, end)) = result {
             let loaded = self.loader.matches(&path).unwrap();

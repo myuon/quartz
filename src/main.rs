@@ -121,6 +121,7 @@ fn read_from_stdin() -> String {
     buffer
 }
 
+#[derive(Debug)]
 struct QuartzProject {
     project_path: String,
     module_path: Path,
@@ -257,6 +258,8 @@ fn main() -> Result<()> {
             line,
             column,
         } => {
+            let package = load_project(&file.clone().unwrap(), &project)?;
+
             let path = file.ok_or(anyhow::anyhow!("No file specified"))?;
             let mut file = std::fs::File::open(path.clone())?;
             let mut buffer = String::new();
@@ -264,7 +267,7 @@ fn main() -> Result<()> {
 
             let Ok(result) = compiler.go_to_def(
                 &project.unwrap_or(std::env::current_dir()?.to_str().unwrap().to_string()),
-                Path::empty(),
+                package.module_path,
                 &buffer,
                 line,
                 column,

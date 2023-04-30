@@ -1321,14 +1321,14 @@ impl TypeChecker {
         Ok(self.search_node_definition.clone())
     }
 
-    fn set_search_node_definition<S, T>(
+    fn set_search_node_definition<S: std::fmt::Debug, T: std::fmt::Debug>(
         &mut self,
         path: Path,
         def: &Source<S>,
         source: &Source<T>,
     ) {
         if let Some((search_path, cursor)) = &self.search_node {
-            if &self.current_path == search_path {
+            if self.current_path.starts_with(&search_path) {
                 if source.start.unwrap_or(0) <= *cursor && *cursor <= source.end.unwrap_or(0) {
                     if let None = self.search_node_definition {
                         match (def.start, def.end) {
