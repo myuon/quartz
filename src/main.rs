@@ -323,26 +323,26 @@ fn main() -> Result<()> {
             );
         }
         SubCommand::Format { write, file, stdin } => {
-            let path = file.ok_or(anyhow::anyhow!("No file specified"))?;
-            let buffer = if stdin {
+            if stdin {
                 let mut buffer = String::new();
                 std::io::stdin().read_to_string(&mut buffer)?;
 
-                buffer
+                let formatted = Compiler::format(&buffer)?;
+                println!("{}", formatted);
             } else {
+                let path = file.ok_or(anyhow::anyhow!("No file specified"))?;
                 let mut file = std::fs::File::open(path.clone())?;
                 let mut buffer = String::new();
                 file.read_to_string(&mut buffer)?;
 
-                buffer
-            };
+                let formatted = Compiler::format(&buffer)?;
 
-            let formatted = Compiler::format(&buffer)?;
-            if write {
-                let mut file = std::fs::File::create(path)?;
-                file.write_all(formatted.as_bytes())?;
-            } else {
-                println!("{}", formatted);
+                if write {
+                    let mut file = std::fs::File::create(path)?;
+                    file.write_all(formatted.as_bytes())?;
+                } else {
+                    println!("{}", formatted);
+                }
             }
         }
     }
