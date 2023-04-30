@@ -129,7 +129,7 @@ fun digit_to_string(digit: i32): string {
 }
 
 fun char_to_string(char: byte): string {
-    let s = make[array[byte,1]]();
+    let s = make[array[byte, 1]]();
     s.at(0) = char;
 
     return string {
@@ -155,7 +155,7 @@ fun new_string(p: ptr[byte], length: i32): string {
 fun is_included(s: string, n: i32, chars: string): bool {
     for i in 0..chars.length {
         if s.data.at(n) == chars.data.at(i) {
-        return true;
+            return true;
         }
     }
     return false;
@@ -173,7 +173,7 @@ fun is_prefix(s: string, n: i32, prefix: string): bool {
 
     for i in 0..prefix.length {
         if s.data.at(n + i) != prefix.data.at(i) {
-        return false;
+            return false;
         }
     }
 
@@ -218,6 +218,76 @@ module i32 {
         return string {
             data: str,
             length: digit,
+        };
+    }
+
+    fun parse(s: string): i32 {
+        let n = 0;
+        for i in 0..s.length {
+            let c = s.data.at(i) as i32;
+            if (c < 48 || c > 57) {
+                panic("i32.parse: invalid character: ".concat(digit_to_string(c)));
+            }
+            n = n * 10 + (c - 48);
+        }
+        return n;
+    }
+}
+
+fun i32_to_i64(n: i32): i64 {
+    if n < 0 {
+        return i64 {
+            hi: 0-1,
+            lo: n,
+        };
+    } else {
+        return i64 {
+            hi: 0,
+            lo: n,
+        };
+    }
+}
+
+fun i64_to_i32(n: i64): i32 {
+    return n.lo;
+}
+
+struct i64 {
+    hi: i32,
+    lo: i32,
+}
+
+module i64 {
+    fun to_string(self): string {
+        if self.hi == 0 && self.lo == 0 {
+            return "0";
+        }
+
+        let digit = 0;
+        let tmp = self;
+        while tmp.hi != 0 || tmp.lo != 0 {
+            tmp = tmp / (10 as i64);
+            digit = digit + 1;
+        }
+
+        let str = make[ptr[byte]](digit);
+        tmp = self;
+        for i in 0..digit {
+            let d = tmp % (10 as i64) as i32;
+            str.at(digit - i - 1) = (d + 48) as byte;
+            tmp = tmp / (10 as i64);
+        }
+
+        return string {
+            data: str,
+            length: digit,
+        };
+    }
+
+    fun new(hi: i32, lo: i32): i64 {
+        return i64 {
+            hi: hi,
+            lo: lo,
         };
     }
 }
@@ -325,6 +395,7 @@ fun panic(s: string, ..arg: vec[string]): any {
 
 // used in compiler
 let strings_ptr = 0;
+
 let strings_count = 0;
 
 fun load_string(index: i32): string {
@@ -341,16 +412,16 @@ fun dump_strings() {
     }
 }
 
-type MapEntry = {
+struct MapEntry {
     key: string?,
     value: any,
-};
+}
 
-type Map = {
+struct Map {
     count: i32,
     capacity: i32,
-    entries: ptr[MapEntry]
-};
+    entries: ptr[MapEntry],
+}
 
 fun map_make(): Map {
     return Map {
@@ -475,9 +546,9 @@ fun alloc(size: i32): ptr[any] {
     return current as ptr[any];
 }
 
-type error = {
+struct error {
     message: string,
-};
+}
 
 module error {
     fun new(message: string): error {
@@ -644,3 +715,4 @@ module derive {
         return derive::to_string_internal(t, true, 1);
     }
 }
+

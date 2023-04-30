@@ -9,7 +9,6 @@ pub enum Type {
     Bool,
     I32,
     U32,
-    I64,
     Byte,
     Func(Vec<Type>, Box<Type>),
     VariadicFunc(Vec<Type>, Box<Type>, Box<Type>),
@@ -33,7 +32,6 @@ impl Type {
             Type::Bool => "bool".to_string(),
             Type::I32 => "i32".to_string(),
             Type::U32 => "u32".to_string(),
-            Type::I64 => "i64".to_string(),
             Type::Func(args, ret) => format!(
                 "({}) -> {}",
                 args.iter()
@@ -86,6 +84,7 @@ impl Type {
             Type::Array(_, _) => Ok(Ident("array".to_string())),
             Type::Vec(_) => Ok(Ident("vec".to_string())),
             Type::I32 => Ok(Ident("i32".to_string())),
+            Type::U32 => Ok(Ident("u32".to_string())),
             Type::Bool => Ok(Ident("bool".to_string())),
             _ => bail!("expected identifier type, but found {}", self.to_string()),
         }
@@ -114,7 +113,8 @@ impl Type {
 
     pub fn is_integer_type(&self) -> bool {
         match self {
-            Type::I32 | Type::U32 | Type::I64 => true,
+            Type::I32 | Type::U32 => true,
+            Type::Ident(ident) if ident.as_str() == "i64" => true,
             _ => false,
         }
     }
@@ -159,8 +159,8 @@ pub enum Lit {
     Nil(bool),
     Bool(bool),
     I32(i32),
+    I32Base2(i32),
     U32(u32),
-    I64(i64),
     String(String, StringLiteralType),
 }
 
@@ -179,6 +179,10 @@ pub enum BinOp {
     Gte,
     Equal,
     NotEqual,
+    BitOr,
+    BitAnd,
+    BitShiftL,
+    BitShiftR,
 }
 
 impl BinOp {
@@ -197,6 +201,10 @@ impl BinOp {
             BinOp::Gte => ">=".to_string(),
             BinOp::Equal => "==".to_string(),
             BinOp::NotEqual => "!=".to_string(),
+            BinOp::BitOr => "|".to_string(),
+            BinOp::BitAnd => "&".to_string(),
+            BinOp::BitShiftL => "<<".to_string(),
+            BinOp::BitShiftR => ">>".to_string(),
         }
     }
 }
@@ -352,7 +360,7 @@ impl Func {
 pub enum Decl {
     Func(Func),
     Let(Ident, Type, Source<Expr>),
-    Type(Ident, Vec<Source<(Ident, Type)>>),
+    Type(Source<Ident>, Vec<Source<(Ident, Type)>>),
     Module(Path, Module),
     Import(Path),
 }

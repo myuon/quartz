@@ -184,6 +184,15 @@ impl Compiler {
             Ident("std".to_string()),
         ]));
 
+        for decl in &main.0 {
+            match &decl.data {
+                Decl::Import(path) => {
+                    parser.imports.push(path.clone());
+                }
+                _ => {}
+            }
+        }
+
         while let Some(path) = parser.imports.pop() {
             if visited.contains(&path) {
                 continue;
@@ -256,7 +265,7 @@ impl Compiler {
                 start: (0, 0),
                 end: (0, 0),
                 source_path: None,
-                message: format!("Unknown error: {}", error),
+                message: format!("Unknown error: {:?}", error),
             }]
         }
     }

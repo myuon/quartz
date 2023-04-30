@@ -136,18 +136,18 @@ impl Parser {
         })
     }
 
-    fn struct_decl(&mut self) -> Result<(Ident, Vec<Source<(Ident, Type)>>)> {
+    fn struct_decl(&mut self) -> Result<(Source<Ident>, Vec<Source<(Ident, Type)>>)> {
         self.expect(Lexeme::Struct)?;
-        let ident = self.ident()?.data;
+        let ident = self.ident()?;
 
         let t = self.record_type_decl()?;
 
         Ok((ident, t))
     }
 
-    fn type_decl(&mut self) -> Result<(Ident, Vec<Source<(Ident, Type)>>)> {
+    fn type_decl(&mut self) -> Result<(Source<Ident>, Vec<Source<(Ident, Type)>>)> {
         self.expect(Lexeme::Type)?;
-        let ident = self.ident()?.data;
+        let ident = self.ident()?;
         self.expect(Lexeme::Equal)?;
 
         let t = self.record_type_decl()?;
@@ -536,7 +536,7 @@ impl Parser {
         match token.lexeme {
             Lexeme::Lt => {
                 self.consume()?;
-                let rhs = self.expr_(with_struct)?;
+                let rhs = self.term_3(with_struct)?;
 
                 current = self.source_from(
                     Expr::BinOp(BinOp::Lt, Type::Omit(0), Box::new(current), Box::new(rhs)),
@@ -545,7 +545,7 @@ impl Parser {
             }
             Lexeme::Gt => {
                 self.consume()?;
-                let rhs = self.expr_(with_struct)?;
+                let rhs = self.term_3(with_struct)?;
 
                 current = self.source_from(
                     Expr::BinOp(BinOp::Gt, Type::Omit(0), Box::new(current), Box::new(rhs)),
@@ -554,7 +554,7 @@ impl Parser {
             }
             Lexeme::Gte => {
                 self.consume()?;
-                let rhs = self.expr_(with_struct)?;
+                let rhs = self.term_3(with_struct)?;
 
                 current = self.source_from(
                     Expr::BinOp(BinOp::Gte, Type::Omit(0), Box::new(current), Box::new(rhs)),
@@ -563,7 +563,7 @@ impl Parser {
             }
             Lexeme::Lte => {
                 self.consume()?;
-                let rhs = self.expr_(with_struct)?;
+                let rhs = self.term_3(with_struct)?;
 
                 current = self.source_from(
                     Expr::BinOp(BinOp::Lte, Type::Omit(0), Box::new(current), Box::new(rhs)),
@@ -572,7 +572,7 @@ impl Parser {
             }
             Lexeme::DoubleDot => {
                 self.consume()?;
-                let rhs = self.expr_(with_struct)?;
+                let rhs = self.term_3(with_struct)?;
 
                 current = self.source_from(Expr::Range(Box::new(current), Box::new(rhs)), position);
             }
@@ -613,6 +613,24 @@ impl Parser {
                     current = self
                         .source_from(Expr::As(Box::new(current), Type::Omit(0), type_), position);
                 }
+                Lexeme::BitAnd => {
+                    self.consume()?;
+                    let rhs = self.term_4(with_struct)?;
+
+                    current = self.source_from(
+                        Expr::BinOp(BinOp::BitAnd, Type::I32, Box::new(current), Box::new(rhs)),
+                        position,
+                    );
+                }
+                Lexeme::BitOr => {
+                    self.consume()?;
+                    let rhs = self.term_4(with_struct)?;
+
+                    current = self.source_from(
+                        Expr::BinOp(BinOp::BitOr, Type::I32, Box::new(current), Box::new(rhs)),
+                        position,
+                    );
+                }
                 _ => break,
             }
         }
@@ -650,6 +668,34 @@ impl Parser {
 
                 current = self.source_from(
                     Expr::BinOp(BinOp::Mod, Type::Omit(0), Box::new(current), Box::new(rhs)),
+                    position,
+                );
+            }
+            Lexeme::BitShiftL => {
+                self.consume()?;
+                let rhs = self.term_1(with_struct)?;
+
+                current = self.source_from(
+                    Expr::BinOp(
+                        BinOp::BitShiftL,
+                        Type::I32,
+                        Box::new(current),
+                        Box::new(rhs),
+                    ),
+                    position,
+                );
+            }
+            Lexeme::BitShiftR => {
+                self.consume()?;
+                let rhs = self.term_1(with_struct)?;
+
+                current = self.source_from(
+                    Expr::BinOp(
+                        BinOp::BitShiftR,
+                        Type::I32,
+                        Box::new(current),
+                        Box::new(rhs),
+                    ),
                     position,
                 );
             }
@@ -958,7 +1004,7 @@ impl Parser {
         match current.lexeme {
             Lexeme::Int(int) if int <= i32::MAX as i64 => Ok(Lit::I32(int as i32)),
             Lexeme::Int(int) if int <= u32::MAX as i64 => Ok(Lit::U32(int as u32)),
-            Lexeme::Int(int) => Ok(Lit::I64(int)),
+            Lexeme::IntBase2(int) if int <= i32::MAX as i64 => Ok(Lit::I32Base2(int as i32)),
             Lexeme::String(string) => Ok(Lit::String(string, StringLiteralType::String)),
             Lexeme::RawString(string) => Ok(Lit::String(string, StringLiteralType::Raw)),
             Lexeme::True => Ok(Lit::Bool(true)),
@@ -982,7 +1028,6 @@ impl Parser {
                 "nil" => Type::Nil,
                 "i32" => Type::I32,
                 "u32" => Type::U32,
-                "i64" => Type::I64,
                 "bool" => Type::Bool,
                 "byte" => Type::Byte,
                 "array" => {

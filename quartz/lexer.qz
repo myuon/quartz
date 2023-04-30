@@ -1,8 +1,8 @@
-type Token = {
+struct Token {
     lexeme: string,
     string_value: string?,
     position: i32,
-};
+}
 
 module Token {
     fun to_string(self): string {
@@ -15,10 +15,10 @@ module Token {
     }
 }
 
-type Lexer = {
+struct Lexer {
     position: i32,
     tokens: vec[Token],
-};
+}
 
 module Lexer {
     fun new(): Lexer {
@@ -40,7 +40,11 @@ module Lexer {
 
     fun consume_ident(self, input: string): string? {
         let ident = make[vec[byte]]();
-        while is_included(input, self.position, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_") {
+        while is_included(
+            input,
+            self.position,
+            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_",
+        ) {
             ident.push(input.data.at(self.position));
             self.position = self.position + 1;
         }
@@ -181,9 +185,13 @@ module Lexer {
 
             return _ or error::new(`== Abort ==
 position: {}
-input: {}`.format(self.position.to_string(), input.slice_start(self.position)));
+input: {}`.format(
+                self.position.to_string(),
+                input.slice_start(self.position),
+            ));
         }
 
         return nil;
     }
 }
+

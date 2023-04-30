@@ -1,12 +1,15 @@
 import quartz::ast;
 import quartz::ir;
+import quartz::value;
 
-type Generator = {
+let MODE_READABLE_WASM = true;
+
+struct Generator {
     writer: string,
     depth: i32,
     index: i32,
     globals: map[string, Type],
-};
+}
 
 module Generator {
     fun new(): Generator {
@@ -80,27 +83,70 @@ module Generator {
 
         self.start();
         self.write("global");
-        self.write("$heap_ptr (mut i32) (i32.const 8)");
+        self.write("$heap_ptr (mut i64) (i64.const 8)");
         self.end();
+
+        self.global_let(struct {
+            name: "_value_i32_0",
+            type_: IrType {
+                t_i32: true?,
+                ..nil,
+            },
+            value: IrTerm {
+                t_i32: 0?,
+                ..nil,
+            },
+        });
+
+        self.global_let(struct {
+            name: "_value_i32_1",
+            type_: IrType {
+                t_i32: true?,
+                ..nil,
+            },
+            value: IrTerm {
+                t_i32: 0?,
+                ..nil,
+            },
+        });
 
         self.start();
         self.write("memory 1");
         self.end();
 
         self.start();
-        self.write(`func $alloc (param $size i32) (result i32)
-    (local $p i32)
+        self.write(
+            `func $alloc (param $size i64) (result i64)
+    (local $p i64)
 
     global.get $heap_ptr
     local.set $p
 
     global.get $heap_ptr
     local.get $size
-    i32.add
+    i64.add
     global.set $heap_ptr
 
     local.get $p
-`);
+`,
+        );
+        self.end();
+
+        self.start();
+        self.write(`func $i32_mul (param $a i64) (param $b i64) (result i64)`);
+
+        self.new_statement();
+        self.write("local.get $a");
+
+        self.new_statement();
+        self.write("local.get $b");
+
+        self.convert_stack_to_i32_2();
+
+        self.new_statement();
+        self.write("i32.mul");
+
+        self.convert_stack_from_i32_1();
         self.end();
 
         self.start();
@@ -112,17 +158,16 @@ module Generator {
         return self.generate();
     }
 
-    fun global_let(self, global_let: struct {
-        name: string,
-        type_: IrType,
-        value: IrTerm,
-    }) {
+    fun global_let(
+        self,
+        global_let: struct {
+            name: string,
+            type_: IrType,
+            value: IrTerm,
+        },
+    ) {
         self.start();
-        self.write(format(
-            "global ${} (mut {})",
-            global_let.name,
-            global_let.type_.to_string(),
-        ));
+        self.write(format("global ${} (mut {})", global_let.name, "i64"));
         self.start();
         self.expression(global_let.value);
         self.end();
@@ -136,11 +181,11 @@ module Generator {
 
         for i in 0..func.params.length {
             let p = func.params.at(i);
-            self.write("(param $".concat(p.name).concat(" ").concat(p.type_.to_string()).concat(")"));
+            self.write("(param $".concat(p.name).concat(" ").concat("i64").concat(")"));
         }
 
         if !func.result_type.is_nil() {
-            self.write("(result ".concat(func.result_type.to_string()).concat(")"));
+            self.write("(result i64)");
         }
 
         for statement in func.body {
@@ -148,7 +193,7 @@ module Generator {
             for local in locals {
                 self.new_statement();
                 self.start();
-                self.write(format("local ${} {}", local, "i32"));
+                self.write(format("local ${} {}", local, "i64"));
                 self.end();
             }
         }
@@ -156,7 +201,7 @@ module Generator {
         for i in 0..func.body.length {
             self.expression(func.body.at(i));
         }
-        
+
         self.end();
     }
 
@@ -171,7 +216,15 @@ module Generator {
             return;
         }
         if expr.t_i32 != nil {
-            self.write("i32.const ".concat(expr.t_i32!));
+            if MODE_READABLE_WASM {
+                self.new_statement();
+                self.write(format(" ;; {}", expr.t_i32!.to_string()));
+            }
+
+            self.write_value(Value {
+                t_i32: expr.t_i32!?,
+                ..nil,
+            });
             return;
         }
         if expr.t_let != nil {
@@ -203,23 +256,26 @@ module Generator {
             if callee.t_ident != nil {
                 let ident = callee.t_ident!;
                 if ident.equal("add") {
-                    self.write("i32.add");
+                    self.write("i64.add");
                     return;
                 }
                 if ident.equal("sub") {
-                    self.write("i32.sub");
+                    self.write("i64.sub");
                     return;
                 }
                 if ident.equal("mult") {
-                    self.write("i32.mul");
+                    self.write("call $i32_mul");
                     return;
                 }
                 if ident.equal("equal") {
-                    self.write("i32.eq");
+                    self.write("i64.eq");
+                    self.convert_stack_from_bool_1();
                     return;
                 }
                 if ident.equal("lt") {
+                    self.convert_stack_to_i32_2();
                     self.write("i32.lt_s");
+                    self.convert_stack_from_bool_1();
                     return;
                 }
 
@@ -247,6 +303,7 @@ module Generator {
         if expr.t_if != nil {
             self.new_statement();
             self.expression(expr.t_if!.condition);
+            self.convert_stack_to_bool();
 
             self.start();
             self.write("if");
@@ -300,6 +357,8 @@ module Generator {
             self.write("$continue");
 
             self.expression(expr.t_while!.condition);
+            self.convert_stack_to_bool();
+
             self.new_statement();
             self.write("i32.eqz");
             self.new_statement();
@@ -327,11 +386,34 @@ module Generator {
             self.new_statement();
             self.expression(expr.t_load!.offset);
 
+            self.convert_stack_to_i32_2();
+
             self.new_statement();
             self.write("i32.add");
 
+            let load_size = expr.t_load!.type_.sizeof() * 8;
+            let suffix = "";
+            if load_size != 64 {
+                suffix = format("{}_u", load_size.to_string());
+            }
+
             self.new_statement();
-            self.write("i32.load");
+            self.write(format("{}.load{}", Value::wasm_type(), suffix));
+            self.write("offset=8");
+
+            if expr.t_load!.type_.t_byte != nil {
+                self.new_statement();
+                self.write("i64.const 32");
+
+                self.new_statement();
+                self.write("i64.shl");
+
+                self.new_statement();
+                self.write("i64.const 4");
+
+                self.new_statement();
+                self.write("i64.xor");
+            }
 
             return;
         }
@@ -342,25 +424,46 @@ module Generator {
             self.new_statement();
             self.expression(expr.t_store!.offset);
 
+            self.convert_stack_to_i32_2();
+
             self.new_statement();
             self.write("i32.add");
 
             self.new_statement();
             self.expression(expr.t_store!.value);
 
+            let store_size = expr.t_store!.type_.sizeof() * 8;
+
+            if store_size != 64 {
+                self.new_statement();
+                self.write(format("i64.const 32"));
+
+                self.new_statement();
+                self.write(format("i64.shr_u"));
+            }
+
+            let suffix = "";
+            if store_size != 64 {
+                suffix = format("{}", store_size.to_string());
+            }
+
             self.new_statement();
-            self.write("i32.store");
+            self.write(format("i64.store{}", suffix));
+            self.write("offset=8");
 
             return;
         }
         if expr.t_sizeof != nil {
-            let size = expr.t_sizeof!.type_.sizeof().to_string();
+            let size = expr.t_sizeof!.type_.sizeof();
 
             self.new_statement();
-            self.write(format(";; {} (sizeof)", size));
+            self.write(format(" ;; {} (sizeof)", size.to_string()));
 
             self.new_statement();
-            self.write(format("i32.const {}", size));
+            self.write_value(Value {
+                t_i32: size?,
+                ..nil,
+            });
 
             return;
         }
@@ -382,4 +485,90 @@ module Generator {
 
         panic("not implemented: expr_lhs");
     }
+
+    fun write_value(self, value: Value) {
+        self.new_statement();
+        self.write(format("{}.const {}", Value::wasm_type(), value.as_i64().to_string()));
+    }
+
+    fun convert_stack_to_i32_2(self) {
+        self.new_statement();
+        self.write("global.set $_value_i32_1");
+
+        self.convert_stack_to_i32_1();
+
+        self.new_statement();
+        self.write("global.get $_value_i32_1");
+
+        self.convert_stack_to_i32_1();
+    }
+
+    fun convert_stack_to_i32_1(self) {
+        self.new_statement();
+        self.write("i64.const 32");
+
+        self.new_statement();
+        self.write("i64.shr_u");
+
+        self.new_statement();
+        self.write("i32.wrap_i64");
+    }
+
+    fun convert_stack_from_i32_1(self) {
+        self.new_statement();
+        self.write("i64.extend_i32_s");
+
+        self.new_statement();
+        self.write("i64.const 32");
+
+        self.new_statement();
+        self.write("i64.shl");
+    }
+
+    fun convert_stack_from_bool_1(self) {
+        self.new_statement();
+        self.write("i64.extend_i32_s");
+
+        self.new_statement();
+        self.write("i64.const 32");
+
+        self.new_statement();
+        self.write("i64.shl");
+
+        self.new_statement();
+        self.write("i64.const 2");
+
+        self.new_statement();
+        self.write("i64.or");
+    }
+
+    fun convert_stack_to_bool(self) {
+        self.new_statement();
+        self.write("i64.const 32");
+
+        self.new_statement();
+        self.write("i64.shr_u");
+
+        self.new_statement();
+        self.write("i64.const 1");
+
+        self.new_statement();
+        self.write("i64.and");
+
+        self.new_statement();
+        self.write("i32.wrap_i64");
+    }
+
+    fun generate_op_arithmetic(self, code: string) {
+        self.convert_stack_to_i32_2();
+        self.write(format("i32.{}", code));
+        self.convert_stack_from_i32_1();
+    }
+
+    fun generate_op_comparison(self, code: string) {
+        self.convert_stack_to_i32_2();
+        self.write(format("i32.{}", code));
+        self.convert_stack_from_bool_1();
+    }
 }
+

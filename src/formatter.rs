@@ -90,7 +90,7 @@ impl<'s> Formatter<'s> {
             }
             Decl::Type(ident, rs) => {
                 self.write(writer, "struct");
-                self.write(writer, ident.as_str());
+                self.write(writer, ident.data.as_str());
                 self.record_fields(writer, rs);
             }
             Decl::Module(path, module) => {
@@ -392,11 +392,11 @@ impl<'s> Formatter<'s> {
                 Lit::I32(i) => {
                     self.write_if(writer, &i.to_string(), skip_space);
                 }
+                Lit::I32Base2(i) => {
+                    self.write_if(writer, &format!("0b{:b}", i), skip_space);
+                }
                 Lit::U32(u) => {
                     self.write_if(writer, &u.to_string(), skip_space);
-                }
-                Lit::I64(i) => {
-                    self.write_if(writer, &i.to_string(), skip_space);
                 }
                 Lit::String(s, literal_type) => match literal_type {
                     StringLiteralType::String => {

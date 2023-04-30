@@ -1,8 +1,8 @@
 import quartz::ast;
 
-type IrTerm = {
+struct IrTerm {
     t_nil: bool?,
-    t_i32: string?,
+    t_i32: i32?,
     t_ident: string?,
     t_func: IrFunc?,
     t_call: IrCall?,
@@ -47,7 +47,7 @@ type IrTerm = {
     t_sizeof: struct {
         type_: IrType,
     }?,
-};
+}
 
 module IrTerm {
     fun to_string(self): string {
@@ -55,15 +55,15 @@ module IrTerm {
     }
 
     fun ident(name: string): IrTerm {
-        return IrTerm{
+        return IrTerm {
             t_ident: name?,
             ..nil,
         };
     }
 
     fun i32(value: i32): IrTerm {
-        return IrTerm{
-            t_i32: value.to_string()?,
+        return IrTerm {
+            t_i32: value?,
             ..nil,
         };
     }
@@ -118,7 +118,7 @@ module IrTerm {
     }
 }
 
-type IrFunc = {
+struct IrFunc {
     name: string,
     params: vec[struct {
         name: string,
@@ -127,39 +127,40 @@ type IrFunc = {
     body: vec[IrTerm],
     result_type: IrType,
     locals: vec[string],
-};
+}
 
-type IrCall = {
+struct IrCall {
     callee: IrTerm,
     args: vec[IrTerm],
-};
+}
 
-type IrLet = {
+struct IrLet {
     name: string,
     type_: IrType,
     value: IrTerm,
-};
+}
 
-type IrReturn = {
+struct IrReturn {
     value: IrTerm,
-};
+}
 
-type IrType = {
+struct IrType {
     t_nil: bool?,
     t_i32: bool?,
     t_address: bool?,
-};
+    t_byte: bool?,
+}
 
 module IrType {
     fun new(t: Type): IrType {
         if t.t_nil != nil {
-            return IrType{
+            return IrType {
                 t_nil: true?,
                 ..nil,
             };
         }
         if t.t_i32 != nil {
-            return IrType{
+            return IrType {
                 t_i32: true?,
                 ..nil,
             };
@@ -169,14 +170,7 @@ module IrType {
     }
 
     fun to_string(self): string {
-        if self.t_nil != nil {
-            return "nil";
-        }
-        if self.t_i32 != nil {
-            return "i32";
-        }
-
-        return panic("unknown type");
+        return derive::to_string(self);
     }
 
     fun is_nil(self): bool {
@@ -184,16 +178,11 @@ module IrType {
     }
 
     fun sizeof(self): i32 {
-        if self.t_nil != nil {
-            return 4;
+        if self.t_byte != nil {
+            return 1;
+        } else {
+            return 8;
         }
-        if self.t_i32 != nil {
-            return 4;
-        }
-        if self.t_address != nil {
-            return 4;
-        }
-
-        return panic("unknown type");
     }
 }
+

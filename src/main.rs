@@ -108,6 +108,8 @@ enum SubCommand {
     Format {
         #[clap(long)]
         write: bool,
+        #[clap(long)]
+        stdin: bool,
 
         file: Option<String>,
     },
@@ -153,6 +155,37 @@ fn load_project(file_path: &String, project_path: &Option<String>) -> Result<Qua
     })
 }
 
+fn print_result_value(result: Box<[Value]>) {
+    if result.to_vec() != vec![Value::I64(value::Value::nil().as_i64())] {
+        for r in result.iter() {
+            match r {
+                Value::I64(t) => {
+                    let v = value::Value::from_i64(*t);
+
+                    match v {
+                        value::Value::I32(p) => {
+                            println!("{}", p);
+                        }
+                        value::Value::Byte(b) => {
+                            println!("{}", b as char);
+                        }
+                        value::Value::Bool(b) => {
+                            println!("{}", b);
+                        }
+                        value::Value::Pointer(0) => {
+                            println!("nil");
+                        }
+                        value::Value::Pointer(p) => {
+                            println!("<address 0x{:x}>", p);
+                        }
+                    }
+                }
+                _ => todo!(),
+            }
+        }
+    }
+}
+
 fn main() -> Result<()> {
     let mut compiler = Compiler::new();
     let mut runtime = Runtime::new();
@@ -170,32 +203,7 @@ fn main() -> Result<()> {
             let wat = compile(&mut compiler, stdin, file, entrypoint.map(|t| Ident(t)))?;
             let result = runtime.run(&wat)?;
 
-            if result.to_vec() != vec![Value::I64(value::Value::nil().as_i64())] {
-                for r in result.iter() {
-                    match r {
-                        Value::I64(t) => {
-                            let v = value::Value::from_i64(*t);
-
-                            match v {
-                                value::Value::I32(p) => {
-                                    println!("{}", p);
-                                }
-                                value::Value::Byte(b) => {
-                                    println!("{}", b as char);
-                                }
-                                value::Value::Bool(b) => {
-                                    println!("{}", b);
-                                }
-                                value::Value::Pointer(0) => {
-                                    println!("nil");
-                                }
-                                value::Value::Pointer(_) => todo!(),
-                            }
-                        }
-                        _ => todo!(),
-                    }
-                }
-            }
+            print_result_value(result);
         }
         SubCommand::RunWat { stdin, file } => {
             let wat = if stdin {
@@ -210,11 +218,8 @@ fn main() -> Result<()> {
             };
 
             let result = runtime.run(&wat)?;
-            if !result.is_empty() {
-                for r in result.iter() {
-                    println!("{}", r.to_string());
-                }
-            }
+
+            print_result_value(result);
         }
         SubCommand::Check { project, file } => {
             let path = file.ok_or(anyhow::anyhow!("No file specified"))?;
@@ -317,11 +322,20 @@ fn main() -> Result<()> {
                 )?
             );
         }
-        SubCommand::Format { write, file } => {
+        SubCommand::Format { write, file, stdin } => {
             let path = file.ok_or(anyhow::anyhow!("No file specified"))?;
-            let mut file = std::fs::File::open(path.clone())?;
-            let mut buffer = String::new();
-            file.read_to_string(&mut buffer)?;
+            let buffer = if stdin {
+                let mut buffer = String::new();
+                std::io::stdin().read_to_string(&mut buffer)?;
+
+                buffer
+            } else {
+                let mut file = std::fs::File::open(path.clone())?;
+                let mut buffer = String::new();
+                file.read_to_string(&mut buffer)?;
+
+                buffer
+            };
 
             let formatted = Compiler::format(&buffer)?;
             if write {

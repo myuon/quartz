@@ -6,6 +6,7 @@ import quartz::ir;
 import quartz::ir_code_gen;
 import quartz::generator;
 import quartz::typecheck;
+import quartz::value;
 
 fun assert_eq_string(a: string, b: string) {
     if !a.equal(b) {
@@ -49,6 +50,9 @@ fun test() {
     assert(!reflection::is_pointer(10));
     assert(!reflection::is_pointer(true));
     assert(!reflection::is_pointer("foo".at(1)));
+
+    assert_eq_string((1024 as i64).to_string(), "1024");
+    assert_eq_string((1 as i64).to_string(), "1");
 }
 
 fun main() {
