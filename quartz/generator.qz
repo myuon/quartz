@@ -269,10 +269,13 @@ module Generator {
                 }
                 if ident.equal("equal") {
                     self.write("i64.eq");
+                    self.convert_stack_from_bool_1();
                     return;
                 }
                 if ident.equal("lt") {
-                    self.write("i64.lt_s");
+                    self.convert_stack_to_i32_2();
+                    self.write("i32.lt_s");
+                    self.convert_stack_from_bool_1();
                     return;
                 }
 
