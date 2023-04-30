@@ -86,6 +86,30 @@ module Generator {
         self.write("$heap_ptr (mut i64) (i64.const 8)");
         self.end();
 
+        self.global_let(struct {
+            name: "_value_i32_0",
+            type_: IrType {
+                t_i32: true?,
+                ..nil,
+            },
+            value: IrTerm {
+                t_i32: 0?,
+                ..nil,
+            },
+        });
+
+        self.global_let(struct {
+            name: "_value_i32_1",
+            type_: IrType {
+                t_i32: true?,
+                ..nil,
+            },
+            value: IrTerm {
+                t_i32: 0?,
+                ..nil,
+            },
+        });
+
         self.start();
         self.write("memory 1");
         self.end();
@@ -106,6 +130,23 @@ module Generator {
     local.get $p
 `,
         );
+        self.end();
+
+        self.start();
+        self.write(`func $i32_mul (param $a i64) (param $b i64) (result i64)`);
+
+        self.new_statement();
+        self.write("local.get $a");
+
+        self.new_statement();
+        self.write("local.get $b");
+
+        self.convert_stack_to_i32_2();
+
+        self.new_statement();
+        self.write("i32.mul");
+
+        self.convert_stack_from_i32_1();
         self.end();
 
         self.start();
@@ -461,13 +502,13 @@ module Generator {
 
     fun convert_stack_to_i32_1(self) {
         self.new_statement();
-        self.write("global.set $_value_i32_0");
+        self.write("i64.const 32");
 
         self.new_statement();
-        self.write("global.get $_value_i32_0");
+        self.write("i64.shr_u");
 
         self.new_statement();
-        self.write("i64.extend_i32_u");
+        self.write("i32.wrap_i64");
     }
 
     fun convert_stack_from_i32_1(self) {
