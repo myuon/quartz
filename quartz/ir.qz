@@ -178,17 +178,11 @@ module IrType {
     }
 
     fun sizeof(self): i32 {
-        if self.t_nil != nil {
-            return 4;
+        if self.t_byte != nil {
+            return 1;
+        } else {
+            return 8;
         }
-        if self.t_i32 != nil {
-            return 4;
-        }
-        if self.t_address != nil {
-            return 4;
-        }
-
-        return panic("unknown type");
     }
 }
 
