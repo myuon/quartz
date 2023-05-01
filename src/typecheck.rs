@@ -1536,9 +1536,9 @@ impl Constrains {
                 for i in 0..rs1.len() {
                     if rs1[i].0 != rs2[i].0 {
                         bail!(
-                            "type mismatch, expected {:?}, but found {:?}",
-                            rs1[i].0,
-                            rs2[i].0
+                            "type mismatch, expected {}, but found {}",
+                            rs1[i].0.as_str(),
+                            rs2[i].0.as_str()
                         );
                     }
 
@@ -1548,6 +1548,7 @@ impl Constrains {
 
                 Ok(result)
             }
+            (Type::Vec(v1), Type::Vec(v2)) => Constrains::unify(v1.as_mut(), v2.as_mut()),
             (_, Type::Any) => Ok(Constrains::empty()),
             (Type::Any, _) => Ok(Constrains::empty()),
             (type1, type2) => {
