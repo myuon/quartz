@@ -69,8 +69,11 @@ impl TypeChecker {
                     "array",
                     vec![],
                     Type::Record(vec![
-                        (Ident("data".to_string()), Type::Ptr(Box::new(Type::Byte))),
-                        (Ident("length".to_string()), Type::I32),
+                        (
+                            Ident("data".to_string()),
+                            Source::unknown(Type::Ptr(Box::new(Type::Byte))),
+                        ),
+                        (Ident("length".to_string()), Source::unknown(Type::I32)),
                     ]),
                 ),
                 (
@@ -79,10 +82,10 @@ impl TypeChecker {
                     Type::Record(vec![
                         (
                             Ident("data".to_string()),
-                            Type::Ptr(Box::new(Type::Omit(1))),
+                            Source::unknown(Type::Ptr(Box::new(Type::Omit(1)))),
                         ),
-                        (Ident("length".to_string()), Type::I32),
-                        (Ident("capacity".to_string()), Type::I32),
+                        (Ident("length".to_string()), Source::unknown(Type::I32)),
+                        (Ident("capacity".to_string()), Source::unknown(Type::I32)),
                     ]),
                 ),
             ]
@@ -130,7 +133,13 @@ impl TypeChecker {
                         ident.data.clone(),
                         (
                             vec![],
-                            Type::Record(type_.clone().into_iter().map(|t| t.data).collect()),
+                            Type::Record(
+                                type_
+                                    .clone()
+                                    .into_iter()
+                                    .map(|t| (t.data.0.clone(), t.map(|t| t.1)))
+                                    .collect(),
+                            ),
                         ),
                     );
                 }
@@ -191,7 +200,13 @@ impl TypeChecker {
                     .insert(self.path_to(&ident), Source::unknown(type_.clone()));
             }
             Decl::Type(ident, type_) => {
-                let t = Type::Record(type_.clone().into_iter().map(|t| t.data).collect());
+                let t = Type::Record(
+                    type_
+                        .clone()
+                        .into_iter()
+                        .map(|t| (t.data.0.clone(), t.map(|t| t.1)))
+                        .collect(),
+                );
                 self.resolve_type(&t).context(ErrorInSource {
                     path: Some(self.current_path.clone()),
                     start: ident.start.unwrap_or(0),
@@ -234,7 +249,7 @@ impl TypeChecker {
             }
             Type::Record(rs) => {
                 for (_, t) in rs {
-                    self.resolve_type(t)?;
+                    self.resolve_type(&t.data)?;
                 }
             }
             Type::Ident(i) => {
@@ -797,19 +812,21 @@ impl TypeChecker {
                 for (field, type_) in &mut record_types {
                     if let Some((_, expr)) = record.iter_mut().find(|(f, _)| f == field) {
                         let mut expr_type = self.expr(expr)?;
-                        self.unify(type_, &mut expr_type).context(ErrorInSource {
-                            path: Some(self.current_path.clone()),
-                            start: expr.start.unwrap_or(0),
-                            end: expr.end.unwrap_or(0),
-                        })?;
+                        self.unify(&mut type_.data, &mut expr_type)
+                            .context(ErrorInSource {
+                                path: Some(self.current_path.clone()),
+                                start: expr.start.unwrap_or(0),
+                                end: expr.end.unwrap_or(0),
+                            })?;
                     } else {
                         if let Some(expansion) = expansion {
                             let mut expr_type = self.expr(expansion)?;
-                            self.unify(type_, &mut expr_type).context(ErrorInSource {
-                                path: Some(self.current_path.clone()),
-                                start: expansion.start.unwrap_or(0),
-                                end: expansion.end.unwrap_or(0),
-                            })?;
+                            self.unify(&mut type_.data, &mut expr_type)
+                                .context(ErrorInSource {
+                                    path: Some(self.current_path.clone()),
+                                    start: expansion.start.unwrap_or(0),
+                                    end: expansion.end.unwrap_or(0),
+                                })?;
                         } else {
                             return Err(anyhow!("missing field: {}", field.as_str()).context(
                                 ErrorInSource {
@@ -841,7 +858,7 @@ impl TypeChecker {
 
                 for (field, expr) in record {
                     let type_ = self.expr(expr)?;
-                    record_types.push((field.clone(), type_));
+                    record_types.push((field.clone(), Source::transfer(type_, expr)));
                 }
 
                 *type_ = Type::Record(record_types);
@@ -927,10 +944,15 @@ impl TypeChecker {
                     // field access
 
                     let t = fields[label].clone();
-                    self.set_search_node_type(t.clone(), expr);
-                    self.set_completion(t.clone(), expr);
+                    self.set_search_node_type(t.data.clone(), &t);
+                    self.set_completion(t.data.clone(), &t);
+                    self.set_search_node_definition(
+                        self.current_path.clone(),
+                        &t,
+                        &Source::transfer(label, &t),
+                    );
 
-                    Ok(t)
+                    Ok(t.data)
                 } else {
                     // method access
                     let mut path = Path::new(vec![
@@ -1227,7 +1249,11 @@ impl TypeChecker {
         Ok(())
     }
 
-    fn resolve_record_type(&mut self, type_: Type, args: Vec<Type>) -> Result<Vec<(Ident, Type)>> {
+    fn resolve_record_type(
+        &mut self,
+        type_: Type,
+        args: Vec<Type>,
+    ) -> Result<Vec<(Ident, Source<Type>)>> {
         match type_ {
             Type::Ident(ident) => {
                 let (params, mut type_) = self
@@ -1388,7 +1414,7 @@ impl TypeChecker {
                     // field completion
                     if let Ok(rs) = self.resolve_record_type(type_.clone(), vec![]) {
                         for (field, type_) in rs {
-                            completion.push(("field".to_string(), field.0, type_.to_string()));
+                            completion.push(("field".to_string(), field.0, type_.data.to_string()));
                         }
                     }
 
@@ -1439,7 +1465,7 @@ fn is_prefix_vec<T: PartialEq>(a: &[T], b: &[T]) -> bool {
     a.len() <= b.len() && a.iter().zip(b).all(|(x, y)| x == y)
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 struct Constrains {
     constrains: HashMap<usize, Type>,
 }
@@ -1505,6 +1531,23 @@ impl Constrains {
 
                 Ok(constrains)
             }
+            (Type::Record(rs1), Type::Record(rs2)) => {
+                let mut result = Constrains::empty();
+                for i in 0..rs1.len() {
+                    if rs1[i].0 != rs2[i].0 {
+                        bail!(
+                            "type mismatch, expected {:?}, but found {:?}",
+                            rs1[i].0,
+                            rs2[i].0
+                        );
+                    }
+
+                    let cs = Constrains::unify(&mut rs1[i].1.data, &mut rs2[i].1.data)?;
+                    result.merge(&cs);
+                }
+
+                Ok(result)
+            }
             (_, Type::Any) => Ok(Constrains::empty()),
             (Type::Any, _) => Ok(Constrains::empty()),
             (type1, type2) => {
@@ -1554,7 +1597,7 @@ impl Constrains {
             Type::Byte => {}
             Type::Record(r) => {
                 for (_, type_) in r {
-                    self.apply(type_);
+                    self.apply(&mut type_.data);
                 }
             }
             Type::Ident(_) => {}

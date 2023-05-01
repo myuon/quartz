@@ -1036,7 +1036,7 @@ impl IrCodeGenerator {
 
                 let mut record = vec![];
                 for (i, type_) in record_type {
-                    let ir_type = IrType::from_type(&type_)?;
+                    let ir_type = IrType::from_type(&type_.data)?;
 
                     if let Some((_, expr)) = fields.iter_mut().find(|(f, _)| f == &i) {
                         record.push((Some(i.0), ir_type, self.expr(expr)?));
@@ -1057,7 +1057,11 @@ impl IrCodeGenerator {
                             .ok_or(anyhow!("Field not found: {:?}", label))?
                             .1,
                     )?;
-                    elements.push((Some(label.0.clone()), IrType::from_type(type_)?, value));
+                    elements.push((
+                        Some(label.0.clone()),
+                        IrType::from_type(&type_.data)?,
+                        value,
+                    ));
                 }
 
                 self.generate_array("struct".to_string(), vec![], elements)
@@ -1089,7 +1093,7 @@ impl IrCodeGenerator {
 
                 let root = self.expr(expr)?;
                 Ok(self.generate_array_at(
-                    &record_type[index].1,
+                    &record_type[index].1.data,
                     root,
                     IrTerm::i32(index as i32),
                 )?)

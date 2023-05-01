@@ -2,7 +2,7 @@ use anyhow::{bail, Result};
 
 use crate::util::{ident::Ident, path::Path, source::Source};
 
-#[derive(PartialEq, Debug, Clone, Eq)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum Type {
     Omit(usize),
     Nil,
@@ -12,7 +12,7 @@ pub enum Type {
     Byte,
     Func(Vec<Type>, Box<Type>),
     VariadicFunc(Vec<Type>, Box<Type>, Box<Type>),
-    Record(Vec<(Ident, Type)>),
+    Record(Vec<(Ident, Source<Type>)>),
     Ident(Ident),
     Ptr(Box<Type>),
     Array(Box<Type>, usize),
@@ -53,7 +53,7 @@ impl Type {
                 "{{{}}}",
                 fields
                     .iter()
-                    .map(|(name, t)| format!("{}: {}", name.as_str(), t.to_string()))
+                    .map(|(name, t)| format!("{}: {}", name.as_str(), t.data.to_string()))
                     .collect::<Vec<String>>()
                     .join(", ")
             ),
@@ -70,7 +70,7 @@ impl Type {
         }
     }
 
-    pub fn to_record(self) -> Result<Vec<(Ident, Type)>> {
+    pub fn to_record(self) -> Result<Vec<(Ident, Source<Type>)>> {
         match self {
             Type::Record(fields) => Ok(fields),
             _ => bail!("expected record type, but found {}", self.to_string()),
@@ -126,7 +126,7 @@ impl Type {
         }
     }
 
-    pub fn as_record_type(&self) -> Result<&Vec<(Ident, Type)>> {
+    pub fn as_record_type(&self) -> Result<&Vec<(Ident, Source<Type>)>> {
         match self {
             Type::Record(fields) => Ok(fields),
             _ => bail!("expected record type, but found {}", self.to_string()),

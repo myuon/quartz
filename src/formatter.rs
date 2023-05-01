@@ -585,7 +585,12 @@ impl<'s> Formatter<'s> {
         match type_ {
             Type::Record(rs) => {
                 self.write_if(writer, "struct", skip_space);
-                self.record_fields(writer, rs.into_iter().map(Source::unknown).collect());
+                self.record_fields(
+                    writer,
+                    rs.into_iter()
+                        .map(|t| Source::transfer((t.0, t.1.data.clone()), &t.1))
+                        .collect(),
+                );
             }
             Type::Vec(v) => {
                 self.write_if(writer, "vec", skip_space);

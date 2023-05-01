@@ -31,4 +31,15 @@ impl<T> Source<T> {
             end: other.end,
         }
     }
+
+    pub fn map<F, U>(self, f: F) -> Source<U>
+    where
+        F: FnOnce(T) -> U,
+    {
+        Source {
+            data: f(self.data),
+            start: self.start,
+            end: self.end,
+        }
+    }
 }

@@ -1075,7 +1075,9 @@ impl Parser {
                 while self.peek()?.lexeme != Lexeme::RBrace {
                     let ident = self.ident()?.data;
                     self.expect(Lexeme::Colon)?;
-                    let type_ = self.type_()?;
+                    let position = self.position;
+                    let t = self.type_()?;
+                    let type_ = self.source_from(t, position);
                     fields.push((ident, type_));
 
                     if self.peek()?.lexeme == Lexeme::Comma {
@@ -1095,7 +1097,9 @@ impl Parser {
                 while self.peek()?.lexeme != Lexeme::RBrace {
                     let ident = self.ident()?.data;
                     self.expect(Lexeme::Colon)?;
-                    let type_ = self.type_()?;
+                    let position = self.position;
+                    let t = self.type_()?;
+                    let type_ = self.source_from(t, position);
                     fields.push((ident, type_));
 
                     if self.peek()?.lexeme == Lexeme::Comma {
