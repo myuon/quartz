@@ -14,6 +14,7 @@ pub struct TypeChecker {
     locals: HashMap<Ident, Source<Type>>,
     pub globals: HashMap<Path, Source<Type>>,
     pub types: HashMap<Ident, (Vec<Type>, Type)>,
+    types_def: HashMap<Ident, (Path, Vec<Source<(Ident, Type)>>)>,
     current_path: Path,
     imported: Vec<Path>,
     result_type: Option<Type>,
@@ -92,6 +93,7 @@ impl TypeChecker {
             .into_iter()
             .map(|(k, ps, v)| (Ident(k.to_string()), (ps, v)))
             .collect(),
+            types_def: HashMap::new(),
             current_path: Path::empty(),
             imported: vec![],
             result_type: None,
@@ -141,6 +143,10 @@ impl TypeChecker {
                                     .collect(),
                             ),
                         ),
+                    );
+                    self.types_def.insert(
+                        ident.data.clone(),
+                        (self.current_path.clone(), type_.clone()),
                     );
                 }
                 Decl::Module(name, module) => {
@@ -946,7 +952,11 @@ impl TypeChecker {
                     let t = fields[label].clone();
                     self.set_search_node_type(t.data.clone(), label_path);
                     self.set_completion(t.data.clone(), label_path);
-                    self.set_search_node_definition(self.current_path.clone(), &t, label_path);
+                    if let Type::Ident(i) = expr_type {
+                        if let Some((path, _)) = self.types_def.get(&i) {
+                            self.set_search_node_definition(path.clone(), &t, label_path);
+                        }
+                    }
 
                     Ok(t.data)
                 } else {
