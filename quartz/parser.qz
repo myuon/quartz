@@ -59,6 +59,14 @@ module Parser {
                 ..nil,
             };
         }
+        if token.lexeme.equal("module") {
+            let module_ = self.module_decl().try;
+
+            return Decl {
+                t_module: module_?,
+                ..nil,
+            };
+        }
 
         return _ or error::new("Expected DECL, got ".concat(token.lexeme).concat("{").concat(
             token.string_value!,
@@ -107,6 +115,24 @@ module Parser {
                 }?,
                 ..nil,
             },
+        };
+    }
+
+    fun module_decl(
+        self,
+    ): struct {
+        name: string,
+        module_: Module,
+    } or error {
+        self.expect("module").try;
+        let name = self.ident().try;
+        self.expect("lbrace").try;
+        let module_ = self.module_().try;
+        self.expect("rbrace").try;
+
+        return struct {
+            name: name,
+            module_: module_,
         };
     }
 
@@ -174,14 +200,25 @@ module Parser {
         }]]();
 
         while !self.is_end() && !self.peek().lexeme.equal("rparen") {
-            let name = self.ident().try;
-            self.expect("colon").try;
-            let t = self.type_().try;
+            if self.peek().lexeme.equal("self") {
+                self.expect("self").try;
+                params.push(struct {
+                    name: "self",
+                    type_: Type {
+                        t_omit: true?,
+                        ..nil,
+                    },
+                });
+            } else {
+                let name = self.ident().try;
+                self.expect("colon").try;
+                let t = self.type_().try;
 
-            params.push(struct {
-                name: name,
-                type_: t,
-            });
+                params.push(struct {
+                    name: name,
+                    type_: t,
+                });
+            }
 
             if self.peek().lexeme.equal("comma") {
                 let _t = self.consume();
@@ -649,6 +686,24 @@ module Parser {
                         ..nil,
                     };
                 }
+            } else if token.lexeme.equal("double_colon") {
+                self.expect("double_colon").try;
+
+                if current.t_ident == nil {
+                    return _ or error::new(format(
+                        "Expected identifier for record name, found {}",
+                        current.to_string(),
+                    ));
+                }
+
+                let name = self.ident().try;
+
+                current = Expression {
+                    t_path: struct {
+                        path: make[vec[string]](current.t_ident!.name, name),
+                    }?,
+                    ..nil,
+                };
             } else {
                 return current;
             }
@@ -675,6 +730,14 @@ module Parser {
                 t_i32: struct {
                     value: i32::parse(token.string_value!),
                 }?,
+                ..nil,
+            };
+        }
+        if self.peek().lexeme.equal("self") {
+            self.expect("self").try;
+
+            return Expression {
+                t_self: true?,
                 ..nil,
             };
         }

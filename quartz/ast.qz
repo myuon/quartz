@@ -23,6 +23,10 @@ struct Decl {
         name: string,
         type_: Type,
     }?,
+    t_module: struct {
+        name: string,
+        module_: Module,
+    }?,
 }
 
 module Decl {
@@ -189,6 +193,10 @@ struct Expression {
         expr: Expression,
         type_: Type,
     }?,
+    t_path: struct {
+        path: vec[string],
+    }?,
+    t_self: bool?,
 }
 
 module Expression {

@@ -138,6 +138,35 @@ fun main(): i32 {
 }
 "#,
         r#"
+struct Point {
+    x: i32,
+    y: i32,
+}
+
+module Point {
+    fun get_x(self): i32 {
+        return self.x;
+    }
+
+    fun sum(self): i32 {
+        return self.get_x() + self.y;
+    }
+
+    fun new(x: i32, y: i32): Point {
+        return Point {
+            x: x,
+            y: y,
+        };
+    }
+}
+
+fun main(): i32 {
+    let p = Point::new(10, 20);
+
+    return p.sum();
+}
+"#,
+        r#"
 fun new_string(p: ptr[byte], length: i32): string {
     return string {
         data: p,

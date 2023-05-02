@@ -115,7 +115,16 @@ module Lexer {
             if self.match(input, "as", "as") {
                 continue;
             }
+            if self.match(input, "module", "module") {
+                continue;
+            }
+            if self.match(input, "self", "self") {
+                continue;
+            }
             if self.match(input, "==", "double_equal") {
+                continue;
+            }
+            if self.match(input, "::", "double_colon") {
                 continue;
             }
             if self.match(input, "(", "lparen") {
