@@ -7,9 +7,57 @@ struct Typechecker {
 
 module Typechecker {
     fun new(): Typechecker {
+        let globals = make[map[string, Type]]();
+        globals.insert(
+            "string",
+            Type {
+                t_struct: TypeStruct {
+                    fields: make[vec[struct {
+                        name: string,
+                        type_: Type,
+                    }]](
+                        struct {
+                            name: "data",
+                            type_: Type {
+                                t_ptr: Type {
+                                    t_byte: true?,
+                                    ..nil,
+                                }?,
+                                ..nil,
+                            },
+                        },
+                        struct {
+                            name: "length",
+                            type_: Type {
+                                t_i32: true?,
+                                ..nil,
+                            },
+                        },
+                    ),
+                }?,
+                ..nil,
+            },
+        );
+        globals.insert(
+            "println",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](Type {
+                        t_ident: "string"?,
+                        ..nil,
+                    }),
+                    result: Type {
+                        t_nil: true?,
+                        ..nil,
+                    },
+                }?,
+                ..nil,
+            },
+        );
+
         return Typechecker {
             locals: make[map[string, Type]](),
-            globals: make[map[string, Type]](),
+            globals: globals,
         };
     }
 
@@ -300,6 +348,11 @@ module Typechecker {
 
             return expr.t_make!.type_;
         }
+        if expr.t_as != nil {
+            self.expression(expr.t_as!.expr).try;
+
+            return expr.t_as!.type_;
+        }
 
         return _ or error::new("unimplemented: expression, {}".format(expr.to_string()));
     }
@@ -323,6 +376,17 @@ fun unify(type1: Type, type2: Type): nil or error {
         return;
     }
     if type1.t_bool != nil && type2.t_bool != nil {
+        return;
+    }
+    if type1.t_byte != nil && type2.t_byte != nil {
+        return;
+    }
+    if type1.t_ident != nil && type2.t_ident != nil {
+        if !type1.t_ident!.equal(type2.t_ident!) {
+            return _ or error::new("unification failed: ".concat(type1.to_string()).concat(" != ").concat(type2.to_string(
+            )));
+        }
+
         return;
     }
 

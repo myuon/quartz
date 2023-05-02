@@ -137,6 +137,26 @@ fun main(): i32 {
     return p.at(2);
 }
 "#,
+        r#"
+fun new_string(p: ptr[byte], length: i32): string {
+    return string {
+        data: p,
+        length: length,
+    };
+}
+
+fun main(): byte {
+    let p = make[ptr[byte]](3);
+    p.at(0) = 48 as byte;
+    p.at(1) = 56 as byte;
+    p.at(2) = 72 as byte;
+
+    let s = new_string(p, 3);
+    println(s);
+
+    return s.at(0);
+}
+"#,
     ];
 
     for input in cases {

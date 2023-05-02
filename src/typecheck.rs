@@ -935,6 +935,12 @@ impl TypeChecker {
                                 Box::new(Type::Bool),
                             ));
                         }
+                        "list_keys" => {
+                            return Ok(Type::Func(
+                                vec![],
+                                Box::new(Type::Vec(Box::new(key.as_ref().clone()))),
+                            ));
+                        }
                         _ => (),
                     }
                 }

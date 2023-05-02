@@ -982,6 +982,22 @@ impl IrCodeGenerator {
                                     source: None,
                                 })
                             }
+                            (Type::Map(_, _), "list_keys") => {
+                                assert_eq!(args.len(), 0);
+
+                                Ok(IrTerm::Call {
+                                    callee: Box::new(self.expr(&mut Source::transfer(
+                                        Expr::path(Path::new(vec![
+                                            Ident("quartz".to_string()),
+                                            Ident("std".to_string()),
+                                            Ident("map_list_keys".to_string()),
+                                        ])),
+                                        expr,
+                                    ))?),
+                                    args: vec![self.expr(expr)?],
+                                    source: None,
+                                })
+                            }
                             (Type::I32, label) => {
                                 let mut elements = vec![];
                                 elements.push(self.expr(expr)?);

@@ -112,6 +112,9 @@ module Lexer {
             if self.match(input, "struct", "struct") {
                 continue;
             }
+            if self.match(input, "as", "as") {
+                continue;
+            }
             if self.match(input, "==", "double_equal") {
                 continue;
             }

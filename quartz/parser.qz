@@ -200,6 +200,18 @@ module Parser {
                     ..nil,
                 };
             }
+            if token.string_value!.equal("byte") {
+                return Type {
+                    t_byte: true?,
+                    ..nil,
+                };
+            }
+            if token.string_value!.equal("bool") {
+                return Type {
+                    t_bool: true?,
+                    ..nil,
+                };
+            }
             if token.string_value!.equal("ptr") {
                 self.expect("lbracket").try;
                 let t = self.type_().try;
@@ -211,7 +223,10 @@ module Parser {
                 };
             }
 
-            return _ or error::new("Unknown type ".concat(token.string_value!));
+            return Type {
+                t_ident: token.string_value!?,
+                ..nil,
+            };
         }
 
         return _ or error::new("Expected IDENT, got ".concat(token.lexeme).concat("{").concat(
@@ -476,6 +491,18 @@ module Parser {
                         binop: "minus",
                         left: current,
                         right: self.term_1(with_struct).try,
+                    }?,
+                    ..nil,
+                };
+                continue;
+            }
+            if self.peek().lexeme.equal("as") {
+                self.expect("as").try;
+
+                current = Expression {
+                    t_as: struct {
+                        expr: current,
+                        type_: self.type_().try,
                     }?,
                     ..nil,
                 };

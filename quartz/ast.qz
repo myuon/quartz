@@ -185,6 +185,10 @@ struct Expression {
         type_: Type,
         args: vec[Expression],
     }?,
+    t_as: struct {
+        expr: Expression,
+        type_: Type,
+    }?,
 }
 
 module Expression {
@@ -240,6 +244,8 @@ struct Type {
     t_ptr: Type?,
     t_bool: bool?,
     t_struct: TypeStruct?,
+    t_byte: bool?,
+    t_ident: string?,
 }
 
 module Type {
