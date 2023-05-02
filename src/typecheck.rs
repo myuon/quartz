@@ -944,13 +944,9 @@ impl TypeChecker {
                     // field access
 
                     let t = fields[label].clone();
-                    self.set_search_node_type(t.data.clone(), &t);
-                    self.set_completion(t.data.clone(), &t);
-                    self.set_search_node_definition(
-                        self.current_path.clone(),
-                        &t,
-                        &Source::transfer(label, &t),
-                    );
+                    self.set_search_node_type(t.data.clone(), label_path);
+                    self.set_completion(t.data.clone(), label_path);
+                    self.set_search_node_definition(self.current_path.clone(), &t, label_path);
 
                     Ok(t.data)
                 } else {
