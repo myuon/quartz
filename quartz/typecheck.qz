@@ -1,9 +1,10 @@
 import quartz::ast;
+import quartz::path;
 
 struct Typechecker {
     locals: map[string, Type],
     globals: map[string, Type],
-    current_path: vec[string],
+    current_path: Path,
 }
 
 module Typechecker {
@@ -59,7 +60,7 @@ module Typechecker {
         return Typechecker {
             locals: make[map[string, Type]](),
             globals: globals,
-            current_path: make[vec[string]](),
+            current_path: Path::new(),
         };
     }
 
@@ -72,14 +73,22 @@ module Typechecker {
         return nil;
     }
 
+    fun path_to(self, ident: string): string {
+        if self.current_path.path.length == 0 {
+            return ident;
+        }
+
+        return self.current_path.join("_").concat("_").concat(ident);
+    }
+
     fun decl(self, d: Decl): nil or error {
         if d.t_func != nil {
             // For recursive functions
-            self.globals.insert(d.t_func!.name, d.t_func!.to_type());
+            self.globals.insert(self.path_to(d.t_func!.name), d.t_func!.to_type());
 
             self.function(d.t_func!).try;
 
-            self.globals.insert(d.t_func!.name, d.t_func!.to_type());
+            self.globals.insert(self.path_to(d.t_func!.name), d.t_func!.to_type());
             return;
         }
         if d.t_let != nil {
@@ -99,9 +108,10 @@ module Typechecker {
             self.current_path.push(d.t_module!.name);
             self.module_(d.t_module!.module_).try;
             self.current_path = path;
+            return;
         }
 
-        return panic("unimplemented: decl");
+        return _ or error::new(format("unimplemented: decl, {}", d.to_string()));
     }
 
     fun function(self, f: Function): nil or error {
@@ -299,19 +309,43 @@ module Typechecker {
                         ..nil,
                     };
                 }
-            } else if t.t_struct != nil {
-                if t.t_struct!.has(expr.t_project!.field) {
-                    let t = t.t_struct!.at(expr.t_project!.field);
+            }
+
+            let label = expr.t_project!.field;
+
+            let fields = self.resolve_record_type(t, make[vec[Type]]()).try;
+            if fields.has(label) {
+                // field access
+                let t = fields.at(label);
+
+                return t;
+            } else if t.t_ident != nil {
+                // method access
+
+                let func_ident_name = t.t_ident!.concat("_").concat(label);
+                if self.globals.has(func_ident_name) {
+                    let t = self.globals.at(func_ident_name);
+                    if t.t_func != nil {
+                        let arg_types = t.t_func!.params;
+                        let result_type = t.t_func!.result;
+
+                        if arg_types.length == 0 {
+                            return _ or error::new("method {} has no arguements".format(func_ident_name));
+                        }
+
+                        unify(arg_types.at(0), t).try;
+
+                        return Type {
+                            t_func: struct {
+                                params: vec_slice(arg_types, 1, arg_types.length),
+                                result: result_type,
+                            }?,
+                            ..nil,
+                        };
+                    }
 
                     return t;
                 }
-            }
-
-            let fields = self.resolve_record_type(t, make[vec[Type]]()).try;
-            if fields.has(expr.t_project!.field) {
-                let t = fields.at(expr.t_project!.field);
-
-                return t;
             }
 
             return _ or error::new("unimplemented: project, {}".format(expr.to_string()));
@@ -358,11 +392,11 @@ module Typechecker {
 
             return expr.t_as!.type_;
         } else if expr.t_self != nil {
-            if self.current_path.length == 0 {
+            if self.current_path.path.length == 0 {
                 return _ or error::new("self outside of function, {}".format(expr.to_string()));
             }
 
-            let ident = self.current_path.at(self.current_path.length - 1);
+            let ident = self.current_path.path.at(self.current_path.path.length - 1);
 
             if ident.equal("i32") {
                 return Type {
@@ -375,6 +409,13 @@ module Typechecker {
                     ..nil,
                 };
             }
+        } else if expr.t_path != nil {
+            let symbol = expr.t_path!.path.join("_");
+            if self.globals.has(symbol) {
+                return self.globals.at(symbol);
+            }
+
+            return _ or error::new("unknown symbol: {}".format(expr.to_string()));
         }
 
         return _ or error::new("unimplemented: expression, {}".format(expr.to_string()));

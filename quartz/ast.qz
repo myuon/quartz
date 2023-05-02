@@ -194,7 +194,7 @@ struct Expression {
         type_: Type,
     }?,
     t_path: struct {
-        path: vec[string],
+        path: Path,
     }?,
     t_self: bool?,
 }

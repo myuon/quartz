@@ -124,6 +124,14 @@ fun vec_extend_byte(v: vec[byte], other: vec[byte]) {
     }
 }
 
+fun vec_slice(v: vec[any], start: i32, end: i32): vec[any] {
+    let result = vec_make(max(end - start, 1));
+    for i in start..end {
+        result.push(v.at(i));
+    }
+    return result;
+}
+
 fun digit_to_string(digit: i32): string {
     return char_to_string(digit as byte);
 }
@@ -191,6 +199,14 @@ module bool {
         } else {
             return "false";
         }
+    }
+}
+
+fun max(a: i32, b: i32): i32 {
+    if a > b {
+        return a;
+    } else {
+        return b;
     }
 }
 

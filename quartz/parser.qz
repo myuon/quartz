@@ -698,9 +698,12 @@ module Parser {
 
                 let name = self.ident().try;
 
+                let path = Path::ident(current.t_ident!.name);
+                path.push(name);
+
                 current = Expression {
                     t_path: struct {
-                        path: make[vec[string]](current.t_ident!.name, name),
+                        path: path,
                     }?,
                     ..nil,
                 };

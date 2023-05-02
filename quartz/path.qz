@@ -1,0 +1,36 @@
+struct Path {
+    path: vec[string],
+}
+
+module Path {
+    fun new(): Path {
+        return Path {
+            path: make[vec[string]](),
+        };
+    }
+
+    fun push(self, s: string) {
+        self.path.push(s);
+    }
+
+    fun ident(i: string): Path {
+        return Path {
+            path: make[vec[string]](i),
+        };
+    }
+
+    fun join(self, delimiter: string): string {
+        if self.path.length == 0 {
+            return "";
+        } else {
+            let first = self.path.at(0);
+
+            for i in 1..self.path.length {
+                first = first.concat(delimiter).concat(self.path.at(i));
+            }
+
+            return first;
+        }
+    }
+}
+

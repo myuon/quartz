@@ -1,5 +1,6 @@
 import quartz::ast;
 import quartz::ir;
+import quartz::path;
 
 struct InternalTypeRep {
     name: string,
