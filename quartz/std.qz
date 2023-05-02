@@ -237,7 +237,7 @@ module i32 {
 fun i32_to_i64(n: i32): i64 {
     if n < 0 {
         return i64 {
-            hi: 0-1,
+            hi: 0 - 1,
             lo: n,
         };
     } else {
@@ -463,14 +463,28 @@ fun map_insert(map: Map, key: string, value: any) {
         let entries = make[ptr[MapEntry]](new_capacity);
 
         for i in 0..new_capacity {
-            if i < map.capacity {
-                entries.at(i) = map.entries.at(i);
-            } else {
-                entries.at(i) = MapEntry {
-                    key: nil,
-                    value: nil as any,
-                };
+            entries.at(i) = MapEntry {
+                key: nil,
+                value: nil as any,
+            };
+        }
+
+        let new_map = Map {
+            count: 0,
+            capacity: new_capacity,
+            entries: entries,
+        };
+
+        for i in 0..map.capacity {
+            let entry = map.entries.at(i);
+            if entry.key == nil {
+                continue;
             }
+
+            let target = map_find_entry(new_map, entry.key!);
+            target.key = entry.key;
+            target.value = entry.value;
+            new_map.count = new_map.count + 1;
         }
 
         map.entries = entries;
@@ -504,6 +518,17 @@ fun map_find_entry(map: Map, key: string): MapEntry {
     }
 
     return panic("unreachable") as MapEntry;
+}
+
+fun map_list_keys(map: Map): vec[string] {
+    let result = make[vec[string]]();
+    for i in 0..map.capacity {
+        if map.entries.at(i).key != nil {
+            result.push(map.entries.at(i).key!);
+        }
+    }
+
+    return result;
 }
 
 fun hash_string(key: string, length: i32): u32 {
