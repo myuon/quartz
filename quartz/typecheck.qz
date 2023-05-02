@@ -104,7 +104,7 @@ module Typechecker {
             return;
         }
         if d.t_module != nil {
-            let path = self.current_path;
+            let path = self.current_path.clone();
             self.current_path.push(d.t_module!.name);
             self.module_(d.t_module!.module_).try;
             self.current_path = path;
@@ -266,8 +266,7 @@ module Typechecker {
                 let t = self.globals.at(expr.t_ident!.name);
 
                 return t;
-            }
-            if self.locals.has(expr.t_ident!.name) {
+            } else if self.locals.has(expr.t_ident!.name) {
                 let t = self.locals.at(expr.t_ident!.name);
 
                 return t;

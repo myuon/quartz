@@ -58,6 +58,20 @@ module Generator {
         return self.writer;
     }
 
+    fun decl(self, element: IrTerm) {
+        if element.t_func != nil {
+            self.function(element.t_func!);
+        } else if element.t_global_let != nil {
+            self.global_let(element.t_global_let!);
+        } else if element.t_module != nil {
+            for i in 0..element.t_module!.elements.length {
+                self.decl(element.t_module!.elements.at(i));
+            }
+        } else {
+            panic("expected function");
+        }
+    }
+
     fun run(self, m: IrTerm): string {
         self.start();
         self.write("module");
@@ -66,16 +80,7 @@ module Generator {
             for i in 0..m.t_module!.elements.length {
                 let element = m.t_module!.elements.at(i);
 
-                if element.t_func != nil {
-                    self.function(element.t_func!);
-                    continue;
-                }
-                if element.t_global_let != nil {
-                    self.global_let(element.t_global_let!);
-                    continue;
-                }
-
-                panic("expected function");
+                self.decl(element);
             }
         } else {
             panic("expected module");

@@ -70,6 +70,7 @@ module InternalTypeRep {
 struct IrCodeGenerator {
     globals: map[string, Type],
     locals: vec[string],
+    current_path: Path,
 }
 
 module IrCodeGenerator {
@@ -77,6 +78,7 @@ module IrCodeGenerator {
         return IrCodeGenerator {
             globals: make[map[string, Type]](),
             locals: make[vec[string]](),
+            current_path: Path::new(),
         };
     }
 
@@ -107,6 +109,12 @@ module IrCodeGenerator {
             }
             if d.t_type != nil {
             }
+            if d.t_module != nil {
+                let path = self.current_path.clone();
+                self.current_path.push(d.t_module!.name);
+                elements.push(self.module_(d.t_module!.module_).try);
+                self.current_path = path;
+            }
         }
 
         return IrTerm {
@@ -128,19 +136,37 @@ module IrCodeGenerator {
         for i in 0..func.params.length {
             let p = func.params.at(i);
 
-            params.push(struct {
-                name: p.name,
-                type_: IrType::new(p.type_),
-            });
+            if p.name.equal("self") {
+                params.push(struct {
+                    name: p.name,
+                    type_: IrType::new(Type {
+                        t_ident: self.current_path.path.at(0)?,
+                        ..nil,
+                    }),
+                });
+            } else {
+                params.push(struct {
+                    name: p.name,
+                    type_: IrType::new(p.type_),
+                });
+            }
         }
 
         return IrFunc {
-            name: func.name,
+            name: self.path_to(func.name),
             params: params,
             body: body,
             result_type: IrType::new(func.result_type),
             locals: self.locals,
         };
+    }
+
+    fun path_to(self, s: string): string {
+        if self.current_path.path.length == 0 {
+            return s;
+        }
+
+        return self.current_path.join("_").concat("_").concat(s);
     }
 
     fun block(self, b: Block): vec[IrTerm] or error {
@@ -278,8 +304,7 @@ module IrCodeGenerator {
             };
 
             return term;
-        }
-        if expr.t_binop != nil {
+        } else if expr.t_binop != nil {
             let args = make[vec[IrTerm]]();
             args.push(self.expression(expr.t_binop!.left).try);
             args.push(self.expression(expr.t_binop!.right).try);
@@ -346,18 +371,17 @@ module IrCodeGenerator {
             }
 
             panic("binop exhausted: ".concat(expr.t_binop!.binop));
-        }
-        if expr.t_ident != nil {
+        } else if expr.t_ident != nil {
             let term = IrTerm {
                 t_ident: expr.t_ident!.name?,
                 ..nil,
             };
 
             return term;
-        }
-        if expr.t_call != nil {
-            if expr.t_call!.callee.t_project != nil {
-                let project = expr.t_call!.callee.t_project!;
+        } else if expr.t_call != nil {
+            let callee = expr.t_call!.callee;
+            if callee.t_project != nil {
+                let project = callee.t_project!;
                 if project.type_!.t_ptr != nil && project.field.equal("at") {
                     if expr.t_call!.args.length != 1 {
                         return _ or error::new("at() takes 2 arguments");
@@ -369,6 +393,26 @@ module IrCodeGenerator {
                     let offset = self.expression(expr.t_call!.args.at(0)).try;
 
                     return self.generate_array_at(t_ptr_elem, term, offset).try;
+                } else {
+                    let callee = IrTerm {
+                        t_ident: format("{}_{}", project.type_!.t_ident!, project.field)?,
+                        ..nil,
+                    };
+                    let args = make[vec[IrTerm]]();
+
+                    args.push(self.expression(project.expr).try);
+
+                    for i in 0..expr.t_call!.args.length {
+                        args.push(self.expression(expr.t_call!.args.at(i)).try);
+                    }
+
+                    return IrTerm {
+                        t_call: IrCall {
+                            callee: callee,
+                            args: args,
+                        }?,
+                        ..nil,
+                    };
                 }
             }
 
@@ -385,8 +429,7 @@ module IrCodeGenerator {
             }
 
             return term;
-        }
-        if expr.t_record != nil {
+        } else if expr.t_record != nil {
             let t = self.globals.at(expr.t_record!.name).t_struct!;
 
             let record = make[vec[struct {
@@ -404,9 +447,8 @@ module IrCodeGenerator {
             }
 
             return self.generate_array_enumerated(record);
-        }
-        if expr.t_project != nil {
-            let t = expr.t_project!.type_!.t_struct!;
+        } else if expr.t_project != nil {
+            let t = self.resolve_type_struct(expr.t_project!.type_!).try;
             let index = t.index(expr.t_project!.field);
 
             let offset = 0;
@@ -422,8 +464,7 @@ module IrCodeGenerator {
                 }?,
                 ..nil,
             };
-        }
-        if expr.t_make != nil {
+        } else if expr.t_make != nil {
             if expr.t_make!.type_.t_ptr != nil {
                 if expr.t_make!.args.length != 1 {
                     panic("ptr make expects 1 argument");
@@ -436,6 +477,16 @@ module IrCodeGenerator {
 
                 return self.allocate_heap_object(len);
             }
+        } else if expr.t_path != nil {
+            return IrTerm {
+                t_ident: expr.t_path!.path.join("_")?,
+                ..nil,
+            };
+        } else if expr.t_self != nil {
+            return IrTerm {
+                t_ident: "self"?,
+                ..nil,
+            };
         }
 
         return panic("expression exhausted: {}", expr.to_string());
@@ -634,6 +685,22 @@ module IrCodeGenerator {
             }?,
             ..nil,
         };
+    }
+
+    fun resolve_type_struct(self, t: Type): TypeStruct or error {
+        if t.t_ident != nil {
+            let ident = t.t_ident!;
+
+            if self.globals.has(ident) {
+                return self.resolve_type_struct(self.globals.at(ident));
+            } else {
+                return _ or error::new(format("unknown type: {}", ident));
+            }
+        } else if t.t_struct != nil {
+            return t.t_struct!;
+        } else {
+            return _ or error::new(format("type is not a struct: {}", t.to_string()));
+        }
     }
 }
 

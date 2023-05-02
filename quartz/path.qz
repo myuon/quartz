@@ -32,5 +32,16 @@ module Path {
             return first;
         }
     }
+
+    fun clone(self): Path {
+        let new_path = make[vec[string]]();
+        for s in self.path {
+            new_path.push(s);
+        }
+
+        return Path {
+            path: new_path,
+        };
+    }
 }
 
