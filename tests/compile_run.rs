@@ -174,6 +174,12 @@ fun new_string(p: ptr[byte], length: i32): string {
     };
 }
 
+module string {
+    fun at(self, n: i32): byte {
+        return self.data.at(n);
+    }
+}
+
 fun main(): byte {
     let p = make[ptr[byte]](3);
     p.at(0) = 48 as byte;
@@ -181,8 +187,6 @@ fun main(): byte {
     p.at(2) = 72 as byte;
 
     let s = new_string(p, 3);
-    println(s);
-
     return s.at(0);
 }
 "#,

@@ -61,6 +61,8 @@ module InternalTypeRep {
             return InternalTypeRep::from_name("i32", make[vec[InternalTypeRep]]());
         } else if t.t_address != nil {
             return InternalTypeRep::from_name("address", make[vec[InternalTypeRep]]());
+        } else if t.t_byte != nil {
+            return InternalTypeRep::from_name("byte", make[vec[InternalTypeRep]]());
         }
 
         return panic("unreachable");
@@ -487,6 +489,10 @@ module IrCodeGenerator {
                 t_ident: "self"?,
                 ..nil,
             };
+        } else if expr.t_as != nil {
+            let term = self.expression(expr.t_as!.expr).try;
+
+            return term;
         }
 
         return panic("expression exhausted: {}", expr.to_string());

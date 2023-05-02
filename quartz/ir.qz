@@ -171,6 +171,18 @@ module IrType {
                 ..nil,
             };
         }
+        if t.t_byte != nil {
+            return IrType {
+                t_byte: true?,
+                ..nil,
+            };
+        }
+        if t.t_ptr != nil {
+            return IrType {
+                t_address: true?,
+                ..nil,
+            };
+        }
 
         return panic("unknown type: {}", t.to_string());
     }

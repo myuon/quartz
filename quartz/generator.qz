@@ -120,6 +120,12 @@ module Generator {
         self.end();
 
         self.start();
+        self.write(`func $println (param $b i64) (result i64)
+    i64.const 0
+`);
+        self.end();
+
+        self.start();
         self.write(
             `func $alloc (param $size i64) (result i64)
     (local $p i64)
