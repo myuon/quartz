@@ -216,7 +216,6 @@ fun int_to_string(n: i32): string {
 
 fun main(): i32 {
     let str = int_to_string(123456);
-    println(str);
 
     return str.data.at(5) as i32 - 48;
 }

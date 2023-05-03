@@ -716,8 +716,47 @@ module IrCodeGenerator {
             };
         } else if expr.t_as != nil {
             let term = self.expression(expr.t_as!.expr).try;
+            let source = IrType::new(expr.t_as!.source_type);
+            let target = IrType::new(expr.t_as!.target_type);
 
-            return term;
+            if source == target {
+                return term;
+            } else if (source.t_i32 != nil) && (target.t_address != nil) {
+                return IrTerm {
+                    t_call: IrCall {
+                        callee: IrTerm {
+                            t_ident: "i32_to_address"?,
+                            ..nil,
+                        },
+                        args: make[vec[IrTerm]](term),
+                    }?,
+                    ..nil,
+                };
+            } else if (source.t_i32 != nil) && (target.t_byte != nil) {
+                return IrTerm {
+                    t_call: IrCall {
+                        callee: IrTerm {
+                            t_ident: "i32_to_byte"?,
+                            ..nil,
+                        },
+                        args: make[vec[IrTerm]](term),
+                    }?,
+                    ..nil,
+                };
+            } else if (source.t_byte != nil) && (target.t_i32 != nil) {
+                return IrTerm {
+                    t_call: IrCall {
+                        callee: IrTerm {
+                            t_ident: "byte_to_i32"?,
+                            ..nil,
+                        },
+                        args: make[vec[IrTerm]](term),
+                    }?,
+                    ..nil,
+                };
+            }
+
+            return _ or error::new(format("cannot cast {} to {}", source.to_string(), target.to_string()));
         } else if expr.t_string != nil {
             return self.register_string(expr.t_string!);
         } else if expr.t_paren != nil {

@@ -162,7 +162,8 @@ struct Expression {
     }?,
     t_as: struct {
         expr: Expression,
-        type_: Type,
+        source_type: Type,
+        target_type: Type,
     }?,
     t_path: struct {
         path: Path,

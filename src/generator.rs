@@ -198,7 +198,7 @@ impl Generator {
                 },
                 IrTerm::Discard {
                     element: Box::new(IrTerm::Instruction(
-                        "(memory.grow (i32.const 500))".to_string(),
+                        "(memory.grow (i32.const 1000))".to_string(),
                     )),
                 },
                 IrTerm::Call {

@@ -404,9 +404,10 @@ module Typechecker {
 
             return expr.t_make!.type_;
         } else if expr.t_as != nil {
-            self.expression(expr.t_as!.expr).try;
+            let t = self.expression(expr.t_as!.expr).try;
+            expr.t_as!.source_type = t;
 
-            return expr.t_as!.type_;
+            return expr.t_as!.target_type;
         } else if expr.t_self != nil {
             if self.current_path.path.length == 0 {
                 return _ or error::new("self outside of function, {}".format(expr.to_string()));

@@ -578,7 +578,11 @@ module Parser {
                 current = Expression {
                     t_as: struct {
                         expr: current,
-                        type_: self.type_().try,
+                        source_type: Type {
+                            t_omit: true?,
+                            ..nil,
+                        },
+                        target_type: self.type_().try,
                     }?,
                     ..nil,
                 };
