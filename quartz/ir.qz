@@ -52,6 +52,8 @@ struct IrTerm {
         data: string,
         offset: i32,
     }?,
+    t_discard: IrTerm?,
+    t_inst: string?,
 }
 
 module IrTerm {

@@ -10,6 +10,7 @@ struct Generator {
     index: i32,
     globals: map[string, Type],
     strings: vec[string],
+    main_signature_result: IrType?,
 }
 
 module Generator {
@@ -20,6 +21,7 @@ module Generator {
             index: 0,
             globals: make[map[string, Type]](),
             strings: make[vec[string]](),
+            main_signature_result: nil as IrType?,
         };
     }
 
@@ -192,8 +194,49 @@ module Generator {
         self.convert_stack_from_i32_1();
         self.end();
 
+        self.decl(IrTerm {
+            t_func: IrFunc {
+                name: "start",
+                params: make[vec[struct {
+                    name: string,
+                    type_: IrType,
+                }]](),
+                result_type: self.main_signature_result!,
+                body: make[vec[IrTerm]](
+                    IrTerm {
+                        t_discard: IrTerm {
+                            t_inst: "(memory.grow (i32.const 200))"?,
+                            ..nil,
+                        }?,
+                        ..nil,
+                    },
+                    IrTerm {
+                        t_call: IrCall {
+                            callee: IrTerm {
+                                t_ident: "prepare_strings"?,
+                                ..nil,
+                            },
+                            args: make[vec[IrTerm]](),
+                        }?,
+                        ..nil,
+                    },
+                    IrTerm {
+                        t_return: IrReturn {
+                            value: IrTerm {
+                                t_inst: "(call $main)"?,
+                                ..nil,
+                            },
+                        }?,
+                        ..nil,
+                    },
+                ),
+                locals: make[vec[string]](),
+            }?,
+            ..nil,
+        });
+
         self.start();
-        self.write("export \"main\" (func $main)");
+        self.write("export \"main\" (func $start)");
         self.end();
 
         self.end();
@@ -218,6 +261,10 @@ module Generator {
     }
 
     fun function(self, func: IrFunc) {
+        if func.name.equal("main") {
+            self.main_signature_result = func.result_type?;
+        }
+
         self.start();
         self.write("func");
         self.write("$".concat(func.name));
@@ -497,6 +544,15 @@ module Generator {
 
             self.new_statement();
             self.write("call $load_string");
+        } else if expr.t_discard != nil {
+            self.new_statement();
+            self.expression(expr.t_discard!);
+
+            self.new_statement();
+            self.write("drop");
+        } else if expr.t_inst != nil {
+            self.new_statement();
+            self.write(expr.t_inst!);
         } else {
             panic("not implemented: expr, {}", expr.to_string());
         }
