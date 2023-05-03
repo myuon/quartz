@@ -87,14 +87,6 @@ module Generator {
     }
 
     fun run(self, m: IrTerm): string {
-        self.globals.insert(
-            "quartz_std_strings_ptr",
-            Type {
-                t_i32: true?,
-                ..nil,
-            },
-        );
-
         self.start();
         self.write("module");
 
@@ -112,18 +104,6 @@ module Generator {
         self.write("global");
         self.write("$heap_ptr (mut i64) (i64.const 8)");
         self.end();
-
-        self.global_let(struct {
-            name: "quartz_std_strings_ptr",
-            type_: IrType {
-                t_i32: true?,
-                ..nil,
-            },
-            value: IrTerm {
-                t_i32: 0?,
-                ..nil,
-            },
-        });
 
         self.global_let(struct {
             name: "_value_i32_0",

@@ -309,23 +309,6 @@ module Typechecker {
                     };
                 }
             }
-            if t.t_ident!.equal("string") {
-                if expr.t_project!.field.equal("at") {
-                    return Type {
-                        t_func: struct {
-                            params: make[vec[Type]](Type {
-                                t_i32: true?,
-                                ..nil,
-                            }),
-                            result: Type {
-                                t_byte: true?,
-                                ..nil,
-                            },
-                        }?,
-                        ..nil,
-                    };
-                }
-            }
 
             let label = expr.t_project!.field;
 
@@ -437,9 +420,11 @@ module Typechecker {
                 t_ident: "string"?,
                 ..nil,
             };
+        } else if expr.t_paren != nil {
+            return self.expression(expr.t_paren!).try;
+        } else {
+            return _ or error::new("unimplemented: expression, {}".format(expr.to_string()));
         }
-
-        return _ or error::new("unimplemented: expression, {}".format(expr.to_string()));
     }
 
     fun resolve_record_type(self, type_: Type, args: vec[Type]): map[string, Type] or error {
