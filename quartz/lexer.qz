@@ -103,6 +103,20 @@ module Lexer {
         return false;
     }
 
+    fun match_term(self, input: string, token: string, token_name: string): bool {
+        if is_prefix(input, self.position, token) && is_term_boundary(input, self.position + token.length) {
+            self.tokens.push(Token {
+                lexeme: token_name,
+                string_value: nil,
+                position: self.position,
+            });
+            self.position = self.position + token.length;
+            return true;
+        }
+
+        return false;
+    }
+
     fun run(self, input: string): nil or error {
         while self.position < input.length {
             let p = self.consume_space(input);
@@ -110,34 +124,40 @@ module Lexer {
                 continue;
             }
 
-            if self.match(input, "fun", "fun") {
+            if self.match_term(input, "fun", "fun") {
                 continue;
             }
-            if self.match(input, "let", "let") {
+            if self.match_term(input, "let", "let") {
                 continue;
             }
-            if self.match(input, "return", "return") {
+            if self.match_term(input, "return", "return") {
                 continue;
             }
-            if self.match(input, "if", "if") {
+            if self.match_term(input, "if", "if") {
                 continue;
             }
-            if self.match(input, "else", "else") {
+            if self.match_term(input, "else", "else") {
                 continue;
             }
-            if self.match(input, "while", "while") {
+            if self.match_term(input, "while", "while") {
                 continue;
             }
-            if self.match(input, "struct", "struct") {
+            if self.match_term(input, "struct", "struct") {
                 continue;
             }
-            if self.match(input, "as", "as") {
+            if self.match_term(input, "as", "as") {
                 continue;
             }
-            if self.match(input, "module", "module") {
+            if self.match_term(input, "module", "module") {
                 continue;
             }
-            if self.match(input, "self", "self") {
+            if self.match_term(input, "self", "self") {
+                continue;
+            }
+            if self.match_term(input, "for", "for") {
+                continue;
+            }
+            if self.match_term(input, "in", "in") {
                 continue;
             }
             if self.match(input, "==", "double_equal") {
@@ -246,3 +266,20 @@ input: {}`.format(
     }
 }
 
+fun is_term_boundary(input: string, position: i32): bool {
+    let ch = input.at(position) as i32;
+    if 48 < ch && ch < 57 {
+        return false;
+    }
+    if 65 < ch && ch < 90 {
+        return false;
+    }
+    if 97 < ch && ch < 122 {
+        return false;
+    }
+    if ch == 95 {
+        return false;
+    }
+
+    return true;
+}

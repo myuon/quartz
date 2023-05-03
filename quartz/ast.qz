@@ -121,6 +121,11 @@ struct Statement {
         condition: Expression,
         block: Block,
     }?,
+    t_for: struct {
+        ident: string,
+        range: Expression,
+        block: Block,
+    }?,
 }
 
 module Statement {

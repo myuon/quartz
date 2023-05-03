@@ -291,9 +291,7 @@ module Parser {
         if token.lexeme.equal("ident") {
             return token.string_value!;
         } else {
-            return _ or error::new("Expected IDENT, got ".concat(token.lexeme).concat("{").concat(
-                token.string_value!,
-            ).concat("}"));
+            return _ or error::new(format("Expected IDENT, got {}", derive::to_string(token)));
         }
     }
 
@@ -373,6 +371,22 @@ module Parser {
                 t_while: struct {
                     condition: condition,
                     block: block,
+                }?,
+                ..nil,
+            };
+        }
+        if token.lexeme.equal("for") {
+            self.expect("for").try;
+            let ident = self.ident().try;
+            self.expect("in").try;
+            let range = self.expression_conditional().try;
+            let body = self.block().try;
+
+            return Statement {
+                t_for: struct {
+                    ident: ident,
+                    range: range,
+                    block: body,
                 }?,
                 ..nil,
             };
