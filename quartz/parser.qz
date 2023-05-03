@@ -498,6 +498,17 @@ module Parser {
                 }?,
                 ..nil,
             };
+        } else if self.peek().lexeme.equal("gt") {
+            self.expect("gt").try;
+
+            return Expression {
+                t_binop: struct {
+                    binop: "gt",
+                    left: current,
+                    right: self.term_2(with_struct).try,
+                }?,
+                ..nil,
+            };
         }
 
         return current;
@@ -560,6 +571,30 @@ module Parser {
                 current = Expression {
                     t_binop: struct {
                         binop: "mult",
+                        left: current,
+                        right: self.term_1(with_struct).try,
+                    }?,
+                    ..nil,
+                };
+                continue;
+            } else if self.peek().lexeme.equal("slash") {
+                self.expect("slash").try;
+
+                current = Expression {
+                    t_binop: struct {
+                        binop: "div",
+                        left: current,
+                        right: self.term_1(with_struct).try,
+                    }?,
+                    ..nil,
+                };
+                continue;
+            } else if self.peek().lexeme.equal("percent") {
+                self.expect("percent").try;
+
+                current = Expression {
+                    t_binop: struct {
+                        binop: "mod",
                         left: current,
                         right: self.term_1(with_struct).try,
                     }?,

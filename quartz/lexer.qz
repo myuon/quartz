@@ -179,10 +179,19 @@ module Lexer {
             if self.match(input, "*", "star") {
                 continue;
             }
+            if self.match(input, "/", "slash") {
+                continue;
+            }
+            if self.match(input, "%", "percent") {
+                continue;
+            }
             if self.match(input, "=", "equal") {
                 continue;
             }
             if self.match(input, "<", "lt") {
+                continue;
+            }
+            if self.match(input, ">", "gt") {
                 continue;
             }
             if self.match(input, ",", "comma") {

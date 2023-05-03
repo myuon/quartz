@@ -229,7 +229,7 @@ module Typechecker {
         } else if expr.t_binop != nil {
             if (expr.t_binop!.binop.equal("plus") || expr.t_binop!.binop.equal("minus") || expr.t_binop!.binop.equal(
                 "mult",
-            )) {
+            ) || expr.t_binop!.binop.equal("div") || expr.t_binop!.binop.equal("mod")) {
                 let t1 = self.expression(expr.t_binop!.left).try;
                 unify(
                     t1,
@@ -249,7 +249,9 @@ module Typechecker {
                 ).try;
 
                 return t1;
-            } else if (expr.t_binop!.binop.equal("equal") || expr.t_binop!.binop.equal("lt")) {
+            } else if (expr.t_binop!.binop.equal("equal") || expr.t_binop!.binop.equal("lt") || expr.t_binop!.binop.equal(
+                "gt",
+            )) {
                 let t1 = self.expression(expr.t_binop!.left).try;
                 let t2 = self.expression(expr.t_binop!.right).try;
                 unify(t1, t2).try;

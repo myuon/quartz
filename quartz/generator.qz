@@ -326,30 +326,32 @@ module Generator {
                 let ident = callee.t_ident!;
                 if ident.equal("add") {
                     self.write("i64.add");
-                    return;
-                }
-                if ident.equal("sub") {
+                } else if ident.equal("sub") {
                     self.write("i64.sub");
-                    return;
-                }
-                if ident.equal("mult") {
+                } else if ident.equal("mult") {
                     self.write("call $i32_mul");
-                    return;
-                }
-                if ident.equal("equal") {
+                } else if ident.equal("div") {
+                    self.convert_stack_to_i32_2();
+                    self.write("i32.div");
+                    self.convert_stack_from_i32_1();
+                } else if ident.equal("mod") {
+                    self.convert_stack_to_i32_2();
+                    self.write("i32.rem_s");
+                    self.convert_stack_from_i32_1();
+                } else if ident.equal("equal") {
                     self.write("i64.eq");
                     self.convert_stack_from_bool_1();
-                    return;
-                }
-                if ident.equal("lt") {
+                } else if ident.equal("lt") {
                     self.convert_stack_to_i32_2();
                     self.write("i32.lt_s");
                     self.convert_stack_from_bool_1();
-                    return;
+                } else if ident.equal("gt") {
+                    self.convert_stack_to_i32_2();
+                    self.write("i32.gt_s");
+                    self.convert_stack_from_bool_1();
+                } else {
+                    self.write("call $".concat(ident));
                 }
-
-                self.write("call $".concat(ident));
-                return;
             } else {
                 panic("not implemented: call");
             }
