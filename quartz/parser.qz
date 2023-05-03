@@ -380,7 +380,10 @@ module Parser {
             let ident = self.ident().try;
             self.expect("in").try;
             let range = self.expression_conditional().try;
+
+            self.expect("lbrace").try;
             let body = self.block().try;
+            self.expect("rbrace").try;
 
             return Statement {
                 t_for: struct {
@@ -520,6 +523,17 @@ module Parser {
                     binop: "gt",
                     left: current,
                     right: self.term_2(with_struct).try,
+                }?,
+                ..nil,
+            };
+        } else if self.peek().lexeme.equal("double_dot") {
+            self.expect("double_dot").try;
+            let expr = self.term_3(with_struct).try;
+
+            return Expression {
+                t_range: struct {
+                    start: current,
+                    end: expr,
                 }?,
                 ..nil,
             };

@@ -150,17 +150,14 @@ module Typechecker {
 
             self.locals.insert(s.t_let!.name, t);
             return nil;
-        }
-        if s.t_return != nil {
+        } else if s.t_return != nil {
             let t = self.expression(s.t_return!.expr).try;
             unify(t, result_type).try;
             return nil;
-        }
-        if s.t_expr != nil {
+        } else if s.t_expr != nil {
             let _t = self.expression(s.t_expr!.expr).try;
             return nil;
-        }
-        if s.t_assign != nil {
+        } else if s.t_assign != nil {
             let lhs_type = self.expression_left_value(s.t_assign!.lhs).try;
             let rhs_type = Type {
                 t_ptr: self.expression(s.t_assign!.rhs).try?,
@@ -169,8 +166,7 @@ module Typechecker {
 
             unify(lhs_type, rhs_type).try;
             return nil;
-        }
-        if s.t_if != nil {
+        } else if s.t_if != nil {
             let condition_type = self.expression(s.t_if!.condition).try;
             unify(
                 condition_type,
@@ -189,8 +185,7 @@ module Typechecker {
                 self.block(s.t_if!.else_block!, type_).try;
             }
             return nil;
-        }
-        if s.t_while != nil {
+        } else if s.t_while != nil {
             let condition_type = self.expression(s.t_while!.condition).try;
             unify(
                 condition_type,
@@ -206,6 +201,26 @@ module Typechecker {
             };
             self.block(s.t_while!.block, type_).try;
             return nil;
+        } else if s.t_for != nil {
+            let t = self.expression(s.t_for!.range).try;
+            if t.t_range != nil {
+                // FIXME: clone
+                let locals = self.locals;
+                self.locals.insert(s.t_for!.ident, t.t_range!);
+
+                self.block(
+                    s.t_for!.block,
+                    Type {
+                        t_nil: true?,
+                        ..nil,
+                    },
+                ).try;
+
+                self.locals = locals;
+                return nil;
+            } else {
+                return _ or error::new("for range must be range");
+            }
         }
 
         return _ or error::new("unimplemented: statement, {}".format(s.to_string()));
@@ -424,6 +439,16 @@ module Typechecker {
             };
         } else if expr.t_paren != nil {
             return self.expression(expr.t_paren!).try;
+        } else if expr.t_range != nil {
+            let start = self.expression(expr.t_range!.start).try;
+            let end = self.expression(expr.t_range!.end).try;
+
+            unify(start, end).try;
+
+            return Type {
+                t_range: start?,
+                ..nil,
+            };
         } else {
             return _ or error::new("unimplemented: expression, {}".format(expr.to_string()));
         }

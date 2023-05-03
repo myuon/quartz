@@ -346,8 +346,7 @@ module IrCodeGenerator {
             self.locals.push(stm.t_let!.name);
 
             return term;
-        }
-        if stm.t_return != nil {
+        } else if stm.t_return != nil {
             let term = IrTerm {
                 t_return: IrReturn {
                     value: self.expression(stm.t_return!.expr).try,
@@ -356,17 +355,14 @@ module IrCodeGenerator {
             };
 
             return term;
-        }
-        if stm.t_expr != nil {
+        } else if stm.t_expr != nil {
             return self.expression(stm.t_expr!.expr);
-        }
-        if stm.t_assign != nil {
+        } else if stm.t_assign != nil {
             let lhs = self.expression(stm.t_assign!.lhs).try;
             let rhs = self.expression(stm.t_assign!.rhs).try;
 
             return self.assign(lhs, rhs).try;
-        }
-        if stm.t_if != nil {
+        } else if stm.t_if != nil {
             let then_elements = make[vec[IrTerm]]();
             for i in 0..stm.t_if!.then_block.block.length {
                 then_elements.push(self.statement(stm.t_if!.then_block.block.at(i)).try);
@@ -397,8 +393,7 @@ module IrCodeGenerator {
                 }?,
                 ..nil,
             };
-        }
-        if stm.t_while != nil {
+        } else if stm.t_while != nil {
             let body_elements = make[vec[IrTerm]]();
             for i in 0..stm.t_while!.block.block.length {
                 body_elements.push(self.statement(stm.t_while!.block.block.at(i)).try);
@@ -417,6 +412,83 @@ module IrCodeGenerator {
                 }?,
                 ..nil,
             };
+        } else if stm.t_for != nil {
+            if stm.t_for!.range.t_range != nil {
+                let range = stm.t_for!.range.t_range!;
+
+                return IrTerm {
+                    t_seq: struct {
+                        terms: make[vec[IrTerm]](
+                            IrTerm {
+                                t_let: IrLet {
+                                    name: stm.t_for!.ident,
+                                    type_: IrType {
+                                        t_i32: true?,
+                                        ..nil,
+                                    },
+                                    value: self.expression(range.start).try,
+                                }?,
+                                ..nil,
+                            },
+                            IrTerm {
+                                t_while: struct {
+                                    condition: IrTerm {
+                                        t_call: IrCall {
+                                            callee: IrTerm {
+                                                t_ident: "lt"?,
+                                                ..nil,
+                                            },
+                                            args: make[vec[IrTerm]](
+                                                IrTerm {
+                                                    t_ident: stm.t_for!.ident?,
+                                                    ..nil,
+                                                },
+                                                self.expression(range.end).try,
+                                            ),
+                                        }?,
+                                        ..nil,
+                                    },
+                                    block: IrTerm {
+                                        t_seq: struct {
+                                            terms: self.block(stm.t_for!.block).try,
+                                        }?,
+                                        ..nil,
+                                    },
+                                    cleanup: IrTerm {
+                                        t_assign: struct {
+                                            lhs: stm.t_for!.ident,
+                                            rhs: IrTerm {
+                                                t_call: IrCall {
+                                                    callee: IrTerm {
+                                                        t_ident: "add"?,
+                                                        ..nil,
+                                                    },
+                                                    args: make[vec[IrTerm]](
+                                                        IrTerm {
+                                                            t_ident: stm.t_for!.ident?,
+                                                            ..nil,
+                                                        },
+                                                        IrTerm {
+                                                            t_i32: 1?,
+                                                            ..nil,
+                                                        },
+                                                    ),
+                                                }?,
+                                                ..nil,
+                                            },
+                                        }?,
+                                        ..nil,
+                                    }?,
+                                }?,
+                                ..nil,
+                            },
+                        ),
+                    }?,
+                    ..nil,
+                };
+            } else {
+                return panic("unsupported for loop: {}", stm.to_string());
+            }
         }
 
         return panic("statement exhausted: {}", stm.to_string());
@@ -446,8 +518,7 @@ module IrCodeGenerator {
                     }?,
                     ..nil,
                 };
-            }
-            if expr.t_binop!.binop.equal("minus") {
+            } else if expr.t_binop!.binop.equal("minus") {
                 return IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
@@ -458,8 +529,7 @@ module IrCodeGenerator {
                     }?,
                     ..nil,
                 };
-            }
-            if expr.t_binop!.binop.equal("mult") {
+            } else if expr.t_binop!.binop.equal("mult") {
                 return IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
@@ -470,8 +540,29 @@ module IrCodeGenerator {
                     }?,
                     ..nil,
                 };
-            }
-            if expr.t_binop!.binop.equal("equal") {
+            } else if expr.t_binop!.binop.equal("div") {
+                return IrTerm {
+                    t_call: IrCall {
+                        callee: IrTerm {
+                            t_ident: "div"?,
+                            ..nil,
+                        },
+                        args: args,
+                    }?,
+                    ..nil,
+                };
+            } else if expr.t_binop!.binop.equal("mod") {
+                return IrTerm {
+                    t_call: IrCall {
+                        callee: IrTerm {
+                            t_ident: "mod"?,
+                            ..nil,
+                        },
+                        args: args,
+                    }?,
+                    ..nil,
+                };
+            } else if expr.t_binop!.binop.equal("equal") {
                 return IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
@@ -482,12 +573,22 @@ module IrCodeGenerator {
                     }?,
                     ..nil,
                 };
-            }
-            if expr.t_binop!.binop.equal("lt") {
+            } else if expr.t_binop!.binop.equal("lt") {
                 return IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
                             t_ident: "lt"?,
+                            ..nil,
+                        },
+                        args: args,
+                    }?,
+                    ..nil,
+                };
+            } else if expr.t_binop!.binop.equal("gt") {
+                return IrTerm {
+                    t_call: IrCall {
+                        callee: IrTerm {
+                            t_ident: "gt"?,
                             ..nil,
                         },
                         args: args,

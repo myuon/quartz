@@ -166,6 +166,9 @@ module Lexer {
             if self.match(input, "::", "double_colon") {
                 continue;
             }
+            if self.match(input, "..", "double_dot") {
+                continue;
+            }
             if self.match(input, "(", "lparen") {
                 continue;
             }

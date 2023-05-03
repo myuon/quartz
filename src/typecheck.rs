@@ -1545,6 +1545,14 @@ impl Constrains {
             }
             (Type::Record(rs1), Type::Record(rs2)) => {
                 let mut result = Constrains::empty();
+                if rs1.len() != rs2.len() {
+                    bail!(
+                        "wrong number of fields, expected {:?}, but found {:?}",
+                        rs1,
+                        rs2
+                    );
+                }
+
                 for i in 0..rs1.len() {
                     if rs1[i].0 != rs2[i].0 {
                         bail!(

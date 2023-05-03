@@ -130,42 +130,7 @@ struct Statement {
 
 module Statement {
     fun to_string(self): string {
-        if self.t_let != nil {
-            return "let ".concat(self.t_let!.name).concat(": ").concat(self.t_let!.name_type.to_string()).concat(
-                " = ",
-            ).concat(self.t_let!.expr.to_string()).concat(";\n");
-        }
-        if self.t_return != nil {
-            return "return ".concat(self.t_return!.expr.to_string()).concat(";\n");
-        }
-        if self.t_assign != nil {
-            return format("{} = {};", self.t_assign!.lhs.to_string(), self.t_assign!.rhs.to_string());
-        }
-        if self.t_expr != nil {
-            return format("{};", self.t_expr!.expr.to_string());
-        }
-        if self.t_if != nil {
-            let result = format(
-                "if ({}) {\n{}}",
-                self.t_if!.condition.to_string(),
-                self.t_if!.then_block.to_string(),
-            );
-
-            if self.t_if!.else_block != nil {
-                result = format("{} else {\n{}}", result, self.t_if!.else_block!.to_string());
-            }
-
-            return result.concat("\n");
-        }
-        if self.t_while != nil {
-            return format(
-                "while ({}) {{\n{}}}",
-                self.t_while!.condition.to_string(),
-                self.t_while!.block.to_string(),
-            );
-        }
-
-        return panic("Unknown statement type");
+        return derive::to_string(self);
     }
 }
 
@@ -205,6 +170,10 @@ struct Expression {
     t_self: bool?,
     t_string: string?,
     t_paren: Expression?,
+    t_range: struct {
+        start: Expression,
+        end: Expression,
+    }?,
 }
 
 module Expression {
@@ -262,6 +231,7 @@ struct Type {
     t_struct: TypeStruct?,
     t_byte: bool?,
     t_ident: string?,
+    t_range: Type?,
 }
 
 module Type {
