@@ -415,9 +415,16 @@ module Typechecker {
             }
 
             return _ or error::new("unknown symbol: {}".format(expr.to_string()));
+        } else if expr.t_string != nil {
+            return Type {
+                t_ident: "string"?,
+                ..nil,
+            };
+        } else if expr.t_paren != nil {
+            return self.expression(expr.t_paren!).try;
+        } else {
+            return _ or error::new("unimplemented: expression, {}".format(expr.to_string()));
         }
-
-        return _ or error::new("unimplemented: expression, {}".format(expr.to_string()));
     }
 
     fun resolve_record_type(self, type_: Type, args: vec[Type]): map[string, Type] or error {

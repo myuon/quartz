@@ -27,5 +27,12 @@ module Value {
             return panic("unreachable") as i64;
         }
     }
+
+    fun nil(): Value {
+        return Value {
+            t_pointer: (0 as u32)?,
+            ..nil,
+        };
+    }
 }
 

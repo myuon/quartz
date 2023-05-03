@@ -11,7 +11,28 @@ import { exec } from "child_process";
 import * as path from "path";
 import * as util from "util";
 
-const execAsync = util.promisify(exec);
+let globalControllers: AbortController[] = [];
+
+const execAsync_ = util.promisify(exec);
+
+const execAsync = async (command: string) => {
+  if (globalControllers.length > 3) {
+    globalControllers[0].abort();
+    globalControllers = globalControllers.slice(1);
+  }
+
+  const controller = new AbortController();
+  const { signal } = controller;
+  globalControllers.push(controller);
+
+  setTimeout(() => {
+    controller.abort();
+  }, 10000);
+
+  const child = await execAsync_(command, { signal });
+
+  return child;
+};
 
 const connection = createConnection(ProposedFeatures.all);
 
@@ -155,12 +176,12 @@ connection.onCompletion(async (params) => {
     "Cargo.toml"
   )} -- completion ${file} --project ${path.join(file, "..", "..")} --line ${
     params.position.line
-  } --column ${params.position.character} ${
-    isDotCompletion ? "--dot" : ""
-  } --stdin << 'EOF'\n${currentContent}\nEOF\n`;
+  } --column ${params.position.character} ${isDotCompletion ? "--dot" : ""}`;
   console.log(command);
 
-  const cargo = await execAsync(command);
+  const cargo = await execAsync(
+    `${command} --stdin << 'EOF'\n${currentContent}\nEOF\n`
+  );
   if (cargo.stdout) {
     const result = JSON.parse(cargo.stdout) as {
       items: {
@@ -195,9 +216,12 @@ connection.onDocumentFormatting(async (params) => {
     "..",
     "..",
     "Cargo.toml"
-  )} -- format --stdin << 'EOF'\n${currentContent}\nEOF\n`;
+  )} -- format`;
+  console.log(command);
 
-  const cargo = await execAsync(command);
+  const cargo = await execAsync(
+    `${command} --stdin << 'EOF'\n${currentContent}\nEOF\n`
+  );
   if (cargo.stdout) {
     return [
       {

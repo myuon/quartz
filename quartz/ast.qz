@@ -1,4 +1,5 @@
 import quartz::ast;
+import quartz::path;
 
 struct Module {
     decls: vec[Decl],
@@ -197,6 +198,8 @@ struct Expression {
         path: Path,
     }?,
     t_self: bool?,
+    t_string: string?,
+    t_paren: Expression?,
 }
 
 module Expression {
@@ -259,6 +262,13 @@ struct Type {
 module Type {
     fun to_string(self): string {
         return derive::to_string(self);
+    }
+
+    fun string(): Type {
+        return Type {
+            t_ident: "string"?,
+            ..nil,
+        };
     }
 }
 

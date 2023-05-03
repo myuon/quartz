@@ -47,6 +47,13 @@ struct IrTerm {
     t_sizeof: struct {
         type_: IrType,
     }?,
+    t_string: i32?,
+    t_data: struct {
+        data: string,
+        offset: i32,
+    }?,
+    t_discard: IrTerm?,
+    t_inst: string?,
 }
 
 module IrTerm {

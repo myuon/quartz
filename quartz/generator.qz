@@ -9,6 +9,8 @@ struct Generator {
     depth: i32,
     index: i32,
     globals: map[string, Type],
+    strings: vec[string],
+    main_signature_result: IrType?,
 }
 
 module Generator {
@@ -18,6 +20,8 @@ module Generator {
             depth: 0,
             index: 0,
             globals: make[map[string, Type]](),
+            strings: make[vec[string]](),
+            main_signature_result: nil as IrType?,
         };
     }
 
@@ -54,6 +58,10 @@ module Generator {
         self.globals = globals;
     }
 
+    fun set_strings(self, strings: vec[string]) {
+        self.strings = strings;
+    }
+
     fun generate(self): string {
         return self.writer;
     }
@@ -67,8 +75,14 @@ module Generator {
             for i in 0..element.t_module!.elements.length {
                 self.decl(element.t_module!.elements.at(i));
             }
+        } else if element.t_data != nil {
+            self.start();
+            self.write("data");
+            self.write(format("(i32.const {})", element.t_data!.offset.to_string()));
+            self.write(format("\"{}\"", element.t_data!.data));
+            self.end();
         } else {
-            panic("expected function");
+            panic("decl: {}", element.to_string());
         }
     }
 
@@ -160,8 +174,49 @@ module Generator {
         self.convert_stack_from_i32_1();
         self.end();
 
+        self.decl(IrTerm {
+            t_func: IrFunc {
+                name: "start",
+                params: make[vec[struct {
+                    name: string,
+                    type_: IrType,
+                }]](),
+                result_type: self.main_signature_result!,
+                body: make[vec[IrTerm]](
+                    IrTerm {
+                        t_discard: IrTerm {
+                            t_inst: "(memory.grow (i32.const 500))"?,
+                            ..nil,
+                        }?,
+                        ..nil,
+                    },
+                    IrTerm {
+                        t_call: IrCall {
+                            callee: IrTerm {
+                                t_ident: "prepare_strings"?,
+                                ..nil,
+                            },
+                            args: make[vec[IrTerm]](),
+                        }?,
+                        ..nil,
+                    },
+                    IrTerm {
+                        t_return: IrReturn {
+                            value: IrTerm {
+                                t_inst: "(call $main)"?,
+                                ..nil,
+                            },
+                        }?,
+                        ..nil,
+                    },
+                ),
+                locals: make[vec[string]](),
+            }?,
+            ..nil,
+        });
+
         self.start();
-        self.write("export \"main\" (func $main)");
+        self.write("export \"main\" (func $start)");
         self.end();
 
         self.end();
@@ -186,6 +241,10 @@ module Generator {
     }
 
     fun function(self, func: IrFunc) {
+        if func.name.equal("main") {
+            self.main_signature_result = func.result_type?;
+        }
+
         self.start();
         self.write("func");
         self.write("$".concat(func.name));
@@ -224,9 +283,7 @@ module Generator {
                 self.write("local.get");
             }
             self.write(format("${}", expr.t_ident!));
-            return;
-        }
-        if expr.t_i32 != nil {
+        } else if expr.t_i32 != nil {
             if MODE_READABLE_WASM {
                 self.new_statement();
                 self.write(format(" ;; {}", expr.t_i32!.to_string()));
@@ -236,26 +293,27 @@ module Generator {
                 t_i32: expr.t_i32!?,
                 ..nil,
             });
-            return;
-        }
-        if expr.t_let != nil {
+        } else if expr.t_nil != nil {
+            if MODE_READABLE_WASM {
+                self.new_statement();
+                self.write(" ;; nil");
+            }
+
+            self.write_value(Value::nil());
+        } else if expr.t_let != nil {
             self.new_statement();
             self.expression(expr.t_let!.value);
             self.expression_left_value(IrTerm {
                 t_ident: expr.t_let!.name?,
                 ..nil,
             });
-            return;
-        }
-        if expr.t_return != nil {
+        } else if expr.t_return != nil {
             self.new_statement();
             self.expression(expr.t_return!.value);
 
             self.new_statement();
             self.write("return");
-            return;
-        }
-        if expr.t_call != nil {
+        } else if expr.t_call != nil {
             for i in 0..expr.t_call!.args.length {
                 self.new_statement();
                 self.expression(expr.t_call!.args.at(i));
@@ -295,10 +353,7 @@ module Generator {
             } else {
                 panic("not implemented: call");
             }
-
-            return;
-        }
-        if expr.t_assign != nil {
+        } else if expr.t_assign != nil {
             self.expression(expr.t_assign!.rhs);
 
             self.new_statement();
@@ -308,10 +363,7 @@ module Generator {
                 self.write("local.set");
             }
             self.write(format("${}", expr.t_assign!.lhs));
-
-            return;
-        }
-        if expr.t_if != nil {
+        } else if expr.t_if != nil {
             self.new_statement();
             self.expression(expr.t_if!.condition);
             self.convert_stack_to_bool();
@@ -330,16 +382,11 @@ module Generator {
             self.end();
 
             self.end();
-
-            return;
-        }
-        if expr.t_seq != nil {
+        } else if expr.t_seq != nil {
             for i in 0..expr.t_seq!.terms.length {
                 self.expression(expr.t_seq!.terms.at(i));
             }
-            return;
-        }
-        if expr.t_while != nil {
+        } else if expr.t_while != nil {
             // [while(cond) {block, cleanup}]
 
             // (block $exit
@@ -387,10 +434,7 @@ module Generator {
 
             self.end();
             self.end();
-
-            return;
-        }
-        if expr.t_load != nil {
+        } else if expr.t_load != nil {
             self.new_statement();
             self.expression(expr.t_load!.address);
 
@@ -425,10 +469,7 @@ module Generator {
                 self.new_statement();
                 self.write("i64.xor");
             }
-
-            return;
-        }
-        if expr.t_store != nil {
+        } else if expr.t_store != nil {
             self.new_statement();
             self.expression(expr.t_store!.address);
 
@@ -461,10 +502,7 @@ module Generator {
             self.new_statement();
             self.write(format("i64.store{}", suffix));
             self.write("offset=8");
-
-            return;
-        }
-        if expr.t_sizeof != nil {
+        } else if expr.t_sizeof != nil {
             let size = expr.t_sizeof!.type_.sizeof();
 
             self.new_statement();
@@ -475,11 +513,29 @@ module Generator {
                 t_i32: size?,
                 ..nil,
             });
+        } else if expr.t_string != nil {
+            self.new_statement();
+            self.write(format(";; string: {}", self.strings.at(expr.t_string!)));
 
-            return;
+            self.new_statement();
+            self.write(format("i32.const {}", expr.t_string!.to_string()));
+
+            self.convert_stack_from_i32_1();
+
+            self.new_statement();
+            self.write("call $load_string");
+        } else if expr.t_discard != nil {
+            self.new_statement();
+            self.expression(expr.t_discard!);
+
+            self.new_statement();
+            self.write("drop");
+        } else if expr.t_inst != nil {
+            self.new_statement();
+            self.write(expr.t_inst!);
+        } else {
+            panic("not implemented: expr, {}", expr.to_string());
         }
-
-        panic("not implemented: expr, {}", expr.to_string());
     }
 
     fun expression_left_value(self, expr: IrTerm) {
