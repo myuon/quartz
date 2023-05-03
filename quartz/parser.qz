@@ -476,7 +476,38 @@ module Parser {
     }
 
     fun term_5(self, with_struct: bool): Expression or error {
-        return self.term_4(with_struct).try;
+        let current = self.term_4(with_struct).try;
+        while true {
+            if self.peek().lexeme.equal("double_amp") {
+                self.expect("double_amp").try;
+                let rhs = self.term_4(with_struct).try;
+
+                current = Expression {
+                    t_binop: struct {
+                        binop: "and",
+                        left: current,
+                        right: rhs,
+                    }?,
+                    ..nil,
+                };
+            } else if self.peek().lexeme.equal("double_pipe") {
+                self.expect("double_pipe").try;
+                let rhs = self.term_4(with_struct).try;
+
+                current = Expression {
+                    t_binop: struct {
+                        binop: "or",
+                        left: current,
+                        right: rhs,
+                    }?,
+                    ..nil,
+                };
+            } else {
+                return current;
+            }
+        }
+
+        return current;
     }
 
     fun term_4(self, with_struct: bool): Expression or error {
@@ -489,6 +520,18 @@ module Parser {
                 current = Expression {
                     t_binop: struct {
                         binop: "equal",
+                        left: current,
+                        right: self.term_3(with_struct).try,
+                    }?,
+                    ..nil,
+                };
+                continue;
+            } else if self.peek().lexeme.equal("not_equal") {
+                self.expect("not_equal").try;
+
+                current = Expression {
+                    t_binop: struct {
+                        binop: "not_equal",
                         left: current,
                         right: self.term_3(with_struct).try,
                     }?,
@@ -774,6 +817,24 @@ module Parser {
                     }?,
                     ..nil,
                 };
+            } else if token.lexeme.equal("bang") {
+                self.expect("bang").try;
+
+                current = Expression {
+                    t_unwrap: struct {
+                        expr: current,
+                    }?,
+                    ..nil,
+                };
+            } else if token.lexeme.equal("question") {
+                self.expect("question").try;
+
+                current = Expression {
+                    t_wrap: struct {
+                        expr: current,
+                    }?,
+                    ..nil,
+                };
             } else {
                 return current;
             }
@@ -828,6 +889,19 @@ module Parser {
 
             return Expression {
                 t_paren: expr?,
+                ..nil,
+            };
+        }
+        if self.peek().lexeme.equal("bang") {
+            self.expect("bang").try;
+
+            let expr = self.expression().try;
+
+            return Expression {
+                t_unop: struct {
+                    unop: "not",
+                    expr: expr,
+                }?,
                 ..nil,
             };
         }

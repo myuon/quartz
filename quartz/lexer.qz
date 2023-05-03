@@ -184,10 +184,19 @@ module Lexer {
             if self.match(input, "==", "double_equal") {
                 continue;
             }
+            if self.match(input, "!=", "not_equal") {
+                continue;
+            }
             if self.match(input, "::", "double_colon") {
                 continue;
             }
             if self.match(input, "..", "double_dot") {
+                continue;
+            }
+            if self.match(input, "&&", "double_amp") {
+                continue;
+            }
+            if self.match(input, "||", "double_pipe") {
                 continue;
             }
             if self.match(input, "(", "lparen") {
@@ -242,6 +251,12 @@ module Lexer {
                 continue;
             }
             if self.match(input, ".", "dot") {
+                continue;
+            }
+            if self.match(input, "!", "bang") {
+                continue;
+            }
+            if self.match(input, "?", "question") {
                 continue;
             }
 
@@ -307,3 +322,4 @@ fun is_term_boundary(input: string, position: i32): bool {
 
     return true;
 }
+
