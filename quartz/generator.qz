@@ -79,7 +79,7 @@ module Generator {
             self.start();
             self.write("data");
             self.write(format("(i32.const {})", element.t_data!.offset.to_string()));
-            self.write(element.t_data!.data);
+            self.write(format("\"{}\"", element.t_data!.data));
             self.end();
         } else {
             panic("decl: {}", element.to_string());
