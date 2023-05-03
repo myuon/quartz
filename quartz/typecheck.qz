@@ -450,6 +450,35 @@ module Typechecker {
                 t_range: start?,
                 ..nil,
             };
+        } else if expr.t_bool != nil {
+            return Type {
+                t_bool: true?,
+                ..nil,
+            };
+        } else if expr.t_wrap != nil {
+            let t = self.expression(expr.t_wrap!.expr).try;
+            expr.t_wrap!.type_ = t;
+
+            return Type {
+                t_optional: t?,
+                ..nil,
+            };
+        } else if expr.t_unwrap != nil {
+            let t = self.expression(expr.t_unwrap!.expr).try;
+
+            if t.t_optional != nil {
+                let wrapped = Type {
+                    t_optional: expr.t_unwrap!.type_?,
+                    ..nil,
+                };
+                let unified = unify(wrapped, t).try;
+                let element_type = unified.t_optional!;
+                expr.t_unwrap!.type_ = element_type;
+
+                return element_type;
+            } else {
+                return _ or error::new("unimplemented: unwrap, {}".format(expr.to_string()));
+            }
         } else {
             return _ or error::new("unimplemented: expression, {}".format(expr.to_string()));
         }
@@ -484,28 +513,18 @@ module Typechecker {
     }
 }
 
-fun unify(type1: Type, type2: Type): nil or error {
+fun unify(type1: Type, type2: Type): Type or error {
     if type1.t_i32 != nil && type2.t_i32 != nil {
-        return;
+        return type1;
     }
     if type1.t_nil != nil && type2.t_nil != nil {
-        return;
-    }
-    if type1.t_omit != nil {
-        return;
-    }
-    if type2.t_omit != nil {
-        return;
-    }
-    if type1.t_ptr != nil && type2.t_ptr != nil {
-        unify(type1.t_ptr!, type2.t_ptr!).try;
-        return;
+        return type1;
     }
     if type1.t_bool != nil && type2.t_bool != nil {
-        return;
+        return type1;
     }
     if type1.t_byte != nil && type2.t_byte != nil {
-        return;
+        return type1;
     }
     if type1.t_ident != nil && type2.t_ident != nil {
         if !type1.t_ident!.equal(type2.t_ident!) {
@@ -513,7 +532,29 @@ fun unify(type1: Type, type2: Type): nil or error {
             )));
         }
 
-        return;
+        return type1;
+    }
+    if type1.t_ptr != nil && type2.t_ptr != nil {
+        let result = unify(type1.t_ptr!, type2.t_ptr!).try;
+
+        return Type {
+            t_ptr: result?,
+            ..nil,
+        };
+    }
+    if type1.t_optional != nil && type2.t_optional != nil {
+        let result = unify(type1.t_optional!, type2.t_optional!).try;
+
+        return Type {
+            t_optional: result?,
+            ..nil,
+        };
+    }
+    if type1.t_omit != nil {
+        return type2;
+    }
+    if type2.t_omit != nil {
+        return type1;
     }
 
     return _ or error::new("unification failed: ".concat(type1.to_string()).concat(" != ").concat(type2.to_string(

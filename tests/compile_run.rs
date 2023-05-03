@@ -220,6 +220,21 @@ fun main(): i32 {
     return str.data.at(5) as i32 - 48;
 }
 "#,
+        r#"
+fun f(): string {
+    let s = "foo"?;
+
+    if true {
+        return s!;
+    } else {
+        return "";
+    }
+}
+
+fun main(): i32 {
+    return 0;
+}
+"#,
     ];
 
     for input in cases {

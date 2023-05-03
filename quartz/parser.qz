@@ -229,6 +229,20 @@ module Parser {
     }
 
     fun type_(self): Type or error {
+        let current = self.type_primitive().try;
+        if self.peek().lexeme.equal("question") {
+            self.expect("question").try;
+
+            return Type {
+                t_optional: current?,
+                ..nil,
+            };
+        }
+
+        return current;
+    }
+
+    fun type_primitive(self): Type or error {
         let token = self.consume();
         if token.lexeme.equal("ident") {
             if token.string_value!.equal("i32") {
@@ -264,11 +278,9 @@ module Parser {
                 t_ident: token.string_value!?,
                 ..nil,
             };
+        } else {
+            return _ or error::new(format("Expected type, got {}", token.to_string()));
         }
-
-        return _ or error::new("Expected IDENT, got ".concat(token.lexeme).concat("{").concat(
-            token.string_value!,
-        ).concat("}"));
     }
 
     fun peek(self): Token {
@@ -822,6 +834,10 @@ module Parser {
 
                 current = Expression {
                     t_unwrap: struct {
+                        type_: Type {
+                            t_omit: true?,
+                            ..nil,
+                        },
                         expr: current,
                     }?,
                     ..nil,
@@ -831,6 +847,10 @@ module Parser {
 
                 current = Expression {
                     t_wrap: struct {
+                        type_: Type {
+                            t_omit: true?,
+                            ..nil,
+                        },
                         expr: current,
                     }?,
                     ..nil,
@@ -902,6 +922,22 @@ module Parser {
                     unop: "not",
                     expr: expr,
                 }?,
+                ..nil,
+            };
+        }
+        if self.peek().lexeme.equal("true") {
+            self.expect("true").try;
+
+            return Expression {
+                t_bool: true?,
+                ..nil,
+            };
+        }
+        if self.peek().lexeme.equal("false") {
+            self.expect("false").try;
+
+            return Expression {
+                t_bool: false?,
                 ..nil,
             };
         }

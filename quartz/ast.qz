@@ -180,11 +180,14 @@ struct Expression {
         expr: Expression,
     }?,
     t_unwrap: struct {
+        type_: Type,
         expr: Expression,
     }?,
     t_wrap: struct {
+        type_: Type,
         expr: Expression,
     }?,
+    t_bool: bool?,
 }
 
 module Expression {
@@ -243,6 +246,7 @@ struct Type {
     t_byte: bool?,
     t_ident: string?,
     t_range: Type?,
+    t_optional: Type?,
 }
 
 module Type {

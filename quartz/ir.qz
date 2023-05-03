@@ -54,6 +54,7 @@ struct IrTerm {
     }?,
     t_discard: IrTerm?,
     t_inst: string?,
+    t_bool: bool?,
 }
 
 module IrTerm {
@@ -185,6 +186,12 @@ module IrType {
             };
         }
         if t.t_ptr != nil {
+            return IrType {
+                t_address: true?,
+                ..nil,
+            };
+        }
+        if t.t_optional != nil {
             return IrType {
                 t_address: true?,
                 ..nil,

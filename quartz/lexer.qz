@@ -181,6 +181,12 @@ module Lexer {
             if self.match_term(input, "in", "in") {
                 continue;
             }
+            if self.match_term(input, "true", "true") {
+                continue;
+            }
+            if self.match_term(input, "false", "false") {
+                continue;
+            }
             if self.match(input, "==", "double_equal") {
                 continue;
             }

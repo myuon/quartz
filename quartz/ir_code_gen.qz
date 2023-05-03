@@ -719,7 +719,11 @@ module IrCodeGenerator {
             let source = IrType::new(expr.t_as!.source_type);
             let target = IrType::new(expr.t_as!.target_type);
 
-            if source == target {
+            if (source.t_i32 != nil) && (target.t_i32 != nil) {
+                return term;
+            } else if (source.t_address != nil) && (target.t_address != nil) {
+                return term;
+            } else if (source.t_byte != nil) && (target.t_byte != nil) {
                 return term;
             } else if (source.t_i32 != nil) && (target.t_address != nil) {
                 return IrTerm {
@@ -761,6 +765,34 @@ module IrCodeGenerator {
             return self.register_string(expr.t_string!);
         } else if expr.t_paren != nil {
             return self.expression(expr.t_paren!).try;
+        } else if expr.t_wrap != nil {
+            let term = self.expression(expr.t_wrap!.expr).try;
+
+            return self.generate_array_enumerated(
+                make[vec[struct {
+                    type_: IrType,
+                    term: IrTerm
+                }]](struct {
+                    type_: IrType::new(expr.t_wrap!.type_),
+                    term: term,
+                }),
+            );
+        } else if expr.t_unwrap != nil {
+            let term = self.expression(expr.t_unwrap!.expr).try;
+
+            return self.generate_array_at(
+                expr.t_unwrap!.type_,
+                term,
+                IrTerm {
+                    t_i32: 0?,
+                    ..nil,
+                },
+            ).try;
+        } else if expr.t_bool != nil {
+            return IrTerm {
+                t_bool: expr.t_bool!?,
+                ..nil,
+            };
         }
 
         return panic("expression exhausted: {}", expr.to_string());
