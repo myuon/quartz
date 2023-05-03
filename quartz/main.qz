@@ -69,9 +69,30 @@ fun main() {
 }
 
 fun run(input_: string): string or error {
-    let content = file_read("quartz/std.qz");
+    // let content = file_read("quartz/std.qz");
+    // let input = content.concat(input_);
+    let input = `
+let quartz_std_strings_ptr = 0;
 
-    let input = content.concat(input_);
+fun load_string(index: i32): string {
+    return (quartz_std_strings_ptr as ptr[string]).at(index);
+}
+
+module string {
+    fun at(self, n: i32): byte {
+        return self.data.at(n);
+    }
+}
+
+fun quartz_std_new_string(p: ptr[byte], length: i32): string {
+    return string {
+        data: p,
+        length: length,
+    };
+}
+`.concat(
+        input_,
+    );
 
     let lexer = Lexer::new();
     lexer.run(input).try;
