@@ -264,12 +264,25 @@ module Typechecker {
                 ).try;
 
                 return t1;
-            } else if (expr.t_binop!.binop.equal("equal") || expr.t_binop!.binop.equal("lt") || expr.t_binop!.binop.equal(
+            } else if (expr.t_binop!.binop.equal("equal") || expr.t_binop!.binop.equal("not_equal")) {
+                let t1 = self.expression(expr.t_binop!.left).try;
+                let t2 = self.expression(expr.t_binop!.right).try;
+                unify(t1, t2).try;
+
+                return Type {
+                    t_bool: true?,
+                    ..nil,
+                };
+            } else if (expr.t_binop!.binop.equal("lt") || expr.t_binop!.binop.equal(
                 "gt",
             )) {
                 let t1 = self.expression(expr.t_binop!.left).try;
                 let t2 = self.expression(expr.t_binop!.right).try;
                 unify(t1, t2).try;
+                unify(t1, Type {
+                    t_i32: true?,
+                    ..nil,
+                }).try;
 
                 return Type {
                     t_bool: true?,

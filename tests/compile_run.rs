@@ -235,6 +235,15 @@ fun main(): i32 {
     return 0;
 }
 "#,
+        r#"
+fun main(): i32 {
+    if "hello".equal("hello") {
+        return 0;
+    } else {
+        return 1;
+    }
+}
+"#,
     ];
 
     for input in cases {

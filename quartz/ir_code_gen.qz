@@ -573,6 +573,17 @@ module IrCodeGenerator {
                     }?,
                     ..nil,
                 };
+            } else if expr.t_binop!.binop.equal("not_equal") {
+                return IrTerm {
+                    t_call: IrCall {
+                        callee: IrTerm {
+                            t_ident: "not_equal"?,
+                            ..nil,
+                        },
+                        args: args,
+                    }?,
+                    ..nil,
+                };
             } else if expr.t_binop!.binop.equal("lt") {
                 return IrTerm {
                     t_call: IrCall {

@@ -343,6 +343,8 @@ module Generator {
                 } else if ident.equal("equal") {
                     self.write("i64.eq");
                     self.convert_stack_from_bool_1();
+                } else if ident.equal("not_equal") {
+                    self.generate_op_comparison("ne");
                 } else if ident.equal("lt") {
                     self.generate_op_comparison("lt_s");
                 } else if ident.equal("gt") {

@@ -82,6 +82,20 @@ module string {
     fun at(self, n: i32): byte {
         return self.data.at(n);
     }
+
+    fun equal(self, other: string): bool {
+        if self.length != other.length {
+            return false;
+        }
+
+        for i in 0..self.length {
+            if self.at(i) != other.at(i) {
+                return false;
+            }
+        }
+
+        return true;
+    }
 }
 
 fun quartz_std_new_string(p: ptr[byte], length: i32): string {

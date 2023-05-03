@@ -197,6 +197,12 @@ module IrType {
                 ..nil,
             };
         }
+        if t.t_bool != nil {
+            return IrType {
+                t_byte: true?,
+                ..nil,
+            };
+        }
 
         return panic("unknown type: {}", t.to_string());
     }
