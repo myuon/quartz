@@ -197,6 +197,7 @@ struct Expression {
         path: Path,
     }?,
     t_self: bool?,
+    t_string: string?,
 }
 
 module Expression {
@@ -259,6 +260,13 @@ struct Type {
 module Type {
     fun to_string(self): string {
         return derive::to_string(self);
+    }
+
+    fun string(): Type {
+        return Type {
+            t_ident: "string"?,
+            ..nil,
+        };
     }
 }
 

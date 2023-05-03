@@ -69,10 +69,36 @@ module InternalTypeRep {
     }
 }
 
+struct StringTable {
+    strings: vec[string],
+}
+
+module StringTable {
+    fun new(): StringTable {
+        return StringTable {
+            strings: make[vec[string]](),
+        };
+    }
+
+    fun get_or_insert(self, key: string): i32 {
+        for i in 0..self.strings.length {
+            if self.strings.at(i).equal(key) {
+                return i as i32;
+            }
+        }
+
+        self.strings.push(key);
+
+        return (self.strings.length - 1) as i32;
+    }
+}
+
 struct IrCodeGenerator {
     globals: map[string, Type],
     locals: vec[string],
     current_path: Path,
+    strings: StringTable,
+    data_section_offset: i32,
 }
 
 module IrCodeGenerator {
@@ -81,10 +107,24 @@ module IrCodeGenerator {
             globals: make[map[string, Type]](),
             locals: make[vec[string]](),
             current_path: Path::new(),
+            strings: StringTable::new(),
+            data_section_offset: 0,
         };
     }
 
-    fun module_(self, m: Module): IrTerm or error {
+    fun run(self, m: Module): IrTerm or error {
+        let decls = self.module_(m).try;
+        decls.extend(self.generate_prepare_strings().try);
+
+        return IrTerm {
+            t_module: struct {
+                elements: decls,
+            }?,
+            ..nil,
+        };
+    }
+
+    fun module_(self, m: Module): vec[IrTerm] or error {
         let elements = make[vec[IrTerm]]();
 
         for i in 0..m.decls.length {
@@ -114,17 +154,126 @@ module IrCodeGenerator {
             if d.t_module != nil {
                 let path = self.current_path.clone();
                 self.current_path.push(d.t_module!.name);
-                elements.push(self.module_(d.t_module!.module_).try);
+                elements.extend(self.module_(d.t_module!.module_).try);
                 self.current_path = path;
             }
         }
 
-        return IrTerm {
-            t_module: struct {
-                elements: elements,
+        return elements;
+    }
+
+    fun generate_prepare_strings(self): vec[IrTerm] or error {
+        let terms = make[vec[IrTerm]]();
+
+        let var_strings = "quartz_std_strings_ptr";
+        let body = make[vec[IrTerm]]();
+        body.push(IrTerm {
+            t_assign: struct {
+                lhs: var_strings,
+                rhs: self.expression(Expression {
+                    t_make: struct {
+                        type_: Type {
+                            t_ptr: Type {
+                                t_ident: "string"?,
+                                ..nil,
+                            }?,
+                            ..nil,
+                        },
+                        args: make[vec[Expression]](Expression {
+                            t_i32: struct {
+                                value: self.strings.strings.length,
+                            }?,
+                            ..nil,
+                        }),
+                    }?,
+                    ..nil,
+                }).try,
             }?,
             ..nil,
-        };
+        });
+
+        // avoid 0-8 for null pointer
+        self.data_section_offset = 8;
+
+        for i in 0..self.strings.strings.length {
+            let str = self.strings.strings.at(i);
+            let str_len = str.length;
+            let str_memory_size = str_len + 8;
+
+            let new_str = "00000000".concat(str);
+            terms.push(IrTerm {
+                t_data: struct {
+                    data: new_str,
+                    offset: self.data_section_offset,
+                }?,
+                ..nil,
+            });
+
+            let lhs = self.generate_array_at(
+                Type::string(),
+                IrTerm {
+                    t_ident: var_strings?,
+                    ..nil,
+                },
+                IrTerm {
+                    t_i32: i?,
+                    ..nil,
+                },
+            ).try;
+            body.push(self.assign(
+                lhs,
+                IrTerm {
+                    t_call: IrCall {
+                        callee: IrTerm {
+                            t_ident: "quartz_std_new_string"?,
+                            ..nil,
+                        },
+                        args: make[vec[IrTerm]](
+                            IrTerm {
+                                t_i32: self.data_section_offset?,
+                                ..nil,
+                            },
+                            IrTerm {
+                                t_i32: str_len?,
+                                ..nil,
+                            },
+                        ),
+                    }?,
+                    ..nil,
+                },
+            ).try);
+
+            self.data_section_offset = self.data_section_offset + str_memory_size;
+        }
+
+        body.push(IrTerm {
+            t_return: IrReturn {
+                value: IrTerm {
+                    t_nil: true?,
+                    ..nil,
+                },
+            }?,
+            ..nil,
+        });
+
+        terms.push(IrTerm {
+            t_func: IrFunc {
+                name: "prepare_strings".to_string(),
+                params: make[vec[struct {
+                    name: string,
+                    type_: IrType,
+                }]](),
+                body: body,
+                result_type: IrType {
+                    t_nil: true?,
+                    ..nil,
+                },
+                locals: make[vec[string]](),
+            }?,
+            ..nil,
+        });
+
+        return terms;
     }
 
     fun function(self, func: Function): IrFunc or error {
@@ -215,32 +364,7 @@ module IrCodeGenerator {
             let lhs = self.expression(stm.t_assign!.lhs).try;
             let rhs = self.expression(stm.t_assign!.rhs).try;
 
-            if lhs.t_ident != nil {
-                let term = IrTerm {
-                    t_assign: struct {
-                        lhs: lhs.t_ident!,
-                        rhs: rhs,
-                    }?,
-                    ..nil,
-                };
-
-                return term;
-            }
-            if lhs.t_load != nil {
-                let term = IrTerm {
-                    t_store: struct {
-                        type_: lhs.t_load!.type_,
-                        address: lhs.t_load!.address,
-                        offset: lhs.t_load!.offset,
-                        value: rhs,
-                    }?,
-                    ..nil,
-                };
-
-                return term;
-            }
-
-            panic("lhs: {}", stm.t_assign!.lhs.to_string());
+            return self.assign(lhs, rhs).try;
         }
         if stm.t_if != nil {
             let then_elements = make[vec[IrTerm]]();
@@ -493,9 +617,20 @@ module IrCodeGenerator {
             let term = self.expression(expr.t_as!.expr).try;
 
             return term;
+        } else if expr.t_string != nil {
+            return self.register_string(expr.t_string!);
         }
 
         return panic("expression exhausted: {}", expr.to_string());
+    }
+
+    fun register_string(self, str: string): IrTerm {
+        let index = self.strings.get_or_insert(str);
+
+        return IrTerm {
+            t_string: index?,
+            ..nil,
+        };
     }
 
     fun generate_array_enumerated(
@@ -707,6 +842,35 @@ module IrCodeGenerator {
         } else {
             return _ or error::new(format("type is not a struct: {}", t.to_string()));
         }
+    }
+
+    fun assign(self, lhs: IrTerm, rhs: IrTerm): IrTerm or error {
+        if lhs.t_ident != nil {
+            let term = IrTerm {
+                t_assign: struct {
+                    lhs: lhs.t_ident!,
+                    rhs: rhs,
+                }?,
+                ..nil,
+            };
+
+            return term;
+        }
+        if lhs.t_load != nil {
+            let term = IrTerm {
+                t_store: struct {
+                    type_: lhs.t_load!.type_,
+                    address: lhs.t_load!.address,
+                    offset: lhs.t_load!.offset,
+                    value: rhs,
+                }?,
+                ..nil,
+            };
+
+            return term;
+        }
+
+        return panic("lhs: {}, rhs: {}", lhs.to_string(), rhs.to_string());
     }
 }
 

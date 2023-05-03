@@ -77,10 +77,14 @@ module Lexer {
             return nil;
         }
 
+        self.position = self.position + 1;
+
         while input.at(self.position) != quote {
-            str.push(input.data.at(self.position));
+            str.push(input.at(self.position));
             self.position = self.position + 1;
         }
+
+        self.position = self.position + 1;
 
         return vec_byte_to_string(str)?;
     }

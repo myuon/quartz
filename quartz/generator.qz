@@ -9,6 +9,7 @@ struct Generator {
     depth: i32,
     index: i32,
     globals: map[string, Type],
+    strings: vec[string],
 }
 
 module Generator {
@@ -18,6 +19,7 @@ module Generator {
             depth: 0,
             index: 0,
             globals: make[map[string, Type]](),
+            strings: make[vec[string]](),
         };
     }
 
@@ -54,6 +56,10 @@ module Generator {
         self.globals = globals;
     }
 
+    fun set_strings(self, strings: vec[string]) {
+        self.strings = strings;
+    }
+
     fun generate(self): string {
         return self.writer;
     }
@@ -67,12 +73,26 @@ module Generator {
             for i in 0..element.t_module!.elements.length {
                 self.decl(element.t_module!.elements.at(i));
             }
+        } else if element.t_data != nil {
+            self.start();
+            self.write("data");
+            self.write(format("(i32.const {})", element.t_data!.offset.to_string()));
+            self.write(element.t_data!.data);
+            self.end();
         } else {
-            panic("expected function");
+            panic("decl: {}", element.to_string());
         }
     }
 
     fun run(self, m: IrTerm): string {
+        self.globals.insert(
+            "quartz_std_strings_ptr",
+            Type {
+                t_i32: true?,
+                ..nil,
+            },
+        );
+
         self.start();
         self.write("module");
 
@@ -90,6 +110,18 @@ module Generator {
         self.write("global");
         self.write("$heap_ptr (mut i64) (i64.const 8)");
         self.end();
+
+        self.global_let(struct {
+            name: "quartz_std_strings_ptr",
+            type_: IrType {
+                t_i32: true?,
+                ..nil,
+            },
+            value: IrTerm {
+                t_i32: 0?,
+                ..nil,
+            },
+        });
 
         self.global_let(struct {
             name: "_value_i32_0",
@@ -224,9 +256,7 @@ module Generator {
                 self.write("local.get");
             }
             self.write(format("${}", expr.t_ident!));
-            return;
-        }
-        if expr.t_i32 != nil {
+        } else if expr.t_i32 != nil {
             if MODE_READABLE_WASM {
                 self.new_statement();
                 self.write(format(" ;; {}", expr.t_i32!.to_string()));
@@ -236,26 +266,27 @@ module Generator {
                 t_i32: expr.t_i32!?,
                 ..nil,
             });
-            return;
-        }
-        if expr.t_let != nil {
+        } else if expr.t_nil != nil {
+            if MODE_READABLE_WASM {
+                self.new_statement();
+                self.write(" ;; nil");
+            }
+
+            self.write_value(Value::nil());
+        } else if expr.t_let != nil {
             self.new_statement();
             self.expression(expr.t_let!.value);
             self.expression_left_value(IrTerm {
                 t_ident: expr.t_let!.name?,
                 ..nil,
             });
-            return;
-        }
-        if expr.t_return != nil {
+        } else if expr.t_return != nil {
             self.new_statement();
             self.expression(expr.t_return!.value);
 
             self.new_statement();
             self.write("return");
-            return;
-        }
-        if expr.t_call != nil {
+        } else if expr.t_call != nil {
             for i in 0..expr.t_call!.args.length {
                 self.new_statement();
                 self.expression(expr.t_call!.args.at(i));
@@ -295,10 +326,7 @@ module Generator {
             } else {
                 panic("not implemented: call");
             }
-
-            return;
-        }
-        if expr.t_assign != nil {
+        } else if expr.t_assign != nil {
             self.expression(expr.t_assign!.rhs);
 
             self.new_statement();
@@ -308,10 +336,7 @@ module Generator {
                 self.write("local.set");
             }
             self.write(format("${}", expr.t_assign!.lhs));
-
-            return;
-        }
-        if expr.t_if != nil {
+        } else if expr.t_if != nil {
             self.new_statement();
             self.expression(expr.t_if!.condition);
             self.convert_stack_to_bool();
@@ -330,16 +355,11 @@ module Generator {
             self.end();
 
             self.end();
-
-            return;
-        }
-        if expr.t_seq != nil {
+        } else if expr.t_seq != nil {
             for i in 0..expr.t_seq!.terms.length {
                 self.expression(expr.t_seq!.terms.at(i));
             }
-            return;
-        }
-        if expr.t_while != nil {
+        } else if expr.t_while != nil {
             // [while(cond) {block, cleanup}]
 
             // (block $exit
@@ -387,10 +407,7 @@ module Generator {
 
             self.end();
             self.end();
-
-            return;
-        }
-        if expr.t_load != nil {
+        } else if expr.t_load != nil {
             self.new_statement();
             self.expression(expr.t_load!.address);
 
@@ -425,10 +442,7 @@ module Generator {
                 self.new_statement();
                 self.write("i64.xor");
             }
-
-            return;
-        }
-        if expr.t_store != nil {
+        } else if expr.t_store != nil {
             self.new_statement();
             self.expression(expr.t_store!.address);
 
@@ -461,10 +475,7 @@ module Generator {
             self.new_statement();
             self.write(format("i64.store{}", suffix));
             self.write("offset=8");
-
-            return;
-        }
-        if expr.t_sizeof != nil {
+        } else if expr.t_sizeof != nil {
             let size = expr.t_sizeof!.type_.sizeof();
 
             self.new_statement();
@@ -475,11 +486,20 @@ module Generator {
                 t_i32: size?,
                 ..nil,
             });
+        } else if expr.t_string != nil {
+            self.new_statement();
+            self.write(format(";; string: {}", self.strings.at(expr.t_string!)));
 
-            return;
+            self.new_statement();
+            self.write(format("i32.const {}", expr.t_string!.to_string()));
+
+            self.convert_stack_from_i32_1();
+
+            self.new_statement();
+            self.write("call $load_string");
+        } else {
+            panic("not implemented: expr, {}", expr.to_string());
         }
-
-        panic("not implemented: expr, {}", expr.to_string());
     }
 
     fun expression_left_value(self, expr: IrTerm) {

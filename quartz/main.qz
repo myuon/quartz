@@ -83,12 +83,13 @@ fun run(input: string): string or error {
 
     let irgen = IrCodeGenerator::new();
     irgen.globals = typechecker.globals;
-    let term = irgen.module_(result).try;
+    let term = irgen.run(result).try;
 
     // println("irgen: {}", term.to_string());
 
     let gen = Generator::new();
     gen.set_globals(typechecker.globals);
+    gen.set_strings(irgen.strings.strings);
     let code = gen.run(term);
 
     return code;

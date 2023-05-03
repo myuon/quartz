@@ -744,8 +744,16 @@ module Parser {
                 ..nil,
             };
         }
+        if self.peek().lexeme.equal("string") {
+            let token = self.consume();
 
-        return _ or error::new(format("Unexpected token {}", token.lexeme));
+            return Expression {
+                t_string: token.string_value!?,
+                ..nil,
+            };
+        }
+
+        return _ or error::new(format("Unexpected token {}", self.peek().lexeme.to_string()));
     }
 }
 

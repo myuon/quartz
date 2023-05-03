@@ -309,6 +309,23 @@ module Typechecker {
                     };
                 }
             }
+            if t.t_ident!.equal("string") {
+                if expr.t_project!.field.equal("at") {
+                    return Type {
+                        t_func: struct {
+                            params: make[vec[Type]](Type {
+                                t_i32: true?,
+                                ..nil,
+                            }),
+                            result: Type {
+                                t_byte: true?,
+                                ..nil,
+                            },
+                        }?,
+                        ..nil,
+                    };
+                }
+            }
 
             let label = expr.t_project!.field;
 
@@ -415,6 +432,11 @@ module Typechecker {
             }
 
             return _ or error::new("unknown symbol: {}".format(expr.to_string()));
+        } else if expr.t_string != nil {
+            return Type {
+                t_ident: "string"?,
+                ..nil,
+            };
         }
 
         return _ or error::new("unimplemented: expression, {}".format(expr.to_string()));
