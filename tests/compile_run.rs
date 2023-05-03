@@ -190,6 +190,13 @@ fun main(): byte {
     return s.at(0);
 }
 "#,
+        r#"
+fun main(): byte {
+    let a = "hello";
+
+    return a.at(3);
+}
+"#,
     ];
 
     for input in cases {

@@ -70,6 +70,21 @@ module Lexer {
         return vec_byte_to_string(number)?;
     }
 
+    fun consume_string_literal(self, input: string): string? {
+        let quote = 34 as byte;
+        let str = make[vec[byte]]();
+        if input.at(self.position) != quote {
+            return nil;
+        }
+
+        while input.at(self.position) != quote {
+            str.push(input.data.at(self.position));
+            self.position = self.position + 1;
+        }
+
+        return vec_byte_to_string(str)?;
+    }
+
     fun match(self, input: string, token: string, token_name: string): bool {
         if is_prefix(input, self.position, token) {
             self.tokens.push(Token {
@@ -189,6 +204,17 @@ module Lexer {
                 self.tokens.push(Token {
                     lexeme: "ident",
                     string_value: ident,
+                    position: self.position,
+                });
+
+                continue;
+            }
+
+            let str = self.consume_string_literal(input);
+            if str != nil {
+                self.tokens.push(Token {
+                    lexeme: "string",
+                    string_value: str,
                     position: self.position,
                 });
 
