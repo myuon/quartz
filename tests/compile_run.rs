@@ -244,6 +244,17 @@ fun main(): i32 {
     }
 }
 "#,
+        r#"
+fun hoge(): string? {
+    return "hoge"?;
+}
+
+fun main(): bool {
+    let t = hoge();
+
+    return t != nil;
+}
+"#,
     ];
 
     for input in cases {

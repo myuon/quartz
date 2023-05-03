@@ -492,6 +492,11 @@ module Typechecker {
             } else {
                 return _ or error::new("unimplemented: unwrap, {}".format(expr.to_string()));
             }
+        } else if expr.t_nil != nil {
+            return Type {
+                t_nil: true?,
+                ..nil,
+            };
         } else {
             return _ or error::new("unimplemented: expression, {}".format(expr.to_string()));
         }
@@ -567,6 +572,12 @@ fun unify(type1: Type, type2: Type): Type or error {
         return type2;
     }
     if type2.t_omit != nil {
+        return type1;
+    }
+    if type1.t_nil != nil && type2.t_optional != nil {
+        return type2;
+    }
+    if type2.t_nil != nil && type1.t_optional != nil {
         return type1;
     }
 

@@ -779,15 +779,13 @@ module IrCodeGenerator {
         } else if expr.t_wrap != nil {
             let term = self.expression(expr.t_wrap!.expr).try;
 
-            return self.generate_array_enumerated(
-                make[vec[struct {
-                    type_: IrType,
-                    term: IrTerm
-                }]](struct {
-                    type_: IrType::new(expr.t_wrap!.type_),
-                    term: term,
-                }),
-            );
+            return self.generate_array_enumerated(make[vec[struct {
+                type_: IrType,
+                term: IrTerm,
+            }]](struct {
+                type_: IrType::new(expr.t_wrap!.type_),
+                term: term,
+            }));
         } else if expr.t_unwrap != nil {
             let term = self.expression(expr.t_unwrap!.expr).try;
 
@@ -802,6 +800,11 @@ module IrCodeGenerator {
         } else if expr.t_bool != nil {
             return IrTerm {
                 t_bool: expr.t_bool!?,
+                ..nil,
+            };
+        } else if expr.t_nil != nil {
+            return IrTerm {
+                t_nil: true?,
                 ..nil,
             };
         }

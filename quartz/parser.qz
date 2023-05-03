@@ -941,6 +941,14 @@ module Parser {
                 ..nil,
             };
         }
+        if self.peek().lexeme.equal("nil") {
+            self.expect("nil").try;
+
+            return Expression {
+                t_nil: true?,
+                ..nil,
+            };
+        }
 
         return _ or error::new(format("Unexpected token {}", self.peek().lexeme.to_string()));
     }

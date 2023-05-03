@@ -188,6 +188,7 @@ struct Expression {
         expr: Expression,
     }?,
     t_bool: bool?,
+    t_nil: bool?,
 }
 
 module Expression {
