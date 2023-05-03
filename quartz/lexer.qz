@@ -89,6 +89,22 @@ module Lexer {
         return vec_byte_to_string(str)?;
     }
 
+    fun consume_comment(self, input: string): string? {
+        if !is_prefix(input, self.position, "//") {
+            return nil;
+        }
+
+        self.position = self.position + 2;
+
+        let comment = make[vec[byte]]();
+        while input.at(self.position) != 10 as byte {
+            comment.push(input.at(self.position));
+            self.position = self.position + 1;
+        }
+
+        return vec_byte_to_string(comment)?;
+    }
+
     fun match(self, input: string, token: string, token_name: string): bool {
         if is_prefix(input, self.position, token) {
             self.tokens.push(Token {
@@ -121,6 +137,11 @@ module Lexer {
         while self.position < input.length {
             let p = self.consume_space(input);
             if p > 0 {
+                continue;
+            }
+
+            let comment = self.consume_comment(input);
+            if comment != nil {
                 continue;
             }
 
