@@ -757,3 +757,21 @@ module derive {
     }
 }
 
+fun file_read(path: string): string {
+    let handler = create_handler();
+    for i in 0..path.length {
+        open_handler_stream(handler, path.at(i));
+    }
+    open_handler_initialize(handler);
+
+    let bs = make[vec[byte]]();
+
+    let b = read_handler(handler);
+    while b != (0 as byte) {
+        bs.push(b);
+        b = read_handler(handler);
+    }
+
+    return vec_byte_to_string(bs);
+}
+

@@ -97,6 +97,30 @@ impl Generator {
             result: IrType::I32,
         })?;
 
+        self.decl(&mut IrTerm::Declare {
+            name: "create_handler".to_string(),
+            params: vec![],
+            result: IrType::I32,
+        })?;
+
+        self.decl(&mut IrTerm::Declare {
+            name: "open_handler_stream".to_string(),
+            params: vec![IrType::I32, IrType::Byte],
+            result: IrType::Nil,
+        })?;
+
+        self.decl(&mut IrTerm::Declare {
+            name: "open_handler_initialize".to_string(),
+            params: vec![IrType::I32],
+            result: IrType::Nil,
+        })?;
+
+        self.decl(&mut IrTerm::Declare {
+            name: "read_handler".to_string(),
+            params: vec![IrType::I32],
+            result: IrType::I32,
+        })?;
+
         self.writer.start();
         self.writer.write(r#"memory 1"#);
         self.writer.end();

@@ -1,4 +1,6 @@
+use std::fs::File;
 use std::io::{Read, Write};
+use std::sync::{Arc, Mutex};
 
 use anyhow::{anyhow, Result};
 use wasmer::{imports, Instance, Module, Store};
@@ -6,16 +8,35 @@ use wasmer::{Function, Value as WasmValue};
 
 use crate::value::Value;
 
-pub struct Runtime {}
+#[derive(Clone)]
+struct Handler {
+    path: Arc<Mutex<Option<Vec<u8>>>>,
+    file: Arc<Mutex<Option<File>>>,
+}
+
+pub struct Runtime {
+    handler: Handler,
+}
 
 impl Runtime {
     pub fn new() -> Runtime {
-        Runtime {}
+        Runtime {
+            handler: Handler {
+                path: Arc::new(Mutex::new(None)),
+                file: Arc::new(Mutex::new(None)),
+            },
+        }
     }
 
     pub fn _run(&mut self, wat: &str) -> Result<Box<[WasmValue]>> {
         let mut store = Store::default();
         let module = Module::new(&store, &wat)?;
+
+        let handler_create = self.handler.clone();
+        let handler_open = self.handler.clone();
+        let handler_initialize = self.handler.clone();
+        let handler_read = self.handler.clone();
+
         let import_object = imports! {
             "env" => {
                 "write_stdout" => Function::new_typed(&mut store, |ch: i64| {
@@ -48,6 +69,46 @@ impl Runtime {
                     let mut buffer = [0u8; 1];
                     std::io::stdin().lock().read(&mut buffer).unwrap();
                     Value::Byte(buffer[0]).as_i64()
+                }),
+                "create_handler" => Function::new_typed(&mut store, move || {
+                    handler_create.path.lock().unwrap().replace(Vec::new());
+
+                    Value::i32(0).as_i64()
+                }),
+                "open_handler_stream" => Function::new_typed(&mut store, move |_handler_code: i64, i: i64| {
+                    let v = Value::from_i64(i);
+                    match v {
+                        Value::Byte(b) => {
+                            let mut handler = handler_open.path.lock().unwrap();
+                            if let Some(ref mut path) = *handler {
+                                path.push(b);
+                            }
+                        }
+                        _ => unreachable!()
+                    }
+
+                    Value::nil().as_i64()
+                }),
+                "open_handler_initialize" => Function::new_typed(&mut store, move |_handler_code: i64| {
+                    let mut handler = handler_initialize.path.lock().unwrap();
+                    let path = handler.take().unwrap();
+                    let path = String::from_utf8(path).unwrap();
+
+                    let file = File::open(path).unwrap();
+                    *handler_initialize.file.lock().unwrap() = Some(file);
+
+                    Value::nil().as_i64()
+                }),
+                "read_handler" => Function::new_typed(&mut store, move |_handler_code: i64| {
+                    let mut handler = handler_read.file.lock().unwrap();
+                    let file = handler.as_mut().unwrap();
+                    let mut buf = [0u8; 1];
+                    let bs = file.read(&mut buf).unwrap();
+                    if bs == 0 {
+                        Value::Byte(0).as_i64()
+                    } else {
+                        Value::Byte(buf[0]).as_i64()
+                    }
                 }),
             }
         };

@@ -61,6 +61,31 @@ impl TypeChecker {
                     "unsafe_load_ptr",
                     Type::Func(vec![Type::Any, Type::I32], Box::new(Type::Any)),
                 ),
+                (
+                    "create_handler",
+                    Type::Func(vec![], Box::new(Type::Ident(Ident("handler".to_string())))),
+                ),
+                (
+                    "open_handler_stream",
+                    Type::Func(
+                        vec![Type::Ident(Ident("handler".to_string())), Type::Byte],
+                        Box::new(Type::Nil),
+                    ),
+                ),
+                (
+                    "open_handler_initialize",
+                    Type::Func(
+                        vec![Type::Ident(Ident("handler".to_string()))],
+                        Box::new(Type::Nil),
+                    ),
+                ),
+                (
+                    "read_handler",
+                    Type::Func(
+                        vec![Type::Ident(Ident("handler".to_string()))],
+                        Box::new(Type::Byte),
+                    ),
+                ),
             ]
             .into_iter()
             .map(|(k, v)| (Path::ident(Ident(k.to_string())), Source::unknown(v)))
