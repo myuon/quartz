@@ -220,6 +220,67 @@ fun main(): i32 {
     return str.data.at(5) as i32 - 48;
 }
 "#,
+        r#"
+fun f(): string {
+    let s = "foo"?;
+
+    if true {
+        return s!;
+    } else {
+        return "";
+    }
+}
+
+fun main(): i32 {
+    return 0;
+}
+"#,
+        r#"
+fun main(): i32 {
+    if "hello".equal("hello") {
+        return 0;
+    } else {
+        return 1;
+    }
+}
+"#,
+        r#"
+fun hoge(): string? {
+    return "hoge"?;
+}
+
+fun main(): bool {
+    let t = hoge();
+
+    return t != nil;
+}
+"#,
+        r#"
+fun vec_len(..t: vec[i32]): i32 {
+    return t.length;
+}
+
+fun main(): i32 {
+    let t1 = vec_len(1,2,3,4);
+    let t2 = vec_len(1,2,3,4,5);
+
+    return t1 + t2;
+}
+"#,
+        r#"
+fun f(a: i32): i32 or string {
+    if a == 0 {
+        return _ or "zero";
+    } else {
+        return a;
+    }
+}
+
+fun main(): bool {
+    let a or b = f(0);
+    return a == nil && b!.equal("zero");
+}
+"#,
     ];
 
     for input in cases {

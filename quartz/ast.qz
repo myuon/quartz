@@ -56,6 +56,10 @@ struct Function {
         name: string,
         type_: Type,
     }],
+    variadic: struct {
+        name: string,
+        type_: Type,
+    }?,
 }
 
 module Function {
@@ -70,13 +74,24 @@ module Function {
             params_type.push(p.type_);
         }
 
-        return Type {
-            t_func: struct {
-                params: params_type,
-                result: self.result_type,
-            }?,
-            ..nil,
-        };
+        if self.variadic != nil {
+            return Type {
+                t_variadic_func: struct {
+                    params: params_type,
+                    variadic: self.variadic!.type_,
+                    result: self.result_type,
+                }?,
+                ..nil,
+            };
+        } else {
+            return Type {
+                t_func: struct {
+                    params: params_type,
+                    result: self.result_type,
+                }?,
+                ..nil,
+            };
+        }
     }
 }
 
@@ -98,7 +113,7 @@ module Block {
 
 struct Statement {
     t_let: struct {
-        name: string,
+        pattern: Pattern,
         name_type: Type,
         expr: Expression,
     }?,
@@ -149,6 +164,10 @@ struct Expression {
     t_call: struct {
         callee: Expression,
         args: vec[Expression],
+        variadic: struct {
+            element_type: Type,
+            index: i32,
+        }?,
     }?,
     t_project: struct {
         expr: Expression,
@@ -174,6 +193,27 @@ struct Expression {
     t_range: struct {
         start: Expression,
         end: Expression,
+    }?,
+    t_unop: struct {
+        unop: string,
+        expr: Expression,
+    }?,
+    t_unwrap: struct {
+        type_: Type,
+        expr: Expression,
+    }?,
+    t_wrap: struct {
+        type_: Type,
+        expr: Expression,
+    }?,
+    t_bool: bool?,
+    t_nil: bool?,
+    t_omit: bool?,
+    t_enumor: struct {
+        lhs: Expression?,
+        rhs: Expression?,
+        lhs_type: Type,
+        rhs_type: Type,
     }?,
 }
 
@@ -233,6 +273,17 @@ struct Type {
     t_byte: bool?,
     t_ident: string?,
     t_range: Type?,
+    t_optional: Type?,
+    t_vec: Type?,
+    t_variadic_func: struct {
+        params: vec[Type],
+        variadic: Type,
+        result: Type,
+    }?,
+    t_or: struct {
+        left: Type,
+        right: Type,
+    }?,
 }
 
 module Type {
@@ -283,6 +334,21 @@ module TypeStruct {
         }
 
         return panic("unimplemented: typestruct.find");
+    }
+}
+
+struct Pattern {
+    t_ident: string?,
+    t_or: struct {
+        lhs: Pattern,
+        rhs: Pattern,
+    }?,
+    t_omit: bool?,
+}
+
+module Pattern {
+    fun to_string(self): string {
+        return derive::to_string(self);
     }
 }
 

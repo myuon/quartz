@@ -1,3 +1,4 @@
+import quartz::path;
 import quartz::lexer;
 import quartz::ast;
 
@@ -184,20 +185,31 @@ module Parser {
             name: name,
             result_type: result_type,
             body: body,
-            params: params,
+            params: params.params,
+            variadic: params.variadic,
         };
     }
 
     fun parameters(
         self,
-    ): vec[struct {
-        name: string,
-        type_: Type,
-    }] or error {
+    ): struct {
+        params: vec[struct {
+            name: string,
+            type_: Type,
+        }],
+        variadic: struct {
+            name: string,
+            type_: Type,
+        }?,
+    } or error {
         let params = make[vec[struct {
             name: string,
             type_: Type,
         }]]();
+        let variadic = nil as struct {
+            name: string,
+            type_: Type,
+        }?;
 
         while !self.is_end() && !self.peek().lexeme.equal("rparen") {
             if self.peek().lexeme.equal("self") {
@@ -209,6 +221,16 @@ module Parser {
                         ..nil,
                     },
                 });
+            } else if self.peek().lexeme.equal("double_dot") {
+                self.expect("double_dot").try;
+                let name = self.ident().try;
+                self.expect("colon").try;
+                let t = self.type_().try;
+
+                variadic = struct {
+                    name: name,
+                    type_: t,
+                }?;
             } else {
                 let name = self.ident().try;
                 self.expect("colon").try;
@@ -225,10 +247,39 @@ module Parser {
             }
         }
 
-        return params;
+        return struct {
+            params: params,
+            variadic: variadic,
+        };
     }
 
     fun type_(self): Type or error {
+        let current = self.type_primitive().try;
+        if self.peek().lexeme.equal("question") {
+            self.expect("question").try;
+
+            return Type {
+                t_optional: current?,
+                ..nil,
+            };
+        }
+        if self.peek().lexeme.equal("or") {
+            self.expect("or").try;
+            let t = self.type_().try;
+
+            return Type {
+                t_or: struct {
+                    left: current,
+                    right: t,
+                }?,
+                ..nil,
+            };
+        }
+
+        return current;
+    }
+
+    fun type_primitive(self): Type or error {
         let token = self.consume();
         if token.lexeme.equal("ident") {
             if token.string_value!.equal("i32") {
@@ -236,20 +287,17 @@ module Parser {
                     t_i32: true?,
                     ..nil,
                 };
-            }
-            if token.string_value!.equal("byte") {
+            } else if token.string_value!.equal("byte") {
                 return Type {
                     t_byte: true?,
                     ..nil,
                 };
-            }
-            if token.string_value!.equal("bool") {
+            } else if token.string_value!.equal("bool") {
                 return Type {
                     t_bool: true?,
                     ..nil,
                 };
-            }
-            if token.string_value!.equal("ptr") {
+            } else if token.string_value!.equal("ptr") {
                 self.expect("lbracket").try;
                 let t = self.type_().try;
                 self.expect("rbracket").try;
@@ -258,17 +306,24 @@ module Parser {
                     t_ptr: t?,
                     ..nil,
                 };
+            } else if token.string_value!.equal("vec") {
+                self.expect("lbracket").try;
+                let t = self.type_().try;
+                self.expect("rbracket").try;
+
+                return Type {
+                    t_vec: t?,
+                    ..nil,
+                };
             }
 
             return Type {
                 t_ident: token.string_value!?,
                 ..nil,
             };
+        } else {
+            return _ or error::new(format("Expected type, got {}", token.to_string()));
         }
-
-        return _ or error::new("Expected IDENT, got ".concat(token.lexeme).concat("{").concat(
-            token.string_value!,
-        ).concat("}"));
     }
 
     fun peek(self): Token {
@@ -300,9 +355,7 @@ module Parser {
         if token.lexeme.equal(lexeme) {
             return nil;
         } else {
-            return _ or error::new("Expected ".concat(lexeme).concat(", got ").concat(token.lexeme).concat(
-                "{",
-            ).concat(token.string_value!).concat("}"));
+            return _ or error::new(format("Expected {}, got {}", lexeme, derive::to_string(token)));
         }
     }
 
@@ -429,7 +482,7 @@ module Parser {
 
     fun let_statement(self): Statement or error {
         self.expect("let").try;
-        let name = self.ident().try;
+        let pattern = self.pattern().try;
 
         let t = Type {
             t_omit: true?,
@@ -446,12 +499,50 @@ module Parser {
 
         return Statement {
             t_let: struct {
-                name: name,
+                pattern: pattern,
                 name_type: t,
                 expr: value,
             }?,
             ..nil,
         };
+    }
+
+    fun pattern(self): Pattern or error {
+        let current = Pattern {
+            t_omit: true?,
+            ..nil,
+        };
+
+        if self.peek().lexeme.equal("underscore") {
+            self.consume();
+
+            current = Pattern {
+                t_omit: true?,
+                ..nil,
+            };
+        } else {
+            let name = self.ident().try;
+
+            current = Pattern {
+                t_ident: name?,
+                ..nil,
+            };
+        }
+
+        if self.peek().lexeme.equal("or") {
+            self.consume();
+            let rhs = self.pattern().try;
+
+            return Pattern {
+                t_or: struct {
+                    lhs: current,
+                    rhs: rhs,
+                }?,
+                ..nil,
+            };
+        } else {
+            return current;
+        }
     }
 
     fun return_statement(self): Statement or error {
@@ -476,7 +567,65 @@ module Parser {
     }
 
     fun term_5(self, with_struct: bool): Expression or error {
-        return self.term_4(with_struct).try;
+        let current = self.term_4(with_struct).try;
+        while true {
+            if self.peek().lexeme.equal("double_amp") {
+                self.expect("double_amp").try;
+                let rhs = self.term_4(with_struct).try;
+
+                current = Expression {
+                    t_binop: struct {
+                        binop: "and",
+                        left: current,
+                        right: rhs,
+                    }?,
+                    ..nil,
+                };
+            } else if self.peek().lexeme.equal("double_pipe") {
+                self.expect("double_pipe").try;
+                let rhs = self.term_4(with_struct).try;
+
+                current = Expression {
+                    t_binop: struct {
+                        binop: "or",
+                        left: current,
+                        right: rhs,
+                    }?,
+                    ..nil,
+                };
+            } else if self.peek().lexeme.equal("or") {
+                self.expect("or").try;
+                let lhs = current?;
+                if lhs!.t_omit != nil {
+                    lhs = nil;
+                }
+
+                let rhs = self.term_4(with_struct).try?;
+                if rhs!.t_omit != nil {
+                    rhs = nil;
+                }
+
+                current = Expression {
+                    t_enumor: struct {
+                        lhs: lhs,
+                        rhs: rhs,
+                        lhs_type: Type {
+                            t_omit: true?,
+                            ..nil,
+                        },
+                        rhs_type: Type {
+                            t_omit: true?,
+                            ..nil,
+                        },
+                    }?,
+                    ..nil,
+                };
+            } else {
+                return current;
+            }
+        }
+
+        return current;
     }
 
     fun term_4(self, with_struct: bool): Expression or error {
@@ -489,6 +638,18 @@ module Parser {
                 current = Expression {
                     t_binop: struct {
                         binop: "equal",
+                        left: current,
+                        right: self.term_3(with_struct).try,
+                    }?,
+                    ..nil,
+                };
+                continue;
+            } else if self.peek().lexeme.equal("not_equal") {
+                self.expect("not_equal").try;
+
+                current = Expression {
+                    t_binop: struct {
+                        binop: "not_equal",
                         left: current,
                         right: self.term_3(with_struct).try,
                     }?,
@@ -664,6 +825,7 @@ module Parser {
                     t_call: struct {
                         callee: current,
                         args: args,
+                        variadic: nil,
                     }?,
                     ..nil,
                 };
@@ -774,6 +936,32 @@ module Parser {
                     }?,
                     ..nil,
                 };
+            } else if token.lexeme.equal("bang") {
+                self.expect("bang").try;
+
+                current = Expression {
+                    t_unwrap: struct {
+                        type_: Type {
+                            t_omit: true?,
+                            ..nil,
+                        },
+                        expr: current,
+                    }?,
+                    ..nil,
+                };
+            } else if token.lexeme.equal("question") {
+                self.expect("question").try;
+
+                current = Expression {
+                    t_wrap: struct {
+                        type_: Type {
+                            t_omit: true?,
+                            ..nil,
+                        },
+                        expr: current,
+                    }?,
+                    ..nil,
+                };
             } else {
                 return current;
             }
@@ -828,6 +1016,51 @@ module Parser {
 
             return Expression {
                 t_paren: expr?,
+                ..nil,
+            };
+        }
+        if self.peek().lexeme.equal("bang") {
+            self.expect("bang").try;
+
+            let expr = self.expression().try;
+
+            return Expression {
+                t_unop: struct {
+                    unop: "not",
+                    expr: expr,
+                }?,
+                ..nil,
+            };
+        }
+        if self.peek().lexeme.equal("true") {
+            self.expect("true").try;
+
+            return Expression {
+                t_bool: true?,
+                ..nil,
+            };
+        }
+        if self.peek().lexeme.equal("false") {
+            self.expect("false").try;
+
+            return Expression {
+                t_bool: false?,
+                ..nil,
+            };
+        }
+        if self.peek().lexeme.equal("nil") {
+            self.expect("nil").try;
+
+            return Expression {
+                t_nil: true?,
+                ..nil,
+            };
+        }
+        if self.peek().lexeme.equal("underscore") {
+            self.expect("underscore").try;
+
+            return Expression {
+                t_omit: true?,
                 ..nil,
             };
         }

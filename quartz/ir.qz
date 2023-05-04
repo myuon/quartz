@@ -54,6 +54,15 @@ struct IrTerm {
     }?,
     t_discard: IrTerm?,
     t_inst: string?,
+    t_bool: bool?,
+    t_and: struct {
+        lhs: IrTerm,
+        rhs: IrTerm,
+    }?,
+    t_or: struct {
+        lhs: IrTerm,
+        rhs: IrTerm,
+    }?,
 }
 
 module IrTerm {
@@ -156,6 +165,7 @@ struct IrType {
     t_i32: bool?,
     t_address: bool?,
     t_byte: bool?,
+    t_bool: bool?,
 }
 
 module IrType {
@@ -185,6 +195,30 @@ module IrType {
             };
         }
         if t.t_ptr != nil {
+            return IrType {
+                t_address: true?,
+                ..nil,
+            };
+        }
+        if t.t_optional != nil {
+            return IrType {
+                t_address: true?,
+                ..nil,
+            };
+        }
+        if t.t_bool != nil {
+            return IrType {
+                t_bool: true?,
+                ..nil,
+            };
+        }
+        if t.t_vec != nil {
+            return IrType {
+                t_address: true?,
+                ..nil,
+            };
+        }
+        if t.t_or != nil {
             return IrType {
                 t_address: true?,
                 ..nil,

@@ -69,6 +69,8 @@ fun main() {
 }
 
 fun run(input_: string): string or error {
+    // let content = file_read("quartz/std.qz");
+    // let input = content.concat(input_);
     let input = `
 let quartz_std_strings_ptr = 0;
 
@@ -80,6 +82,20 @@ module string {
     fun at(self, n: i32): byte {
         return self.data.at(n);
     }
+
+    fun equal(self, other: string): bool {
+        if self.length != other.length {
+            return false;
+        }
+
+        for i in 0..self.length {
+            if self.at(i) != other.at(i) {
+                return false;
+            }
+        }
+
+        return true;
+    }
 }
 
 fun quartz_std_new_string(p: ptr[byte], length: i32): string {
@@ -87,6 +103,29 @@ fun quartz_std_new_string(p: ptr[byte], length: i32): string {
         data: p,
         length: length,
     };
+}
+
+fun quartz_std_vec_make(capacity: i32): vec[i32] {
+    return vec {
+        data: make[ptr[i32]](capacity),
+        length: 0,
+        capacity: capacity,
+    };
+}
+
+fun quartz_std_vec_push(v: vec[i32], e: i32) {
+    if (v.length + 1) == v.capacity {
+        let new_capacity = v.capacity * 2;
+        let new_data = make[ptr[i32]](new_capacity);
+        for i in 0..v.length {
+            new_data.at(i) = v.data.at(i);
+        }
+        v.data = new_data;
+        v.capacity = new_capacity;
+    }
+
+    v.data.at(v.length) = e;
+    v.length = v.length + 1;
 }
 `.concat(
         input_,

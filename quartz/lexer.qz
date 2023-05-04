@@ -89,6 +89,22 @@ module Lexer {
         return vec_byte_to_string(str)?;
     }
 
+    fun consume_comment(self, input: string): string? {
+        if !is_prefix(input, self.position, "//") {
+            return nil;
+        }
+
+        self.position = self.position + 2;
+
+        let comment = make[vec[byte]]();
+        while input.at(self.position) != 10 as byte {
+            comment.push(input.at(self.position));
+            self.position = self.position + 1;
+        }
+
+        return vec_byte_to_string(comment)?;
+    }
+
     fun match(self, input: string, token: string, token_name: string): bool {
         if is_prefix(input, self.position, token) {
             self.tokens.push(Token {
@@ -121,6 +137,11 @@ module Lexer {
         while self.position < input.length {
             let p = self.consume_space(input);
             if p > 0 {
+                continue;
+            }
+
+            let comment = self.consume_comment(input);
+            if comment != nil {
                 continue;
             }
 
@@ -160,13 +181,34 @@ module Lexer {
             if self.match_term(input, "in", "in") {
                 continue;
             }
+            if self.match_term(input, "true", "true") {
+                continue;
+            }
+            if self.match_term(input, "false", "false") {
+                continue;
+            }
+            if self.match_term(input, "nil", "nil") {
+                continue;
+            }
+            if self.match_term(input, "or", "or") {
+                continue;
+            }
             if self.match(input, "==", "double_equal") {
+                continue;
+            }
+            if self.match(input, "!=", "not_equal") {
                 continue;
             }
             if self.match(input, "::", "double_colon") {
                 continue;
             }
             if self.match(input, "..", "double_dot") {
+                continue;
+            }
+            if self.match(input, "&&", "double_amp") {
+                continue;
+            }
+            if self.match(input, "||", "double_pipe") {
                 continue;
             }
             if self.match(input, "(", "lparen") {
@@ -221,6 +263,15 @@ module Lexer {
                 continue;
             }
             if self.match(input, ".", "dot") {
+                continue;
+            }
+            if self.match(input, "!", "bang") {
+                continue;
+            }
+            if self.match(input, "?", "question") {
+                continue;
+            }
+            if self.match(input, "_", "underscore") {
                 continue;
             }
 
@@ -286,3 +337,4 @@ fun is_term_boundary(input: string, position: i32): bool {
 
     return true;
 }
+

@@ -925,6 +925,31 @@ impl IrCodeGenerator {
                                     expr,
                                 ))?)
                             }
+                            (Type::Vec(_), "slice") => {
+                                assert_eq!(args.len(), 2);
+
+                                Ok(self.expr(&mut Source::transfer(
+                                    Expr::Call(
+                                        Box::new(Source::transfer(
+                                            Expr::path(Path::new(
+                                                vec!["quartz", "std", "vec_slice"]
+                                                    .into_iter()
+                                                    .map(|t| Ident(t.to_string()))
+                                                    .collect(),
+                                            )),
+                                            expr,
+                                        )),
+                                        vec![
+                                            expr.as_ref().clone(),
+                                            args[0].clone(),
+                                            args[1].clone(),
+                                        ],
+                                        None,
+                                        None,
+                                    ),
+                                    expr,
+                                ))?)
+                            }
                             (Type::Map(_, _), "insert") => {
                                 assert_eq!(args.len(), 2);
 

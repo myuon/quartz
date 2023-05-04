@@ -56,6 +56,43 @@ module Typechecker {
                 ..nil,
             },
         );
+        globals.insert(
+            "vec",
+            Type {
+                t_struct: TypeStruct {
+                    fields: make[vec[struct {
+                        name: string,
+                        type_: Type,
+                    }]](
+                        struct {
+                            name: "data",
+                            type_: Type {
+                                t_ptr: Type {
+                                    t_i32: true?,
+                                    ..nil,
+                                }?,
+                                ..nil,
+                            },
+                        },
+                        struct {
+                            name: "length",
+                            type_: Type {
+                                t_i32: true?,
+                                ..nil,
+                            },
+                        },
+                        struct {
+                            name: "capacity",
+                            type_: Type {
+                                t_i32: true?,
+                                ..nil,
+                            },
+                        },
+                    ),
+                }?,
+                ..nil,
+            },
+        );
 
         return Typechecker {
             locals: make[map[string, Type]](),
@@ -122,6 +159,9 @@ module Typechecker {
             let p = f.params.at(i);
             self.locals.insert(p.name, p.type_);
         }
+        if f.variadic != nil {
+            self.locals.insert(f.variadic!.name, f.variadic!.type_);
+        }
 
         self.block(f.body, f.result_type).try;
 
@@ -148,7 +188,7 @@ module Typechecker {
             unify(t, s.t_let!.name_type).try;
             s.t_let!.name_type = t;
 
-            self.locals.insert(s.t_let!.name, t);
+            self.register_locals_with_pattern(s.t_let!.pattern, t).try;
             return nil;
         } else if s.t_return != nil {
             let t = self.expression(s.t_return!.expr).try;
@@ -226,6 +266,35 @@ module Typechecker {
         return _ or error::new("unimplemented: statement, {}".format(s.to_string()));
     }
 
+    fun register_locals_with_pattern(self, pattern: Pattern, type_: Type): nil or error {
+        if pattern.t_ident != nil {
+            self.locals.insert(pattern.t_ident!, type_);
+        } else if pattern.t_or != nil {
+            if type_.t_or != nil {
+                self.register_locals_with_pattern(
+                    pattern.t_or!.lhs,
+                    Type {
+                        t_optional: type_.t_or!.left?,
+                        ..nil,
+                    },
+                ).try;
+                self.register_locals_with_pattern(
+                    pattern.t_or!.rhs,
+                    Type {
+                        t_optional: type_.t_or!.right?,
+                        ..nil,
+                    },
+                ).try;
+            } else {
+                return _ or error::new("unimplemented: pattern, {}".format(pattern.to_string()));
+            }
+        } else {
+            return _ or error::new("unimplemented: pattern, {}".format(pattern.to_string()));
+        }
+
+        return nil;
+    }
+
     fun expression_left_value(self, expr: Expression): Type or error {
         let t = self.expression(expr).try;
 
@@ -264,12 +333,49 @@ module Typechecker {
                 ).try;
 
                 return t1;
-            } else if (expr.t_binop!.binop.equal("equal") || expr.t_binop!.binop.equal("lt") || expr.t_binop!.binop.equal(
-                "gt",
-            )) {
+            } else if (expr.t_binop!.binop.equal("equal") || expr.t_binop!.binop.equal("not_equal")) {
                 let t1 = self.expression(expr.t_binop!.left).try;
                 let t2 = self.expression(expr.t_binop!.right).try;
                 unify(t1, t2).try;
+
+                return Type {
+                    t_bool: true?,
+                    ..nil,
+                };
+            } else if (expr.t_binop!.binop.equal("lt") || expr.t_binop!.binop.equal("gt")) {
+                let t1 = self.expression(expr.t_binop!.left).try;
+                let t2 = self.expression(expr.t_binop!.right).try;
+                unify(t1, t2).try;
+                unify(
+                    t1,
+                    Type {
+                        t_i32: true?,
+                        ..nil,
+                    },
+                ).try;
+
+                return Type {
+                    t_bool: true?,
+                    ..nil,
+                };
+            } else if (expr.t_binop!.binop.equal("and") || expr.t_binop!.binop.equal("or")) {
+                let t1 = self.expression(expr.t_binop!.left).try;
+                unify(
+                    t1,
+                    Type {
+                        t_bool: true?,
+                        ..nil,
+                    },
+                ).try;
+
+                let t2 = self.expression(expr.t_binop!.right).try;
+                unify(
+                    t2,
+                    Type {
+                        t_bool: true?,
+                        ..nil,
+                    },
+                ).try;
 
                 return Type {
                     t_bool: true?,
@@ -291,20 +397,57 @@ module Typechecker {
 
             return _ or error::new("unbound identifier: ".concat(expr.t_ident!.name));
         } else if expr.t_call != nil {
-            let func_type = self.expression(expr.t_call!.callee).try.t_func!;
-            if func_type.params.length != expr.t_call!.args.length {
-                return _ or error::new("wrong number of arguments, {}".format(expr.to_string()));
+            let callee_type = self.expression(expr.t_call!.callee).try;
+            if callee_type.t_func != nil {
+                let func_type = callee_type.t_func!;
+                if func_type.params.length != expr.t_call!.args.length {
+                    return _ or error::new("wrong number of arguments, {} != {}".format(
+                        derive::to_string(func_type.params),
+                        derive::to_string(expr.t_call!.args),
+                    ));
+                }
+
+                for i in 0..expr.t_call!.args.length {
+                    let arg = expr.t_call!.args.at(i);
+                    let arg_type = self.expression(arg).try;
+                    let param_type = func_type.params.at(i);
+
+                    unify(arg_type, param_type).try;
+                }
+
+                return func_type.result;
+            } else if callee_type.t_variadic_func != nil {
+                let func_type = callee_type.t_variadic_func!;
+                if func_type.params.length > expr.t_call!.args.length {
+                    return _ or error::new("wrong number of arguments, {} != {}".format(
+                        derive::to_string(func_type.params),
+                        derive::to_string(expr.t_call!.args),
+                    ));
+                }
+
+                let variadic_type = callee_type.t_variadic_func!.variadic.t_vec!;
+
+                for i in 0..expr.t_call!.args.length {
+                    let arg = expr.t_call!.args.at(i);
+                    let arg_type = self.expression(arg).try;
+
+                    if i < func_type.params.length {
+                        let param_type = func_type.params.at(i);
+                        unify(arg_type, param_type).try;
+                    } else {
+                        unify(arg_type, variadic_type).try;
+                    }
+                }
+
+                expr.t_call!.variadic = struct {
+                    element_type: variadic_type,
+                    index: func_type.params.length,
+                }?;
+
+                return func_type.result;
+            } else {
+                return _ or error::new("not a function, {}".format(callee_type.to_string()));
             }
-
-            for i in 0..expr.t_call!.args.length {
-                let arg = expr.t_call!.args.at(i);
-                let arg_type = self.expression(arg).try;
-                let param_type = func_type.params.at(i);
-
-                unify(arg_type, param_type).try;
-            }
-
-            return func_type.result;
         } else if expr.t_project != nil {
             let t = self.expression(expr.t_project!.expr).try;
             expr.t_project!.type_ = t?;
@@ -322,6 +465,13 @@ module Typechecker {
                             params: ps,
                             result: t.t_ptr!,
                         }?,
+                        ..nil,
+                    };
+                }
+            } else if t.t_vec != nil {
+                if expr.t_project!.field.equal("length") {
+                    return Type {
+                        t_i32: true?,
                         ..nil,
                     };
                 }
@@ -450,6 +600,66 @@ module Typechecker {
                 t_range: start?,
                 ..nil,
             };
+        } else if expr.t_bool != nil {
+            return Type {
+                t_bool: true?,
+                ..nil,
+            };
+        } else if expr.t_wrap != nil {
+            let t = self.expression(expr.t_wrap!.expr).try;
+            expr.t_wrap!.type_ = t;
+
+            return Type {
+                t_optional: t?,
+                ..nil,
+            };
+        } else if expr.t_unwrap != nil {
+            let t = self.expression(expr.t_unwrap!.expr).try;
+
+            if t.t_optional != nil {
+                let wrapped = Type {
+                    t_optional: expr.t_unwrap!.type_?,
+                    ..nil,
+                };
+                let unified = unify(wrapped, t).try;
+                let element_type = unified.t_optional!;
+                expr.t_unwrap!.type_ = element_type;
+
+                return element_type;
+            } else {
+                return _ or error::new("unimplemented: unwrap, {}".format(expr.to_string()));
+            }
+        } else if expr.t_nil != nil {
+            return Type {
+                t_nil: true?,
+                ..nil,
+            };
+        } else if expr.t_enumor != nil {
+            let lhs_type = Type {
+                t_nil: true?,
+                ..nil,
+            };
+            if expr.t_enumor!.lhs != nil {
+                lhs_type = self.expression(expr.t_enumor!.lhs!).try;
+            }
+            expr.t_enumor!.lhs_type = lhs_type;
+
+            let rhs_type = Type {
+                t_nil: true?,
+                ..nil,
+            };
+            if expr.t_enumor!.rhs != nil {
+                rhs_type = self.expression(expr.t_enumor!.rhs!).try;
+            }
+            expr.t_enumor!.rhs_type = rhs_type;
+
+            return Type {
+                t_or: struct {
+                    left: lhs_type,
+                    right: rhs_type,
+                }?,
+                ..nil,
+            };
         } else {
             return _ or error::new("unimplemented: expression, {}".format(expr.to_string()));
         }
@@ -478,34 +688,32 @@ module Typechecker {
             }
 
             return result;
+        } else if type_.t_vec != nil {
+            return self.resolve_record_type(
+                Type {
+                    t_ident: "vec"?,
+                    ..nil,
+                },
+                args,
+            );
         }
 
         return _ or error::new("unimplemented: resolve_record_type, {}".format(type_.to_string()));
     }
 }
 
-fun unify(type1: Type, type2: Type): nil or error {
+fun unify(type1: Type, type2: Type): Type or error {
     if type1.t_i32 != nil && type2.t_i32 != nil {
-        return;
+        return type1;
     }
     if type1.t_nil != nil && type2.t_nil != nil {
-        return;
-    }
-    if type1.t_omit != nil {
-        return;
-    }
-    if type2.t_omit != nil {
-        return;
-    }
-    if type1.t_ptr != nil && type2.t_ptr != nil {
-        unify(type1.t_ptr!, type2.t_ptr!).try;
-        return;
+        return type1;
     }
     if type1.t_bool != nil && type2.t_bool != nil {
-        return;
+        return type1;
     }
     if type1.t_byte != nil && type2.t_byte != nil {
-        return;
+        return type1;
     }
     if type1.t_ident != nil && type2.t_ident != nil {
         if !type1.t_ident!.equal(type2.t_ident!) {
@@ -513,7 +721,35 @@ fun unify(type1: Type, type2: Type): nil or error {
             )));
         }
 
-        return;
+        return type1;
+    }
+    if type1.t_ptr != nil && type2.t_ptr != nil {
+        let result = unify(type1.t_ptr!, type2.t_ptr!).try;
+
+        return Type {
+            t_ptr: result?,
+            ..nil,
+        };
+    }
+    if type1.t_optional != nil && type2.t_optional != nil {
+        let result = unify(type1.t_optional!, type2.t_optional!).try;
+
+        return Type {
+            t_optional: result?,
+            ..nil,
+        };
+    }
+    if type1.t_omit != nil {
+        return type2;
+    }
+    if type2.t_omit != nil {
+        return type1;
+    }
+    if type1.t_nil != nil && type2.t_optional != nil {
+        return type2;
+    }
+    if type2.t_nil != nil && type1.t_optional != nil {
+        return type1;
     }
 
     return _ or error::new("unification failed: ".concat(type1.to_string()).concat(" != ").concat(type2.to_string(
