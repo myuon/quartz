@@ -99,6 +99,7 @@ struct IrCodeGenerator {
     current_path: Path,
     strings: StringTable,
     data_section_offset: i32,
+    counter: i32,
 }
 
 module IrCodeGenerator {
@@ -109,6 +110,7 @@ module IrCodeGenerator {
             current_path: Path::new(),
             strings: StringTable::new(),
             data_section_offset: 0,
+            counter: 0,
         };
     }
 
@@ -301,6 +303,12 @@ module IrCodeGenerator {
                     type_: IrType::new(p.type_),
                 });
             }
+        }
+        if func.variadic != nil {
+            params.push(struct {
+                name: func.variadic!.name,
+                type_: IrType::new(func.variadic!.type_),
+            });
         }
 
         return IrFunc {
@@ -652,22 +660,18 @@ module IrCodeGenerator {
                         ..nil,
                     };
                 }
+            } else {
+                return self.generate_call(expr.t_call!.callee, expr.t_call!.args, expr.t_call!.variadic).try;
             }
-
-            let term = IrTerm {
-                t_call: IrCall {
-                    callee: self.expression(expr.t_call!.callee).try,
-                    args: make[vec[IrTerm]](),
-                }?,
-                ..nil,
-            };
-
-            for i in 0..expr.t_call!.args.length {
-                term.t_call!.args.push(self.expression(expr.t_call!.args.at(i)).try);
-            }
-
-            return term;
         } else if expr.t_record != nil {
+            if !self.globals.has(expr.t_record!.name){
+                return _ or error::new(format("record not found: {}", expr.t_record!.name));
+            }
+            let record_type = self.globals.at(expr.t_record!.name);
+            if record_type.t_struct == nil {
+                return _ or error::new(format("type is not a record: {}", expr.t_record!.name));
+            }
+
             let t = self.globals.at(expr.t_record!.name).t_struct!;
 
             let record = make[vec[struct {
@@ -1027,6 +1031,11 @@ module IrCodeGenerator {
             }
         } else if t.t_struct != nil {
             return t.t_struct!;
+        } else if t.t_vec != nil {
+            return self.resolve_type_struct(Type {
+                t_ident: "vec"?,
+                ..nil,
+            });
         } else {
             return _ or error::new(format("type is not a struct: {}", t.to_string()));
         }
@@ -1059,6 +1068,99 @@ module IrCodeGenerator {
         }
 
         return panic("lhs: {}, rhs: {}", lhs.to_string(), rhs.to_string());
+    }
+
+    fun generate_call(
+        self,
+        callee: Expression,
+        args: vec[Expression],
+        variadic: struct {
+            element_type: Type,
+            index: i32,
+        }?,
+    ): IrTerm or error {
+        if variadic != nil {
+            let terms = make[vec[IrTerm]]();
+            for arg in args.slice(0, variadic!.index) {
+                terms.push(self.expression(arg).try);
+            }
+
+            // for uniqueness
+            let vec_name = format("vec_generate_call_{}", self.counter.to_string());
+            self.counter = self.counter + 1;
+
+            let variadic_terms = make[vec[IrTerm]](IrTerm {
+                t_let: IrLet {
+                    name: vec_name,
+                    type_: IrType::new(Type {
+                        t_vec: variadic!.element_type?,
+                        ..nil,
+                    }),
+                    value: IrTerm {
+                        t_call: IrCall {
+                            callee: IrTerm {
+                                t_ident: "quartz_std_vec_make"?,
+                                ..nil,
+                            },
+                            args: make[vec[IrTerm]](),
+                        }?,
+                        ..nil,
+                    },
+                }?,
+                ..nil,
+            });
+            for arg in args.slice(variadic!.index, args.length) {
+                variadic_terms.push(IrTerm {
+                    t_call: IrCall {
+                        callee: IrTerm {
+                            t_ident: "quartz_std_vec_push"?,
+                            ..nil,
+                        },
+                        args: make[vec[IrTerm]](
+                            IrTerm {
+                                t_ident: vec_name?,
+                                ..nil,
+                            },
+                            self.expression(arg).try,
+                        ),
+                    }?,
+                    ..nil,
+                });
+            }
+
+            variadic_terms.push(IrTerm {
+                t_ident: vec_name?,
+                ..nil,
+            });
+
+            terms.push(IrTerm {
+                t_seq: struct {
+                    terms: variadic_terms,
+                }?,
+                ..nil,
+            });
+
+            return IrTerm {
+                t_call: IrCall {
+                    callee: self.expression(callee).try,
+                    args: terms,
+                }?,
+                ..nil,
+            };
+        } else {
+            let terms = make[vec[IrTerm]]();
+            for arg in args {
+                terms.push(self.expression(arg).try);
+            }
+
+            return IrTerm {
+                t_call: IrCall {
+                    callee: self.expression(callee).try,
+                    args: terms,
+                }?,
+                ..nil,
+            };
+        }
     }
 }
 

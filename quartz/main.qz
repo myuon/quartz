@@ -104,6 +104,29 @@ fun quartz_std_new_string(p: ptr[byte], length: i32): string {
         length: length,
     };
 }
+
+fun quartz_std_vec_make(capacity: i32): vec[i32] {
+    return vec {
+        data: make[ptr[i32]](capacity),
+        length: 0,
+        capacity: capacity,
+    };
+}
+
+fun quartz_std_vec_push(v: vec[i32], e: i32) {
+    if (v.length + 1) == v.capacity {
+        let new_capacity = v.capacity * 2;
+        let new_data = make[ptr[i32]](new_capacity);
+        for i in 0..v.length {
+            new_data.at(i) = v.data.at(i);
+        }
+        v.data = new_data;
+        v.capacity = new_capacity;
+    }
+
+    v.data.at(v.length) = e;
+    v.length = v.length + 1;
+}
 `.concat(
         input_,
     );

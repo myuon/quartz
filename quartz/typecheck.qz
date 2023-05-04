@@ -56,6 +56,43 @@ module Typechecker {
                 ..nil,
             },
         );
+        globals.insert(
+            "vec",
+            Type {
+                t_struct: TypeStruct {
+                    fields: make[vec[struct {
+                        name: string,
+                        type_: Type,
+                    }]](
+                        struct {
+                            name: "data",
+                            type_: Type {
+                                t_ptr: Type {
+                                    t_omit: true?,
+                                    ..nil,
+                                }?,
+                                ..nil,
+                            },
+                        },
+                        struct {
+                            name: "length",
+                            type_: Type {
+                                t_i32: true?,
+                                ..nil,
+                            },
+                        },
+                        struct {
+                            name: "capacity",
+                            type_: Type {
+                                t_i32: true?,
+                                ..nil,
+                            },
+                        },
+                    ),
+                }?,
+                ..nil,
+            },
+        );
 
         return Typechecker {
             locals: make[map[string, Type]](),
@@ -121,6 +158,9 @@ module Typechecker {
         for i in 0..f.params.length {
             let p = f.params.at(i);
             self.locals.insert(p.name, p.type_);
+        }
+        if f.variadic != nil {
+            self.locals.insert(f.variadic!.name, f.variadic!.type_);
         }
 
         self.block(f.body, f.result_type).try;
@@ -273,16 +313,17 @@ module Typechecker {
                     t_bool: true?,
                     ..nil,
                 };
-            } else if (expr.t_binop!.binop.equal("lt") || expr.t_binop!.binop.equal(
-                "gt",
-            )) {
+            } else if (expr.t_binop!.binop.equal("lt") || expr.t_binop!.binop.equal("gt")) {
                 let t1 = self.expression(expr.t_binop!.left).try;
                 let t2 = self.expression(expr.t_binop!.right).try;
                 unify(t1, t2).try;
-                unify(t1, Type {
-                    t_i32: true?,
-                    ..nil,
-                }).try;
+                unify(
+                    t1,
+                    Type {
+                        t_i32: true?,
+                        ..nil,
+                    },
+                ).try;
 
                 return Type {
                     t_bool: true?,
@@ -304,20 +345,57 @@ module Typechecker {
 
             return _ or error::new("unbound identifier: ".concat(expr.t_ident!.name));
         } else if expr.t_call != nil {
-            let func_type = self.expression(expr.t_call!.callee).try.t_func!;
-            if func_type.params.length != expr.t_call!.args.length {
-                return _ or error::new("wrong number of arguments, {}".format(expr.to_string()));
+            let callee_type = self.expression(expr.t_call!.callee).try;
+            if callee_type.t_func != nil {
+                let func_type = callee_type.t_func!;
+                if func_type.params.length != expr.t_call!.args.length {
+                    return _ or error::new("wrong number of arguments, {} != {}".format(
+                        derive::to_string(func_type.params),
+                        derive::to_string(expr.t_call!.args),
+                    ));
+                }
+
+                for i in 0..expr.t_call!.args.length {
+                    let arg = expr.t_call!.args.at(i);
+                    let arg_type = self.expression(arg).try;
+                    let param_type = func_type.params.at(i);
+
+                    unify(arg_type, param_type).try;
+                }
+
+                return func_type.result;
+            } else if callee_type.t_variadic_func != nil {
+                let func_type = callee_type.t_variadic_func!;
+                if func_type.params.length > expr.t_call!.args.length {
+                    return _ or error::new("wrong number of arguments, {} != {}".format(
+                        derive::to_string(func_type.params),
+                        derive::to_string(expr.t_call!.args),
+                    ));
+                }
+
+                let variadic_type = callee_type.t_variadic_func!.variadic.t_vec!;
+
+                for i in 0..expr.t_call!.args.length {
+                    let arg = expr.t_call!.args.at(i);
+                    let arg_type = self.expression(arg).try;
+
+                    if i < func_type.params.length {
+                        let param_type = func_type.params.at(i);
+                        unify(arg_type, param_type).try;
+                    } else {
+                        unify(arg_type, variadic_type).try;
+                    }
+                }
+
+                expr.t_call!.variadic = struct {
+                    element_type: variadic_type,
+                    index: func_type.params.length,
+                }?;
+
+                return func_type.result;
+            } else {
+                return _ or error::new("not a function, {}".format(callee_type.to_string()));
             }
-
-            for i in 0..expr.t_call!.args.length {
-                let arg = expr.t_call!.args.at(i);
-                let arg_type = self.expression(arg).try;
-                let param_type = func_type.params.at(i);
-
-                unify(arg_type, param_type).try;
-            }
-
-            return func_type.result;
         } else if expr.t_project != nil {
             let t = self.expression(expr.t_project!.expr).try;
             expr.t_project!.type_ = t?;
@@ -335,6 +413,13 @@ module Typechecker {
                             params: ps,
                             result: t.t_ptr!,
                         }?,
+                        ..nil,
+                    };
+                }
+            } else if t.t_vec != nil {
+                if expr.t_project!.field.equal("length") {
+                    return Type {
+                        t_i32: true?,
                         ..nil,
                     };
                 }
@@ -525,6 +610,14 @@ module Typechecker {
             }
 
             return result;
+        } else if type_.t_vec != nil {
+            return self.resolve_record_type(
+                Type {
+                    t_ident: "vec"?,
+                    ..nil,
+                },
+                args,
+            );
         }
 
         return _ or error::new("unimplemented: resolve_record_type, {}".format(type_.to_string()));

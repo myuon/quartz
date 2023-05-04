@@ -940,6 +940,12 @@ impl TypeChecker {
                                 Box::new(Type::Nil),
                             ));
                         }
+                        "slice" => {
+                            return Ok(Type::Func(
+                                vec![Type::I32, Type::I32],
+                                Box::new(Type::Vec(Box::new(*p.clone()))),
+                            ));
+                        }
                         _ => (),
                     }
                 }

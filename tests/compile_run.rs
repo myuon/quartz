@@ -255,6 +255,18 @@ fun main(): bool {
     return t != nil;
 }
 "#,
+        r#"
+fun vec_len(..t: vec[i32]): i32 {
+    return t.length;
+}
+
+fun main(): i32 {
+    let t1 = vec_len(1,2,3,4);
+    let t2 = vec_len(1,2,3,4,5);
+
+    return t1 + t2;
+}
+"#,
     ];
 
     for input in cases {

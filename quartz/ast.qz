@@ -56,6 +56,10 @@ struct Function {
         name: string,
         type_: Type,
     }],
+    variadic: struct {
+        name: string,
+        type_: Type,
+    }?,
 }
 
 module Function {
@@ -70,13 +74,24 @@ module Function {
             params_type.push(p.type_);
         }
 
-        return Type {
-            t_func: struct {
-                params: params_type,
-                result: self.result_type,
-            }?,
-            ..nil,
-        };
+        if self.variadic != nil {
+            return Type {
+                t_variadic_func: struct {
+                    params: params_type,
+                    variadic: self.variadic!.type_,
+                    result: self.result_type,
+                }?,
+                ..nil,
+            };
+        } else {
+            return Type {
+                t_func: struct {
+                    params: params_type,
+                    result: self.result_type,
+                }?,
+                ..nil,
+            };
+        }
     }
 }
 
@@ -149,6 +164,10 @@ struct Expression {
     t_call: struct {
         callee: Expression,
         args: vec[Expression],
+        variadic: struct {
+            element_type: Type,
+            index: i32,
+        }?,
     }?,
     t_project: struct {
         expr: Expression,
@@ -248,6 +267,12 @@ struct Type {
     t_ident: string?,
     t_range: Type?,
     t_optional: Type?,
+    t_vec: Type?,
+    t_variadic_func: struct {
+        params: vec[Type],
+        variadic: Type,
+        result: Type,
+    }?,
 }
 
 module Type {

@@ -1,3 +1,4 @@
+import quartz::path;
 import quartz::lexer;
 import quartz::ast;
 
@@ -184,20 +185,31 @@ module Parser {
             name: name,
             result_type: result_type,
             body: body,
-            params: params,
+            params: params.params,
+            variadic: params.variadic,
         };
     }
 
     fun parameters(
         self,
-    ): vec[struct {
-        name: string,
-        type_: Type,
-    }] or error {
+    ): struct {
+        params: vec[struct {
+            name: string,
+            type_: Type,
+        }],
+        variadic: struct {
+            name: string,
+            type_: Type,
+        }?,
+    } or error {
         let params = make[vec[struct {
             name: string,
             type_: Type,
         }]]();
+        let variadic = nil as struct {
+            name: string,
+            type_: Type,
+        }?;
 
         while !self.is_end() && !self.peek().lexeme.equal("rparen") {
             if self.peek().lexeme.equal("self") {
@@ -209,6 +221,16 @@ module Parser {
                         ..nil,
                     },
                 });
+            } else if self.peek().lexeme.equal("double_dot") {
+                self.expect("double_dot").try;
+                let name = self.ident().try;
+                self.expect("colon").try;
+                let t = self.type_().try;
+
+                variadic = struct {
+                    name: name,
+                    type_: t,
+                }?;
             } else {
                 let name = self.ident().try;
                 self.expect("colon").try;
@@ -225,7 +247,10 @@ module Parser {
             }
         }
 
-        return params;
+        return struct {
+            params: params,
+            variadic: variadic,
+        };
     }
 
     fun type_(self): Type or error {
@@ -250,26 +275,32 @@ module Parser {
                     t_i32: true?,
                     ..nil,
                 };
-            }
-            if token.string_value!.equal("byte") {
+            } else if token.string_value!.equal("byte") {
                 return Type {
                     t_byte: true?,
                     ..nil,
                 };
-            }
-            if token.string_value!.equal("bool") {
+            } else if token.string_value!.equal("bool") {
                 return Type {
                     t_bool: true?,
                     ..nil,
                 };
-            }
-            if token.string_value!.equal("ptr") {
+            } else if token.string_value!.equal("ptr") {
                 self.expect("lbracket").try;
                 let t = self.type_().try;
                 self.expect("rbracket").try;
 
                 return Type {
                     t_ptr: t?,
+                    ..nil,
+                };
+            } else if token.string_value!.equal("vec") {
+                self.expect("lbracket").try;
+                let t = self.type_().try;
+                self.expect("rbracket").try;
+
+                return Type {
+                    t_vec: t?,
                     ..nil,
                 };
             }
@@ -719,6 +750,7 @@ module Parser {
                     t_call: struct {
                         callee: current,
                         args: args,
+                        variadic: nil,
                     }?,
                     ..nil,
                 };
