@@ -68,7 +68,7 @@ module Typechecker {
                             name: "data",
                             type_: Type {
                                 t_ptr: Type {
-                                    t_omit: true?,
+                                    t_i32: true?,
                                     ..nil,
                                 }?,
                                 ..nil,

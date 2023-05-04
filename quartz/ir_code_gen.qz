@@ -1102,7 +1102,10 @@ module IrCodeGenerator {
                                 t_ident: "quartz_std_vec_make"?,
                                 ..nil,
                             },
-                            args: make[vec[IrTerm]](),
+                            args: make[vec[IrTerm]](IrTerm{
+                                t_i32: 1?,
+                                ..nil,
+                            }),
                         }?,
                         ..nil,
                     },
