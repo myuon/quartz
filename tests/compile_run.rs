@@ -267,6 +267,20 @@ fun main(): i32 {
     return t1 + t2;
 }
 "#,
+        r#"
+fun f(a: i32): i32 or string {
+    if a == 0 {
+        return _ or "zero";
+    } else {
+        return a;
+    }
+}
+
+fun main(): bool {
+    let a or b = f(0);
+    return a == nil && b!.equal("zero");
+}
+"#,
     ];
 
     for input in cases {

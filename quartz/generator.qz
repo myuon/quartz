@@ -552,6 +552,32 @@ module Generator {
                 t_bool: expr.t_bool!?,
                 ..nil,
             });
+        } else if expr.t_and != nil {
+            self.generate_if(
+                IrType {
+                    t_bool: true?,
+                    ..nil,
+                }?,
+                expr.t_and!.lhs,
+                expr.t_and!.rhs,
+                IrTerm {
+                    t_bool: false?,
+                    ..nil,
+                },
+            );
+        } else if expr.t_or != nil {
+            self.generate_if(
+                IrType {
+                    t_bool: true?,
+                    ..nil,
+                }?,
+                expr.t_or!.lhs,
+                IrTerm {
+                    t_bool: true?,
+                    ..nil,
+                },
+                expr.t_or!.rhs,
+            );
         } else {
             panic("not implemented: expr, {}", expr.to_string());
         }
@@ -679,6 +705,31 @@ module Generator {
 
         self.new_statement();
         self.write("i64.xor");
+    }
+
+    fun generate_if(self, type_: IrType?, cond: IrTerm, then: IrTerm, else_: IrTerm) {
+        self.new_statement();
+        self.expression(cond);
+        self.convert_stack_to_bool();
+
+        self.start();
+        if type_ != nil {
+            self.write(format("if (result {})", "i64"));
+        } else {
+            self.write("if");
+        }
+
+        self.start();
+        self.write("then");
+        self.expression(then);
+        self.end();
+
+        self.start();
+        self.write("else");
+        self.expression(else_);
+        self.end();
+
+        self.end();
     }
 }
 

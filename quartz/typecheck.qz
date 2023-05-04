@@ -188,7 +188,7 @@ module Typechecker {
             unify(t, s.t_let!.name_type).try;
             s.t_let!.name_type = t;
 
-            self.locals.insert(s.t_let!.name, t);
+            self.register_locals_with_pattern(s.t_let!.pattern, t).try;
             return nil;
         } else if s.t_return != nil {
             let t = self.expression(s.t_return!.expr).try;
@@ -266,6 +266,35 @@ module Typechecker {
         return _ or error::new("unimplemented: statement, {}".format(s.to_string()));
     }
 
+    fun register_locals_with_pattern(self, pattern: Pattern, type_: Type): nil or error {
+        if pattern.t_ident != nil {
+            self.locals.insert(pattern.t_ident!, type_);
+        } else if pattern.t_or != nil {
+            if type_.t_or != nil {
+                self.register_locals_with_pattern(
+                    pattern.t_or!.lhs,
+                    Type {
+                        t_optional: type_.t_or!.left?,
+                        ..nil,
+                    },
+                ).try;
+                self.register_locals_with_pattern(
+                    pattern.t_or!.rhs,
+                    Type {
+                        t_optional: type_.t_or!.right?,
+                        ..nil,
+                    },
+                ).try;
+            } else {
+                return _ or error::new("unimplemented: pattern, {}".format(pattern.to_string()));
+            }
+        } else {
+            return _ or error::new("unimplemented: pattern, {}".format(pattern.to_string()));
+        }
+
+        return nil;
+    }
+
     fun expression_left_value(self, expr: Expression): Type or error {
         let t = self.expression(expr).try;
 
@@ -321,6 +350,29 @@ module Typechecker {
                     t1,
                     Type {
                         t_i32: true?,
+                        ..nil,
+                    },
+                ).try;
+
+                return Type {
+                    t_bool: true?,
+                    ..nil,
+                };
+            } else if (expr.t_binop!.binop.equal("and") || expr.t_binop!.binop.equal("or")) {
+                let t1 = self.expression(expr.t_binop!.left).try;
+                unify(
+                    t1,
+                    Type {
+                        t_bool: true?,
+                        ..nil,
+                    },
+                ).try;
+
+                let t2 = self.expression(expr.t_binop!.right).try;
+                unify(
+                    t2,
+                    Type {
+                        t_bool: true?,
                         ..nil,
                     },
                 ).try;
@@ -580,6 +632,32 @@ module Typechecker {
         } else if expr.t_nil != nil {
             return Type {
                 t_nil: true?,
+                ..nil,
+            };
+        } else if expr.t_enumor != nil {
+            let lhs_type = Type {
+                t_nil: true?,
+                ..nil,
+            };
+            if expr.t_enumor!.lhs != nil {
+                lhs_type = self.expression(expr.t_enumor!.lhs!).try;
+            }
+            expr.t_enumor!.lhs_type = lhs_type;
+
+            let rhs_type = Type {
+                t_nil: true?,
+                ..nil,
+            };
+            if expr.t_enumor!.rhs != nil {
+                rhs_type = self.expression(expr.t_enumor!.rhs!).try;
+            }
+            expr.t_enumor!.rhs_type = rhs_type;
+
+            return Type {
+                t_or: struct {
+                    left: lhs_type,
+                    right: rhs_type,
+                }?,
                 ..nil,
             };
         } else {

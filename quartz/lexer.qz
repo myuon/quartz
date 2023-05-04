@@ -190,6 +190,9 @@ module Lexer {
             if self.match_term(input, "nil", "nil") {
                 continue;
             }
+            if self.match_term(input, "or", "or") {
+                continue;
+            }
             if self.match(input, "==", "double_equal") {
                 continue;
             }
@@ -266,6 +269,9 @@ module Lexer {
                 continue;
             }
             if self.match(input, "?", "question") {
+                continue;
+            }
+            if self.match(input, "_", "underscore") {
                 continue;
             }
 

@@ -113,7 +113,7 @@ module Block {
 
 struct Statement {
     t_let: struct {
-        name: string,
+        pattern: Pattern,
         name_type: Type,
         expr: Expression,
     }?,
@@ -208,6 +208,13 @@ struct Expression {
     }?,
     t_bool: bool?,
     t_nil: bool?,
+    t_omit: bool?,
+    t_enumor: struct {
+        lhs: Expression?,
+        rhs: Expression?,
+        lhs_type: Type,
+        rhs_type: Type,
+    }?,
 }
 
 module Expression {
@@ -273,6 +280,10 @@ struct Type {
         variadic: Type,
         result: Type,
     }?,
+    t_or: struct {
+        left: Type,
+        right: Type,
+    }?,
 }
 
 module Type {
@@ -323,6 +334,21 @@ module TypeStruct {
         }
 
         return panic("unimplemented: typestruct.find");
+    }
+}
+
+struct Pattern {
+    t_ident: string?,
+    t_or: struct {
+        lhs: Pattern,
+        rhs: Pattern,
+    }?,
+    t_omit: bool?,
+}
+
+module Pattern {
+    fun to_string(self): string {
+        return derive::to_string(self);
     }
 }
 

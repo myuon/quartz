@@ -263,6 +263,18 @@ module Parser {
                 ..nil,
             };
         }
+        if self.peek().lexeme.equal("or") {
+            self.expect("or").try;
+            let t = self.type_().try;
+
+            return Type {
+                t_or: struct {
+                    left: current,
+                    right: t,
+                }?,
+                ..nil,
+            };
+        }
 
         return current;
     }
@@ -343,9 +355,7 @@ module Parser {
         if token.lexeme.equal(lexeme) {
             return nil;
         } else {
-            return _ or error::new("Expected ".concat(lexeme).concat(", got ").concat(token.lexeme).concat(
-                "{",
-            ).concat(token.string_value!).concat("}"));
+            return _ or error::new(format("Expected {}, got {}", lexeme, derive::to_string(token)));
         }
     }
 
@@ -472,7 +482,7 @@ module Parser {
 
     fun let_statement(self): Statement or error {
         self.expect("let").try;
-        let name = self.ident().try;
+        let pattern = self.pattern().try;
 
         let t = Type {
             t_omit: true?,
@@ -489,12 +499,50 @@ module Parser {
 
         return Statement {
             t_let: struct {
-                name: name,
+                pattern: pattern,
                 name_type: t,
                 expr: value,
             }?,
             ..nil,
         };
+    }
+
+    fun pattern(self): Pattern or error {
+        let current = Pattern {
+            t_omit: true?,
+            ..nil,
+        };
+
+        if self.peek().lexeme.equal("underscore") {
+            self.consume();
+
+            current = Pattern {
+                t_omit: true?,
+                ..nil,
+            };
+        } else {
+            let name = self.ident().try;
+
+            current = Pattern {
+                t_ident: name?,
+                ..nil,
+            };
+        }
+
+        if self.peek().lexeme.equal("or") {
+            self.consume();
+            let rhs = self.pattern().try;
+
+            return Pattern {
+                t_or: struct {
+                    lhs: current,
+                    rhs: rhs,
+                }?,
+                ..nil,
+            };
+        } else {
+            return current;
+        }
     }
 
     fun return_statement(self): Statement or error {
@@ -542,6 +590,33 @@ module Parser {
                         binop: "or",
                         left: current,
                         right: rhs,
+                    }?,
+                    ..nil,
+                };
+            } else if self.peek().lexeme.equal("or") {
+                self.expect("or").try;
+                let lhs = current?;
+                if lhs!.t_omit != nil {
+                    lhs = nil;
+                }
+
+                let rhs = self.term_4(with_struct).try?;
+                if rhs!.t_omit != nil {
+                    rhs = nil;
+                }
+
+                current = Expression {
+                    t_enumor: struct {
+                        lhs: lhs,
+                        rhs: rhs,
+                        lhs_type: Type {
+                            t_omit: true?,
+                            ..nil,
+                        },
+                        rhs_type: Type {
+                            t_omit: true?,
+                            ..nil,
+                        },
                     }?,
                     ..nil,
                 };
@@ -978,6 +1053,14 @@ module Parser {
 
             return Expression {
                 t_nil: true?,
+                ..nil,
+            };
+        }
+        if self.peek().lexeme.equal("underscore") {
+            self.expect("underscore").try;
+
+            return Expression {
+                t_omit: true?,
                 ..nil,
             };
         }
