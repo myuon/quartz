@@ -59,11 +59,7 @@ impl Parser {
             Lexeme::Fun => Ok(Decl::Func(self.func()?)),
             Lexeme::Let => {
                 let (ident, type_, value) = self.let_()?.data;
-                Ok(Decl::Let(
-                    ident.data.as_ident().unwrap().clone(),
-                    type_,
-                    value,
-                ))
+                Ok(Decl::Let(ident.data.as_ident()?.clone(), type_, value))
             }
             Lexeme::Type => {
                 let (ident, type_) = self.type_decl()?;
