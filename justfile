@@ -23,4 +23,4 @@ install:
   cargo build --release && cp target/release/quartz ~/.local/bin
 
 fuzztest:
-  cargo +nightly fuzz run fuzz_target_1
+  cd fuzz && cargo afl build --release && cargo afl fuzz -i in -o out target/release/fuzz_target_1

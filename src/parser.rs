@@ -1013,8 +1013,8 @@ impl Parser {
                 return Err(
                     anyhow!("Expected literal, got {:?}", current.lexeme).context(ErrorInSource {
                         path: Some(self.current_path.clone()),
-                        start: self.input[self.position].start,
-                        end: self.input[self.position].start,
+                        start: self.input[self.position - 1].start,
+                        end: self.input[self.position - 1].start,
                     }),
                 )
             }

@@ -17,22 +17,38 @@ struct Compiler {
 }
 
 module Compiler {
-    fun load_module(path: Path): nil or error {
-        let content = file_read(format("quartz/{}.qz", path.path.at(path.path.length - 1)));
-        let input = content.concat(input_);
+    fun load_module(self, path: Path): nil or error {
+        let input = file_read(format("quartz/{}.qz", path.path.at(path.path.length - 1)));
 
-        self.loaded.push(LoadedModule {
-            path: path,
-            source: input,
-            module_: Module::new(),
-        });
-    }
-
-    fun compile(input: string): string or error {
         let lexer = Lexer::new();
         lexer.run(input).try;
 
         let parser = Parser::new();
+        let module_ = parser.run(lexer.tokens).try;
+
+        self.loaded.push(LoadedModule {
+            path: path,
+            source: input,
+            module_: module_,
+        });
+
+        return nil;
+    }
+
+    fun compile(self, input: string): string or error {
+        self.load_module(Path::ident("main")).try;
+
+        let visited = make[map[string, bool]]();
+        let imports = make[vec[Path]]();
+        imports.push(Path::ident("std"));
+
+        while imports.length != 0 {
+            let path = vec_pop(imports);
+        }
+
+        lexer.run(input).try;
+        let main_module = parser.run(lexer.tokens).try;
+
         let result = parser.run(lexer.tokens).try;
 
         let typechecker = Typechecker::new();
