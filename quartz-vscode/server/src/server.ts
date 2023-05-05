@@ -66,12 +66,7 @@ documents.onDidChangeContent(async (change) => {
   const file = change.document.uri.replace("file://", "");
 
   const cargo = await execAsync(
-    `cargo run --release --manifest-path ${path.join(
-      file,
-      "..",
-      "..",
-      "Cargo.toml"
-    )} -- check ${file} --project ${path.join(file, "..", "..")}`
+    `quartz check ${file} --project ${path.join(file, "..", "..")}`
   );
   if (cargo.stdout) {
     const errors: {
@@ -100,14 +95,11 @@ connection.onHover(async (params) => {
   const file = params.textDocument.uri.replace("file://", "");
   console.log(params);
 
-  const command = `cargo run --release --manifest-path ${path.join(
+  const command = `quartz check-type ${file} --project ${path.join(
     file,
     "..",
-    "..",
-    "Cargo.toml"
-  )} -- check-type ${file} --project ${path.join(file, "..", "..")} --line ${
-    params.position.line
-  } --column ${params.position.character}`;
+    ".."
+  )} --line ${params.position.line} --column ${params.position.character}`;
   console.log(command);
   const cargo = await execAsync(command);
   if (cargo.stdout) {
@@ -119,14 +111,11 @@ connection.onDefinition(async (params) => {
   const file = params.textDocument.uri.replace("file://", "");
   console.log(params);
 
-  const command = `cargo run --release --manifest-path ${path.join(
+  const command = `quartz go-to-def ${file} --project ${path.join(
     file,
     "..",
-    "..",
-    "Cargo.toml"
-  )} -- go-to-def ${file} --project ${path.join(file, "..", "..")} --line ${
-    params.position.line
-  } --column ${params.position.character}`;
+    ".."
+  )} --line ${params.position.line} --column ${params.position.character}`;
   console.log(command);
 
   const cargo = await execAsync(command);
@@ -165,18 +154,16 @@ connection.onDefinition(async (params) => {
 });
 
 connection.onCompletion(async (params) => {
-  console.log("completion", params);
   const file = params.textDocument.uri.replace("file://", "");
   const isDotCompletion = params.context?.triggerCharacter === ".";
 
-  const command = `cargo run --release --manifest-path ${path.join(
+  const command = `quartz completion ${file} --project ${path.join(
     file,
     "..",
-    "..",
-    "Cargo.toml"
-  )} -- completion ${file} --project ${path.join(file, "..", "..")} --line ${
-    params.position.line
-  } --column ${params.position.character} ${isDotCompletion ? "--dot" : ""}`;
+    ".."
+  )} --line ${params.position.line} --column ${params.position.character} ${
+    isDotCompletion ? "--dot" : ""
+  }`;
   console.log(command);
 
   const cargo = await execAsync(
@@ -211,12 +198,7 @@ connection.onDocumentFormatting(async (params) => {
   console.log("format", params);
   const file = params.textDocument.uri.replace("file://", "");
 
-  const command = `cargo run --release --manifest-path ${path.join(
-    file,
-    "..",
-    "..",
-    "Cargo.toml"
-  )} -- format`;
+  const command = `quartz format`;
   console.log(command);
 
   const cargo = await execAsync(
