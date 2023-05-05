@@ -70,8 +70,8 @@ fun main() {
 }
 
 fun run(input_: string): string or error {
-    // let compiler = Compiler::new();
-    // return compiler.compile(input_).try;
+    let compiler = Compiler::new();
+    return compiler.compile(input_).try;
 
     let input = `
 let quartz_std_strings_ptr = 0;

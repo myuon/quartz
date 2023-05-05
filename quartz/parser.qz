@@ -862,7 +862,15 @@ module Parser {
                 self.expect("lparen").try;
 
                 let args = make[vec[Expression]]();
+                let expansion = nil as Expression?;
                 while !self.peek().lexeme.equal("rparen") {
+                    // expansion
+                    if self.peek().lexeme.equal("double_dot") {
+                        self.expect("double_dot").try;
+                        expansion = self.expression().try?;
+                        break;
+                    }
+
                     args.push(self.expression().try);
 
                     if self.peek().lexeme.equal("comma") {
@@ -878,6 +886,7 @@ module Parser {
                         callee: current,
                         args: args,
                         variadic: nil,
+                        expansion: expansion,
                     }?,
                     ..nil,
                 };
@@ -897,7 +906,7 @@ module Parser {
                 self.expect("lbrace").try;
 
                 if current.t_ident == nil {
-                    return _ or error::new("Expected identifier");
+                    return _ or error::new(format("Expected identifier, got {}", current.to_string()));
                 }
 
                 let ident = current.t_ident!;

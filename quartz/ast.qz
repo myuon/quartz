@@ -169,6 +169,7 @@ struct Expression {
             element_type: Type,
             index: i32,
         }?,
+        expansion: Expression?,
     }?,
     t_project: struct {
         expr: Expression,

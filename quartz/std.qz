@@ -147,12 +147,12 @@ fun digit_to_string(digit: i32): string {
 }
 
 fun char_to_string(char: byte): string {
-    let s = make[array[byte, 1]]();
+    let s = make[ptr[byte]](1);
     s.at(0) = char;
 
     return string {
-        data: s.data,
-        length: s.length,
+        data: s,
+        length: 1,
     };
 }
 
