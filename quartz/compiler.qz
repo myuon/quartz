@@ -17,9 +17,19 @@ struct Compiler {
 }
 
 module Compiler {
+    fun new(): Compiler {
+        return Compiler {
+            loaded: make[vec[LoadedModule]](),
+        };
+    }
+
     fun load_module(self, path: Path): nil or error {
         let input = file_read(format("quartz/{}.qz", path.path.at(path.path.length - 1)));
 
+        return self.register_module(path, input).try;
+    }
+
+    fun register_module(self, path: Path, input: string): nil or error {
         let lexer = Lexer::new();
         lexer.run(input).try;
 
@@ -36,7 +46,7 @@ module Compiler {
     }
 
     fun compile(self, input: string): string or error {
-        self.load_module(Path::ident("main")).try;
+        self.register_module(Path::ident("main"), input).try;
 
         let visited = make[map[string, bool]]();
         let imports = make[vec[Path]]();
