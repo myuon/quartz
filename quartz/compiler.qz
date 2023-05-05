@@ -87,7 +87,7 @@ module Compiler {
         let gen = Generator::new();
         gen.set_globals(typechecker.globals);
         gen.set_strings(irgen.strings.strings);
-        let code = gen.run(term);
+        let code = gen.run(term, irgen.data_section_offset);
 
         return code;
     }

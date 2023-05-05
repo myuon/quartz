@@ -285,6 +285,7 @@ struct Type {
         left: Type,
         right: Type,
     }?,
+    t_any: bool?,
 }
 
 module Type {

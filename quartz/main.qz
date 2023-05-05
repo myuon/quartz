@@ -142,6 +142,7 @@ fun quartz_std_vec_at(v: vec[any], n: i32): any {
     return v.data.at(n);
 }
 
+let quartz_std_alloc_ptr = 0;
 `.concat(
         input_,
     );
@@ -167,7 +168,7 @@ fun quartz_std_vec_at(v: vec[any], n: i32): any {
     let gen = Generator::new();
     gen.set_globals(typechecker.globals);
     gen.set_strings(irgen.strings.strings);
-    let code = gen.run(term);
+    let code = gen.run(term, irgen.data_section_offset);
 
     return code;
 }

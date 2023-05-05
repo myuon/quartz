@@ -93,6 +93,22 @@ module Typechecker {
                 ..nil,
             },
         );
+        globals.insert(
+            "debug",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](Type {
+                        t_any: true?,
+                        ..nil,
+                    }),
+                    result: Type {
+                        t_nil: true?,
+                        ..nil,
+                    },
+                }?,
+                ..nil,
+            },
+        );
 
         return Typechecker {
             locals: make[map[string, Type]](),
@@ -768,6 +784,12 @@ fun unify(type1: Type, type2: Type): Type or error {
         return type2;
     }
     if type2.t_nil != nil && type1.t_optional != nil {
+        return type1;
+    }
+    if type1.t_any != nil {
+        return type2;
+    }
+    if type2.t_any != nil {
         return type1;
     }
 

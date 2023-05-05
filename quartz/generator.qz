@@ -86,9 +86,13 @@ module Generator {
         }
     }
 
-    fun run(self, m: IrTerm): string {
+    fun run(self, m: IrTerm, data_section_offset: i32): string {
         self.start();
         self.write("module");
+
+        self.start();
+        self.write(`import "env" "debug" (func $debug (param i64) (result i64))`);
+        self.end();
 
         if m.t_module != nil {
             for i in 0..m.t_module!.elements.length {
@@ -99,11 +103,6 @@ module Generator {
         } else {
             panic("expected module");
         }
-
-        self.start();
-        self.write("global");
-        self.write("$heap_ptr (mut i64) (i64.const 8)");
-        self.end();
 
         self.global_let(struct {
             name: "_value_i32_0",
@@ -144,13 +143,13 @@ module Generator {
             `func $alloc (param $size i64) (result i64)
     (local $p i64)
 
-    global.get $heap_ptr
+    global.get $quartz_std_alloc_ptr
     local.set $p
 
-    global.get $heap_ptr
+    global.get $quartz_std_alloc_ptr
     local.get $size
     i64.add
-    global.set $heap_ptr
+    global.set $quartz_std_alloc_ptr
 
     local.get $p
 `,
@@ -183,6 +182,16 @@ module Generator {
                 }]](),
                 result_type: self.main_signature_result!,
                 body: make[vec[IrTerm]](
+                    IrTerm {
+                        t_assign: struct {
+                            lhs: "quartz_std_alloc_ptr",
+                            rhs: IrTerm {
+                                t_i32: data_section_offset?,
+                                ..nil,
+                            },
+                        }?,
+                        ..nil,
+                    },
                     IrTerm {
                         t_discard: IrTerm {
                             t_inst: "(memory.grow (i32.const 500))"?,
