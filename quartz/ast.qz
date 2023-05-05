@@ -28,6 +28,7 @@ struct Decl {
         name: string,
         module_: Module,
     }?,
+    t_import: Path?,
 }
 
 module Decl {

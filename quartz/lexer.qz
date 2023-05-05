@@ -193,6 +193,9 @@ module Lexer {
             if self.match_term(input, "or", "or") {
                 continue;
             }
+            if self.match_term(input, "import", "import") {
+                continue;
+            }
             if self.match(input, "==", "double_equal") {
                 continue;
             }

@@ -6,6 +6,7 @@ struct Parser {
     position: i32,
     input: vec[Token],
     omit_index: i32,
+    imports: vec[Path],
 }
 
 module Parser {
@@ -14,6 +15,7 @@ module Parser {
             position: 0,
             input: make[vec[Token]](),
             omit_index: 0,
+            imports: make[vec[Path]](),
         };
     }
 
@@ -68,10 +70,38 @@ module Parser {
                 ..nil,
             };
         }
+        if token.lexeme.equal("import") {
+            self.expect("import").try;
+            let path = self.path().try;
+            self.expect("semicolon").try;
+
+            self.imports.push(path);
+
+            return Decl {
+                t_import: path?,
+                ..nil,
+            };
+        }
 
         return _ or error::new("Expected DECL, got ".concat(token.lexeme).concat("{").concat(
             token.string_value!,
         ).concat("}"));
+    }
+
+    fun path(self): Path or error {
+        let path = make[vec[string]](self.ident().try);
+        while true {
+            if self.peek().lexeme.equal("double_colon") {
+                self.expect("double_colon").try;
+                path.push(self.ident().try);
+            } else {
+                break;
+            }
+        }
+
+        return Path {
+            path: path
+        };
     }
 
     fun struct_decl(
