@@ -43,20 +43,36 @@ module Compiler {
         imports.push(Path::ident("std"));
 
         while imports.length != 0 {
-            let path = vec_pop(imports);
+            let path = vec_pop(imports) as Path;
+            if visited.has(path.join("_")) {
+                continue;
+            }
+
+            self.load_module(path).try;
+            visited.insert(path.join("_"), true);
         }
 
-        lexer.run(input).try;
-        let main_module = parser.run(lexer.tokens).try;
+        let decls = make[vec[Decl]]();
+        for loaded in self.loaded {
+            decls.push(Decl {
+                t_module: struct {
+                    name: loaded.path.path.at(loaded.path.path.length - 1),
+                    module_: loaded.module_,
+                }?,
+                ..nil,
+            });
+        }
 
-        let result = parser.run(lexer.tokens).try;
+        let module_ = Module {
+            decls: decls,
+        };
 
         let typechecker = Typechecker::new();
-        typechecker.module_(result).try;
+        typechecker.module_(module_).try;
 
         let irgen = IrCodeGenerator::new();
         irgen.globals = typechecker.globals;
-        let term = irgen.run(result).try;
+        let term = irgen.run(module_).try;
 
         let gen = Generator::new();
         gen.set_globals(typechecker.globals);
