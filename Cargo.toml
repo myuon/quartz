@@ -21,3 +21,11 @@ wat = "1.0.52"
 [dev-dependencies]
 proptest = "1.1.0"
 proptest-derive = "0.3.0"
+
+[lib]
+name = "quartz"
+path = "src/lib.rs"
+
+[[bin]]
+name = "quartz"
+path = "src/main.rs"

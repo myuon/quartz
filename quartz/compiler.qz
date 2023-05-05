@@ -1,0 +1,53 @@
+import quartz::lexer;
+import quartz::parser;
+import quartz::typecheck;
+import quartz::ir_code_gen;
+import quartz::generator;
+import quartz::path;
+import quartz::ast;
+
+struct LoadedModule {
+    path: Path,
+    source: string,
+    module_: Module,
+}
+
+struct Compiler {
+    loaded: vec[LoadedModule],
+}
+
+module Compiler {
+    fun load_module(path: Path): nil or error {
+        let content = file_read(format("quartz/{}.qz", path.path.at(path.path.length - 1)));
+        let input = content.concat(input_);
+
+        self.loaded.push(LoadedModule {
+            path: path,
+            source: input,
+            module_: Module::new(),
+        });
+    }
+
+    fun compile(input: string): string or error {
+        let lexer = Lexer::new();
+        lexer.run(input).try;
+
+        let parser = Parser::new();
+        let result = parser.run(lexer.tokens).try;
+
+        let typechecker = Typechecker::new();
+        typechecker.module_(result).try;
+
+        let irgen = IrCodeGenerator::new();
+        irgen.globals = typechecker.globals;
+        let term = irgen.run(result).try;
+
+        let gen = Generator::new();
+        gen.set_globals(typechecker.globals);
+        gen.set_strings(irgen.strings.strings);
+        let code = gen.run(term);
+
+        return code;
+    }
+}
+

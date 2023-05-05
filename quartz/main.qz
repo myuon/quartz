@@ -8,6 +8,7 @@ import quartz::ir_code_gen;
 import quartz::generator;
 import quartz::typecheck;
 import quartz::value;
+import quartz::compiler;
 
 fun assert_eq_string(a: string, b: string) {
     if !a.equal(b) {
