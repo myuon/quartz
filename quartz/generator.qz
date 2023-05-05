@@ -349,6 +349,10 @@ module Generator {
                     self.generate_op_comparison("lt_s");
                 } else if ident.equal("gt") {
                     self.generate_op_comparison("gt_s");
+                } else if ident.equal("lte") {
+                    self.generate_op_comparison("le_s");
+                } else if ident.equal("gte") {
+                    self.generate_op_comparison("ge_s");
                 } else if ident.equal("i32_to_address") {
                     self.convert_value_i32_to_address_1();
                 } else if ident.equal("i32_to_byte") {
@@ -698,7 +702,7 @@ module Generator {
         self.new_statement();
         self.write("i64.xor");
     }
-    
+
     fun convert_value_byte_to_i32_1(self) {
         self.new_statement();
         self.write("i64.const 4");

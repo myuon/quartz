@@ -70,11 +70,9 @@ fun main() {
 }
 
 fun run(input_: string): string or error {
-    let compiler = Compiler::new();
-    return compiler.compile(input_).try;
+    // let compiler = Compiler::new();
+    // return compiler.compile(input_).try;
 
-    // let content = file_read("quartz/std.qz");
-    // let input = content.concat(input_);
     let input = `
 let quartz_std_strings_ptr = 0;
 
@@ -131,6 +129,19 @@ fun quartz_std_vec_push(v: vec[i32], e: i32) {
     v.data.at(v.length) = e;
     v.length = v.length + 1;
 }
+
+fun panic(f: string, ..s: string) {
+    return nil;
+}
+
+fun quartz_std_vec_at(v: vec[any], n: i32): any {
+    if n >= v.length {
+        panic("vec_at: out of range");
+    }
+
+    return v.data.at(n);
+}
+
 `.concat(
         input_,
     );

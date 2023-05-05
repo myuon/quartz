@@ -281,6 +281,16 @@ fun main(): bool {
     return a == nil && b!.equal("zero");
 }
 "#,
+        r#"
+fun main(): i32 {
+    let p = make[vec[i32]]();
+    for i in 0..100 {
+        p.push(i);
+    }
+
+    return p.at(40) + p.at(60);
+}
+"#,
     ];
 
     for input in cases {

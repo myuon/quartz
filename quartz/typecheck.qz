@@ -342,7 +342,9 @@ module Typechecker {
                     t_bool: true?,
                     ..nil,
                 };
-            } else if (expr.t_binop!.binop.equal("lt") || expr.t_binop!.binop.equal("gt")) {
+            } else if (expr.t_binop!.binop.equal("lt") || expr.t_binop!.binop.equal("gt") || expr.t_binop!.binop.equal(
+                "lte",
+            ) || expr.t_binop!.binop.equal("gte")) {
                 let t1 = self.expression(expr.t_binop!.left).try;
                 let t2 = self.expression(expr.t_binop!.right).try;
                 unify(t1, t2).try;
@@ -469,9 +471,26 @@ module Typechecker {
                     };
                 }
             } else if t.t_vec != nil {
-                if expr.t_project!.field.equal("length") {
+                if expr.t_project!.field.equal("push") {
                     return Type {
-                        t_i32: true?,
+                        t_func: struct {
+                            params: make[vec[Type]](t.t_vec!),
+                            result: Type {
+                                t_nil: true?,
+                                ..nil,
+                            },
+                        }?,
+                        ..nil,
+                    };
+                } else if expr.t_project!.field.equal("at") {
+                    return Type {
+                        t_func: struct {
+                            params: make[vec[Type]](Type {
+                                t_i32: true?,
+                                ..nil,
+                            }),
+                            result: t.t_vec!,
+                        }?,
                         ..nil,
                     };
                 }

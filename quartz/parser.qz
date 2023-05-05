@@ -100,7 +100,7 @@ module Parser {
         }
 
         return Path {
-            path: path
+            path: path,
         };
     }
 
@@ -712,6 +712,28 @@ module Parser {
             return Expression {
                 t_binop: struct {
                     binop: "gt",
+                    left: current,
+                    right: self.term_2(with_struct).try,
+                }?,
+                ..nil,
+            };
+        } else if self.peek().lexeme.equal("gte") {
+            self.expect("gte").try;
+
+            return Expression {
+                t_binop: struct {
+                    binop: "gte",
+                    left: current,
+                    right: self.term_2(with_struct).try,
+                }?,
+                ..nil,
+            };
+        } else if self.peek().lexeme.equal("lte") {
+            self.expect("lte").try;
+
+            return Expression {
+                t_binop: struct {
+                    binop: "lte",
                     left: current,
                     right: self.term_2(with_struct).try,
                 }?,

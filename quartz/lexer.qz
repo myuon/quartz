@@ -89,6 +89,25 @@ module Lexer {
         return vec_byte_to_string(str)?;
     }
 
+    fun consume_raw_string_literal(self, input: string): string? {
+        let backquote = 96 as byte;
+        let str = make[vec[byte]]();
+        if input.at(self.position) != backquote {
+            return nil;
+        }
+
+        self.position = self.position + 1;
+
+        while input.at(self.position) != backquote {
+            str.push(input.at(self.position));
+            self.position = self.position + 1;
+        }
+
+        self.position = self.position + 1;
+
+        return vec_byte_to_string(str)?;
+    }
+
     fun consume_comment(self, input: string): string? {
         if !is_prefix(input, self.position, "//") {
             return nil;
@@ -202,6 +221,12 @@ module Lexer {
             if self.match(input, "!=", "not_equal") {
                 continue;
             }
+            if self.match(input, ">=", "gte") {
+                continue;
+            }
+            if self.match(input, "<=", "lte") {
+                continue;
+            }
             if self.match(input, "::", "double_colon") {
                 continue;
             }
@@ -301,6 +326,17 @@ module Lexer {
             }
 
             let str = self.consume_string_literal(input);
+            if str != nil {
+                self.tokens.push(Token {
+                    lexeme: "string",
+                    string_value: str,
+                    position: self.position,
+                });
+
+                continue;
+            }
+
+            let str = self.consume_raw_string_literal(input);
             if str != nil {
                 self.tokens.push(Token {
                     lexeme: "string",

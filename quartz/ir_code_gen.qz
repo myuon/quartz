@@ -563,11 +563,11 @@ module IrCodeGenerator {
                     ..nil,
                 };
             } else {
-                return panic("unsupported for loop: {}", stm.to_string());
+                return _ or error::new(format("unsupported for loop: {}", stm.to_string()));
             }
         }
 
-        return panic("statement exhausted: {}", stm.to_string());
+        return _ or error::new(format("statement exhausted: {}", stm.to_string()));
     }
 
     fun expression(self, expr: Expression): IrTerm or error {
@@ -682,6 +682,28 @@ module IrCodeGenerator {
                     }?,
                     ..nil,
                 };
+            } else if expr.t_binop!.binop.equal("lte") {
+                return IrTerm {
+                    t_call: IrCall {
+                        callee: IrTerm {
+                            t_ident: "lte"?,
+                            ..nil,
+                        },
+                        args: args,
+                    }?,
+                    ..nil,
+                };
+            } else if expr.t_binop!.binop.equal("gte") {
+                return IrTerm {
+                    t_call: IrCall {
+                        callee: IrTerm {
+                            t_ident: "gte"?,
+                            ..nil,
+                        },
+                        args: args,
+                    }?,
+                    ..nil,
+                };
             } else if expr.t_binop!.binop.equal("and") {
                 return IrTerm {
                     t_and: struct {
@@ -724,8 +746,17 @@ module IrCodeGenerator {
 
                     return self.generate_array_at(t_ptr_elem, term, offset).try;
                 } else {
+                    let module_name = "";
+                    if project.type_!.t_ident != nil {
+                        module_name = project.type_!.t_ident!;
+                    } else if project.type_!.t_vec != nil {
+                        module_name = "quartz_std_vec";
+                    } else {
+                        return _ or error::new("invalid project type");
+                    }
+
                     let callee = IrTerm {
-                        t_ident: format("{}_{}", project.type_!.t_ident!, project.field)?,
+                        t_ident: format("{}_{}", module_name, project.field)?,
                         ..nil,
                     };
                     let args = make[vec[IrTerm]]();
@@ -802,6 +833,62 @@ module IrCodeGenerator {
                 rep_args.push(InternalTypeRep::from_ir_type(IrType::new(expr.t_make!.type_.t_ptr!)));
 
                 return self.allocate_heap_object(len);
+            } else if expr.t_make!.type_.t_vec != nil {
+                let var_vec = format("vec_{}", self.counter.to_string());
+                self.counter = self.counter + 1;
+
+                let terms = make[vec[IrTerm]]();
+                terms.push(IrTerm {
+                    t_let: IrLet {
+                        name: var_vec,
+                        type_: IrType::new(expr.t_make!.type_),
+                        value: IrTerm {
+                            t_call: IrCall {
+                                callee: IrTerm {
+                                    t_ident: "quartz_std_vec_make"?,
+                                    ..nil,
+                                },
+                                args: make[vec[IrTerm]](IrTerm {
+                                    t_i32: 5?,
+                                    ..nil,
+                                }),
+                            }?,
+                            ..nil,
+                        },
+                    }?,
+                    ..nil,
+                });
+                for arg in expr.t_make!.args {
+                    terms.push(IrTerm {
+                        t_call: IrCall {
+                            callee: IrTerm {
+                                t_ident: "quartz_std_vec_push"?,
+                                ..nil,
+                            },
+                            args: make[vec[IrTerm]](
+                                IrTerm {
+                                    t_ident: var_vec?,
+                                    ..nil,
+                                },
+                                self.expression(arg).try,
+                            ),
+                        }?,
+                        ..nil,
+                    });
+                }
+                terms.push(IrTerm {
+                    t_ident: var_vec?,
+                    ..nil,
+                });
+
+                return IrTerm {
+                    t_seq: struct {
+                        terms: terms,
+                    }?,
+                    ..nil,
+                };
+            } else {
+                return _ or error::new("make() expects a pointer or vector type");
             }
         } else if expr.t_path != nil {
             return IrTerm {
