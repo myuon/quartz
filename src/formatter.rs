@@ -400,7 +400,7 @@ impl<'s> Formatter<'s> {
                 }
                 Lit::String(s, literal_type) => match literal_type {
                     StringLiteralType::String => {
-                        self.write_if(writer, format!("{:?}", s.replace("\\\\", "\\")), skip_space);
+                        self.write_if(writer, format!("{:?}", s).replace("\\\\", "\\"), skip_space);
                     }
                     StringLiteralType::Raw => {
                         self.write_if(writer, format!("`{}`", s), skip_space);
