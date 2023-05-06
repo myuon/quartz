@@ -220,6 +220,9 @@ struct Expression {
         lhs_type: Type,
         rhs_type: Type,
     }?,
+    t_sizeof: struct {
+        type_: Type,
+    }?,
 }
 
 module Expression {
@@ -278,6 +281,7 @@ struct Type {
     t_omit: bool?, // for unification
     t_nil: bool?,
     t_i32: bool?,
+    t_u32: bool?,
     t_func: struct {
         params: vec[Type],
         result: Type,
@@ -315,7 +319,7 @@ module Type {
     }
 
     fun is_integer_type(self): bool {
-        return self.t_i32 != nil || (self.t_ident != nil && self.t_ident!.equal("i64"));
+        return self.t_i32 != nil || self.t_u32 != nil || (self.t_ident != nil && self.t_ident!.equal("i64"));
     }
 }
 

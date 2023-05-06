@@ -111,6 +111,22 @@ module Typechecker {
             },
         );
         globals.insert(
+            "debug_i32",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](Type {
+                        t_i32: true?,
+                        ..nil,
+                    }),
+                    result: Type {
+                        t_nil: true?,
+                        ..nil,
+                    },
+                }?,
+                ..nil,
+            },
+        );
+        globals.insert(
             "write_stdout",
             Type {
                 t_func: struct {
@@ -139,8 +155,41 @@ module Typechecker {
                 ..nil,
             },
         );
-
-        return Typechecker {
+        globals.insert(
+            "xor_u32",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](
+                        Type {
+                            t_u32: true?,
+                            ..nil,
+                        },
+                        Type {
+                            t_u32: true?,
+                            ..nil,
+                        },
+                    ),
+                    result: Type {
+                        t_u32: true?,
+                        ..nil,
+                    },
+                }?,
+                ..nil,
+            },
+        );
+        globals.insert(
+            "read_stdin",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](),
+                    result: Type {
+                        t_byte: true?,
+                        ..nil,
+                    },
+                }?,
+                ..nil,
+            },
+        ); return Typechecker {
             locals: make[map[string, Type]](),
             globals: globals,
             current_path: Path::new(),
@@ -407,7 +456,8 @@ module Typechecker {
             ) || expr.t_binop!.binop.equal("div") || expr.t_binop!.binop.equal("mod")) {
                 let t1 = self.expression(expr.t_binop!.left).try;
                 if !t1.is_integer_type() {
-                    return _ or error::new("left operand must be integer type");
+                    return _ or error::new("left operand must be integer type, but got {}".format(t1.to_string(
+                    )));
                 }
 
                 let t2 = self.expression(expr.t_binop!.right).try;
@@ -694,6 +744,11 @@ module Typechecker {
             expr.t_as!.source_type = t;
 
             return expr.t_as!.target_type;
+        } else if expr.t_sizeof != nil {
+            return Type {
+                t_i32: true?,
+                ..nil,
+            };
         } else if expr.t_self != nil {
             if self.current_path.path.length == 0 {
                 return _ or error::new("self outside of function, {}".format(expr.to_string()));
@@ -862,6 +917,9 @@ fun unify(type1: Type, type2: Type): Type or error {
     if type1.t_i32 != nil && type2.t_i32 != nil {
         return type1;
     }
+    if type1.t_u32 != nil && type2.t_u32 != nil {
+        return type1;
+    }
     if type1.t_nil != nil && type2.t_nil != nil {
         return type1;
     }
@@ -918,6 +976,14 @@ fun unify(type1: Type, type2: Type): Type or error {
     }
     if type2.t_any != nil {
         return type1;
+    }
+    if type1.t_vec != nil && type2.t_vec != nil {
+        let result = unify(type1.t_vec!, type2.t_vec!).try;
+
+        return Type {
+            t_vec: result?,
+            ..nil,
+        };
     }
 
     return _ or error::new("unification failed: ".concat(type1.to_string()).concat(" != ").concat(type2.to_string(

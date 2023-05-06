@@ -317,6 +317,11 @@ module Parser {
                     t_i32: true?,
                     ..nil,
                 };
+            } else if token.string_value!.equal("u32") {
+                return Type {
+                    t_u32: true?,
+                    ..nil,
+                };
             } else if token.string_value!.equal("byte") {
                 return Type {
                     t_byte: true?,
@@ -998,6 +1003,15 @@ module Parser {
                         }?,
                         ..nil,
                     };
+                } else if ident.equal("sizeof") {
+                    current = Expression {
+                        t_sizeof: struct {
+                            type_: t,
+                        }?,
+                        ..nil,
+                    };
+                } else {
+                    return _ or error::new(format("Unknown builtin operator {}", ident));
                 }
             } else if token.lexeme.equal("double_colon") {
                 self.expect("double_colon").try;
