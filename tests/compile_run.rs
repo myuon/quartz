@@ -299,7 +299,7 @@ fun main(): i32 {
             &["run", "--release", "--quiet", "--", "run", "--stdin"],
             input.as_bytes(),
         )
-        .expect(format!("[INPUT]\n{}\n", input).as_str());
+        .expect(format!("[INPUT:gen0]\n{}\n", input).as_str());
 
         let stdout = run_command(
             "cargo",
@@ -313,13 +313,13 @@ fun main(): i32 {
             ],
             input.as_bytes(),
         )
-        .expect(format!("[INPUT]\n{}\n", input).as_str());
+        .expect(format!("[INPUT:gen1:compile]\n{}\n", input).as_str());
         let stdout_gen1 = run_command(
             "cargo",
             &["run", "--release", "--quiet", "--", "run-wat", "--stdin"],
             stdout.as_bytes(),
         )
-        .expect(format!("[INPUT]\n{}\n[WAT]\n{}\n", input, stdout).as_str());
+        .expect(format!("[INPUT:gen1:runtime]\n{}\n[WAT]\n{}\n", input, stdout).as_str());
         assert_eq!(stdout_gen0, stdout_gen1, "[INPUT]\n{}\n", input);
     }
 }

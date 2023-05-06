@@ -63,6 +63,9 @@ struct IrTerm {
         lhs: IrTerm,
         rhs: IrTerm,
     }?,
+    t_continue: bool?,
+    t_break: bool?,
+    t_size: IrType?,
 }
 
 module IrTerm {
@@ -228,6 +231,12 @@ module IrType {
         if t.t_any != nil {
             return IrType {
                 t_any: true?,
+                ..nil,
+            };
+        }
+        if t.t_u32 != nil {
+            return IrType {
+                t_i32: true?,
                 ..nil,
             };
         }

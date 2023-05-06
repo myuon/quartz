@@ -567,6 +567,16 @@ module IrCodeGenerator {
             } else {
                 return _ or error::new(format("unsupported for loop: {}", stm.to_string()));
             }
+        } else if stm.t_continue != nil {
+            return IrTerm {
+                t_continue: true?,
+                ..nil,
+            };
+        } else if stm.t_break != nil {
+            return IrTerm {
+                t_break: true?,
+                ..nil,
+            };
         }
 
         return _ or error::new(format("statement exhausted: {}", stm.to_string()));
@@ -1034,6 +1044,8 @@ module IrCodeGenerator {
                 };
             } else if target.t_any != nil {
                 return term;
+            } else if source.t_any != nil {
+                return term;
             }
 
             return _ or error::new(format("cannot cast {} to {}", source.to_string(), target.to_string()));
@@ -1122,6 +1134,30 @@ module IrCodeGenerator {
                     term: rhs_term,
                 },
             ));
+        } else if expr.t_sizeof != nil {
+            return IrTerm {
+                t_sizeof: struct {
+                    type_: IrType::new(expr.t_sizeof!.type_),
+                }?,
+                ..nil,
+            };
+        } else if expr.t_unop != nil {
+            if expr.t_unop!.unop != "not" {
+                return panic("unop not implemented: {}", expr.to_string());
+            }
+
+            let term = self.expression(expr.t_unop!.expr).try;
+
+            return IrTerm {
+                t_call: IrCall {
+                    callee: IrTerm {
+                        t_ident: "not"?,
+                        ..nil,
+                    },
+                    args: make[vec[IrTerm]](term),
+                }?,
+                ..nil,
+            };
         }
 
         return panic("expression exhausted: {}", expr.to_string());

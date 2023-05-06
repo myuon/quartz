@@ -194,7 +194,7 @@ module Generator {
                     },
                     IrTerm {
                         t_discard: IrTerm {
-                            t_inst: "(memory.grow (i32.const 500))"?,
+                            t_inst: "(memory.grow (i32.const 10000))"?,
                             ..nil,
                         }?,
                         ..nil,
@@ -591,6 +591,17 @@ module Generator {
                 },
                 expr.t_or!.rhs,
             );
+        } else if expr.t_sizeof != nil {
+            let size = expr.t_sizeof!.type_.sizeof();
+
+            self.new_statement();
+            self.write(format(" ;; {} (sizeof)", size.to_string()));
+
+            self.new_statement();
+            self.write_value(Value {
+                t_i32: size?,
+                ..nil,
+            });
         } else {
             panic("not implemented: expr, {}", expr.to_string());
         }
