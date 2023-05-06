@@ -260,6 +260,16 @@ module RecordExpression {
 
         return _ or error::new("Field not found");
     }
+
+    fun to_fields_map(self): map[string, Expression] {
+        let result = make[map[string, Expression]]();
+        for i in 0..self.fields.length {
+            let f = self.fields.at(i);
+            result.insert(f.field, f.value);
+        }
+
+        return result;
+    }
 }
 
 struct Type {

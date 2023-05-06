@@ -126,6 +126,19 @@ module Typechecker {
                 ..nil,
             },
         );
+        globals.insert(
+            "abort",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](),
+                    result: Type {
+                        t_nil: true?,
+                        ..nil,
+                    },
+                }?,
+                ..nil,
+            },
+        );
 
         return Typechecker {
             locals: make[map[string, Type]](),
@@ -629,22 +642,25 @@ module Typechecker {
 
             return _ or error::new("unimplemented: project, {}".format(expr.to_string()));
         } else if expr.t_record != nil {
-            let t = self.globals.at(expr.t_record!.name);
-            if t.t_struct == nil {
-                return _ or error::new("unimplemented: record, {}".format(expr.to_string()));
+            let field_map = self.resolve_record_type(
+                Type {
+                    t_ident: expr.t_record!.name?,
+                    ..nil,
+                },
+                make[vec[Type]](),
+            ).try;
+
+            let fields = field_map.list_keys();
+            let expr_fields_map = expr.t_record!.to_fields_map();
+            for field in fields {
+                let expr_field = expr_fields_map.at(field);
+                let expr_type = self.expression(expr_field).try;
+
+                unify(expr_type, field_map.at(field)).try;
             }
 
-            for i in 0..t.t_struct!.fields.length {
-                let field = t.t_struct!.fields.at(i);
-                let expr_field = expr.t_record!.fields.at(i);
-                let expr_type = self.expression(expr_field.value).try;
-
-                unify(expr_type, field.type_).try;
-            }
-
-            for i in 0..expr.t_record!.fields.length {
-                let field = expr.t_record!.fields.at(i);
-                if !t.t_struct!.has(field.field) {
+            for field in fields {
+                if !expr_fields_map.has(field) {
                     return _ or error::new("unknown field: {}".format(expr.to_string()));
                 }
             }
