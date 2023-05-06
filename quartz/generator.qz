@@ -596,6 +596,12 @@ module Generator {
                 t_i32: size?,
                 ..nil,
             });
+        } else if expr.t_continue != nil {
+            self.new_statement();
+            self.write("br $continue");
+        } else if expr.t_break != nil {
+            self.new_statement();
+            self.write("br $exit");
         } else {
             panic("not implemented: expr, {}", expr.to_string());
         }
