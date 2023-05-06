@@ -142,6 +142,8 @@ struct Statement {
         range: Expression,
         block: Block,
     }?,
+    t_continue: bool?,
+    t_break: bool?,
 }
 
 module Statement {

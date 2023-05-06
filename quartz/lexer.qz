@@ -215,6 +215,12 @@ module Lexer {
             if self.match_term(input, "import", "import") {
                 continue;
             }
+            if self.match_term(input, "continue", "continue") {
+                continue;
+            }
+            if self.match_term(input, "break", "break") {
+                continue;
+            }
             if self.match(input, "==", "double_equal") {
                 continue;
             }

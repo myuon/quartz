@@ -482,6 +482,24 @@ module Parser {
                 ..nil,
             };
         }
+        if self.peek().lexeme.equal("continue") {
+            self.expect("continue").try;
+            self.expect("semicolon").try;
+
+            return Statement {
+                t_continue: true?,
+                ..nil,
+            };
+        }
+        if self.peek().lexeme.equal("break") {
+            self.expect("break").try;
+            self.expect("semicolon").try;
+
+            return Statement {
+                t_break: true?,
+                ..nil,
+            };
+        }
 
         let expr = self.expression().try;
         if self.peek().lexeme.equal("semicolon") {
@@ -508,7 +526,7 @@ module Parser {
             };
         }
 
-        return _ or error::new(format("Unexpected token {}", self.peek().to_string()));
+        return _ or error::new(format("Unexpected token {} (statement)", self.peek().to_string()));
     }
 
     fun expression_conditional(self): Expression or error {
@@ -1132,7 +1150,7 @@ module Parser {
             };
         }
 
-        return _ or error::new(format("Unexpected token {}", self.peek().lexeme.to_string()));
+        return _ or error::new(format("Unexpected token {} (term)", self.peek().lexeme.to_string()));
     }
 }
 
