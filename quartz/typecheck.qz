@@ -801,6 +801,7 @@ module Typechecker {
 
                 let func_ident_name = type_name.concat("_").concat(label);
                 let path = self.resolve_path(Path::ident(func_ident_name)).try;
+                expr.t_project!.resolved_path = path?;
 
                 if self.globals.has(path.join("_")) {
                     let t = self.globals.at(path.join("_"));

@@ -65,7 +65,7 @@ module InternalTypeRep {
             return InternalTypeRep::from_name("byte", make[vec[InternalTypeRep]]());
         }
 
-        return panic("unreachable");
+        return panic("unreachable, {}".format(t.to_string()));
     }
 }
 
@@ -745,18 +745,45 @@ module IrCodeGenerator {
                     let offset = self.expression(expr.t_call!.args.at(0)).try;
 
                     return self.generate_array_at(t_ptr_elem, term, offset).try;
-                } else {
-                    let module_name = "";
-                    if project.type_!.t_ident != nil {
-                        module_name = project.type_!.t_ident!;
-                    } else if project.type_!.t_vec != nil {
-                        module_name = "quartz_std_vec";
+                } else if project.type_!.t_vec != nil && project.field.equal("at") {
+                    if expr.t_call!.args.length != 1 {
+                        return _ or error::new("at() takes 2 arguments");
+                    }
+
+                    let symbol = "";
+                    if project.type_!.t_vec!.t_byte != nil {
+                        symbol = "quartz_std_vec_at_byte";
                     } else {
-                        return _ or error::new("invalid project type");
+                        symbol = "quartz_std_vec_at";
+                    }
+
+                    return IrTerm {
+                        t_call: IrCall {
+                            callee: IrTerm {
+                                t_ident: symbol?,
+                                ..nil,
+                            },
+                            args: make[vec[IrTerm]](
+                                self.expression(project.expr).try,
+                                self.expression(expr.t_call!.args.at(0)).try,
+                            ),
+                        }?,
+                        ..nil,
+                    };
+                } else {
+                    let symbol = "";
+                    if project.resolved_path != nil {
+                        symbol = project.resolved_path!.join("_");
+                    } else if project.type_ != nil && project.type_!.t_ident != nil {
+                        symbol = project.type_!.t_ident!;
+                    }
+
+                    if symbol == "" {
+                        return _ or error::new("unknown symbol, {}".format(derive::to_string(project)));
                     }
 
                     let callee = IrTerm {
-                        t_ident: format("{}_{}", module_name, project.field)?,
+                        t_ident: symbol?,
                         ..nil,
                     };
                     let args = make[vec[IrTerm]]();

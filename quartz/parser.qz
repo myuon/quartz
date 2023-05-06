@@ -927,6 +927,7 @@ module Parser {
                         expr: current,
                         field: field,
                         type_: nil as Type?,
+                        resolved_path: nil,
                     }?,
                     ..nil,
                 };

@@ -178,6 +178,7 @@ struct Expression {
         expr: Expression,
         field: string,
         type_: Type?,
+        resolved_path: Path?,
     }?,
     t_record: RecordExpression?,
     t_make: struct {
