@@ -63,6 +63,8 @@ module InternalTypeRep {
             return InternalTypeRep::from_name("address", make[vec[InternalTypeRep]]());
         } else if t.t_byte != nil {
             return InternalTypeRep::from_name("byte", make[vec[InternalTypeRep]]());
+        } else if t.t_any != nil {
+            return InternalTypeRep::from_name("any", make[vec[InternalTypeRep]]());
         }
 
         return panic("unreachable, {}".format(t.to_string()));
@@ -745,6 +747,29 @@ module IrCodeGenerator {
                     let offset = self.expression(expr.t_call!.args.at(0)).try;
 
                     return self.generate_array_at(t_ptr_elem, term, offset).try;
+                } else if project.type_!.t_ptr != nil && project.field.equal("offset") {
+                    if expr.t_call!.args.length != 1 {
+                        return _ or error::new("offset() takes 2 arguments");
+                    }
+
+                    let t_ptr_elem = project.type_!.t_ptr!;
+
+                    return IrTerm {
+                        t_call: IrCall {
+                            callee: IrTerm {
+                                t_ident: "add"?,
+                                ..nil,
+                            },
+                            args: make[vec[IrTerm]](
+                                self.expression(project.expr).try,
+                                IrCodeGenerator::wrap_mult_sizeof(
+                                    IrType::new(t_ptr_elem),
+                                    self.expression(expr.t_call!.args.at(0)).try,
+                                ),
+                            ),
+                        }?,
+                        ..nil,
+                    };
                 } else if project.type_!.t_vec != nil && project.field.equal("at") {
                     if expr.t_call!.args.length != 1 {
                         return _ or error::new("at() takes 2 arguments");
@@ -755,6 +780,31 @@ module IrCodeGenerator {
                         symbol = "quartz_std_vec_at_byte";
                     } else {
                         symbol = "quartz_std_vec_at";
+                    }
+
+                    return IrTerm {
+                        t_call: IrCall {
+                            callee: IrTerm {
+                                t_ident: symbol?,
+                                ..nil,
+                            },
+                            args: make[vec[IrTerm]](
+                                self.expression(project.expr).try,
+                                self.expression(expr.t_call!.args.at(0)).try,
+                            ),
+                        }?,
+                        ..nil,
+                    };
+                } else if project.type_!.t_vec != nil && project.field.equal("push") {
+                    if expr.t_call!.args.length != 1 {
+                        return _ or error::new("push() takes 2 arguments");
+                    }
+
+                    let symbol = "";
+                    if project.type_!.t_vec!.t_byte != nil {
+                        symbol = "quartz_std_vec_push_byte";
+                    } else {
+                        symbol = "quartz_std_vec_push";
                     }
 
                     return IrTerm {
@@ -971,6 +1021,19 @@ module IrCodeGenerator {
                     }?,
                     ..nil,
                 };
+            } else if (source.t_address != nil) && (target.t_i32 != nil) {
+                return IrTerm {
+                    t_call: IrCall {
+                        callee: IrTerm {
+                            t_ident: "address_to_i32"?,
+                            ..nil,
+                        },
+                        args: make[vec[IrTerm]](term),
+                    }?,
+                    ..nil,
+                };
+            } else if target.t_any != nil {
+                return term;
             }
 
             return _ or error::new(format("cannot cast {} to {}", source.to_string(), target.to_string()));

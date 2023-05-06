@@ -173,7 +173,7 @@ module IrType {
     fun new(t: Type): IrType {
         if t.t_nil != nil {
             return IrType {
-                t_nil: true?,
+                t_address: true?,
                 ..nil,
             };
         }
