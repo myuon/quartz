@@ -153,6 +153,7 @@ module Statement {
 struct Expression {
     t_ident: struct {
         name: string,
+        resolved_path: Path?,
     }?,
     t_binop: struct {
         binop: string,

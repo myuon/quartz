@@ -853,7 +853,7 @@ module Parser {
     }
 
     fun term_0(self, with_struct: bool): Expression or error {
-        let current = self.term_0_1().try;
+        let current = self.term_0_1(with_struct).try;
 
         while true {
             let token = self.peek();
@@ -1031,13 +1031,14 @@ module Parser {
         return panic("unreachable");
     }
 
-    fun term_0_1(self): Expression or error {
+    fun term_0_1(self, with_struct: bool): Expression or error {
         if self.peek().lexeme.equal("ident") {
             let name = self.ident().try;
 
             return Expression {
                 t_ident: struct {
                     name: name,
+                    resolved_path: nil,
                 }?,
                 ..nil,
             };
@@ -1083,7 +1084,7 @@ module Parser {
         if self.peek().lexeme.equal("bang") {
             self.expect("bang").try;
 
-            let expr = self.expression().try;
+            let expr = self.term_0(with_struct).try;
 
             return Expression {
                 t_unop: struct {

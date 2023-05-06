@@ -42,14 +42,15 @@ fun println(f: string, ..arg: vec[string]) {
 }
 
 fun vec_make(capacity: i32): vec[any] {
+    let c = capacity;
     if capacity == 0 {
-        panic("vec_make: capacity must be greater than 0");
+        c = 5;
     }
 
     return vec {
         data: make[ptr[any]](capacity),
         length: 0,
-        capacity: capacity,
+        capacity: c,
     };
 }
 
@@ -137,6 +138,14 @@ fun vec_extend_byte(v: vec[byte], other: vec[byte]) {
 fun vec_slice(v: vec[any], start: i32, end: i32): vec[any] {
     let result = vec_make(max(end - start, 1));
     for i in start..end {
+        result.push(v.at(i));
+    }
+    return result;
+}
+
+fun vec_clone(v: vec[any]): vec[any] {
+    let result = vec_make(v.length);
+    for i in 0..v.length {
         result.push(v.at(i));
     }
     return result;

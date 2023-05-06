@@ -5,6 +5,7 @@ struct Typechecker {
     locals: map[string, Type],
     globals: map[string, Type],
     current_path: Path,
+    imported: vec[Path],
 }
 
 module Typechecker {
@@ -109,11 +110,28 @@ module Typechecker {
                 ..nil,
             },
         );
+        globals.insert(
+            "write_stdout",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](Type {
+                        t_byte: true?,
+                        ..nil,
+                    }),
+                    result: Type {
+                        t_nil: true?,
+                        ..nil,
+                    },
+                }?,
+                ..nil,
+            },
+        );
 
         return Typechecker {
             locals: make[map[string, Type]](),
             globals: globals,
             current_path: Path::new(),
+            imported: make[vec[Path]](),
         };
     }
 
@@ -161,6 +179,10 @@ module Typechecker {
             self.current_path.push(d.t_module!.name);
             self.module_(d.t_module!.module_).try;
             self.current_path = path;
+            return;
+        }
+        if d.t_import != nil {
+            self.imported.push(d.t_import!);
             return;
         }
 
@@ -411,6 +433,21 @@ module Typechecker {
                 let t = self.locals.at(expr.t_ident!.name);
 
                 return t;
+            } else {
+                let candidates = vec_clone(self.imported) as vec[Path];
+                candidates.push(self.current_path);
+
+                for path_prefix in candidates {
+                    let path = path_prefix.clone();
+                    path.push(expr.t_ident!.name);
+
+                    if self.globals.has(path.join("_")) {
+                        let t = self.globals.at(path.join("_"));
+                        expr.t_ident!.resolved_path = path?;
+
+                        return t;
+                    }
+                }
             }
 
             return _ or error::new("unbound identifier: ".concat(expr.t_ident!.name));
@@ -520,10 +557,17 @@ module Typechecker {
                 let t = fields.at(label);
 
                 return t;
-            } else if t.t_ident != nil {
+            } else {
+                let type_name = "";
+                if t.t_ident != nil {
+                    type_name = t.t_ident!;
+                } else if t.t_i32 != nil {
+                    type_name = "i32";
+                }
+
                 // method access
 
-                let func_ident_name = t.t_ident!.concat("_").concat(label);
+                let func_ident_name = type_name.concat("_").concat(label);
                 if self.globals.has(func_ident_name) {
                     let t = self.globals.at(func_ident_name);
                     if t.t_func != nil {
@@ -546,6 +590,8 @@ module Typechecker {
                     }
 
                     return t;
+                } else {
+                    return _ or error::new("method not found: {}".format(func_ident_name));
                 }
             }
 
@@ -731,6 +777,8 @@ module Typechecker {
                 },
                 args,
             );
+        } else if type_.t_i32 != nil {
+            return make[map[string, Type]]();
         }
 
         return _ or error::new("unimplemented: resolve_record_type, {}".format(type_.to_string()));
