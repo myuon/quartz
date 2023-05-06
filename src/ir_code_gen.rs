@@ -1149,6 +1149,7 @@ impl IrCodeGenerator {
                             "ptr".to_string(),
                             vec![TypeRep::from_type(IrType::from_type(p)?)],
                         ),
+                        IrType::from_type(p)?,
                         len,
                     )?)
                 }
@@ -1576,7 +1577,11 @@ impl IrCodeGenerator {
         let mut array = vec![IrTerm::Let {
             name: var_name.clone(),
             type_: IrType::Address,
-            value: Box::new(self.allocate_heap_object(rep, IrTerm::i32(terms.len() as i32))?),
+            value: Box::new(self.allocate_heap_object(
+                rep,
+                IrType::Address,
+                IrTerm::i32(terms.len() as i32),
+            )?),
         }];
         for (offset, type_, element) in terms {
             array.push(IrTerm::Store {
@@ -1613,7 +1618,12 @@ impl IrCodeGenerator {
         })
     }
 
-    fn allocate_heap_object(&mut self, rep: TypeRep, size: IrTerm) -> Result<IrTerm> {
+    fn allocate_heap_object(
+        &mut self,
+        rep: TypeRep,
+        type_: IrType,
+        size: IrTerm,
+    ) -> Result<IrTerm> {
         let rep_id = self.type_reps.get_or_insert(rep);
 
         let var = format!(
@@ -1637,14 +1647,14 @@ impl IrCodeGenerator {
                     ])
                     .as_joined_str("_"),
                 )),
-                args: vec![self.generate_mult_sizeof(
-                    &Type::Ident(Ident("string".to_string())),
-                    IrTerm::Call {
-                        callee: Box::new(IrTerm::ident("add".to_string())),
-                        args: vec![size, IrTerm::i32(if MODE_TYPE_REP { 1 } else { 0 })],
-                        source: None,
-                    },
-                )?],
+                args: vec![IrTerm::Call {
+                    callee: Box::new(IrTerm::ident("add".to_string())),
+                    args: vec![
+                        IrTerm::wrap_mult_sizeof(type_, size),
+                        IrTerm::i32(if MODE_TYPE_REP { Value::sizeof() } else { 0 } as i32),
+                    ],
+                    source: None,
+                }],
                 source: None,
             }),
         }];

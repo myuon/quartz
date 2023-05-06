@@ -222,7 +222,7 @@ impl Generator {
                 },
                 IrTerm::Discard {
                     element: Box::new(IrTerm::Instruction(
-                        "(memory.grow (i32.const 100000))".to_string(),
+                        "(memory.grow (i32.const 1000000))".to_string(),
                     )),
                 },
                 IrTerm::Call {
@@ -479,8 +479,17 @@ impl Generator {
             }
             IrTerm::String(p) => {
                 if MODE_READABLE_WASM {
+                    let s = &self.strings[*p];
+
                     self.writer.new_statement();
-                    self.writer.write(&format!(";; {:?}", self.strings[*p]));
+                    self.writer.write(&format!(
+                        " ;; {}",
+                        if s.len() > 30 {
+                            format!("{:?}...", &s[0..30])
+                        } else {
+                            format!("{:?}", s)
+                        }
+                    ));
                 }
 
                 self.writer.new_statement();

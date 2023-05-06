@@ -44,7 +44,7 @@ fun println(f: string, ..arg: vec[string]) {
 fun vec_make(capacity: i32): vec[any] {
     let c = capacity;
     if capacity == 0 {
-        c = 5;
+        c = 8;
     }
 
     return vec {
@@ -592,16 +592,16 @@ fun stdin(): string {
 let alloc_ptr = 0;
 
 fun alloc(size: i32): ptr[any] {
+    let size_ = size;
     if size % sizeof[i32]() != 0 {
-        debug_i32(size);
-        abort();
+        size_ = ((size + sizeof[i32]() - 1) / sizeof[i32]()) * sizeof[i32]();
     }
     if size == 0 {
         return nil as ptr[any];
     }
 
     let current = alloc_ptr;
-    alloc_ptr = alloc_ptr + size;
+    alloc_ptr = alloc_ptr + size_;
 
     return current as ptr[any];
 }
@@ -729,7 +729,7 @@ module derive {
 
         let rep = reflection::get_type_rep(t);
         if rep.name.equal("string") {
-            return format(`"{}"`, t as string);
+            return format("\"{}\"", t as string);
         }
         if rep.name.equal("i32") {
             return (t as i32).to_string();
