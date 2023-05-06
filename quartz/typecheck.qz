@@ -189,7 +189,124 @@ module Typechecker {
                 }?,
                 ..nil,
             },
-        ); return Typechecker {
+        );
+        globals.insert(
+            "reflection_get_type_rep_id",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](Type {
+                        t_any: true?,
+                        ..nil,
+                    }),
+                    result: Type {
+                        t_i32: true?,
+                        ..nil,
+                    },
+                }?,
+                ..nil,
+            },
+        );
+        globals.insert(
+            "reflection_is_pointer",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](Type {
+                        t_any: true?,
+                        ..nil,
+                    }),
+                    result: Type {
+                        t_bool: true?,
+                        ..nil,
+                    },
+                }?,
+                ..nil,
+            },
+        );
+        globals.insert(
+            "reflection_is_bool",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](Type {
+                        t_any: true?,
+                        ..nil,
+                    }),
+                    result: Type {
+                        t_bool: true?,
+                        ..nil,
+                    },
+                }?,
+                ..nil,
+            },
+        );
+        globals.insert(
+            "create_handler",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](),
+                    result: Type {
+                        t_any: true?,
+                        ..nil,
+                    },
+                }?,
+                ..nil,
+            },
+        );
+        globals.insert(
+            "open_handler_stream",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](
+                        Type {
+                            t_any: true?,
+                            ..nil,
+                        },
+                        Type {
+                            t_byte: true?,
+                            ..nil,
+                        },
+                    ),
+                    result: Type {
+                        t_nil: true?,
+                        ..nil,
+                    },
+                }?,
+                ..nil,
+            },
+        );
+        globals.insert(
+            "open_handler_initialize",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](Type {
+                        t_any: true?,
+                        ..nil,
+                    }),
+                    result: Type {
+                        t_nil: true?,
+                        ..nil,
+                    },
+                }?,
+                ..nil,
+            },
+        );
+        globals.insert(
+            "read_handler",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](Type {
+                        t_any: true?,
+                        ..nil,
+                    }),
+                    result: Type {
+                        t_byte: true?,
+                        ..nil,
+                    },
+                }?,
+                ..nil,
+            },
+        );
+
+        return Typechecker {
             locals: make[map[string, Type]](),
             globals: globals,
             current_path: Path::new(),
@@ -450,6 +567,20 @@ module Typechecker {
                 t_i32: true?,
                 ..nil,
             };
+        } else if expr.t_unop != nil {
+            let t = self.expression(expr.t_unop!.expr).try;
+            unify(
+                t,
+                Type {
+                    t_bool: true?,
+                    ..nil,
+                },
+            ).try;
+
+            return Type {
+                t_bool: true?,
+                ..nil,
+            };
         } else if expr.t_binop != nil {
             if (expr.t_binop!.binop.equal("plus") || expr.t_binop!.binop.equal("minus") || expr.t_binop!.binop.equal(
                 "mult",
@@ -660,6 +791,10 @@ module Typechecker {
                     type_name = t.t_ident!;
                 } else if t.t_i32 != nil {
                     type_name = "i32";
+                } else if t.t_bool != nil {
+                    type_name = "bool";
+                } else {
+                    return _ or error::new("unknown type: {}".format(t.to_string()));
                 }
 
                 // method access
@@ -768,12 +903,9 @@ module Typechecker {
                 };
             }
         } else if expr.t_path != nil {
-            let symbol = expr.t_path!.path.join("_");
-            if self.globals.has(symbol) {
-                return self.globals.at(symbol);
-            }
-
-            return _ or error::new("path not found: {}".format(expr.to_string()));
+            let path = expr.t_path!.path;
+            let resolved_path = self.resolve_path(path).try;
+            return self.globals.at(resolved_path.join("_"));
         } else if expr.t_string != nil {
             return Type {
                 t_ident: "string"?,
@@ -890,6 +1022,8 @@ module Typechecker {
         } else if type_.t_i32 != nil {
             return make[map[string, Type]]();
         } else if type_.t_ptr != nil {
+            return make[map[string, Type]]();
+        } else if type_.t_bool != nil {
             return make[map[string, Type]]();
         }
 
