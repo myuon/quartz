@@ -479,10 +479,14 @@ impl TypeChecker {
                         end: cond.end.unwrap_or(0),
                     })?;
 
+                let locals = self.locals.clone();
                 self.block(&mut then_block.data).context("then block")?;
+                self.locals = locals;
 
                 if let Some(else_block) = else_block {
+                    let locals = self.locals.clone();
                     self.block(&mut else_block.data).context("else block")?;
+                    self.locals = locals;
                 }
 
                 self.unify(type_, &mut Type::Nil)

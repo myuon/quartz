@@ -272,10 +272,10 @@ module Typechecker {
     fun statement(self, s: Statement, result_type: Type): nil or error {
         if s.t_let != nil {
             let t = self.expression(s.t_let!.expr).try;
-            unify(t, s.t_let!.name_type).try;
-            s.t_let!.name_type = t;
+            let type_ = unify(t, s.t_let!.name_type).try;
+            s.t_let!.name_type = type_;
 
-            self.register_locals_with_pattern(s.t_let!.pattern, t).try;
+            self.register_locals_with_pattern(s.t_let!.pattern, type_).try;
             return nil;
         } else if s.t_return != nil {
             let t = self.expression(s.t_return!.expr).try;
@@ -348,6 +348,10 @@ module Typechecker {
             } else {
                 return _ or error::new("for range must be range");
             }
+        } else if s.t_continue != nil {
+            return nil;
+        } else if s.t_break != nil {
+            return nil;
         }
 
         return _ or error::new("unimplemented: statement, {}".format(s.to_string()));
@@ -464,12 +468,12 @@ module Typechecker {
 
             return _ or error::new("unimplemented: binop, {}".format(expr.to_string()));
         } else if expr.t_ident != nil {
-            if self.globals.has(expr.t_ident!.name) {
-                let t = self.globals.at(expr.t_ident!.name);
+            if self.locals.has(expr.t_ident!.name) {
+                let t = self.locals.at(expr.t_ident!.name);
 
                 return t;
-            } else if self.locals.has(expr.t_ident!.name) {
-                let t = self.locals.at(expr.t_ident!.name);
+            } else if self.globals.has(expr.t_ident!.name) {
+                let t = self.globals.at(expr.t_ident!.name);
 
                 return t;
             } else {
@@ -665,7 +669,10 @@ module Typechecker {
                 }
             }
 
-            return t;
+            return Type {
+                t_ident: expr.t_record!.name?,
+                ..nil,
+            };
         } else if expr.t_make != nil {
             if expr.t_make!.args.length >= 2 {
                 return _ or error::new("too many args for make, {}".format(expr.to_string()));
