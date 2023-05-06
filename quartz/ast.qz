@@ -165,6 +165,9 @@ struct Expression {
     t_i32: struct {
         value: i32,
     }?,
+    t_u32: struct {
+        value: u32,
+    }?,
     t_call: struct {
         callee: Expression,
         args: vec[Expression],

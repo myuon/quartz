@@ -229,6 +229,14 @@ fun max(a: i32, b: i32): i32 {
     }
 }
 
+fun min(a: i32, b: i32): i32 {
+    if a < b {
+        return a;
+    } else {
+        return b;
+    }
+}
+
 module i32 {
     fun to_string(self): string {
         if self == 0 {
@@ -264,6 +272,20 @@ module i32 {
                 panic("i32.parse: invalid character: ".concat(digit_to_string(c)));
             }
             n = n * 10 + (c - 48);
+        }
+        return n;
+    }
+}
+
+module u32 {
+    fun parse(s: string): u32 {
+        let n = 0 as u32;
+        for i in 0..s.length {
+            let c = s.data.at(i) as i32;
+            if (c < 48 || c > 57) {
+                panic("u32.parse: invalid character: ".concat(digit_to_string(c)));
+            }
+            n = n * (10 as u32) + ((c - 48) as u32);
         }
         return n;
     }
@@ -420,6 +442,26 @@ module string {
 
     fun format(self, ..arg: vec[string]): string {
         return format(self, ..arg);
+    }
+
+    fun compare_lte(self, other: string): bool {
+        if self.length < other.length {
+            return true;
+        } else if self.length > other.length {
+            return false;
+        } else {
+            for i in 0..self.length {
+                let a = self.data.at(i) as i32;
+                let b = other.data.at(i) as i32;
+                if a < b {
+                    return true;
+                } else if a > b {
+                    return false;
+                }
+            }
+
+            return true;
+        }
     }
 }
 

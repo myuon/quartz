@@ -1083,13 +1083,23 @@ module Parser {
         }
         if self.peek().lexeme.equal("number") {
             let token = self.consume();
-
-            return Expression {
-                t_i32: struct {
-                    value: i32::parse(token.string_value!),
-                }?,
-                ..nil,
-            };
+            if token.string_value!.compare_lte("2147483647") {
+                return Expression {
+                    t_i32: struct {
+                        value: i32::parse(token.string_value!),
+                    }?,
+                    ..nil,
+                };
+            } else if token.string_value!.compare_lte("4294967295") {
+                return Expression {
+                    t_u32: struct {
+                        value: u32::parse(token.string_value!),
+                    }?,
+                    ..nil,
+                };
+            } else {
+                return _ or error::new(format("Invalid number {}", token.string_value!));
+            }
         }
         if self.peek().lexeme.equal("self") {
             self.expect("self").try;

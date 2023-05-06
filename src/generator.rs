@@ -766,7 +766,7 @@ impl Generator {
 
         match caller.as_ref() {
             IrTerm::Ident(ident) => match ident.as_str() {
-                "add" => {
+                "add" | "add_u32" => {
                     if MODE_OPTIMIZE_ARITH_OPS_IN_CODE_GEN {
                         self.writer.write("i64.add");
                     } else {

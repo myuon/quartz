@@ -610,6 +610,8 @@ impl IrCodeGenerator {
                         callee: Box::new(IrTerm::Ident(
                             if matches!(type_, Type::I32) {
                                 "add"
+                            } else if matches!(type_, Type::U32) {
+                                "add_u32"
                             } else {
                                 bail!("invalid type for add: {:?}", type_)
                             }
