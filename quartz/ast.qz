@@ -301,6 +301,10 @@ module Type {
             ..nil,
         };
     }
+
+    fun is_integer_type(self): bool {
+        return self.t_i32 != nil || (self.t_ident != nil && self.t_ident!.equal("i64"));
+    }
 }
 
 struct TypeStruct {

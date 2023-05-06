@@ -389,22 +389,12 @@ module Typechecker {
                 "mult",
             ) || expr.t_binop!.binop.equal("div") || expr.t_binop!.binop.equal("mod")) {
                 let t1 = self.expression(expr.t_binop!.left).try;
-                unify(
-                    t1,
-                    Type {
-                        t_i32: true?,
-                        ..nil,
-                    },
-                ).try;
+                if !t1.is_integer_type() {
+                    return _ or error::new("left operand must be integer type");
+                }
 
                 let t2 = self.expression(expr.t_binop!.right).try;
-                unify(
-                    t2,
-                    Type {
-                        t_i32: true?,
-                        ..nil,
-                    },
-                ).try;
+                unify(t1, t2).try;
 
                 return t1;
             } else if (expr.t_binop!.binop.equal("equal") || expr.t_binop!.binop.equal("not_equal")) {
@@ -549,6 +539,19 @@ module Typechecker {
                         }?,
                         ..nil,
                     };
+                } else if expr.t_project!.field.equal("offset") {
+                    return Type {
+                        t_func: struct {
+                            params: make[vec[Type]](Type {
+                                t_i32: true?,
+                                ..nil,
+                            }),
+                            result: t,
+                        }?,
+                        ..nil,
+                    };
+                } else {
+                    return _ or error::new("unimplemented: project, {}".format(expr.to_string()));
                 }
             } else if t.t_vec != nil {
                 if expr.t_project!.field.equal("push") {
@@ -807,6 +810,8 @@ module Typechecker {
                 args,
             );
         } else if type_.t_i32 != nil {
+            return make[map[string, Type]]();
+        } else if type_.t_ptr != nil {
             return make[map[string, Type]]();
         }
 
