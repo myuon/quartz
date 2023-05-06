@@ -122,7 +122,7 @@ impl Generator {
         })?;
 
         self.writer.start();
-        self.writer.write(r#"memory 1"#);
+        self.writer.write(r#"memory 40000"#);
         self.writer.end();
 
         for term in elements {
@@ -219,11 +219,6 @@ impl Generator {
                 IrTerm::Assign {
                     lhs: "quartz_std_strings_count".to_string(),
                     rhs: Box::new(IrTerm::i32(self.strings.len() as i32)),
-                },
-                IrTerm::Discard {
-                    element: Box::new(IrTerm::Instruction(
-                        "(memory.grow (i32.const 1000000))".to_string(),
-                    )),
                 },
                 IrTerm::Call {
                     callee: Box::new(IrTerm::ident("prepare_strings")),

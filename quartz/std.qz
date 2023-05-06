@@ -729,7 +729,7 @@ module derive {
 
         let rep = reflection::get_type_rep(t);
         if rep.name.equal("string") {
-            return format("\"{}\"", t as string);
+            return format(`"{}"`, t as string);
         }
         if rep.name.equal("i32") {
             return (t as i32).to_string();
