@@ -129,7 +129,7 @@ module Generator {
         });
 
         self.start();
-        self.write("memory 10");
+        self.write("memory 50000");
         self.end();
 
         self.start();
@@ -183,13 +183,6 @@ module Generator {
                                 t_i32: data_section_offset?,
                                 ..nil,
                             },
-                        }?,
-                        ..nil,
-                    },
-                    IrTerm {
-                        t_discard: IrTerm {
-                            t_inst: "(memory.grow (i32.const 100000))"?,
-                            ..nil,
                         }?,
                         ..nil,
                     },
