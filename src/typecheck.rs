@@ -1141,6 +1141,7 @@ impl TypeChecker {
                 // FIXME: adhoc type convertion
                 Ok(match ident.as_str() {
                     "i32" => Type::I32,
+                    "u32" => Type::U32,
                     _ => Type::Ident(ident.clone()),
                 })
             }

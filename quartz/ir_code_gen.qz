@@ -590,6 +590,13 @@ module IrCodeGenerator {
             };
 
             return term;
+        } else if expr.t_u32 != nil {
+            let term = IrTerm {
+                t_u32: expr.t_u32!.value?,
+                ..nil,
+            };
+
+            return term;
         } else if expr.t_binop != nil {
             let args = make[vec[IrTerm]]();
             args.push(self.expression(expr.t_binop!.left).try);

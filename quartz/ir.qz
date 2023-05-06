@@ -66,6 +66,7 @@ struct IrTerm {
     t_continue: bool?,
     t_break: bool?,
     t_size: IrType?,
+    t_u32: u32?,
 }
 
 module IrTerm {

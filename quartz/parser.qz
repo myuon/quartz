@@ -439,9 +439,17 @@ module Parser {
             let else_block = nil as Block?;
             if self.peek().lexeme.equal("else") {
                 self.consume();
-                self.expect("lbrace").try;
-                else_block = self.block().try?;
-                self.expect("rbrace").try;
+
+                if self.peek().lexeme.equal("if") {
+                    let s = self.statement().try;
+                    else_block = Block {
+                        block: make[vec[Statement]](s),
+                    }?;
+                } else {
+                    self.expect("lbrace").try;
+                    else_block = self.block().try?;
+                    self.expect("rbrace").try;
+                }
             }
 
             return Statement {

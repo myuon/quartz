@@ -793,6 +793,9 @@ impl Generator {
                 "div" => {
                     self.generate_op_arithmetic("div_s");
                 }
+                "div_u32" => {
+                    self.generate_op_arithmetic("div_u");
+                }
                 "div_i64" => {
                     self.generate_op_arithmetic_i64("i64.div_s");
                 }
@@ -822,6 +825,9 @@ impl Generator {
                 }
                 "gt" => {
                     self.generate_op_comparison("gt_s");
+                }
+                "gt_u32" => {
+                    self.generate_op_comparison("gt_u");
                 }
                 "lte" => {
                     self.generate_op_comparison("le_s");

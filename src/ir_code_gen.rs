@@ -650,6 +650,8 @@ impl IrCodeGenerator {
                         callee: Box::new(IrTerm::Ident(
                             if matches!(type_, Type::I32) {
                                 "div"
+                            } else if matches!(type_, Type::U32) {
+                                "div_u32"
                             } else if *type_ == Type::Ident(Ident("i64".to_string())) {
                                 "div_i64"
                             } else {
@@ -712,6 +714,8 @@ impl IrCodeGenerator {
                         callee: Box::new(IrTerm::Ident(
                             if matches!(type_, Type::I32) {
                                 "gt"
+                            } else if matches!(type_, Type::U32) {
+                                "gt_u32"
                             } else {
                                 bail!("invalid type for gt: {:?}", type_)
                             }

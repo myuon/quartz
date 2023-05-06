@@ -302,6 +302,16 @@ module Generator {
                 t_i32: expr.t_i32!?,
                 ..nil,
             });
+        } else if expr.t_u32 != nil {
+            if MODE_READABLE_WASM {
+                self.new_statement();
+                self.write(format(" ;; {}", expr.t_u32!.to_string()));
+            }
+
+            self.write_value(Value {
+                t_i32: (expr.t_u32! as i32)?,
+                ..nil,
+            });
         } else if expr.t_nil != nil {
             if MODE_READABLE_WASM {
                 self.new_statement();

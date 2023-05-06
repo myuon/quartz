@@ -278,6 +278,32 @@ module i32 {
 }
 
 module u32 {
+    fun to_string(self): string {
+        if self == (0 as u32) {
+            return "0";
+        }
+
+        let digit = 0;
+        let tmp = self;
+        while tmp > (0 as u32) {
+            tmp = tmp / (10 as u32);
+            digit = digit + 1;
+        }
+
+        let str = make[ptr[byte]](digit);
+        tmp = self;
+        for i in 0..digit {
+            let d = tmp % (10 as u32);
+            str.at(digit - i - 1) = ((d as i32 + 48) as byte);
+            tmp = tmp / (10 as u32);
+        }
+
+        return string {
+            data: str,
+            length: digit,
+        };
+    }
+
     fun parse(s: string): u32 {
         let n = 0 as u32;
         for i in 0..s.length {

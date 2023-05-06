@@ -567,6 +567,11 @@ module Typechecker {
                 t_i32: true?,
                 ..nil,
             };
+        } else if expr.t_u32 != nil {
+            return Type {
+                t_u32: true?,
+                ..nil,
+            };
         } else if expr.t_unop != nil {
             let t = self.expression(expr.t_unop!.expr).try;
             unify(
@@ -609,14 +614,12 @@ module Typechecker {
             ) || expr.t_binop!.binop.equal("gte")) {
                 let t1 = self.expression(expr.t_binop!.left).try;
                 let t2 = self.expression(expr.t_binop!.right).try;
+                if !t1.is_integer_type() {
+                    return _ or error::new("left operand must be integer type, but got {}".format(t1.to_string(
+                    )));
+                }
+
                 unify(t1, t2).try;
-                unify(
-                    t1,
-                    Type {
-                        t_i32: true?,
-                        ..nil,
-                    },
-                ).try;
 
                 return Type {
                     t_bool: true?,
@@ -895,6 +898,11 @@ module Typechecker {
             if ident.equal("i32") {
                 return Type {
                     t_i32: true?,
+                    ..nil,
+                };
+            } else if ident.equal("u32") {
+                return Type {
+                    t_u32: true?,
                     ..nil,
                 };
             } else {
