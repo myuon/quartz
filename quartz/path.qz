@@ -43,5 +43,9 @@ module Path {
             path: new_path,
         };
     }
+
+    fun extend(self, other: Path) {
+        self.path.extend(other.path);
+    }
 }
 

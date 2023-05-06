@@ -69,7 +69,7 @@ module Typechecker {
                             name: "data",
                             type_: Type {
                                 t_ptr: Type {
-                                    t_i32: true?,
+                                    t_any: true?,
                                     ..nil,
                                 }?,
                                 ..nil,
@@ -131,14 +131,50 @@ module Typechecker {
             locals: make[map[string, Type]](),
             globals: globals,
             current_path: Path::new(),
-            imported: make[vec[Path]](),
+            imported: make[vec[Path]](Path::ident("std")),
         };
     }
 
     fun module_(self, m: Module): nil or error {
+        self.module_register_for_back_reference(m).try;
+
         for i in 0..m.decls.length {
             let d = m.decls.at(i);
             self.decl(d).try;
+        }
+
+        return nil;
+    }
+
+    fun module_register_for_back_reference(self, m: Module): nil or error {
+        for i in 0..m.decls.length {
+            let d = m.decls.at(i);
+            if d.t_func != nil {
+                self.globals.insert(self.path_to(d.t_func!.name), d.t_func!.to_type());
+
+                continue;
+            } else if d.t_let != nil {
+                self.globals.insert(d.t_let!.name, d.t_let!.name_type);
+
+                continue;
+            } else if d.t_type != nil {
+                self.globals.insert(d.t_type!.name, d.t_type!.type_);
+
+                continue;
+            } else if d.t_module != nil {
+                let path = self.current_path.clone();
+                self.current_path.push(d.t_module!.name);
+                self.module_register_for_back_reference(d.t_module!.module_).try;
+                self.current_path = path;
+
+                continue;
+            } else if d.t_import != nil {
+                self.imported.push(d.t_import!);
+
+                continue;
+            } else {
+                return _ or error::new("Unknown decl type, {}".format(d.to_string()));
+            }
         }
 
         return nil;
@@ -434,20 +470,11 @@ module Typechecker {
 
                 return t;
             } else {
-                let candidates = vec_clone(self.imported) as vec[Path];
-                candidates.push(self.current_path);
+                let path = self.resolve_path(Path::ident(expr.t_ident!.name)).try;
+                let t = self.globals.at(path.join("_"));
+                expr.t_ident!.resolved_path = path?;
 
-                for path_prefix in candidates {
-                    let path = path_prefix.clone();
-                    path.push(expr.t_ident!.name);
-
-                    if self.globals.has(path.join("_")) {
-                        let t = self.globals.at(path.join("_"));
-                        expr.t_ident!.resolved_path = path?;
-
-                        return t;
-                    }
-                }
+                return t;
             }
 
             return _ or error::new("unbound identifier: ".concat(expr.t_ident!.name));
@@ -568,14 +595,16 @@ module Typechecker {
                 // method access
 
                 let func_ident_name = type_name.concat("_").concat(label);
-                if self.globals.has(func_ident_name) {
-                    let t = self.globals.at(func_ident_name);
+                let path = self.resolve_path(Path::ident(func_ident_name)).try;
+
+                if self.globals.has(path.join("_")) {
+                    let t = self.globals.at(path.join("_"));
                     if t.t_func != nil {
                         let arg_types = t.t_func!.params;
                         let result_type = t.t_func!.result;
 
                         if arg_types.length == 0 {
-                            return _ or error::new("method {} has no arguements".format(func_ident_name));
+                            return _ or error::new("method {} has no arguements".format(path.join("_")));
                         }
 
                         unify(arg_types.at(0), t).try;
@@ -663,7 +692,7 @@ module Typechecker {
                 return self.globals.at(symbol);
             }
 
-            return _ or error::new("unknown symbol: {}".format(expr.to_string()));
+            return _ or error::new("path not found: {}".format(expr.to_string()));
         } else if expr.t_string != nil {
             return Type {
                 t_ident: "string"?,
@@ -783,6 +812,22 @@ module Typechecker {
 
         return _ or error::new("unimplemented: resolve_record_type, {}".format(type_.to_string()));
     }
+
+    fun resolve_path(self, specified: Path): Path or error {
+        let candidates = vec_clone(self.imported) as vec[Path];
+        candidates.push(self.current_path);
+
+        for path_prefix in candidates {
+            let path = path_prefix.clone();
+            path.extend(specified);
+
+            if self.globals.has(path.join("_")) {
+                return path;
+            }
+        }
+
+        return _ or error::new("unknown symbol: {}".format(specified.join("_")));
+    }
 }
 
 fun unify(type1: Type, type2: Type): Type or error {
@@ -794,6 +839,12 @@ fun unify(type1: Type, type2: Type): Type or error {
     }
     if type1.t_bool != nil && type2.t_bool != nil {
         return type1;
+    }
+    if type1.t_ident != nil && type1.t_ident!.equal("bool") && type2.t_bool != nil {
+        return type1;
+    }
+    if type2.t_ident != nil && type2.t_ident!.equal("bool") && type1.t_bool != nil {
+        return type2;
     }
     if type1.t_byte != nil && type2.t_byte != nil {
         return type1;

@@ -345,6 +345,11 @@ module Parser {
                     t_vec: t?,
                     ..nil,
                 };
+            } else if token.string_value!.equal("any") {
+                return Type {
+                    t_any: true?,
+                    ..nil,
+                };
             }
 
             return Type {
