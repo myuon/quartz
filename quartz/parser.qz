@@ -1044,17 +1044,27 @@ module Parser {
                 };
             } else if token.lexeme.equal("dot") {
                 self.expect("dot").try;
-                let field = self.ident().try;
 
-                current = Expression {
-                    t_project: struct {
-                        expr: current,
-                        field: field,
-                        type_: nil as Type?,
-                        resolved_path: nil,
-                    }?,
-                    ..nil,
-                };
+                if self.peek().lexeme.equal("try") {
+                    self.expect("try").try;
+
+                    current = Expression {
+                        t_try: current?,
+                        ..nil,
+                    };
+                } else {
+                    let field = self.ident().try;
+
+                    current = Expression {
+                        t_project: struct {
+                            expr: current,
+                            field: field,
+                            type_: nil as Type?,
+                            resolved_path: nil,
+                        }?,
+                        ..nil,
+                    };
+                }
             } else if with_struct && token.lexeme.equal("lbrace") {
                 self.expect("lbrace").try;
 

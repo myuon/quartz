@@ -235,6 +235,7 @@ struct Expression {
     t_sizeof: struct {
         type_: Type,
     }?,
+    t_try: Expression?,
 }
 
 module Expression {

@@ -6,6 +6,7 @@ struct Typechecker {
     globals: map[string, Type],
     current_path: Path,
     imported: vec[Path],
+    result_type: Type?,
 }
 
 module Typechecker {
@@ -337,6 +338,7 @@ module Typechecker {
             globals: globals,
             current_path: Path::new(),
             imported: make[vec[Path]](Path::new("quartz", "std")),
+            result_type: nil,
         };
     }
 
@@ -442,26 +444,27 @@ module Typechecker {
             self.locals.insert(f.variadic!.name, f.variadic!.type_);
         }
 
-        self.block(f.body, f.result_type).try;
+        self.result_type = f.result_type?;
+        self.block(f.body).try;
 
         self.locals = locals;
 
         return nil;
     }
 
-    fun block(self, b: Block, expected: Type): nil or error {
+    fun block(self, b: Block): nil or error {
         for i in 0..b.block.length {
             let result = Type {
                 t_omit: true?,
                 ..nil,
             };
-            self.statement(b.block.at(i), result).try;
+            self.statement(b.block.at(i)).try;
         }
 
         return nil;
     }
 
-    fun statement(self, s: Statement, result_type: Type): nil or error {
+    fun statement(self, s: Statement): nil or error {
         if s.t_let != nil {
             let t = self.expression(s.t_let!.expr).try;
             let type_ = unify(t, s.t_let!.name_type).try;
@@ -471,7 +474,27 @@ module Typechecker {
             return nil;
         } else if s.t_return != nil {
             let t = self.expression(s.t_return!.expr).try;
-            unify(t, result_type).try;
+            let result or err = unify(t, self.result_type!);
+            if result != nil {
+                self.result_type = result!?;
+            } else if err != nil {
+                if self.result_type!.t_or != nil {
+                    unify(self.result_type!.t_or!.left, t).try;
+
+                    s.t_return!.expr = Expression {
+                        t_enumor: struct {
+                            lhs: s.t_return!.expr?,
+                            rhs: nil as Expression?,
+                            lhs_type: self.result_type!.t_or!.left,
+                            rhs_type: self.result_type!.t_or!.right,
+                        }?,
+                        ..nil,
+                    };
+                } else {
+                    return _ or err!;
+                }
+            }
+
             return nil;
         } else if s.t_expr != nil {
             let _t = self.expression(s.t_expr!.expr).try;
@@ -499,9 +522,9 @@ module Typechecker {
                 t_omit: true?,
                 ..nil,
             };
-            self.block(s.t_if!.then_block, type_).try;
+            self.block(s.t_if!.then_block).try;
             if s.t_if!.else_block != nil {
-                self.block(s.t_if!.else_block!, type_).try;
+                self.block(s.t_if!.else_block!).try;
             }
             return nil;
         } else if s.t_while != nil {
@@ -518,7 +541,8 @@ module Typechecker {
                 t_omit: true?,
                 ..nil,
             };
-            self.block(s.t_while!.block, type_).try;
+            self.block(s.t_while!.block).try;
+
             return nil;
         } else if s.t_for != nil {
             let t = self.expression(s.t_for!.range).try;
@@ -527,13 +551,7 @@ module Typechecker {
                 let locals = self.locals;
                 self.locals.insert(s.t_for!.ident, t.t_range!);
 
-                self.block(
-                    s.t_for!.block,
-                    Type {
-                        t_nil: true?,
-                        ..nil,
-                    },
-                ).try;
+                self.block(s.t_for!.block).try;
 
                 self.locals = locals;
                 return nil;
@@ -907,7 +925,7 @@ module Typechecker {
                 } else if t.t_bool != nil {
                     type_name = "bool";
                 } else {
-                    return _ or error::new("unknown type: {}".format(t.to_string()));
+                    return _ or error::new("unknown type: {}.{}".format(t.to_string(), label));
                 }
 
                 // method access
@@ -935,6 +953,8 @@ module Typechecker {
                             }?,
                             ..nil,
                         };
+                    } else if t.t_variadic_func != nil {
+                        panic("variadic func");
                     }
 
                     return t;
@@ -966,12 +986,6 @@ module Typechecker {
                     unify(expr_type, field_map.at(field)).try;
                 } else {
                     return _ or error::new("missing field: {}".format(field));
-                }
-            }
-
-            for field in fields {
-                if !expr_fields_map.has(field) {
-                    return _ or error::new("unknown field: {} at {}".format(field, expr.t_record!.name));
                 }
             }
 
@@ -1110,7 +1124,7 @@ module Typechecker {
             };
         } else if expr.t_enumor != nil {
             let lhs_type = Type {
-                t_nil: true?,
+                t_any: true?,
                 ..nil,
             };
             if expr.t_enumor!.lhs != nil {
@@ -1119,7 +1133,7 @@ module Typechecker {
             expr.t_enumor!.lhs_type = lhs_type;
 
             let rhs_type = Type {
-                t_nil: true?,
+                t_any: true?,
                 ..nil,
             };
             if expr.t_enumor!.rhs != nil {
@@ -1134,6 +1148,24 @@ module Typechecker {
                 }?,
                 ..nil,
             };
+        } else if expr.t_try != nil {
+            let t = self.expression(expr.t_try!).try;
+
+            if t.t_or != nil {
+                let lhs = t.t_or!.left;
+                let rhs = t.t_or!.right;
+
+                if self.result_type == nil {
+                    return _ or error::new("try outside of function, {}".format(expr.to_string()));
+                }
+
+                let t = unify(self.result_type!, t).try;
+                self.result_type = t?;
+
+                return unify(lhs, rhs).try;
+            } else {
+                return _ or error::new("unimplemented: try, {}".format(expr.to_string()));
+            }
         } else {
             return _ or error::new("unimplemented: expression, {}".format(expr.to_string()));
         }
@@ -1175,6 +1207,10 @@ module Typechecker {
         } else if type_.t_ptr != nil {
             return make[map[string, Type]]();
         } else if type_.t_bool != nil {
+            return make[map[string, Type]]();
+        } else if type_.t_nil != nil {
+            return make[map[string, Type]]();
+        } else if type_.t_or != nil {
             return make[map[string, Type]]();
         }
 
@@ -1292,6 +1328,18 @@ fun unify(type1: Type, type2: Type): Type or error {
         }
 
         return type1;
+    }
+    if type1.t_or != nil && type2.t_or != nil {
+        let left = unify(type1.t_or!.left, type2.t_or!.left).try;
+        let right = unify(type1.t_or!.right, type2.t_or!.right).try;
+
+        return Type {
+            t_or: struct {
+                left: left,
+                right: right,
+            }?,
+            ..nil,
+        };
     }
 
     return _ or error::new("unification failed: ".concat(type1.to_string()).concat(" != ").concat(type2.to_string(
