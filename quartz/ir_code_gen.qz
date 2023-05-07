@@ -65,6 +65,8 @@ module InternalTypeRep {
             return InternalTypeRep::from_name("byte", make[vec[InternalTypeRep]]());
         } else if t.t_any != nil {
             return InternalTypeRep::from_name("any", make[vec[InternalTypeRep]]());
+        } else if t.t_bool != nil {
+            return InternalTypeRep::from_name("bool", make[vec[InternalTypeRep]]());
         }
 
         return panic("unreachable, {}".format(t.to_string()));
@@ -1144,6 +1146,50 @@ module IrCodeGenerator {
                         }?,
                         ..nil,
                     };
+                } else if project.type_!.t_vec != nil && project.field.equal("extend") {
+                    if expr.t_call!.args.length != 1 {
+                        return _ or error::new("extend() takes 2 arguments");
+                    }
+
+                    let symbol = "";
+                    if project.type_!.t_vec!.t_byte != nil {
+                        symbol = "quartz_std_vec_extend_byte";
+                    } else {
+                        symbol = "quartz_std_vec_extend";
+                    }
+
+                    return IrTerm {
+                        t_call: IrCall {
+                            callee: IrTerm {
+                                t_ident: symbol?,
+                                ..nil,
+                            },
+                            args: make[vec[IrTerm]](
+                                self.expression(project.expr).try,
+                                self.expression(expr.t_call!.args.at(0)).try,
+                            ),
+                        }?,
+                        ..nil,
+                    };
+                } else if project.type_!.t_vec != nil && project.field.equal("slice") {
+                    if expr.t_call!.args.length != 2 {
+                        return _ or error::new("slice() takes 2 arguments");
+                    }
+
+                    return IrTerm {
+                        t_call: IrCall {
+                            callee: IrTerm {
+                                t_ident: "quartz_std_vec_slice"?,
+                                ..nil,
+                            },
+                            args: make[vec[IrTerm]](
+                                self.expression(project.expr).try,
+                                self.expression(expr.t_call!.args.at(0)).try,
+                                self.expression(expr.t_call!.args.at(1)).try,
+                            ),
+                        }?,
+                        ..nil,
+                    };
                 } else if project.type_!.t_map != nil && project.field.equal("insert") {
                     if expr.t_call!.args.length != 2 {
                         return _ or error::new("insert() takes 2 arguments");
@@ -1196,6 +1242,21 @@ module IrCodeGenerator {
                                 self.expression(project.expr).try,
                                 self.expression(expr.t_call!.args.at(0)).try,
                             ),
+                        }?,
+                        ..nil,
+                    };
+                } else if project.type_!.t_map != nil && project.field.equal("list_keys") {
+                    if expr.t_call!.args.length != 0 {
+                        return _ or error::new("list_keys() takes 0 arguments");
+                    }
+
+                    return IrTerm {
+                        t_call: IrCall {
+                            callee: IrTerm {
+                                t_ident: "quartz_std_map_list_keys"?,
+                                ..nil,
+                            },
+                            args: make[vec[IrTerm]](self.expression(project.expr).try),
                         }?,
                         ..nil,
                     };
