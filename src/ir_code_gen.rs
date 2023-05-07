@@ -148,7 +148,8 @@ impl IrCodeGenerator {
                         value: Box::new(self.expr(expr)?),
                     });
                 }
-                Decl::Type(_, _) => (),
+                Decl::Struct(_, _) => (),
+                Decl::Enum(_, _) => (),
                 Decl::Module(name, module) => {
                     let path = self.current_path.clone();
                     self.current_path.extend(name);

@@ -63,11 +63,15 @@ impl Parser {
             }
             Lexeme::Type => {
                 let (ident, type_) = self.type_decl()?;
-                Ok(Decl::Type(ident, type_))
+                Ok(Decl::Struct(ident, type_))
             }
             Lexeme::Struct => {
                 let (ident, type_) = self.struct_decl()?;
-                Ok(Decl::Type(ident, type_))
+                Ok(Decl::Struct(ident, type_))
+            }
+            Lexeme::Enum => {
+                let (ident, type_) = self.enum_decl()?;
+                Ok(Decl::Enum(ident, type_))
             }
             Lexeme::Module(_path) => {
                 self.consume()?;
@@ -134,6 +138,15 @@ impl Parser {
 
     fn struct_decl(&mut self) -> Result<(Source<Ident>, Vec<Source<(Ident, Type)>>)> {
         self.expect(Lexeme::Struct)?;
+        let ident = self.ident()?;
+
+        let t = self.record_type_decl()?;
+
+        Ok((ident, t))
+    }
+
+    fn enum_decl(&mut self) -> Result<(Source<Ident>, Vec<Source<(Ident, Type)>>)> {
+        self.expect(Lexeme::Enum)?;
         let ident = self.ident()?;
 
         let t = self.record_type_decl()?;

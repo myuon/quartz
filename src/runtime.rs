@@ -1032,6 +1032,24 @@ fun main(): i32 {
                     Value::i32(5),
                 ],
             ),
+            (
+                r#"
+enum Value {
+    t_i32: i32,
+    t_string: string,
+}
+
+fun main(): i32 {
+    let t_10 = Value { t_i32: 10 };
+    let t_hello = Value { t_string: "hello" };
+
+    return t_10.t_i32! + t_hello.t_string!.length;
+}
+"#,
+                vec![
+                    Value::i32(5),
+                ],
+            ),
         ];
 
         for (input, expected) in cases {

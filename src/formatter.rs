@@ -88,8 +88,13 @@ impl<'s> Formatter<'s> {
                 self.expr(writer, expr.data, false);
                 self.write_no_space(writer, ";");
             }
-            Decl::Type(ident, rs) => {
+            Decl::Struct(ident, rs) => {
                 self.write(writer, "struct");
+                self.write(writer, ident.data.as_str());
+                self.record_fields(writer, rs);
+            }
+            Decl::Enum(ident, rs) => {
+                self.write(writer, "enum");
                 self.write(writer, ident.data.as_str());
                 self.record_fields(writer, rs);
             }

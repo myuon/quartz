@@ -24,6 +24,7 @@ pub enum Lexeme {
     Break,
     Import,
     Struct,
+    Enum,
     Or,
     BitOr,
     BitAnd,
@@ -214,6 +215,7 @@ impl Lexer {
                     ("struct", Lexeme::Struct),
                     ("or", Lexeme::Or),
                     ("try", Lexeme::Try),
+                    ("enum", Lexeme::Enum),
                 ],
             ) {
                 continue;
