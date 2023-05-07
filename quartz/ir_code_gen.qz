@@ -599,7 +599,10 @@ module IrCodeGenerator {
 
             return term;
         } else if stm.t_expr != nil {
-            return self.expression(stm.t_expr!.expr);
+            return IrTerm {
+                t_discard: self.expression(stm.t_expr!.expr).try?,
+                ..nil,
+            };
         } else if stm.t_assign != nil {
             let lhs = self.expression(stm.t_assign!.lhs).try;
             let rhs = self.expression(stm.t_assign!.rhs).try;
@@ -1040,7 +1043,12 @@ module IrCodeGenerator {
                     };
                 }
             } else {
-                return self.generate_call(expr.t_call!.callee, expr.t_call!.args, expr.t_call!.variadic).try;
+                return self.generate_call(
+                    expr.t_call!.callee,
+                    expr.t_call!.args,
+                    expr.t_call!.variadic,
+                    expr.t_call!.expansion,
+                ).try;
             }
         } else if expr.t_record != nil {
             if !self.globals.has(expr.t_record!.name) {
@@ -1764,6 +1772,7 @@ module IrCodeGenerator {
             element_type: Type,
             index: i32,
         }?,
+        expansion: Expression?,
     ): IrTerm or error {
         if variadic != nil {
             let terms = make[vec[IrTerm]]();
@@ -1800,18 +1809,42 @@ module IrCodeGenerator {
             });
             for arg in args.slice(variadic!.index, args.length) {
                 variadic_terms.push(IrTerm {
-                    t_call: IrCall {
-                        callee: IrTerm {
-                            t_ident: "quartz_std_vec_push"?,
-                            ..nil,
-                        },
-                        args: make[vec[IrTerm]](
-                            IrTerm {
-                                t_ident: vec_name?,
+                    t_discard: IrTerm {
+                        t_call: IrCall {
+                            callee: IrTerm {
+                                t_ident: "quartz_std_vec_push"?,
                                 ..nil,
                             },
-                            self.expression(arg).try,
-                        ),
+                            args: make[vec[IrTerm]](
+                                IrTerm {
+                                    t_ident: vec_name?,
+                                    ..nil,
+                                },
+                                self.expression(arg).try,
+                            ),
+                        }?,
+                        ..nil,
+                    }?,
+                    ..nil,
+                });
+            }
+            if expansion != nil {
+                variadic_terms.push(IrTerm {
+                    t_discard: IrTerm {
+                        t_call: IrCall {
+                            callee: IrTerm {
+                                t_ident: "quartz_std_vec_extend"?,
+                                ..nil,
+                            },
+                            args: make[vec[IrTerm]](
+                                IrTerm {
+                                    t_ident: vec_name?,
+                                    ..nil,
+                                },
+                                self.expression(expansion!).try,
+                            ),
+                        }?,
+                        ..nil,
                     }?,
                     ..nil,
                 });
