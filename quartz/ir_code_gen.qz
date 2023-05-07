@@ -1164,8 +1164,12 @@ module IrCodeGenerator {
                 return _ or error::new("make() expects a pointer or vector type");
             }
         } else if expr.t_path != nil {
+            if expr.t_path!.resolved_path == nil {
+                return _ or error::new("unresolved path, {}".format(expr.t_path!.path.join("_")));
+            }
+
             return IrTerm {
-                t_ident: expr.t_path!.path.join("_")?,
+                t_ident: expr.t_path!.resolved_path!.join("_")?,
                 ..nil,
             };
         } else if expr.t_self != nil {

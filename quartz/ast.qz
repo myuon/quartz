@@ -195,6 +195,7 @@ struct Expression {
     }?,
     t_path: struct {
         path: Path,
+        resolved_path: Path?,
     }?,
     t_self: bool?,
     t_string: string?,

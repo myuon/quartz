@@ -122,7 +122,7 @@ impl Generator {
         })?;
 
         self.writer.start();
-        self.writer.write(r#"memory 100"#);
+        self.writer.write(r#"memory 200"#);
         self.writer.end();
 
         for term in elements {

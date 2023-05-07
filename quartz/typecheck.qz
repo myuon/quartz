@@ -925,6 +925,8 @@ module Typechecker {
         } else if expr.t_path != nil {
             let path = expr.t_path!.path;
             let resolved_path = self.resolve_path(path).try;
+            expr.t_path!.resolved_path = resolved_path?;
+
             return self.globals.at(resolved_path.join("_"));
         } else if expr.t_string != nil {
             return Type {

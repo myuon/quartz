@@ -1040,6 +1040,7 @@ module Parser {
                 current = Expression {
                     t_path: struct {
                         path: path,
+                        resolved_path: nil,
                     }?,
                     ..nil,
                 };
