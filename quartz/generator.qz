@@ -263,7 +263,7 @@ module Generator {
                     IrTerm {
                         t_return: IrReturn {
                             value: IrTerm {
-                                t_inst: "(call $main)"?,
+                                t_inst: "(call $main_main)"?,
                                 ..nil,
                             },
                         }?,

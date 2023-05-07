@@ -199,7 +199,7 @@ module IrCodeGenerator {
             if d.t_let != nil {
                 elements.push(IrTerm {
                     t_global_let: struct {
-                        name: d.t_let!.name,
+                        name: self.path_to(d.t_let!.name),
                         type_: IrType {
                             t_i32: true?,
                             ..nil,
