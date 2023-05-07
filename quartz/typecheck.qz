@@ -1162,7 +1162,7 @@ module Typechecker {
                 let t = unify(self.result_type!, t).try;
                 self.result_type = t?;
 
-                return unify(lhs, rhs).try;
+                return lhs;
             } else {
                 return _ or error::new("unimplemented: try, {}".format(expr.to_string()));
             }
@@ -1337,6 +1337,18 @@ fun unify(type1: Type, type2: Type): Type or error {
             t_or: struct {
                 left: left,
                 right: right,
+            }?,
+            ..nil,
+        };
+    }
+    if type1.t_map != nil && type2.t_map != nil {
+        let key = unify(type1.t_map!.key, type2.t_map!.key).try;
+        let value = unify(type1.t_map!.value, type2.t_map!.value).try;
+
+        return Type {
+            t_map: struct {
+                key: key,
+                value: value,
             }?,
             ..nil,
         };
