@@ -379,10 +379,10 @@ module Typechecker {
         }
         if d.t_let != nil {
             let t = self.expression(d.t_let!.expr).try;
-            unify(t, d.t_let!.name_type).try;
-            d.t_let!.name_type = t;
+            let type_ = unify(t, d.t_let!.name_type).try;
+            d.t_let!.name_type = type_;
 
-            self.globals.insert(d.t_let!.name, t);
+            self.globals.insert(self.path_to(d.t_let!.name), type_);
             return;
         }
         if d.t_type != nil {
