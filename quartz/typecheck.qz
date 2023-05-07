@@ -305,6 +305,32 @@ module Typechecker {
                 ..nil,
             },
         );
+        globals.insert(
+            "i64_to_string_at",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](
+                        Type {
+                            t_i32: true?,
+                            ..nil,
+                        },
+                        Type {
+                            t_i32: true?,
+                            ..nil,
+                        },
+                        Type {
+                            t_i32: true?,
+                            ..nil,
+                        },
+                    ),
+                    result: Type {
+                        t_i32: true?,
+                        ..nil,
+                    },
+                }?,
+                ..nil,
+            },
+        );
 
         return Typechecker {
             locals: make[map[string, Type]](),

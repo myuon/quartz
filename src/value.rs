@@ -31,6 +31,13 @@ impl Value {
         }
     }
 
+    pub fn as_i32(&self) -> Option<i32> {
+        match self {
+            Value::I32(i) => Some(*i),
+            _ => None,
+        }
+    }
+
     pub fn from_i64(i: i64) -> Value {
         if i & 0b1 == 0b1 {
             Value::Pointer((i >> 32) as u32)

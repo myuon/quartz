@@ -110,6 +110,19 @@ impl Runtime {
                         Value::Byte(buf[0]).as_i64()
                     }
                 }),
+                "i64_to_string_at" => Function::new_typed(&mut store, |a_value: i64, b_value: i64, at_value: i64| {
+                    let a = Value::from_i64(a_value).as_i32().unwrap();
+                    let b = Value::from_i64(b_value).as_i32().unwrap();
+                    let at = Value::from_i64(at_value).as_i32().unwrap() as usize;
+
+                    let bs = format!("{}", ((a as i64) << 32_i64) | (b as i64)).chars().collect::<Vec<_>>();
+
+                    if at >= bs.len() {
+                        Value::I32(-1)
+                    } else {
+                        Value::I32(bs[at as usize].to_digit(10).unwrap() as i32)
+                    }.as_i64()
+                }),
             }
         };
         let instance = Instance::new(&mut store, &module, &import_object)?;

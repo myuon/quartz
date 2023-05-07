@@ -128,6 +128,12 @@ module Generator {
         self.write(`import "env" "read_handler" (func $read_handler (param i64) (result i64))`);
         self.end();
 
+        self.start();
+        self.write(
+            `import "env" "i64_to_string_at" (func $i64_to_string_at (param i64) (param i64) (param i64) (result i64))`,
+        );
+        self.end();
+
         if m.t_module != nil {
             for i in 0..m.t_module!.elements.length {
                 let element = m.t_module!.elements.at(i);

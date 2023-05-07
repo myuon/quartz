@@ -341,131 +341,18 @@ struct i64 {
 }
 
 module i64 {
-    fun compare_lte(self, b: i64): bool {
-        if self.hi < b.hi {
-            return true;
-        } else if self.hi > b.hi {
-            return false;
-        } else {
-            return self.lo <= b.lo;
-        }
-    }
-
-    fun shift_left(self, d: i32): i64 {
-        if d == 0 {
-            return self;
-        }
-
-        if d >= 32 {
-            return i64 {
-                hi: self.lo << (d - 32),
-                lo: 0,
-            };
-        }
-
-        return i64 {
-            hi: (self.hi << d) | (self.lo >> (32 - d)),
-            lo: self.lo << d,
-        };
-    }
-
-    fun shift_right(self, d: i32): i64 {
-        if d == 0 {
-            return self;
-        }
-
-        if d >= 32 {
-            return i64 {
-                hi: 0,
-                lo: self.hi >> (d - 32),
-            };
-        }
-
-        return i64 {
-            hi: self.hi >> d,
-            lo: (self.hi << (32 - d)) | (self.lo >> d),
-        };
-    }
-
-    fun subtract(self, b: i64): i64 {
-        let lo = self.lo - b.lo;
-        let hi = self.hi - b.hi;
-        if lo < 0 {
-            hi = hi - 1;
-        }
-        return i64 {
-            hi: hi,
-            lo: lo,
-        };
-    }
-
-    fun divmod(
-        self,
-        q: i64,
-    ): struct {
-        quot: i64,
-        rem: i64,
-    } {
-        let quot = i64 {
-            hi: 0,
-            lo: 0,
-        };
-        let rem = self;
-        let d = q;
-        let bit = 1;
-        while d.compare_lte(rem) {
-            d = d.shift_left(1);
-            bit = bit + 1;
-        }
-        while bit > 0 {
-            d = d.shift_right(1);
-            bit = bit - 1;
-            quot = quot.shift_left(1);
-            if d.compare_lte(rem) {
-                rem = rem.subtract(d);
-                quot.lo = quot.lo | 1;
-            }
-        }
-
-        return struct {
-            quot: quot,
-            rem: rem,
-        };
-    }
-
     fun to_string(self): string {
-        if self.hi == 0 {
-            return self.lo.to_string();
-        }
+        let result = make[vec[byte]]();
 
         let digit = 0;
-        let tmp = self;
-        while tmp.hi > 0 || tmp.lo > 0 {
-            tmp = tmp.divmod(i64 {
-                hi: 0,
-                lo: 10,
-            }).quot;
+        let p = i64_to_string_at(self.hi, self.lo, digit);
+        while p != (0 - 1) {
+            result.push((p + 48) as byte);
             digit = digit + 1;
+            p = i64_to_string_at(self.hi, self.lo, digit);
         }
 
-        let str = make[ptr[byte]](digit);
-        tmp = self;
-        for i in 0..digit {
-            let d = tmp.divmod(i64 {
-                hi: 0,
-                lo: 10,
-            }).rem.lo;
-            str.at(digit - i - 1) = ((d as i32 + 48) as byte);
-            tmp = tmp.divmod(i64 {
-                hi: 0,
-                lo: 10,
-            }).quot;
-        }
-
-        return string {
-            data: str,
-            length: digit,
-        };
+        return vec_byte_to_string(result);
     }
 
     fun new(hi: i32, lo: i32): i64 {
