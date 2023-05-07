@@ -138,6 +138,7 @@ struct Statement {
         block: Block,
     }?,
     t_for: struct {
+        mode: string,
         ident: string,
         range: Expression,
         block: Block,

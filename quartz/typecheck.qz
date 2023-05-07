@@ -547,10 +547,23 @@ module Typechecker {
         } else if s.t_for != nil {
             let t = self.expression(s.t_for!.range).try;
             if t.t_range != nil {
+                s.t_for!.mode = "for";
+
                 // FIXME: clone
                 let locals = self.locals;
                 self.locals.insert(s.t_for!.ident, t.t_range!);
 
+                self.block(s.t_for!.block).try;
+
+                self.locals = locals;
+                return nil;
+            } else if t.t_vec != nil {
+                s.t_for!.mode = "vec";
+
+                // FIXME: clone
+                let locals = self.locals;
+
+                self.locals.insert(s.t_for!.ident, t.t_vec!);
                 self.block(s.t_for!.block).try;
 
                 self.locals = locals;
@@ -1017,18 +1030,29 @@ module Typechecker {
 
             return t;
         } else if expr.t_make != nil {
-            if expr.t_make!.args.length >= 2 {
-                return _ or error::new("too many args for make, {}".format(expr.to_string()));
-            }
-            if expr.t_make!.args.length == 1 {
-                let t = self.expression(expr.t_make!.args.at(0)).try;
+            if expr.t_make!.type_.t_ptr != nil {
+                if expr.t_make!.args.length >= 2 {
+                    return _ or error::new("too many args for make, {}".format(expr.to_string()));
+                }
+
                 unify(
-                    t,
+                    self.expression(expr.t_make!.args.at(0)).try,
                     Type {
                         t_i32: true?,
                         ..nil,
                     },
                 ).try;
+            } else if expr.t_make!.type_.t_vec != nil {
+                for arg in expr.t_make!.args {
+                    let t = self.expression(arg).try;
+                    unify(
+                        t,
+                        Type {
+                            t_i32: true?,
+                            ..nil,
+                        },
+                    ).try;
+                }
             }
 
             return expr.t_make!.type_;
