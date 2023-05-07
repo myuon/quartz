@@ -1567,7 +1567,7 @@ module IrCodeGenerator {
                         t_address: true?,
                         ..nil,
                     },
-                    value: self.expression(expr).try,
+                    value: self.expression(expr.t_try!).try,
                 }?,
                 ..nil,
             });
