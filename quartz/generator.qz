@@ -345,9 +345,19 @@ module Generator {
         }
 
         // When the last instruction is exhaustive if block, we still need to put soemthing to tell the compiler that the function forgets to return
-        if !func.result_type.is_nil() {
+        if func.result_type.t_address == nil {
             self.new_statement();
             self.write("unreachable");
+        } else {
+            self.expression(IrTerm {
+                t_return: IrReturn {
+                    value: IrTerm {
+                        t_nil: true?,
+                        ..nil,
+                    },
+                }?,
+                ..nil,
+            });
         }
 
         self.end();
