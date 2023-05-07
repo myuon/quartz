@@ -52,7 +52,14 @@ impl TypeRep {
         match type_ {
             IrType::Nil => TypeRep::from_name("nil".to_string(), vec![]),
             IrType::I32 => TypeRep::from_name("i32".to_string(), vec![]),
-            IrType::I64 => todo!(),
+            IrType::I64 => TypeRep::from_struct(
+                "i64".to_string(),
+                vec![],
+                vec![
+                    ("hi".to_string(), IrType::I32),
+                    ("lo".to_string(), IrType::I32),
+                ],
+            ),
             IrType::Bool => TypeRep::from_name("bool".to_string(), vec![]),
             IrType::Address => TypeRep::from_name("address".to_string(), vec![]),
             IrType::Any => TypeRep::from_name("any".to_string(), vec![]),
