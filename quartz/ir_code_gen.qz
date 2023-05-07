@@ -157,7 +157,7 @@ module IrCodeGenerator {
             }
             if d.t_module != nil {
                 let path = self.current_path.clone();
-                self.current_path.push(d.t_module!.name);
+                self.current_path.extend(d.t_module!.path);
                 elements.extend(self.module_(d.t_module!.module_).try);
                 self.current_path = path;
             }

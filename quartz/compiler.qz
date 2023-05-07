@@ -46,11 +46,11 @@ module Compiler {
     }
 
     fun compile(self, input: string): string or error {
-        self.register_module(Path::ident("main"), input).try;
+        self.register_module(Path::new("main"), input).try;
 
         let visited = make[map[string, bool]]();
         let imports = make[vec[Path]]();
-        imports.push(Path::ident("std"));
+        imports.push(Path::new("quartz", "std"));
 
         while imports.length != 0 {
             let path = vec_pop(imports) as Path;
@@ -66,7 +66,7 @@ module Compiler {
         for loaded in self.loaded {
             decls.push(Decl {
                 t_module: struct {
-                    name: loaded.path.path.at(loaded.path.path.length - 1),
+                    path: loaded.path,
                     module_: loaded.module_,
                 }?,
                 ..nil,

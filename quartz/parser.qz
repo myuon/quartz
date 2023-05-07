@@ -152,7 +152,7 @@ module Parser {
     fun module_decl(
         self,
     ): struct {
-        name: string,
+        path: Path,
         module_: Module,
     } or error {
         self.expect("module").try;
@@ -162,7 +162,7 @@ module Parser {
         self.expect("rbrace").try;
 
         return struct {
-            name: name,
+            path: Path::ident(name),
             module_: module_,
         };
     }

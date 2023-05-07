@@ -96,6 +96,10 @@ module Generator {
         self.write(`import "env" "debug" (func $debug (param i64) (result i64))`);
         self.end();
 
+        self.start();
+        self.write(`import "env" "write_stdout" (func $write_stdout (param i64) (result i64))`);
+        self.end();
+
         if m.t_module != nil {
             for i in 0..m.t_module!.elements.length {
                 let element = m.t_module!.elements.at(i);
@@ -542,7 +546,7 @@ module Generator {
             self.convert_stack_from_i32_1();
 
             self.new_statement();
-            self.write("call $load_string");
+            self.write("call $quartz_std_load_string");
         } else if expr.t_discard != nil {
             self.new_statement();
             self.expression(expr.t_discard!);

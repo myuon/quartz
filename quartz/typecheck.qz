@@ -342,7 +342,7 @@ module Typechecker {
                 continue;
             } else if d.t_module != nil {
                 let path = self.current_path.clone();
-                self.current_path.push(d.t_module!.name);
+                self.current_path.extend(d.t_module!.path);
                 self.module_register_for_back_reference(d.t_module!.module_).try;
                 self.current_path = path;
 
@@ -391,7 +391,7 @@ module Typechecker {
         }
         if d.t_module != nil {
             let path = self.current_path.clone();
-            self.current_path.push(d.t_module!.name);
+            self.current_path.extend(d.t_module!.path);
             self.module_(d.t_module!.module_).try;
             self.current_path = path;
             return;

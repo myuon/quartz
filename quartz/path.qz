@@ -3,9 +3,9 @@ struct Path {
 }
 
 module Path {
-    fun new(): Path {
+    fun new(..t: vec[string]): Path {
         return Path {
-            path: make[vec[string]](),
+            path: t,
         };
     }
 
