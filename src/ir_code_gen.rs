@@ -1171,6 +1171,9 @@ impl IrCodeGenerator {
                         (Ident("value".to_string()), enum_type[0].1.clone()),
                     ]);
 
+                    let inside_value =
+                        self.generate_array_at(&enum_rep, value.clone(), IrTerm::i32(1))?;
+
                     // let v = ${expr};
                     // let r = nil;
                     // if ${label_index} == v.tag {
@@ -1203,14 +1206,18 @@ impl IrCodeGenerator {
                                     source: None,
                                 }),
                                 type_: IrType::from_type(&Type::Optional(Box::new(
-                                    value_type.data,
+                                    value_type.data.clone(),
                                 )))?,
                                 then: Box::new(IrTerm::Assign {
                                     lhs: result_name.clone(),
-                                    rhs: Box::new(self.generate_array_at(
-                                        &enum_rep,
-                                        value.clone(),
-                                        IrTerm::i32(1),
+                                    rhs: Box::new(self.generate_array(
+                                        "optional".to_string(),
+                                        vec![IrType::from_type(&value_type.data.clone())?],
+                                        vec![(
+                                            None,
+                                            IrType::from_type(&value_type.data.clone())?,
+                                            inside_value,
+                                        )],
                                     )?),
                                 }),
                                 else_: Box::new(IrTerm::Seq { elements: vec![] }),
