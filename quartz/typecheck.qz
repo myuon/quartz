@@ -333,7 +333,7 @@ module Typechecker {
 
                 continue;
             } else if d.t_let != nil {
-                self.globals.insert(d.t_let!.name, d.t_let!.name_type);
+                self.globals.insert(self.path_to(d.t_let!.name), d.t_let!.name_type);
 
                 continue;
             } else if d.t_type != nil {

@@ -108,6 +108,26 @@ module Generator {
         self.write(`import "env" "read_stdin" (func $read_stdin (result i64))`);
         self.end();
 
+        self.start();
+        self.write(`import "env" "create_handler" (func $create_handler (result i64))`);
+        self.end();
+
+        self.start();
+        self.write(
+            `import "env" "open_handler_stream" (func $open_handler_stream (param i64) (param i64) (result i64))`,
+        );
+        self.end();
+
+        self.start();
+        self.write(
+            `import "env" "open_handler_initialize" (func $open_handler_initialize (param i64) (result i64))`,
+        );
+        self.end();
+
+        self.start();
+        self.write(`import "env" "read_handler" (func $read_handler (param i64) (result i64))`);
+        self.end();
+
         if m.t_module != nil {
             for i in 0..m.t_module!.elements.length {
                 let element = m.t_module!.elements.at(i);
