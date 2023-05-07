@@ -310,7 +310,7 @@ module Typechecker {
             locals: make[map[string, Type]](),
             globals: globals,
             current_path: Path::new(),
-            imported: make[vec[Path]](Path::ident("std")),
+            imported: make[vec[Path]](Path::new("quartz", "std")),
         };
     }
 

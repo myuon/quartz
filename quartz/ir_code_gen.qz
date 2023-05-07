@@ -323,10 +323,6 @@ module IrCodeGenerator {
     }
 
     fun path_to(self, s: string): string {
-        if self.current_path.path.length == 0 {
-            return s;
-        }
-
         return self.current_path.join("_").concat("_").concat(s);
     }
 
@@ -743,12 +739,17 @@ module IrCodeGenerator {
 
             panic("binop exhausted: ".concat(expr.t_binop!.binop));
         } else if expr.t_ident != nil {
-            let term = IrTerm {
+            if expr.t_ident!.resolved_path != nil {
+                return IrTerm {
+                    t_ident: expr.t_ident!.resolved_path!.join("_")?,
+                    ..nil,
+                };
+            }
+
+            return IrTerm {
                 t_ident: expr.t_ident!.name?,
                 ..nil,
             };
-
-            return term;
         } else if expr.t_call != nil {
             let callee = expr.t_call!.callee;
             if callee.t_project != nil {
