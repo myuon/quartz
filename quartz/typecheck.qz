@@ -818,6 +818,81 @@ module Typechecker {
                         }?,
                         ..nil,
                     };
+                } else if expr.t_project!.field.equal("extend") {
+                    return Type {
+                        t_func: struct {
+                            params: make[vec[Type]](t.t_vec!),
+                            result: Type {
+                                t_nil: true?,
+                                ..nil,
+                            },
+                        }?,
+                        ..nil,
+                    };
+                } else if expr.t_project!.field.equal("slice") {
+                    return Type {
+                        t_func: struct {
+                            params: make[vec[Type]](
+                                Type {
+                                    t_i32: true?,
+                                    ..nil,
+                                },
+                                Type {
+                                    t_i32: true?,
+                                    ..nil,
+                                },
+                            ),
+                            result: t.t_vec!,
+                        }?,
+                        ..nil,
+                    };
+                } else {
+                    return _ or error::new("unimplemented: project, {}".format(expr.to_string()));
+                }
+            } else if t.t_map != nil {
+                if expr.t_project!.field.equal("insert") {
+                    return Type {
+                        t_func: struct {
+                            params: make[vec[Type]](t.t_map!.key, t.t_map!.value),
+                            result: Type {
+                                t_nil: true?,
+                                ..nil,
+                            },
+                        }?,
+                        ..nil,
+                    };
+                } else if expr.t_project!.field.equal("at") {
+                    return Type {
+                        t_func: struct {
+                            params: make[vec[Type]](t.t_map!.key),
+                            result: t.t_map!.value,
+                        }?,
+                        ..nil,
+                    };
+                } else if expr.t_project!.field.equal("has") {
+                    return Type {
+                        t_func: struct {
+                            params: make[vec[Type]](t.t_map!.key),
+                            result: Type {
+                                t_bool: true?,
+                                ..nil,
+                            },
+                        }?,
+                        ..nil,
+                    };
+                } else if expr.t_project!.field.equal("list_keys") {
+                    return Type {
+                        t_func: struct {
+                            params: make[vec[Type]](),
+                            result: Type {
+                                t_vec: t.t_map!.key?,
+                                ..nil,
+                            },
+                        }?,
+                        ..nil,
+                    };
+                } else {
+                    return _ or error::new("unimplemented: project, {}".format(expr.to_string()));
                 }
             }
 

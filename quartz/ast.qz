@@ -317,6 +317,10 @@ struct Type {
         right: Type,
     }?,
     t_any: bool?,
+    t_map: struct {
+        key: Type,
+        value: Type,
+    }?,
 }
 
 module Type {

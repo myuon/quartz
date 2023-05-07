@@ -355,6 +355,20 @@ module Parser {
                     t_any: true?,
                     ..nil,
                 };
+            } else if token.string_value!.equal("map") {
+                self.expect("lbracket").try;
+                let key = self.type_().try;
+                self.expect("comma").try;
+                let value = self.type_().try;
+                self.expect("rbracket").try;
+
+                return Type {
+                    t_map: struct {
+                        key: key,
+                        value: value,
+                    }?,
+                    ..nil,
+                };
             }
 
             return Type {
@@ -392,6 +406,11 @@ module Parser {
                 t_struct: TypeStruct {
                     fields: fields,
                 }?,
+                ..nil,
+            };
+        } else if token.string_value!.equal("nil") {
+            return Type {
+                t_nil: true?,
                 ..nil,
             };
         } else {
