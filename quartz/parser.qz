@@ -837,6 +837,32 @@ module Parser {
                 };
                 continue;
             }
+            if self.peek().lexeme.equal("bit_and") {
+                self.expect("bit_and").try;
+
+                current = Expression {
+                    t_binop: struct {
+                        binop: "bit_and",
+                        left: current,
+                        right: self.term_4(with_struct).try,
+                    }?,
+                    ..nil,
+                };
+                continue;
+            }
+            if self.peek().lexeme.equal("bit_or") {
+                self.expect("bit_or").try;
+
+                current = Expression {
+                    t_binop: struct {
+                        binop: "bit_or",
+                        left: current,
+                        right: self.term_4(with_struct).try,
+                    }?,
+                    ..nil,
+                };
+                continue;
+            }
 
             return current;
         }
@@ -876,6 +902,30 @@ module Parser {
                 current = Expression {
                     t_binop: struct {
                         binop: "mod",
+                        left: current,
+                        right: self.term_1(with_struct).try,
+                    }?,
+                    ..nil,
+                };
+                continue;
+            } else if self.peek().lexeme.equal("bit_shift_left") {
+                self.expect("bit_shift_left").try;
+
+                current = Expression {
+                    t_binop: struct {
+                        binop: "bit_shift_left",
+                        left: current,
+                        right: self.term_1(with_struct).try,
+                    }?,
+                    ..nil,
+                };
+                continue;
+            } else if self.peek().lexeme.equal("bit_shift_right") {
+                self.expect("bit_shift_right").try;
+
+                current = Expression {
+                    t_binop: struct {
+                        binop: "bit_shift_right",
                         left: current,
                         right: self.term_1(with_struct).try,
                     }?,

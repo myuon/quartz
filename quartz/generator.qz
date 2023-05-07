@@ -440,6 +440,14 @@ module Generator {
                     self.convert_value_byte_to_i32_1();
                 } else if ident.equal("xor_u32") {
                     self.generate_op_arithmetic("xor");
+                } else if ident.equal("bit_and") {
+                    self.generate_op_arithmetic("and");
+                } else if ident.equal("bit_or") {
+                    self.generate_op_arithmetic("or");
+                } else if ident.equal("bit_shift_left") {
+                    self.generate_op_arithmetic("shl");
+                } else if ident.equal("bit_shift_right") {
+                    self.generate_op_arithmetic("shr_s");
                 } else {
                     self.write("call $".concat(ident));
                 }

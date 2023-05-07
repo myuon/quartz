@@ -907,6 +907,50 @@ module IrCodeGenerator {
                     }?,
                     ..nil,
                 };
+            } else if expr.t_binop!.binop.equal("bit_and") {
+                return IrTerm {
+                    t_call: IrCall {
+                        callee: IrTerm {
+                            t_ident: "bit_and"?,
+                            ..nil,
+                        },
+                        args: args,
+                    }?,
+                    ..nil,
+                };
+            } else if expr.t_binop!.binop.equal("bit_or") {
+                return IrTerm {
+                    t_call: IrCall {
+                        callee: IrTerm {
+                            t_ident: "bit_or"?,
+                            ..nil,
+                        },
+                        args: args,
+                    }?,
+                    ..nil,
+                };
+            } else if expr.t_binop!.binop.equal("bit_shift_left") {
+                return IrTerm {
+                    t_call: IrCall {
+                        callee: IrTerm {
+                            t_ident: "bit_shift_left"?,
+                            ..nil,
+                        },
+                        args: args,
+                    }?,
+                    ..nil,
+                };
+            } else if expr.t_binop!.binop.equal("bit_shift_right") {
+                return IrTerm {
+                    t_call: IrCall {
+                        callee: IrTerm {
+                            t_ident: "bit_shift_right"?,
+                            ..nil,
+                        },
+                        args: args,
+                    }?,
+                    ..nil,
+                };
             }
 
             panic("binop exhausted: ".concat(expr.t_binop!.binop));

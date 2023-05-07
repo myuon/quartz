@@ -589,7 +589,11 @@ module Typechecker {
         } else if expr.t_binop != nil {
             if (expr.t_binop!.binop.equal("plus") || expr.t_binop!.binop.equal("minus") || expr.t_binop!.binop.equal(
                 "mult",
-            ) || expr.t_binop!.binop.equal("div") || expr.t_binop!.binop.equal("mod")) {
+            ) || expr.t_binop!.binop.equal("div") || expr.t_binop!.binop.equal("mod") || expr.t_binop!.binop.equal(
+                "bit_and",
+            ) || expr.t_binop!.binop.equal("bit_or") || expr.t_binop!.binop.equal("bit_shift_left") || expr.t_binop!.binop.equal(
+                "bit_shift_right",
+            )) {
                 let t1 = self.expression(expr.t_binop!.left).try;
                 if !t1.is_integer_type() {
                     return _ or error::new("left operand must be integer type, but got {}".format(t1.to_string(

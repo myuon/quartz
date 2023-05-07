@@ -233,6 +233,12 @@ module Lexer {
             if self.match(input, "<=", "lte") {
                 continue;
             }
+            if self.match(input, "<<", "bit_shift_left") {
+                continue;
+            }
+            if self.match(input, ">>", "bit_shift_right") {
+                continue;
+            }
             if self.match(input, "::", "double_colon") {
                 continue;
             }
@@ -306,6 +312,12 @@ module Lexer {
                 continue;
             }
             if self.match(input, "_", "underscore") {
+                continue;
+            }
+            if self.match(input, "|", "bit_or") {
+                continue;
+            }
+            if self.match(input, "&", "bit_and") {
                 continue;
             }
 
