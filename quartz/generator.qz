@@ -396,7 +396,7 @@ module Generator {
                 self.write(" ;; nil");
             }
 
-            self.write_value(Value::nil());
+            self.write_value(Value::nil_());
         } else if expr.t_let != nil {
             self.new_statement();
             self.expression(expr.t_let!.value);

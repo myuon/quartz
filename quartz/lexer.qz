@@ -318,9 +318,6 @@ module Lexer {
             if self.match(input, "?", "question") {
                 continue;
             }
-            if self.match(input, "_", "underscore") {
-                continue;
-            }
             if self.match(input, "|", "bit_or") {
                 continue;
             }
@@ -341,6 +338,16 @@ module Lexer {
 
             let ident = self.consume_ident(input);
             if ident != nil {
+                if ident!.equal("_") {
+                    self.tokens.push(Token {
+                        lexeme: "underscore",
+                        string_value: nil,
+                        position: self.position,
+                    });
+
+                    continue;
+                }
+
                 self.tokens.push(Token {
                     lexeme: "ident",
                     string_value: ident,

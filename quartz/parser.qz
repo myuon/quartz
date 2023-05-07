@@ -203,7 +203,7 @@ module Parser {
             ..nil,
         };
         if self.peek().lexeme.equal("colon") {
-            let _t = self.consume();
+            self.consume();
             result_type = self.type_().try;
         }
 
@@ -273,7 +273,7 @@ module Parser {
             }
 
             if self.peek().lexeme.equal("comma") {
-                let _t = self.consume();
+                self.consume();
             }
         }
 
@@ -408,7 +408,7 @@ module Parser {
                 }?,
                 ..nil,
             };
-        } else if token.string_value!.equal("nil") {
+        } else if token.lexeme.equal("nil") {
             return Type {
                 t_nil: true?,
                 ..nil,
@@ -665,6 +665,20 @@ module Parser {
 
     fun return_statement(self): Statement or error {
         self.expect("return").try;
+
+        if self.peek().lexeme.equal("semicolon") {
+            self.expect("semicolon").try;
+            return Statement {
+                t_return: struct {
+                    expr: Expression {
+                        t_nil: true?,
+                        ..nil,
+                    },
+                }?,
+                ..nil,
+            };
+        }
+
         let value = self.expression().try;
         self.expect("semicolon").try;
 

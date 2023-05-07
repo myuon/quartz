@@ -792,8 +792,6 @@ module Typechecker {
                         }?,
                         ..nil,
                     };
-                } else {
-                    return _ or error::new("unimplemented: project, {}".format(expr.to_string()));
                 }
             } else if t.t_vec != nil {
                 if expr.t_project!.field.equal("push") {
@@ -846,8 +844,6 @@ module Typechecker {
                         }?,
                         ..nil,
                     };
-                } else {
-                    return _ or error::new("unimplemented: project, {}".format(expr.to_string()));
                 }
             } else if t.t_map != nil {
                 if expr.t_project!.field.equal("insert") {
@@ -891,8 +887,6 @@ module Typechecker {
                         }?,
                         ..nil,
                     };
-                } else {
-                    return _ or error::new("unimplemented: project, {}".format(expr.to_string()));
                 }
             }
 
@@ -977,7 +971,7 @@ module Typechecker {
 
             for field in fields {
                 if !expr_fields_map.has(field) {
-                    return _ or error::new("unknown field: {}".format(expr.to_string()));
+                    return _ or error::new("unknown field: {} at {}".format(field, expr.t_record!.name));
                 }
             }
 
@@ -1276,6 +1270,28 @@ fun unify(type1: Type, type2: Type): Type or error {
             t_vec: result?,
             ..nil,
         };
+    }
+    if type1.t_struct != nil && type2.t_struct != nil {
+        if type1.t_struct!.fields.length != type2.t_struct!.fields.length {
+            return _ or error::new("unification failed: ".concat(type1.t_struct!.fields.length.to_string()).concat(
+                " != ",
+            ).concat(type2.t_struct!.fields.length.to_string()));
+        }
+
+        for i in 0..type1.t_struct!.fields.length {
+            let rs1 = type1.t_struct!.fields.at(i);
+            let rs2 = type2.t_struct!.fields.at(i);
+
+            if !rs1.name.equal(rs2.name) {
+                return _ or error::new("unification failed: ".concat(derive::to_string(rs1)).concat(" != ").concat(derive::to_string(
+                    rs2,
+                )));
+            }
+
+            unify(rs1.type_, rs2.type_).try;
+        }
+
+        return type1;
     }
 
     return _ or error::new("unification failed: ".concat(type1.to_string()).concat(" != ").concat(type2.to_string(
