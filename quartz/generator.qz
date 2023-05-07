@@ -104,6 +104,10 @@ module Generator {
         self.write(`import "env" "abort" (func $abort (result i64))`);
         self.end();
 
+        self.start();
+        self.write(`import "env" "read_stdin" (func $read_stdin (result i64))`);
+        self.end();
+
         if m.t_module != nil {
             for i in 0..m.t_module!.elements.length {
                 let element = m.t_module!.elements.at(i);
@@ -380,6 +384,8 @@ module Generator {
                     self.convert_value_i32_to_byte_1();
                 } else if ident.equal("byte_to_i32") {
                     self.convert_value_byte_to_i32_1();
+                } else if ident.equal("xor_u32") {
+                    self.generate_op_arithmetic("xor");
                 } else {
                     self.write("call $".concat(ident));
                 }
