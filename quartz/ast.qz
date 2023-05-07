@@ -249,6 +249,7 @@ struct RecordExpression {
         field: string,
         value: Expression,
     }],
+    expansion: Expression?,
 }
 
 module RecordExpression {

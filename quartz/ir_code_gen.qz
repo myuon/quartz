@@ -1103,6 +1103,11 @@ module IrCodeGenerator {
                 return _ or error::new(format("type is not a record: {}", expr.t_record!.name));
             }
 
+            let expansion_term = nil as IrTerm?;
+            if expr.t_record!.expansion != nil {
+                expansion_term = self.expression(expr.t_record!.expansion!).try?;
+            }
+
             let t = self.globals.at(expr.t_record!.name).t_struct!;
 
             let record = make[vec[struct {
@@ -1111,12 +1116,23 @@ module IrCodeGenerator {
             }]]();
             for i in 0..t.fields.length {
                 let field = t.fields.at(i);
-                let value = expr.t_record!.fields.at(i).value;
+                if i < expr.t_record!.fields.length {
+                    let value = expr.t_record!.fields.at(i).value;
 
-                record.push(struct {
-                    type_: IrType::new(field.type_),
-                    term: self.expression(value).try,
-                });
+                    record.push(struct {
+                        type_: IrType::new(field.type_),
+                        term: self.expression(value).try,
+                    });
+                } else {
+                    if expansion_term == nil {
+                        return _ or error::new("record expansion not found");
+                    }
+
+                    record.push(struct {
+                        type_: IrType::new(field.type_),
+                        term: expansion_term!,
+                    });
+                }
             }
 
             return self.generate_array_enumerated(expr.t_record!.name, make[vec[IrType]](), record);
