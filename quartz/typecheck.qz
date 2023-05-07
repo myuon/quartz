@@ -1159,7 +1159,19 @@ module Typechecker {
                     return _ or error::new("try outside of function, {}".format(expr.to_string()));
                 }
 
-                let t = unify(self.result_type!, t).try;
+                let t = unify(
+                    self.result_type!,
+                    Type {
+                        t_or: struct {
+                            left: Type {
+                                t_any: true?,
+                                ..nil,
+                            },
+                            right: rhs,
+                        }?,
+                        ..nil,
+                    },
+                ).try;
                 self.result_type = t?;
 
                 return lhs;
