@@ -750,6 +750,8 @@ impl IrCodeGenerator {
                         callee: Box::new(IrTerm::Ident(
                             if matches!(type_, Type::I32) {
                                 "bit_or"
+                            } else if matches!(type_, Type::U32) {
+                                "bit_or_u32"
                             } else if *type_ == Type::Ident(Ident("i64".to_string())) {
                                 "bit_or_i64"
                             } else {
@@ -767,7 +769,7 @@ impl IrCodeGenerator {
                             } else if *type_ == Type::Ident(Ident("i64".to_string())) {
                                 "bit_and_i64"
                             } else {
-                                bail!("invalid type for bit_or: {:?}", type_)
+                                bail!("invalid type for bit_and: {:?}", type_)
                             }
                             .to_string(),
                         )),
@@ -778,10 +780,12 @@ impl IrCodeGenerator {
                         callee: Box::new(IrTerm::Ident(
                             if matches!(type_, Type::I32) {
                                 "bit_shift_left"
+                            } else if matches!(type_, Type::U32) {
+                                "bit_shift_left_u32"
                             } else if *type_ == Type::Ident(Ident("i64".to_string())) {
                                 "bit_shift_left_i64"
                             } else {
-                                bail!("invalid type for bit_or: {:?}", type_)
+                                bail!("invalid type for bit_shiftl: {:?}", type_)
                             }
                             .to_string(),
                         )),
@@ -795,7 +799,7 @@ impl IrCodeGenerator {
                             } else if *type_ == Type::Ident(Ident("i64".to_string())) {
                                 "bit_shift_right_i64"
                             } else {
-                                bail!("invalid type for bit_or: {:?}", type_)
+                                bail!("invalid type for bit_shiftr: {:?}", type_)
                             }
                             .to_string(),
                         )),

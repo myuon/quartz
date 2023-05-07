@@ -342,29 +342,11 @@ struct i64 {
 
 module i64 {
     fun to_string(self): string {
-        if self.hi == 0 && self.lo == 0 {
-            return "0";
+        if self.hi == 0 {
+            return self.lo.to_string();
         }
 
-        let digit = 0;
-        let tmp = self;
-        while tmp.hi != 0 || tmp.lo != 0 {
-            tmp = tmp / (10 as i64);
-            digit = digit + 1;
-        }
-
-        let str = make[ptr[byte]](digit);
-        tmp = self;
-        for i in 0..digit {
-            let d = tmp % (10 as i64) as i32;
-            str.at(digit - i - 1) = (d + 48) as byte;
-            tmp = tmp / (10 as i64);
-        }
-
-        return string {
-            data: str,
-            length: digit,
-        };
+        return self.hi.to_string().concat(self.lo.to_string());
     }
 
     fun new(hi: i32, lo: i32): i64 {

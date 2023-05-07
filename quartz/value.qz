@@ -2,6 +2,7 @@ struct Value {
     t_bool: bool?,
     t_byte: byte?,
     t_i32: i32?,
+    t_u32: u32?,
     t_pointer: u32?,
 }
 
@@ -21,6 +22,8 @@ module Value {
             return ((self.t_byte! as i32) as i64) << (32 as i64) | (0b100 as i64);
         } else if self.t_i32 != nil {
             return (self.t_i32! as i64) << (32 as i64);
+        } else if self.t_u32 != nil {
+            return (self.t_u32! << (32 as u32)) as i64;
         } else if self.t_pointer != nil {
             return (self.t_pointer! as i64) << (32 as i64) | (0b1 as i64);
         } else {

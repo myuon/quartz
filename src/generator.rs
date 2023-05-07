@@ -849,6 +849,9 @@ impl Generator {
                 "bit_shift_left" => {
                     self.generate_op_arithmetic("shl");
                 }
+                "bit_shift_left_u32" => {
+                    self.generate_op_arithmetic("shl");
+                }
                 "bit_shift_right" => {
                     self.generate_op_arithmetic("shr_s");
                 }
