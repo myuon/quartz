@@ -1102,7 +1102,11 @@ impl TypeChecker {
                 if let Type::Vec(v) = type_ {
                     for arg in args {
                         let mut arg_t = self.expr(arg)?;
-                        self.unify(&mut arg_t, v)?;
+                        self.unify(&mut arg_t, v).context(ErrorInSource {
+                            path: Some(self.current_path.clone()),
+                            start: arg.start.unwrap_or(0),
+                            end: arg.end.unwrap_or(0),
+                        })?;
                     }
                 }
 
