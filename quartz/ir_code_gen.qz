@@ -1120,6 +1120,21 @@ module IrCodeGenerator {
             }
 
             return self.generate_array_enumerated(expr.t_record!.name, make[vec[IrType]](), record);
+        } else if expr.t_anonymous_record != nil {
+            let terms = make[vec[struct {
+                type_: IrType,
+                term: IrTerm,
+            }]]();
+            for field in expr.t_anonymous_record!.fields {
+                let type_ = expr.t_anonymous_record!.type_!.t_struct!.at(field.field);
+
+                terms.push(struct {
+                    type_: IrType::new(type_),
+                    term: self.expression(field.value).try,
+                });
+            }
+
+            return self.generate_array_enumerated("struct", make[vec[IrType]](), terms).try;
         } else if expr.t_project != nil {
             let t = self.resolve_type_struct(expr.t_project!.type_!).try;
             let index = t.index(expr.t_project!.field);

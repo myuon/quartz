@@ -877,6 +877,29 @@ module Typechecker {
                 t_ident: expr.t_record!.name?,
                 ..nil,
             };
+        } else if expr.t_anonymous_record != nil {
+            let record_type = make[vec[struct {
+                name: string,
+                type_: Type,
+            }]]();
+
+            for field in expr.t_anonymous_record!.fields {
+                let t = self.expression(field.value).try;
+                record_type.push(struct {
+                    name: field.field,
+                    type_: t,
+                });
+            }
+
+            let t = Type {
+                t_struct: TypeStruct {
+                    fields: record_type,
+                }?,
+                ..nil,
+            };
+            expr.t_anonymous_record!.type_ = t?;
+
+            return t;
         } else if expr.t_make != nil {
             if expr.t_make!.args.length >= 2 {
                 return _ or error::new("too many args for make, {}".format(expr.to_string()));

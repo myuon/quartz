@@ -184,6 +184,13 @@ struct Expression {
         resolved_path: Path?,
     }?,
     t_record: RecordExpression?,
+    t_anonymous_record: struct {
+        fields: vec[struct {
+            field: string,
+            value: Expression,
+        }],
+        type_: Type?,
+    }?,
     t_make: struct {
         type_: Type,
         args: vec[Expression],

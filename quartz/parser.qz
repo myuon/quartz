@@ -361,6 +361,39 @@ module Parser {
                 t_ident: token.string_value!?,
                 ..nil,
             };
+        } else if token.lexeme.equal("struct") {
+            self.expect("lbrace").try;
+
+            let fields = make[vec[struct {
+                name: string,
+                type_: Type,
+            }]]();
+
+            while !self.peek().lexeme.equal("rbrace") {
+                let name = self.ident().try;
+                self.expect("colon").try;
+                let t = self.type_().try;
+
+                fields.push(struct {
+                    name: name,
+                    type_: t,
+                });
+
+                if self.peek().lexeme.equal("comma") {
+                    self.consume();
+                } else {
+                    break;
+                }
+            }
+
+            self.expect("rbrace").try;
+
+            return Type {
+                t_struct: TypeStruct {
+                    fields: fields,
+                }?,
+                ..nil,
+            };
         } else {
             return _ or error::new(format("Expected type, got {}", token.to_string()));
         }
@@ -1222,6 +1255,41 @@ module Parser {
 
             return Expression {
                 t_nil: true?,
+                ..nil,
+            };
+        }
+        if self.peek().lexeme.equal("struct") {
+            self.expect("struct").try;
+            self.expect("lbrace").try;
+
+            let fields = make[vec[struct {
+                field: string,
+                value: Expression,
+            }]]();
+
+            while !self.peek().lexeme.equal("rbrace") {
+                let ident = self.ident().try;
+                self.expect("colon").try;
+                let value = self.expression().try;
+
+                fields.push(struct {
+                    field: ident,
+                    value: value,
+                });
+
+                if self.peek().lexeme.equal("comma") {
+                    self.expect("comma").try;
+                } else {
+                    break;
+                }
+            }
+            self.expect("rbrace").try;
+
+            return Expression {
+                t_anonymous_record: struct {
+                    fields: fields,
+                    type_: nil,
+                }?,
                 ..nil,
             };
         }
