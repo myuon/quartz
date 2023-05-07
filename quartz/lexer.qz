@@ -72,6 +72,7 @@ module Lexer {
 
     fun consume_string_literal(self, input: string): string? {
         let quote = 34 as byte;
+        let backslash = 92 as byte;
         let str = make[vec[byte]]();
         if input.at(self.position) != quote {
             return nil;
@@ -80,6 +81,12 @@ module Lexer {
         self.position = self.position + 1;
 
         while input.at(self.position) != quote {
+            if input.at(self.position) == backslash && input.at(self.position + 1) == quote {
+                str.push(quote);
+                self.position = self.position + 2;
+                continue;
+            }
+
             str.push(input.at(self.position));
             self.position = self.position + 1;
         }
