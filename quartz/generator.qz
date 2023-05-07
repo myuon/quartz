@@ -148,6 +148,36 @@ module Generator {
 
         self.start();
         self.write(
+            `func $reflection_is_pointer (param $value i64) (result i64)
+    local.get $value
+    i64.const 1
+    i64.and
+    i64.const 32
+    i64.shl
+    i64.const 2
+    i64.or
+    return
+`,
+        );
+        self.end();
+
+        self.start();
+        self.write(
+            `func $reflection_is_bool (param $value i64) (result i64)
+    local.get $value
+    i64.const 2
+    i64.and
+    i64.const 31
+    i64.shl
+    i64.const 2
+    i64.or
+    return
+`,
+        );
+        self.end();
+
+        self.start();
+        self.write(
             `func $alloc (param $size i64) (result i64)
     (local $p i64)
 
@@ -370,6 +400,10 @@ module Generator {
                     self.convert_stack_from_bool_1();
                 } else if ident.equal("not_equal") {
                     self.generate_op_comparison("ne");
+                } else if ident.equal("not") {
+                    self.convert_stack_to_bool();
+                    self.write("i32.eqz");
+                    self.convert_stack_from_bool_1();
                 } else if ident.equal("lt") {
                     self.generate_op_comparison("lt_s");
                 } else if ident.equal("gt") {

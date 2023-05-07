@@ -95,11 +95,36 @@ module StringTable {
     }
 }
 
+struct TypeRepTable {
+    type_reps: vec[InternalTypeRep],
+}
+
+module TypeRepTable {
+    fun new(): TypeRepTable {
+        return TypeRepTable {
+            type_reps: make[vec[InternalTypeRep]](),
+        };
+    }
+
+    fun get_or_insert(self, key: InternalTypeRep): i32 {
+        for i in 0..self.type_reps.length {
+            if self.type_reps.at(i).name.equal(key.name) {
+                return i as i32;
+            }
+        }
+
+        self.type_reps.push(key);
+
+        return (self.type_reps.length - 1) as i32;
+    }
+}
+
 struct IrCodeGenerator {
     globals: map[string, Type],
     locals: map[string, bool],
     current_path: Path,
     strings: StringTable,
+    type_reps: TypeRepTable,
     data_section_offset: i32,
     counter: i32,
 }
@@ -111,6 +136,7 @@ module IrCodeGenerator {
             locals: make[map[string, bool]](),
             current_path: Path::new(),
             strings: StringTable::new(),
+            type_reps: TypeRepTable::new(),
             data_section_offset: 0,
             counter: 0,
         };
@@ -118,7 +144,37 @@ module IrCodeGenerator {
 
     fun run(self, m: Module): IrTerm or error {
         let decls = self.module_(m).try;
+        decls.push(self.generate_prepare_type_reps().try);
         decls.extend(self.generate_prepare_strings().try);
+        decls.push(IrTerm {
+            t_func: IrFunc {
+                name: "reflection_get_type_rep_id",
+                params: make[vec[struct {
+                    name: string,
+                    type_: IrType,
+                }]](struct {
+                    name: "p",
+                    type_: IrType {
+                        t_address: true?,
+                        ..nil,
+                    },
+                }),
+                result_type: IrType {
+                    t_address: true?,
+                    ..nil,
+                },
+                body: make[vec[IrTerm]](IrTerm {
+                    t_return: IrReturn {
+                        value: IrTerm {
+                            t_i32: 0?,
+                            ..nil,
+                        },
+                    }?,
+                    ..nil,
+                }),
+            }?,
+            ..nil,
+        });
 
         return IrTerm {
             t_module: struct {
@@ -164,6 +220,121 @@ module IrCodeGenerator {
         }
 
         return elements;
+    }
+
+    fun generate_prepare_type_reps(self): IrTerm or error {
+        let var_ptr = "quartz_std_type_reps_ptr";
+
+        let rep_ids = make[vec[struct {
+            rep: InternalTypeRep,
+            id: i32,
+        }]]();
+        let rep_id_counter = 0;
+        for rep in self.type_reps.type_reps {
+            rep_ids.push(struct {
+                rep: rep,
+                id: rep_id_counter,
+            });
+            rep_id_counter = rep_id_counter + 1;
+        }
+
+        let body = make[vec[IrTerm]]();
+        // quartz_std_type_reps_ptr = make[ptr[any]](${type_reps.len()});
+        body.push(IrTerm {
+            t_assign: struct {
+                lhs: var_ptr,
+                rhs: self.expression(Expression {
+                    t_make: struct {
+                        type_: Type {
+                            t_ptr: Type {
+                                t_ident: "any"?,
+                                ..nil,
+                            }?,
+                            ..nil,
+                        },
+                        args: make[vec[Expression]](Expression {
+                            t_i32: struct {
+                                value: self.type_reps.type_reps.length,
+                            }?,
+                            ..nil,
+                        }),
+                    }?,
+                    ..nil,
+                }).try,
+            }?,
+            ..nil,
+        });
+
+        for t in rep_ids {
+            let type_rep = t.rep;
+            let rep_id = t.id;
+            let var_p = "p";
+
+            // let p = write_type_rep(${rep});
+            body.push(IrTerm {
+                t_let: IrLet {
+                    name: var_p,
+                    type_: IrType {
+                        t_i32: true?,
+                        ..nil,
+                    },
+                    value: self.write_type_rep(type_rep).try,
+                }?,
+                ..nil,
+            });
+
+            // quartz_std_type_reps_ptr.at(${rep_id}) = p
+            let lhs = self.generate_array_at(
+                Type {
+                    t_ptr: Type {
+                        t_ident: "any"?,
+                        ..nil,
+                    }?,
+                    ..nil,
+                },
+                IrTerm {
+                    t_ident: var_ptr?,
+                    ..nil,
+                },
+                IrTerm {
+                    t_i32: rep_id?,
+                    ..nil,
+                },
+            ).try;
+            body.push(self.assign(
+                lhs,
+                IrTerm {
+                    t_ident: var_p?,
+                    ..nil,
+                },
+            ).try);
+        }
+
+        body.push(IrTerm {
+            t_return: IrReturn {
+                value: IrTerm {
+                    t_nil: true?,
+                    ..nil,
+                },
+            }?,
+            ..nil,
+        });
+
+        return IrTerm {
+            t_func: IrFunc {
+                name: "prepare_type_reps",
+                params: make[vec[struct {
+                    name: string,
+                    type_: IrType,
+                }]](),
+                result_type: IrType {
+                    t_nil: true?,
+                    ..nil,
+                },
+                body: body,
+            }?,
+            ..nil,
+        };
     }
 
     fun generate_prepare_strings(self): vec[IrTerm] or error {
@@ -896,7 +1067,7 @@ module IrCodeGenerator {
                 });
             }
 
-            return self.generate_array_enumerated(record);
+            return self.generate_array_enumerated(expr.t_record!.name, make[vec[IrType]](), record);
         } else if expr.t_project != nil {
             let t = self.resolve_type_struct(expr.t_project!.type_!).try;
             let index = t.index(expr.t_project!.field);
@@ -925,7 +1096,16 @@ module IrCodeGenerator {
                 let rep_args = make[vec[InternalTypeRep]]();
                 rep_args.push(InternalTypeRep::from_ir_type(IrType::new(expr.t_make!.type_.t_ptr!)));
 
-                return self.allocate_heap_object(len);
+                return self.allocate_heap_object(
+                    InternalTypeRep::from_name(
+                        "ptr",
+                        make[vec[InternalTypeRep]](InternalTypeRep::from_ir_type(IrType::new(
+                            expr.t_make!.type_.t_ptr!.t_ptr!,
+                        ))),
+                    ),
+                    IrType::new(expr.t_make!.type_.t_ptr!),
+                    len,
+                );
             } else if expr.t_make!.type_.t_vec != nil {
                 let var_vec = format("vec_{}", self.counter.to_string());
                 self.counter = self.counter + 1;
@@ -1062,13 +1242,17 @@ module IrCodeGenerator {
         } else if expr.t_wrap != nil {
             let term = self.expression(expr.t_wrap!.expr).try;
 
-            return self.generate_array_enumerated(make[vec[struct {
-                type_: IrType,
-                term: IrTerm,
-            }]](struct {
-                type_: IrType::new(expr.t_wrap!.type_),
-                term: term,
-            }));
+            return self.generate_array_enumerated(
+                "optional",
+                make[vec[IrType]](IrType::new(expr.t_wrap!.type_)),
+                make[vec[struct {
+                    type_: IrType,
+                    term: IrTerm,
+                }]](struct {
+                    type_: IrType::new(expr.t_wrap!.type_),
+                    term: term,
+                }),
+            );
         } else if expr.t_unwrap != nil {
             let term = self.expression(expr.t_unwrap!.expr).try;
 
@@ -1097,13 +1281,17 @@ module IrCodeGenerator {
             };
             if expr.t_enumor!.lhs != nil {
                 lhs_term = self.expression(expr.t_enumor!.lhs!).try;
-                lhs_term = self.generate_array_enumerated(make[vec[struct {
-                    type_: IrType,
-                    term: IrTerm,
-                }]](struct {
-                    type_: IrType::new(expr.t_enumor!.lhs_type),
-                    term: lhs_term,
-                }));
+                lhs_term = self.generate_array_enumerated(
+                    "optional",
+                    make[vec[IrType]](IrType::new(expr.t_enumor!.lhs_type)),
+                    make[vec[struct {
+                        type_: IrType,
+                        term: IrTerm,
+                    }]](struct {
+                        type_: IrType::new(expr.t_enumor!.lhs_type),
+                        term: lhs_term,
+                    }),
+                ).try;
             }
 
             let rhs_term = IrTerm {
@@ -1112,34 +1300,42 @@ module IrCodeGenerator {
             };
             if expr.t_enumor!.rhs != nil {
                 rhs_term = self.expression(expr.t_enumor!.rhs!).try;
-                rhs_term = self.generate_array_enumerated(make[vec[struct {
-                    type_: IrType,
-                    term: IrTerm,
-                }]](struct {
-                    type_: IrType::new(expr.t_enumor!.rhs_type),
-                    term: rhs_term,
-                }));
+                rhs_term = self.generate_array_enumerated(
+                    "optional",
+                    make[vec[IrType]](IrType::new(expr.t_enumor!.rhs_type)),
+                    make[vec[struct {
+                        type_: IrType,
+                        term: IrTerm,
+                    }]](struct {
+                        type_: IrType::new(expr.t_enumor!.rhs_type),
+                        term: rhs_term,
+                    }),
+                ).try;
             }
 
-            return self.generate_array_enumerated(make[vec[struct {
-                type_: IrType,
-                term: IrTerm,
-            }]](
-                struct {
-                    type_: IrType {
-                        t_address: true?,
-                        ..nil,
+            return self.generate_array_enumerated(
+                "or",
+                make[vec[IrType]](IrType::new(expr.t_enumor!.lhs_type), IrType::new(expr.t_enumor!.rhs_type)),
+                make[vec[struct {
+                    type_: IrType,
+                    term: IrTerm,
+                }]](
+                    struct {
+                        type_: IrType {
+                            t_address: true?,
+                            ..nil,
+                        },
+                        term: lhs_term,
                     },
-                    term: lhs_term,
-                },
-                struct {
-                    type_: IrType {
-                        t_address: true?,
-                        ..nil,
+                    struct {
+                        type_: IrType {
+                            t_address: true?,
+                            ..nil,
+                        },
+                        term: rhs_term,
                     },
-                    term: rhs_term,
-                },
-            ));
+                ),
+            ).try;
         } else if expr.t_sizeof != nil {
             return IrTerm {
                 t_sizeof: struct {
@@ -1180,11 +1376,13 @@ module IrCodeGenerator {
 
     fun generate_array_enumerated(
         self,
+        rep_name: string,
+        params: vec[IrType],
         record: vec[struct {
             type_: IrType,
             term: IrTerm,
         }],
-    ): IrTerm {
+    ): IrTerm or error {
         let terms = make[vec[struct {
             offset: i32,
             type_: IrType,
@@ -1202,17 +1400,33 @@ module IrCodeGenerator {
             offset = offset + field.type_.sizeof();
         }
 
-        return self.generate_array(terms);
+        return self.generate_array(rep_name, params, terms).try;
     }
 
     fun generate_array(
         self,
+        rep_name: string,
+        params: vec[IrType],
         terms: vec[struct {
             offset: i32,
             type_: IrType,
             term: IrTerm,
         }],
-    ): IrTerm {
+    ): IrTerm or error {
+        let rep_fields = make[vec[struct {
+            name: string,
+            type_: IrType,
+        }]]();
+        for i in 0..terms.length {
+            let term = terms.at(i);
+
+            rep_fields.push(struct {
+                name: format("{}", i.to_string()),
+                type_: term.type_,
+            });
+        }
+        let rep = InternalTypeRep::from_struct(rep_name, params, rep_fields);
+
         let var_name = format("arr_{}", self.counter.to_string());
         self.counter = self.counter + 1;
 
@@ -1224,19 +1438,17 @@ module IrCodeGenerator {
                     t_address: true?,
                     ..nil,
                 },
-                value: IrTerm {
-                    t_call: IrCall {
-                        callee: IrTerm {
-                            t_ident: "alloc"?,
-                            ..nil,
-                        },
-                        args: make[vec[IrTerm]](IrTerm {
-                            t_i32: (terms.length * 4)?,
-                            ..nil,
-                        }),
-                    }?,
-                    ..nil,
-                },
+                value: self.allocate_heap_object(
+                    rep,
+                    IrType {
+                        t_address: true?,
+                        ..nil,
+                    },
+                    IrTerm {
+                        t_i32: terms.length?,
+                        ..nil,
+                    },
+                ).try,
             }?,
             ..nil,
         });
@@ -1269,7 +1481,8 @@ module IrCodeGenerator {
         };
     }
 
-    fun allocate_heap_object(self, size: IrTerm): IrTerm or error {
+    fun allocate_heap_object(self, rep: InternalTypeRep, type_: IrType, size: IrTerm): IrTerm or error {
+        let rep_id = self.type_reps.get_or_insert(rep);
         let var = "object";
 
         let object = make[vec[IrTerm]]();
@@ -1315,6 +1528,7 @@ module IrCodeGenerator {
             }?,
             ..nil,
         });
+        // object header
         object.push(IrTerm {
             t_store: struct {
                 type_: IrType {
@@ -1324,7 +1538,7 @@ module IrCodeGenerator {
                 address: IrTerm::ident(var),
                 offset: IrTerm::i32(0),
                 value: IrTerm {
-                    t_i32: 0?,
+                    t_i32: rep_id?,
                     ..nil,
                 },
             }?,
@@ -1338,6 +1552,118 @@ module IrCodeGenerator {
         return IrTerm {
             t_seq: struct {
                 terms: object,
+            }?,
+            ..nil,
+        };
+    }
+
+    fun write_type_rep(self, rep: InternalTypeRep): IrTerm or error {
+        // [nil, rep_name, size of params, *params, size of fields, *fields]
+        let elements = make[vec[IrTerm]]();
+        elements.push(IrTerm {
+            t_nil: true?,
+            ..nil,
+        });
+        elements.push(self.register_string(rep.name));
+        elements.push(IrTerm::i32(rep.params.length));
+
+        let type_rep_terms = make[vec[struct {
+            type_: IrType,
+            term: IrTerm,
+        }]]();
+        for p in rep.params {
+            type_rep_terms.push(struct {
+                type_: IrType {
+                    t_address: true?,
+                    ..nil,
+                },
+                term: self.write_type_rep(p).try,
+            });
+        }
+        elements.push(self.generate_array_enumerated("slice", make[vec[IrType]](), type_rep_terms).try);
+        elements.push(IrTerm::i32(rep.fields.length));
+
+        let field_terms = make[vec[struct {
+            type_: IrType,
+            term: IrTerm,
+        }]]();
+        for t in rep.fields {
+            field_terms.push(struct {
+                type_: IrType {
+                    t_address: true?,
+                    ..nil,
+                },
+                term: self.register_string(t.name),
+            });
+        }
+        elements.push(self.generate_array_enumerated("slice", make[vec[IrType]](), field_terms).try);
+
+        let var_name = format("type_rep_{}", self.counter.to_string());
+        self.counter = self.counter + 1;
+
+        let arr = make[vec[IrTerm]]();
+        arr.push(IrTerm {
+            t_let: IrLet {
+                name: var_name,
+                type_: IrType {
+                    t_address: true?,
+                    ..nil,
+                },
+                value: IrTerm {
+                    t_call: IrCall {
+                        callee: IrTerm {
+                            t_ident: "quartz_std_alloc"?,
+                            ..nil,
+                        },
+                        args: make[vec[IrTerm]](IrCodeGenerator::wrap_mult_sizeof(
+                            IrType {
+                                t_any: true?,
+                                ..nil,
+                            },
+                            IrTerm::i32(elements.length),
+                        )),
+                    }?,
+                    ..nil,
+                },
+                ..nil,
+            }?,
+            ..nil,
+        });
+        for index in 0..elements.length {
+            arr.push(IrTerm {
+                t_store: struct {
+                    type_: IrType {
+                        t_any: true?,
+                        ..nil,
+                    },
+                    address: IrTerm {
+                        t_ident: var_name?,
+                        ..nil,
+                    },
+                    offset: IrCodeGenerator::wrap_mult_sizeof(
+                        IrType {
+                            t_i32: true?,
+                            ..nil,
+                        },
+                        IrTerm {
+                            t_i32: index?,
+                            ..nil,
+                        },
+                    ),
+                    value: elements.at(index),
+                }?,
+                ..nil,
+            });
+        }
+
+        arr.push(IrTerm {
+            t_ident: var_name?,
+            ..nil,
+        });
+
+        return IrTerm {
+            t_seq: struct {
+                terms: arr,
             }?,
             ..nil,
         };
