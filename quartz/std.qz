@@ -370,8 +370,8 @@ module string {
         for i in 0..self.length {
             new_data.at(i) = self.data.at(i);
         }
-        for i in 0..s.length {
-            new_data.at(self.length + i) = s.data.at(i);
+        for j in 0..s.length {
+            new_data.at(self.length + j) = s.data.at(j);
         }
 
         return new_string(new_data, new_length);

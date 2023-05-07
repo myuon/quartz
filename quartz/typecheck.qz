@@ -656,14 +656,25 @@ module Typechecker {
                 let t = self.locals.at(expr.t_ident!.name);
 
                 return t;
-            } else if self.globals.has(expr.t_ident!.name) {
-                let t = self.globals.at(expr.t_ident!.name);
+            }
 
-                return t;
-            } else {
-                let path = self.resolve_path(Path::ident(expr.t_ident!.name)).try;
-                let t = self.globals.at(path.join("_"));
-                expr.t_ident!.resolved_path = path?;
+            let candidates = vec_clone(self.imported) as vec[Path];
+            candidates.push(self.current_path);
+
+            for path_prefix in candidates {
+                let path = path_prefix.clone();
+                path.push(expr.t_ident!.name);
+
+                if self.globals.has(path.join("_")) {
+                    expr.t_ident!.resolved_path = path?;
+
+                    let t = self.globals.at(path.join("_"));
+                    return t;
+                }
+            }
+
+            if self.globals.has(expr.t_ident!.name) {
+                let t = self.globals.at(expr.t_ident!.name);
 
                 return t;
             }
