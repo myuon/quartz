@@ -131,7 +131,7 @@ module Generator {
         });
 
         self.start();
-        self.write("memory 50000");
+        self.write("memory 100");
         self.end();
 
         self.start();

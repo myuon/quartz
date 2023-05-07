@@ -448,18 +448,36 @@ module string {
         return self.slice(0, n!).concat(to).concat(self.slice_start(n! + from.length));
     }
 
-    fun replace(self, from: string, to: string): string {
-        let s = self;
-        while true {
-            let n = s.find_first(from);
-            if n == nil {
-                return s;
-            }
+    fun find_all(self, haystack: string): vec[i32] {
+        let result = make[vec[i32]](0);
+        let n = 0;
 
-            s = s.slice(0, n!).concat(to).concat(s.slice_start(n! + from.length));
+        while n <= self.length - haystack.length {
+            if is_prefix(self, n, haystack) {
+                result.push(n);
+                n = n + haystack.length;
+            } else {
+                n = n + 1;
+            }
         }
 
-        return from;
+        return result;
+    }
+
+    fun replace(self, from: string, to: string): string {
+        let result = self;
+        let n = 0;
+
+        while n <= result.length - from.length {
+            if is_prefix(result, n, from) {
+                result = result.slice(0, n).concat(to).concat(result.slice_start(n + from.length));
+                n = n + to.length;
+            } else {
+                n = n + 1;
+            }
+        }
+
+        return result;
     }
 
     fun format(self, ..arg: vec[string]): string {
