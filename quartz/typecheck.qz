@@ -569,7 +569,7 @@ module Typechecker {
                 self.locals = locals;
                 return nil;
             } else {
-                return _ or error::new("for range must be range");
+                return _ or error::new("for range must be range, {}".format(t.to_string()));
             }
         } else if s.t_continue != nil {
             return nil;
@@ -721,6 +721,7 @@ module Typechecker {
 
             let candidates = vec_clone(self.imported) as vec[Path];
             candidates.push(self.current_path);
+            candidates.push(Path::ident("main"));
 
             for path_prefix in candidates {
                 let path = path_prefix.clone();
@@ -730,6 +731,7 @@ module Typechecker {
                     expr.t_ident!.resolved_path = path?;
 
                     let t = self.globals.at(path.join("_"));
+
                     return t;
                 }
             }
@@ -850,7 +852,7 @@ module Typechecker {
                 } else if expr.t_project!.field.equal("extend") {
                     return Type {
                         t_func: struct {
-                            params: make[vec[Type]](t.t_vec!),
+                            params: make[vec[Type]](t),
                             result: Type {
                                 t_nil: true?,
                                 ..nil,
@@ -871,7 +873,7 @@ module Typechecker {
                                     ..nil,
                                 },
                             ),
-                            result: t.t_vec!,
+                            result: t,
                         }?,
                         ..nil,
                     };
@@ -935,6 +937,8 @@ module Typechecker {
                     type_name = t.t_ident!;
                 } else if t.t_i32 != nil {
                     type_name = "i32";
+                } else if t.t_u32 != nil {
+                    type_name = "u32";
                 } else if t.t_bool != nil {
                     type_name = "bool";
                 } else {
@@ -967,7 +971,23 @@ module Typechecker {
                             ..nil,
                         };
                     } else if t.t_variadic_func != nil {
-                        panic("variadic func");
+                        let arg_types = t.t_variadic_func!.params;
+                        let result_type = t.t_variadic_func!.result;
+
+                        if arg_types.length == 0 {
+                            return _ or error::new("method {} has no arguements".format(path.join("_")));
+                        }
+
+                        unify(arg_types.at(0), t).try;
+
+                        return Type {
+                            t_variadic_func: struct {
+                                params: arg_types,
+                                variadic: t.t_variadic_func!.variadic,
+                                result: result_type,
+                            }?,
+                            ..nil,
+                        };
                     }
 
                     return t;
@@ -1243,6 +1263,8 @@ module Typechecker {
             return make[map[string, Type]]();
         } else if type_.t_or != nil {
             return make[map[string, Type]]();
+        } else if type_.t_u32 != nil {
+            return make[map[string, Type]]();
         }
 
         return _ or error::new("unimplemented: resolve_record_type, {}".format(type_.to_string()));
@@ -1337,6 +1359,12 @@ fun unify(type1: Type, type2: Type): Type or error {
             t_vec: result?,
             ..nil,
         };
+    }
+    if type1.t_vec != nil && type2.t_ident != nil && type2.t_ident!.equal("vec") {
+        return type1;
+    }
+    if type2.t_vec != nil && type1.t_ident != nil && type1.t_ident!.equal("vec") {
+        return type2;
     }
     if type1.t_struct != nil && type2.t_struct != nil {
         if type1.t_struct!.fields.length != type2.t_struct!.fields.length {

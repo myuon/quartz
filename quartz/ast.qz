@@ -301,6 +301,11 @@ struct Type {
         params: vec[Type],
         result: Type,
     }?,
+    t_variadic_func: struct {
+        params: vec[Type],
+        result: Type,
+        variadic: Type,
+    }?,
     t_ptr: Type?,
     t_bool: bool?,
     t_struct: TypeStruct?,
