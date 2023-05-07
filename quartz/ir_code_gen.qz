@@ -659,7 +659,7 @@ module IrCodeGenerator {
                 ..nil,
             };
         } else if stm.t_for != nil {
-            if stm.t_for!.range.t_range != nil {
+            if stm.t_for!.mode.equal("range") {
                 let range = stm.t_for!.range.t_range!;
 
                 return IrTerm {
@@ -732,6 +732,96 @@ module IrCodeGenerator {
                     }?,
                     ..nil,
                 };
+            } else if stm.t_for!.mode.equal("vec") {
+                // for v in vec { body }
+                // =>
+                // for i in 0..vec.length {
+                //   let v = vec.at(i);
+                //   body
+                // }
+                let var_index = format("index_{}", self.counter.to_string());
+                self.counter = self.counter + 1;
+
+                let new_body = make[vec[Statement]]();
+                new_body.push(Statement {
+                    t_let: struct {
+                        pattern: Pattern {
+                            t_ident: var_index?,
+                            ..nil,
+                        },
+                        name_type: Type {
+                            t_i32: true?,
+                            ..nil,
+                        },
+                        expr: Expression {
+                            t_call: struct {
+                                callee: Expression {
+                                    t_project: struct {
+                                        expr: stm.t_for!.range,
+                                        field: "at",
+                                        type_: stm.t_for!.type_!.t_vec,
+                                        resolved_path: nil as Path?,
+                                    }?,
+                                    ..nil,
+                                },
+                                args: make[vec[Expression]](Expression {
+                                    t_ident: struct {
+                                        name: var_index,
+                                        resolved_path: nil as Path?,
+                                    }?,
+                                    ..nil,
+                                }),
+                                variadic: nil,
+                                expansion: nil,
+                            }?,
+                            ..nil,
+                        },
+                    }?,
+                    ..nil,
+                });
+                for body in stm.t_for!.block.block {
+                    new_body.push(body);
+                }
+
+                return self.statement(Statement {
+                    t_for: struct {
+                        mode: "range",
+                        type_: nil,
+                        ident: stm.t_for!.ident,
+                        range: Expression {
+                            t_range: struct {
+                                start: Expression {
+                                    t_i32: struct {
+                                        value: 0,
+                                    }?,
+                                    ..nil,
+                                },
+                                end: Expression {
+                                    t_call: struct {
+                                        callee: Expression {
+                                            t_project: struct {
+                                                expr: stm.t_for!.range,
+                                                field: "length",
+                                                type_: stm.t_for!.type_!.t_vec,
+                                                resolved_path: nil as Path?,
+                                            }?,
+                                            ..nil,
+                                        },
+                                        args: make[vec[Expression]](),
+                                        variadic: nil,
+                                        expansion: nil,
+                                    }?,
+                                    ..nil,
+                                },
+                            }?,
+                            ..nil,
+                        },
+                        block: Block {
+                            block: new_body,
+                        },
+                    }?,
+                    ..nil,
+                }).try;
             } else {
                 return _ or error::new(format("unsupported for loop: {}", stm.to_string()));
             }

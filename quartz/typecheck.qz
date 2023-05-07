@@ -547,7 +547,7 @@ module Typechecker {
         } else if s.t_for != nil {
             let t = self.expression(s.t_for!.range).try;
             if t.t_range != nil {
-                s.t_for!.mode = "for";
+                s.t_for!.mode = "range";
 
                 // FIXME: clone
                 let locals = self.locals;

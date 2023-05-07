@@ -541,6 +541,7 @@ module Parser {
             return Statement {
                 t_for: struct {
                     mode: "",
+                    type_: nil,
                     ident: ident,
                     range: range,
                     block: body,
