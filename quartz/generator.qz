@@ -216,7 +216,6 @@ module Generator {
                         ..nil,
                     },
                 ),
-                locals: make[vec[string]](),
             }?,
             ..nil,
         });
@@ -264,13 +263,20 @@ module Generator {
             self.write("(result i64)");
         }
 
+        let visited = make[map[string, bool]]();
         for statement in func.body {
             let locals = statement.find_locals();
             for local in locals {
+                if visited.has(local) {
+                    continue;
+                }
+
                 self.new_statement();
                 self.start();
                 self.write(format("local ${} {}", local, "i64"));
                 self.end();
+
+                visited.insert(local, true);
             }
         }
 

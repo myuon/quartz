@@ -97,7 +97,7 @@ module StringTable {
 
 struct IrCodeGenerator {
     globals: map[string, Type],
-    locals: vec[string],
+    locals: map[string, bool],
     current_path: Path,
     strings: StringTable,
     data_section_offset: i32,
@@ -108,7 +108,7 @@ module IrCodeGenerator {
     fun new(): IrCodeGenerator {
         return IrCodeGenerator {
             globals: make[map[string, Type]](),
-            locals: make[vec[string]](),
+            locals: make[map[string, bool]](),
             current_path: Path::new(),
             strings: StringTable::new(),
             data_section_offset: 0,
@@ -272,7 +272,6 @@ module IrCodeGenerator {
                     t_nil: true?,
                     ..nil,
                 },
-                locals: make[vec[string]](),
             }?,
             ..nil,
         });
@@ -281,7 +280,7 @@ module IrCodeGenerator {
     }
 
     fun function(self, func: Function): IrFunc or error {
-        self.locals = make[vec[string]]();
+        self.locals = make[map[string, bool]]();
         let body = self.block(func.body).try;
 
         let params = make[vec[struct {
@@ -318,7 +317,6 @@ module IrCodeGenerator {
             params: params,
             body: body,
             result_type: IrType::new(func.result_type),
-            locals: self.locals,
         };
     }
 
@@ -352,7 +350,7 @@ module IrCodeGenerator {
                     }?,
                     ..nil,
                 };
-                self.locals.push(name);
+                self.locals.insert(name, true);
 
                 return term;
             } else if stm.t_let!.pattern.t_or != nil {

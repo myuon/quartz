@@ -146,7 +146,6 @@ struct IrFunc {
     }],
     body: vec[IrTerm],
     result_type: IrType,
-    locals: vec[string],
 }
 
 struct IrCall {
