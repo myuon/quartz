@@ -487,6 +487,28 @@ module string {
     }
 }
 
+struct stringbuilder {
+    data: vec[byte],
+}
+
+module stringbuilder {
+    fun new(): stringbuilder {
+        return stringbuilder {
+            data: make[vec[byte]](),
+        };
+    }
+
+    fun append(self, s: string) {
+        for i in 0..s.length {
+            self.data.push(s.data.at(i));
+        }
+    }
+
+    fun to_string(self): string {
+        return new_string(self.data.data, self.data.length);
+    }
+}
+
 fun panic(s: string, ..arg: vec[string]): any {
     println(s, ..arg);
     return abort();

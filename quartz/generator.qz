@@ -5,7 +5,7 @@ import quartz::value;
 let MODE_READABLE_WASM = true;
 
 struct Generator {
-    writer: string,
+    writer: stringbuilder,
     depth: i32,
     index: i32,
     globals: map[string, Type],
@@ -16,7 +16,7 @@ struct Generator {
 module Generator {
     fun new(): Generator {
         return Generator {
-            writer: "",
+            writer: stringbuilder::new(),
             depth: 0,
             index: 0,
             globals: make[map[string, Type]](),
@@ -40,16 +40,18 @@ module Generator {
 
     fun write(self, str: string) {
         if self.index == 0 {
-            self.writer = self.writer.concat(str);
+            self.writer.append(str);
         } else {
-            self.writer = self.writer.concat(" ").concat(str);
+            self.writer.append(" ");
+            self.writer.append(str);
         }
         self.index = self.index + 1;
     }
 
     fun new_statement(self) {
         if self.index > 0 {
-            self.writer = self.writer.concat("\n").concat(" ".repeat(self.depth * 2));
+            self.writer.append("\n");
+            self.writer.append(" ".repeat(self.depth * 2));
         }
         self.index = 0;
     }
@@ -63,7 +65,7 @@ module Generator {
     }
 
     fun generate(self): string {
-        return self.writer;
+        return self.writer.to_string();
     }
 
     fun decl(self, element: IrTerm) {
