@@ -68,8 +68,7 @@ module Compiler {
                 t_module: struct {
                     path: loaded.path,
                     module_: loaded.module_,
-                }?,
-                ..nil,
+                },
             });
         }
 

@@ -17,22 +17,22 @@ module Module {
     }
 }
 
-struct Decl {
-    t_func: Function?,
-    t_let: Let?,
+enum Decl {
+    t_func: Function,
+    t_let: Let,
     t_type: struct {
         name: string,
         type_: Type,
-    }?,
+    },
     t_enum: struct {
         name: string,
         type_: Type,
-    }?,
+    },
     t_module: struct {
         path: Path,
         module_: Module,
-    }?,
-    t_import: Path?,
+    },
+    t_import: Path,
 }
 
 module Decl {

@@ -42,40 +42,35 @@ module Parser {
             let func = self.function().try;
 
             return Decl {
-                t_func: func?,
-                ..nil,
+                t_func: func,
             };
         }
         if token.lexeme.equal("let") {
             let let_ = self.global_let().try;
 
             return Decl {
-                t_let: let_?,
-                ..nil,
+                t_let: let_,
             };
         }
         if token.lexeme.equal("struct") {
             let struct_ = self.struct_decl().try;
 
             return Decl {
-                t_type: struct_?,
-                ..nil,
+                t_type: struct_,
             };
         }
         if token.lexeme.equal("enum") {
             let enum_ = self.enum_decl().try;
 
             return Decl {
-                t_enum: enum_?,
-                ..nil,
+                t_enum: enum_,
             };
         }
         if token.lexeme.equal("module") {
             let module_ = self.module_decl().try;
 
             return Decl {
-                t_module: module_?,
-                ..nil,
+                t_module: module_,
             };
         }
         if token.lexeme.equal("import") {
@@ -86,8 +81,7 @@ module Parser {
             self.imports.push(path);
 
             return Decl {
-                t_import: path?,
-                ..nil,
+                t_import: path,
             };
         }
 
