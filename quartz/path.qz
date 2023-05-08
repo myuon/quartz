@@ -3,9 +3,9 @@ struct Path {
 }
 
 module Path {
-    fun new(): Path {
+    fun new(..t: vec[string]): Path {
         return Path {
-            path: make[vec[string]](),
+            path: t,
         };
     }
 
@@ -42,6 +42,10 @@ module Path {
         return Path {
             path: new_path,
         };
+    }
+
+    fun extend(self, other: Path) {
+        self.path.extend(other.path);
     }
 }
 

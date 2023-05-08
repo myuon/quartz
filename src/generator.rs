@@ -121,8 +121,14 @@ impl Generator {
             result: IrType::I32,
         })?;
 
+        self.decl(&mut IrTerm::Declare {
+            name: "i64_to_string_at".to_string(),
+            params: vec![IrType::I32, IrType::I32, IrType::I32],
+            result: IrType::I32,
+        })?;
+
         self.writer.start();
-        self.writer.write(r#"memory 1"#);
+        self.writer.write(r#"memory 50000"#);
         self.writer.end();
 
         for term in elements {
@@ -219,11 +225,6 @@ impl Generator {
                 IrTerm::Assign {
                     lhs: "quartz_std_strings_count".to_string(),
                     rhs: Box::new(IrTerm::i32(self.strings.len() as i32)),
-                },
-                IrTerm::Discard {
-                    element: Box::new(IrTerm::Instruction(
-                        "(memory.grow (i32.const 4000))".to_string(),
-                    )),
                 },
                 IrTerm::Call {
                     callee: Box::new(IrTerm::ident("prepare_strings")),
@@ -479,8 +480,17 @@ impl Generator {
             }
             IrTerm::String(p) => {
                 if MODE_READABLE_WASM {
+                    let s = &self.strings[*p];
+
                     self.writer.new_statement();
-                    self.writer.write(&format!(";; {:?}", self.strings[*p]));
+                    self.writer.write(&format!(
+                        " ;; {}",
+                        if s.len() > 30 {
+                            format!("{:?}...", &s[0..30])
+                        } else {
+                            format!("{:?}", s)
+                        }
+                    ));
                 }
 
                 self.writer.new_statement();
@@ -762,7 +772,7 @@ impl Generator {
 
         match caller.as_ref() {
             IrTerm::Ident(ident) => match ident.as_str() {
-                "add" => {
+                "add" | "add_u32" => {
                     if MODE_OPTIMIZE_ARITH_OPS_IN_CODE_GEN {
                         self.writer.write("i64.add");
                     } else {
@@ -788,6 +798,9 @@ impl Generator {
                 }
                 "div" => {
                     self.generate_op_arithmetic("div_s");
+                }
+                "div_u32" => {
+                    self.generate_op_arithmetic("div_u");
                 }
                 "div_i64" => {
                     self.generate_op_arithmetic_i64("i64.div_s");
@@ -819,6 +832,9 @@ impl Generator {
                 "gt" => {
                     self.generate_op_comparison("gt_s");
                 }
+                "gt_u32" => {
+                    self.generate_op_comparison("gt_u");
+                }
                 "lte" => {
                     self.generate_op_comparison("le_s");
                 }
@@ -837,6 +853,9 @@ impl Generator {
                 "byte_to_i32" => self.convert_value_byte_to_i32_1(),
                 "byte_to_address" => self.convert_value_byte_to_address_1(),
                 "bit_shift_left" => {
+                    self.generate_op_arithmetic("shl");
+                }
+                "bit_shift_left_u32" => {
                     self.generate_op_arithmetic("shl");
                 }
                 "bit_shift_right" => {

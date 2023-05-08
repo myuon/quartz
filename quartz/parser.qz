@@ -6,6 +6,7 @@ struct Parser {
     position: i32,
     input: vec[Token],
     omit_index: i32,
+    imports: vec[Path],
 }
 
 module Parser {
@@ -14,6 +15,7 @@ module Parser {
             position: 0,
             input: make[vec[Token]](),
             omit_index: 0,
+            imports: make[vec[Path]](),
         };
     }
 
@@ -60,6 +62,14 @@ module Parser {
                 ..nil,
             };
         }
+        if token.lexeme.equal("enum") {
+            let enum_ = self.enum_decl().try;
+
+            return Decl {
+                t_enum: enum_?,
+                ..nil,
+            };
+        }
         if token.lexeme.equal("module") {
             let module_ = self.module_decl().try;
 
@@ -68,10 +78,38 @@ module Parser {
                 ..nil,
             };
         }
+        if token.lexeme.equal("import") {
+            self.expect("import").try;
+            let path = self.path().try;
+            self.expect("semicolon").try;
+
+            self.imports.push(path);
+
+            return Decl {
+                t_import: path?,
+                ..nil,
+            };
+        }
 
         return _ or error::new("Expected DECL, got ".concat(token.lexeme).concat("{").concat(
             token.string_value!,
         ).concat("}"));
+    }
+
+    fun path(self): Path or error {
+        let path = make[vec[string]](self.ident().try);
+        while true {
+            if self.peek().lexeme.equal("double_colon") {
+                self.expect("double_colon").try;
+                path.push(self.ident().try);
+            } else {
+                break;
+            }
+        }
+
+        return Path {
+            path: path,
+        };
     }
 
     fun struct_decl(
@@ -119,10 +157,55 @@ module Parser {
         };
     }
 
-    fun module_decl(
+    fun enum_decl(
         self,
     ): struct {
         name: string,
+        type_: Type,
+    } or error {
+        self.expect("enum").try;
+        let ident = self.ident().try;
+        self.expect("lbrace").try;
+
+        let fields = make[vec[struct {
+            name: string,
+            type_: Type,
+        }]]();
+
+        while !self.peek().lexeme.equal("rbrace") {
+            let name = self.ident().try;
+            self.expect("colon").try;
+            let t = self.type_().try;
+
+            fields.push(struct {
+                name: name,
+                type_: t,
+            });
+
+            if self.peek().lexeme.equal("comma") {
+                self.consume();
+            } else {
+                break;
+            }
+        }
+
+        self.expect("rbrace").try;
+
+        return struct {
+            name: ident,
+            type_: Type {
+                t_enum: TypeStruct {
+                    fields: fields,
+                }?,
+                ..nil,
+            },
+        };
+    }
+
+    fun module_decl(
+        self,
+    ): struct {
+        path: Path,
         module_: Module,
     } or error {
         self.expect("module").try;
@@ -132,7 +215,7 @@ module Parser {
         self.expect("rbrace").try;
 
         return struct {
-            name: name,
+            path: Path::ident(name),
             module_: module_,
         };
     }
@@ -173,7 +256,7 @@ module Parser {
             ..nil,
         };
         if self.peek().lexeme.equal("colon") {
-            let _t = self.consume();
+            self.consume();
             result_type = self.type_().try;
         }
 
@@ -243,7 +326,7 @@ module Parser {
             }
 
             if self.peek().lexeme.equal("comma") {
-                let _t = self.consume();
+                self.consume();
             }
         }
 
@@ -287,6 +370,11 @@ module Parser {
                     t_i32: true?,
                     ..nil,
                 };
+            } else if token.string_value!.equal("u32") {
+                return Type {
+                    t_u32: true?,
+                    ..nil,
+                };
             } else if token.string_value!.equal("byte") {
                 return Type {
                     t_byte: true?,
@@ -315,10 +403,67 @@ module Parser {
                     t_vec: t?,
                     ..nil,
                 };
+            } else if token.string_value!.equal("any") {
+                return Type {
+                    t_any: true?,
+                    ..nil,
+                };
+            } else if token.string_value!.equal("map") {
+                self.expect("lbracket").try;
+                let key = self.type_().try;
+                self.expect("comma").try;
+                let value = self.type_().try;
+                self.expect("rbracket").try;
+
+                return Type {
+                    t_map: struct {
+                        key: key,
+                        value: value,
+                    }?,
+                    ..nil,
+                };
             }
 
             return Type {
                 t_ident: token.string_value!?,
+                ..nil,
+            };
+        } else if token.lexeme.equal("struct") {
+            self.expect("lbrace").try;
+
+            let fields = make[vec[struct {
+                name: string,
+                type_: Type,
+            }]]();
+
+            while !self.peek().lexeme.equal("rbrace") {
+                let name = self.ident().try;
+                self.expect("colon").try;
+                let t = self.type_().try;
+
+                fields.push(struct {
+                    name: name,
+                    type_: t,
+                });
+
+                if self.peek().lexeme.equal("comma") {
+                    self.consume();
+                } else {
+                    break;
+                }
+            }
+
+            self.expect("rbrace").try;
+
+            return Type {
+                t_struct: TypeStruct {
+                    fields: fields,
+                }?,
+                ..nil,
+            };
+        } else if token.lexeme.equal("nil") {
+            return Type {
+                t_nil: true?,
                 ..nil,
             };
         } else {
@@ -399,9 +544,17 @@ module Parser {
             let else_block = nil as Block?;
             if self.peek().lexeme.equal("else") {
                 self.consume();
-                self.expect("lbrace").try;
-                else_block = self.block().try?;
-                self.expect("rbrace").try;
+
+                if self.peek().lexeme.equal("if") {
+                    let s = self.statement().try;
+                    else_block = Block {
+                        block: make[vec[Statement]](s),
+                    }?;
+                } else {
+                    self.expect("lbrace").try;
+                    else_block = self.block().try?;
+                    self.expect("rbrace").try;
+                }
             }
 
             return Statement {
@@ -440,10 +593,30 @@ module Parser {
 
             return Statement {
                 t_for: struct {
+                    mode: "",
+                    type_: nil,
                     ident: ident,
                     range: range,
                     block: body,
                 }?,
+                ..nil,
+            };
+        }
+        if self.peek().lexeme.equal("continue") {
+            self.expect("continue").try;
+            self.expect("semicolon").try;
+
+            return Statement {
+                t_continue: true?,
+                ..nil,
+            };
+        }
+        if self.peek().lexeme.equal("break") {
+            self.expect("break").try;
+            self.expect("semicolon").try;
+
+            return Statement {
+                t_break: true?,
                 ..nil,
             };
         }
@@ -473,7 +646,7 @@ module Parser {
             };
         }
 
-        return _ or error::new(format("Unexpected token {}", self.peek().to_string()));
+        return _ or error::new(format("Unexpected token {} (statement)", self.peek().to_string()));
     }
 
     fun expression_conditional(self): Expression or error {
@@ -547,6 +720,20 @@ module Parser {
 
     fun return_statement(self): Statement or error {
         self.expect("return").try;
+
+        if self.peek().lexeme.equal("semicolon") {
+            self.expect("semicolon").try;
+            return Statement {
+                t_return: struct {
+                    expr: Expression {
+                        t_nil: true?,
+                        ..nil,
+                    },
+                }?,
+                ..nil,
+            };
+        }
+
         let value = self.expression().try;
         self.expect("semicolon").try;
 
@@ -687,6 +874,28 @@ module Parser {
                 }?,
                 ..nil,
             };
+        } else if self.peek().lexeme.equal("gte") {
+            self.expect("gte").try;
+
+            return Expression {
+                t_binop: struct {
+                    binop: "gte",
+                    left: current,
+                    right: self.term_2(with_struct).try,
+                }?,
+                ..nil,
+            };
+        } else if self.peek().lexeme.equal("lte") {
+            self.expect("lte").try;
+
+            return Expression {
+                t_binop: struct {
+                    binop: "lte",
+                    left: current,
+                    right: self.term_2(with_struct).try,
+                }?,
+                ..nil,
+            };
         } else if self.peek().lexeme.equal("double_dot") {
             self.expect("double_dot").try;
             let expr = self.term_3(with_struct).try;
@@ -749,6 +958,32 @@ module Parser {
                 };
                 continue;
             }
+            if self.peek().lexeme.equal("bit_and") {
+                self.expect("bit_and").try;
+
+                current = Expression {
+                    t_binop: struct {
+                        binop: "bit_and",
+                        left: current,
+                        right: self.term_4(with_struct).try,
+                    }?,
+                    ..nil,
+                };
+                continue;
+            }
+            if self.peek().lexeme.equal("bit_or") {
+                self.expect("bit_or").try;
+
+                current = Expression {
+                    t_binop: struct {
+                        binop: "bit_or",
+                        left: current,
+                        right: self.term_4(with_struct).try,
+                    }?,
+                    ..nil,
+                };
+                continue;
+            }
 
             return current;
         }
@@ -794,6 +1029,30 @@ module Parser {
                     ..nil,
                 };
                 continue;
+            } else if self.peek().lexeme.equal("bit_shift_left") {
+                self.expect("bit_shift_left").try;
+
+                current = Expression {
+                    t_binop: struct {
+                        binop: "bit_shift_left",
+                        left: current,
+                        right: self.term_1(with_struct).try,
+                    }?,
+                    ..nil,
+                };
+                continue;
+            } else if self.peek().lexeme.equal("bit_shift_right") {
+                self.expect("bit_shift_right").try;
+
+                current = Expression {
+                    t_binop: struct {
+                        binop: "bit_shift_right",
+                        left: current,
+                        right: self.term_1(with_struct).try,
+                    }?,
+                    ..nil,
+                };
+                continue;
             }
 
             return current;
@@ -801,7 +1060,7 @@ module Parser {
     }
 
     fun term_0(self, with_struct: bool): Expression or error {
-        let current = self.term_0_1().try;
+        let current = self.term_0_1(with_struct).try;
 
         while true {
             let token = self.peek();
@@ -810,7 +1069,15 @@ module Parser {
                 self.expect("lparen").try;
 
                 let args = make[vec[Expression]]();
+                let expansion = nil as Expression?;
                 while !self.peek().lexeme.equal("rparen") {
+                    // expansion
+                    if self.peek().lexeme.equal("double_dot") {
+                        self.expect("double_dot").try;
+                        expansion = self.expression().try?;
+                        break;
+                    }
+
                     args.push(self.expression().try);
 
                     if self.peek().lexeme.equal("comma") {
@@ -826,26 +1093,38 @@ module Parser {
                         callee: current,
                         args: args,
                         variadic: nil,
+                        expansion: expansion,
                     }?,
                     ..nil,
                 };
             } else if token.lexeme.equal("dot") {
                 self.expect("dot").try;
-                let field = self.ident().try;
 
-                current = Expression {
-                    t_project: struct {
-                        expr: current,
-                        field: field,
-                        type_: nil as Type?,
-                    }?,
-                    ..nil,
-                };
+                if self.peek().lexeme.equal("try") {
+                    self.expect("try").try;
+
+                    current = Expression {
+                        t_try: current?,
+                        ..nil,
+                    };
+                } else {
+                    let field = self.ident().try;
+
+                    current = Expression {
+                        t_project: struct {
+                            expr: current,
+                            field: field,
+                            type_: nil as Type?,
+                            resolved_path: nil,
+                        }?,
+                        ..nil,
+                    };
+                }
             } else if with_struct && token.lexeme.equal("lbrace") {
                 self.expect("lbrace").try;
 
                 if current.t_ident == nil {
-                    return _ or error::new("Expected identifier");
+                    return _ or error::new(format("Expected identifier, got {}", current.to_string()));
                 }
 
                 let ident = current.t_ident!;
@@ -853,6 +1132,8 @@ module Parser {
                     field: string,
                     value: Expression,
                 }]]();
+
+                let expansion = nil as Expression?;
 
                 while !self.peek().lexeme.equal("rbrace") {
                     let field = self.ident().try;
@@ -866,6 +1147,17 @@ module Parser {
 
                     if self.peek().lexeme.equal("comma") {
                         self.expect("comma").try;
+
+                        if self.peek().lexeme.equal("double_dot") {
+                            self.expect("double_dot").try;
+                            expansion = self.expression().try?;
+
+                            if self.peek().lexeme.equal("comma") {
+                                self.expect("comma").try;
+                            }
+
+                            break;
+                        }
                     } else {
                         break;
                     }
@@ -876,6 +1168,7 @@ module Parser {
                     t_record: RecordExpression {
                         name: ident.name,
                         fields: fields,
+                        expansion: expansion,
                     }?,
                     ..nil,
                 };
@@ -914,6 +1207,15 @@ module Parser {
                         }?,
                         ..nil,
                     };
+                } else if ident.equal("sizeof") {
+                    current = Expression {
+                        t_sizeof: struct {
+                            type_: t,
+                        }?,
+                        ..nil,
+                    };
+                } else {
+                    return _ or error::new(format("Unknown builtin operator {}", ident));
                 }
             } else if token.lexeme.equal("double_colon") {
                 self.expect("double_colon").try;
@@ -933,6 +1235,7 @@ module Parser {
                 current = Expression {
                     t_path: struct {
                         path: path,
+                        resolved_path: nil,
                     }?,
                     ..nil,
                 };
@@ -970,26 +1273,37 @@ module Parser {
         return panic("unreachable");
     }
 
-    fun term_0_1(self): Expression or error {
+    fun term_0_1(self, with_struct: bool): Expression or error {
         if self.peek().lexeme.equal("ident") {
             let name = self.ident().try;
 
             return Expression {
                 t_ident: struct {
                     name: name,
+                    resolved_path: nil,
                 }?,
                 ..nil,
             };
         }
         if self.peek().lexeme.equal("number") {
             let token = self.consume();
-
-            return Expression {
-                t_i32: struct {
-                    value: i32::parse(token.string_value!),
-                }?,
-                ..nil,
-            };
+            if token.string_value!.compare_lte("2147483647") {
+                return Expression {
+                    t_i32: struct {
+                        value: i32::parse(token.string_value!),
+                    }?,
+                    ..nil,
+                };
+            } else if token.string_value!.compare_lte("4294967295") {
+                return Expression {
+                    t_u32: struct {
+                        value: u32::parse(token.string_value!),
+                    }?,
+                    ..nil,
+                };
+            } else {
+                return _ or error::new(format("Invalid number {}", token.string_value!));
+            }
         }
         if self.peek().lexeme.equal("self") {
             self.expect("self").try;
@@ -1022,7 +1336,7 @@ module Parser {
         if self.peek().lexeme.equal("bang") {
             self.expect("bang").try;
 
-            let expr = self.expression().try;
+            let expr = self.term_0(with_struct).try;
 
             return Expression {
                 t_unop: struct {
@@ -1056,6 +1370,41 @@ module Parser {
                 ..nil,
             };
         }
+        if self.peek().lexeme.equal("struct") {
+            self.expect("struct").try;
+            self.expect("lbrace").try;
+
+            let fields = make[vec[struct {
+                field: string,
+                value: Expression,
+            }]]();
+
+            while !self.peek().lexeme.equal("rbrace") {
+                let ident = self.ident().try;
+                self.expect("colon").try;
+                let value = self.expression().try;
+
+                fields.push(struct {
+                    field: ident,
+                    value: value,
+                });
+
+                if self.peek().lexeme.equal("comma") {
+                    self.expect("comma").try;
+                } else {
+                    break;
+                }
+            }
+            self.expect("rbrace").try;
+
+            return Expression {
+                t_anonymous_record: struct {
+                    fields: fields,
+                    type_: nil,
+                }?,
+                ..nil,
+            };
+        }
         if self.peek().lexeme.equal("underscore") {
             self.expect("underscore").try;
 
@@ -1065,7 +1414,7 @@ module Parser {
             };
         }
 
-        return _ or error::new(format("Unexpected token {}", self.peek().lexeme.to_string()));
+        return _ or error::new(format("Unexpected token {} (term)", self.peek().lexeme.to_string()));
     }
 }
 

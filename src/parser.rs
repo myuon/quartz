@@ -59,19 +59,19 @@ impl Parser {
             Lexeme::Fun => Ok(Decl::Func(self.func()?)),
             Lexeme::Let => {
                 let (ident, type_, value) = self.let_()?.data;
-                Ok(Decl::Let(
-                    ident.data.as_ident().unwrap().clone(),
-                    type_,
-                    value,
-                ))
+                Ok(Decl::Let(ident.data.as_ident()?.clone(), type_, value))
             }
             Lexeme::Type => {
                 let (ident, type_) = self.type_decl()?;
-                Ok(Decl::Type(ident, type_))
+                Ok(Decl::Struct(ident, type_))
             }
             Lexeme::Struct => {
                 let (ident, type_) = self.struct_decl()?;
-                Ok(Decl::Type(ident, type_))
+                Ok(Decl::Struct(ident, type_))
+            }
+            Lexeme::Enum => {
+                let (ident, type_) = self.enum_decl()?;
+                Ok(Decl::Enum(ident, type_))
             }
             Lexeme::Module(_path) => {
                 self.consume()?;
@@ -138,6 +138,15 @@ impl Parser {
 
     fn struct_decl(&mut self) -> Result<(Source<Ident>, Vec<Source<(Ident, Type)>>)> {
         self.expect(Lexeme::Struct)?;
+        let ident = self.ident()?;
+
+        let t = self.record_type_decl()?;
+
+        Ok((ident, t))
+    }
+
+    fn enum_decl(&mut self) -> Result<(Source<Ident>, Vec<Source<(Ident, Type)>>)> {
+        self.expect(Lexeme::Enum)?;
         let ident = self.ident()?;
 
         let t = self.record_type_decl()?;
@@ -1013,8 +1022,8 @@ impl Parser {
                 return Err(
                     anyhow!("Expected literal, got {:?}", current.lexeme).context(ErrorInSource {
                         path: Some(self.current_path.clone()),
-                        start: self.input[self.position].start,
-                        end: self.input[self.position].start,
+                        start: self.input[self.position - 1].start,
+                        end: self.input[self.position - 1].start,
                     }),
                 )
             }

@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use once_cell::sync::Lazy;
 use regex::Regex;
 
@@ -24,6 +24,7 @@ pub enum Lexeme {
     Break,
     Import,
     Struct,
+    Enum,
     Or,
     BitOr,
     BitAnd,
@@ -214,6 +215,7 @@ impl Lexer {
                     ("struct", Lexeme::Struct),
                     ("or", Lexeme::Or),
                     ("try", Lexeme::Try),
+                    ("enum", Lexeme::Enum),
                 ],
             ) {
                 continue;
@@ -303,7 +305,7 @@ impl Lexer {
             match INT_LITERAL.find(&input[self.position..]) {
                 Some(m) => {
                     self.tokens.push(Token {
-                        lexeme: Lexeme::Int(m.as_str().parse::<i64>().unwrap()),
+                        lexeme: Lexeme::Int(m.as_str().parse::<i64>()?),
                         start: self.position,
                         end: self.position + m.end(),
                         raw: m.as_str().to_string(),
@@ -351,7 +353,7 @@ impl Lexer {
                 None => (),
             }
 
-            panic!("{}", &input[self.position..]);
+            bail!("{}", &input[self.position..]);
         }
 
         Ok(())

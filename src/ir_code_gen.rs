@@ -52,7 +52,14 @@ impl TypeRep {
         match type_ {
             IrType::Nil => TypeRep::from_name("nil".to_string(), vec![]),
             IrType::I32 => TypeRep::from_name("i32".to_string(), vec![]),
-            IrType::I64 => todo!(),
+            IrType::I64 => TypeRep::from_struct(
+                "i64".to_string(),
+                vec![],
+                vec![
+                    ("hi".to_string(), IrType::I32),
+                    ("lo".to_string(), IrType::I32),
+                ],
+            ),
             IrType::Bool => TypeRep::from_name("bool".to_string(), vec![]),
             IrType::Address => TypeRep::from_name("address".to_string(), vec![]),
             IrType::Any => TypeRep::from_name("any".to_string(), vec![]),
@@ -141,7 +148,8 @@ impl IrCodeGenerator {
                         value: Box::new(self.expr(expr)?),
                     });
                 }
-                Decl::Type(_, _) => (),
+                Decl::Struct(_, _) => (),
+                Decl::Enum(_, _) => (),
                 Decl::Module(name, module) => {
                     let path = self.current_path.clone();
                     self.current_path.extend(name);
@@ -610,6 +618,8 @@ impl IrCodeGenerator {
                         callee: Box::new(IrTerm::Ident(
                             if matches!(type_, Type::I32) {
                                 "add"
+                            } else if matches!(type_, Type::U32) {
+                                "add_u32"
                             } else {
                                 bail!("invalid type for add: {:?}", type_)
                             }
@@ -648,6 +658,8 @@ impl IrCodeGenerator {
                         callee: Box::new(IrTerm::Ident(
                             if matches!(type_, Type::I32) {
                                 "div"
+                            } else if matches!(type_, Type::U32) {
+                                "div_u32"
                             } else if *type_ == Type::Ident(Ident("i64".to_string())) {
                                 "div_i64"
                             } else {
@@ -710,6 +722,8 @@ impl IrCodeGenerator {
                         callee: Box::new(IrTerm::Ident(
                             if matches!(type_, Type::I32) {
                                 "gt"
+                            } else if matches!(type_, Type::U32) {
+                                "gt_u32"
                             } else {
                                 bail!("invalid type for gt: {:?}", type_)
                             }
@@ -744,6 +758,8 @@ impl IrCodeGenerator {
                         callee: Box::new(IrTerm::Ident(
                             if matches!(type_, Type::I32) {
                                 "bit_or"
+                            } else if matches!(type_, Type::U32) {
+                                "bit_or_u32"
                             } else if *type_ == Type::Ident(Ident("i64".to_string())) {
                                 "bit_or_i64"
                             } else {
@@ -761,7 +777,7 @@ impl IrCodeGenerator {
                             } else if *type_ == Type::Ident(Ident("i64".to_string())) {
                                 "bit_and_i64"
                             } else {
-                                bail!("invalid type for bit_or: {:?}", type_)
+                                bail!("invalid type for bit_and: {:?}", type_)
                             }
                             .to_string(),
                         )),
@@ -772,10 +788,12 @@ impl IrCodeGenerator {
                         callee: Box::new(IrTerm::Ident(
                             if matches!(type_, Type::I32) {
                                 "bit_shift_left"
+                            } else if matches!(type_, Type::U32) {
+                                "bit_shift_left_u32"
                             } else if *type_ == Type::Ident(Ident("i64".to_string())) {
                                 "bit_shift_left_i64"
                             } else {
-                                bail!("invalid type for bit_or: {:?}", type_)
+                                bail!("invalid type for bit_shiftl: {:?}", type_)
                             }
                             .to_string(),
                         )),
@@ -789,7 +807,7 @@ impl IrCodeGenerator {
                             } else if *type_ == Type::Ident(Ident("i64".to_string())) {
                                 "bit_shift_right_i64"
                             } else {
-                                bail!("invalid type for bit_or: {:?}", type_)
+                                bail!("invalid type for bit_shiftr: {:?}", type_)
                             }
                             .to_string(),
                         )),
@@ -1061,32 +1079,61 @@ impl IrCodeGenerator {
                 _ => self.generate_call(callee, args, variadic, expansion),
             },
             Expr::Record(ident, fields, expansion) => {
-                let record_type = self
+                let type_ = self
                     .types
                     .get(&ident.data)
                     .ok_or(anyhow!("Type not found: {:?}", ident))?
                     .clone()
-                    .1
-                    .to_record()?;
+                    .1;
 
-                let expansion_term = if let Some(expansion) = expansion {
-                    Some(self.expr(expansion)?)
-                } else {
-                    None
-                };
+                match type_ {
+                    Type::Record(record_type) => {
+                        let expansion_term = if let Some(expansion) = expansion {
+                            Some(self.expr(expansion)?)
+                        } else {
+                            None
+                        };
 
-                let mut record = vec![];
-                for (i, type_) in record_type {
-                    let ir_type = IrType::from_type(&type_.data)?;
+                        let mut record = vec![];
+                        for (i, type_) in record_type {
+                            let ir_type = IrType::from_type(&type_.data)?;
 
-                    if let Some((_, expr)) = fields.iter_mut().find(|(f, _)| f == &i) {
-                        record.push((Some(i.0), ir_type, self.expr(expr)?));
-                    } else {
-                        record.push((Some(i.0), ir_type, expansion_term.clone().unwrap()));
+                            if let Some((_, expr)) = fields.iter_mut().find(|(f, _)| f == &i) {
+                                record.push((Some(i.0), ir_type, self.expr(expr)?));
+                            } else {
+                                record.push((Some(i.0), ir_type, expansion_term.clone().unwrap()));
+                            }
+                        }
+
+                        Ok(self.generate_array(ident.data.as_str().to_string(), vec![], record)?)
                     }
-                }
+                    Type::Enum(enum_type) => {
+                        assert_eq!(fields.len(), 1);
+                        let index = enum_type
+                            .iter()
+                            .position(|(i, _)| i == &fields[0].0)
+                            .ok_or(anyhow!("Invalid enum variant: {:?}", fields[0].0))?;
+                        let value = self.expr(&mut fields[0].1)?;
 
-                Ok(self.generate_array(ident.data.as_str().to_string(), vec![], record)?)
+                        Ok(self.generate_array(
+                            ident.data.as_str().to_string(),
+                            vec![],
+                            vec![
+                                (
+                                    Some("tag".to_string()),
+                                    IrType::I32,
+                                    IrTerm::i32(index as i32),
+                                ),
+                                (
+                                    Some("value".to_string()),
+                                    IrType::from_type(&enum_type[index].1.data)?,
+                                    value,
+                                ),
+                            ],
+                        )?)
+                    }
+                    _ => bail!("Invalid record type: {:?}", type_),
+                }
             }
             Expr::AnonymousRecord(fields, type_) => {
                 let mut elements = vec![];
@@ -1108,6 +1155,80 @@ impl IrCodeGenerator {
                 self.generate_array("struct".to_string(), vec![], elements)
             }
             Expr::Project(expr, type_, label) => {
+                if let Type::Ident(i) = type_ {
+                    if let Some((_, Type::Enum(enum_type))) = self.types.get(&i).cloned() {
+                        let name = format!("enum_{}", label.start.unwrap_or(0));
+                        let result_name = format!("enum_result_{}", label.start.unwrap_or(0));
+
+                        let value = self.expr(expr)?;
+                        let label_index = enum_type
+                            .iter()
+                            .position(|(i, _)| i == &label.data.0[0])
+                            .unwrap();
+                        let value_type = enum_type[label_index].1.clone();
+
+                        let enum_rep = Type::Record(vec![
+                            (Ident("tag".to_string()), Source::unknown(Type::I32)),
+                            (Ident("value".to_string()), value_type.clone()),
+                        ]);
+
+                        let inside_value =
+                            self.generate_array_at(&enum_rep, value.clone(), IrTerm::i32(1))?;
+
+                        // let v = ${expr};
+                        // let r = nil;
+                        // if ${label_index} == v.tag {
+                        //     r = v.value?;
+                        // }
+                        // r
+                        return Ok(IrTerm::Seq {
+                            elements: vec![
+                                IrTerm::Let {
+                                    name,
+                                    type_: IrType::from_type(&value_type.data)?,
+                                    value: Box::new(value.clone()),
+                                },
+                                IrTerm::Let {
+                                    name: result_name.clone(),
+                                    type_: IrType::from_type(&value_type.data)?,
+                                    value: Box::new(IrTerm::nil()),
+                                },
+                                IrTerm::If {
+                                    cond: Box::new(IrTerm::Call {
+                                        callee: Box::new(IrTerm::Ident("equal".to_string())),
+                                        args: vec![
+                                            self.generate_array_at(
+                                                &enum_rep,
+                                                value.clone(),
+                                                IrTerm::i32(0),
+                                            )?,
+                                            IrTerm::i32(label_index as i32),
+                                        ],
+                                        source: None,
+                                    }),
+                                    type_: IrType::from_type(&Type::Optional(Box::new(
+                                        value_type.data.clone(),
+                                    )))?,
+                                    then: Box::new(IrTerm::Assign {
+                                        lhs: result_name.clone(),
+                                        rhs: Box::new(self.generate_array(
+                                            "optional".to_string(),
+                                            vec![IrType::from_type(&value_type.data.clone())?],
+                                            vec![(
+                                                None,
+                                                IrType::from_type(&value_type.data.clone())?,
+                                                inside_value,
+                                            )],
+                                        )?),
+                                    }),
+                                    else_: Box::new(IrTerm::Seq { elements: vec![] }),
+                                },
+                                IrTerm::Ident(result_name),
+                            ],
+                        });
+                    }
+                }
+
                 let record_type =
                     if let Ok(record) = type_.as_record_type() {
                         record.clone()
@@ -1133,6 +1254,7 @@ impl IrCodeGenerator {
                     .ok_or(anyhow!("Field not found: {:?} in {:?}", label, record_type))?;
 
                 let root = self.expr(expr)?;
+
                 Ok(self.generate_array_at(
                     &record_type[index].1.data,
                     root,
@@ -1149,6 +1271,7 @@ impl IrCodeGenerator {
                             "ptr".to_string(),
                             vec![TypeRep::from_type(IrType::from_type(p)?)],
                         ),
+                        IrType::from_type(p)?,
                         len,
                     )?)
                 }
@@ -1576,7 +1699,11 @@ impl IrCodeGenerator {
         let mut array = vec![IrTerm::Let {
             name: var_name.clone(),
             type_: IrType::Address,
-            value: Box::new(self.allocate_heap_object(rep, IrTerm::i32(terms.len() as i32))?),
+            value: Box::new(self.allocate_heap_object(
+                rep,
+                IrType::Address,
+                IrTerm::i32(terms.len() as i32),
+            )?),
         }];
         for (offset, type_, element) in terms {
             array.push(IrTerm::Store {
@@ -1613,7 +1740,12 @@ impl IrCodeGenerator {
         })
     }
 
-    fn allocate_heap_object(&mut self, rep: TypeRep, size: IrTerm) -> Result<IrTerm> {
+    fn allocate_heap_object(
+        &mut self,
+        rep: TypeRep,
+        type_: IrType,
+        size: IrTerm,
+    ) -> Result<IrTerm> {
         let rep_id = self.type_reps.get_or_insert(rep);
 
         let var = format!(
@@ -1637,14 +1769,14 @@ impl IrCodeGenerator {
                     ])
                     .as_joined_str("_"),
                 )),
-                args: vec![self.generate_mult_sizeof(
-                    &Type::Ident(Ident("string".to_string())),
-                    IrTerm::Call {
-                        callee: Box::new(IrTerm::ident("add".to_string())),
-                        args: vec![size, IrTerm::i32(if MODE_TYPE_REP { 1 } else { 0 })],
-                        source: None,
-                    },
-                )?],
+                args: vec![IrTerm::Call {
+                    callee: Box::new(IrTerm::ident("add".to_string())),
+                    args: vec![
+                        IrTerm::wrap_mult_sizeof(type_, size),
+                        IrTerm::i32(if MODE_TYPE_REP { Value::sizeof() } else { 0 } as i32),
+                    ],
+                    source: None,
+                }],
                 source: None,
             }),
         }];

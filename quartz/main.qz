@@ -8,6 +8,7 @@ import quartz::ir_code_gen;
 import quartz::generator;
 import quartz::typecheck;
 import quartz::value;
+import quartz::compiler;
 
 fun assert_eq_string(a: string, b: string) {
     if !a.equal(b) {
@@ -69,91 +70,7 @@ fun main() {
 }
 
 fun run(input_: string): string or error {
-    // let content = file_read("quartz/std.qz");
-    // let input = content.concat(input_);
-    let input = `
-let quartz_std_strings_ptr = 0;
-
-fun load_string(index: i32): string {
-    return (quartz_std_strings_ptr as ptr[string]).at(index);
-}
-
-module string {
-    fun at(self, n: i32): byte {
-        return self.data.at(n);
-    }
-
-    fun equal(self, other: string): bool {
-        if self.length != other.length {
-            return false;
-        }
-
-        for i in 0..self.length {
-            if self.at(i) != other.at(i) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-}
-
-fun quartz_std_new_string(p: ptr[byte], length: i32): string {
-    return string {
-        data: p,
-        length: length,
-    };
-}
-
-fun quartz_std_vec_make(capacity: i32): vec[i32] {
-    return vec {
-        data: make[ptr[i32]](capacity),
-        length: 0,
-        capacity: capacity,
-    };
-}
-
-fun quartz_std_vec_push(v: vec[i32], e: i32) {
-    if (v.length + 1) == v.capacity {
-        let new_capacity = v.capacity * 2;
-        let new_data = make[ptr[i32]](new_capacity);
-        for i in 0..v.length {
-            new_data.at(i) = v.data.at(i);
-        }
-        v.data = new_data;
-        v.capacity = new_capacity;
-    }
-
-    v.data.at(v.length) = e;
-    v.length = v.length + 1;
-}
-`.concat(
-        input_,
-    );
-
-    let lexer = Lexer::new();
-    lexer.run(input).try;
-    // println("lexer");
-
-    let parser = Parser::new();
-    let result = parser.run(lexer.tokens).try;
-    // println("parser");
-
-    let typechecker = Typechecker::new();
-    typechecker.module_(result).try;
-    // println("typecheck");
-
-    let irgen = IrCodeGenerator::new();
-    irgen.globals = typechecker.globals;
-    let term = irgen.run(result).try;
-
-    // println("irgen: {}", term.to_string());
-
-    let gen = Generator::new();
-    gen.set_globals(typechecker.globals);
-    gen.set_strings(irgen.strings.strings);
-    let code = gen.run(term);
-
-    return code;
+    let compiler = Compiler::new();
+    return compiler.compile(input_).try;
 }
 

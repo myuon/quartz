@@ -5,6 +5,8 @@ struct Typechecker {
     locals: map[string, Type],
     globals: map[string, Type],
     current_path: Path,
+    imported: vec[Path],
+    result_type: Type?,
 }
 
 module Typechecker {
@@ -68,7 +70,7 @@ module Typechecker {
                             name: "data",
                             type_: Type {
                                 t_ptr: Type {
-                                    t_i32: true?,
+                                    t_any: true?,
                                     ..nil,
                                 }?,
                                 ..nil,
@@ -93,18 +95,297 @@ module Typechecker {
                 ..nil,
             },
         );
+        globals.insert(
+            "debug",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](Type {
+                        t_any: true?,
+                        ..nil,
+                    }),
+                    result: Type {
+                        t_nil: true?,
+                        ..nil,
+                    },
+                }?,
+                ..nil,
+            },
+        );
+        globals.insert(
+            "debug_i32",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](Type {
+                        t_i32: true?,
+                        ..nil,
+                    }),
+                    result: Type {
+                        t_nil: true?,
+                        ..nil,
+                    },
+                }?,
+                ..nil,
+            },
+        );
+        globals.insert(
+            "write_stdout",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](Type {
+                        t_byte: true?,
+                        ..nil,
+                    }),
+                    result: Type {
+                        t_nil: true?,
+                        ..nil,
+                    },
+                }?,
+                ..nil,
+            },
+        );
+        globals.insert(
+            "abort",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](),
+                    result: Type {
+                        t_nil: true?,
+                        ..nil,
+                    },
+                }?,
+                ..nil,
+            },
+        );
+        globals.insert(
+            "xor_u32",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](
+                        Type {
+                            t_u32: true?,
+                            ..nil,
+                        },
+                        Type {
+                            t_u32: true?,
+                            ..nil,
+                        },
+                    ),
+                    result: Type {
+                        t_u32: true?,
+                        ..nil,
+                    },
+                }?,
+                ..nil,
+            },
+        );
+        globals.insert(
+            "read_stdin",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](),
+                    result: Type {
+                        t_byte: true?,
+                        ..nil,
+                    },
+                }?,
+                ..nil,
+            },
+        );
+        globals.insert(
+            "reflection_get_type_rep_id",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](Type {
+                        t_any: true?,
+                        ..nil,
+                    }),
+                    result: Type {
+                        t_i32: true?,
+                        ..nil,
+                    },
+                }?,
+                ..nil,
+            },
+        );
+        globals.insert(
+            "reflection_is_pointer",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](Type {
+                        t_any: true?,
+                        ..nil,
+                    }),
+                    result: Type {
+                        t_bool: true?,
+                        ..nil,
+                    },
+                }?,
+                ..nil,
+            },
+        );
+        globals.insert(
+            "reflection_is_bool",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](Type {
+                        t_any: true?,
+                        ..nil,
+                    }),
+                    result: Type {
+                        t_bool: true?,
+                        ..nil,
+                    },
+                }?,
+                ..nil,
+            },
+        );
+        globals.insert(
+            "create_handler",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](),
+                    result: Type {
+                        t_any: true?,
+                        ..nil,
+                    },
+                }?,
+                ..nil,
+            },
+        );
+        globals.insert(
+            "open_handler_stream",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](
+                        Type {
+                            t_any: true?,
+                            ..nil,
+                        },
+                        Type {
+                            t_byte: true?,
+                            ..nil,
+                        },
+                    ),
+                    result: Type {
+                        t_nil: true?,
+                        ..nil,
+                    },
+                }?,
+                ..nil,
+            },
+        );
+        globals.insert(
+            "open_handler_initialize",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](Type {
+                        t_any: true?,
+                        ..nil,
+                    }),
+                    result: Type {
+                        t_nil: true?,
+                        ..nil,
+                    },
+                }?,
+                ..nil,
+            },
+        );
+        globals.insert(
+            "read_handler",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](Type {
+                        t_any: true?,
+                        ..nil,
+                    }),
+                    result: Type {
+                        t_byte: true?,
+                        ..nil,
+                    },
+                }?,
+                ..nil,
+            },
+        );
+        globals.insert(
+            "i64_to_string_at",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](
+                        Type {
+                            t_i32: true?,
+                            ..nil,
+                        },
+                        Type {
+                            t_i32: true?,
+                            ..nil,
+                        },
+                        Type {
+                            t_i32: true?,
+                            ..nil,
+                        },
+                    ),
+                    result: Type {
+                        t_i32: true?,
+                        ..nil,
+                    },
+                }?,
+                ..nil,
+            },
+        );
 
         return Typechecker {
             locals: make[map[string, Type]](),
             globals: globals,
             current_path: Path::new(),
+            imported: make[vec[Path]](Path::new("quartz", "std")),
+            result_type: nil,
         };
     }
 
     fun module_(self, m: Module): nil or error {
+        self.module_register_for_back_reference(m).try;
+
         for i in 0..m.decls.length {
             let d = m.decls.at(i);
             self.decl(d).try;
+        }
+
+        return nil;
+    }
+
+    fun module_register_for_back_reference(self, m: Module): nil or error {
+        for i in 0..m.decls.length {
+            let d = m.decls.at(i);
+            if d.t_func != nil {
+                self.globals.insert(self.path_to(d.t_func!.name), d.t_func!.to_type());
+
+                continue;
+            } else if d.t_let != nil {
+                self.globals.insert(self.path_to(d.t_let!.name), d.t_let!.name_type);
+
+                continue;
+            } else if d.t_type != nil {
+                self.globals.insert(d.t_type!.name, d.t_type!.type_);
+
+                continue;
+            } else if d.t_enum != nil {
+                self.globals.insert(d.t_enum!.name, d.t_enum!.type_);
+
+                continue;
+            } else if d.t_module != nil {
+                let path = self.current_path.clone();
+                self.current_path.extend(d.t_module!.path);
+                self.module_register_for_back_reference(d.t_module!.module_).try;
+                self.current_path = path;
+
+                continue;
+            } else if d.t_import != nil {
+                self.imported.push(d.t_import!);
+
+                continue;
+            } else {
+                return _ or error::new("Unknown decl type, {}".format(d.to_string()));
+            }
         }
 
         return nil;
@@ -130,21 +411,29 @@ module Typechecker {
         }
         if d.t_let != nil {
             let t = self.expression(d.t_let!.expr).try;
-            unify(t, d.t_let!.name_type).try;
-            d.t_let!.name_type = t;
+            let type_ = unify(t, d.t_let!.name_type).try;
+            d.t_let!.name_type = type_;
 
-            self.globals.insert(d.t_let!.name, t);
+            self.globals.insert(self.path_to(d.t_let!.name), type_);
             return;
         }
         if d.t_type != nil {
             self.globals.insert(d.t_type!.name, d.t_type!.type_);
             return;
         }
+        if d.t_enum != nil {
+            self.globals.insert(d.t_enum!.name, d.t_enum!.type_);
+            return;
+        }
         if d.t_module != nil {
             let path = self.current_path.clone();
-            self.current_path.push(d.t_module!.name);
+            self.current_path.extend(d.t_module!.path);
             self.module_(d.t_module!.module_).try;
             self.current_path = path;
+            return;
+        }
+        if d.t_import != nil {
+            self.imported.push(d.t_import!);
             return;
         }
 
@@ -163,36 +452,57 @@ module Typechecker {
             self.locals.insert(f.variadic!.name, f.variadic!.type_);
         }
 
-        self.block(f.body, f.result_type).try;
+        self.result_type = f.result_type?;
+        self.block(f.body).try;
 
         self.locals = locals;
 
         return nil;
     }
 
-    fun block(self, b: Block, expected: Type): nil or error {
+    fun block(self, b: Block): nil or error {
         for i in 0..b.block.length {
             let result = Type {
                 t_omit: true?,
                 ..nil,
             };
-            self.statement(b.block.at(i), result).try;
+            self.statement(b.block.at(i)).try;
         }
 
         return nil;
     }
 
-    fun statement(self, s: Statement, result_type: Type): nil or error {
+    fun statement(self, s: Statement): nil or error {
         if s.t_let != nil {
             let t = self.expression(s.t_let!.expr).try;
-            unify(t, s.t_let!.name_type).try;
-            s.t_let!.name_type = t;
+            let type_ = unify(t, s.t_let!.name_type).try;
+            s.t_let!.name_type = type_;
 
-            self.register_locals_with_pattern(s.t_let!.pattern, t).try;
+            self.register_locals_with_pattern(s.t_let!.pattern, type_).try;
             return nil;
         } else if s.t_return != nil {
             let t = self.expression(s.t_return!.expr).try;
-            unify(t, result_type).try;
+            let result or err = unify(t, self.result_type!);
+            if result != nil {
+                self.result_type = result!?;
+            } else if err != nil {
+                if self.result_type!.t_or != nil {
+                    unify(self.result_type!.t_or!.left, t).try;
+
+                    s.t_return!.expr = Expression {
+                        t_enumor: struct {
+                            lhs: s.t_return!.expr?,
+                            rhs: nil as Expression?,
+                            lhs_type: self.result_type!.t_or!.left,
+                            rhs_type: self.result_type!.t_or!.right,
+                        }?,
+                        ..nil,
+                    };
+                } else {
+                    return _ or err!;
+                }
+            }
+
             return nil;
         } else if s.t_expr != nil {
             let _t = self.expression(s.t_expr!.expr).try;
@@ -220,9 +530,9 @@ module Typechecker {
                 t_omit: true?,
                 ..nil,
             };
-            self.block(s.t_if!.then_block, type_).try;
+            self.block(s.t_if!.then_block).try;
             if s.t_if!.else_block != nil {
-                self.block(s.t_if!.else_block!, type_).try;
+                self.block(s.t_if!.else_block!).try;
             }
             return nil;
         } else if s.t_while != nil {
@@ -239,28 +549,40 @@ module Typechecker {
                 t_omit: true?,
                 ..nil,
             };
-            self.block(s.t_while!.block, type_).try;
+            self.block(s.t_while!.block).try;
+
             return nil;
         } else if s.t_for != nil {
             let t = self.expression(s.t_for!.range).try;
             if t.t_range != nil {
+                s.t_for!.mode = "range";
+
                 // FIXME: clone
                 let locals = self.locals;
                 self.locals.insert(s.t_for!.ident, t.t_range!);
 
-                self.block(
-                    s.t_for!.block,
-                    Type {
-                        t_nil: true?,
-                        ..nil,
-                    },
-                ).try;
+                self.block(s.t_for!.block).try;
+
+                self.locals = locals;
+                return nil;
+            } else if t.t_vec != nil {
+                s.t_for!.mode = "vec";
+
+                // FIXME: clone
+                let locals = self.locals;
+
+                self.locals.insert(s.t_for!.ident, t.t_vec!);
+                self.block(s.t_for!.block).try;
 
                 self.locals = locals;
                 return nil;
             } else {
-                return _ or error::new("for range must be range");
+                return _ or error::new("for range must be range, {}".format(t.to_string()));
             }
+        } else if s.t_continue != nil {
+            return nil;
+        } else if s.t_break != nil {
+            return nil;
         }
 
         return _ or error::new("unimplemented: statement, {}".format(s.to_string()));
@@ -310,27 +632,41 @@ module Typechecker {
                 t_i32: true?,
                 ..nil,
             };
+        } else if expr.t_u32 != nil {
+            return Type {
+                t_u32: true?,
+                ..nil,
+            };
+        } else if expr.t_unop != nil {
+            let t = self.expression(expr.t_unop!.expr).try;
+            unify(
+                t,
+                Type {
+                    t_bool: true?,
+                    ..nil,
+                },
+            ).try;
+
+            return Type {
+                t_bool: true?,
+                ..nil,
+            };
         } else if expr.t_binop != nil {
             if (expr.t_binop!.binop.equal("plus") || expr.t_binop!.binop.equal("minus") || expr.t_binop!.binop.equal(
                 "mult",
-            ) || expr.t_binop!.binop.equal("div") || expr.t_binop!.binop.equal("mod")) {
+            ) || expr.t_binop!.binop.equal("div") || expr.t_binop!.binop.equal("mod") || expr.t_binop!.binop.equal(
+                "bit_and",
+            ) || expr.t_binop!.binop.equal("bit_or") || expr.t_binop!.binop.equal("bit_shift_left") || expr.t_binop!.binop.equal(
+                "bit_shift_right",
+            )) {
                 let t1 = self.expression(expr.t_binop!.left).try;
-                unify(
-                    t1,
-                    Type {
-                        t_i32: true?,
-                        ..nil,
-                    },
-                ).try;
+                if !t1.is_integer_type() {
+                    return _ or error::new("left operand must be integer type, but got {}".format(t1.to_string(
+                    )));
+                }
 
                 let t2 = self.expression(expr.t_binop!.right).try;
-                unify(
-                    t2,
-                    Type {
-                        t_i32: true?,
-                        ..nil,
-                    },
-                ).try;
+                unify(t1, t2).try;
 
                 return t1;
             } else if (expr.t_binop!.binop.equal("equal") || expr.t_binop!.binop.equal("not_equal")) {
@@ -342,17 +678,17 @@ module Typechecker {
                     t_bool: true?,
                     ..nil,
                 };
-            } else if (expr.t_binop!.binop.equal("lt") || expr.t_binop!.binop.equal("gt")) {
+            } else if (expr.t_binop!.binop.equal("lt") || expr.t_binop!.binop.equal("gt") || expr.t_binop!.binop.equal(
+                "lte",
+            ) || expr.t_binop!.binop.equal("gte")) {
                 let t1 = self.expression(expr.t_binop!.left).try;
                 let t2 = self.expression(expr.t_binop!.right).try;
+                if !t1.is_integer_type() {
+                    return _ or error::new("left operand must be integer type, but got {}".format(t1.to_string(
+                    )));
+                }
+
                 unify(t1, t2).try;
-                unify(
-                    t1,
-                    Type {
-                        t_i32: true?,
-                        ..nil,
-                    },
-                ).try;
 
                 return Type {
                     t_bool: true?,
@@ -385,12 +721,31 @@ module Typechecker {
 
             return _ or error::new("unimplemented: binop, {}".format(expr.to_string()));
         } else if expr.t_ident != nil {
-            if self.globals.has(expr.t_ident!.name) {
-                let t = self.globals.at(expr.t_ident!.name);
+            if self.locals.has(expr.t_ident!.name) {
+                let t = self.locals.at(expr.t_ident!.name);
 
                 return t;
-            } else if self.locals.has(expr.t_ident!.name) {
-                let t = self.locals.at(expr.t_ident!.name);
+            }
+
+            let candidates = vec_clone(self.imported) as vec[Path];
+            candidates.push(self.current_path);
+            candidates.push(Path::ident("main"));
+
+            for path_prefix in candidates {
+                let path = path_prefix.clone();
+                path.push(expr.t_ident!.name);
+
+                if self.globals.has(path.join("_")) {
+                    expr.t_ident!.resolved_path = path?;
+
+                    let t = self.globals.at(path.join("_"));
+
+                    return t;
+                }
+            }
+
+            if self.globals.has(expr.t_ident!.name) {
+                let t = self.globals.at(expr.t_ident!.name);
 
                 return t;
             }
@@ -467,11 +822,110 @@ module Typechecker {
                         }?,
                         ..nil,
                     };
+                } else if expr.t_project!.field.equal("offset") {
+                    return Type {
+                        t_func: struct {
+                            params: make[vec[Type]](Type {
+                                t_i32: true?,
+                                ..nil,
+                            }),
+                            result: t,
+                        }?,
+                        ..nil,
+                    };
                 }
             } else if t.t_vec != nil {
-                if expr.t_project!.field.equal("length") {
+                if expr.t_project!.field.equal("push") {
                     return Type {
-                        t_i32: true?,
+                        t_func: struct {
+                            params: make[vec[Type]](t.t_vec!),
+                            result: Type {
+                                t_nil: true?,
+                                ..nil,
+                            },
+                        }?,
+                        ..nil,
+                    };
+                } else if expr.t_project!.field.equal("at") {
+                    return Type {
+                        t_func: struct {
+                            params: make[vec[Type]](Type {
+                                t_i32: true?,
+                                ..nil,
+                            }),
+                            result: t.t_vec!,
+                        }?,
+                        ..nil,
+                    };
+                } else if expr.t_project!.field.equal("extend") {
+                    return Type {
+                        t_func: struct {
+                            params: make[vec[Type]](t),
+                            result: Type {
+                                t_nil: true?,
+                                ..nil,
+                            },
+                        }?,
+                        ..nil,
+                    };
+                } else if expr.t_project!.field.equal("slice") {
+                    return Type {
+                        t_func: struct {
+                            params: make[vec[Type]](
+                                Type {
+                                    t_i32: true?,
+                                    ..nil,
+                                },
+                                Type {
+                                    t_i32: true?,
+                                    ..nil,
+                                },
+                            ),
+                            result: t,
+                        }?,
+                        ..nil,
+                    };
+                }
+            } else if t.t_map != nil {
+                if expr.t_project!.field.equal("insert") {
+                    return Type {
+                        t_func: struct {
+                            params: make[vec[Type]](t.t_map!.key, t.t_map!.value),
+                            result: Type {
+                                t_nil: true?,
+                                ..nil,
+                            },
+                        }?,
+                        ..nil,
+                    };
+                } else if expr.t_project!.field.equal("at") {
+                    return Type {
+                        t_func: struct {
+                            params: make[vec[Type]](t.t_map!.key),
+                            result: t.t_map!.value,
+                        }?,
+                        ..nil,
+                    };
+                } else if expr.t_project!.field.equal("has") {
+                    return Type {
+                        t_func: struct {
+                            params: make[vec[Type]](t.t_map!.key),
+                            result: Type {
+                                t_bool: true?,
+                                ..nil,
+                            },
+                        }?,
+                        ..nil,
+                    };
+                } else if expr.t_project!.field.equal("list_keys") {
+                    return Type {
+                        t_func: struct {
+                            params: make[vec[Type]](),
+                            result: Type {
+                                t_vec: t.t_map!.key?,
+                                ..nil,
+                            },
+                        }?,
                         ..nil,
                     };
                 }
@@ -480,23 +934,40 @@ module Typechecker {
             let label = expr.t_project!.field;
 
             let fields = self.resolve_record_type(t, make[vec[Type]]()).try;
+
             if fields.has(label) {
                 // field access
                 let t = fields.at(label);
 
                 return t;
-            } else if t.t_ident != nil {
+            } else {
+                let type_name = "";
+                if t.t_ident != nil {
+                    type_name = t.t_ident!;
+                } else if t.t_i32 != nil {
+                    type_name = "i32";
+                } else if t.t_u32 != nil {
+                    type_name = "u32";
+                } else if t.t_bool != nil {
+                    type_name = "bool";
+                } else {
+                    return _ or error::new("unknown type: {}.{}".format(t.to_string(), label));
+                }
+
                 // method access
 
-                let func_ident_name = t.t_ident!.concat("_").concat(label);
-                if self.globals.has(func_ident_name) {
-                    let t = self.globals.at(func_ident_name);
+                let func_ident_name = type_name.concat("_").concat(label);
+                let path = self.resolve_path(Path::ident(func_ident_name)).try;
+                expr.t_project!.resolved_path = path?;
+
+                if self.globals.has(path.join("_")) {
+                    let t = self.globals.at(path.join("_"));
                     if t.t_func != nil {
                         let arg_types = t.t_func!.params;
                         let result_type = t.t_func!.result;
 
                         if arg_types.length == 0 {
-                            return _ or error::new("method {} has no arguements".format(func_ident_name));
+                            return _ or error::new("method {} has no arguements".format(path.join("_")));
                         }
 
                         unify(arg_types.at(0), t).try;
@@ -508,48 +979,115 @@ module Typechecker {
                             }?,
                             ..nil,
                         };
+                    } else if t.t_variadic_func != nil {
+                        let arg_types = t.t_variadic_func!.params;
+                        let result_type = t.t_variadic_func!.result;
+
+                        if arg_types.length == 0 {
+                            return _ or error::new("method {} has no arguements".format(path.join("_")));
+                        }
+
+                        unify(arg_types.at(0), t).try;
+
+                        return Type {
+                            t_variadic_func: struct {
+                                params: arg_types,
+                                variadic: t.t_variadic_func!.variadic,
+                                result: result_type,
+                            }?,
+                            ..nil,
+                        };
                     }
 
                     return t;
+                } else {
+                    return _ or error::new("method not found: {}".format(func_ident_name));
                 }
             }
 
             return _ or error::new("unimplemented: project, {}".format(expr.to_string()));
         } else if expr.t_record != nil {
-            let t = self.globals.at(expr.t_record!.name);
-            if t.t_struct == nil {
-                return _ or error::new("unimplemented: record, {}".format(expr.to_string()));
-            }
+            if self.globals.has(expr.t_record!.name) {
+                let t = self.globals.at(expr.t_record!.name);
 
-            for i in 0..t.t_struct!.fields.length {
-                let field = t.t_struct!.fields.at(i);
-                let expr_field = expr.t_record!.fields.at(i);
-                let expr_type = self.expression(expr_field.value).try;
-
-                unify(expr_type, field.type_).try;
-            }
-
-            for i in 0..expr.t_record!.fields.length {
-                let field = expr.t_record!.fields.at(i);
-                if !t.t_struct!.has(field.field) {
-                    return _ or error::new("unknown field: {}".format(expr.to_string()));
+                if t.t_enum != nil {
+                    return Type {
+                        t_ident: expr.t_record!.name?,
+                        ..nil,
+                    };
                 }
             }
 
+            let field_map = self.resolve_record_type(
+                Type {
+                    t_ident: expr.t_record!.name?,
+                    ..nil,
+                },
+                make[vec[Type]](),
+            ).try;
+
+            let fields = field_map.list_keys();
+            let expr_fields_map = expr.t_record!.to_fields_map();
+            for field in fields {
+                if expr_fields_map.has(field) {
+                    let expr_field = expr_fields_map.at(field);
+                    let expr_type = self.expression(expr_field).try;
+
+                    unify(expr_type, field_map.at(field)).try;
+                } else if expr.t_record!.expansion != nil {
+                    let expr_type = self.expression(expr.t_record!.expansion!).try;
+                    unify(expr_type, field_map.at(field)).try;
+                } else {
+                    return _ or error::new("missing field: {}".format(field));
+                }
+            }
+
+            return Type {
+                t_ident: expr.t_record!.name?,
+                ..nil,
+            };
+        } else if expr.t_anonymous_record != nil {
+            let record_type = make[vec[struct {
+                name: string,
+                type_: Type,
+            }]]();
+
+            for field in expr.t_anonymous_record!.fields {
+                let t = self.expression(field.value).try;
+                record_type.push(struct {
+                    name: field.field,
+                    type_: t,
+                });
+            }
+
+            let t = Type {
+                t_struct: TypeStruct {
+                    fields: record_type,
+                }?,
+                ..nil,
+            };
+            expr.t_anonymous_record!.type_ = t?;
+
             return t;
         } else if expr.t_make != nil {
-            if expr.t_make!.args.length >= 2 {
-                return _ or error::new("too many args for make, {}".format(expr.to_string()));
-            }
-            if expr.t_make!.args.length == 1 {
-                let t = self.expression(expr.t_make!.args.at(0)).try;
+            if expr.t_make!.type_.t_ptr != nil {
+                if expr.t_make!.args.length >= 2 {
+                    return _ or error::new("too many args for make, {}".format(expr.to_string()));
+                }
+
                 unify(
-                    t,
+                    self.expression(expr.t_make!.args.at(0)).try,
                     Type {
                         t_i32: true?,
                         ..nil,
                     },
                 ).try;
+            } else if expr.t_make!.type_.t_vec != nil {
+                for arg in expr.t_make!.args {
+                    let t = self.expression(arg).try;
+
+                    unify(t, expr.t_make!.type_.t_vec!).try;
+                }
             }
 
             return expr.t_make!.type_;
@@ -558,6 +1096,11 @@ module Typechecker {
             expr.t_as!.source_type = t;
 
             return expr.t_as!.target_type;
+        } else if expr.t_sizeof != nil {
+            return Type {
+                t_i32: true?,
+                ..nil,
+            };
         } else if expr.t_self != nil {
             if self.current_path.path.length == 0 {
                 return _ or error::new("self outside of function, {}".format(expr.to_string()));
@@ -570,6 +1113,11 @@ module Typechecker {
                     t_i32: true?,
                     ..nil,
                 };
+            } else if ident.equal("u32") {
+                return Type {
+                    t_u32: true?,
+                    ..nil,
+                };
             } else {
                 return Type {
                     t_ident: ident?,
@@ -577,12 +1125,11 @@ module Typechecker {
                 };
             }
         } else if expr.t_path != nil {
-            let symbol = expr.t_path!.path.join("_");
-            if self.globals.has(symbol) {
-                return self.globals.at(symbol);
-            }
+            let path = expr.t_path!.path;
+            let resolved_path = self.resolve_path(path).try;
+            expr.t_path!.resolved_path = resolved_path?;
 
-            return _ or error::new("unknown symbol: {}".format(expr.to_string()));
+            return self.globals.at(resolved_path.join("_"));
         } else if expr.t_string != nil {
             return Type {
                 t_ident: "string"?,
@@ -636,7 +1183,7 @@ module Typechecker {
             };
         } else if expr.t_enumor != nil {
             let lhs_type = Type {
-                t_nil: true?,
+                t_any: true?,
                 ..nil,
             };
             if expr.t_enumor!.lhs != nil {
@@ -645,7 +1192,7 @@ module Typechecker {
             expr.t_enumor!.lhs_type = lhs_type;
 
             let rhs_type = Type {
-                t_nil: true?,
+                t_any: true?,
                 ..nil,
             };
             if expr.t_enumor!.rhs != nil {
@@ -660,6 +1207,36 @@ module Typechecker {
                 }?,
                 ..nil,
             };
+        } else if expr.t_try != nil {
+            let t = self.expression(expr.t_try!).try;
+
+            if t.t_or != nil {
+                let lhs = t.t_or!.left;
+                let rhs = t.t_or!.right;
+
+                if self.result_type == nil {
+                    return _ or error::new("try outside of function, {}".format(expr.to_string()));
+                }
+
+                let t = unify(
+                    self.result_type!,
+                    Type {
+                        t_or: struct {
+                            left: Type {
+                                t_any: true?,
+                                ..nil,
+                            },
+                            right: rhs,
+                        }?,
+                        ..nil,
+                    },
+                ).try;
+                self.result_type = t?;
+
+                return lhs;
+            } else {
+                return _ or error::new("unimplemented: try, {}".format(expr.to_string()));
+            }
         } else {
             return _ or error::new("unimplemented: expression, {}".format(expr.to_string()));
         }
@@ -667,16 +1244,7 @@ module Typechecker {
 
     fun resolve_record_type(self, type_: Type, args: vec[Type]): map[string, Type] or error {
         if type_.t_ident != nil {
-            let ident_type = self.globals.at(type_.t_ident!).t_struct!;
-
-            let result = make[map[string, Type]]();
-            for i in 0..ident_type.fields.length {
-                let field = ident_type.fields.at(i);
-
-                result.insert(field.name, field.type_);
-            }
-
-            return result;
+            return self.resolve_record_type(self.globals.at(type_.t_ident!), make[vec[Type]]()).try;
         } else if type_.t_struct != nil {
             let result = make[map[string, Type]]();
             let fields = type_.t_struct!.fields;
@@ -688,6 +1256,21 @@ module Typechecker {
             }
 
             return result;
+        } else if type_.t_enum != nil {
+            let fields = make[map[string, Type]]();
+            if type_.t_enum != nil {
+                for field in type_.t_enum!.fields {
+                    fields.insert(
+                        field.name,
+                        Type {
+                            t_optional: field.type_?,
+                            ..nil,
+                        },
+                    );
+                }
+            }
+
+            return fields;
         } else if type_.t_vec != nil {
             return self.resolve_record_type(
                 Type {
@@ -696,9 +1279,38 @@ module Typechecker {
                 },
                 args,
             );
+        } else if type_.t_i32 != nil {
+            return make[map[string, Type]]();
+        } else if type_.t_ptr != nil {
+            return make[map[string, Type]]();
+        } else if type_.t_bool != nil {
+            return make[map[string, Type]]();
+        } else if type_.t_nil != nil {
+            return make[map[string, Type]]();
+        } else if type_.t_or != nil {
+            return make[map[string, Type]]();
+        } else if type_.t_u32 != nil {
+            return make[map[string, Type]]();
         }
 
         return _ or error::new("unimplemented: resolve_record_type, {}".format(type_.to_string()));
+    }
+
+    fun resolve_path(self, specified: Path): Path or error {
+        let candidates = vec_clone(self.imported) as vec[Path];
+        candidates.push(self.current_path);
+        candidates.push(Path::ident("main"));
+
+        for path_prefix in candidates {
+            let path = path_prefix.clone();
+            path.extend(specified);
+
+            if self.globals.has(path.join("_")) {
+                return path;
+            }
+        }
+
+        return _ or error::new("unknown symbol: {}".format(specified.join("_")));
     }
 }
 
@@ -706,11 +1318,20 @@ fun unify(type1: Type, type2: Type): Type or error {
     if type1.t_i32 != nil && type2.t_i32 != nil {
         return type1;
     }
+    if type1.t_u32 != nil && type2.t_u32 != nil {
+        return type1;
+    }
     if type1.t_nil != nil && type2.t_nil != nil {
         return type1;
     }
     if type1.t_bool != nil && type2.t_bool != nil {
         return type1;
+    }
+    if type1.t_ident != nil && type1.t_ident!.equal("bool") && type2.t_bool != nil {
+        return type1;
+    }
+    if type2.t_ident != nil && type2.t_ident!.equal("bool") && type1.t_bool != nil {
+        return type2;
     }
     if type1.t_byte != nil && type2.t_byte != nil {
         return type1;
@@ -750,6 +1371,72 @@ fun unify(type1: Type, type2: Type): Type or error {
     }
     if type2.t_nil != nil && type1.t_optional != nil {
         return type1;
+    }
+    if type1.t_any != nil {
+        return type2;
+    }
+    if type2.t_any != nil {
+        return type1;
+    }
+    if type1.t_vec != nil && type2.t_vec != nil {
+        let result = unify(type1.t_vec!, type2.t_vec!).try;
+
+        return Type {
+            t_vec: result?,
+            ..nil,
+        };
+    }
+    if type1.t_vec != nil && type2.t_ident != nil && type2.t_ident!.equal("vec") {
+        return type1;
+    }
+    if type2.t_vec != nil && type1.t_ident != nil && type1.t_ident!.equal("vec") {
+        return type2;
+    }
+    if type1.t_struct != nil && type2.t_struct != nil {
+        if type1.t_struct!.fields.length != type2.t_struct!.fields.length {
+            return _ or error::new("unification failed: ".concat(type1.t_struct!.fields.length.to_string()).concat(
+                " != ",
+            ).concat(type2.t_struct!.fields.length.to_string()));
+        }
+
+        for i in 0..type1.t_struct!.fields.length {
+            let rs1 = type1.t_struct!.fields.at(i);
+            let rs2 = type2.t_struct!.fields.at(i);
+
+            if !rs1.name.equal(rs2.name) {
+                return _ or error::new("unification failed: ".concat(derive::to_string(rs1)).concat(" != ").concat(derive::to_string(
+                    rs2,
+                )));
+            }
+
+            unify(rs1.type_, rs2.type_).try;
+        }
+
+        return type1;
+    }
+    if type1.t_or != nil && type2.t_or != nil {
+        let left = unify(type1.t_or!.left, type2.t_or!.left).try;
+        let right = unify(type1.t_or!.right, type2.t_or!.right).try;
+
+        return Type {
+            t_or: struct {
+                left: left,
+                right: right,
+            }?,
+            ..nil,
+        };
+    }
+    if type1.t_map != nil && type2.t_map != nil {
+        let key = unify(type1.t_map!.key, type2.t_map!.key).try;
+        let value = unify(type1.t_map!.value, type2.t_map!.value).try;
+
+        return Type {
+            t_map: struct {
+                key: key,
+                value: value,
+            }?,
+            ..nil,
+        };
     }
 
     return _ or error::new("unification failed: ".concat(type1.to_string()).concat(" != ").concat(type2.to_string(

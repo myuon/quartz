@@ -5,7 +5,7 @@ import quartz::value;
 let MODE_READABLE_WASM = true;
 
 struct Generator {
-    writer: string,
+    writer: stringbuilder,
     depth: i32,
     index: i32,
     globals: map[string, Type],
@@ -16,7 +16,7 @@ struct Generator {
 module Generator {
     fun new(): Generator {
         return Generator {
-            writer: "",
+            writer: stringbuilder::new(),
             depth: 0,
             index: 0,
             globals: make[map[string, Type]](),
@@ -40,16 +40,18 @@ module Generator {
 
     fun write(self, str: string) {
         if self.index == 0 {
-            self.writer = self.writer.concat(str);
+            self.writer.append(str);
         } else {
-            self.writer = self.writer.concat(" ").concat(str);
+            self.writer.append(" ");
+            self.writer.append(str);
         }
         self.index = self.index + 1;
     }
 
     fun new_statement(self) {
         if self.index > 0 {
-            self.writer = self.writer.concat("\n").concat(" ".repeat(self.depth * 2));
+            self.writer.append("\n");
+            self.writer.append(" ".repeat(self.depth * 2));
         }
         self.index = 0;
     }
@@ -63,7 +65,7 @@ module Generator {
     }
 
     fun generate(self): string {
-        return self.writer;
+        return self.writer.to_string();
     }
 
     fun decl(self, element: IrTerm) {
@@ -79,16 +81,58 @@ module Generator {
             self.start();
             self.write("data");
             self.write(format("(i32.const {})", element.t_data!.offset.to_string()));
-            self.write(format("\"{}\"", element.t_data!.data));
+            self.write(format("\"{}\"", element.t_data!.data.replace("\"", "\\"")));
             self.end();
         } else {
             panic("decl: {}", element.to_string());
         }
     }
 
-    fun run(self, m: IrTerm): string {
+    fun run(self, m: IrTerm, data_section_offset: i32): string {
         self.start();
         self.write("module");
+
+        self.start();
+        self.write(`import "env" "debug" (func $debug (param i64) (result i64))`);
+        self.end();
+
+        self.start();
+        self.write(`import "env" "write_stdout" (func $write_stdout (param i64) (result i64))`);
+        self.end();
+
+        self.start();
+        self.write(`import "env" "abort" (func $abort (result i64))`);
+        self.end();
+
+        self.start();
+        self.write(`import "env" "read_stdin" (func $read_stdin (result i64))`);
+        self.end();
+
+        self.start();
+        self.write(`import "env" "create_handler" (func $create_handler (result i64))`);
+        self.end();
+
+        self.start();
+        self.write(
+            `import "env" "open_handler_stream" (func $open_handler_stream (param i64) (param i64) (result i64))`,
+        );
+        self.end();
+
+        self.start();
+        self.write(
+            `import "env" "open_handler_initialize" (func $open_handler_initialize (param i64) (result i64))`,
+        );
+        self.end();
+
+        self.start();
+        self.write(`import "env" "read_handler" (func $read_handler (param i64) (result i64))`);
+        self.end();
+
+        self.start();
+        self.write(
+            `import "env" "i64_to_string_at" (func $i64_to_string_at (param i64) (param i64) (param i64) (result i64))`,
+        );
+        self.end();
 
         if m.t_module != nil {
             for i in 0..m.t_module!.elements.length {
@@ -99,11 +143,6 @@ module Generator {
         } else {
             panic("expected module");
         }
-
-        self.start();
-        self.write("global");
-        self.write("$heap_ptr (mut i64) (i64.const 8)");
-        self.end();
 
         self.global_let(struct {
             name: "_value_i32_0",
@@ -130,13 +169,37 @@ module Generator {
         });
 
         self.start();
-        self.write("memory 1");
+        self.write("memory 100");
         self.end();
 
         self.start();
-        self.write(`func $println (param $b i64) (result i64)
-    i64.const 0
-`);
+        self.write(
+            `func $reflection_is_pointer (param $value i64) (result i64)
+    local.get $value
+    i64.const 1
+    i64.and
+    i64.const 32
+    i64.shl
+    i64.const 2
+    i64.or
+    return
+`,
+        );
+        self.end();
+
+        self.start();
+        self.write(
+            `func $reflection_is_bool (param $value i64) (result i64)
+    local.get $value
+    i64.const 2
+    i64.and
+    i64.const 31
+    i64.shl
+    i64.const 2
+    i64.or
+    return
+`,
+        );
         self.end();
 
         self.start();
@@ -144,13 +207,13 @@ module Generator {
             `func $alloc (param $size i64) (result i64)
     (local $p i64)
 
-    global.get $heap_ptr
+    global.get $quartz_std_alloc_ptr
     local.set $p
 
-    global.get $heap_ptr
+    global.get $quartz_std_alloc_ptr
     local.get $size
     i64.add
-    global.set $heap_ptr
+    global.set $quartz_std_alloc_ptr
 
     local.get $p
 `,
@@ -184,9 +247,12 @@ module Generator {
                 result_type: self.main_signature_result!,
                 body: make[vec[IrTerm]](
                     IrTerm {
-                        t_discard: IrTerm {
-                            t_inst: "(memory.grow (i32.const 500))"?,
-                            ..nil,
+                        t_assign: struct {
+                            lhs: "quartz_std_alloc_ptr",
+                            rhs: IrTerm {
+                                t_i32: data_section_offset?,
+                                ..nil,
+                            },
                         }?,
                         ..nil,
                     },
@@ -203,14 +269,13 @@ module Generator {
                     IrTerm {
                         t_return: IrReturn {
                             value: IrTerm {
-                                t_inst: "(call $main)"?,
+                                t_inst: "(call $main_main)"?,
                                 ..nil,
                             },
                         }?,
                         ..nil,
                     },
                 ),
-                locals: make[vec[string]](),
             }?,
             ..nil,
         });
@@ -258,13 +323,20 @@ module Generator {
             self.write("(result i64)");
         }
 
+        let visited = make[map[string, bool]]();
         for statement in func.body {
             let locals = statement.find_locals();
             for local in locals {
+                if visited.has(local) {
+                    continue;
+                }
+
                 self.new_statement();
                 self.start();
                 self.write(format("local ${} {}", local, "i64"));
                 self.end();
+
+                visited.insert(local, true);
             }
         }
 
@@ -273,9 +345,19 @@ module Generator {
         }
 
         // When the last instruction is exhaustive if block, we still need to put soemthing to tell the compiler that the function forgets to return
-        if !func.result_type.is_nil() {
+        if func.result_type.t_address == nil {
             self.new_statement();
             self.write("unreachable");
+        } else {
+            self.expression(IrTerm {
+                t_return: IrReturn {
+                    value: IrTerm {
+                        t_nil: true?,
+                        ..nil,
+                    },
+                }?,
+                ..nil,
+            });
         }
 
         self.end();
@@ -299,13 +381,22 @@ module Generator {
                 t_i32: expr.t_i32!?,
                 ..nil,
             });
+        } else if expr.t_u32 != nil {
+            if MODE_READABLE_WASM {
+                self.new_statement();
+                self.write(format(" ;; {}", expr.t_u32!.to_string()));
+            }
+
+            // FIXME: i64::to_string is broken!
+            self.new_statement();
+            self.write(format("{}.const {}", Value::wasm_type(), expr.t_u32!.to_string()));
         } else if expr.t_nil != nil {
             if MODE_READABLE_WASM {
                 self.new_statement();
                 self.write(" ;; nil");
             }
 
-            self.write_value(Value::nil());
+            self.write_value(Value::nil_());
         } else if expr.t_let != nil {
             self.new_statement();
             self.expression(expr.t_let!.value);
@@ -345,16 +436,34 @@ module Generator {
                     self.convert_stack_from_bool_1();
                 } else if ident.equal("not_equal") {
                     self.generate_op_comparison("ne");
+                } else if ident.equal("not") {
+                    self.convert_stack_to_bool();
+                    self.write("i32.eqz");
+                    self.convert_stack_from_bool_1();
                 } else if ident.equal("lt") {
                     self.generate_op_comparison("lt_s");
                 } else if ident.equal("gt") {
                     self.generate_op_comparison("gt_s");
+                } else if ident.equal("lte") {
+                    self.generate_op_comparison("le_s");
+                } else if ident.equal("gte") {
+                    self.generate_op_comparison("ge_s");
                 } else if ident.equal("i32_to_address") {
                     self.convert_value_i32_to_address_1();
                 } else if ident.equal("i32_to_byte") {
                     self.convert_value_i32_to_byte_1();
                 } else if ident.equal("byte_to_i32") {
                     self.convert_value_byte_to_i32_1();
+                } else if ident.equal("xor_u32") {
+                    self.generate_op_arithmetic("xor");
+                } else if ident.equal("bit_and") {
+                    self.generate_op_arithmetic("and");
+                } else if ident.equal("bit_or") {
+                    self.generate_op_arithmetic("or");
+                } else if ident.equal("bit_shift_left") {
+                    self.generate_op_arithmetic("shl");
+                } else if ident.equal("bit_shift_right") {
+                    self.generate_op_arithmetic("shr_s");
                 } else {
                     self.write("call $".concat(ident));
                 }
@@ -531,7 +640,7 @@ module Generator {
             self.convert_stack_from_i32_1();
 
             self.new_statement();
-            self.write("call $load_string");
+            self.write("call $quartz_std_load_string");
         } else if expr.t_discard != nil {
             self.new_statement();
             self.expression(expr.t_discard!);
@@ -578,6 +687,23 @@ module Generator {
                 },
                 expr.t_or!.rhs,
             );
+        } else if expr.t_sizeof != nil {
+            let size = expr.t_sizeof!.type_.sizeof();
+
+            self.new_statement();
+            self.write(format(" ;; {} (sizeof)", size.to_string()));
+
+            self.new_statement();
+            self.write_value(Value {
+                t_i32: size?,
+                ..nil,
+            });
+        } else if expr.t_continue != nil {
+            self.new_statement();
+            self.write("br $continue");
+        } else if expr.t_break != nil {
+            self.new_statement();
+            self.write("br $exit");
         } else {
             panic("not implemented: expr, {}", expr.to_string());
         }
@@ -698,7 +824,7 @@ module Generator {
         self.new_statement();
         self.write("i64.xor");
     }
-    
+
     fun convert_value_byte_to_i32_1(self) {
         self.new_statement();
         self.write("i64.const 4");

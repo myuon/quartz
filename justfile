@@ -18,3 +18,9 @@ run_wat:
 
 test_compiler:
   cargo run --release -- run ./quartz/main.qz --entrypoint test
+
+install:
+  cargo build --release && cp target/release/quartz ~/.local/bin
+
+fuzztest:
+  cd fuzz && cargo afl build --release && cargo afl fuzz -i in -o out target/release/fuzz_target_1

@@ -2,6 +2,7 @@ struct Value {
     t_bool: bool?,
     t_byte: byte?,
     t_i32: i32?,
+    t_u32: u32?,
     t_pointer: u32?,
 }
 
@@ -13,22 +14,28 @@ module Value {
     fun as_i64(self): i64 {
         if self.t_bool != nil {
             if self.t_bool! {
-                return (0b1 as i64) << (32 as i64) | (0b10 as i64);
+                // return (0b1 as i64) << (32 as i64) | (0b10 as i64);
+                return (1 as i64) << (32 as i64) | (2 as i64);
             } else {
-                return 0b10 as i64;
+                // return 0b10 as i64;
+                return 2 as i64;
             }
         } else if self.t_byte != nil {
-            return ((self.t_byte! as i32) as i64) << (32 as i64) | (0b100 as i64);
+            // return ((self.t_byte! as i32) as i64) << (32 as i64) | (0b100 as i64);
+            return ((self.t_byte! as i32) as i64) << (32 as i64) | (4 as i64);
         } else if self.t_i32 != nil {
             return (self.t_i32! as i64) << (32 as i64);
+        } else if self.t_u32 != nil {
+            return (self.t_u32! << (32 as u32)) as i64;
         } else if self.t_pointer != nil {
-            return (self.t_pointer! as i64) << (32 as i64) | (0b1 as i64);
+            // return (self.t_pointer! as i64) << (32 as i64) | (0b1 as i64);
+            return (self.t_pointer! as i64) << (32 as i64) | (1 as i64);
         } else {
             return panic("unreachable") as i64;
         }
     }
 
-    fun nil(): Value {
+    fun nil_(): Value {
         return Value {
             t_pointer: (0 as u32)?,
             ..nil,

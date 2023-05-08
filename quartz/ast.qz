@@ -24,10 +24,15 @@ struct Decl {
         name: string,
         type_: Type,
     }?,
-    t_module: struct {
+    t_enum: struct {
         name: string,
+        type_: Type,
+    }?,
+    t_module: struct {
+        path: Path,
         module_: Module,
     }?,
+    t_import: Path?,
 }
 
 module Decl {
@@ -137,10 +142,14 @@ struct Statement {
         block: Block,
     }?,
     t_for: struct {
+        mode: string,
+        type_: Type?,
         ident: string,
         range: Expression,
         block: Block,
     }?,
+    t_continue: bool?,
+    t_break: bool?,
 }
 
 module Statement {
@@ -152,6 +161,7 @@ module Statement {
 struct Expression {
     t_ident: struct {
         name: string,
+        resolved_path: Path?,
     }?,
     t_binop: struct {
         binop: string,
@@ -161,6 +171,9 @@ struct Expression {
     t_i32: struct {
         value: i32,
     }?,
+    t_u32: struct {
+        value: u32,
+    }?,
     t_call: struct {
         callee: Expression,
         args: vec[Expression],
@@ -168,13 +181,22 @@ struct Expression {
             element_type: Type,
             index: i32,
         }?,
+        expansion: Expression?,
     }?,
     t_project: struct {
         expr: Expression,
         field: string,
         type_: Type?,
+        resolved_path: Path?,
     }?,
     t_record: RecordExpression?,
+    t_anonymous_record: struct {
+        fields: vec[struct {
+            field: string,
+            value: Expression,
+        }],
+        type_: Type?,
+    }?,
     t_make: struct {
         type_: Type,
         args: vec[Expression],
@@ -186,6 +208,7 @@ struct Expression {
     }?,
     t_path: struct {
         path: Path,
+        resolved_path: Path?,
     }?,
     t_self: bool?,
     t_string: string?,
@@ -215,6 +238,10 @@ struct Expression {
         lhs_type: Type,
         rhs_type: Type,
     }?,
+    t_sizeof: struct {
+        type_: Type,
+    }?,
+    t_try: Expression?,
 }
 
 module Expression {
@@ -229,6 +256,7 @@ struct RecordExpression {
         field: string,
         value: Expression,
     }],
+    expansion: Expression?,
 }
 
 module RecordExpression {
@@ -257,15 +285,31 @@ module RecordExpression {
 
         return _ or error::new("Field not found");
     }
+
+    fun to_fields_map(self): map[string, Expression] {
+        let result = make[map[string, Expression]]();
+        for i in 0..self.fields.length {
+            let f = self.fields.at(i);
+            result.insert(f.field, f.value);
+        }
+
+        return result;
+    }
 }
 
 struct Type {
     t_omit: bool?, // for unification
     t_nil: bool?,
     t_i32: bool?,
+    t_u32: bool?,
     t_func: struct {
         params: vec[Type],
         result: Type,
+    }?,
+    t_variadic_func: struct {
+        params: vec[Type],
+        result: Type,
+        variadic: Type,
     }?,
     t_ptr: Type?,
     t_bool: bool?,
@@ -284,6 +328,12 @@ struct Type {
         left: Type,
         right: Type,
     }?,
+    t_any: bool?,
+    t_map: struct {
+        key: Type,
+        value: Type,
+    }?,
+    t_enum: TypeStruct?,
 }
 
 module Type {
@@ -296,6 +346,10 @@ module Type {
             t_ident: "string"?,
             ..nil,
         };
+    }
+
+    fun is_integer_type(self): bool {
+        return self.t_i32 != nil || self.t_u32 != nil || (self.t_ident != nil && self.t_ident!.equal("i64"));
     }
 }
 

@@ -281,6 +281,55 @@ fun main(): bool {
     return a == nil && b!.equal("zero");
 }
 "#,
+        r#"
+fun main(): i32 {
+    let p = make[vec[i32]]();
+    for i in 0..100 {
+        p.push(i);
+    }
+
+    return p.at(40) + p.at(60);
+}
+"#,
+        r#"
+enum Value {
+    t_i32: i32,
+    t_string: string,
+}
+
+fun main(): i32 {
+    let t_10 = Value { t_i32: 10 };
+    let t_hello = Value { t_string: "hello" };
+
+    return t_10.t_i32! + t_hello.t_string!.length;
+}
+"#,
+        r#"
+enum Value {
+    t_i32: i32,
+    t_string: string,
+}
+
+module Value {
+    fun get(self): i32 {
+        if self.t_i32 != nil {
+            return self.t_i32!;
+        }
+        if self.t_string != nil {
+            return self.t_string!.length;
+        }
+
+        return 0;
+    }
+}
+
+fun main(): i32 {
+    let t_10 = Value { t_i32: 10 };
+    let t_hello = Value { t_string: "hello" };
+
+    return t_10.get() + t_hello.get();
+}
+"#,
     ];
 
     for input in cases {
@@ -289,7 +338,7 @@ fun main(): bool {
             &["run", "--release", "--quiet", "--", "run", "--stdin"],
             input.as_bytes(),
         )
-        .expect(format!("[INPUT]\n{}\n", input).as_str());
+        .expect(format!("[INPUT:gen0]\n{}\n", input).as_str());
 
         let stdout = run_command(
             "cargo",
@@ -303,13 +352,13 @@ fun main(): bool {
             ],
             input.as_bytes(),
         )
-        .expect(format!("[INPUT]\n{}\n", input).as_str());
+        .expect(format!("[INPUT:gen1:compile]\n{}\n", input).as_str());
         let stdout_gen1 = run_command(
             "cargo",
             &["run", "--release", "--quiet", "--", "run-wat", "--stdin"],
             stdout.as_bytes(),
         )
-        .expect(format!("[INPUT]\n{}\n[WAT]\n{}\n", input, stdout).as_str());
+        .expect(format!("[INPUT:gen1:runtime]\n{}\n[WAT]\n{}\n", input, stdout).as_str());
         assert_eq!(stdout_gen0, stdout_gen1, "[INPUT]\n{}\n", input);
     }
 }

@@ -1,0 +1,95 @@
+import quartz::lexer;
+import quartz::parser;
+import quartz::typecheck;
+import quartz::ir_code_gen;
+import quartz::generator;
+import quartz::path;
+import quartz::ast;
+
+struct LoadedModule {
+    path: Path,
+    source: string,
+    module_: Module,
+}
+
+struct Compiler {
+    loaded: vec[LoadedModule],
+}
+
+module Compiler {
+    fun new(): Compiler {
+        return Compiler {
+            loaded: make[vec[LoadedModule]](),
+        };
+    }
+
+    fun load_module(self, path: Path): nil or error {
+        let input = file_read(format("quartz/{}.qz", path.path.at(path.path.length - 1)));
+
+        return self.register_module(path, input).try;
+    }
+
+    fun register_module(self, path: Path, input: string): nil or error {
+        let lexer = Lexer::new();
+        lexer.run(input).try;
+
+        let parser = Parser::new();
+        let module_ = parser.run(lexer.tokens).try;
+
+        self.loaded.push(LoadedModule {
+            path: path,
+            source: input,
+            module_: module_,
+        });
+
+        return nil;
+    }
+
+    fun compile(self, input: string): string or error {
+        self.register_module(Path::new("main"), input).try;
+
+        let visited = make[map[string, bool]]();
+        let imports = make[vec[Path]]();
+        imports.push(Path::new("quartz", "std"));
+
+        while imports.length != 0 {
+            let path = vec_pop(imports) as Path;
+            if visited.has(path.join("_")) {
+                continue;
+            }
+
+            self.load_module(path).try;
+            visited.insert(path.join("_"), true);
+        }
+
+        let decls = make[vec[Decl]]();
+        for loaded in self.loaded {
+            decls.push(Decl {
+                t_module: struct {
+                    path: loaded.path,
+                    module_: loaded.module_,
+                }?,
+                ..nil,
+            });
+        }
+
+        let module_ = Module {
+            decls: decls,
+        };
+
+        let typechecker = Typechecker::new();
+        typechecker.module_(module_).try;
+
+        let irgen = IrCodeGenerator::new();
+        irgen.globals = typechecker.globals;
+        let term = irgen.run(module_).try;
+
+        let gen = Generator::new();
+        gen.set_globals(typechecker.globals);
+        gen.set_strings(irgen.strings.strings);
+        let code = gen.run(term, irgen.data_section_offset);
+
+        return code;
+    }
+}
+

@@ -72,6 +72,7 @@ module Lexer {
 
     fun consume_string_literal(self, input: string): string? {
         let quote = 34 as byte;
+        let backslash = 92 as byte;
         let str = make[vec[byte]]();
         if input.at(self.position) != quote {
             return nil;
@@ -80,6 +81,31 @@ module Lexer {
         self.position = self.position + 1;
 
         while input.at(self.position) != quote {
+            if input.at(self.position) == backslash && input.at(self.position + 1) == quote {
+                str.push(quote);
+                self.position = self.position + 2;
+                continue;
+            }
+
+            str.push(input.at(self.position));
+            self.position = self.position + 1;
+        }
+
+        self.position = self.position + 1;
+
+        return vec_byte_to_string(str)?;
+    }
+
+    fun consume_raw_string_literal(self, input: string): string? {
+        let backquote = 96 as byte;
+        let str = make[vec[byte]]();
+        if input.at(self.position) != backquote {
+            return nil;
+        }
+
+        self.position = self.position + 1;
+
+        while input.at(self.position) != backquote {
             str.push(input.at(self.position));
             self.position = self.position + 1;
         }
@@ -193,10 +219,37 @@ module Lexer {
             if self.match_term(input, "or", "or") {
                 continue;
             }
+            if self.match_term(input, "import", "import") {
+                continue;
+            }
+            if self.match_term(input, "continue", "continue") {
+                continue;
+            }
+            if self.match_term(input, "break", "break") {
+                continue;
+            }
+            if self.match_term(input, "try", "try") {
+                continue;
+            }
+            if self.match_term(input, "enum", "enum") {
+                continue;
+            }
             if self.match(input, "==", "double_equal") {
                 continue;
             }
             if self.match(input, "!=", "not_equal") {
+                continue;
+            }
+            if self.match(input, ">=", "gte") {
+                continue;
+            }
+            if self.match(input, "<=", "lte") {
+                continue;
+            }
+            if self.match(input, "<<", "bit_shift_left") {
+                continue;
+            }
+            if self.match(input, ">>", "bit_shift_right") {
                 continue;
             }
             if self.match(input, "::", "double_colon") {
@@ -271,7 +324,10 @@ module Lexer {
             if self.match(input, "?", "question") {
                 continue;
             }
-            if self.match(input, "_", "underscore") {
+            if self.match(input, "|", "bit_or") {
+                continue;
+            }
+            if self.match(input, "&", "bit_and") {
                 continue;
             }
 
@@ -288,6 +344,16 @@ module Lexer {
 
             let ident = self.consume_ident(input);
             if ident != nil {
+                if ident!.equal("_") {
+                    self.tokens.push(Token {
+                        lexeme: "underscore",
+                        string_value: nil,
+                        position: self.position,
+                    });
+
+                    continue;
+                }
+
                 self.tokens.push(Token {
                     lexeme: "ident",
                     string_value: ident,
@@ -298,6 +364,17 @@ module Lexer {
             }
 
             let str = self.consume_string_literal(input);
+            if str != nil {
+                self.tokens.push(Token {
+                    lexeme: "string",
+                    string_value: str,
+                    position: self.position,
+                });
+
+                continue;
+            }
+
+            let str = self.consume_raw_string_literal(input);
             if str != nil {
                 self.tokens.push(Token {
                     lexeme: "string",

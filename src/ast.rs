@@ -13,6 +13,7 @@ pub enum Type {
     Func(Vec<Type>, Box<Type>),
     VariadicFunc(Vec<Type>, Box<Type>, Box<Type>),
     Record(Vec<(Ident, Source<Type>)>),
+    Enum(Vec<(Ident, Source<Type>)>),
     Ident(Ident),
     Ptr(Box<Type>),
     Array(Box<Type>, usize),
@@ -50,6 +51,14 @@ impl Type {
                 ret.to_string(),
             ),
             Type::Record(fields) => format!(
+                "{{{}}}",
+                fields
+                    .iter()
+                    .map(|(name, t)| format!("{}: {}", name.as_str(), t.data.to_string()))
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            ),
+            Type::Enum(fields) => format!(
                 "{{{}}}",
                 fields
                     .iter()
@@ -360,7 +369,8 @@ impl Func {
 pub enum Decl {
     Func(Func),
     Let(Ident, Type, Source<Expr>),
-    Type(Source<Ident>, Vec<Source<(Ident, Type)>>),
+    Struct(Source<Ident>, Vec<Source<(Ident, Type)>>),
+    Enum(Source<Ident>, Vec<Source<(Ident, Type)>>),
     Module(Path, Module),
     Import(Path),
 }

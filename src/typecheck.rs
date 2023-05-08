@@ -86,6 +86,10 @@ impl TypeChecker {
                         Box::new(Type::Byte),
                     ),
                 ),
+                (
+                    "i64_to_string_at",
+                    Type::Func(vec![Type::I32, Type::I32, Type::I32], Box::new(Type::I32)),
+                ),
             ]
             .into_iter()
             .map(|(k, v)| (Path::ident(Ident(k.to_string())), Source::unknown(v)))
@@ -155,7 +159,7 @@ impl TypeChecker {
                     self.globals
                         .insert(self.path_to(&ident), Source::unknown(type_.clone()));
                 }
-                Decl::Type(ident, type_) => {
+                Decl::Struct(ident, type_) => {
                     self.types.insert(
                         ident.data.clone(),
                         (
@@ -172,6 +176,21 @@ impl TypeChecker {
                     self.types_def.insert(
                         ident.data.clone(),
                         (self.current_path.clone(), type_.clone()),
+                    );
+                }
+                Decl::Enum(ident, type_) => {
+                    self.types.insert(
+                        ident.data.clone(),
+                        (
+                            vec![],
+                            Type::Enum(
+                                type_
+                                    .clone()
+                                    .into_iter()
+                                    .map(|t| (t.data.0.clone(), t.map(|t| t.1)))
+                                    .collect(),
+                            ),
+                        ),
                     );
                 }
                 Decl::Module(name, module) => {
@@ -230,8 +249,23 @@ impl TypeChecker {
                 self.globals
                     .insert(self.path_to(&ident), Source::unknown(type_.clone()));
             }
-            Decl::Type(ident, type_) => {
+            Decl::Struct(ident, type_) => {
                 let t = Type::Record(
+                    type_
+                        .clone()
+                        .into_iter()
+                        .map(|t| (t.data.0.clone(), t.map(|t| t.1)))
+                        .collect(),
+                );
+                self.resolve_type(&t).context(ErrorInSource {
+                    path: Some(self.current_path.clone()),
+                    start: ident.start.unwrap_or(0),
+                    end: ident.end.unwrap_or(0),
+                })?;
+                self.types.insert(ident.data.clone(), (vec![], t));
+            }
+            Decl::Enum(ident, type_) => {
+                let t = Type::Enum(
                     type_
                         .clone()
                         .into_iter()
@@ -279,6 +313,11 @@ impl TypeChecker {
                 self.resolve_type(var)?;
             }
             Type::Record(rs) => {
+                for (_, t) in rs {
+                    self.resolve_type(&t.data)?;
+                }
+            }
+            Type::Enum(rs) => {
                 for (_, t) in rs {
                     self.resolve_type(&t.data)?;
                 }
@@ -479,10 +518,14 @@ impl TypeChecker {
                         end: cond.end.unwrap_or(0),
                     })?;
 
+                let locals = self.locals.clone();
                 self.block(&mut then_block.data).context("then block")?;
+                self.locals = locals;
 
                 if let Some(else_block) = else_block {
+                    let locals = self.locals.clone();
                     self.block(&mut else_block.data).context("else block")?;
+                    self.locals = locals;
                 }
 
                 self.unify(type_, &mut Type::Nil)
@@ -830,6 +873,15 @@ impl TypeChecker {
                 }
             }
             Expr::Record(ident, record, expansion) => {
+                if let Some(type_) = self.types.get(&ident.data) {
+                    // enum
+                    if let Type::Enum(_rs) = &type_.1 {
+                        assert!(expansion.is_none());
+
+                        return Ok(Type::Ident(ident.data.clone()));
+                    }
+                }
+
                 let mut record_types = self
                     .resolve_record_type(Type::Ident(ident.data.clone()), vec![])
                     .context(ErrorInSource {
@@ -1094,7 +1146,11 @@ impl TypeChecker {
                 if let Type::Vec(v) = type_ {
                     for arg in args {
                         let mut arg_t = self.expr(arg)?;
-                        self.unify(&mut arg_t, v)?;
+                        self.unify(&mut arg_t, v).context(ErrorInSource {
+                            path: Some(self.current_path.clone()),
+                            start: arg.start.unwrap_or(0),
+                            end: arg.end.unwrap_or(0),
+                        })?;
                     }
                 }
 
@@ -1137,6 +1193,7 @@ impl TypeChecker {
                 // FIXME: adhoc type convertion
                 Ok(match ident.as_str() {
                     "i32" => Type::I32,
+                    "u32" => Type::U32,
                     _ => Type::Ident(ident.clone()),
                 })
             }
@@ -1316,7 +1373,7 @@ impl TypeChecker {
                 let cs = Constrains::new_from_hashmap(apps.into_iter().collect::<HashMap<_, _>>());
                 cs.apply(&mut type_);
 
-                let fields = type_.clone().to_record()?;
+                let fields = self.resolve_record_type(type_, vec![])?;
 
                 Ok(fields)
             }
@@ -1327,6 +1384,15 @@ impl TypeChecker {
             Type::Vec(t) => {
                 self.resolve_record_type(Type::Ident(Ident("vec".to_string())), vec![*t.clone()])
             }
+            Type::Enum(rs) => Ok(rs
+                .iter()
+                .map(|r| {
+                    (
+                        r.0.clone(),
+                        r.1.clone().map(|v| Type::Optional(Box::new(v))),
+                    )
+                })
+                .collect::<Vec<_>>()),
             _ => bail!("expected record type, but found {}", type_.to_string()),
         }
     }
@@ -1599,6 +1665,31 @@ impl Constrains {
 
                 Ok(result)
             }
+            (Type::Enum(rs1), Type::Enum(rs2)) => {
+                let mut result = Constrains::empty();
+                if rs1.len() != rs2.len() {
+                    bail!(
+                        "wrong number of fields, expected {:?}, but found {:?}",
+                        rs1,
+                        rs2
+                    );
+                }
+
+                for i in 0..rs1.len() {
+                    if rs1[i].0 != rs2[i].0 {
+                        bail!(
+                            "type mismatch, expected {}, but found {}",
+                            rs1[i].0.as_str(),
+                            rs2[i].0.as_str()
+                        );
+                    }
+
+                    let cs = Constrains::unify(&mut rs1[i].1.data, &mut rs2[i].1.data)?;
+                    result.merge(&cs);
+                }
+
+                Ok(result)
+            }
             (Type::Vec(v1), Type::Vec(v2)) => Constrains::unify(v1.as_mut(), v2.as_mut()),
             (_, Type::Any) => Ok(Constrains::empty()),
             (Type::Any, _) => Ok(Constrains::empty()),
@@ -1648,6 +1739,11 @@ impl Constrains {
             Type::U32 => {}
             Type::Byte => {}
             Type::Record(r) => {
+                for (_, type_) in r {
+                    self.apply(&mut type_.data);
+                }
+            }
+            Type::Enum(r) => {
                 for (_, type_) in r {
                     self.apply(&mut type_.data);
                 }

@@ -42,15 +42,14 @@ fun println(f: string, ..arg: vec[string]) {
 }
 
 fun vec_make(capacity: i32): vec[any] {
-    let c = capacity;
     if capacity == 0 {
-        c = 8;
+        panic("vec_make: capacity must be greater than 0");
     }
 
     return vec {
         data: make[ptr[any]](capacity),
         length: 0,
-        capacity: c,
+        capacity: capacity,
     };
 }
 
@@ -143,25 +142,17 @@ fun vec_slice(v: vec[any], start: i32, end: i32): vec[any] {
     return result;
 }
 
-fun vec_clone(v: vec[any]): vec[any] {
-    let result = vec_make(v.length);
-    for i in 0..v.length {
-        result.push(v.at(i));
-    }
-    return result;
-}
-
 fun digit_to_string(digit: i32): string {
     return char_to_string(digit as byte);
 }
 
 fun char_to_string(char: byte): string {
-    let s = make[ptr[byte]](1);
+    let s = make[array[byte, 1]]();
     s.at(0) = char;
 
     return string {
-        data: s,
-        length: 1,
+        data: s.data,
+        length: s.length,
     };
 }
 
@@ -229,14 +220,6 @@ fun max(a: i32, b: i32): i32 {
     }
 }
 
-fun min(a: i32, b: i32): i32 {
-    if a < b {
-        return a;
-    } else {
-        return b;
-    }
-}
-
 module i32 {
     fun to_string(self): string {
         if self == 0 {
@@ -277,46 +260,6 @@ module i32 {
     }
 }
 
-module u32 {
-    fun to_string(self): string {
-        if self == (0 as u32) {
-            return "0";
-        }
-
-        let digit = 0;
-        let tmp = self;
-        while tmp > (0 as u32) {
-            tmp = tmp / (10 as u32);
-            digit = digit + 1;
-        }
-
-        let str = make[ptr[byte]](digit);
-        tmp = self;
-        for i in 0..digit {
-            let d = tmp % (10 as u32);
-            str.at(digit - i - 1) = ((d as i32 + 48) as byte);
-            tmp = tmp / (10 as u32);
-        }
-
-        return string {
-            data: str,
-            length: digit,
-        };
-    }
-
-    fun parse(s: string): u32 {
-        let n = 0 as u32;
-        for i in 0..s.length {
-            let c = s.data.at(i) as i32;
-            if (c < 48 || c > 57) {
-                panic("u32.parse: invalid character: ".concat(digit_to_string(c)));
-            }
-            n = n * (10 as u32) + ((c - 48) as u32);
-        }
-        return n;
-    }
-}
-
 fun i32_to_i64(n: i32): i64 {
     if n < 0 {
         return i64 {
@@ -342,17 +285,29 @@ struct i64 {
 
 module i64 {
     fun to_string(self): string {
-        let result = make[vec[byte]]();
-
-        let digit = 0;
-        let p = i64_to_string_at(self.hi, self.lo, digit);
-        while p != (0 - 1) {
-            result.push((p + 48) as byte);
-            digit = digit + 1;
-            p = i64_to_string_at(self.hi, self.lo, digit);
+        if self.hi == 0 && self.lo == 0 {
+            return "0";
         }
 
-        return vec_byte_to_string(result);
+        let digit = 0;
+        let tmp = self;
+        while tmp.hi != 0 || tmp.lo != 0 {
+            tmp = tmp / (10 as i64);
+            digit = digit + 1;
+        }
+
+        let str = make[ptr[byte]](digit);
+        tmp = self;
+        for i in 0..digit {
+            let d = tmp % (10 as i64) as i32;
+            str.at(digit - i - 1) = (d + 48) as byte;
+            tmp = tmp / (10 as i64);
+        }
+
+        return string {
+            data: str,
+            length: digit,
+        };
     }
 
     fun new(hi: i32, lo: i32): i64 {
@@ -376,8 +331,8 @@ module string {
         for i in 0..self.length {
             new_data.at(i) = self.data.at(i);
         }
-        for j in 0..s.length {
-            new_data.at(self.length + j) = s.data.at(j);
+        for i in 0..s.length {
+            new_data.at(self.length + i) = s.data.at(i);
         }
 
         return new_string(new_data, new_length);
@@ -454,82 +409,8 @@ module string {
         return self.slice(0, n!).concat(to).concat(self.slice_start(n! + from.length));
     }
 
-    fun find_all(self, haystack: string): vec[i32] {
-        let result = make[vec[i32]](0);
-        let n = 0;
-
-        while n <= self.length - haystack.length {
-            if is_prefix(self, n, haystack) {
-                result.push(n);
-                n = n + haystack.length;
-            } else {
-                n = n + 1;
-            }
-        }
-
-        return result;
-    }
-
-    fun replace(self, from: string, to: string): string {
-        let result = self;
-        let n = 0;
-
-        while n <= result.length - from.length {
-            if is_prefix(result, n, from) {
-                result = result.slice(0, n).concat(to).concat(result.slice_start(n + from.length));
-                n = n + to.length;
-            } else {
-                n = n + 1;
-            }
-        }
-
-        return result;
-    }
-
     fun format(self, ..arg: vec[string]): string {
         return format(self, ..arg);
-    }
-
-    fun compare_lte(self, other: string): bool {
-        if self.length < other.length {
-            return true;
-        } else if self.length > other.length {
-            return false;
-        } else {
-            for i in 0..self.length {
-                let a = self.data.at(i) as i32;
-                let b = other.data.at(i) as i32;
-                if a < b {
-                    return true;
-                } else if a > b {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-    }
-}
-
-struct stringbuilder {
-    data: vec[byte],
-}
-
-module stringbuilder {
-    fun new(): stringbuilder {
-        return stringbuilder {
-            data: make[vec[byte]](),
-        };
-    }
-
-    fun append(self, s: string) {
-        for i in 0..s.length {
-            self.data.push(s.data.at(i));
-        }
-    }
-
-    fun to_string(self): string {
-        return new_string(self.data.data, self.data.length);
     }
 }
 
@@ -699,19 +580,19 @@ fun stdin(): string {
 }
 
 // used in compiler
-let alloc_ptr = 0 as u32;
+let alloc_ptr = 0;
 
 fun alloc(size: i32): ptr[any] {
-    let size_ = size;
     if size % sizeof[i32]() != 0 {
-        size_ = ((size + sizeof[i32]() - 1) / sizeof[i32]()) * sizeof[i32]();
+        debug_i32(size);
+        abort();
     }
     if size == 0 {
         return nil as ptr[any];
     }
 
     let current = alloc_ptr;
-    alloc_ptr = alloc_ptr + (size_ as u32);
+    alloc_ptr = alloc_ptr + size;
 
     return current as ptr[any];
 }

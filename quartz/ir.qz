@@ -63,6 +63,10 @@ struct IrTerm {
         lhs: IrTerm,
         rhs: IrTerm,
     }?,
+    t_continue: bool?,
+    t_break: bool?,
+    t_size: IrType?,
+    t_u32: u32?,
 }
 
 module IrTerm {
@@ -129,6 +133,12 @@ module IrTerm {
         if self.t_return != nil {
             locals.extend(self.t_return!.value.find_locals());
         }
+        if self.t_assign != nil {
+            locals.extend(self.t_assign!.rhs.find_locals());
+        }
+        if self.t_discard != nil {
+            locals.extend(self.t_discard!.find_locals());
+        }
 
         return locals;
     }
@@ -142,7 +152,6 @@ struct IrFunc {
     }],
     body: vec[IrTerm],
     result_type: IrType,
-    locals: vec[string],
 }
 
 struct IrCall {
@@ -166,13 +175,14 @@ struct IrType {
     t_address: bool?,
     t_byte: bool?,
     t_bool: bool?,
+    t_any: bool?,
 }
 
 module IrType {
     fun new(t: Type): IrType {
         if t.t_nil != nil {
             return IrType {
-                t_nil: true?,
+                t_address: true?,
                 ..nil,
             };
         }
@@ -219,6 +229,30 @@ module IrType {
             };
         }
         if t.t_or != nil {
+            return IrType {
+                t_address: true?,
+                ..nil,
+            };
+        }
+        if t.t_any != nil {
+            return IrType {
+                t_any: true?,
+                ..nil,
+            };
+        }
+        if t.t_u32 != nil {
+            return IrType {
+                t_i32: true?,
+                ..nil,
+            };
+        }
+        if t.t_struct != nil {
+            return IrType {
+                t_address: true?,
+                ..nil,
+            };
+        }
+        if t.t_map != nil {
             return IrType {
                 t_address: true?,
                 ..nil,
