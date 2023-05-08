@@ -211,8 +211,6 @@ module IrCodeGenerator {
                     ..nil,
                 });
             }
-            if d.t_type != nil {
-            }
             if d.t_module != nil {
                 let path = self.current_path.clone();
                 self.current_path.extend(d.t_module!.path);
@@ -1305,43 +1303,75 @@ module IrCodeGenerator {
                 return _ or error::new(format("record not found: {}", expr.t_record!.name));
             }
             let record_type = self.globals.at(expr.t_record!.name);
-            if record_type.t_struct == nil {
+
+            if record_type.t_enum != nil {
+                if expr.t_record!.fields.length != 1 {
+                    return _ or error::new("enum constructor takes 1 argument");
+                }
+                let field = expr.t_record!.fields.at(0);
+                let index = record_type.t_enum!.index(field.field);
+                let value = self.expression(field.value).try;
+
+                return self.generate_array_enumerated(
+                    expr.t_record!.name,
+                    make[vec[IrType]](),
+                    make[vec[struct {
+                        type_: IrType,
+                        term: IrTerm,
+                    }]](
+                        struct {
+                            type_: IrType {
+                                t_i32: true?,
+                                ..nil,
+                            },
+                            term: IrTerm {
+                                t_i32: index?,
+                                ..nil,
+                            },
+                        },
+                        struct {
+                            type_: IrType::new(record_type.t_enum!.fields.at(index).type_),
+                            term: value,
+                        },
+                    ),
+                ).try;
+            } else if record_type.t_struct != nil {
+                let expansion_term = nil as IrTerm?;
+                if expr.t_record!.expansion != nil {
+                    expansion_term = self.expression(expr.t_record!.expansion!).try?;
+                }
+
+                let t = self.globals.at(expr.t_record!.name).t_struct!;
+
+                let record = make[vec[struct {
+                    type_: IrType,
+                    term: IrTerm,
+                }]]();
+                for i in 0..t.fields.length {
+                    let field = t.fields.at(i);
+                    if i < expr.t_record!.fields.length {
+                        let value = expr.t_record!.fields.at(i).value;
+
+                        record.push(struct {
+                            type_: IrType::new(field.type_),
+                            term: self.expression(value).try,
+                        });
+                    } else {
+                        if expansion_term == nil {
+                            return _ or error::new("record expansion not found");
+                        }
+
+                        record.push(struct {
+                            type_: IrType::new(field.type_),
+                            term: expansion_term!,
+                        });
+                    }
+                }
+
+                return self.generate_array_enumerated(expr.t_record!.name, make[vec[IrType]](), record);
+            } else {
                 return _ or error::new(format("type is not a record: {}", expr.t_record!.name));
             }
-
-            let expansion_term = nil as IrTerm?;
-            if expr.t_record!.expansion != nil {
-                expansion_term = self.expression(expr.t_record!.expansion!).try?;
-            }
-
-            let t = self.globals.at(expr.t_record!.name).t_struct!;
-
-            let record = make[vec[struct {
-                type_: IrType,
-                term: IrTerm,
-            }]]();
-            for i in 0..t.fields.length {
-                let field = t.fields.at(i);
-                if i < expr.t_record!.fields.length {
-                    let value = expr.t_record!.fields.at(i).value;
-
-                    record.push(struct {
-                        type_: IrType::new(field.type_),
-                        term: self.expression(value).try,
-                    });
-                } else {
-                    if expansion_term == nil {
-                        return _ or error::new("record expansion not found");
-                    }
-
-                    record.push(struct {
-                        type_: IrType::new(field.type_),
-                        term: expansion_term!,
-                    });
-                }
-            }
-
-            return self.generate_array_enumerated(expr.t_record!.name, make[vec[IrType]](), record);
         } else if expr.t_anonymous_record != nil {
             let terms = make[vec[struct {
                 type_: IrType,
@@ -1358,6 +1388,129 @@ module IrCodeGenerator {
 
             return self.generate_array_enumerated("struct", make[vec[IrType]](), terms).try;
         } else if expr.t_project != nil {
+            if expr.t_project!.type_ == nil {
+                return _ or error::new("project type is nil");
+            }
+
+            let expr_type = expr.t_project!.type_!;
+            if expr_type.t_enum != nil {
+                let enum_type = expr_type.t_enum!;
+                let name = "enum_{}".format(self.counter.to_string());
+                self.counter = self.counter + 1;
+
+                let result_name = "enum_result_{}".format(self.counter.to_string());
+                self.counter = self.counter + 1;
+
+                let value = self.expression(expr.t_project!.expr).try;
+                let label_index = enum_type.index(expr.t_project!.field);
+                let value_type = enum_type.fields.at(label_index).type_;
+
+                let enum_rep = Type {
+                    t_struct: TypeStruct {
+                        fields: make[vec[struct {
+                            name: string,
+                            type_: Type,
+                        }]](
+                            struct {
+                                name: "tag",
+                                type_: Type {
+                                    t_ident: "i32"?,
+                                    ..nil,
+                                },
+                            },
+                            struct {
+                                name: "value",
+                                type_: value_type,
+                            },
+                        ),
+                    }?,
+                    ..nil,
+                };
+
+                let inside_value = self.generate_array_at(
+                    enum_rep,
+                    value,
+                    IrTerm {
+                        t_i32: label_index?,
+                        ..nil,
+                    },
+                ).try;
+
+                // let v = ${expr};
+                // let r = nil;
+                // if ${label_index} == v.tag {
+                //     r = v.value?;
+                // }
+                // r
+                return IrTerm {
+                    t_seq: struct {
+                        terms: make[vec[IrTerm]](
+                            IrTerm {
+                                t_let: IrLet {
+                                    name: name,
+                                    type_: IrType::new(value_type),
+                                    value: value,
+                                }?,
+                                ..nil,
+                            },
+                            IrTerm {
+                                t_let: IrLet {
+                                    name: result_name,
+                                    type_: IrType::new(value_type),
+                                    value: IrTerm {
+                                        t_nil: true?,
+                                        ..nil,
+                                    },
+                                }?,
+                                ..nil,
+                            },
+                            IrTerm {
+                                t_if: struct {
+                                    condition: IrTerm {
+                                        t_call: IrCall {
+                                            callee: IrTerm {
+                                                t_ident: "equal"?,
+                                                ..nil,
+                                            },
+                                            args: make[vec[IrTerm]](
+                                                self.generate_array_at(
+                                                    enum_rep,
+                                                    value,
+                                                    IrTerm {
+                                                        t_i32: 0?,
+                                                        ..nil,
+                                                    },
+                                                ).try,
+                                                IrTerm {
+                                                    t_i32: label_index?,
+                                                    ..nil,
+                                                },
+                                            ),
+                                        }?,
+                                        ..nil,
+                                    },
+                                    then_term: IrTerm {
+                                        t_let: IrLet {
+                                            name: result_name,
+                                            type_: IrType::new(value_type),
+                                            value: inside_value,
+                                        }?,
+                                        ..nil,
+                                    },
+                                    else_term: IrTerm {
+                                        t_seq: struct {
+                                            terms: make[vec[IrTerm]](),
+                                        }?,
+                                        ..nil,
+                                    },
+                                }?,
+                                ..nil,
+                            },
+                        ),
+                    }?,
+                    ..nil,
+                };
+            }
             let t = self.resolve_type_struct(expr.t_project!.type_!).try;
             let index = t.index(expr.t_project!.field);
 

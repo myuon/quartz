@@ -24,6 +24,10 @@ struct Decl {
         name: string,
         type_: Type,
     }?,
+    t_enum: struct {
+        name: string,
+        type_: Type,
+    }?,
     t_module: struct {
         path: Path,
         module_: Module,
@@ -329,6 +333,7 @@ struct Type {
         key: Type,
         value: Type,
     }?,
+    t_enum: TypeStruct?,
 }
 
 module Type {

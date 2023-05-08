@@ -62,6 +62,14 @@ module Parser {
                 ..nil,
             };
         }
+        if token.lexeme.equal("enum") {
+            let enum_ = self.enum_decl().try;
+
+            return Decl {
+                t_type: enum_?,
+                ..nil,
+            };
+        }
         if token.lexeme.equal("module") {
             let module_ = self.module_decl().try;
 
@@ -142,6 +150,50 @@ module Parser {
             name: ident,
             type_: Type {
                 t_struct: TypeStruct {
+                    fields: fields,
+                }?,
+                ..nil,
+            },
+        };
+    }
+
+    fun enum_decl(
+        self,
+    ): struct {
+        name: string,
+        type_: Type,
+    } or error {
+        self.expect("enum").try;
+        let ident = self.ident().try;
+
+        let fields = make[vec[struct {
+            name: string,
+            type_: Type,
+        }]]();
+
+        while !self.peek().lexeme.equal("rbrace") {
+            let name = self.ident().try;
+            self.expect("colon").try;
+            let t = self.type_().try;
+
+            fields.push(struct {
+                name: name,
+                type_: t,
+            });
+
+            if self.peek().lexeme.equal("comma") {
+                self.consume();
+            } else {
+                break;
+            }
+        }
+
+        self.expect("rbrace").try;
+
+        return struct {
+            name: ident,
+            type_: Type {
+                t_enum: TypeStruct {
                     fields: fields,
                 }?,
                 ..nil,

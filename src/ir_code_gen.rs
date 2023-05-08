@@ -1168,7 +1168,7 @@ impl IrCodeGenerator {
 
                     let enum_rep = Type::Record(vec![
                         (Ident("tag".to_string()), Source::unknown(Type::I32)),
-                        (Ident("value".to_string()), enum_type[0].1.clone()),
+                        (Ident("value".to_string()), value_type.clone()),
                     ]);
 
                     let inside_value =

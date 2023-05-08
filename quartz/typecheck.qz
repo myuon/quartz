@@ -368,6 +368,10 @@ module Typechecker {
                 self.globals.insert(d.t_type!.name, d.t_type!.type_);
 
                 continue;
+            } else if d.t_enum != nil {
+                self.globals.insert(d.t_type!.name, d.t_type!.type_);
+
+                continue;
             } else if d.t_module != nil {
                 let path = self.current_path.clone();
                 self.current_path.extend(d.t_module!.path);
@@ -414,6 +418,10 @@ module Typechecker {
             return;
         }
         if d.t_type != nil {
+            self.globals.insert(d.t_type!.name, d.t_type!.type_);
+            return;
+        }
+        if d.t_enum != nil {
             self.globals.insert(d.t_type!.name, d.t_type!.type_);
             return;
         }
@@ -925,7 +933,21 @@ module Typechecker {
 
             let label = expr.t_project!.field;
 
-            let fields = self.resolve_record_type(t, make[vec[Type]]()).try;
+            let fields = make[map[string, Type]]();
+            if t.t_enum != nil {
+                for field in t.t_enum!.fields {
+                    fields.insert(
+                        field.name,
+                        Type {
+                            t_optional: field.type_?,
+                            ..nil,
+                        },
+                    );
+                }
+            } else {
+                fields = self.resolve_record_type(t, make[vec[Type]]()).try;
+            }
+
             if fields.has(label) {
                 // field access
                 let t = fields.at(label);
@@ -998,6 +1020,14 @@ module Typechecker {
 
             return _ or error::new("unimplemented: project, {}".format(expr.to_string()));
         } else if expr.t_record != nil {
+            if self.globals.has(expr.t_record!.name) {
+                let t = self.globals.at(expr.t_record!.name);
+
+                if t.t_enum != nil {
+                    return t;
+                }
+            }
+
             let field_map = self.resolve_record_type(
                 Type {
                     t_ident: expr.t_record!.name?,
