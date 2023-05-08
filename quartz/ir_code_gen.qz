@@ -247,10 +247,8 @@ module IrCodeGenerator {
                     t_make: struct {
                         type_: Type {
                             t_ptr: Type {
-                                t_ident: "any"?,
-                                ..nil,
-                            }?,
-                            ..nil,
+                                t_ident: "any",
+                            },
                         },
                         args: make[vec[Expression]](Expression {
                             t_i32: struct {
@@ -285,10 +283,8 @@ module IrCodeGenerator {
             let lhs = self.generate_array_at(
                 Type {
                     t_ptr: Type {
-                        t_ident: "any"?,
-                        ..nil,
-                    }?,
-                    ..nil,
+                        t_ident: "any",
+                    },
                 },
                 IrTerm {
                     t_ident: var_ptr?,
@@ -347,10 +343,8 @@ module IrCodeGenerator {
                     t_make: struct {
                         type_: Type {
                             t_ptr: Type {
-                                t_ident: "string"?,
-                                ..nil,
-                            }?,
-                            ..nil,
+                                t_ident: "string",
+                            },
                         },
                         args: make[vec[Expression]](Expression {
                             t_i32: struct {
@@ -461,8 +455,7 @@ module IrCodeGenerator {
                 params.push(struct {
                     name: p.name,
                     type_: IrType::new(Type {
-                        t_ident: self.current_path.path.at(0)?,
-                        ..nil,
+                        t_ident: self.current_path.path.at(0),
                     }),
                 });
             } else {
@@ -746,8 +739,7 @@ module IrCodeGenerator {
                             ..nil,
                         },
                         name_type: Type {
-                            t_i32: true?,
-                            ..nil,
+                            t_i32: true,
                         },
                         expr: Expression {
                             t_call: struct {
@@ -1403,8 +1395,7 @@ module IrCodeGenerator {
                                 struct {
                                     name: "tag",
                                     type_: Type {
-                                        t_ident: "i32"?,
-                                        ..nil,
+                                        t_ident: "i32",
                                     },
                                 },
                                 struct {
@@ -1412,8 +1403,7 @@ module IrCodeGenerator {
                                     type_: value_type,
                                 },
                             ),
-                        }?,
-                        ..nil,
+                        },
                     };
 
                     let inside_value = self.generate_array_at(
@@ -1833,10 +1823,8 @@ module IrCodeGenerator {
             let left = self.generate_array_at(
                 Type {
                     t_optional: Type {
-                        t_any: true?,
-                        ..nil,
-                    }?,
-                    ..nil,
+                        t_any: true,
+                    },
                 },
                 IrTerm {
                     t_ident: var_name?,
@@ -1850,10 +1838,8 @@ module IrCodeGenerator {
             let right = self.generate_array_at(
                 Type {
                     t_optional: Type {
-                        t_any: true?,
-                        ..nil,
-                    }?,
-                    ..nil,
+                        t_any: true,
+                    },
                 },
                 IrTerm {
                     t_ident: var_name?,
@@ -1966,10 +1952,8 @@ module IrCodeGenerator {
             elements.push(self.generate_array_at(
                 Type {
                     t_ptr: Type {
-                        t_omit: true?,
-                        ..nil,
-                    }?,
-                    ..nil,
+                        t_omit: true,
+                    },
                 },
                 left,
                 IrTerm {
@@ -2339,13 +2323,11 @@ module IrCodeGenerator {
             return t.t_struct!;
         } else if t.t_vec != nil {
             return self.resolve_type_struct(Type {
-                t_ident: "vec"?,
-                ..nil,
+                t_ident: "vec",
             });
         } else if t.t_map != nil {
             return self.resolve_type_struct(Type {
-                t_ident: "quartz_std_Map"?,
-                ..nil,
+                t_ident: "quartz_std_Map",
             });
         } else {
             return _ or error::new(format("type is not a struct: {}", t.to_string()));
@@ -2405,8 +2387,7 @@ module IrCodeGenerator {
                 t_let: IrLet {
                     name: vec_name,
                     type_: IrType::new(Type {
-                        t_vec: variadic!.element_type?,
-                        ..nil,
+                        t_vec: variadic!.element_type,
                     }),
                     value: IrTerm {
                         t_call: IrCall {

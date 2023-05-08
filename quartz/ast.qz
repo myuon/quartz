@@ -83,18 +83,16 @@ module Function {
             return Type {
                 t_variadic_func: struct {
                     params: params_type,
-                    variadic: self.variadic!.type_,
                     result: self.result_type,
-                }?,
-                ..nil,
+                    variadic: self.variadic!.type_,
+                }
             };
         } else {
             return Type {
                 t_func: struct {
                     params: params_type,
                     result: self.result_type,
-                }?,
-                ..nil,
+                }
             };
         }
     }
@@ -297,43 +295,43 @@ module RecordExpression {
     }
 }
 
-struct Type {
-    t_omit: bool?, // for unification
-    t_nil: bool?,
-    t_i32: bool?,
-    t_u32: bool?,
+enum Type {
+    t_omit: bool, // for unification
+    t_nil: bool,
+    t_i32: bool,
+    t_u32: bool,
     t_func: struct {
         params: vec[Type],
         result: Type,
-    }?,
+    },
     t_variadic_func: struct {
         params: vec[Type],
         result: Type,
         variadic: Type,
-    }?,
-    t_ptr: Type?,
-    t_bool: bool?,
-    t_struct: TypeStruct?,
-    t_byte: bool?,
-    t_ident: string?,
-    t_range: Type?,
-    t_optional: Type?,
-    t_vec: Type?,
+    },
+    t_ptr: Type,
+    t_bool: bool,
+    t_struct: TypeStruct,
+    t_byte: bool,
+    t_ident: string,
+    t_range: Type,
+    t_optional: Type,
+    t_vec: Type,
     t_variadic_func: struct {
         params: vec[Type],
         variadic: Type,
         result: Type,
-    }?,
+    },
     t_or: struct {
         left: Type,
         right: Type,
-    }?,
-    t_any: bool?,
+    },
+    t_any: bool,
     t_map: struct {
         key: Type,
         value: Type,
-    }?,
-    t_enum: TypeStruct?,
+    },
+    t_enum: TypeStruct,
 }
 
 module Type {
@@ -343,8 +341,7 @@ module Type {
 
     fun string(): Type {
         return Type {
-            t_ident: "string"?,
-            ..nil,
+            t_ident: "string"
         };
     }
 
