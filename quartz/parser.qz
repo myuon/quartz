@@ -556,8 +556,7 @@ module Parser {
                     condition: condition,
                     then_block: then_block,
                     else_block: else_block,
-                }?,
-                ..nil,
+                },
             };
         }
         if token.lexeme.equal("while") {
@@ -571,8 +570,7 @@ module Parser {
                 t_while: struct {
                     condition: condition,
                     block: block,
-                }?,
-                ..nil,
+                },
             };
         }
         if token.lexeme.equal("for") {
@@ -592,8 +590,7 @@ module Parser {
                     ident: ident,
                     range: range,
                     block: body,
-                }?,
-                ..nil,
+                },
             };
         }
         if self.peek().lexeme.equal("continue") {
@@ -601,8 +598,7 @@ module Parser {
             self.expect("semicolon").try;
 
             return Statement {
-                t_continue: true?,
-                ..nil,
+                t_continue: true,
             };
         }
         if self.peek().lexeme.equal("break") {
@@ -610,8 +606,7 @@ module Parser {
             self.expect("semicolon").try;
 
             return Statement {
-                t_break: true?,
-                ..nil,
+                t_break: true,
             };
         }
 
@@ -622,8 +617,7 @@ module Parser {
             return Statement {
                 t_expr: struct {
                     expr: expr,
-                }?,
-                ..nil,
+                },
             };
         }
         if self.peek().lexeme.equal("equal") {
@@ -635,8 +629,7 @@ module Parser {
                 t_assign: struct {
                     lhs: expr,
                     rhs: rhs,
-                }?,
-                ..nil,
+                },
             };
         }
 
@@ -669,8 +662,7 @@ module Parser {
                 pattern: pattern,
                 name_type: t,
                 expr: value,
-            }?,
-            ..nil,
+            },
         };
     }
 
@@ -723,8 +715,7 @@ module Parser {
                         t_nil: true?,
                         ..nil,
                     },
-                }?,
-                ..nil,
+                },
             };
         }
 
@@ -734,8 +725,7 @@ module Parser {
         return Statement {
             t_return: struct {
                 expr: value,
-            }?,
-            ..nil,
+            },
         };
     }
 

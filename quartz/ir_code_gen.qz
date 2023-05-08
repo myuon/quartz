@@ -776,8 +776,7 @@ module IrCodeGenerator {
                             }?,
                             ..nil,
                         },
-                    }?,
-                    ..nil,
+                    },
                 });
                 for body in stm.t_for!.block.block {
                     new_body.push(body);
@@ -819,8 +818,7 @@ module IrCodeGenerator {
                         block: Block {
                             block: new_body,
                         },
-                    }?,
-                    ..nil,
+                    },
                 }).try;
             } else {
                 return _ or error::new(format("unsupported for loop: {}", stm.to_string()));

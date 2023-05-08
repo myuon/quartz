@@ -116,40 +116,40 @@ module Block {
     }
 }
 
-struct Statement {
+enum Statement {
     t_let: struct {
         pattern: Pattern,
         name_type: Type,
         expr: Expression,
-    }?,
+    },
     t_return: struct {
         expr: Expression,
-    }?,
+    },
     t_assign: struct {
         lhs: Expression,
         rhs: Expression,
-    }?,
+    },
     t_expr: struct {
         expr: Expression,
-    }?,
+    },
     t_if: struct {
         condition: Expression,
         then_block: Block,
         else_block: Block?,
-    }?,
+    },
     t_while: struct {
         condition: Expression,
         block: Block,
-    }?,
+    },
     t_for: struct {
         mode: string,
         type_: Type?,
         ident: string,
         range: Expression,
         block: Block,
-    }?,
-    t_continue: bool?,
-    t_break: bool?,
+    },
+    t_continue: bool,
+    t_break: bool,
 }
 
 module Statement {
