@@ -66,7 +66,7 @@ module Parser {
             let enum_ = self.enum_decl().try;
 
             return Decl {
-                t_type: enum_?,
+                t_enum: enum_?,
                 ..nil,
             };
         }
@@ -165,6 +165,7 @@ module Parser {
     } or error {
         self.expect("enum").try;
         let ident = self.ident().try;
+        self.expect("lbrace").try;
 
         let fields = make[vec[struct {
             name: string,

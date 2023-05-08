@@ -369,7 +369,7 @@ module Typechecker {
 
                 continue;
             } else if d.t_enum != nil {
-                self.globals.insert(d.t_type!.name, d.t_type!.type_);
+                self.globals.insert(d.t_enum!.name, d.t_type!.type_);
 
                 continue;
             } else if d.t_module != nil {
@@ -422,7 +422,7 @@ module Typechecker {
             return;
         }
         if d.t_enum != nil {
-            self.globals.insert(d.t_type!.name, d.t_type!.type_);
+            self.globals.insert(d.t_enum!.name, d.t_type!.type_);
             return;
         }
         if d.t_module != nil {
