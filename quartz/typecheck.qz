@@ -495,8 +495,7 @@ module Typechecker {
                             rhs: nil as Expression?,
                             lhs_type: self.result_type!.t_or!.left,
                             rhs_type: self.result_type!.t_or!.right,
-                        }?,
-                        ..nil,
+                        },
                     };
                 } else {
                     return _ or err!;

@@ -712,8 +712,7 @@ module Parser {
             return Statement {
                 t_return: struct {
                     expr: Expression {
-                        t_nil: true?,
-                        ..nil,
+                        t_nil: true,
                     },
                 },
             };
@@ -749,8 +748,7 @@ module Parser {
                         binop: "and",
                         left: current,
                         right: rhs,
-                    }?,
-                    ..nil,
+                    },
                 };
             } else if self.peek().lexeme.equal("double_pipe") {
                 self.expect("double_pipe").try;
@@ -761,8 +759,7 @@ module Parser {
                         binop: "or",
                         left: current,
                         right: rhs,
-                    }?,
-                    ..nil,
+                    },
                 };
             } else if self.peek().lexeme.equal("or") {
                 self.expect("or").try;
@@ -788,8 +785,7 @@ module Parser {
                             t_omit: true?,
                             ..nil,
                         },
-                    }?,
-                    ..nil,
+                    },
                 };
             } else {
                 return current;
@@ -811,8 +807,7 @@ module Parser {
                         binop: "equal",
                         left: current,
                         right: self.term_3(with_struct).try,
-                    }?,
-                    ..nil,
+                    },
                 };
                 continue;
             } else if self.peek().lexeme.equal("not_equal") {
@@ -823,8 +818,7 @@ module Parser {
                         binop: "not_equal",
                         left: current,
                         right: self.term_3(with_struct).try,
-                    }?,
-                    ..nil,
+                    },
                 };
                 continue;
             }
@@ -844,8 +838,7 @@ module Parser {
                     binop: "lt",
                     left: current,
                     right: self.term_2(with_struct).try,
-                }?,
-                ..nil,
+                },
             };
         } else if self.peek().lexeme.equal("gt") {
             self.expect("gt").try;
@@ -855,8 +848,7 @@ module Parser {
                     binop: "gt",
                     left: current,
                     right: self.term_2(with_struct).try,
-                }?,
-                ..nil,
+                },
             };
         } else if self.peek().lexeme.equal("gte") {
             self.expect("gte").try;
@@ -866,8 +858,7 @@ module Parser {
                     binop: "gte",
                     left: current,
                     right: self.term_2(with_struct).try,
-                }?,
-                ..nil,
+                },
             };
         } else if self.peek().lexeme.equal("lte") {
             self.expect("lte").try;
@@ -877,8 +868,7 @@ module Parser {
                     binop: "lte",
                     left: current,
                     right: self.term_2(with_struct).try,
-                }?,
-                ..nil,
+                },
             };
         } else if self.peek().lexeme.equal("double_dot") {
             self.expect("double_dot").try;
@@ -888,8 +878,7 @@ module Parser {
                 t_range: struct {
                     start: current,
                     end: expr,
-                }?,
-                ..nil,
+                },
             };
         }
 
@@ -908,8 +897,7 @@ module Parser {
                         binop: "plus",
                         left: current,
                         right: self.term_1(with_struct).try,
-                    }?,
-                    ..nil,
+                    },
                 };
                 continue;
             }
@@ -921,8 +909,7 @@ module Parser {
                         binop: "minus",
                         left: current,
                         right: self.term_1(with_struct).try,
-                    }?,
-                    ..nil,
+                    },
                 };
                 continue;
             }
@@ -937,8 +924,7 @@ module Parser {
                             ..nil,
                         },
                         target_type: self.type_().try,
-                    }?,
-                    ..nil,
+                    },
                 };
                 continue;
             }
@@ -950,8 +936,7 @@ module Parser {
                         binop: "bit_and",
                         left: current,
                         right: self.term_4(with_struct).try,
-                    }?,
-                    ..nil,
+                    },
                 };
                 continue;
             }
@@ -963,8 +948,7 @@ module Parser {
                         binop: "bit_or",
                         left: current,
                         right: self.term_4(with_struct).try,
-                    }?,
-                    ..nil,
+                    },
                 };
                 continue;
             }
@@ -985,8 +969,7 @@ module Parser {
                         binop: "mult",
                         left: current,
                         right: self.term_1(with_struct).try,
-                    }?,
-                    ..nil,
+                    },
                 };
                 continue;
             } else if self.peek().lexeme.equal("slash") {
@@ -997,8 +980,7 @@ module Parser {
                         binop: "div",
                         left: current,
                         right: self.term_1(with_struct).try,
-                    }?,
-                    ..nil,
+                    },
                 };
                 continue;
             } else if self.peek().lexeme.equal("percent") {
@@ -1009,8 +991,7 @@ module Parser {
                         binop: "mod",
                         left: current,
                         right: self.term_1(with_struct).try,
-                    }?,
-                    ..nil,
+                    },
                 };
                 continue;
             } else if self.peek().lexeme.equal("bit_shift_left") {
@@ -1021,8 +1002,7 @@ module Parser {
                         binop: "bit_shift_left",
                         left: current,
                         right: self.term_1(with_struct).try,
-                    }?,
-                    ..nil,
+                    },
                 };
                 continue;
             } else if self.peek().lexeme.equal("bit_shift_right") {
@@ -1033,8 +1013,7 @@ module Parser {
                         binop: "bit_shift_right",
                         left: current,
                         right: self.term_1(with_struct).try,
-                    }?,
-                    ..nil,
+                    },
                 };
                 continue;
             }
@@ -1078,8 +1057,7 @@ module Parser {
                         args: args,
                         variadic: nil,
                         expansion: expansion,
-                    }?,
-                    ..nil,
+                    },
                 };
             } else if token.lexeme.equal("dot") {
                 self.expect("dot").try;
@@ -1088,8 +1066,7 @@ module Parser {
                     self.expect("try").try;
 
                     current = Expression {
-                        t_try: current?,
-                        ..nil,
+                        t_try: current,
                     };
                 } else {
                     let field = self.ident().try;
@@ -1100,8 +1077,7 @@ module Parser {
                             field: field,
                             type_: nil as Type?,
                             resolved_path: nil,
-                        }?,
-                        ..nil,
+                        },
                     };
                 }
             } else if with_struct && token.lexeme.equal("lbrace") {
@@ -1153,8 +1129,7 @@ module Parser {
                         name: ident.name,
                         fields: fields,
                         expansion: expansion,
-                    }?,
-                    ..nil,
+                    },
                 };
             } else if token.lexeme.equal("lbracket") {
                 self.expect("lbracket").try;
@@ -1188,15 +1163,13 @@ module Parser {
                         t_make: struct {
                             type_: t,
                             args: args,
-                        }?,
-                        ..nil,
+                        },
                     };
                 } else if ident.equal("sizeof") {
                     current = Expression {
                         t_sizeof: struct {
                             type_: t,
-                        }?,
-                        ..nil,
+                        },
                     };
                 } else {
                     return _ or error::new(format("Unknown builtin operator {}", ident));
@@ -1220,8 +1193,7 @@ module Parser {
                     t_path: struct {
                         path: path,
                         resolved_path: nil,
-                    }?,
-                    ..nil,
+                    },
                 };
             } else if token.lexeme.equal("bang") {
                 self.expect("bang").try;
@@ -1233,8 +1205,7 @@ module Parser {
                             ..nil,
                         },
                         expr: current,
-                    }?,
-                    ..nil,
+                    },
                 };
             } else if token.lexeme.equal("question") {
                 self.expect("question").try;
@@ -1246,8 +1217,7 @@ module Parser {
                             ..nil,
                         },
                         expr: current,
-                    }?,
-                    ..nil,
+                    },
                 };
             } else {
                 return current;
@@ -1265,8 +1235,7 @@ module Parser {
                 t_ident: struct {
                     name: name,
                     resolved_path: nil,
-                }?,
-                ..nil,
+                },
             };
         }
         if self.peek().lexeme.equal("number") {
@@ -1275,15 +1244,13 @@ module Parser {
                 return Expression {
                     t_i32: struct {
                         value: i32::parse(token.string_value!),
-                    }?,
-                    ..nil,
+                    },
                 };
             } else if token.string_value!.compare_lte("4294967295") {
                 return Expression {
                     t_u32: struct {
                         value: u32::parse(token.string_value!),
-                    }?,
-                    ..nil,
+                    },
                 };
             } else {
                 return _ or error::new(format("Invalid number {}", token.string_value!));
@@ -1293,16 +1260,14 @@ module Parser {
             self.expect("self").try;
 
             return Expression {
-                t_self: true?,
-                ..nil,
+                t_self: true,
             };
         }
         if self.peek().lexeme.equal("string") {
             let token = self.consume();
 
             return Expression {
-                t_string: token.string_value!?,
-                ..nil,
+                t_string: token.string_value!,
             };
         }
         if self.peek().lexeme.equal("lparen") {
@@ -1313,8 +1278,7 @@ module Parser {
             self.expect("rparen").try;
 
             return Expression {
-                t_paren: expr?,
-                ..nil,
+                t_paren: expr,
             };
         }
         if self.peek().lexeme.equal("bang") {
@@ -1326,32 +1290,28 @@ module Parser {
                 t_unop: struct {
                     unop: "not",
                     expr: expr,
-                }?,
-                ..nil,
+                },
             };
         }
         if self.peek().lexeme.equal("true") {
             self.expect("true").try;
 
             return Expression {
-                t_bool: true?,
-                ..nil,
+                t_bool: true,
             };
         }
         if self.peek().lexeme.equal("false") {
             self.expect("false").try;
 
             return Expression {
-                t_bool: false?,
-                ..nil,
+                t_bool: false,
             };
         }
         if self.peek().lexeme.equal("nil") {
             self.expect("nil").try;
 
             return Expression {
-                t_nil: true?,
-                ..nil,
+                t_nil: true,
             };
         }
         if self.peek().lexeme.equal("struct") {
@@ -1385,16 +1345,14 @@ module Parser {
                 t_anonymous_record: struct {
                     fields: fields,
                     type_: nil,
-                }?,
-                ..nil,
+                },
             };
         }
         if self.peek().lexeme.equal("underscore") {
             self.expect("underscore").try;
 
             return Expression {
-                t_omit: true?,
-                ..nil,
+                t_omit: true,
             };
         }
 

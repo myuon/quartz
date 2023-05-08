@@ -158,22 +158,22 @@ module Statement {
     }
 }
 
-struct Expression {
+enum Expression {
     t_ident: struct {
         name: string,
         resolved_path: Path?,
-    }?,
+    },
     t_binop: struct {
         binop: string,
         left: Expression,
         right: Expression,
-    }?,
+    },
     t_i32: struct {
         value: i32,
-    }?,
+    },
     t_u32: struct {
         value: u32,
-    }?,
+    },
     t_call: struct {
         callee: Expression,
         args: vec[Expression],
@@ -182,66 +182,66 @@ struct Expression {
             index: i32,
         }?,
         expansion: Expression?,
-    }?,
+    },
     t_project: struct {
         expr: Expression,
         field: string,
         type_: Type?,
         resolved_path: Path?,
-    }?,
-    t_record: RecordExpression?,
+    },
+    t_record: RecordExpression,
     t_anonymous_record: struct {
         fields: vec[struct {
             field: string,
             value: Expression,
         }],
         type_: Type?,
-    }?,
+    },
     t_make: struct {
         type_: Type,
         args: vec[Expression],
-    }?,
+    },
     t_as: struct {
         expr: Expression,
         source_type: Type,
         target_type: Type,
-    }?,
+    },
     t_path: struct {
         path: Path,
         resolved_path: Path?,
-    }?,
-    t_self: bool?,
-    t_string: string?,
-    t_paren: Expression?,
+    },
+    t_self: bool,
+    t_string: string,
+    t_paren: Expression,
     t_range: struct {
         start: Expression,
         end: Expression,
-    }?,
+    },
     t_unop: struct {
         unop: string,
         expr: Expression,
-    }?,
+    },
     t_unwrap: struct {
         type_: Type,
         expr: Expression,
-    }?,
+    },
     t_wrap: struct {
         type_: Type,
         expr: Expression,
-    }?,
-    t_bool: bool?,
-    t_nil: bool?,
-    t_omit: bool?,
+    },
+    t_bool: bool,
+    t_nil: bool,
+    t_omit: bool,
     t_enumor: struct {
         lhs: Expression?,
         rhs: Expression?,
         lhs_type: Type,
         rhs_type: Type,
-    }?,
+    },
     t_sizeof: struct {
         type_: Type,
-    }?,
-    t_try: Expression?,
+    },
+    t_try: Expression,
 }
 
 module Expression {

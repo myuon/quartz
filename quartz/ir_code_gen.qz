@@ -255,11 +255,9 @@ module IrCodeGenerator {
                         args: make[vec[Expression]](Expression {
                             t_i32: struct {
                                 value: self.type_reps.type_reps.length,
-                            }?,
-                            ..nil,
+                            },
                         }),
-                    }?,
-                    ..nil,
+                    },
                 }).try,
             }?,
             ..nil,
@@ -357,11 +355,9 @@ module IrCodeGenerator {
                         args: make[vec[Expression]](Expression {
                             t_i32: struct {
                                 value: self.strings.strings.length,
-                            }?,
-                            ..nil,
+                            },
                         }),
-                    }?,
-                    ..nil,
+                    },
                 }).try,
             }?,
             ..nil,
@@ -761,20 +757,17 @@ module IrCodeGenerator {
                                         field: "at",
                                         type_: stm.t_for!.type_!.t_vec,
                                         resolved_path: nil as Path?,
-                                    }?,
-                                    ..nil,
+                                    },
                                 },
                                 args: make[vec[Expression]](Expression {
                                     t_ident: struct {
                                         name: var_index,
                                         resolved_path: nil as Path?,
-                                    }?,
-                                    ..nil,
+                                    },
                                 }),
                                 variadic: nil,
                                 expansion: nil,
-                            }?,
-                            ..nil,
+                            },
                         },
                     },
                 });
@@ -792,8 +785,7 @@ module IrCodeGenerator {
                                 start: Expression {
                                     t_i32: struct {
                                         value: 0,
-                                    }?,
-                                    ..nil,
+                                    },
                                 },
                                 end: Expression {
                                     t_call: struct {
@@ -803,17 +795,14 @@ module IrCodeGenerator {
                                                 field: "length",
                                                 type_: stm.t_for!.type_!.t_vec,
                                                 resolved_path: nil as Path?,
-                                            }?,
-                                            ..nil,
+                                            },
                                         },
                                         args: make[vec[Expression]](),
                                         variadic: nil,
                                         expansion: nil,
-                                    }?,
-                                    ..nil,
+                                    },
                                 },
-                            }?,
-                            ..nil,
+                            },
                         },
                         block: Block {
                             block: new_body,
