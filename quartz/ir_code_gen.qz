@@ -1431,7 +1431,7 @@ module IrCodeGenerator {
                     enum_rep,
                     value,
                     IrTerm {
-                        t_i32: label_index?,
+                        t_i32: 1?,
                         ..nil,
                     },
                 ).try;
@@ -1490,10 +1490,19 @@ module IrCodeGenerator {
                                         ..nil,
                                     },
                                     then_term: IrTerm {
-                                        t_let: IrLet {
-                                            name: result_name,
-                                            type_: IrType::new(value_type),
-                                            value: inside_value,
+                                        t_assign: struct {
+                                            lhs: result_name,
+                                            rhs: self.generate_array_enumerated(
+                                                "optional",
+                                                make[vec[IrType]](IrType::new(value_type)),
+                                                make[vec[struct {
+                                                    type_: IrType,
+                                                    term: IrTerm,
+                                                }]](struct {
+                                                    type_: IrType::new(value_type),
+                                                    term: inside_value,
+                                                }),
+                                            ).try,
                                         }?,
                                         ..nil,
                                     },
@@ -1506,27 +1515,32 @@ module IrCodeGenerator {
                                 }?,
                                 ..nil,
                             },
+                            IrTerm {
+                                t_ident: result_name?,
+                                ..nil,
+                            },
                         ),
                     }?,
                     ..nil,
                 };
-            }
-            let t = self.resolve_type_struct(expr.t_project!.type_!).try;
-            let index = t.index(expr.t_project!.field);
+            } else {
+                let t = self.resolve_type_struct(expr.t_project!.type_!).try;
+                let index = t.index(expr.t_project!.field);
 
-            let offset = 0;
-            for i in 0..index {
-                offset = offset + IrType::new(t.fields.at(i).type_).sizeof();
-            }
+                let offset = 0;
+                for i in 0..index {
+                    offset = offset + IrType::new(t.fields.at(i).type_).sizeof();
+                }
 
-            return IrTerm {
-                t_load: struct {
-                    type_: IrType::new(t.fields.at(index).type_),
-                    address: self.expression(expr.t_project!.expr).try,
-                    offset: IrTerm::i32(offset),
-                }?,
-                ..nil,
-            };
+                return IrTerm {
+                    t_load: struct {
+                        type_: IrType::new(t.fields.at(index).type_),
+                        address: self.expression(expr.t_project!.expr).try,
+                        offset: IrTerm::i32(offset),
+                    }?,
+                    ..nil,
+                };
+            }
         } else if expr.t_make != nil {
             if expr.t_make!.type_.t_ptr != nil {
                 if expr.t_make!.args.length != 1 {
