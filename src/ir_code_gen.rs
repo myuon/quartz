@@ -1154,80 +1154,83 @@ impl IrCodeGenerator {
 
                 self.generate_array("struct".to_string(), vec![], elements)
             }
-            Expr::Project(expr, type_, label) => match type_ {
-                Type::Enum(enum_type) => {
-                    let name = format!("enum_{}", label.start.unwrap_or(0));
-                    let result_name = format!("enum_result_{}", label.start.unwrap_or(0));
+            Expr::Project(expr, type_, label) => {
+                if let Type::Ident(i) = type_ {
+                    if let Some((_, Type::Enum(enum_type))) = self.types.get(&i).cloned() {
+                        let name = format!("enum_{}", label.start.unwrap_or(0));
+                        let result_name = format!("enum_result_{}", label.start.unwrap_or(0));
 
-                    let value = self.expr(expr)?;
-                    let label_index = enum_type
-                        .iter()
-                        .position(|(i, _)| i == &label.data.0[0])
-                        .unwrap();
-                    let value_type = enum_type[label_index].1.clone();
+                        let value = self.expr(expr)?;
+                        let label_index = enum_type
+                            .iter()
+                            .position(|(i, _)| i == &label.data.0[0])
+                            .unwrap();
+                        let value_type = enum_type[label_index].1.clone();
 
-                    let enum_rep = Type::Record(vec![
-                        (Ident("tag".to_string()), Source::unknown(Type::I32)),
-                        (Ident("value".to_string()), value_type.clone()),
-                    ]);
+                        let enum_rep = Type::Record(vec![
+                            (Ident("tag".to_string()), Source::unknown(Type::I32)),
+                            (Ident("value".to_string()), value_type.clone()),
+                        ]);
 
-                    let inside_value =
-                        self.generate_array_at(&enum_rep, value.clone(), IrTerm::i32(1))?;
+                        let inside_value =
+                            self.generate_array_at(&enum_rep, value.clone(), IrTerm::i32(1))?;
 
-                    // let v = ${expr};
-                    // let r = nil;
-                    // if ${label_index} == v.tag {
-                    //     r = v.value?;
-                    // }
-                    // r
-                    Ok(IrTerm::Seq {
-                        elements: vec![
-                            IrTerm::Let {
-                                name,
-                                type_: IrType::from_type(&value_type.data)?,
-                                value: Box::new(value.clone()),
-                            },
-                            IrTerm::Let {
-                                name: result_name.clone(),
-                                type_: IrType::from_type(&value_type.data)?,
-                                value: Box::new(IrTerm::nil()),
-                            },
-                            IrTerm::If {
-                                cond: Box::new(IrTerm::Call {
-                                    callee: Box::new(IrTerm::Ident("equal".to_string())),
-                                    args: vec![
-                                        self.generate_array_at(
-                                            &enum_rep,
-                                            value.clone(),
-                                            IrTerm::i32(0),
-                                        )?,
-                                        IrTerm::i32(label_index as i32),
-                                    ],
-                                    source: None,
-                                }),
-                                type_: IrType::from_type(&Type::Optional(Box::new(
-                                    value_type.data.clone(),
-                                )))?,
-                                then: Box::new(IrTerm::Assign {
-                                    lhs: result_name.clone(),
-                                    rhs: Box::new(self.generate_array(
-                                        "optional".to_string(),
-                                        vec![IrType::from_type(&value_type.data.clone())?],
-                                        vec![(
-                                            None,
-                                            IrType::from_type(&value_type.data.clone())?,
-                                            inside_value,
-                                        )],
-                                    )?),
-                                }),
-                                else_: Box::new(IrTerm::Seq { elements: vec![] }),
-                            },
-                            IrTerm::Ident(result_name),
-                        ],
-                    })
+                        // let v = ${expr};
+                        // let r = nil;
+                        // if ${label_index} == v.tag {
+                        //     r = v.value?;
+                        // }
+                        // r
+                        return Ok(IrTerm::Seq {
+                            elements: vec![
+                                IrTerm::Let {
+                                    name,
+                                    type_: IrType::from_type(&value_type.data)?,
+                                    value: Box::new(value.clone()),
+                                },
+                                IrTerm::Let {
+                                    name: result_name.clone(),
+                                    type_: IrType::from_type(&value_type.data)?,
+                                    value: Box::new(IrTerm::nil()),
+                                },
+                                IrTerm::If {
+                                    cond: Box::new(IrTerm::Call {
+                                        callee: Box::new(IrTerm::Ident("equal".to_string())),
+                                        args: vec![
+                                            self.generate_array_at(
+                                                &enum_rep,
+                                                value.clone(),
+                                                IrTerm::i32(0),
+                                            )?,
+                                            IrTerm::i32(label_index as i32),
+                                        ],
+                                        source: None,
+                                    }),
+                                    type_: IrType::from_type(&Type::Optional(Box::new(
+                                        value_type.data.clone(),
+                                    )))?,
+                                    then: Box::new(IrTerm::Assign {
+                                        lhs: result_name.clone(),
+                                        rhs: Box::new(self.generate_array(
+                                            "optional".to_string(),
+                                            vec![IrType::from_type(&value_type.data.clone())?],
+                                            vec![(
+                                                None,
+                                                IrType::from_type(&value_type.data.clone())?,
+                                                inside_value,
+                                            )],
+                                        )?),
+                                    }),
+                                    else_: Box::new(IrTerm::Seq { elements: vec![] }),
+                                },
+                                IrTerm::Ident(result_name),
+                            ],
+                        });
+                    }
                 }
-                _ => {
-                    let record_type = if let Ok(record) = type_.as_record_type() {
+
+                let record_type =
+                    if let Ok(record) = type_.as_record_type() {
                         record.clone()
                     } else if let Ok(ident) = type_.clone().to_ident() {
                         self.types
@@ -1245,19 +1248,19 @@ impl IrCodeGenerator {
                             }));
                     };
 
-                    let index = record_type
-                        .iter()
-                        .position(|(f, _)| Path::ident(f.clone()) == label.data)
-                        .ok_or(anyhow!("Field not found: {:?} in {:?}", label, record_type))?;
+                let index = record_type
+                    .iter()
+                    .position(|(f, _)| Path::ident(f.clone()) == label.data)
+                    .ok_or(anyhow!("Field not found: {:?} in {:?}", label, record_type))?;
 
-                    let root = self.expr(expr)?;
-                    Ok(self.generate_array_at(
-                        &record_type[index].1.data,
-                        root,
-                        IrTerm::i32(index as i32),
-                    )?)
-                }
-            },
+                let root = self.expr(expr)?;
+
+                Ok(self.generate_array_at(
+                    &record_type[index].1.data,
+                    root,
+                    IrTerm::i32(index as i32),
+                )?)
+            }
             Expr::Make(type_, args) => match type_ {
                 Type::Ptr(p) => {
                     assert_eq!(args.len(), 1);

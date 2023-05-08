@@ -1039,11 +1039,24 @@ enum Value {
     t_string: string,
 }
 
+module Value {
+    fun get(self): i32 {
+        if self.t_i32 != nil {
+            return self.t_i32!;
+        }
+        if self.t_string != nil {
+            return self.t_string!.length;
+        }
+
+        return 0;
+    }
+}
+
 fun main(): i32 {
     let t_10 = Value { t_i32: 10 };
     let t_hello = Value { t_string: "hello" };
 
-    return t_10.t_i32! + t_hello.t_string!.length;
+    return t_10.get() + t_hello.get();
 }
 "#,
                 vec![

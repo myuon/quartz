@@ -878,7 +878,7 @@ impl TypeChecker {
                     if let Type::Enum(_rs) = &type_.1 {
                         assert!(expansion.is_none());
 
-                        return Ok(type_.1.clone());
+                        return Ok(Type::Ident(ident.data.clone()));
                     }
                 }
 
@@ -1030,20 +1030,10 @@ impl TypeChecker {
 
                 // allow non-record type here
                 // (some types only have methods, no fields)
-                let fields = if let Type::Enum(rs) = &expr_type {
-                    rs.iter()
-                        .map(|r| {
-                            (
-                                r.0.clone(),
-                                r.1.clone().map(|v| Type::Optional(Box::new(v))),
-                            )
-                        })
-                        .collect::<HashMap<_, _>>()
-                } else {
-                    self.resolve_record_type(expr_type.clone(), vec![])
-                        .map(|v| v.into_iter().collect::<HashMap<_, _>>())
-                        .unwrap_or(HashMap::new())
-                };
+                let fields = self
+                    .resolve_record_type(expr_type.clone(), vec![])
+                    .map(|v| v.into_iter().collect::<HashMap<_, _>>())
+                    .unwrap_or(HashMap::new());
 
                 if fields.contains_key(&label) {
                     // field access
@@ -1383,7 +1373,7 @@ impl TypeChecker {
                 let cs = Constrains::new_from_hashmap(apps.into_iter().collect::<HashMap<_, _>>());
                 cs.apply(&mut type_);
 
-                let fields = type_.clone().to_record()?;
+                let fields = self.resolve_record_type(type_, vec![])?;
 
                 Ok(fields)
             }
@@ -1394,6 +1384,15 @@ impl TypeChecker {
             Type::Vec(t) => {
                 self.resolve_record_type(Type::Ident(Ident("vec".to_string())), vec![*t.clone()])
             }
+            Type::Enum(rs) => Ok(rs
+                .iter()
+                .map(|r| {
+                    (
+                        r.0.clone(),
+                        r.1.clone().map(|v| Type::Optional(Box::new(v))),
+                    )
+                })
+                .collect::<Vec<_>>()),
             _ => bail!("expected record type, but found {}", type_.to_string()),
         }
     }

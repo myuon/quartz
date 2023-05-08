@@ -933,20 +933,7 @@ module Typechecker {
 
             let label = expr.t_project!.field;
 
-            let fields = make[map[string, Type]]();
-            if t.t_enum != nil {
-                for field in t.t_enum!.fields {
-                    fields.insert(
-                        field.name,
-                        Type {
-                            t_optional: field.type_?,
-                            ..nil,
-                        },
-                    );
-                }
-            } else {
-                fields = self.resolve_record_type(t, make[vec[Type]]()).try;
-            }
+            let fields = self.resolve_record_type(t, make[vec[Type]]()).try;
 
             if fields.has(label) {
                 // field access
@@ -1024,7 +1011,10 @@ module Typechecker {
                 let t = self.globals.at(expr.t_record!.name);
 
                 if t.t_enum != nil {
-                    return t;
+                    return Type {
+                        t_ident: expr.t_record!.name?,
+                        ..nil,
+                    };
                 }
             }
 
@@ -1254,16 +1244,7 @@ module Typechecker {
 
     fun resolve_record_type(self, type_: Type, args: vec[Type]): map[string, Type] or error {
         if type_.t_ident != nil {
-            let ident_type = self.globals.at(type_.t_ident!).t_struct!;
-
-            let result = make[map[string, Type]]();
-            for i in 0..ident_type.fields.length {
-                let field = ident_type.fields.at(i);
-
-                result.insert(field.name, field.type_);
-            }
-
-            return result;
+            return self.resolve_record_type(self.globals.at(type_.t_ident!), make[vec[Type]]()).try;
         } else if type_.t_struct != nil {
             let result = make[map[string, Type]]();
             let fields = type_.t_struct!.fields;
@@ -1275,6 +1256,21 @@ module Typechecker {
             }
 
             return result;
+        } else if type_.t_enum != nil {
+            let fields = make[map[string, Type]]();
+            if type_.t_enum != nil {
+                for field in type_.t_enum!.fields {
+                    fields.insert(
+                        field.name,
+                        Type {
+                            t_optional: field.type_?,
+                            ..nil,
+                        },
+                    );
+                }
+            }
+
+            return fields;
         } else if type_.t_vec != nil {
             return self.resolve_record_type(
                 Type {
