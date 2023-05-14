@@ -244,7 +244,7 @@ enum Expression {
 
 module Expression {
     fun to_string(self): string {
-        return derive::to_string_pretty(self);
+        return derive::to_string(self);
     }
 }
 
@@ -317,11 +317,6 @@ enum Type {
     t_range: Type,
     t_optional: Type,
     t_vec: Type,
-    t_variadic_func: struct {
-        params: vec[Type],
-        variadic: Type,
-        result: Type,
-    },
     t_or: struct {
         left: Type,
         right: Type,
