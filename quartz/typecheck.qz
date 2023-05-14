@@ -505,6 +505,7 @@ module Typechecker {
                 return nil;
             } else if t.t_vec != nil {
                 s.t_for!.mode = "vec";
+                s.t_for!.type_ = t?;
 
                 // FIXME: clone
                 let locals = self.locals;

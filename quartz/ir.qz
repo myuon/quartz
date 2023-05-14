@@ -259,7 +259,7 @@ module IrType {
             };
         }
 
-        return panic("unknown type: {}", t.to_string());
+        return panic("unknown type: {} (IrType::new)", t.to_string());
     }
 
     fun to_string(self): string {

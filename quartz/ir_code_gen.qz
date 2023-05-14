@@ -442,6 +442,8 @@ module IrCodeGenerator {
 
     fun function(self, func: Function): IrFunc or error {
         self.locals = make[map[string, bool]]();
+        // println("{}", self.path_to(func.name));
+        // debug(alloc_ptr);
         let body = self.block(func.body).try;
 
         let params = make[vec[struct {
@@ -1352,6 +1354,10 @@ module IrCodeGenerator {
                 return _ or error::new(format("type is not a record: {}", expr.t_record!.name));
             }
         } else if expr.t_anonymous_record != nil {
+            if expr.t_anonymous_record!.type_ == nil {
+                return _ or error::new("anonymous record type not found");
+            }
+
             let terms = make[vec[struct {
                 type_: IrType,
                 term: IrTerm,

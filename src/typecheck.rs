@@ -1402,7 +1402,7 @@ impl TypeChecker {
                 let (params, mut type_) = self
                     .types
                     .get(&ident)
-                    .ok_or(anyhow!("unknown type: {}", ident.as_str()))?
+                    .ok_or(anyhow!("unknown type: {} (resolve_record_type)", ident.as_str()))?
                     .clone();
 
                 let mut apps = vec![];
