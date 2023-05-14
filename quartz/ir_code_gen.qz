@@ -1536,7 +1536,7 @@ module IrCodeGenerator {
                     InternalTypeRep::from_name(
                         "ptr",
                         make[vec[InternalTypeRep]](InternalTypeRep::from_ir_type(IrType::new(
-                            expr.t_make!.type_.t_ptr!.t_ptr!,
+                            expr.t_make!.type_.t_ptr!,
                         ))),
                     ),
                     IrType::new(expr.t_make!.type_.t_ptr!),
@@ -2317,7 +2317,7 @@ module IrCodeGenerator {
             if self.globals.has(ident) {
                 return self.resolve_type_struct(self.globals.at(ident));
             } else {
-                return _ or error::new(format("unknown type: {}", ident));
+                return _ or error::new(format("unknown symbol: {}", ident));
             }
         } else if t.t_struct != nil {
             return t.t_struct!;
