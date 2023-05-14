@@ -782,18 +782,11 @@ module IrCodeGenerator {
                                     },
                                 },
                                 end: Expression {
-                                    t_call: struct {
-                                        callee: Expression {
-                                            t_project: struct {
-                                                expr: stm.t_for!.range,
-                                                field: "length",
-                                                type_: stm.t_for!.type_!.t_vec,
-                                                resolved_path: nil as Path?,
-                                            },
-                                        },
-                                        args: make[vec[Expression]](),
-                                        variadic: nil,
-                                        expansion: nil,
+                                    t_project: struct {
+                                        expr: stm.t_for!.range,
+                                        field: "length",
+                                        type_: stm.t_for!.type_!.t_vec,
+                                        resolved_path: nil as Path?,
                                     },
                                 },
                             },
