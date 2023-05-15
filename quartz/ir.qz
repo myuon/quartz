@@ -38,6 +38,7 @@ struct IrTerm {
         address: IrTerm,
         offset: IrTerm,
         value: IrTerm,
+        raw_offset: i32,
     }?,
     t_load: struct {
         type_: IrType,

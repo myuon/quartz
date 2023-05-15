@@ -645,7 +645,9 @@ module Generator {
 
             self.new_statement();
             self.write(format("i64.store{}", suffix));
-            self.write("offset=8");
+            if expr.t_store!.raw_offset != 0 {
+                self.write("offset={}".format(expr.t_store!.raw_offset.to_string()));
+            }
         } else if expr.t_sizeof != nil {
             let size = expr.t_sizeof!.type_.sizeof();
 

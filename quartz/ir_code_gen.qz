@@ -2071,6 +2071,7 @@ module IrCodeGenerator {
                     address: IrTerm::ident(var_name),
                     offset: IrTerm::i32(term.offset),
                     value: term.term,
+                    raw_offset: 8,
                 }?,
                 ..nil,
             };
@@ -2151,6 +2152,7 @@ module IrCodeGenerator {
                     t_i32: rep_id?,
                     ..nil,
                 },
+                raw_offset: 0,
             }?,
             ..nil,
         });
@@ -2261,6 +2263,7 @@ module IrCodeGenerator {
                         },
                     ),
                     value: elements.at(index),
+                    raw_offset: 0,
                 }?,
                 ..nil,
             });
@@ -2355,6 +2358,7 @@ module IrCodeGenerator {
                     address: lhs.t_load!.address,
                     offset: lhs.t_load!.offset,
                     value: rhs,
+                    raw_offset: 8,
                 }?,
                 ..nil,
             };
