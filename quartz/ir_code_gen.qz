@@ -733,23 +733,26 @@ module IrCodeGenerator {
                 let var_index = format("index_{}", self.counter.to_string());
                 self.counter = self.counter + 1;
 
+                if stm.t_for!.type_ == nil || stm.t_for!.type_!.t_vec == nil {
+                    panic("TODO: infer type of for loop variable");
+                }
+                let vec_type = stm.t_for!.type_!.t_vec!;
+
                 let new_body = make[vec[Statement]]();
                 new_body.push(Statement {
                     t_let: struct {
                         pattern: Pattern {
-                            t_ident: var_index?,
+                            t_ident: stm.t_for!.ident?,
                             ..nil,
                         },
-                        name_type: Type {
-                            t_i32: true,
-                        },
+                        name_type: vec_type,
                         expr: Expression {
                             t_call: struct {
                                 callee: Expression {
                                     t_project: struct {
                                         expr: stm.t_for!.range,
                                         field: "at",
-                                        type_: stm.t_for!.type_!.t_vec,
+                                        type_: stm.t_for!.type_,
                                         resolved_path: nil as Path?,
                                     },
                                 },
@@ -773,7 +776,7 @@ module IrCodeGenerator {
                     t_for: struct {
                         mode: "range",
                         type_: nil,
-                        ident: stm.t_for!.ident,
+                        ident: var_index,
                         range: Expression {
                             t_range: struct {
                                 start: Expression {
@@ -785,7 +788,7 @@ module IrCodeGenerator {
                                     t_project: struct {
                                         expr: stm.t_for!.range,
                                         field: "length",
-                                        type_: stm.t_for!.type_!.t_vec,
+                                        type_: stm.t_for!.type_,
                                         resolved_path: nil as Path?,
                                     },
                                 },

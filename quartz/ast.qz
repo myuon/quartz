@@ -369,7 +369,7 @@ module TypeStruct {
             }
         }
 
-        return panic("unimplemented: typestruct.find");
+        return panic("unimplemented: typestruct.at");
     }
 
     fun index(self, name: string): i32 {
@@ -379,7 +379,10 @@ module TypeStruct {
             }
         }
 
-        return panic("unimplemented: typestruct.find");
+        return panic("unimplemented: typestruct.index, {}, {}".format(
+            derive::to_string(self),
+            name,
+        ));
     }
 }
 
