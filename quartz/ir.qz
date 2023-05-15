@@ -139,6 +139,14 @@ module IrTerm {
         if self.t_discard != nil {
             locals.extend(self.t_discard!.find_locals());
         }
+        if self.t_and != nil {
+            locals.extend(self.t_and!.lhs.find_locals());
+            locals.extend(self.t_and!.rhs.find_locals());
+        }
+        if self.t_or != nil {
+            locals.extend(self.t_or!.lhs.find_locals());
+            locals.extend(self.t_or!.rhs.find_locals());
+        }
 
         return locals;
     }
