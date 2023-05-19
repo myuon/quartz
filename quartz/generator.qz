@@ -172,18 +172,6 @@ module Generator {
         }
 
         self.global_let(struct {
-            name: "_value_i32_0",
-            type_: IrType {
-                t_i32: true?,
-                ..nil,
-            },
-            value: IrTerm {
-                t_i32: 0?,
-                ..nil,
-            },
-        });
-
-        self.global_let(struct {
             name: "_value_i32_1",
             type_: IrType {
                 t_i32: true?,
@@ -230,24 +218,6 @@ module Generator {
         self.end();
 
         self.start();
-        self.write(
-            `func $alloc (param $size i64) (result i64)
-    (local $p i64)
-
-    global.get $quartz_std_alloc_ptr
-    local.set $p
-
-    global.get $quartz_std_alloc_ptr
-    local.get $size
-    i64.add
-    global.set $quartz_std_alloc_ptr
-
-    local.get $p
-`,
-        );
-        self.end();
-
-        self.start();
         self.write(`func $i32_mul (param $a i64) (param $b i64) (result i64)`);
 
         self.new_statement();
@@ -287,6 +257,16 @@ module Generator {
                         t_call: IrCall {
                             callee: IrTerm {
                                 t_ident: "prepare_strings"?,
+                                ..nil,
+                            },
+                            args: make[vec[IrTerm]](),
+                        }?,
+                        ..nil,
+                    },
+                    IrTerm {
+                        t_call: IrCall {
+                            callee: IrTerm {
+                                t_ident: "prepare_type_reps"?,
                                 ..nil,
                             },
                             args: make[vec[IrTerm]](),

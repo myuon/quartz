@@ -2108,7 +2108,7 @@ module IrCodeGenerator {
                 value: IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "alloc"?,
+                            t_ident: "quartz_std_alloc"?,
                             ..nil,
                         },
                         args: make[vec[IrTerm]](IrCodeGenerator::wrap_mult_sizeof(

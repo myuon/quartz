@@ -330,6 +330,16 @@ fun main(): i32 {
     return t_10.get() + t_hello.get();
 }
 "#,
+        r#"
+struct F {
+}
+
+fun main(): i32 {
+    let t = make[vec[i32]](1,2,3,4,5);
+
+    return t_10.get() + t_hello.get();
+}
+"#,
     ];
 
     for input in cases {
