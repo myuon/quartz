@@ -44,6 +44,7 @@ struct IrTerm {
         type_: IrType,
         address: IrTerm,
         offset: IrTerm,
+        raw_offset: i32,
     }?,
     t_sizeof: struct {
         type_: IrType,

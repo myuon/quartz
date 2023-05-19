@@ -1520,6 +1520,7 @@ module IrCodeGenerator {
                     type_: IrType::new(t.fields.at(index).type_),
                     address: self.expression(expr.t_project!.expr).try,
                     offset: IrTerm::i32(offset),
+                    raw_offset: 0,
                 }?,
                 ..nil,
             };
@@ -2310,6 +2311,7 @@ module IrCodeGenerator {
                 type_: IrType::new(elem_type),
                 address: arr,
                 offset: IrCodeGenerator::wrap_mult_sizeof(IrType::new(elem_type), index),
+                raw_offset: 8,
             }?,
             ..nil,
         };

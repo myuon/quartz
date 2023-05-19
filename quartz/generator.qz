@@ -254,6 +254,16 @@ module Generator {
                         ..nil,
                     },
                     IrTerm {
+                        t_assign: struct {
+                            lhs: "quartz_std_strings_count",
+                            rhs: IrTerm {
+                                t_i32: self.strings.length?,
+                                ..nil,
+                            },
+                        }?,
+                        ..nil,
+                    },
+                    IrTerm {
                         t_call: IrCall {
                             callee: IrTerm {
                                 t_ident: "prepare_strings"?,
@@ -578,7 +588,9 @@ module Generator {
 
             self.new_statement();
             self.write(format("{}.load{}", Value::wasm_type(), suffix));
-            self.write("offset=8");
+            if expr.t_load!.raw_offset != 0 {
+                self.write("offset={}".format(expr.t_load!.raw_offset.to_string()));
+            }
 
             if expr.t_load!.type_.t_byte != nil {
                 self.new_statement();
