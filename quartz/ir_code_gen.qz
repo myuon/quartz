@@ -1572,18 +1572,21 @@ module IrCodeGenerator {
                 });
                 for arg in expr.t_make!.args {
                     terms.push(IrTerm {
-                        t_call: IrCall {
-                            callee: IrTerm {
-                                t_ident: "quartz_std_vec_push"?,
-                                ..nil,
-                            },
-                            args: make[vec[IrTerm]](
-                                IrTerm {
-                                    t_ident: var_vec?,
+                        t_discard: IrTerm {
+                            t_call: IrCall {
+                                callee: IrTerm {
+                                    t_ident: "quartz_std_vec_push"?,
                                     ..nil,
                                 },
-                                self.expression(arg).try,
-                            ),
+                                args: make[vec[IrTerm]](
+                                    IrTerm {
+                                        t_ident: var_vec?,
+                                        ..nil,
+                                    },
+                                    self.expression(arg).try,
+                                ),
+                            }?,
+                            ..nil,
                         }?,
                         ..nil,
                     });
