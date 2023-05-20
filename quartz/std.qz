@@ -814,11 +814,11 @@ module reflection {
     }
 
     fun is_pointer(t: any): bool {
-        return reflection_is_pointer(t);
+        return _reflection_is_pointer(t);
     }
 
     fun is_bool(t: any): bool {
-        return reflection_is_bool(t);
+        return _reflection_is_bool(t);
     }
 
     fun assert_pointer(t: any) {

@@ -176,7 +176,7 @@ module Typechecker {
             },
         );
         globals.insert(
-            "reflection_is_pointer",
+            "_reflection_is_pointer",
             Type {
                 t_func: struct {
                     params: make[vec[Type]](Type {
@@ -189,7 +189,7 @@ module Typechecker {
             },
         );
         globals.insert(
-            "reflection_is_bool",
+            "_reflection_is_bool",
             Type {
                 t_func: struct {
                     params: make[vec[Type]](Type {

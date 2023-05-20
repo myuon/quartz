@@ -50,11 +50,11 @@ impl TypeChecker {
                     Type::Func(vec![Type::Any], Box::new(Type::I32)),
                 ),
                 (
-                    "reflection_is_pointer",
+                    "_reflection_is_pointer",
                     Type::Func(vec![Type::Any], Box::new(Type::Bool)),
                 ),
                 (
-                    "reflection_is_bool",
+                    "_reflection_is_bool",
                     Type::Func(vec![Type::Any], Box::new(Type::Bool)),
                 ),
                 (
@@ -1402,7 +1402,10 @@ impl TypeChecker {
                 let (params, mut type_) = self
                     .types
                     .get(&ident)
-                    .ok_or(anyhow!("unknown type: {} (resolve_record_type)", ident.as_str()))?
+                    .ok_or(anyhow!(
+                        "unknown type: {} (resolve_record_type)",
+                        ident.as_str()
+                    ))?
                     .clone();
 
                 let mut apps = vec![];

@@ -189,7 +189,7 @@ module Generator {
 
         self.start();
         self.write(
-            `func $reflection_is_pointer (param $value i64) (result i64)
+            `func $_reflection_is_pointer (param $value i64) (result i64)
     local.get $value
     i64.const 1
     i64.and
@@ -204,7 +204,7 @@ module Generator {
 
         self.start();
         self.write(
-            `func $reflection_is_bool (param $value i64) (result i64)
+            `func $_reflection_is_bool (param $value i64) (result i64)
     local.get $value
     i64.const 2
     i64.and

@@ -14,7 +14,7 @@ run_compiler:
   cargo run --release -- run ./quartz/main.qz
 
 run_gen1:
-  cargo run --release -- run ./quartz/main.qz > build/gen1.wat && cargo run --release -- run-wat ./build/gen1.wat
+  cargo run --release -- run-wat ./build/compiler/gen1.wat
 
 run_wat:
   cargo run -- run-wat ./build/build.wat

@@ -161,7 +161,7 @@ impl Generator {
         })?;
 
         self.decl(&mut IrTerm::Func {
-            name: "reflection_is_pointer".to_string(),
+            name: "_reflection_is_pointer".to_string(),
             params: vec![("value".to_string(), IrType::Any)],
             result: Some(IrType::Bool),
             body: vec![
@@ -177,7 +177,7 @@ impl Generator {
         })?;
 
         self.decl(&mut IrTerm::Func {
-            name: "reflection_is_bool".to_string(),
+            name: "_reflection_is_bool".to_string(),
             params: vec![("value".to_string(), IrType::Any)],
             result: Some(IrType::Bool),
             body: vec![

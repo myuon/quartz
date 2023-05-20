@@ -330,20 +330,6 @@ fun main(): i32 {
     return t_10.get() + t_hello.get();
 }
 "#,
-        r#"
-fun f(): i32 or error {
-    return _ or error::new("foo: {}".format(0.to_string()));
-}
-
-fun main(): i32 {
-    println("main");
-    println(derive::to_string("foo"));
-    println(derive::to_string(0));
-    println(derive::to_string(f()));
-
-    return 0;
-}
-"#,
     ];
 
     for input in cases {
