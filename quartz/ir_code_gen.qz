@@ -1261,36 +1261,28 @@ module IrCodeGenerator {
                         ..nil,
                     };
                 } else {
-                    let symbol = "";
-                    if project.resolved_path != nil {
-                        symbol = project.resolved_path!.join("_");
-                    } else if project.type_ != nil && project.type_!.t_ident != nil {
-                        symbol = project.type_!.t_ident!;
+                    let args_with_self = make[vec[Expression]](project.expr);
+                    args_with_self.extend(expr.t_call!.args);
+
+                    if expr.t_call!.variadic != nil {
+                        expr.t_call!.variadic!.index = expr.t_call!.variadic!.index + 1;
                     }
 
-                    if symbol == "" {
-                        return _ or error::new("unknown symbol, {}".format(derive::to_string(project)));
+                    if project.resolved_path == nil {
+                        return _ or error::new("project.resolved_path is nil");
                     }
 
-                    let callee = IrTerm {
-                        t_ident: symbol?,
-                        ..nil,
-                    };
-                    let args = make[vec[IrTerm]]();
-
-                    args.push(self.expression(project.expr).try);
-
-                    for i in 0..expr.t_call!.args.length {
-                        args.push(self.expression(expr.t_call!.args.at(i)).try);
-                    }
-
-                    return IrTerm {
-                        t_call: IrCall {
-                            callee: callee,
-                            args: args,
-                        }?,
-                        ..nil,
-                    };
+                    return self.generate_call(
+                        Expression {
+                            t_path: struct {
+                                path: project.resolved_path!,
+                                resolved_path: project.resolved_path,
+                            },
+                        },
+                        args_with_self,
+                        expr.t_call!.variadic,
+                        expr.t_call!.expansion,
+                    ).try;
                 }
             } else {
                 return self.generate_call(

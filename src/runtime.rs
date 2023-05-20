@@ -1063,6 +1063,31 @@ fun main(): i32 {
                     Value::i32(15),
                 ],
             ),
+            (
+                r#"
+struct Foo {
+    x: bool,
+}
+
+module Foo {
+    fun run(self, ..args: vec[i32]): i32 {
+        return args.length;
+    }
+}
+
+fun main(): i32 {
+    let foo = Foo {
+        x: true,
+    };
+    let t = make[vec[i32]](1,2,3,4,5);
+
+    return foo.run(..t);
+}
+                "#,
+                vec![
+                    Value::i32(5),
+                ],
+            )
         ];
 
         for (input, expected) in cases {

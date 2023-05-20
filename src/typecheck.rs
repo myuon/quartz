@@ -1163,7 +1163,11 @@ impl TypeChecker {
                                 },
                             )?;
 
-                            Ok(Type::VariadicFunc(arg_types, variadic, result_type))
+                            Ok(Type::VariadicFunc(
+                                arg_types[1..].to_vec(),
+                                variadic,
+                                result_type,
+                            ))
                         }
                         _ => {
                             return Err(anyhow!(

@@ -897,7 +897,7 @@ module Typechecker {
 
                         return Type {
                             t_variadic_func: struct {
-                                params: arg_types,
+                                params: vec_slice(arg_types, 1, arg_types.length),
                                 result: result_type,
                                 variadic: t.t_variadic_func!.variadic,
                             },

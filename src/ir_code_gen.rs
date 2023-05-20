@@ -1077,6 +1077,10 @@ impl IrCodeGenerator {
                         let mut args_with_self = vec![expr.as_ref().clone()];
                         args_with_self.extend(args.clone());
 
+                        if let Some(variadic) = variadic {
+                            variadic.index += 1;
+                        }
+
                         self.generate_call(
                             &mut Source::transfer(Expr::path(label.data.clone()), expr),
                             &mut args_with_self,

@@ -330,6 +330,26 @@ fun main(): i32 {
     return t_10.get() + t_hello.get();
 }
 "#,
+        r#"
+struct Foo {
+    x: bool,
+}
+
+module Foo {
+    fun run(self, ..args: vec[i32]): i32 {
+        return args.length;
+    }
+}
+
+fun main(): i32 {
+    let foo = Foo {
+        x: true,
+    };
+    let t = make[vec[i32]](1,2,3,4,5);
+
+    return foo.run(..t);
+}
+"#,
     ];
 
     for input in cases {
