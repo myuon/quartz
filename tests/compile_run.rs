@@ -331,13 +331,17 @@ fun main(): i32 {
 }
 "#,
         r#"
-struct F {
+fun f(): i32 or error {
+    return _ or error::new("foo: {}".format(0.to_string()));
 }
 
 fun main(): i32 {
-    let t = make[vec[i32]](1,2,3,4,5);
+    println("main");
+    println(derive::to_string("foo"));
+    println(derive::to_string(0));
+    println(derive::to_string(f()));
 
-    return t_10.get() + t_hello.get();
+    return 0;
 }
 "#,
     ];
@@ -368,7 +372,14 @@ fun main(): i32 {
             &["run", "--release", "--quiet", "--", "run-wat", "--stdin"],
             stdout.as_bytes(),
         )
-        .expect(format!("[INPUT:gen1:runtime]\n{}\n[WAT]\n{}\n", input, stdout).as_str());
+        .expect(
+            format!(
+                "[INPUT:gen1:runtime]\n{}\n[WAT]\n{}\n",
+                input,
+                &stdout[0..100]
+            )
+            .as_str(),
+        );
         assert_eq!(stdout_gen0, stdout_gen1, "[INPUT]\n{}\n", input);
     }
 }
