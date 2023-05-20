@@ -828,7 +828,12 @@ module reflection {
     }
 
     fun print_type(t: any) {
-        println(get_type_rep(t).name);
+        let rep = get_type_rep(t);
+        if rep.params.length == 0 {
+            println(rep.name);
+        } else {
+            println("{}<{}>", rep.name, derive::to_string(rep.params));
+        }
     }
 }
 

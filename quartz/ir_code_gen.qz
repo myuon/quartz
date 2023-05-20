@@ -175,7 +175,21 @@ module IrCodeGenerator {
                 body: make[vec[IrTerm]](IrTerm {
                     t_return: IrReturn {
                         value: IrTerm {
-                            t_i32: 0?,
+                            t_load: struct {
+                                type_: IrType {
+                                    t_address: true?,
+                                    ..nil,
+                                },
+                                address: IrTerm {
+                                    t_ident: "p"?,
+                                    ..nil,
+                                },
+                                offset: IrTerm {
+                                    t_i32: 0?,
+                                    ..nil,
+                                },
+                                raw_offset: 0,
+                            }?,
                             ..nil,
                         },
                     }?,
@@ -526,6 +540,10 @@ module IrCodeGenerator {
                 let lhs = stm.t_let!.pattern.t_or!.lhs.t_ident!;
                 let rhs = stm.t_let!.pattern.t_or!.rhs.t_ident!;
 
+                if stm.t_let!.name_type.t_or == nil {
+                    return _ or error::new("expected or type");
+                }
+
                 let var_name = format("or_{}", self.counter.to_string());
                 self.counter = self.counter + 1;
 
@@ -548,7 +566,7 @@ module IrCodeGenerator {
                                         ..nil,
                                     },
                                     value: self.generate_array_at(
-                                        stm.t_let!.name_type,
+                                        stm.t_let!.name_type.t_or!.left,
                                         IrTerm {
                                             t_ident: var_name?,
                                             ..nil,
@@ -569,7 +587,7 @@ module IrCodeGenerator {
                                         ..nil,
                                     },
                                     value: self.generate_array_at(
-                                        stm.t_let!.name_type,
+                                        stm.t_let!.name_type.t_or!.right,
                                         IrTerm {
                                             t_ident: var_name?,
                                             ..nil,
@@ -1342,7 +1360,7 @@ module IrCodeGenerator {
                     expansion_term = self.expression(expr.t_record!.expansion!).try?;
                 }
 
-                let t = self.globals.at(expr.t_record!.name).t_struct!;
+                let t = record_type.t_struct!;
 
                 let record = make[vec[struct {
                     type_: IrType,
@@ -1762,7 +1780,6 @@ module IrCodeGenerator {
                 ..nil,
             };
             if expr.t_enumor!.lhs != nil {
-                lhs_term = self.expression(expr.t_enumor!.lhs!).try;
                 lhs_term = self.generate_array_enumerated(
                     "optional",
                     make[vec[IrType]](IrType::new(expr.t_enumor!.lhs_type)),
@@ -1771,7 +1788,7 @@ module IrCodeGenerator {
                         term: IrTerm,
                     }]](struct {
                         type_: IrType::new(expr.t_enumor!.lhs_type),
-                        term: lhs_term,
+                        term: self.expression(expr.t_enumor!.lhs!).try,
                     }),
                 ).try;
             }
@@ -1781,7 +1798,6 @@ module IrCodeGenerator {
                 ..nil,
             };
             if expr.t_enumor!.rhs != nil {
-                rhs_term = self.expression(expr.t_enumor!.rhs!).try;
                 rhs_term = self.generate_array_enumerated(
                     "optional",
                     make[vec[IrType]](IrType::new(expr.t_enumor!.rhs_type)),
@@ -1790,7 +1806,7 @@ module IrCodeGenerator {
                         term: IrTerm,
                     }]](struct {
                         type_: IrType::new(expr.t_enumor!.rhs_type),
-                        term: rhs_term,
+                        term: self.expression(expr.t_enumor!.rhs!).try,
                     }),
                 ).try;
             }
