@@ -1355,6 +1355,7 @@ module IrCodeGenerator {
                 let t = record_type.t_struct!;
 
                 let record = make[vec[struct {
+                    label: string?,
                     type_: IrType,
                     term: IrTerm,
                 }]]();
@@ -1364,6 +1365,7 @@ module IrCodeGenerator {
                         let value = expr.t_record!.fields.at(i).value;
 
                         record.push(struct {
+                            label: field.name?,
                             type_: IrType::new(field.type_),
                             term: self.expression(value).try,
                         });
@@ -1373,6 +1375,7 @@ module IrCodeGenerator {
                         }
 
                         record.push(struct {
+                            label: field.name?,
                             type_: IrType::new(field.type_),
                             term: expansion_term!,
                         });
@@ -1389,6 +1392,7 @@ module IrCodeGenerator {
             }
 
             let terms = make[vec[struct {
+                label: string?,
                 type_: IrType,
                 term: IrTerm,
             }]]();
@@ -1396,6 +1400,7 @@ module IrCodeGenerator {
                 let type_ = expr.t_anonymous_record!.type_!.t_struct!.at(field.field);
 
                 terms.push(struct {
+                    label: field.field?,
                     type_: IrType::new(type_),
                     term: self.expression(field.value).try,
                 });
@@ -1511,9 +1516,11 @@ module IrCodeGenerator {
                                                     "optional",
                                                     make[vec[IrType]](IrType::new(value_type)),
                                                     make[vec[struct {
+                                                        label: string?,
                                                         type_: IrType,
                                                         term: IrTerm,
                                                     }]](struct {
+                                                        label: nil,
                                                         type_: IrType::new(value_type),
                                                         term: inside_value,
                                                     }),
@@ -1738,9 +1745,11 @@ module IrCodeGenerator {
                 "optional",
                 make[vec[IrType]](IrType::new(expr.t_wrap!.type_)),
                 make[vec[struct {
+                    label: string?,
                     type_: IrType,
                     term: IrTerm,
                 }]](struct {
+                    label: nil,
                     type_: IrType::new(expr.t_wrap!.type_),
                     term: term,
                 }),
@@ -1776,9 +1785,11 @@ module IrCodeGenerator {
                     "optional",
                     make[vec[IrType]](IrType::new(expr.t_enumor!.lhs_type)),
                     make[vec[struct {
+                        label: string?,
                         type_: IrType,
                         term: IrTerm,
                     }]](struct {
+                        label: nil,
                         type_: IrType::new(expr.t_enumor!.lhs_type),
                         term: self.expression(expr.t_enumor!.lhs!).try,
                     }),
@@ -1794,9 +1805,11 @@ module IrCodeGenerator {
                     "optional",
                     make[vec[IrType]](IrType::new(expr.t_enumor!.rhs_type)),
                     make[vec[struct {
+                        label: string?,
                         type_: IrType,
                         term: IrTerm,
                     }]](struct {
+                        label: nil,
                         type_: IrType::new(expr.t_enumor!.rhs_type),
                         term: self.expression(expr.t_enumor!.rhs!).try,
                     }),
@@ -1807,10 +1820,12 @@ module IrCodeGenerator {
                 "or",
                 make[vec[IrType]](IrType::new(expr.t_enumor!.lhs_type), IrType::new(expr.t_enumor!.rhs_type)),
                 make[vec[struct {
+                    label: string?,
                     type_: IrType,
                     term: IrTerm,
                 }]](
                     struct {
+                        label: "left"?,
                         type_: IrType {
                             t_address: true?,
                             ..nil,
@@ -1818,6 +1833,7 @@ module IrCodeGenerator {
                         term: lhs_term,
                     },
                     struct {
+                        label: "right"?,
                         type_: IrType {
                             t_address: true?,
                             ..nil,
@@ -1950,10 +1966,12 @@ module IrCodeGenerator {
                                     },
                                 ),
                                 make[vec[struct {
+                                    label: string?,
                                     type_: IrType,
                                     term: IrTerm,
                                 }]](
                                     struct {
+                                        label: "left"?,
                                         type_: IrType {
                                             t_address: true?,
                                             ..nil,
@@ -1964,6 +1982,7 @@ module IrCodeGenerator {
                                         },
                                     },
                                     struct {
+                                        label: "right"?,
                                         type_: IrType {
                                             t_address: true?,
                                             ..nil,
@@ -2025,11 +2044,13 @@ module IrCodeGenerator {
         rep_name: string,
         params: vec[IrType],
         record: vec[struct {
+            label: string?,
             type_: IrType,
             term: IrTerm,
         }],
     ): IrTerm or error {
         let terms = make[vec[struct {
+            label: string?,
             offset: i32,
             type_: IrType,
             term: IrTerm,
@@ -2039,6 +2060,7 @@ module IrCodeGenerator {
             let field = record.at(i);
 
             terms.push(struct {
+                label: field.label,
                 offset: offset,
                 type_: field.type_,
                 term: field.term,
@@ -2082,6 +2104,7 @@ module IrCodeGenerator {
         rep_name: string,
         params: vec[IrType],
         terms: vec[struct {
+            label: string?,
             offset: i32,
             type_: IrType,
             term: IrTerm,
@@ -2094,14 +2117,36 @@ module IrCodeGenerator {
         for i in 0..terms.length {
             let term = terms.at(i);
 
-            rep_fields.push(struct {
-                name: format("{}", i.to_string()),
-                type_: term.type_,
-            });
+            if term.label != nil {
+                rep_fields.push(struct {
+                    name: term.label!,
+                    type_: term.type_,
+                });
+            } else {
+                rep_fields.push(struct {
+                    name: format("{}", i.to_string()),
+                    type_: term.type_,
+                });
+            }
         }
         let rep = InternalTypeRep::from_struct(rep_name, params, rep_fields);
 
-        return self.generate_array_with_rep(rep, terms).try;
+        let terms_new = make[vec[struct {
+            offset: i32,
+            type_: IrType,
+            term: IrTerm,
+        }]]();
+        for i in 0..terms.length {
+            let term = terms.at(i);
+
+            terms_new.push(struct {
+                offset: term.offset,
+                type_: term.type_,
+                term: term.term,
+            });
+        }
+
+        return self.generate_array_with_rep(rep, terms_new).try;
     }
 
     fun generate_array_with_rep(
@@ -2257,11 +2302,13 @@ module IrCodeGenerator {
         elements.push(IrTerm::i32(rep.params.length));
 
         let type_rep_terms = make[vec[struct {
+            label: string?,
             type_: IrType,
             term: IrTerm,
         }]]();
         for p in rep.params {
             type_rep_terms.push(struct {
+                label: nil,
                 type_: IrType {
                     t_address: true?,
                     ..nil,
@@ -2273,11 +2320,13 @@ module IrCodeGenerator {
         elements.push(IrTerm::i32(rep.fields.length));
 
         let field_terms = make[vec[struct {
+            label: string?,
             type_: IrType,
             term: IrTerm,
         }]]();
         for t in rep.fields {
             field_terms.push(struct {
+                label: nil,
                 type_: IrType {
                     t_address: true?,
                     ..nil,
