@@ -1844,6 +1844,17 @@ module IrCodeGenerator {
                 return term;
             } else if source.t_any != nil {
                 return term;
+            } else if source.t_i32 != nil && target.t_i64 != nil {
+                return IrTerm {
+                    t_call: IrCall {
+                        callee: IrTerm {
+                            t_ident: "quartz_std_i32_to_i64"?,
+                            ..nil,
+                        },
+                        args: make[vec[IrTerm]](term),
+                    }?,
+                    ..nil,
+                };
             }
 
             return _ or error::new(format("cannot cast {} to {}", source.to_string(), target.to_string()));

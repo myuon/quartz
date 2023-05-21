@@ -183,6 +183,42 @@ module Generator {
             },
         });
 
+        self.global_let(struct {
+            name: "_value_i64_1",
+            type_: IrType {
+                t_address: true?,
+                ..nil,
+            },
+            value: IrTerm {
+                t_i32: 0?,
+                ..nil,
+            },
+        });
+
+        self.global_let(struct {
+            name: "_raw_i64_1",
+            type_: IrType {
+                t_address: true?,
+                ..nil,
+            },
+            value: IrTerm {
+                t_i32: 0?,
+                ..nil,
+            },
+        });
+
+        self.global_let(struct {
+            name: "_raw_i64_2",
+            type_: IrType {
+                t_address: true?,
+                ..nil,
+            },
+            value: IrTerm {
+                t_i32: 0?,
+                ..nil,
+            },
+        });
+
         self.start();
         self.write("memory 50000");
         self.end();
@@ -485,10 +521,18 @@ module Generator {
                     self.generate_op_arithmetic("and");
                 } else if ident.equal("bit_or") {
                     self.generate_op_arithmetic("or");
+                } else if ident.equal("bit_or_i64") {
+                    self.generate_op_arithmetic_i64("i64.or");
                 } else if ident.equal("bit_shift_left") {
                     self.generate_op_arithmetic("shl");
+                } else if ident.equal("bit_shift_left_u32") {
+                    self.generate_op_arithmetic("shl");
+                } else if ident.equal("bit_shift_left_i64") {
+                    self.generate_op_arithmetic_i64("i64.shl");
                 } else if ident.equal("bit_shift_right") {
                     self.generate_op_arithmetic("shr_s");
+                } else if ident.equal("bit_shift_right_i64") {
+                    self.generate_op_arithmetic_i64("i64.shr_s");
                 } else {
                     self.write("call $".concat(ident));
                 }
