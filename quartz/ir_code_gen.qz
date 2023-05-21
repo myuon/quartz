@@ -2271,9 +2271,7 @@ module IrCodeGenerator {
             type_: IrType,
             term: IrTerm,
         }]]();
-        for i in 0..terms.length {
-            let term = terms.at(i);
-
+        for term in terms {
             terms_new.push(struct {
                 offset: term.offset,
                 type_: term.type_,
@@ -2462,7 +2460,7 @@ module IrCodeGenerator {
         }]]();
         for t in rep.fields {
             field_terms.push(struct {
-                label: nil,
+                label: t.name?,
                 type_: IrType {
                     t_address: true?,
                     ..nil,
