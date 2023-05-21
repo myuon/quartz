@@ -2157,24 +2157,24 @@ module IrCodeGenerator {
                         callee: IrTerm {
                             t_ident: "quartz_std_alloc",
                         },
-                        args: make[vec[IrTerm]](IrCodeGenerator::wrap_mult_sizeof(
-                            IrType {
-                                t_address: true,
-                            },
-                            IrTerm {
-                                t_call: IrCall {
-                                    callee: IrTerm {
-                                        t_ident: "add",
-                                    },
-                                    args: make[vec[IrTerm]](
-                                        size,
-                                        IrTerm {
-                                            t_i32: 1,
-                                        },
-                                    ),
+                        args: make[vec[IrTerm]](IrTerm {
+                            t_call: IrCall {
+                                callee: IrTerm {
+                                    t_ident: "add",
                                 },
+                                args: make[vec[IrTerm]](
+                                    IrCodeGenerator::wrap_mult_sizeof(
+                                        IrType {
+                                            t_address: true,
+                                        },
+                                        size,
+                                    ),
+                                    IrTerm {
+                                        t_i32: 8,
+                                    },
+                                ),
                             },
-                        )),
+                        }),
                     },
                 },
             },
