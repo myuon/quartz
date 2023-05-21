@@ -1594,7 +1594,7 @@ impl IrCodeGenerator {
                 elements.push(self.expr(arg)?);
             }
 
-            let vec_name = format!("vec_{}", callee.start.unwrap_or(0));
+            let vec_name = format!("vec_generate_call_{}", callee.start.unwrap_or(0));
 
             let mut variadic_terms = vec![IrTerm::Let {
                 name: vec_name.clone(),

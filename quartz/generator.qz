@@ -77,7 +77,7 @@ module Generator {
     fun new_statement(self) {
         if self.index > 0 {
             self.writer.append("\n");
-            self.writer.append(" ".repeat(self.depth * 2));
+            self.writer.append(" ".repeat(self.depth * 4));
         }
         self.index = 0;
     }
@@ -310,7 +310,7 @@ module Generator {
                     IrTerm {
                         t_return: IrReturn {
                             value: IrTerm {
-                                t_inst: "(call $main_main)",
+                                t_inst: "call $main_main",
                             },
                         },
                     },
@@ -401,6 +401,7 @@ module Generator {
 
     fun expression(self, expr: IrTerm) {
         if expr.t_ident != nil {
+            self.new_statement();
             if self.globals.has(expr.t_ident!) {
                 self.write("global.get");
             } else {

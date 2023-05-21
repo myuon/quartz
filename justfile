@@ -5,7 +5,7 @@ dump:
   wasm-objdump -d build/error.wasm > build/error.log
 
 compile:
-  cargo run -- compile --stdin
+  cargo run --release -- compile --stdin
 
 run:
   cargo run --release -- run --stdin

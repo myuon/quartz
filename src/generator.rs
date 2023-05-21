@@ -484,7 +484,7 @@ impl Generator {
 
                     self.writer.new_statement();
                     self.writer.write(&format!(
-                        " ;; {}",
+                        " ;; string: {}",
                         if s.len() > 30 {
                             format!("{:?}...", &s[0..30])
                         } else {
