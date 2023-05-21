@@ -74,6 +74,30 @@ module InternalTypeRep {
             return InternalTypeRep::from_name("any", make[vec[InternalTypeRep]]());
         } else if t.t_bool != nil {
             return InternalTypeRep::from_name("bool", make[vec[InternalTypeRep]]());
+        } else if t.t_i64 != nil {
+            return InternalTypeRep::from_struct(
+                "i64",
+                make[vec[IrType]](),
+                make[vec[struct {
+                    name: string,
+                    type_: IrType,
+                }]](
+                    struct {
+                        name: "hi",
+                        type_: IrType {
+                            t_i32: true?,
+                            ..nil,
+                        },
+                    },
+                    struct {
+                        name: "lo",
+                        type_: IrType {
+                            t_i32: true?,
+                            ..nil,
+                        },
+                    },
+                ),
+            );
         }
 
         return panic("unreachable, {}".format(t.to_string()));
@@ -896,10 +920,21 @@ module IrCodeGenerator {
                     ..nil,
                 };
             } else if expr.t_binop!.binop.equal("div") {
+                if expr.t_binop!.type_ == nil {
+                    panic("TODO: infer type of binary operation");
+                }
+
+                let op = "div";
+                if expr.t_binop!.type_!.t_u32 != nil {
+                    op = "div_u32";
+                } else if expr.t_binop!.type_!.t_ident != nil && expr.t_binop!.type_!.t_ident!.equal("i64") {
+                    op = "div_i64";
+                }
+
                 return IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "div"?,
+                            t_ident: op?,
                             ..nil,
                         },
                         args: args,
@@ -907,10 +942,21 @@ module IrCodeGenerator {
                     ..nil,
                 };
             } else if expr.t_binop!.binop.equal("mod") {
+                if expr.t_binop!.type_ == nil {
+                    panic("TODO: infer type of binary operation");
+                }
+
+                let op = "mod";
+                if expr.t_binop!.type_!.t_u32 != nil {
+                    op = "mod_u32";
+                } else if expr.t_binop!.type_!.t_ident != nil && expr.t_binop!.type_!.t_ident!.equal("i64") {
+                    op = "mod_i64";
+                }
+
                 return IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "mod"?,
+                            t_ident: op?,
                             ..nil,
                         },
                         args: args,
@@ -951,10 +997,21 @@ module IrCodeGenerator {
                     ..nil,
                 };
             } else if expr.t_binop!.binop.equal("gt") {
+                if expr.t_binop!.type_ == nil {
+                    panic("TODO: infer type of binary operation");
+                }
+
+                let op = "gt";
+                if expr.t_binop!.type_!.t_u32 != nil {
+                    op = "gt_u32";
+                } else if expr.t_binop!.type_!.t_ident != nil && expr.t_binop!.type_!.t_ident!.equal("i64") {
+                    op = "gt_i64";
+                }
+
                 return IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "gt"?,
+                            t_ident: op?,
                             ..nil,
                         },
                         args: args,
@@ -962,10 +1019,21 @@ module IrCodeGenerator {
                     ..nil,
                 };
             } else if expr.t_binop!.binop.equal("lte") {
+                if expr.t_binop!.type_ == nil {
+                    panic("TODO: infer type of binary operation");
+                }
+
+                let op = "lte";
+                if expr.t_binop!.type_!.t_u32 != nil {
+                    op = "lte_u32";
+                } else if expr.t_binop!.type_!.t_ident != nil && expr.t_binop!.type_!.t_ident!.equal("i64") {
+                    op = "lte_i64";
+                }
+
                 return IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "lte"?,
+                            t_ident: op?,
                             ..nil,
                         },
                         args: args,
@@ -973,10 +1041,21 @@ module IrCodeGenerator {
                     ..nil,
                 };
             } else if expr.t_binop!.binop.equal("gte") {
+                if expr.t_binop!.type_ == nil {
+                    panic("TODO: infer type of binary operation");
+                }
+
+                let op = "gte";
+                if expr.t_binop!.type_!.t_u32 != nil {
+                    op = "gte_u32";
+                } else if expr.t_binop!.type_!.t_ident != nil && expr.t_binop!.type_!.t_ident!.equal("i64") {
+                    op = "gte_i64";
+                }
+
                 return IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "gte"?,
+                            t_ident: op?,
                             ..nil,
                         },
                         args: args,
@@ -1000,10 +1079,21 @@ module IrCodeGenerator {
                     ..nil,
                 };
             } else if expr.t_binop!.binop.equal("bit_and") {
+                if expr.t_binop!.type_ == nil {
+                    panic("TODO: infer type of binary operation");
+                }
+
+                let op = "bit_and";
+                if expr.t_binop!.type_!.t_u32 != nil {
+                    op = "bit_and_u32";
+                } else if expr.t_binop!.type_!.t_ident != nil && expr.t_binop!.type_!.t_ident!.equal("i64") {
+                    op = "bit_and_i64";
+                }
+
                 return IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "bit_and"?,
+                            t_ident: op?,
                             ..nil,
                         },
                         args: args,
@@ -1011,10 +1101,21 @@ module IrCodeGenerator {
                     ..nil,
                 };
             } else if expr.t_binop!.binop.equal("bit_or") {
+                if expr.t_binop!.type_ == nil {
+                    panic("TODO: infer type of binary operation");
+                }
+
+                let op = "bit_or";
+                if expr.t_binop!.type_!.t_u32 != nil {
+                    op = "bit_or_u32";
+                } else if expr.t_binop!.type_!.t_ident != nil && expr.t_binop!.type_!.t_ident!.equal("i64") {
+                    op = "bit_or_i64";
+                }
+
                 return IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "bit_or"?,
+                            t_ident: op?,
                             ..nil,
                         },
                         args: args,
@@ -1022,10 +1123,21 @@ module IrCodeGenerator {
                     ..nil,
                 };
             } else if expr.t_binop!.binop.equal("bit_shift_left") {
+                if expr.t_binop!.type_ == nil {
+                    panic("TODO: infer type of binary operation");
+                }
+
+                let op = "bit_shift_left";
+                if expr.t_binop!.type_!.t_u32 != nil {
+                    op = "bit_shift_left_u32";
+                } else if expr.t_binop!.type_!.t_ident != nil && expr.t_binop!.type_!.t_ident!.equal("i64") {
+                    op = "bit_shift_left_i64";
+                }
+
                 return IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "bit_shift_left"?,
+                            t_ident: op?,
                             ..nil,
                         },
                         args: args,
@@ -1033,10 +1145,21 @@ module IrCodeGenerator {
                     ..nil,
                 };
             } else if expr.t_binop!.binop.equal("bit_shift_right") {
+                if expr.t_binop!.type_ == nil {
+                    panic("TODO: infer type of binary operation");
+                }
+
+                let op = "bit_shift_right";
+                if expr.t_binop!.type_!.t_u32 != nil {
+                    op = "bit_shift_right_u32";
+                } else if expr.t_binop!.type_!.t_ident != nil && expr.t_binop!.type_!.t_ident!.equal("i64") {
+                    op = "bit_shift_right_i64";
+                }
+
                 return IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "bit_shift_right"?,
+                            t_ident: op?,
                             ..nil,
                         },
                         args: args,
@@ -1551,20 +1674,14 @@ module IrCodeGenerator {
             let t = self.resolve_type_struct(expr.t_project!.type_!).try;
             let index = t.index(expr.t_project!.field);
 
-            let offset = 0;
-            for i in 0..index {
-                offset = offset + IrType::new(t.fields.at(i).type_).sizeof();
-            }
-
-            return IrTerm {
-                t_load: struct {
-                    type_: IrType::new(t.fields.at(index).type_),
-                    address: self.expression(expr.t_project!.expr).try,
-                    offset: IrTerm::i32(offset),
-                    raw_offset: 8,
-                }?,
-                ..nil,
-            };
+            return self.generate_array_at(
+                t.at(expr.t_project!.field),
+                self.expression(expr.t_project!.expr).try,
+                IrTerm {
+                    t_i32: index?,
+                    ..nil,
+                },
+            ).try;
         } else if expr.t_make != nil {
             if expr.t_make!.type_.t_ptr != nil {
                 if expr.t_make!.args.length != 1 {
@@ -1572,18 +1689,14 @@ module IrCodeGenerator {
                 }
 
                 let len = self.expression(expr.t_make!.args.at(0)).try;
-
-                let rep_args = make[vec[InternalTypeRep]]();
-                rep_args.push(InternalTypeRep::from_ir_type(IrType::new(expr.t_make!.type_.t_ptr!)));
+                let ptr_type = expr.t_make!.type_.t_ptr!;
 
                 return self.allocate_heap_object(
                     InternalTypeRep::from_name(
                         "ptr",
-                        make[vec[InternalTypeRep]](InternalTypeRep::from_ir_type(IrType::new(
-                            expr.t_make!.type_.t_ptr!,
-                        ))),
+                        make[vec[InternalTypeRep]](InternalTypeRep::from_ir_type(IrType::new(ptr_type))),
                     ),
-                    IrType::new(expr.t_make!.type_.t_ptr!),
+                    IrType::new(ptr_type),
                     len,
                 );
             } else if expr.t_make!.type_.t_vec != nil {
@@ -2215,7 +2328,8 @@ module IrCodeGenerator {
 
     fun allocate_heap_object(self, rep: InternalTypeRep, type_: IrType, size: IrTerm): IrTerm or error {
         let rep_id = self.type_reps.get_or_insert(rep);
-        let var = "object";
+        let var = "object_{}".format(self.counter.to_string());
+        self.counter = self.counter + 1;
 
         let object = make[vec[IrTerm]]();
 
@@ -2485,7 +2599,7 @@ module IrCodeGenerator {
                     address: lhs.t_load!.address,
                     offset: lhs.t_load!.offset,
                     value: rhs,
-                    raw_offset: 8,
+                    raw_offset: lhs.t_load!.raw_offset,
                 }?,
                 ..nil,
             };

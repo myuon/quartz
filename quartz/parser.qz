@@ -727,6 +727,7 @@ module Parser {
                 current = Expression {
                     t_binop: struct {
                         binop: "and",
+                        type_: nil,
                         left: current,
                         right: rhs,
                     },
@@ -738,6 +739,7 @@ module Parser {
                 current = Expression {
                     t_binop: struct {
                         binop: "or",
+                        type_: nil,
                         left: current,
                         right: rhs,
                     },
@@ -784,6 +786,7 @@ module Parser {
                 current = Expression {
                     t_binop: struct {
                         binop: "equal",
+                        type_: nil,
                         left: current,
                         right: self.term_3(with_struct).try,
                     },
@@ -795,6 +798,7 @@ module Parser {
                 current = Expression {
                     t_binop: struct {
                         binop: "not_equal",
+                        type_: nil,
                         left: current,
                         right: self.term_3(with_struct).try,
                     },
@@ -815,6 +819,7 @@ module Parser {
             return Expression {
                 t_binop: struct {
                     binop: "lt",
+                    type_: nil,
                     left: current,
                     right: self.term_2(with_struct).try,
                 },
@@ -825,6 +830,7 @@ module Parser {
             return Expression {
                 t_binop: struct {
                     binop: "gt",
+                    type_: nil,
                     left: current,
                     right: self.term_2(with_struct).try,
                 },
@@ -835,6 +841,7 @@ module Parser {
             return Expression {
                 t_binop: struct {
                     binop: "gte",
+                    type_: nil,
                     left: current,
                     right: self.term_2(with_struct).try,
                 },
@@ -845,6 +852,7 @@ module Parser {
             return Expression {
                 t_binop: struct {
                     binop: "lte",
+                    type_: nil,
                     left: current,
                     right: self.term_2(with_struct).try,
                 },
@@ -874,6 +882,7 @@ module Parser {
                 current = Expression {
                     t_binop: struct {
                         binop: "plus",
+                        type_: nil,
                         left: current,
                         right: self.term_1(with_struct).try,
                     },
@@ -886,6 +895,7 @@ module Parser {
                 current = Expression {
                     t_binop: struct {
                         binop: "minus",
+                        type_: nil,
                         left: current,
                         right: self.term_1(with_struct).try,
                     },
@@ -912,6 +922,7 @@ module Parser {
                 current = Expression {
                     t_binop: struct {
                         binop: "bit_and",
+                        type_: nil,
                         left: current,
                         right: self.term_4(with_struct).try,
                     },
@@ -924,6 +935,7 @@ module Parser {
                 current = Expression {
                     t_binop: struct {
                         binop: "bit_or",
+                        type_: nil,
                         left: current,
                         right: self.term_4(with_struct).try,
                     },
@@ -945,6 +957,7 @@ module Parser {
                 current = Expression {
                     t_binop: struct {
                         binop: "mult",
+                        type_: nil,
                         left: current,
                         right: self.term_1(with_struct).try,
                     },
@@ -956,6 +969,7 @@ module Parser {
                 current = Expression {
                     t_binop: struct {
                         binop: "div",
+                        type_: nil,
                         left: current,
                         right: self.term_1(with_struct).try,
                     },
@@ -967,6 +981,7 @@ module Parser {
                 current = Expression {
                     t_binop: struct {
                         binop: "mod",
+                        type_: nil,
                         left: current,
                         right: self.term_1(with_struct).try,
                     },
@@ -978,6 +993,7 @@ module Parser {
                 current = Expression {
                     t_binop: struct {
                         binop: "bit_shift_left",
+                        type_: nil,
                         left: current,
                         right: self.term_1(with_struct).try,
                     },
@@ -989,6 +1005,7 @@ module Parser {
                 current = Expression {
                     t_binop: struct {
                         binop: "bit_shift_right",
+                        type_: nil,
                         left: current,
                         right: self.term_1(with_struct).try,
                     },

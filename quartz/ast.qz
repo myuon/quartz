@@ -163,6 +163,7 @@ enum Expression {
     },
     t_binop: struct {
         binop: string,
+        type_: Type?,
         left: Expression,
         right: Expression,
     },

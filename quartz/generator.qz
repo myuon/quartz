@@ -446,8 +446,14 @@ module Generator {
                     self.write("call $i32_mul");
                 } else if ident.equal("div") {
                     self.generate_op_arithmetic("div_s");
+                } else if ident.equal("div_u32") {
+                    self.generate_op_arithmetic("div_u");
+                } else if ident.equal("div_i64") {
+                    self.generate_op_arithmetic_i64("i64.div_s");
                 } else if ident.equal("mod") {
                     self.generate_op_arithmetic("rem_s");
+                } else if ident.equal("mod_u32") {
+                    self.generate_op_arithmetic("rem_u");
                 } else if ident.equal("equal") {
                     self.write("i64.eq");
                     self.convert_stack_from_bool_1();
@@ -461,6 +467,8 @@ module Generator {
                     self.generate_op_comparison("lt_s");
                 } else if ident.equal("gt") {
                     self.generate_op_comparison("gt_s");
+                } else if ident.equal("gt_u32") {
+                    self.generate_op_comparison("gt_u");
                 } else if ident.equal("lte") {
                     self.generate_op_comparison("le_s");
                 } else if ident.equal("gte") {
@@ -818,10 +826,91 @@ module Generator {
         self.write("i32.wrap_i64");
     }
 
+    // FIXME: need GC lock
+    // For GC locks, keep value n, which is the number of values to lock (not a standard value)
+    fun load_i64(self) {
+        self.new_statement();
+        self.write("global.get $_value_i64_1");
+
+        self.new_statement();
+        self.write("global.get $_value_i64_1");
+
+        self.convert_stack_to_i32_1();
+
+        // load hi address
+        self.new_statement();
+        self.write("i64.load offset=8");
+
+        // load lo address
+        self.new_statement();
+        self.write("global.get $_value_i64_1");
+
+        self.convert_stack_to_i32_1();
+
+        self.new_statement();
+        self.write("i64.load offset=16");
+
+        self.new_statement();
+        self.write("i64.const 32");
+
+        self.new_statement();
+        self.write("i64.shr_u");
+
+        self.new_statement();
+        self.write("i64.add");
+    }
+
     fun generate_op_arithmetic(self, code: string) {
         self.convert_stack_to_i32_2();
         self.write(format("i32.{}", code));
         self.convert_stack_from_i32_1();
+    }
+
+    fun generate_op_arithmetic_i64(self, op: string) {
+        self.load_i64();
+
+        self.new_statement();
+        self.write("global.set $_raw_i64_1");
+
+        self.load_i64();
+
+        self.new_statement();
+        self.write("global.get $_raw_i64_1");
+
+        self.new_statement();
+        self.write(op);
+
+        self.new_statement();
+        self.write("global.set $_raw_i64_1");
+
+        // prepare hi
+        self.new_statement();
+        self.write("global.get $_raw_i64_1");
+
+        self.new_statement();
+        self.write("i64.const 32");
+
+        self.new_statement();
+        self.write("i64.shr_u");
+
+        self.new_statement();
+        self.write("i64.const 32");
+
+        self.new_statement();
+        self.write("i64.shl");
+
+        // prepare lo
+        self.new_statement();
+        self.write("global.get $_raw_i64_1");
+
+        self.new_statement();
+        self.write("i64.const 32");
+
+        self.new_statement();
+        self.write("i64.shl");
+
+        self.new_statement();
+        self.write("call $quartz_std_i64_new");
     }
 
     fun generate_op_comparison(self, code: string) {

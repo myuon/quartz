@@ -598,13 +598,15 @@ module Typechecker {
                 }
 
                 let t2 = self.expression(expr.t_binop!.right).try;
-                unify(t1, t2).try;
+                let r = unify(t1, t2).try;
+                expr.t_binop!.type_ = r?;
 
-                return t1;
+                return r;
             } else if (expr.t_binop!.binop.equal("equal") || expr.t_binop!.binop.equal("not_equal")) {
                 let t1 = self.expression(expr.t_binop!.left).try;
                 let t2 = self.expression(expr.t_binop!.right).try;
-                unify(t1, t2).try;
+                let r = unify(t1, t2).try;
+                expr.t_binop!.type_ = r?;
 
                 return Type {
                     t_bool: true,
@@ -619,7 +621,8 @@ module Typechecker {
                     )));
                 }
 
-                unify(t1, t2).try;
+                let r = unify(t1, t2).try;
+                expr.t_binop!.type_ = r?;
 
                 return Type {
                     t_bool: true,
@@ -634,12 +637,14 @@ module Typechecker {
                 ).try;
 
                 let t2 = self.expression(expr.t_binop!.right).try;
-                unify(
+                let r = unify(
                     t2,
                     Type {
                         t_bool: true,
                     },
                 ).try;
+
+                expr.t_binop!.type_ = r?;
 
                 return Type {
                     t_bool: true,

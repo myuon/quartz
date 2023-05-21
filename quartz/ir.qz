@@ -186,6 +186,7 @@ struct IrType {
     t_byte: bool?,
     t_bool: bool?,
     t_any: bool?,
+    t_i64: bool?,
 }
 
 module IrType {
@@ -203,6 +204,13 @@ module IrType {
             };
         }
         if t.t_ident != nil {
+            if t.t_ident!.equal("i64") {
+                return IrType {
+                    t_i64: true?,
+                    ..nil,
+                };
+            }
+
             return IrType {
                 t_address: true?,
                 ..nil,
