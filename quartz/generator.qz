@@ -262,6 +262,10 @@ module Generator {
         self.convert_stack_from_i32_1();
         self.end();
 
+        if self.main_signature_result == nil {
+            panic("main_signature_result is nil");
+        }
+
         self.decl(IrTerm {
             t_func: IrFunc {
                 name: "start",
@@ -340,7 +344,7 @@ module Generator {
     }
 
     fun function(self, func: IrFunc) {
-        if func.name.equal("main") {
+        if func.name.equal("main_main") {
             self.main_signature_result = func.result_type?;
         }
 
