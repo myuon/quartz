@@ -1176,12 +1176,22 @@ module Typechecker {
 
             return fields;
         } else if type_.t_vec != nil {
-            return self.resolve_record_type(
+            let m = self.resolve_record_type(
                 Type {
                     t_ident: "vec",
                 },
                 args,
+            ).try;
+
+            // FIXME: hack for generics
+            m.insert(
+                "data",
+                Type {
+                    t_ptr: type_.t_vec!,
+                },
             );
+
+            return m;
         } else if type_.t_i32 != nil {
             return make[map[string, Type]]();
         } else if type_.t_ptr != nil {
@@ -1193,6 +1203,8 @@ module Typechecker {
         } else if type_.t_or != nil {
             return make[map[string, Type]]();
         } else if type_.t_u32 != nil {
+            return make[map[string, Type]]();
+        } else if type_.t_byte != nil {
             return make[map[string, Type]]();
         }
 
