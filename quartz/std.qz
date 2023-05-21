@@ -4,7 +4,11 @@ fun print_string(s: string) {
     let n = 0;
 
     while n < l {
-        write_stdout(d.at(n));
+        let ch = d.at(n);
+        // Hack: WHY?
+        if ch != (0 as byte) {
+            write_stdout(d.at(n));
+        }
         n = n + 1;
     }
 }

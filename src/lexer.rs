@@ -326,7 +326,8 @@ impl Lexer {
                                 .as_str()
                                 .to_string()
                                 .replace("\\n", "\n")
-                                .replace("\\\"", "\""),
+                                .replace("\\\"", "\"")
+                                .replace("\\\\", "\\"),
                         ),
                         start: self.position,
                         end: self.position + m.get(0).unwrap().end(),
