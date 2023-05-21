@@ -848,7 +848,7 @@ module Generator {
     // For GC locks, keep value n, which is the number of values to lock (not a standard value)
     fun load_i64(self) {
         self.new_statement();
-        self.write("global.get $_value_i64_1");
+        self.write("global.set $_value_i64_1");
 
         self.new_statement();
         self.write("global.get $_value_i64_1");
