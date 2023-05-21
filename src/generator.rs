@@ -739,6 +739,10 @@ impl Generator {
                 self.writer.new_statement();
                 self.writer.write(i);
             }
+            IrTerm::Comment(c) => {
+                self.writer.new_statement();
+                self.writer.write(format!(";; {:?}", c));
+            }
             _ => todo!("{:?}", expr),
         }
 

@@ -2091,7 +2091,7 @@ module IrCodeGenerator {
             term: IrTerm,
         }],
     ): IrTerm or error {
-        let var_name = format("arr_{}", self.counter.to_string());
+        let var_name = format("arr_{}_{}", rep.name, self.counter.to_string());
         self.counter = self.counter + 1;
 
         let arr = make[vec[IrTerm]]();

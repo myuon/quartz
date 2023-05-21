@@ -69,6 +69,7 @@ enum IrTerm {
     t_break: bool,
     t_size: IrType,
     t_u32: u32,
+    t_comment: string,
 }
 
 module IrTerm {

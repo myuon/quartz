@@ -1721,7 +1721,8 @@ impl IrCodeGenerator {
         // }
         // array_x
         let var_name = format!(
-            "array_{}",
+            "array_{}_{}",
+            rep.name,
             Alphanumeric
                 .sample_iter(&mut rand::thread_rng())
                 .take(5)
