@@ -125,6 +125,7 @@ enum Statement {
     },
     t_assign: struct {
         lhs: Expression,
+        rhs_type: Type?,
         rhs: Expression,
     },
     t_expr: struct {

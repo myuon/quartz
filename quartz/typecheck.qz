@@ -456,7 +456,9 @@ module Typechecker {
                 t_ptr: self.expression(s.t_assign!.rhs).try,
             };
 
-            unify(lhs_type, rhs_type).try;
+            let r = unify(lhs_type, rhs_type).try;
+            s.t_assign!.rhs_type = r?;
+
             return nil;
         } else if s.t_if != nil {
             let condition_type = self.expression(s.t_if!.condition).try;

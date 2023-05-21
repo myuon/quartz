@@ -342,6 +342,10 @@ module IrCodeGenerator {
             ).try;
             body.push(self.assign(
                 lhs,
+                IrType {
+                    t_address: true?,
+                    ..nil,
+                },
                 IrTerm {
                     t_ident: var_p?,
                     ..nil,
@@ -432,6 +436,10 @@ module IrCodeGenerator {
             ).try;
             body.push(self.assign(
                 lhs,
+                IrType {
+                    t_address: true?,
+                    ..nil,
+                },
                 IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
@@ -646,8 +654,11 @@ module IrCodeGenerator {
         } else if stm.t_assign != nil {
             let lhs = self.expression(stm.t_assign!.lhs).try;
             let rhs = self.expression(stm.t_assign!.rhs).try;
+            if stm.t_assign!.rhs_type == nil {
+                return _ or error::new("expected rhs type");
+            }
 
-            return self.assign(lhs, rhs).try;
+            return self.assign(lhs, IrType::new(stm.t_assign!.rhs_type!), rhs).try;
         } else if stm.t_if != nil {
             let then_elements = make[vec[IrTerm]]();
             for i in 0..stm.t_if!.then_block.block.length {
@@ -2591,7 +2602,7 @@ module IrCodeGenerator {
         }
     }
 
-    fun assign(self, lhs: IrTerm, rhs: IrTerm): IrTerm or error {
+    fun assign(self, lhs: IrTerm, rhs_type: IrType, rhs: IrTerm): IrTerm or error {
         if lhs.t_ident != nil {
             let term = IrTerm {
                 t_assign: struct {
@@ -2602,8 +2613,7 @@ module IrCodeGenerator {
             };
 
             return term;
-        }
-        if lhs.t_load != nil {
+        } else if lhs.t_load != nil {
             let term = IrTerm {
                 t_store: struct {
                     type_: lhs.t_load!.type_,
@@ -2616,6 +2626,17 @@ module IrCodeGenerator {
             };
 
             return term;
+        } else if lhs.t_call != nil {
+            return IrTerm {
+                t_store: struct {
+                    type_: rhs_type,
+                    address: lhs,
+                    offset: IrTerm::i32(0),
+                    value: rhs,
+                    raw_offset: 8,
+                }?,
+                ..nil,
+            };
         }
 
         return panic("lhs: {}, rhs: {}", lhs.to_string(), rhs.to_string());

@@ -610,6 +610,7 @@ module Parser {
             return Statement {
                 t_assign: struct {
                     lhs: expr,
+                    rhs_type: nil,
                     rhs: rhs,
                 },
             };
