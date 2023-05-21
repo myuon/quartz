@@ -174,48 +174,40 @@ module Generator {
         self.global_let(struct {
             name: "_value_i32_1",
             type_: IrType {
-                t_i32: true?,
-                ..nil,
+                t_i32: true,
             },
             value: IrTerm {
-                t_i32: 0?,
-                ..nil,
+                t_i32: 0,
             },
         });
 
         self.global_let(struct {
             name: "_value_i64_1",
             type_: IrType {
-                t_address: true?,
-                ..nil,
+                t_address: true,
             },
             value: IrTerm {
-                t_i32: 0?,
-                ..nil,
+                t_i32: 0,
             },
         });
 
         self.global_let(struct {
             name: "_raw_i64_1",
             type_: IrType {
-                t_address: true?,
-                ..nil,
+                t_address: true,
             },
             value: IrTerm {
-                t_i32: 0?,
-                ..nil,
+                t_i32: 0,
             },
         });
 
         self.global_let(struct {
             name: "_raw_i64_2",
             type_: IrType {
-                t_address: true?,
-                ..nil,
+                t_address: true,
             },
             value: IrTerm {
-                t_i32: 0?,
-                ..nil,
+                t_i32: 0,
             },
         });
 
@@ -283,54 +275,43 @@ module Generator {
                         t_assign: struct {
                             lhs: "quartz_std_alloc_ptr",
                             rhs: IrTerm {
-                                t_i32: data_section_offset?,
-                                ..nil,
+                                t_i32: data_section_offset,
                             },
-                        }?,
-                        ..nil,
+                        },
                     },
                     IrTerm {
                         t_assign: struct {
                             lhs: "quartz_std_strings_count",
                             rhs: IrTerm {
-                                t_i32: self.strings.length?,
-                                ..nil,
+                                t_i32: self.strings.length,
                             },
-                        }?,
-                        ..nil,
+                        },
                     },
                     IrTerm {
                         t_call: IrCall {
                             callee: IrTerm {
-                                t_ident: "prepare_strings"?,
-                                ..nil,
+                                t_ident: "prepare_strings",
                             },
                             args: make[vec[IrTerm]](),
-                        }?,
-                        ..nil,
+                        },
                     },
                     IrTerm {
                         t_call: IrCall {
                             callee: IrTerm {
-                                t_ident: "prepare_type_reps"?,
-                                ..nil,
+                                t_ident: "prepare_type_reps",
                             },
                             args: make[vec[IrTerm]](),
-                        }?,
-                        ..nil,
+                        },
                     },
                     IrTerm {
                         t_return: IrReturn {
                             value: IrTerm {
-                                t_inst: "(call $main_main)"?,
-                                ..nil,
+                                t_inst: "(call $main_main)",
                             },
-                        }?,
-                        ..nil,
+                        },
                     },
                 ),
-            }?,
-            ..nil,
+            },
         });
 
         self.start();
@@ -405,11 +386,9 @@ module Generator {
             self.expression(IrTerm {
                 t_return: IrReturn {
                     value: IrTerm {
-                        t_nil: true?,
-                        ..nil,
+                        t_nil: true,
                     },
-                }?,
-                ..nil,
+                },
             });
         }
 
@@ -431,8 +410,7 @@ module Generator {
             }
 
             self.write_value(Value {
-                t_i32: expr.t_i32!?,
-                ..nil,
+                t_i32: expr.t_i32!,
             });
         } else if expr.t_u32 != nil {
             if MODE_READABLE_WASM {
@@ -454,8 +432,7 @@ module Generator {
             self.new_statement();
             self.expression(expr.t_let!.value);
             self.expression_left_value(IrTerm {
-                t_ident: expr.t_let!.name?,
-                ..nil,
+                t_ident: expr.t_let!.name,
             });
         } else if expr.t_return != nil {
             self.new_statement();
@@ -700,8 +677,7 @@ module Generator {
 
             self.new_statement();
             self.write_value(Value {
-                t_i32: size?,
-                ..nil,
+                t_i32: size,
             });
         } else if expr.t_string != nil {
             self.new_statement();
@@ -731,32 +707,27 @@ module Generator {
 
             self.new_statement();
             self.write_value(Value {
-                t_bool: expr.t_bool!?,
-                ..nil,
+                t_bool: expr.t_bool!,
             });
         } else if expr.t_and != nil {
             self.generate_if(
                 IrType {
-                    t_bool: true?,
-                    ..nil,
+                    t_bool: true,
                 }?,
                 expr.t_and!.lhs,
                 expr.t_and!.rhs,
                 IrTerm {
-                    t_bool: false?,
-                    ..nil,
+                    t_bool: false,
                 },
             );
         } else if expr.t_or != nil {
             self.generate_if(
                 IrType {
-                    t_bool: true?,
-                    ..nil,
+                    t_bool: true,
                 }?,
                 expr.t_or!.lhs,
                 IrTerm {
-                    t_bool: true?,
-                    ..nil,
+                    t_bool: true,
                 },
                 expr.t_or!.rhs,
             );
@@ -768,8 +739,7 @@ module Generator {
 
             self.new_statement();
             self.write_value(Value {
-                t_i32: size?,
-                ..nil,
+                t_i32: size,
             });
         } else if expr.t_continue != nil {
             self.new_statement();
