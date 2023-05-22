@@ -10,7 +10,7 @@ compile:
 run:
   cargo run --release -- run --stdin
 
-run_compiler:
+run_gen0_compiler:
   cargo run --release -- run ./quartz/main.qz
 
 run_gen1:
@@ -28,5 +28,5 @@ install:
 fuzztest:
   cd fuzz && cargo afl build --release && cargo afl fuzz -i in -o out target/release/fuzz_target_1
 
-build_gen1:
-  sh ./build_gen1.sh
+build_compiler_source:
+  sh ./build_compiler_source.sh
