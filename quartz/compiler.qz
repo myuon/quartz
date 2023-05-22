@@ -61,6 +61,8 @@ module Compiler {
             self.load_module(path).try;
             visited.insert(path.join("_"), true);
         }
+        // println("loaded modules");
+        // debug(alloc_ptr);
 
         let decls = make[vec[Decl]]();
         for loaded in self.loaded {
@@ -68,8 +70,7 @@ module Compiler {
                 t_module: struct {
                     path: loaded.path,
                     module_: loaded.module_,
-                }?,
-                ..nil,
+                },
             });
         }
 
@@ -79,10 +80,14 @@ module Compiler {
 
         let typechecker = Typechecker::new();
         typechecker.module_(module_).try;
+        // println("typecheck");
+        // debug(alloc_ptr);
 
         let irgen = IrCodeGenerator::new();
         irgen.globals = typechecker.globals;
         let term = irgen.run(module_).try;
+        // println("irgen");
+        // debug(alloc_ptr);
 
         let gen = Generator::new();
         gen.set_globals(typechecker.globals);

@@ -2,7 +2,12 @@ import quartz::ast;
 import quartz::ir;
 import quartz::path;
 
+let typeRepKindStruct = 1;
+
+let typeRepKindEnum = 2;
+
 struct InternalTypeRep {
+    kind: i32,
     name: string,
     params: vec[InternalTypeRep],
     fields: vec[struct {
@@ -14,6 +19,7 @@ struct InternalTypeRep {
 module InternalTypeRep {
     fun from_name(name: string, params: vec[InternalTypeRep]): InternalTypeRep {
         return InternalTypeRep {
+            kind: typeRepKindStruct,
             name: name,
             params: params,
             fields: make[vec[struct {
@@ -48,6 +54,7 @@ module InternalTypeRep {
         }
 
         return InternalTypeRep {
+            kind: typeRepKindStruct,
             name: name,
             params: params_t,
             fields: fields_t,
@@ -67,9 +74,61 @@ module InternalTypeRep {
             return InternalTypeRep::from_name("any", make[vec[InternalTypeRep]]());
         } else if t.t_bool != nil {
             return InternalTypeRep::from_name("bool", make[vec[InternalTypeRep]]());
+        } else if t.t_i64 != nil {
+            return InternalTypeRep::from_struct(
+                "i64",
+                make[vec[IrType]](),
+                make[vec[struct {
+                    name: string,
+                    type_: IrType,
+                }]](
+                    struct {
+                        name: "hi",
+                        type_: IrType {
+                            t_i32: true,
+                        },
+                    },
+                    struct {
+                        name: "lo",
+                        type_: IrType {
+                            t_i32: true,
+                        },
+                    },
+                ),
+            );
         }
 
         return panic("unreachable, {}".format(t.to_string()));
+    }
+
+    fun equal(self, other: InternalTypeRep): bool {
+        if self.kind != other.kind {
+            return false;
+        }
+        if !self.name.equal(other.name) {
+            return false;
+        }
+        if self.params.length != other.params.length {
+            return false;
+        }
+        for i in 0..self.params.length {
+            if !self.params.at(i).equal(other.params.at(i)) {
+                return false;
+            }
+        }
+        if self.fields.length != other.fields.length {
+            return false;
+        }
+        for i in 0..self.fields.length {
+            if !self.fields.at(i).name.equal(other.fields.at(i).name) {
+                return false;
+            }
+            if !self.fields.at(i).type_.equal(other.fields.at(i).type_) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
 
@@ -110,7 +169,7 @@ module TypeRepTable {
 
     fun get_or_insert(self, key: InternalTypeRep): i32 {
         for i in 0..self.type_reps.length {
-            if self.type_reps.at(i).name.equal(key.name) {
+            if self.type_reps.at(i).equal(key) {
                 return i as i32;
             }
         }
@@ -157,32 +216,37 @@ module IrCodeGenerator {
                 }]](struct {
                     name: "p",
                     type_: IrType {
-                        t_address: true?,
-                        ..nil,
+                        t_address: true,
                     },
                 }),
                 result_type: IrType {
-                    t_address: true?,
-                    ..nil,
+                    t_address: true,
                 },
                 body: make[vec[IrTerm]](IrTerm {
                     t_return: IrReturn {
                         value: IrTerm {
-                            t_i32: 0?,
-                            ..nil,
+                            t_load: struct {
+                                type_: IrType {
+                                    t_address: true,
+                                },
+                                address: IrTerm {
+                                    t_ident: "p",
+                                },
+                                offset: IrTerm {
+                                    t_i32: 0,
+                                },
+                                raw_offset: 0,
+                            },
                         },
-                    }?,
-                    ..nil,
+                    },
                 }),
-            }?,
-            ..nil,
+            },
         });
 
         return IrTerm {
             t_module: struct {
                 elements: decls,
-            }?,
-            ..nil,
+            },
         };
     }
 
@@ -194,8 +258,7 @@ module IrCodeGenerator {
 
             if d.t_func != nil {
                 elements.push(IrTerm {
-                    t_func: self.function(d.t_func!).try?,
-                    ..nil,
+                    t_func: self.function(d.t_func!).try,
                 });
             }
             if d.t_let != nil {
@@ -203,12 +266,10 @@ module IrCodeGenerator {
                     t_global_let: struct {
                         name: self.path_to(d.t_let!.name),
                         type_: IrType {
-                            t_i32: true?,
-                            ..nil,
+                            t_i32: true,
                         },
                         value: self.expression(d.t_let!.expr).try,
-                    }?,
-                    ..nil,
+                    },
                 });
             }
             if d.t_module != nil {
@@ -247,22 +308,17 @@ module IrCodeGenerator {
                     t_make: struct {
                         type_: Type {
                             t_ptr: Type {
-                                t_ident: "any"?,
-                                ..nil,
-                            }?,
-                            ..nil,
+                                t_ident: "any",
+                            },
                         },
                         args: make[vec[Expression]](Expression {
                             t_i32: struct {
                                 value: self.type_reps.type_reps.length,
-                            }?,
-                            ..nil,
+                            },
                         }),
-                    }?,
-                    ..nil,
+                    },
                 }).try,
-            }?,
-            ..nil,
+            },
         });
 
         for t in rep_ids {
@@ -275,37 +331,33 @@ module IrCodeGenerator {
                 t_let: IrLet {
                     name: var_p,
                     type_: IrType {
-                        t_i32: true?,
-                        ..nil,
+                        t_i32: true,
                     },
                     value: self.write_type_rep(type_rep).try,
-                }?,
-                ..nil,
+                },
             });
 
             // quartz_std_type_reps_ptr.at(${rep_id}) = p
             let lhs = self.generate_array_at(
                 Type {
                     t_ptr: Type {
-                        t_ident: "any"?,
-                        ..nil,
-                    }?,
-                    ..nil,
+                        t_ident: "any",
+                    },
                 },
                 IrTerm {
-                    t_ident: var_ptr?,
-                    ..nil,
+                    t_ident: var_ptr,
                 },
                 IrTerm {
-                    t_i32: rep_id?,
-                    ..nil,
+                    t_i32: rep_id,
                 },
             ).try;
             body.push(self.assign(
                 lhs,
+                IrType {
+                    t_address: true,
+                },
                 IrTerm {
-                    t_ident: var_p?,
-                    ..nil,
+                    t_ident: var_p,
                 },
             ).try);
         }
@@ -313,11 +365,9 @@ module IrCodeGenerator {
         body.push(IrTerm {
             t_return: IrReturn {
                 value: IrTerm {
-                    t_nil: true?,
-                    ..nil,
+                    t_nil: true,
                 },
-            }?,
-            ..nil,
+            },
         });
 
         return IrTerm {
@@ -328,12 +378,10 @@ module IrCodeGenerator {
                     type_: IrType,
                 }]](),
                 result_type: IrType {
-                    t_nil: true?,
-                    ..nil,
+                    t_nil: true,
                 },
                 body: body,
-            }?,
-            ..nil,
+            },
         };
     }
 
@@ -349,22 +397,17 @@ module IrCodeGenerator {
                     t_make: struct {
                         type_: Type {
                             t_ptr: Type {
-                                t_ident: "string"?,
-                                ..nil,
-                            }?,
-                            ..nil,
+                                t_ident: "string",
+                            },
                         },
                         args: make[vec[Expression]](Expression {
                             t_i32: struct {
                                 value: self.strings.strings.length,
-                            }?,
-                            ..nil,
+                            },
                         }),
-                    }?,
-                    ..nil,
+                    },
                 }).try,
-            }?,
-            ..nil,
+            },
         });
 
         // avoid 0-8 for null pointer
@@ -375,46 +418,42 @@ module IrCodeGenerator {
             let str_len = str.length;
             let str_memory_size = str_len + 8;
 
-            let new_str = "\00\00\00\00\00\00\00\00".concat(str);
+            let new_str = "\\00\\00\\00\\00\\00\\00\\00\\00".concat(str);
             terms.push(IrTerm {
                 t_data: struct {
                     data: new_str,
                     offset: self.data_section_offset,
-                }?,
-                ..nil,
+                },
             });
 
             let lhs = self.generate_array_at(
                 Type::string(),
                 IrTerm {
-                    t_ident: var_strings?,
-                    ..nil,
+                    t_ident: var_strings,
                 },
                 IrTerm {
-                    t_i32: i?,
-                    ..nil,
+                    t_i32: i,
                 },
             ).try;
             body.push(self.assign(
                 lhs,
+                IrType {
+                    t_address: true,
+                },
                 IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "quartz_std_new_string"?,
-                            ..nil,
+                            t_ident: "quartz_std_new_string",
                         },
                         args: make[vec[IrTerm]](
                             IrTerm {
-                                t_i32: self.data_section_offset?,
-                                ..nil,
+                                t_i32: self.data_section_offset,
                             },
                             IrTerm {
-                                t_i32: str_len?,
-                                ..nil,
+                                t_i32: str_len,
                             },
                         ),
-                    }?,
-                    ..nil,
+                    },
                 },
             ).try);
 
@@ -424,11 +463,9 @@ module IrCodeGenerator {
         body.push(IrTerm {
             t_return: IrReturn {
                 value: IrTerm {
-                    t_nil: true?,
-                    ..nil,
+                    t_nil: true,
                 },
-            }?,
-            ..nil,
+            },
         });
 
         terms.push(IrTerm {
@@ -440,11 +477,9 @@ module IrCodeGenerator {
                 }]](),
                 body: body,
                 result_type: IrType {
-                    t_nil: true?,
-                    ..nil,
+                    t_nil: true,
                 },
-            }?,
-            ..nil,
+            },
         });
 
         return terms;
@@ -452,6 +487,8 @@ module IrCodeGenerator {
 
     fun function(self, func: Function): IrFunc or error {
         self.locals = make[map[string, bool]]();
+        // println("{}", self.path_to(func.name));
+        // debug(alloc_ptr);
         let body = self.block(func.body).try;
 
         let params = make[vec[struct {
@@ -465,8 +502,7 @@ module IrCodeGenerator {
                 params.push(struct {
                     name: p.name,
                     type_: IrType::new(Type {
-                        t_ident: self.current_path.path.at(0)?,
-                        ..nil,
+                        t_ident: self.current_path.path.at(0),
                     }),
                 });
             } else {
@@ -486,8 +522,8 @@ module IrCodeGenerator {
         return IrFunc {
             name: self.path_to(func.name),
             params: params,
-            body: body,
             result_type: IrType::new(func.result_type),
+            body: body,
         };
     }
 
@@ -514,12 +550,10 @@ module IrCodeGenerator {
                     t_let: IrLet {
                         name: name,
                         type_: IrType {
-                            t_i32: true?,
-                            ..nil,
+                            t_i32: true,
                         },
                         value: self.expression(stm.t_let!.expr).try,
-                    }?,
-                    ..nil,
+                    },
                 };
                 self.locals.insert(name, true);
 
@@ -527,6 +561,10 @@ module IrCodeGenerator {
             } else if stm.t_let!.pattern.t_or != nil {
                 let lhs = stm.t_let!.pattern.t_or!.lhs.t_ident!;
                 let rhs = stm.t_let!.pattern.t_or!.rhs.t_ident!;
+
+                if stm.t_let!.name_type.t_or == nil {
+                    return _ or error::new("expected or type");
+                }
 
                 let var_name = format("or_{}", self.counter.to_string());
                 self.counter = self.counter + 1;
@@ -539,75 +577,66 @@ module IrCodeGenerator {
                                     name: var_name,
                                     type_: IrType::new(stm.t_let!.name_type),
                                     value: self.expression(stm.t_let!.expr).try,
-                                }?,
-                                ..nil,
+                                },
                             },
                             IrTerm {
                                 t_let: IrLet {
                                     name: lhs,
                                     type_: IrType {
-                                        t_address: true?,
-                                        ..nil,
+                                        t_address: true,
                                     },
                                     value: self.generate_array_at(
-                                        stm.t_let!.name_type,
+                                        stm.t_let!.name_type.t_or!.left,
                                         IrTerm {
-                                            t_ident: var_name?,
-                                            ..nil,
+                                            t_ident: var_name,
                                         },
                                         IrTerm {
-                                            t_i32: 0?,
-                                            ..nil,
+                                            t_i32: 0,
                                         },
                                     ).try,
-                                }?,
-                                ..nil,
+                                },
                             },
                             IrTerm {
                                 t_let: IrLet {
                                     name: rhs,
                                     type_: IrType {
-                                        t_address: true?,
-                                        ..nil,
+                                        t_address: true,
                                     },
                                     value: self.generate_array_at(
-                                        stm.t_let!.name_type,
+                                        stm.t_let!.name_type.t_or!.right,
                                         IrTerm {
-                                            t_ident: var_name?,
-                                            ..nil,
+                                            t_ident: var_name,
                                         },
                                         IrTerm {
-                                            t_i32: 1?,
-                                            ..nil,
+                                            t_i32: 1,
                                         },
                                     ).try,
-                                }?,
-                                ..nil,
+                                },
                             },
                         ),
-                    }?,
-                    ..nil,
+                    },
                 };
             }
         } else if stm.t_return != nil {
             let term = IrTerm {
                 t_return: IrReturn {
                     value: self.expression(stm.t_return!.expr).try,
-                }?,
-                ..nil,
+                },
             };
 
             return term;
         } else if stm.t_expr != nil {
             return IrTerm {
-                t_discard: self.expression(stm.t_expr!.expr).try?,
-                ..nil,
+                t_discard: self.expression(stm.t_expr!.expr).try,
             };
         } else if stm.t_assign != nil {
             let lhs = self.expression(stm.t_assign!.lhs).try;
             let rhs = self.expression(stm.t_assign!.rhs).try;
+            if stm.t_assign!.rhs_type == nil {
+                return _ or error::new("expected rhs type");
+            }
 
-            return self.assign(lhs, rhs).try;
+            return self.assign(lhs, IrType::new(stm.t_assign!.rhs_type!), rhs).try;
         } else if stm.t_if != nil {
             let then_elements = make[vec[IrTerm]]();
             for i in 0..stm.t_if!.then_block.block.length {
@@ -627,17 +656,14 @@ module IrCodeGenerator {
                     then_term: IrTerm {
                         t_seq: struct {
                             terms: then_elements,
-                        }?,
-                        ..nil,
+                        },
                     },
                     else_term: IrTerm {
                         t_seq: struct {
                             terms: else_elements,
-                        }?,
-                        ..nil,
+                        },
                     },
-                }?,
-                ..nil,
+                },
             };
         } else if stm.t_while != nil {
             let body_elements = make[vec[IrTerm]]();
@@ -651,12 +677,10 @@ module IrCodeGenerator {
                     block: IrTerm {
                         t_seq: struct {
                             terms: body_elements,
-                        }?,
-                        ..nil,
+                        },
                     },
                     cleanup: nil as IrTerm?,
-                }?,
-                ..nil,
+                },
             };
         } else if stm.t_for != nil {
             if stm.t_for!.mode.equal("range") {
@@ -669,36 +693,30 @@ module IrCodeGenerator {
                                 t_let: IrLet {
                                     name: stm.t_for!.ident,
                                     type_: IrType {
-                                        t_i32: true?,
-                                        ..nil,
+                                        t_i32: true,
                                     },
                                     value: self.expression(range.start).try,
-                                }?,
-                                ..nil,
+                                },
                             },
                             IrTerm {
                                 t_while: struct {
                                     condition: IrTerm {
                                         t_call: IrCall {
                                             callee: IrTerm {
-                                                t_ident: "lt"?,
-                                                ..nil,
+                                                t_ident: "lt",
                                             },
                                             args: make[vec[IrTerm]](
                                                 IrTerm {
-                                                    t_ident: stm.t_for!.ident?,
-                                                    ..nil,
+                                                    t_ident: stm.t_for!.ident,
                                                 },
                                                 self.expression(range.end).try,
                                             ),
-                                        }?,
-                                        ..nil,
+                                        },
                                     },
                                     block: IrTerm {
                                         t_seq: struct {
                                             terms: self.block(stm.t_for!.block).try,
-                                        }?,
-                                        ..nil,
+                                        },
                                     },
                                     cleanup: IrTerm {
                                         t_assign: struct {
@@ -706,31 +724,24 @@ module IrCodeGenerator {
                                             rhs: IrTerm {
                                                 t_call: IrCall {
                                                     callee: IrTerm {
-                                                        t_ident: "add"?,
-                                                        ..nil,
+                                                        t_ident: "add",
                                                     },
                                                     args: make[vec[IrTerm]](
                                                         IrTerm {
-                                                            t_ident: stm.t_for!.ident?,
-                                                            ..nil,
+                                                            t_ident: stm.t_for!.ident,
                                                         },
                                                         IrTerm {
-                                                            t_i32: 1?,
-                                                            ..nil,
+                                                            t_i32: 1,
                                                         },
                                                     ),
-                                                }?,
-                                                ..nil,
+                                                },
                                             },
-                                        }?,
-                                        ..nil,
+                                        },
                                     }?,
-                                }?,
-                                ..nil,
+                                },
                             },
                         ),
-                    }?,
-                    ..nil,
+                    },
                 };
             } else if stm.t_for!.mode.equal("vec") {
                 // for v in vec { body }
@@ -742,42 +753,40 @@ module IrCodeGenerator {
                 let var_index = format("index_{}", self.counter.to_string());
                 self.counter = self.counter + 1;
 
+                if stm.t_for!.type_ == nil || stm.t_for!.type_!.t_vec == nil {
+                    panic("TODO: infer type of for loop variable");
+                }
+                let vec_type = stm.t_for!.type_!.t_vec!;
+
                 let new_body = make[vec[Statement]]();
                 new_body.push(Statement {
                     t_let: struct {
                         pattern: Pattern {
-                            t_ident: var_index?,
+                            t_ident: stm.t_for!.ident?,
                             ..nil,
                         },
-                        name_type: Type {
-                            t_i32: true?,
-                            ..nil,
-                        },
+                        name_type: vec_type,
                         expr: Expression {
                             t_call: struct {
                                 callee: Expression {
                                     t_project: struct {
                                         expr: stm.t_for!.range,
                                         field: "at",
-                                        type_: stm.t_for!.type_!.t_vec,
+                                        type_: stm.t_for!.type_,
                                         resolved_path: nil as Path?,
-                                    }?,
-                                    ..nil,
+                                    },
                                 },
                                 args: make[vec[Expression]](Expression {
                                     t_ident: struct {
                                         name: var_index,
                                         resolved_path: nil as Path?,
-                                    }?,
-                                    ..nil,
+                                    },
                                 }),
                                 variadic: nil,
                                 expansion: nil,
-                            }?,
-                            ..nil,
+                            },
                         },
-                    }?,
-                    ..nil,
+                    },
                 });
                 for body in stm.t_for!.block.block {
                     new_body.push(body);
@@ -787,53 +796,39 @@ module IrCodeGenerator {
                     t_for: struct {
                         mode: "range",
                         type_: nil,
-                        ident: stm.t_for!.ident,
+                        ident: var_index,
                         range: Expression {
                             t_range: struct {
                                 start: Expression {
                                     t_i32: struct {
                                         value: 0,
-                                    }?,
-                                    ..nil,
+                                    },
                                 },
                                 end: Expression {
-                                    t_call: struct {
-                                        callee: Expression {
-                                            t_project: struct {
-                                                expr: stm.t_for!.range,
-                                                field: "length",
-                                                type_: stm.t_for!.type_!.t_vec,
-                                                resolved_path: nil as Path?,
-                                            }?,
-                                            ..nil,
-                                        },
-                                        args: make[vec[Expression]](),
-                                        variadic: nil,
-                                        expansion: nil,
-                                    }?,
-                                    ..nil,
+                                    t_project: struct {
+                                        expr: stm.t_for!.range,
+                                        field: "length",
+                                        type_: stm.t_for!.type_,
+                                        resolved_path: nil as Path?,
+                                    },
                                 },
-                            }?,
-                            ..nil,
+                            },
                         },
                         block: Block {
                             block: new_body,
                         },
-                    }?,
-                    ..nil,
+                    },
                 }).try;
             } else {
                 return _ or error::new(format("unsupported for loop: {}", stm.to_string()));
             }
         } else if stm.t_continue != nil {
             return IrTerm {
-                t_continue: true?,
-                ..nil,
+                t_continue: true,
             };
         } else if stm.t_break != nil {
             return IrTerm {
-                t_break: true?,
-                ..nil,
+                t_break: true,
             };
         }
 
@@ -843,15 +838,13 @@ module IrCodeGenerator {
     fun expression(self, expr: Expression): IrTerm or error {
         if expr.t_i32 != nil {
             let term = IrTerm {
-                t_i32: expr.t_i32!.value?,
-                ..nil,
+                t_i32: expr.t_i32!.value,
             };
 
             return term;
         } else if expr.t_u32 != nil {
             let term = IrTerm {
-                t_u32: expr.t_u32!.value?,
-                ..nil,
+                t_u32: expr.t_u32!.value,
             };
 
             return term;
@@ -864,182 +857,249 @@ module IrCodeGenerator {
                 return IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "add"?,
-                            ..nil,
+                            t_ident: "add",
                         },
                         args: args,
-                    }?,
-                    ..nil,
+                    },
                 };
             } else if expr.t_binop!.binop.equal("minus") {
                 return IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "sub"?,
-                            ..nil,
+                            t_ident: "sub",
                         },
                         args: args,
-                    }?,
-                    ..nil,
+                    },
                 };
             } else if expr.t_binop!.binop.equal("mult") {
                 return IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "mult"?,
-                            ..nil,
+                            t_ident: "mult",
                         },
                         args: args,
-                    }?,
-                    ..nil,
+                    },
                 };
             } else if expr.t_binop!.binop.equal("div") {
+                if expr.t_binop!.type_ == nil {
+                    panic("TODO: infer type of binary operation");
+                }
+
+                let op = "div";
+                if expr.t_binop!.type_!.t_u32 != nil {
+                    op = "div_u32";
+                } else if expr.t_binop!.type_!.t_ident != nil && expr.t_binop!.type_!.t_ident!.equal("i64") {
+                    op = "div_i64";
+                }
+
                 return IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "div"?,
-                            ..nil,
+                            t_ident: op,
                         },
                         args: args,
-                    }?,
-                    ..nil,
+                    },
                 };
             } else if expr.t_binop!.binop.equal("mod") {
+                if expr.t_binop!.type_ == nil {
+                    panic("TODO: infer type of binary operation");
+                }
+
+                let op = "mod";
+                if expr.t_binop!.type_!.t_u32 != nil {
+                    op = "mod_u32";
+                } else if expr.t_binop!.type_!.t_ident != nil && expr.t_binop!.type_!.t_ident!.equal("i64") {
+                    op = "mod_i64";
+                }
+
                 return IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "mod"?,
-                            ..nil,
+                            t_ident: op,
                         },
                         args: args,
-                    }?,
-                    ..nil,
+                    },
                 };
             } else if expr.t_binop!.binop.equal("equal") {
                 return IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "equal"?,
-                            ..nil,
+                            t_ident: "equal",
                         },
                         args: args,
-                    }?,
-                    ..nil,
+                    },
                 };
             } else if expr.t_binop!.binop.equal("not_equal") {
                 return IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "not_equal"?,
-                            ..nil,
+                            t_ident: "not_equal",
                         },
                         args: args,
-                    }?,
-                    ..nil,
+                    },
                 };
             } else if expr.t_binop!.binop.equal("lt") {
                 return IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "lt"?,
-                            ..nil,
+                            t_ident: "lt",
                         },
                         args: args,
-                    }?,
-                    ..nil,
+                    },
                 };
             } else if expr.t_binop!.binop.equal("gt") {
+                if expr.t_binop!.type_ == nil {
+                    panic("TODO: infer type of binary operation");
+                }
+
+                let op = "gt";
+                if expr.t_binop!.type_!.t_u32 != nil {
+                    op = "gt_u32";
+                } else if expr.t_binop!.type_!.t_ident != nil && expr.t_binop!.type_!.t_ident!.equal("i64") {
+                    op = "gt_i64";
+                }
+
                 return IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "gt"?,
-                            ..nil,
+                            t_ident: op,
                         },
                         args: args,
-                    }?,
-                    ..nil,
+                    },
                 };
             } else if expr.t_binop!.binop.equal("lte") {
+                if expr.t_binop!.type_ == nil {
+                    panic("TODO: infer type of binary operation");
+                }
+
+                let op = "lte";
+                if expr.t_binop!.type_!.t_u32 != nil {
+                    op = "lte_u32";
+                } else if expr.t_binop!.type_!.t_ident != nil && expr.t_binop!.type_!.t_ident!.equal("i64") {
+                    op = "lte_i64";
+                }
+
                 return IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "lte"?,
-                            ..nil,
+                            t_ident: op,
                         },
                         args: args,
-                    }?,
-                    ..nil,
+                    },
                 };
             } else if expr.t_binop!.binop.equal("gte") {
+                if expr.t_binop!.type_ == nil {
+                    panic("TODO: infer type of binary operation");
+                }
+
+                let op = "gte";
+                if expr.t_binop!.type_!.t_u32 != nil {
+                    op = "gte_u32";
+                } else if expr.t_binop!.type_!.t_ident != nil && expr.t_binop!.type_!.t_ident!.equal("i64") {
+                    op = "gte_i64";
+                }
+
                 return IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "gte"?,
-                            ..nil,
+                            t_ident: op,
                         },
                         args: args,
-                    }?,
-                    ..nil,
+                    },
                 };
             } else if expr.t_binop!.binop.equal("and") {
                 return IrTerm {
                     t_and: struct {
                         lhs: self.expression(expr.t_binop!.left).try,
                         rhs: self.expression(expr.t_binop!.right).try,
-                    }?,
-                    ..nil,
+                    },
                 };
             } else if expr.t_binop!.binop.equal("or") {
                 return IrTerm {
                     t_or: struct {
                         lhs: self.expression(expr.t_binop!.left).try,
                         rhs: self.expression(expr.t_binop!.right).try,
-                    }?,
-                    ..nil,
+                    },
                 };
             } else if expr.t_binop!.binop.equal("bit_and") {
+                if expr.t_binop!.type_ == nil {
+                    panic("TODO: infer type of binary operation");
+                }
+
+                let op = "bit_and";
+                if expr.t_binop!.type_!.t_u32 != nil {
+                    op = "bit_and_u32";
+                } else if expr.t_binop!.type_!.t_ident != nil && expr.t_binop!.type_!.t_ident!.equal("i64") {
+                    op = "bit_and_i64";
+                }
+
                 return IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "bit_and"?,
-                            ..nil,
+                            t_ident: op,
                         },
                         args: args,
-                    }?,
-                    ..nil,
+                    },
                 };
             } else if expr.t_binop!.binop.equal("bit_or") {
+                if expr.t_binop!.type_ == nil {
+                    panic("TODO: infer type of binary operation");
+                }
+
+                let op = "bit_or";
+                if expr.t_binop!.type_!.t_u32 != nil {
+                    op = "bit_or_u32";
+                } else if expr.t_binop!.type_!.t_ident != nil && expr.t_binop!.type_!.t_ident!.equal("i64") {
+                    op = "bit_or_i64";
+                }
+
                 return IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "bit_or"?,
-                            ..nil,
+                            t_ident: op,
                         },
                         args: args,
-                    }?,
-                    ..nil,
+                    },
                 };
             } else if expr.t_binop!.binop.equal("bit_shift_left") {
+                if expr.t_binop!.type_ == nil {
+                    panic("TODO: infer type of binary operation");
+                }
+
+                let op = "bit_shift_left";
+                if expr.t_binop!.type_!.t_u32 != nil {
+                    op = "bit_shift_left_u32";
+                } else if expr.t_binop!.type_!.t_ident != nil && expr.t_binop!.type_!.t_ident!.equal("i64") {
+                    op = "bit_shift_left_i64";
+                }
+
                 return IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "bit_shift_left"?,
-                            ..nil,
+                            t_ident: op,
                         },
                         args: args,
-                    }?,
-                    ..nil,
+                    },
                 };
             } else if expr.t_binop!.binop.equal("bit_shift_right") {
+                if expr.t_binop!.type_ == nil {
+                    panic("TODO: infer type of binary operation");
+                }
+
+                let op = "bit_shift_right";
+                if expr.t_binop!.type_!.t_u32 != nil {
+                    op = "bit_shift_right_u32";
+                } else if expr.t_binop!.type_!.t_ident != nil && expr.t_binop!.type_!.t_ident!.equal("i64") {
+                    op = "bit_shift_right_i64";
+                }
+
                 return IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "bit_shift_right"?,
-                            ..nil,
+                            t_ident: op,
                         },
                         args: args,
-                    }?,
-                    ..nil,
+                    },
                 };
             }
 
@@ -1047,14 +1107,12 @@ module IrCodeGenerator {
         } else if expr.t_ident != nil {
             if expr.t_ident!.resolved_path != nil {
                 return IrTerm {
-                    t_ident: expr.t_ident!.resolved_path!.join("_")?,
-                    ..nil,
+                    t_ident: expr.t_ident!.resolved_path!.join("_"),
                 };
             }
 
             return IrTerm {
-                t_ident: expr.t_ident!.name?,
-                ..nil,
+                t_ident: expr.t_ident!.name,
             };
         } else if expr.t_call != nil {
             let callee = expr.t_call!.callee;
@@ -1081,8 +1139,7 @@ module IrCodeGenerator {
                     return IrTerm {
                         t_call: IrCall {
                             callee: IrTerm {
-                                t_ident: "add"?,
-                                ..nil,
+                                t_ident: "add",
                             },
                             args: make[vec[IrTerm]](
                                 self.expression(project.expr).try,
@@ -1091,8 +1148,7 @@ module IrCodeGenerator {
                                     self.expression(expr.t_call!.args.at(0)).try,
                                 ),
                             ),
-                        }?,
-                        ..nil,
+                        },
                     };
                 } else if project.type_!.t_vec != nil && project.field.equal("at") {
                     if expr.t_call!.args.length != 1 {
@@ -1109,15 +1165,13 @@ module IrCodeGenerator {
                     return IrTerm {
                         t_call: IrCall {
                             callee: IrTerm {
-                                t_ident: symbol?,
-                                ..nil,
+                                t_ident: symbol,
                             },
                             args: make[vec[IrTerm]](
                                 self.expression(project.expr).try,
                                 self.expression(expr.t_call!.args.at(0)).try,
                             ),
-                        }?,
-                        ..nil,
+                        },
                     };
                 } else if project.type_!.t_vec != nil && project.field.equal("push") {
                     if expr.t_call!.args.length != 1 {
@@ -1134,15 +1188,13 @@ module IrCodeGenerator {
                     return IrTerm {
                         t_call: IrCall {
                             callee: IrTerm {
-                                t_ident: symbol?,
-                                ..nil,
+                                t_ident: symbol,
                             },
                             args: make[vec[IrTerm]](
                                 self.expression(project.expr).try,
                                 self.expression(expr.t_call!.args.at(0)).try,
                             ),
-                        }?,
-                        ..nil,
+                        },
                     };
                 } else if project.type_!.t_vec != nil && project.field.equal("extend") {
                     if expr.t_call!.args.length != 1 {
@@ -1159,15 +1211,13 @@ module IrCodeGenerator {
                     return IrTerm {
                         t_call: IrCall {
                             callee: IrTerm {
-                                t_ident: symbol?,
-                                ..nil,
+                                t_ident: symbol,
                             },
                             args: make[vec[IrTerm]](
                                 self.expression(project.expr).try,
                                 self.expression(expr.t_call!.args.at(0)).try,
                             ),
-                        }?,
-                        ..nil,
+                        },
                     };
                 } else if project.type_!.t_vec != nil && project.field.equal("slice") {
                     if expr.t_call!.args.length != 2 {
@@ -1177,16 +1227,14 @@ module IrCodeGenerator {
                     return IrTerm {
                         t_call: IrCall {
                             callee: IrTerm {
-                                t_ident: "quartz_std_vec_slice"?,
-                                ..nil,
+                                t_ident: "quartz_std_vec_slice",
                             },
                             args: make[vec[IrTerm]](
                                 self.expression(project.expr).try,
                                 self.expression(expr.t_call!.args.at(0)).try,
                                 self.expression(expr.t_call!.args.at(1)).try,
                             ),
-                        }?,
-                        ..nil,
+                        },
                     };
                 } else if project.type_!.t_map != nil && project.field.equal("insert") {
                     if expr.t_call!.args.length != 2 {
@@ -1196,16 +1244,14 @@ module IrCodeGenerator {
                     return IrTerm {
                         t_call: IrCall {
                             callee: IrTerm {
-                                t_ident: "quartz_std_map_insert"?,
-                                ..nil,
+                                t_ident: "quartz_std_map_insert",
                             },
                             args: make[vec[IrTerm]](
                                 self.expression(project.expr).try,
                                 self.expression(expr.t_call!.args.at(0)).try,
                                 self.expression(expr.t_call!.args.at(1)).try,
                             ),
-                        }?,
-                        ..nil,
+                        },
                     };
                 } else if project.type_!.t_map != nil && project.field.equal("at") {
                     if expr.t_call!.args.length != 1 {
@@ -1215,15 +1261,13 @@ module IrCodeGenerator {
                     return IrTerm {
                         t_call: IrCall {
                             callee: IrTerm {
-                                t_ident: "quartz_std_map_at"?,
-                                ..nil,
+                                t_ident: "quartz_std_map_at",
                             },
                             args: make[vec[IrTerm]](
                                 self.expression(project.expr).try,
                                 self.expression(expr.t_call!.args.at(0)).try,
                             ),
-                        }?,
-                        ..nil,
+                        },
                     };
                 } else if project.type_!.t_map != nil && project.field.equal("has") {
                     if expr.t_call!.args.length != 1 {
@@ -1233,15 +1277,13 @@ module IrCodeGenerator {
                     return IrTerm {
                         t_call: IrCall {
                             callee: IrTerm {
-                                t_ident: "quartz_std_map_has"?,
-                                ..nil,
+                                t_ident: "quartz_std_map_has",
                             },
                             args: make[vec[IrTerm]](
                                 self.expression(project.expr).try,
                                 self.expression(expr.t_call!.args.at(0)).try,
                             ),
-                        }?,
-                        ..nil,
+                        },
                     };
                 } else if project.type_!.t_map != nil && project.field.equal("list_keys") {
                     if expr.t_call!.args.length != 0 {
@@ -1251,44 +1293,34 @@ module IrCodeGenerator {
                     return IrTerm {
                         t_call: IrCall {
                             callee: IrTerm {
-                                t_ident: "quartz_std_map_list_keys"?,
-                                ..nil,
+                                t_ident: "quartz_std_map_list_keys",
                             },
                             args: make[vec[IrTerm]](self.expression(project.expr).try),
-                        }?,
-                        ..nil,
+                        },
                     };
                 } else {
-                    let symbol = "";
-                    if project.resolved_path != nil {
-                        symbol = project.resolved_path!.join("_");
-                    } else if project.type_ != nil && project.type_!.t_ident != nil {
-                        symbol = project.type_!.t_ident!;
+                    let args_with_self = make[vec[Expression]](project.expr);
+                    args_with_self.extend(expr.t_call!.args);
+
+                    if expr.t_call!.variadic != nil {
+                        expr.t_call!.variadic!.index = expr.t_call!.variadic!.index + 1;
                     }
 
-                    if symbol == "" {
-                        return _ or error::new("unknown symbol, {}".format(derive::to_string(project)));
+                    if project.resolved_path == nil {
+                        return _ or error::new("project.resolved_path is nil");
                     }
 
-                    let callee = IrTerm {
-                        t_ident: symbol?,
-                        ..nil,
-                    };
-                    let args = make[vec[IrTerm]]();
-
-                    args.push(self.expression(project.expr).try);
-
-                    for i in 0..expr.t_call!.args.length {
-                        args.push(self.expression(expr.t_call!.args.at(i)).try);
-                    }
-
-                    return IrTerm {
-                        t_call: IrCall {
-                            callee: callee,
-                            args: args,
-                        }?,
-                        ..nil,
-                    };
+                    return self.generate_call(
+                        Expression {
+                            t_path: struct {
+                                path: project.resolved_path!,
+                                resolved_path: project.resolved_path,
+                            },
+                        },
+                        args_with_self,
+                        expr.t_call!.variadic,
+                        expr.t_call!.expansion,
+                    ).try;
                 }
             } else {
                 return self.generate_call(
@@ -1312,21 +1344,36 @@ module IrCodeGenerator {
                 let index = record_type.t_enum!.index(field.field);
                 let value = self.expression(field.value).try;
 
-                return self.generate_array_enumerated(
-                    expr.t_record!.name,
-                    make[vec[IrType]](),
+                let fields = make[vec[struct {
+                    name: string,
+                    type_: InternalTypeRep,
+                }]]();
+                for field in record_type.t_enum!.fields {
+                    fields.push(struct {
+                        name: field.name,
+                        type_: InternalTypeRep::from_ir_type(IrType::new(field.type_)),
+                    });
+                }
+
+                let rep = InternalTypeRep {
+                    kind: typeRepKindEnum,
+                    name: expr.t_record!.name,
+                    params: make[vec[InternalTypeRep]](),
+                    fields: fields,
+                };
+
+                return self.generate_array_with_rep(
+                    rep,
                     make[vec[struct {
                         type_: IrType,
                         term: IrTerm,
                     }]](
                         struct {
                             type_: IrType {
-                                t_i32: true?,
-                                ..nil,
+                                t_i32: true,
                             },
                             term: IrTerm {
-                                t_i32: index?,
-                                ..nil,
+                                t_i32: index,
                             },
                         },
                         struct {
@@ -1341,18 +1388,21 @@ module IrCodeGenerator {
                     expansion_term = self.expression(expr.t_record!.expansion!).try?;
                 }
 
-                let t = self.globals.at(expr.t_record!.name).t_struct!;
+                let t = record_type.t_struct!;
+                let fields_map = expr.t_record!.to_fields_map();
 
                 let record = make[vec[struct {
+                    label: string?,
                     type_: IrType,
                     term: IrTerm,
                 }]]();
                 for i in 0..t.fields.length {
                     let field = t.fields.at(i);
-                    if i < expr.t_record!.fields.length {
-                        let value = expr.t_record!.fields.at(i).value;
+                    if fields_map.has(field.name) {
+                        let value = fields_map.at(field.name);
 
                         record.push(struct {
+                            label: field.name?,
                             type_: IrType::new(field.type_),
                             term: self.expression(value).try,
                         });
@@ -1362,31 +1412,53 @@ module IrCodeGenerator {
                         }
 
                         record.push(struct {
+                            label: field.name?,
                             type_: IrType::new(field.type_),
                             term: expansion_term!,
                         });
                     }
                 }
 
-                return self.generate_array_enumerated(expr.t_record!.name, make[vec[IrType]](), record);
+                return self.generate_array(expr.t_record!.name, make[vec[IrType]](), record);
             } else {
                 return _ or error::new(format("type is not a record: {}", expr.t_record!.name));
             }
         } else if expr.t_anonymous_record != nil {
+            if expr.t_anonymous_record!.type_ == nil {
+                return _ or error::new("anonymous record type not found");
+            }
+            if expr.t_anonymous_record!.type_!.t_struct == nil {
+                return _ or error::new("anonymous record type is not a struct");
+            }
+            let struct_type = expr.t_anonymous_record!.type_!.t_struct!;
+
             let terms = make[vec[struct {
+                label: string?,
                 type_: IrType,
                 term: IrTerm,
             }]]();
-            for field in expr.t_anonymous_record!.fields {
-                let type_ = expr.t_anonymous_record!.type_!.t_struct!.at(field.field);
 
+            for field in struct_type.fields {
+                let field_expr = nil as Expression?;
+                for f in expr.t_anonymous_record!.fields {
+                    if f.field == field.name {
+                        field_expr = f.value?;
+                        break;
+                    }
+                }
+                if field_expr == nil {
+                    return _ or error::new(format("field not found: {}", field.name));
+                }
+
+                let value = self.expression(field_expr!).try;
                 terms.push(struct {
-                    type_: IrType::new(type_),
-                    term: self.expression(field.value).try,
+                    label: field.name?,
+                    type_: IrType::new(field.type_),
+                    term: value,
                 });
             }
 
-            return self.generate_array_enumerated("struct", make[vec[IrType]](), terms).try;
+            return self.generate_array("struct", make[vec[IrType]](), terms).try;
         } else if expr.t_project != nil {
             if expr.t_project!.type_ == nil {
                 return _ or error::new("project type is nil");
@@ -1416,8 +1488,7 @@ module IrCodeGenerator {
                                 struct {
                                     name: "tag",
                                     type_: Type {
-                                        t_ident: "i32"?,
-                                        ..nil,
+                                        t_ident: "i32",
                                     },
                                 },
                                 struct {
@@ -1425,16 +1496,14 @@ module IrCodeGenerator {
                                     type_: value_type,
                                 },
                             ),
-                        }?,
-                        ..nil,
+                        },
                     };
 
                     let inside_value = self.generate_array_at(
                         enum_rep,
                         value,
                         IrTerm {
-                            t_i32: 1?,
-                            ..nil,
+                            t_i32: 1,
                         },
                     ).try;
 
@@ -1452,78 +1521,68 @@ module IrCodeGenerator {
                                         name: name,
                                         type_: IrType::new(value_type),
                                         value: value,
-                                    }?,
-                                    ..nil,
+                                    },
                                 },
                                 IrTerm {
                                     t_let: IrLet {
                                         name: result_name,
                                         type_: IrType::new(value_type),
                                         value: IrTerm {
-                                            t_nil: true?,
-                                            ..nil,
+                                            t_nil: true,
                                         },
-                                    }?,
-                                    ..nil,
+                                    },
                                 },
                                 IrTerm {
                                     t_if: struct {
                                         condition: IrTerm {
                                             t_call: IrCall {
                                                 callee: IrTerm {
-                                                    t_ident: "equal"?,
-                                                    ..nil,
+                                                    t_ident: "equal",
                                                 },
                                                 args: make[vec[IrTerm]](
                                                     self.generate_array_at(
                                                         enum_rep,
                                                         value,
                                                         IrTerm {
-                                                            t_i32: 0?,
-                                                            ..nil,
+                                                            t_i32: 0,
                                                         },
                                                     ).try,
                                                     IrTerm {
-                                                        t_i32: label_index?,
-                                                        ..nil,
+                                                        t_i32: label_index,
                                                     },
                                                 ),
-                                            }?,
-                                            ..nil,
+                                            },
                                         },
                                         then_term: IrTerm {
                                             t_assign: struct {
                                                 lhs: result_name,
-                                                rhs: self.generate_array_enumerated(
+                                                rhs: self.generate_array(
                                                     "optional",
                                                     make[vec[IrType]](IrType::new(value_type)),
                                                     make[vec[struct {
+                                                        label: string?,
                                                         type_: IrType,
                                                         term: IrTerm,
                                                     }]](struct {
+                                                        label: nil,
                                                         type_: IrType::new(value_type),
                                                         term: inside_value,
                                                     }),
                                                 ).try,
-                                            }?,
-                                            ..nil,
+                                            },
                                         },
                                         else_term: IrTerm {
                                             t_seq: struct {
                                                 terms: make[vec[IrTerm]](),
-                                            }?,
-                                            ..nil,
+                                            },
                                         },
-                                    }?,
-                                    ..nil,
+                                    },
                                 },
                                 IrTerm {
-                                    t_ident: result_name?,
-                                    ..nil,
+                                    t_ident: result_name,
                                 },
                             ),
-                        }?,
-                        ..nil,
+                        },
                     };
                 }
             }
@@ -1531,19 +1590,13 @@ module IrCodeGenerator {
             let t = self.resolve_type_struct(expr.t_project!.type_!).try;
             let index = t.index(expr.t_project!.field);
 
-            let offset = 0;
-            for i in 0..index {
-                offset = offset + IrType::new(t.fields.at(i).type_).sizeof();
-            }
-
-            return IrTerm {
-                t_load: struct {
-                    type_: IrType::new(t.fields.at(index).type_),
-                    address: self.expression(expr.t_project!.expr).try,
-                    offset: IrTerm::i32(offset),
-                }?,
-                ..nil,
-            };
+            return self.generate_array_at(
+                t.at(expr.t_project!.field),
+                self.expression(expr.t_project!.expr).try,
+                IrTerm {
+                    t_i32: index,
+                },
+            ).try;
         } else if expr.t_make != nil {
             if expr.t_make!.type_.t_ptr != nil {
                 if expr.t_make!.args.length != 1 {
@@ -1551,18 +1604,14 @@ module IrCodeGenerator {
                 }
 
                 let len = self.expression(expr.t_make!.args.at(0)).try;
-
-                let rep_args = make[vec[InternalTypeRep]]();
-                rep_args.push(InternalTypeRep::from_ir_type(IrType::new(expr.t_make!.type_.t_ptr!)));
+                let ptr_type = expr.t_make!.type_.t_ptr!;
 
                 return self.allocate_heap_object(
                     InternalTypeRep::from_name(
                         "ptr",
-                        make[vec[InternalTypeRep]](InternalTypeRep::from_ir_type(IrType::new(
-                            expr.t_make!.type_.t_ptr!.t_ptr!,
-                        ))),
+                        make[vec[InternalTypeRep]](InternalTypeRep::from_ir_type(IrType::new(ptr_type))),
                     ),
-                    IrType::new(expr.t_make!.type_.t_ptr!),
+                    IrType::new(ptr_type),
                     len,
                 );
             } else if expr.t_make!.type_.t_vec != nil {
@@ -1577,58 +1626,49 @@ module IrCodeGenerator {
                         value: IrTerm {
                             t_call: IrCall {
                                 callee: IrTerm {
-                                    t_ident: "quartz_std_vec_make"?,
-                                    ..nil,
+                                    t_ident: "quartz_std_vec_make",
                                 },
                                 args: make[vec[IrTerm]](IrTerm {
-                                    t_i32: 5?,
-                                    ..nil,
+                                    t_i32: 5,
                                 }),
-                            }?,
-                            ..nil,
+                            },
                         },
-                    }?,
-                    ..nil,
+                    },
                 });
                 for arg in expr.t_make!.args {
                     terms.push(IrTerm {
-                        t_call: IrCall {
-                            callee: IrTerm {
-                                t_ident: "quartz_std_vec_push"?,
-                                ..nil,
-                            },
-                            args: make[vec[IrTerm]](
-                                IrTerm {
-                                    t_ident: var_vec?,
-                                    ..nil,
+                        t_discard: IrTerm {
+                            t_call: IrCall {
+                                callee: IrTerm {
+                                    t_ident: "quartz_std_vec_push",
                                 },
-                                self.expression(arg).try,
-                            ),
-                        }?,
-                        ..nil,
+                                args: make[vec[IrTerm]](
+                                    IrTerm {
+                                        t_ident: var_vec,
+                                    },
+                                    self.expression(arg).try,
+                                ),
+                            },
+                        },
                     });
                 }
                 terms.push(IrTerm {
-                    t_ident: var_vec?,
-                    ..nil,
+                    t_ident: var_vec,
                 });
 
                 return IrTerm {
                     t_seq: struct {
                         terms: terms,
-                    }?,
-                    ..nil,
+                    },
                 };
             } else if expr.t_make!.type_.t_map != nil {
                 return IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "quartz_std_map_make"?,
-                            ..nil,
+                            t_ident: "quartz_std_map_make",
                         },
                         args: make[vec[IrTerm]](),
-                    }?,
-                    ..nil,
+                    },
                 };
             } else {
                 return _ or error::new("make() expects a pointer or vector type, {}".format(expr.t_make!.type_.to_string(
@@ -1640,13 +1680,11 @@ module IrCodeGenerator {
             }
 
             return IrTerm {
-                t_ident: expr.t_path!.resolved_path!.join("_")?,
-                ..nil,
+                t_ident: expr.t_path!.resolved_path!.join("_"),
             };
         } else if expr.t_self != nil {
             return IrTerm {
-                t_ident: "self"?,
-                ..nil,
+                t_ident: "self",
             };
         } else if expr.t_as != nil {
             let term = self.expression(expr.t_as!.expr).try;
@@ -1663,50 +1701,51 @@ module IrCodeGenerator {
                 return IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "i32_to_address"?,
-                            ..nil,
+                            t_ident: "i32_to_address",
                         },
                         args: make[vec[IrTerm]](term),
-                    }?,
-                    ..nil,
+                    },
                 };
             } else if (source.t_i32 != nil) && (target.t_byte != nil) {
                 return IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "i32_to_byte"?,
-                            ..nil,
+                            t_ident: "i32_to_byte",
                         },
                         args: make[vec[IrTerm]](term),
-                    }?,
-                    ..nil,
+                    },
                 };
             } else if (source.t_byte != nil) && (target.t_i32 != nil) {
                 return IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "byte_to_i32"?,
-                            ..nil,
+                            t_ident: "byte_to_i32",
                         },
                         args: make[vec[IrTerm]](term),
-                    }?,
-                    ..nil,
+                    },
                 };
             } else if (source.t_address != nil) && (target.t_i32 != nil) {
                 return IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "address_to_i32"?,
-                            ..nil,
+                            t_ident: "address_to_i32",
                         },
                         args: make[vec[IrTerm]](term),
-                    }?,
-                    ..nil,
+                    },
                 };
             } else if target.t_any != nil {
                 return term;
             } else if source.t_any != nil {
                 return term;
+            } else if source.t_i32 != nil && target.t_i64 != nil {
+                return IrTerm {
+                    t_call: IrCall {
+                        callee: IrTerm {
+                            t_ident: "quartz_std_i32_to_i64",
+                        },
+                        args: make[vec[IrTerm]](term),
+                    },
+                };
             }
 
             return _ or error::new(format("cannot cast {} to {}", source.to_string(), target.to_string()));
@@ -1717,13 +1756,15 @@ module IrCodeGenerator {
         } else if expr.t_wrap != nil {
             let term = self.expression(expr.t_wrap!.expr).try;
 
-            return self.generate_array_enumerated(
+            return self.generate_array(
                 "optional",
                 make[vec[IrType]](IrType::new(expr.t_wrap!.type_)),
                 make[vec[struct {
+                    label: string?,
                     type_: IrType,
                     term: IrTerm,
                 }]](struct {
+                    label: nil,
                     type_: IrType::new(expr.t_wrap!.type_),
                     term: term,
                 }),
@@ -1735,77 +1776,75 @@ module IrCodeGenerator {
                 expr.t_unwrap!.type_,
                 term,
                 IrTerm {
-                    t_i32: 0?,
-                    ..nil,
+                    t_i32: 0,
                 },
             ).try;
         } else if expr.t_bool != nil {
             return IrTerm {
-                t_bool: expr.t_bool!?,
-                ..nil,
+                t_bool: expr.t_bool!,
             };
         } else if expr.t_nil != nil {
             return IrTerm {
-                t_nil: true?,
-                ..nil,
+                t_nil: true,
             };
         } else if expr.t_enumor != nil {
             let lhs_term = IrTerm {
-                t_nil: true?,
-                ..nil,
+                t_nil: true,
             };
             if expr.t_enumor!.lhs != nil {
-                lhs_term = self.expression(expr.t_enumor!.lhs!).try;
-                lhs_term = self.generate_array_enumerated(
+                lhs_term = self.generate_array(
                     "optional",
                     make[vec[IrType]](IrType::new(expr.t_enumor!.lhs_type)),
                     make[vec[struct {
+                        label: string?,
                         type_: IrType,
                         term: IrTerm,
                     }]](struct {
+                        label: nil,
                         type_: IrType::new(expr.t_enumor!.lhs_type),
-                        term: lhs_term,
+                        term: self.expression(expr.t_enumor!.lhs!).try,
                     }),
                 ).try;
             }
 
             let rhs_term = IrTerm {
-                t_nil: true?,
-                ..nil,
+                t_nil: true,
             };
             if expr.t_enumor!.rhs != nil {
-                rhs_term = self.expression(expr.t_enumor!.rhs!).try;
-                rhs_term = self.generate_array_enumerated(
+                rhs_term = self.generate_array(
                     "optional",
                     make[vec[IrType]](IrType::new(expr.t_enumor!.rhs_type)),
                     make[vec[struct {
+                        label: string?,
                         type_: IrType,
                         term: IrTerm,
                     }]](struct {
+                        label: nil,
                         type_: IrType::new(expr.t_enumor!.rhs_type),
-                        term: rhs_term,
+                        term: self.expression(expr.t_enumor!.rhs!).try,
                     }),
                 ).try;
             }
 
-            return self.generate_array_enumerated(
+            return self.generate_array(
                 "or",
                 make[vec[IrType]](IrType::new(expr.t_enumor!.lhs_type), IrType::new(expr.t_enumor!.rhs_type)),
                 make[vec[struct {
+                    label: string?,
                     type_: IrType,
                     term: IrTerm,
                 }]](
                     struct {
+                        label: "left"?,
                         type_: IrType {
-                            t_address: true?,
-                            ..nil,
+                            t_address: true,
                         },
                         term: lhs_term,
                     },
                     struct {
+                        label: "right"?,
                         type_: IrType {
-                            t_address: true?,
-                            ..nil,
+                            t_address: true,
                         },
                         term: rhs_term,
                     },
@@ -1815,8 +1854,7 @@ module IrCodeGenerator {
             return IrTerm {
                 t_sizeof: struct {
                     type_: IrType::new(expr.t_sizeof!.type_),
-                }?,
-                ..nil,
+                },
             };
         } else if expr.t_unop != nil {
             if expr.t_unop!.unop != "not" {
@@ -1828,12 +1866,10 @@ module IrCodeGenerator {
             return IrTerm {
                 t_call: IrCall {
                     callee: IrTerm {
-                        t_ident: "not"?,
-                        ..nil,
+                        t_ident: "not",
                     },
                     args: make[vec[IrTerm]](term),
-                }?,
-                ..nil,
+                },
             };
         } else if expr.t_try != nil {
             // expr.try
@@ -1846,35 +1882,27 @@ module IrCodeGenerator {
             let left = self.generate_array_at(
                 Type {
                     t_optional: Type {
-                        t_any: true?,
-                        ..nil,
-                    }?,
-                    ..nil,
+                        t_any: true,
+                    },
                 },
                 IrTerm {
-                    t_ident: var_name?,
-                    ..nil,
+                    t_ident: var_name,
                 },
                 IrTerm {
-                    t_i32: 0?,
-                    ..nil,
+                    t_i32: 0,
                 },
             ).try;
             let right = self.generate_array_at(
                 Type {
                     t_optional: Type {
-                        t_any: true?,
-                        ..nil,
-                    }?,
-                    ..nil,
+                        t_any: true,
+                    },
                 },
                 IrTerm {
-                    t_ident: var_name?,
-                    ..nil,
+                    t_ident: var_name,
                 },
                 IrTerm {
-                    t_i32: 1?,
-                    ..nil,
+                    t_i32: 1,
                 },
             ).try;
 
@@ -1885,117 +1913,99 @@ module IrCodeGenerator {
                 t_let: IrLet {
                     name: var_name,
                     type_: IrType {
-                        t_address: true?,
-                        ..nil,
+                        t_address: true,
                     },
                     value: self.expression(expr.t_try!).try,
-                }?,
-                ..nil,
+                },
             });
             elements.push(IrTerm {
                 t_let: IrLet {
                     name: right_name,
                     type_: IrType {
-                        t_address: true?,
-                        ..nil,
+                        t_address: true,
                     },
                     value: right,
-                }?,
-                ..nil,
+                },
             });
             elements.push(IrTerm {
                 t_if: struct {
                     condition: IrTerm {
                         t_call: IrCall {
                             callee: IrTerm {
-                                t_ident: "not_equal"?,
-                                ..nil,
+                                t_ident: "not_equal",
                             },
                             args: make[vec[IrTerm]](
                                 IrTerm {
-                                    t_ident: right_name?,
-                                    ..nil,
+                                    t_ident: right_name,
                                 },
                                 IrTerm {
-                                    t_nil: true?,
-                                    ..nil,
+                                    t_nil: true,
                                 },
                             ),
-                        }?,
-                        ..nil,
+                        },
                     },
                     then_term: IrTerm {
                         t_return: IrReturn {
-                            value: self.generate_array_enumerated(
+                            value: self.generate_array(
                                 "or",
                                 make[vec[IrType]](
                                     IrType {
-                                        t_address: true?,
-                                        ..nil,
+                                        t_address: true,
                                     },
                                     IrType {
-                                        t_address: true?,
-                                        ..nil,
+                                        t_address: true,
                                     },
                                 ),
                                 make[vec[struct {
+                                    label: string?,
                                     type_: IrType,
                                     term: IrTerm,
                                 }]](
                                     struct {
+                                        label: "left"?,
                                         type_: IrType {
-                                            t_address: true?,
-                                            ..nil,
+                                            t_address: true,
                                         },
                                         term: IrTerm {
-                                            t_nil: true?,
-                                            ..nil,
+                                            t_nil: true,
                                         },
                                     },
                                     struct {
+                                        label: "right"?,
                                         type_: IrType {
-                                            t_address: true?,
-                                            ..nil,
+                                            t_address: true,
                                         },
                                         term: IrTerm {
-                                            t_ident: right_name?,
-                                            ..nil,
+                                            t_ident: right_name,
                                         },
                                     },
                                 ),
                             ).try,
-                        }?,
-                        ..nil,
+                        },
                     },
                     else_term: IrTerm {
                         t_seq: struct {
                             terms: make[vec[IrTerm]](),
-                        }?,
-                        ..nil,
+                        },
                     },
-                }?,
-                ..nil,
+                },
             });
             elements.push(self.generate_array_at(
                 Type {
                     t_ptr: Type {
-                        t_omit: true?,
-                        ..nil,
-                    }?,
-                    ..nil,
+                        t_omit: true,
+                    },
                 },
                 left,
                 IrTerm {
-                    t_i32: 0?,
-                    ..nil,
+                    t_i32: 0,
                 },
             ).try);
 
             return IrTerm {
                 t_seq: struct {
                     terms: elements,
-                }?,
-                ..nil,
+                },
             };
         }
 
@@ -2006,38 +2016,8 @@ module IrCodeGenerator {
         let index = self.strings.get_or_insert(str);
 
         return IrTerm {
-            t_string: index?,
-            ..nil,
+            t_string: index,
         };
-    }
-
-    fun generate_array_enumerated(
-        self,
-        rep_name: string,
-        params: vec[IrType],
-        record: vec[struct {
-            type_: IrType,
-            term: IrTerm,
-        }],
-    ): IrTerm or error {
-        let terms = make[vec[struct {
-            offset: i32,
-            type_: IrType,
-            term: IrTerm,
-        }]]();
-        let offset = 0;
-        for i in 0..record.length {
-            let field = record.at(i);
-
-            terms.push(struct {
-                offset: offset,
-                type_: field.type_,
-                term: field.term,
-            });
-            offset = offset + field.type_.sizeof();
-        }
-
-        return self.generate_array(rep_name, params, terms).try;
     }
 
     fun generate_array(
@@ -2045,7 +2025,7 @@ module IrCodeGenerator {
         rep_name: string,
         params: vec[IrType],
         terms: vec[struct {
-            offset: i32,
+            label: string?,
             type_: IrType,
             term: IrTerm,
         }],
@@ -2057,14 +2037,50 @@ module IrCodeGenerator {
         for i in 0..terms.length {
             let term = terms.at(i);
 
-            rep_fields.push(struct {
-                name: format("{}", i.to_string()),
-                type_: term.type_,
-            });
+            if term.label != nil {
+                rep_fields.push(struct {
+                    name: term.label!,
+                    type_: term.type_,
+                });
+            } else {
+                rep_fields.push(struct {
+                    name: format("{}", i.to_string()),
+                    type_: term.type_,
+                });
+            }
         }
         let rep = InternalTypeRep::from_struct(rep_name, params, rep_fields);
 
-        let var_name = format("arr_{}", self.counter.to_string());
+        let terms_new = make[vec[struct {
+            type_: IrType,
+            term: IrTerm,
+        }]]();
+        for term in terms {
+            terms_new.push(struct {
+                type_: term.type_,
+                term: term.term,
+            });
+        }
+
+        return self.generate_array_with_rep(rep, terms_new).try;
+    }
+
+    fun generate_array_with_rep(
+        self,
+        rep: InternalTypeRep,
+        terms: vec[struct {
+            type_: IrType,
+            term: IrTerm,
+        }],
+    ): IrTerm or error {
+        // generates:
+        //
+        // let array_x = alloc(10);
+        // for i in elements {
+        //     array_x.at(i) = elements.at(i);
+        // }
+        // array_x
+        let var_name = format("arr_{}_{}", rep.name, self.counter.to_string());
         self.counter = self.counter + 1;
 
         let arr = make[vec[IrTerm]]();
@@ -2072,22 +2088,18 @@ module IrCodeGenerator {
             t_let: IrLet {
                 name: var_name,
                 type_: IrType {
-                    t_address: true?,
-                    ..nil,
+                    t_address: true,
                 },
                 value: self.allocate_heap_object(
                     rep,
                     IrType {
-                        t_address: true?,
-                        ..nil,
+                        t_address: true,
                     },
                     IrTerm {
-                        t_i32: terms.length?,
-                        ..nil,
+                        t_i32: terms.length,
                     },
                 ).try,
-            }?,
-            ..nil,
+            },
         });
 
         for i in 0..terms.length {
@@ -2096,31 +2108,37 @@ module IrCodeGenerator {
                 t_store: struct {
                     type_: term.type_,
                     address: IrTerm::ident(var_name),
-                    offset: IrTerm::i32(term.offset),
+                    offset: IrCodeGenerator::wrap_mult_sizeof(
+                        IrType {
+                            t_i32: true,
+                        },
+                        IrTerm {
+                            t_i32: i,
+                        },
+                    ),
                     value: term.term,
-                }?,
-                ..nil,
+                    raw_offset: 8,
+                },
             };
 
             arr.push(element);
         }
 
         arr.push(IrTerm {
-            t_ident: var_name?,
-            ..nil,
+            t_ident: var_name,
         });
 
         return IrTerm {
             t_seq: struct {
                 terms: arr,
-            }?,
-            ..nil,
+            },
         };
     }
 
     fun allocate_heap_object(self, rep: InternalTypeRep, type_: IrType, size: IrTerm): IrTerm or error {
         let rep_id = self.type_reps.get_or_insert(rep);
-        let var = "object";
+        let var = "object_{}".format(self.counter.to_string());
+        self.counter = self.counter + 1;
 
         let object = make[vec[IrTerm]]();
 
@@ -2128,112 +2146,97 @@ module IrCodeGenerator {
             t_let: IrLet {
                 name: var,
                 type_: IrType {
-                    t_address: true?,
-                    ..nil,
+                    t_address: true,
                 },
                 value: IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "alloc"?,
-                            ..nil,
+                            t_ident: "quartz_std_alloc",
                         },
-                        args: make[vec[IrTerm]](IrCodeGenerator::wrap_mult_sizeof(
-                            IrType {
-                                t_address: true?,
-                                ..nil,
-                            },
-                            IrTerm {
-                                t_call: IrCall {
-                                    callee: IrTerm {
-                                        t_ident: "add"?,
-                                        ..nil,
+                        args: make[vec[IrTerm]](IrTerm {
+                            t_call: IrCall {
+                                callee: IrTerm {
+                                    t_ident: "add",
+                                },
+                                args: make[vec[IrTerm]](
+                                    IrCodeGenerator::wrap_mult_sizeof(type_, size),
+                                    IrTerm {
+                                        t_i32: 8,
                                     },
-                                    args: make[vec[IrTerm]](
-                                        size,
-                                        IrTerm {
-                                            t_i32: 1?,
-                                            ..nil,
-                                        },
-                                    ),
-                                }?,
-                                ..nil,
+                                ),
                             },
-                        )),
-                    }?,
-                    ..nil,
+                        }),
+                    },
                 },
-            }?,
-            ..nil,
+            },
         });
         // object header
         object.push(IrTerm {
             t_store: struct {
                 type_: IrType {
-                    t_i32: true?,
-                    ..nil,
+                    t_i32: true,
                 },
                 address: IrTerm::ident(var),
                 offset: IrTerm::i32(0),
                 value: IrTerm {
-                    t_i32: rep_id?,
-                    ..nil,
+                    t_i32: rep_id,
                 },
-            }?,
-            ..nil,
+                raw_offset: 0,
+            },
         });
         object.push(IrTerm {
-            t_ident: var?,
-            ..nil,
+            t_ident: var,
         });
 
         return IrTerm {
             t_seq: struct {
                 terms: object,
-            }?,
-            ..nil,
+            },
         };
     }
 
     fun write_type_rep(self, rep: InternalTypeRep): IrTerm or error {
-        // [nil, rep_name, size of params, *params, size of fields, *fields]
+        // [nil, kind, rep_name, size of params, *params, size of fields, *fields]
         let elements = make[vec[IrTerm]]();
         elements.push(IrTerm {
-            t_nil: true?,
-            ..nil,
+            t_nil: true,
         });
+        elements.push(IrTerm::i32(rep.kind));
         elements.push(self.register_string(rep.name));
         elements.push(IrTerm::i32(rep.params.length));
 
         let type_rep_terms = make[vec[struct {
+            label: string?,
             type_: IrType,
             term: IrTerm,
         }]]();
         for p in rep.params {
             type_rep_terms.push(struct {
+                label: nil,
                 type_: IrType {
-                    t_address: true?,
-                    ..nil,
+                    t_address: true,
                 },
                 term: self.write_type_rep(p).try,
             });
         }
-        elements.push(self.generate_array_enumerated("slice", make[vec[IrType]](), type_rep_terms).try);
+        elements.push(self.generate_array("slice", make[vec[IrType]](), type_rep_terms).try);
         elements.push(IrTerm::i32(rep.fields.length));
 
         let field_terms = make[vec[struct {
+            label: string?,
             type_: IrType,
             term: IrTerm,
         }]]();
         for t in rep.fields {
             field_terms.push(struct {
+                label: t.name?,
                 type_: IrType {
-                    t_address: true?,
-                    ..nil,
+                    t_address: true,
                 },
                 term: self.register_string(t.name),
             });
         }
-        elements.push(self.generate_array_enumerated("slice", make[vec[IrType]](), field_terms).try);
+        elements.push(self.generate_array("slice", make[vec[IrType]](), field_terms).try);
 
         let var_name = format("type_rep_{}", self.counter.to_string());
         self.counter = self.counter + 1;
@@ -2243,66 +2246,54 @@ module IrCodeGenerator {
             t_let: IrLet {
                 name: var_name,
                 type_: IrType {
-                    t_address: true?,
-                    ..nil,
+                    t_address: true,
                 },
                 value: IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "quartz_std_alloc"?,
-                            ..nil,
+                            t_ident: "quartz_std_alloc",
                         },
                         args: make[vec[IrTerm]](IrCodeGenerator::wrap_mult_sizeof(
                             IrType {
-                                t_any: true?,
-                                ..nil,
+                                t_any: true,
                             },
                             IrTerm::i32(elements.length),
                         )),
-                    }?,
-                    ..nil,
+                    },
                 },
-                ..nil,
-            }?,
-            ..nil,
+            },
         });
         for index in 0..elements.length {
             arr.push(IrTerm {
                 t_store: struct {
                     type_: IrType {
-                        t_any: true?,
-                        ..nil,
+                        t_any: true,
                     },
                     address: IrTerm {
-                        t_ident: var_name?,
-                        ..nil,
+                        t_ident: var_name,
                     },
                     offset: IrCodeGenerator::wrap_mult_sizeof(
                         IrType {
-                            t_i32: true?,
-                            ..nil,
+                            t_i32: true,
                         },
                         IrTerm {
-                            t_i32: index?,
-                            ..nil,
+                            t_i32: index,
                         },
                     ),
                     value: elements.at(index),
-                }?,
-                ..nil,
+                    raw_offset: 0,
+                },
             });
         }
 
         arr.push(IrTerm {
-            t_ident: var_name?,
-            ..nil,
+            t_ident: var_name,
         });
 
         return IrTerm {
             t_seq: struct {
                 terms: arr,
-            }?,
-            ..nil,
+            },
         };
     }
 
@@ -2312,19 +2303,16 @@ module IrCodeGenerator {
         args.push(IrTerm {
             t_sizeof: struct {
                 type_: ir_type,
-            }?,
-            ..nil,
+            },
         });
 
         return IrTerm {
             t_call: IrCall {
                 callee: IrTerm {
-                    t_ident: "mult"?,
-                    ..nil,
+                    t_ident: "mult",
                 },
                 args: args,
-            }?,
-            ..nil,
+            },
         };
     }
 
@@ -2334,8 +2322,8 @@ module IrCodeGenerator {
                 type_: IrType::new(elem_type),
                 address: arr,
                 offset: IrCodeGenerator::wrap_mult_sizeof(IrType::new(elem_type), index),
-            }?,
-            ..nil,
+                raw_offset: 8,
+            },
         };
     }
 
@@ -2346,49 +2334,55 @@ module IrCodeGenerator {
             if self.globals.has(ident) {
                 return self.resolve_type_struct(self.globals.at(ident));
             } else {
-                return _ or error::new(format("unknown type: {}", ident));
+                return _ or error::new(format("unknown symbol: {}", ident));
             }
         } else if t.t_struct != nil {
             return t.t_struct!;
         } else if t.t_vec != nil {
             return self.resolve_type_struct(Type {
-                t_ident: "vec"?,
-                ..nil,
+                t_ident: "vec",
             });
         } else if t.t_map != nil {
             return self.resolve_type_struct(Type {
-                t_ident: "quartz_std_Map"?,
-                ..nil,
+                t_ident: "quartz_std_Map",
             });
         } else {
             return _ or error::new(format("type is not a struct: {}", t.to_string()));
         }
     }
 
-    fun assign(self, lhs: IrTerm, rhs: IrTerm): IrTerm or error {
+    fun assign(self, lhs: IrTerm, rhs_type: IrType, rhs: IrTerm): IrTerm or error {
         if lhs.t_ident != nil {
             let term = IrTerm {
                 t_assign: struct {
                     lhs: lhs.t_ident!,
                     rhs: rhs,
-                }?,
-                ..nil,
+                },
             };
 
             return term;
-        }
-        if lhs.t_load != nil {
+        } else if lhs.t_load != nil {
             let term = IrTerm {
                 t_store: struct {
                     type_: lhs.t_load!.type_,
                     address: lhs.t_load!.address,
                     offset: lhs.t_load!.offset,
                     value: rhs,
-                }?,
-                ..nil,
+                    raw_offset: lhs.t_load!.raw_offset,
+                },
             };
 
             return term;
+        } else if lhs.t_call != nil {
+            return IrTerm {
+                t_store: struct {
+                    type_: rhs_type,
+                    address: lhs,
+                    offset: IrTerm::i32(0),
+                    value: rhs,
+                    raw_offset: 8,
+                },
+            };
         }
 
         return panic("lhs: {}, rhs: {}", lhs.to_string(), rhs.to_string());
@@ -2418,44 +2412,35 @@ module IrCodeGenerator {
                 t_let: IrLet {
                     name: vec_name,
                     type_: IrType::new(Type {
-                        t_vec: variadic!.element_type?,
-                        ..nil,
+                        t_vec: variadic!.element_type,
                     }),
                     value: IrTerm {
                         t_call: IrCall {
                             callee: IrTerm {
-                                t_ident: "quartz_std_vec_make"?,
-                                ..nil,
+                                t_ident: "quartz_std_vec_make",
                             },
                             args: make[vec[IrTerm]](IrTerm {
-                                t_i32: 1?,
-                                ..nil,
+                                t_i32: 1,
                             }),
-                        }?,
-                        ..nil,
+                        },
                     },
-                }?,
-                ..nil,
+                },
             });
             for arg in args.slice(variadic!.index, args.length) {
                 variadic_terms.push(IrTerm {
                     t_discard: IrTerm {
                         t_call: IrCall {
                             callee: IrTerm {
-                                t_ident: "quartz_std_vec_push"?,
-                                ..nil,
+                                t_ident: "quartz_std_vec_push",
                             },
                             args: make[vec[IrTerm]](
                                 IrTerm {
-                                    t_ident: vec_name?,
-                                    ..nil,
+                                    t_ident: vec_name,
                                 },
                                 self.expression(arg).try,
                             ),
-                        }?,
-                        ..nil,
-                    }?,
-                    ..nil,
+                        },
+                    },
                 });
             }
             if expansion != nil {
@@ -2463,41 +2448,34 @@ module IrCodeGenerator {
                     t_discard: IrTerm {
                         t_call: IrCall {
                             callee: IrTerm {
-                                t_ident: "quartz_std_vec_extend"?,
-                                ..nil,
+                                t_ident: "quartz_std_vec_extend",
                             },
                             args: make[vec[IrTerm]](
                                 IrTerm {
-                                    t_ident: vec_name?,
-                                    ..nil,
+                                    t_ident: vec_name,
                                 },
                                 self.expression(expansion!).try,
                             ),
-                        }?,
-                        ..nil,
-                    }?,
-                    ..nil,
+                        },
+                    },
                 });
             }
 
             variadic_terms.push(IrTerm {
-                t_ident: vec_name?,
-                ..nil,
+                t_ident: vec_name,
             });
 
             terms.push(IrTerm {
                 t_seq: struct {
                     terms: variadic_terms,
-                }?,
-                ..nil,
+                },
             });
 
             return IrTerm {
                 t_call: IrCall {
                     callee: self.expression(callee).try,
                     args: terms,
-                }?,
-                ..nil,
+                },
             };
         } else {
             let terms = make[vec[IrTerm]]();
@@ -2509,8 +2487,7 @@ module IrCodeGenerator {
                 t_call: IrCall {
                     callee: self.expression(callee).try,
                     args: terms,
-                }?,
-                ..nil,
+                },
             };
         }
     }

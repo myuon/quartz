@@ -24,22 +24,18 @@ module Typechecker {
                             name: "data",
                             type_: Type {
                                 t_ptr: Type {
-                                    t_byte: true?,
-                                    ..nil,
-                                }?,
-                                ..nil,
+                                    t_byte: true,
+                                },
                             },
                         },
                         struct {
                             name: "length",
                             type_: Type {
-                                t_i32: true?,
-                                ..nil,
+                                t_i32: true,
                             },
                         },
                     ),
-                }?,
-                ..nil,
+                },
             },
         );
         globals.insert(
@@ -47,15 +43,12 @@ module Typechecker {
             Type {
                 t_func: struct {
                     params: make[vec[Type]](Type {
-                        t_ident: "string"?,
-                        ..nil,
+                        t_ident: "string",
                     }),
                     result: Type {
-                        t_nil: true?,
-                        ..nil,
+                        t_nil: true,
                     },
-                }?,
-                ..nil,
+                },
             },
         );
         globals.insert(
@@ -70,29 +63,24 @@ module Typechecker {
                             name: "data",
                             type_: Type {
                                 t_ptr: Type {
-                                    t_any: true?,
-                                    ..nil,
-                                }?,
-                                ..nil,
+                                    t_any: true,
+                                },
                             },
                         },
                         struct {
                             name: "length",
                             type_: Type {
-                                t_i32: true?,
-                                ..nil,
+                                t_i32: true,
                             },
                         },
                         struct {
                             name: "capacity",
                             type_: Type {
-                                t_i32: true?,
-                                ..nil,
+                                t_i32: true,
                             },
                         },
                     ),
-                }?,
-                ..nil,
+                },
             },
         );
         globals.insert(
@@ -100,15 +88,12 @@ module Typechecker {
             Type {
                 t_func: struct {
                     params: make[vec[Type]](Type {
-                        t_any: true?,
-                        ..nil,
+                        t_any: true,
                     }),
                     result: Type {
-                        t_nil: true?,
-                        ..nil,
+                        t_nil: true,
                     },
-                }?,
-                ..nil,
+                },
             },
         );
         globals.insert(
@@ -116,15 +101,12 @@ module Typechecker {
             Type {
                 t_func: struct {
                     params: make[vec[Type]](Type {
-                        t_i32: true?,
-                        ..nil,
+                        t_i32: true,
                     }),
                     result: Type {
-                        t_nil: true?,
-                        ..nil,
+                        t_nil: true,
                     },
-                }?,
-                ..nil,
+                },
             },
         );
         globals.insert(
@@ -132,15 +114,12 @@ module Typechecker {
             Type {
                 t_func: struct {
                     params: make[vec[Type]](Type {
-                        t_byte: true?,
-                        ..nil,
+                        t_byte: true,
                     }),
                     result: Type {
-                        t_nil: true?,
-                        ..nil,
+                        t_nil: true,
                     },
-                }?,
-                ..nil,
+                },
             },
         );
         globals.insert(
@@ -149,11 +128,9 @@ module Typechecker {
                 t_func: struct {
                     params: make[vec[Type]](),
                     result: Type {
-                        t_nil: true?,
-                        ..nil,
+                        t_nil: true,
                     },
-                }?,
-                ..nil,
+                },
             },
         );
         globals.insert(
@@ -162,20 +139,16 @@ module Typechecker {
                 t_func: struct {
                     params: make[vec[Type]](
                         Type {
-                            t_u32: true?,
-                            ..nil,
+                            t_u32: true,
                         },
                         Type {
-                            t_u32: true?,
-                            ..nil,
+                            t_u32: true,
                         },
                     ),
                     result: Type {
-                        t_u32: true?,
-                        ..nil,
+                        t_u32: true,
                     },
-                }?,
-                ..nil,
+                },
             },
         );
         globals.insert(
@@ -184,11 +157,9 @@ module Typechecker {
                 t_func: struct {
                     params: make[vec[Type]](),
                     result: Type {
-                        t_byte: true?,
-                        ..nil,
+                        t_byte: true,
                     },
-                }?,
-                ..nil,
+                },
             },
         );
         globals.insert(
@@ -196,47 +167,38 @@ module Typechecker {
             Type {
                 t_func: struct {
                     params: make[vec[Type]](Type {
-                        t_any: true?,
-                        ..nil,
+                        t_any: true,
                     }),
                     result: Type {
-                        t_i32: true?,
-                        ..nil,
+                        t_i32: true,
                     },
-                }?,
-                ..nil,
+                },
             },
         );
         globals.insert(
-            "reflection_is_pointer",
+            "_reflection_is_pointer",
             Type {
                 t_func: struct {
                     params: make[vec[Type]](Type {
-                        t_any: true?,
-                        ..nil,
+                        t_any: true,
                     }),
                     result: Type {
-                        t_bool: true?,
-                        ..nil,
+                        t_bool: true,
                     },
-                }?,
-                ..nil,
+                },
             },
         );
         globals.insert(
-            "reflection_is_bool",
+            "_reflection_is_bool",
             Type {
                 t_func: struct {
                     params: make[vec[Type]](Type {
-                        t_any: true?,
-                        ..nil,
+                        t_any: true,
                     }),
                     result: Type {
-                        t_bool: true?,
-                        ..nil,
+                        t_bool: true,
                     },
-                }?,
-                ..nil,
+                },
             },
         );
         globals.insert(
@@ -245,11 +207,9 @@ module Typechecker {
                 t_func: struct {
                     params: make[vec[Type]](),
                     result: Type {
-                        t_any: true?,
-                        ..nil,
+                        t_any: true,
                     },
-                }?,
-                ..nil,
+                },
             },
         );
         globals.insert(
@@ -258,20 +218,16 @@ module Typechecker {
                 t_func: struct {
                     params: make[vec[Type]](
                         Type {
-                            t_any: true?,
-                            ..nil,
+                            t_any: true,
                         },
                         Type {
-                            t_byte: true?,
-                            ..nil,
+                            t_byte: true,
                         },
                     ),
                     result: Type {
-                        t_nil: true?,
-                        ..nil,
+                        t_nil: true,
                     },
-                }?,
-                ..nil,
+                },
             },
         );
         globals.insert(
@@ -279,15 +235,12 @@ module Typechecker {
             Type {
                 t_func: struct {
                     params: make[vec[Type]](Type {
-                        t_any: true?,
-                        ..nil,
+                        t_any: true,
                     }),
                     result: Type {
-                        t_nil: true?,
-                        ..nil,
+                        t_nil: true,
                     },
-                }?,
-                ..nil,
+                },
             },
         );
         globals.insert(
@@ -295,15 +248,12 @@ module Typechecker {
             Type {
                 t_func: struct {
                     params: make[vec[Type]](Type {
-                        t_any: true?,
-                        ..nil,
+                        t_any: true,
                     }),
                     result: Type {
-                        t_byte: true?,
-                        ..nil,
+                        t_byte: true,
                     },
-                }?,
-                ..nil,
+                },
             },
         );
         globals.insert(
@@ -312,24 +262,19 @@ module Typechecker {
                 t_func: struct {
                     params: make[vec[Type]](
                         Type {
-                            t_i32: true?,
-                            ..nil,
+                            t_i32: true,
                         },
                         Type {
-                            t_i32: true?,
-                            ..nil,
+                            t_i32: true,
                         },
                         Type {
-                            t_i32: true?,
-                            ..nil,
+                            t_i32: true,
                         },
                     ),
                     result: Type {
-                        t_i32: true?,
-                        ..nil,
+                        t_i32: true,
                     },
-                }?,
-                ..nil,
+                },
             },
         );
 
@@ -463,8 +408,7 @@ module Typechecker {
     fun block(self, b: Block): nil or error {
         for i in 0..b.block.length {
             let result = Type {
-                t_omit: true?,
-                ..nil,
+                t_omit: true,
             };
             self.statement(b.block.at(i)).try;
         }
@@ -495,8 +439,7 @@ module Typechecker {
                             rhs: nil as Expression?,
                             lhs_type: self.result_type!.t_or!.left,
                             rhs_type: self.result_type!.t_or!.right,
-                        }?,
-                        ..nil,
+                        },
                     };
                 } else {
                     return _ or err!;
@@ -510,25 +453,24 @@ module Typechecker {
         } else if s.t_assign != nil {
             let lhs_type = self.expression_left_value(s.t_assign!.lhs).try;
             let rhs_type = Type {
-                t_ptr: self.expression(s.t_assign!.rhs).try?,
-                ..nil,
+                t_ptr: self.expression(s.t_assign!.rhs).try,
             };
 
-            unify(lhs_type, rhs_type).try;
+            let r = unify(lhs_type, rhs_type).try;
+            s.t_assign!.rhs_type = r?;
+
             return nil;
         } else if s.t_if != nil {
             let condition_type = self.expression(s.t_if!.condition).try;
             unify(
                 condition_type,
                 Type {
-                    t_bool: true?,
-                    ..nil,
+                    t_bool: true,
                 },
             ).try;
 
             let type_ = Type {
-                t_omit: true?,
-                ..nil,
+                t_omit: true,
             };
             self.block(s.t_if!.then_block).try;
             if s.t_if!.else_block != nil {
@@ -540,14 +482,12 @@ module Typechecker {
             unify(
                 condition_type,
                 Type {
-                    t_bool: true?,
-                    ..nil,
+                    t_bool: true,
                 },
             ).try;
 
             let type_ = Type {
-                t_omit: true?,
-                ..nil,
+                t_omit: true,
             };
             self.block(s.t_while!.block).try;
 
@@ -567,11 +507,12 @@ module Typechecker {
                 return nil;
             } else if t.t_vec != nil {
                 s.t_for!.mode = "vec";
+                s.t_for!.type_ = t?;
 
                 // FIXME: clone
                 let locals = self.locals;
-
                 self.locals.insert(s.t_for!.ident, t.t_vec!);
+
                 self.block(s.t_for!.block).try;
 
                 self.locals = locals;
@@ -596,15 +537,13 @@ module Typechecker {
                 self.register_locals_with_pattern(
                     pattern.t_or!.lhs,
                     Type {
-                        t_optional: type_.t_or!.left?,
-                        ..nil,
+                        t_optional: type_.t_or!.left,
                     },
                 ).try;
                 self.register_locals_with_pattern(
                     pattern.t_or!.rhs,
                     Type {
-                        t_optional: type_.t_or!.right?,
-                        ..nil,
+                        t_optional: type_.t_or!.right,
                     },
                 ).try;
             } else {
@@ -621,35 +560,30 @@ module Typechecker {
         let t = self.expression(expr).try;
 
         return Type {
-            t_ptr: t?,
-            ..nil,
+            t_ptr: t,
         };
     }
 
     fun expression(self, expr: Expression): Type or error {
         if expr.t_i32 != nil {
             return Type {
-                t_i32: true?,
-                ..nil,
+                t_i32: true,
             };
         } else if expr.t_u32 != nil {
             return Type {
-                t_u32: true?,
-                ..nil,
+                t_u32: true,
             };
         } else if expr.t_unop != nil {
             let t = self.expression(expr.t_unop!.expr).try;
             unify(
                 t,
                 Type {
-                    t_bool: true?,
-                    ..nil,
+                    t_bool: true,
                 },
             ).try;
 
             return Type {
-                t_bool: true?,
-                ..nil,
+                t_bool: true,
             };
         } else if expr.t_binop != nil {
             if (expr.t_binop!.binop.equal("plus") || expr.t_binop!.binop.equal("minus") || expr.t_binop!.binop.equal(
@@ -666,17 +600,18 @@ module Typechecker {
                 }
 
                 let t2 = self.expression(expr.t_binop!.right).try;
-                unify(t1, t2).try;
+                let r = unify(t1, t2).try;
+                expr.t_binop!.type_ = r?;
 
-                return t1;
+                return r;
             } else if (expr.t_binop!.binop.equal("equal") || expr.t_binop!.binop.equal("not_equal")) {
                 let t1 = self.expression(expr.t_binop!.left).try;
                 let t2 = self.expression(expr.t_binop!.right).try;
-                unify(t1, t2).try;
+                let r = unify(t1, t2).try;
+                expr.t_binop!.type_ = r?;
 
                 return Type {
-                    t_bool: true?,
-                    ..nil,
+                    t_bool: true,
                 };
             } else if (expr.t_binop!.binop.equal("lt") || expr.t_binop!.binop.equal("gt") || expr.t_binop!.binop.equal(
                 "lte",
@@ -688,34 +623,33 @@ module Typechecker {
                     )));
                 }
 
-                unify(t1, t2).try;
+                let r = unify(t1, t2).try;
+                expr.t_binop!.type_ = r?;
 
                 return Type {
-                    t_bool: true?,
-                    ..nil,
+                    t_bool: true,
                 };
             } else if (expr.t_binop!.binop.equal("and") || expr.t_binop!.binop.equal("or")) {
                 let t1 = self.expression(expr.t_binop!.left).try;
                 unify(
                     t1,
                     Type {
-                        t_bool: true?,
-                        ..nil,
+                        t_bool: true,
                     },
                 ).try;
 
                 let t2 = self.expression(expr.t_binop!.right).try;
-                unify(
+                let r = unify(
                     t2,
                     Type {
-                        t_bool: true?,
-                        ..nil,
+                        t_bool: true,
                     },
                 ).try;
 
+                expr.t_binop!.type_ = r?;
+
                 return Type {
-                    t_bool: true?,
-                    ..nil,
+                    t_bool: true,
                 };
             }
 
@@ -750,7 +684,7 @@ module Typechecker {
                 return t;
             }
 
-            return _ or error::new("unbound identifier: ".concat(expr.t_ident!.name));
+            return _ or error::new("unbound identifier: {}".format(expr.t_ident!.name));
         } else if expr.t_call != nil {
             let callee_type = self.expression(expr.t_call!.callee).try;
             if callee_type.t_func != nil {
@@ -811,27 +745,23 @@ module Typechecker {
                 if expr.t_project!.field.equal("at") {
                     let ps = make[vec[Type]]();
                     ps.push(Type {
-                        t_i32: true?,
-                        ..nil,
+                        t_i32: true,
                     });
 
                     return Type {
                         t_func: struct {
                             params: ps,
                             result: t.t_ptr!,
-                        }?,
-                        ..nil,
+                        },
                     };
                 } else if expr.t_project!.field.equal("offset") {
                     return Type {
                         t_func: struct {
                             params: make[vec[Type]](Type {
-                                t_i32: true?,
-                                ..nil,
+                                t_i32: true,
                             }),
                             result: t,
-                        }?,
-                        ..nil,
+                        },
                     };
                 }
             } else if t.t_vec != nil {
@@ -840,50 +770,41 @@ module Typechecker {
                         t_func: struct {
                             params: make[vec[Type]](t.t_vec!),
                             result: Type {
-                                t_nil: true?,
-                                ..nil,
+                                t_nil: true,
                             },
-                        }?,
-                        ..nil,
+                        },
                     };
                 } else if expr.t_project!.field.equal("at") {
                     return Type {
                         t_func: struct {
                             params: make[vec[Type]](Type {
-                                t_i32: true?,
-                                ..nil,
+                                t_i32: true,
                             }),
                             result: t.t_vec!,
-                        }?,
-                        ..nil,
+                        },
                     };
                 } else if expr.t_project!.field.equal("extend") {
                     return Type {
                         t_func: struct {
                             params: make[vec[Type]](t),
                             result: Type {
-                                t_nil: true?,
-                                ..nil,
+                                t_nil: true,
                             },
-                        }?,
-                        ..nil,
+                        },
                     };
                 } else if expr.t_project!.field.equal("slice") {
                     return Type {
                         t_func: struct {
                             params: make[vec[Type]](
                                 Type {
-                                    t_i32: true?,
-                                    ..nil,
+                                    t_i32: true,
                                 },
                                 Type {
-                                    t_i32: true?,
-                                    ..nil,
+                                    t_i32: true,
                                 },
                             ),
                             result: t,
-                        }?,
-                        ..nil,
+                        },
                     };
                 }
             } else if t.t_map != nil {
@@ -892,41 +813,34 @@ module Typechecker {
                         t_func: struct {
                             params: make[vec[Type]](t.t_map!.key, t.t_map!.value),
                             result: Type {
-                                t_nil: true?,
-                                ..nil,
+                                t_nil: true,
                             },
-                        }?,
-                        ..nil,
+                        },
                     };
                 } else if expr.t_project!.field.equal("at") {
                     return Type {
                         t_func: struct {
                             params: make[vec[Type]](t.t_map!.key),
                             result: t.t_map!.value,
-                        }?,
-                        ..nil,
+                        },
                     };
                 } else if expr.t_project!.field.equal("has") {
                     return Type {
                         t_func: struct {
                             params: make[vec[Type]](t.t_map!.key),
                             result: Type {
-                                t_bool: true?,
-                                ..nil,
+                                t_bool: true,
                             },
-                        }?,
-                        ..nil,
+                        },
                     };
                 } else if expr.t_project!.field.equal("list_keys") {
                     return Type {
                         t_func: struct {
                             params: make[vec[Type]](),
                             result: Type {
-                                t_vec: t.t_map!.key?,
-                                ..nil,
+                                t_vec: t.t_map!.key,
                             },
-                        }?,
-                        ..nil,
+                        },
                     };
                 }
             }
@@ -976,8 +890,7 @@ module Typechecker {
                             t_func: struct {
                                 params: vec_slice(arg_types, 1, arg_types.length),
                                 result: result_type,
-                            }?,
-                            ..nil,
+                            },
                         };
                     } else if t.t_variadic_func != nil {
                         let arg_types = t.t_variadic_func!.params;
@@ -991,11 +904,10 @@ module Typechecker {
 
                         return Type {
                             t_variadic_func: struct {
-                                params: arg_types,
-                                variadic: t.t_variadic_func!.variadic,
+                                params: vec_slice(arg_types, 1, arg_types.length),
                                 result: result_type,
-                            }?,
-                            ..nil,
+                                variadic: t.t_variadic_func!.variadic,
+                            },
                         };
                     }
 
@@ -1007,24 +919,37 @@ module Typechecker {
 
             return _ or error::new("unimplemented: project, {}".format(expr.to_string()));
         } else if expr.t_record != nil {
-            if self.globals.has(expr.t_record!.name) {
-                let t = self.globals.at(expr.t_record!.name);
-
-                if t.t_enum != nil {
-                    return Type {
-                        t_ident: expr.t_record!.name?,
-                        ..nil,
-                    };
-                }
-            }
-
             let field_map = self.resolve_record_type(
                 Type {
-                    t_ident: expr.t_record!.name?,
-                    ..nil,
+                    t_ident: expr.t_record!.name,
                 },
                 make[vec[Type]](),
             ).try;
+
+            if self.globals.has(expr.t_record!.name) {
+                let t = self.globals.at(expr.t_record!.name);
+                if t.t_enum != nil {
+                    if expr.t_record!.fields.length != 1 {
+                        return _ or error::new("enum {} has {} fields, expected 1".format(
+                            expr.t_record!.name,
+                            expr.t_record!.fields.length.to_string(),
+                        ));
+                    }
+
+                    let value_type = field_map.at(expr.t_record!.fields.at(0).field);
+
+                    if value_type.t_optional != nil {
+                        let t = self.expression(expr.t_record!.fields.at(0).value).try;
+                        unify(t, value_type.t_optional!).try;
+                    } else {
+                        return _ or error::new("expected optional, {}".format(expr.to_string()));
+                    }
+
+                    return Type {
+                        t_ident: expr.t_record!.name,
+                    };
+                }
+            }
 
             let fields = field_map.list_keys();
             let expr_fields_map = expr.t_record!.to_fields_map();
@@ -1043,8 +968,7 @@ module Typechecker {
             }
 
             return Type {
-                t_ident: expr.t_record!.name?,
-                ..nil,
+                t_ident: expr.t_record!.name,
             };
         } else if expr.t_anonymous_record != nil {
             let record_type = make[vec[struct {
@@ -1063,8 +987,7 @@ module Typechecker {
             let t = Type {
                 t_struct: TypeStruct {
                     fields: record_type,
-                }?,
-                ..nil,
+                },
             };
             expr.t_anonymous_record!.type_ = t?;
 
@@ -1078,8 +1001,7 @@ module Typechecker {
                 unify(
                     self.expression(expr.t_make!.args.at(0)).try,
                     Type {
-                        t_i32: true?,
-                        ..nil,
+                        t_i32: true,
                     },
                 ).try;
             } else if expr.t_make!.type_.t_vec != nil {
@@ -1098,8 +1020,7 @@ module Typechecker {
             return expr.t_as!.target_type;
         } else if expr.t_sizeof != nil {
             return Type {
-                t_i32: true?,
-                ..nil,
+                t_i32: true,
             };
         } else if expr.t_self != nil {
             if self.current_path.path.length == 0 {
@@ -1110,18 +1031,15 @@ module Typechecker {
 
             if ident.equal("i32") {
                 return Type {
-                    t_i32: true?,
-                    ..nil,
+                    t_i32: true,
                 };
             } else if ident.equal("u32") {
                 return Type {
-                    t_u32: true?,
-                    ..nil,
+                    t_u32: true,
                 };
             } else {
                 return Type {
-                    t_ident: ident?,
-                    ..nil,
+                    t_ident: ident,
                 };
             }
         } else if expr.t_path != nil {
@@ -1132,8 +1050,7 @@ module Typechecker {
             return self.globals.at(resolved_path.join("_"));
         } else if expr.t_string != nil {
             return Type {
-                t_ident: "string"?,
-                ..nil,
+                t_ident: "string",
             };
         } else if expr.t_paren != nil {
             return self.expression(expr.t_paren!).try;
@@ -1144,29 +1061,25 @@ module Typechecker {
             unify(start, end).try;
 
             return Type {
-                t_range: start?,
-                ..nil,
+                t_range: start,
             };
         } else if expr.t_bool != nil {
             return Type {
-                t_bool: true?,
-                ..nil,
+                t_bool: true,
             };
         } else if expr.t_wrap != nil {
             let t = self.expression(expr.t_wrap!.expr).try;
             expr.t_wrap!.type_ = t;
 
             return Type {
-                t_optional: t?,
-                ..nil,
+                t_optional: t,
             };
         } else if expr.t_unwrap != nil {
             let t = self.expression(expr.t_unwrap!.expr).try;
 
             if t.t_optional != nil {
                 let wrapped = Type {
-                    t_optional: expr.t_unwrap!.type_?,
-                    ..nil,
+                    t_optional: expr.t_unwrap!.type_,
                 };
                 let unified = unify(wrapped, t).try;
                 let element_type = unified.t_optional!;
@@ -1178,13 +1091,11 @@ module Typechecker {
             }
         } else if expr.t_nil != nil {
             return Type {
-                t_nil: true?,
-                ..nil,
+                t_nil: true,
             };
         } else if expr.t_enumor != nil {
             let lhs_type = Type {
-                t_any: true?,
-                ..nil,
+                t_any: true,
             };
             if expr.t_enumor!.lhs != nil {
                 lhs_type = self.expression(expr.t_enumor!.lhs!).try;
@@ -1192,8 +1103,7 @@ module Typechecker {
             expr.t_enumor!.lhs_type = lhs_type;
 
             let rhs_type = Type {
-                t_any: true?,
-                ..nil,
+                t_any: true,
             };
             if expr.t_enumor!.rhs != nil {
                 rhs_type = self.expression(expr.t_enumor!.rhs!).try;
@@ -1204,8 +1114,7 @@ module Typechecker {
                 t_or: struct {
                     left: lhs_type,
                     right: rhs_type,
-                }?,
-                ..nil,
+                },
             };
         } else if expr.t_try != nil {
             let t = self.expression(expr.t_try!).try;
@@ -1223,12 +1132,10 @@ module Typechecker {
                     Type {
                         t_or: struct {
                             left: Type {
-                                t_any: true?,
-                                ..nil,
+                                t_any: true,
                             },
                             right: rhs,
-                        }?,
-                        ..nil,
+                        },
                     },
                 ).try;
                 self.result_type = t?;
@@ -1263,8 +1170,7 @@ module Typechecker {
                     fields.insert(
                         field.name,
                         Type {
-                            t_optional: field.type_?,
-                            ..nil,
+                            t_optional: field.type_,
                         },
                     );
                 }
@@ -1272,13 +1178,22 @@ module Typechecker {
 
             return fields;
         } else if type_.t_vec != nil {
-            return self.resolve_record_type(
+            let m = self.resolve_record_type(
                 Type {
-                    t_ident: "vec"?,
-                    ..nil,
+                    t_ident: "vec",
                 },
                 args,
+            ).try;
+
+            // FIXME: hack for generics
+            m.insert(
+                "data",
+                Type {
+                    t_ptr: type_.t_vec!,
+                },
             );
+
+            return m;
         } else if type_.t_i32 != nil {
             return make[map[string, Type]]();
         } else if type_.t_ptr != nil {
@@ -1290,6 +1205,8 @@ module Typechecker {
         } else if type_.t_or != nil {
             return make[map[string, Type]]();
         } else if type_.t_u32 != nil {
+            return make[map[string, Type]]();
+        } else if type_.t_byte != nil {
             return make[map[string, Type]]();
         }
 
@@ -1348,16 +1265,14 @@ fun unify(type1: Type, type2: Type): Type or error {
         let result = unify(type1.t_ptr!, type2.t_ptr!).try;
 
         return Type {
-            t_ptr: result?,
-            ..nil,
+            t_ptr: result,
         };
     }
     if type1.t_optional != nil && type2.t_optional != nil {
         let result = unify(type1.t_optional!, type2.t_optional!).try;
 
         return Type {
-            t_optional: result?,
-            ..nil,
+            t_optional: result,
         };
     }
     if type1.t_omit != nil {
@@ -1382,8 +1297,7 @@ fun unify(type1: Type, type2: Type): Type or error {
         let result = unify(type1.t_vec!, type2.t_vec!).try;
 
         return Type {
-            t_vec: result?,
-            ..nil,
+            t_vec: result,
         };
     }
     if type1.t_vec != nil && type2.t_ident != nil && type2.t_ident!.equal("vec") {
@@ -1422,8 +1336,7 @@ fun unify(type1: Type, type2: Type): Type or error {
             t_or: struct {
                 left: left,
                 right: right,
-            }?,
-            ..nil,
+            },
         };
     }
     if type1.t_map != nil && type2.t_map != nil {
@@ -1434,8 +1347,7 @@ fun unify(type1: Type, type2: Type): Type or error {
             t_map: struct {
                 key: key,
                 value: value,
-            }?,
-            ..nil,
+            },
         };
     }
 

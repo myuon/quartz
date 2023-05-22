@@ -340,7 +340,6 @@ impl Compiler {
             .concat(),
         ));
         generator.set_globals(typechecker.globals.keys().into_iter().cloned().collect());
-        generator.set_types(typechecker.types);
         generator.set_strings(
             ir_code_generator
                 .strings

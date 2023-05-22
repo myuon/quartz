@@ -96,6 +96,7 @@ pub enum IrTerm {
         offset: usize,
         data: String,
     },
+    Comment(String),
 }
 
 impl IrTerm {
@@ -357,6 +358,12 @@ impl IrTerm {
                 writer.write(format!("data={}", data));
                 writer.end();
             }
+            IrTerm::Comment(c) => {
+                writer.start();
+                writer.write("comment");
+                writer.write(c);
+                writer.end();
+            }
         }
     }
 
@@ -489,6 +496,7 @@ impl IrTerm {
                 vec![]
             }
             IrTerm::Data { offset, data } => vec![],
+            IrTerm::Comment(c) => vec![],
         }
     }
 

@@ -14,7 +14,14 @@ use crate::{
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum TypeRepKind {
+    Struct = 1,
+    Enum = 2,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TypeRep {
+    pub kind: TypeRepKind,
     pub name: String,
     pub params: Vec<TypeRep>,
     pub fields: Vec<(String, TypeRep)>,
@@ -23,6 +30,7 @@ pub struct TypeRep {
 impl TypeRep {
     pub fn from_name(name: String, params: Vec<TypeRep>) -> TypeRep {
         TypeRep {
+            kind: TypeRepKind::Struct,
             name,
             params,
             fields: vec![],
@@ -42,6 +50,7 @@ impl TypeRep {
         }
 
         TypeRep {
+            kind: TypeRepKind::Struct,
             name,
             params,
             fields,
@@ -1068,6 +1077,10 @@ impl IrCodeGenerator {
                         let mut args_with_self = vec![expr.as_ref().clone()];
                         args_with_self.extend(args.clone());
 
+                        if let Some(variadic) = variadic {
+                            variadic.index += 1;
+                        }
+
                         self.generate_call(
                             &mut Source::transfer(Expr::path(label.data.clone()), expr),
                             &mut args_with_self,
@@ -1115,20 +1128,26 @@ impl IrCodeGenerator {
                             .ok_or(anyhow!("Invalid enum variant: {:?}", fields[0].0))?;
                         let value = self.expr(&mut fields[0].1)?;
 
-                        Ok(self.generate_array(
-                            ident.data.as_str().to_string(),
-                            vec![],
+                        let rep = TypeRep {
+                            kind: TypeRepKind::Enum,
+                            name: ident.data.as_str().to_string(),
+                            params: vec![],
+                            fields: enum_type
+                                .iter()
+                                .map(|(i, t)| {
+                                    (
+                                        i.0.clone(),
+                                        TypeRep::from_type(IrType::from_type(&t.data).unwrap()),
+                                    )
+                                })
+                                .collect(),
+                        };
+
+                        Ok(self.generate_array_with_rep(
+                            rep,
                             vec![
-                                (
-                                    Some("tag".to_string()),
-                                    IrType::I32,
-                                    IrTerm::i32(index as i32),
-                                ),
-                                (
-                                    Some("value".to_string()),
-                                    IrType::from_type(&enum_type[index].1.data)?,
-                                    value,
-                                ),
+                                (IrType::I32, IrTerm::i32(index as i32)),
+                                (IrType::from_type(&enum_type[index].1.data)?, value),
                             ],
                         )?)
                     }
@@ -1575,7 +1594,7 @@ impl IrCodeGenerator {
                 elements.push(self.expr(arg)?);
             }
 
-            let vec_name = format!("vec_{}", callee.start.unwrap_or(0));
+            let vec_name = format!("vec_generate_call_{}", callee.start.unwrap_or(0));
 
             let mut variadic_terms = vec![IrTerm::Let {
                 name: vec_name.clone(),
@@ -1675,8 +1694,22 @@ impl IrCodeGenerator {
                 .collect::<Vec<_>>(),
         );
 
+        self.generate_array_with_rep(
+            rep,
+            elements
+                .into_iter()
+                .map(|(_, t, e)| (t, e))
+                .collect::<Vec<_>>(),
+        )
+    }
+
+    fn generate_array_with_rep(
+        &mut self,
+        rep: TypeRep,
+        elements: Vec<(IrType, IrTerm)>,
+    ) -> Result<IrTerm> {
         let mut terms = vec![];
-        for (index, (_, type_, elem)) in elements.into_iter().enumerate() {
+        for (index, (type_, elem)) in elements.into_iter().enumerate() {
             terms.push((index, type_.clone(), elem));
         }
 
@@ -1688,7 +1721,8 @@ impl IrCodeGenerator {
         // }
         // array_x
         let var_name = format!(
-            "array_{}",
+            "array_{}_{}",
+            rep.name,
             Alphanumeric
                 .sample_iter(&mut rand::thread_rng())
                 .take(5)
@@ -1797,8 +1831,12 @@ impl IrCodeGenerator {
     }
 
     fn write_type_rep(&mut self, rep: TypeRep) -> Result<IrTerm> {
-        // [nil, rep_name, size of params, *params, size of fields, *fields]
-        let mut elements = vec![IrTerm::nil(), self.register_string(rep.name.clone())];
+        // [nil, kind, rep_name, size of params, *params, size of fields, *fields]
+        let mut elements = vec![
+            IrTerm::nil(),
+            IrTerm::i32(rep.kind as i32),
+            self.register_string(rep.name.clone()),
+        ];
 
         elements.push(IrTerm::i32(rep.params.len() as i32));
         let mut type_rep_terms = vec![];

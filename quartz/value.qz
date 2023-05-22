@@ -1,9 +1,9 @@
-struct Value {
-    t_bool: bool?,
-    t_byte: byte?,
-    t_i32: i32?,
-    t_u32: u32?,
-    t_pointer: u32?,
+enum Value {
+    t_bool: bool,
+    t_byte: byte,
+    t_i32: i32,
+    t_u32: u32,
+    t_pointer: u32,
 }
 
 module Value {
@@ -37,8 +37,7 @@ module Value {
 
     fun nil_(): Value {
         return Value {
-            t_pointer: (0 as u32)?,
-            ..nil,
+            t_pointer: 0 as u32,
         };
     }
 }

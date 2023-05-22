@@ -17,22 +17,22 @@ module Module {
     }
 }
 
-struct Decl {
-    t_func: Function?,
-    t_let: Let?,
+enum Decl {
+    t_func: Function,
+    t_let: Let,
     t_type: struct {
         name: string,
         type_: Type,
-    }?,
+    },
     t_enum: struct {
         name: string,
         type_: Type,
-    }?,
+    },
     t_module: struct {
         path: Path,
         module_: Module,
-    }?,
-    t_import: Path?,
+    },
+    t_import: Path,
 }
 
 module Decl {
@@ -83,18 +83,16 @@ module Function {
             return Type {
                 t_variadic_func: struct {
                     params: params_type,
-                    variadic: self.variadic!.type_,
                     result: self.result_type,
-                }?,
-                ..nil,
+                    variadic: self.variadic!.type_,
+                }
             };
         } else {
             return Type {
                 t_func: struct {
                     params: params_type,
                     result: self.result_type,
-                }?,
-                ..nil,
+                }
             };
         }
     }
@@ -116,40 +114,41 @@ module Block {
     }
 }
 
-struct Statement {
+enum Statement {
     t_let: struct {
         pattern: Pattern,
         name_type: Type,
         expr: Expression,
-    }?,
+    },
     t_return: struct {
         expr: Expression,
-    }?,
+    },
     t_assign: struct {
         lhs: Expression,
+        rhs_type: Type?,
         rhs: Expression,
-    }?,
+    },
     t_expr: struct {
         expr: Expression,
-    }?,
+    },
     t_if: struct {
         condition: Expression,
         then_block: Block,
         else_block: Block?,
-    }?,
+    },
     t_while: struct {
         condition: Expression,
         block: Block,
-    }?,
+    },
     t_for: struct {
         mode: string,
         type_: Type?,
         ident: string,
         range: Expression,
         block: Block,
-    }?,
-    t_continue: bool?,
-    t_break: bool?,
+    },
+    t_continue: bool,
+    t_break: bool,
 }
 
 module Statement {
@@ -158,22 +157,23 @@ module Statement {
     }
 }
 
-struct Expression {
+enum Expression {
     t_ident: struct {
         name: string,
         resolved_path: Path?,
-    }?,
+    },
     t_binop: struct {
         binop: string,
+        type_: Type?,
         left: Expression,
         right: Expression,
-    }?,
+    },
     t_i32: struct {
         value: i32,
-    }?,
+    },
     t_u32: struct {
         value: u32,
-    }?,
+    },
     t_call: struct {
         callee: Expression,
         args: vec[Expression],
@@ -182,71 +182,71 @@ struct Expression {
             index: i32,
         }?,
         expansion: Expression?,
-    }?,
+    },
     t_project: struct {
         expr: Expression,
         field: string,
         type_: Type?,
         resolved_path: Path?,
-    }?,
-    t_record: RecordExpression?,
+    },
+    t_record: RecordExpression,
     t_anonymous_record: struct {
         fields: vec[struct {
             field: string,
             value: Expression,
         }],
         type_: Type?,
-    }?,
+    },
     t_make: struct {
         type_: Type,
         args: vec[Expression],
-    }?,
+    },
     t_as: struct {
         expr: Expression,
         source_type: Type,
         target_type: Type,
-    }?,
+    },
     t_path: struct {
         path: Path,
         resolved_path: Path?,
-    }?,
-    t_self: bool?,
-    t_string: string?,
-    t_paren: Expression?,
+    },
+    t_self: bool,
+    t_string: string,
+    t_paren: Expression,
     t_range: struct {
         start: Expression,
         end: Expression,
-    }?,
+    },
     t_unop: struct {
         unop: string,
         expr: Expression,
-    }?,
+    },
     t_unwrap: struct {
         type_: Type,
         expr: Expression,
-    }?,
+    },
     t_wrap: struct {
         type_: Type,
         expr: Expression,
-    }?,
-    t_bool: bool?,
-    t_nil: bool?,
-    t_omit: bool?,
+    },
+    t_bool: bool,
+    t_nil: bool,
+    t_omit: bool,
     t_enumor: struct {
         lhs: Expression?,
         rhs: Expression?,
         lhs_type: Type,
         rhs_type: Type,
-    }?,
+    },
     t_sizeof: struct {
         type_: Type,
-    }?,
-    t_try: Expression?,
+    },
+    t_try: Expression,
 }
 
 module Expression {
     fun to_string(self): string {
-        return derive::to_string_pretty(self);
+        return derive::to_string(self);
     }
 }
 
@@ -297,43 +297,38 @@ module RecordExpression {
     }
 }
 
-struct Type {
-    t_omit: bool?, // for unification
-    t_nil: bool?,
-    t_i32: bool?,
-    t_u32: bool?,
+enum Type {
+    t_omit: bool, // for unification
+    t_nil: bool,
+    t_i32: bool,
+    t_u32: bool,
     t_func: struct {
         params: vec[Type],
         result: Type,
-    }?,
+    },
     t_variadic_func: struct {
         params: vec[Type],
         result: Type,
         variadic: Type,
-    }?,
-    t_ptr: Type?,
-    t_bool: bool?,
-    t_struct: TypeStruct?,
-    t_byte: bool?,
-    t_ident: string?,
-    t_range: Type?,
-    t_optional: Type?,
-    t_vec: Type?,
-    t_variadic_func: struct {
-        params: vec[Type],
-        variadic: Type,
-        result: Type,
-    }?,
+    },
+    t_ptr: Type,
+    t_bool: bool,
+    t_struct: TypeStruct,
+    t_byte: bool,
+    t_ident: string,
+    t_range: Type,
+    t_optional: Type,
+    t_vec: Type,
     t_or: struct {
         left: Type,
         right: Type,
-    }?,
-    t_any: bool?,
+    },
+    t_any: bool,
     t_map: struct {
         key: Type,
         value: Type,
-    }?,
-    t_enum: TypeStruct?,
+    },
+    t_enum: TypeStruct,
 }
 
 module Type {
@@ -343,8 +338,7 @@ module Type {
 
     fun string(): Type {
         return Type {
-            t_ident: "string"?,
-            ..nil,
+            t_ident: "string"
         };
     }
 
@@ -377,7 +371,7 @@ module TypeStruct {
             }
         }
 
-        return panic("unimplemented: typestruct.find");
+        return panic("unimplemented: typestruct.at");
     }
 
     fun index(self, name: string): i32 {
@@ -387,7 +381,10 @@ module TypeStruct {
             }
         }
 
-        return panic("unimplemented: typestruct.find");
+        return panic("unimplemented: typestruct.index, {}, {}".format(
+            derive::to_string(self),
+            name,
+        ));
     }
 }
 

@@ -50,11 +50,11 @@ impl TypeChecker {
                     Type::Func(vec![Type::Any], Box::new(Type::I32)),
                 ),
                 (
-                    "reflection_is_pointer",
+                    "_reflection_is_pointer",
                     Type::Func(vec![Type::Any], Box::new(Type::Bool)),
                 ),
                 (
-                    "reflection_is_bool",
+                    "_reflection_is_bool",
                     Type::Func(vec![Type::Any], Box::new(Type::Bool)),
                 ),
                 (
@@ -873,24 +873,67 @@ impl TypeChecker {
                 }
             }
             Expr::Record(ident, record, expansion) => {
-                if let Some(type_) = self.types.get(&ident.data) {
-                    // enum
-                    if let Type::Enum(_rs) = &type_.1 {
-                        assert!(expansion.is_none());
-
-                        return Ok(Type::Ident(ident.data.clone()));
-                    }
-                }
-
                 let mut record_types = self
                     .resolve_record_type(Type::Ident(ident.data.clone()), vec![])
                     .context(ErrorInSource {
                         path: Some(self.current_path.clone()),
                         start: expr.start.unwrap_or(0),
                         end: expr.end.unwrap_or(0),
-                    })?
-                    .into_iter()
-                    .collect::<HashMap<_, _>>();
+                    })?;
+
+                if let Some(type_) = self.types.get(&ident.data) {
+                    // enum
+                    if let Type::Enum(_rs) = &type_.1 {
+                        if expansion.is_some() {
+                            return Err(anyhow!("cannot expand an enum, {:?}", expansion).context(
+                                ErrorInSource {
+                                    path: Some(self.current_path.clone()),
+                                    start: ident.start.unwrap_or(0),
+                                    end: ident.end.unwrap_or(0),
+                                },
+                            ));
+                        }
+                        if record.len() != 1 {
+                            return Err(anyhow!("expected one field, got {}", record.len())
+                                .context(ErrorInSource {
+                                    path: Some(self.current_path.clone()),
+                                    start: ident.start.unwrap_or(0),
+                                    end: ident.end.unwrap_or(0),
+                                }));
+                        }
+
+                        let type_ = record_types
+                            .iter_mut()
+                            .find(|(label, _)| label == &record[0].0)
+                            .unwrap();
+                        let mut record_type = self.expr(&mut record.get_mut(0).unwrap().1)?;
+
+                        if let Type::Optional(t) = &mut type_.1.data {
+                            self.unify(
+                                // hack
+                                t,
+                                &mut record_type,
+                            )
+                            .context(ErrorInSource {
+                                path: Some(self.current_path.clone()),
+                                start: record[0].1.start.unwrap_or(0),
+                                end: record[0].1.end.unwrap_or(0),
+                            })?;
+
+                            return Ok(Type::Ident(ident.data.clone()));
+                        } else {
+                            return Err(anyhow!("expected optional, got {:?}", type_.1).context(
+                                ErrorInSource {
+                                    path: Some(self.current_path.clone()),
+                                    start: record[0].1.start.unwrap_or(0),
+                                    end: record[0].1.end.unwrap_or(0),
+                                },
+                            ));
+                        }
+                    }
+                }
+
+                let mut record_types = record_types.into_iter().collect::<HashMap<_, _>>();
 
                 for (field, type_) in &mut record_types {
                     if let Some((_, expr)) = record.iter_mut().find(|(f, _)| f == field) {
@@ -1120,7 +1163,11 @@ impl TypeChecker {
                                 },
                             )?;
 
-                            Ok(Type::VariadicFunc(arg_types, variadic, result_type))
+                            Ok(Type::VariadicFunc(
+                                arg_types[1..].to_vec(),
+                                variadic,
+                                result_type,
+                            ))
                         }
                         _ => {
                             return Err(anyhow!(
@@ -1359,7 +1406,10 @@ impl TypeChecker {
                 let (params, mut type_) = self
                     .types
                     .get(&ident)
-                    .ok_or(anyhow!("unknown type: {}", ident.as_str()))?
+                    .ok_or(anyhow!(
+                        "unknown type: {} (resolve_record_type)",
+                        ident.as_str()
+                    ))?
                     .clone();
 
                 let mut apps = vec![];

@@ -330,6 +330,26 @@ fun main(): i32 {
     return t_10.get() + t_hello.get();
 }
 "#,
+        r#"
+struct Foo {
+    x: bool,
+}
+
+module Foo {
+    fun run(self, ..args: vec[i32]): i32 {
+        return args.length;
+    }
+}
+
+fun main(): i32 {
+    let foo = Foo {
+        x: true,
+    };
+    let t = make[vec[i32]](1,2,3,4,5);
+
+    return foo.run(..t);
+}
+"#,
     ];
 
     for input in cases {
@@ -358,7 +378,14 @@ fun main(): i32 {
             &["run", "--release", "--quiet", "--", "run-wat", "--stdin"],
             stdout.as_bytes(),
         )
-        .expect(format!("[INPUT:gen1:runtime]\n{}\n[WAT]\n{}\n", input, stdout).as_str());
+        .expect(
+            format!(
+                "[INPUT:gen1:runtime]\n{}\n[WAT]\n{}\n",
+                input,
+                &stdout[0..100]
+            )
+            .as_str(),
+        );
         assert_eq!(stdout_gen0, stdout_gen1, "[INPUT]\n{}\n", input);
     }
 }

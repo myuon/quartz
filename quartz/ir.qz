@@ -1,72 +1,75 @@
 import quartz::ast;
 
-struct IrTerm {
-    t_nil: bool?,
-    t_i32: i32?,
-    t_ident: string?,
-    t_func: IrFunc?,
-    t_call: IrCall?,
-    t_let: IrLet?,
-    t_return: IrReturn?,
+enum IrTerm {
+    t_nil: bool,
+    t_i32: i32,
+    t_ident: string,
+    t_func: IrFunc,
+    t_call: IrCall,
+    t_let: IrLet,
+    t_return: IrReturn,
     t_module: struct {
         elements: vec[IrTerm],
-    }?,
+    },
     t_global_let: struct {
         name: string,
         type_: IrType,
         value: IrTerm,
-    }?,
+    },
     t_assign: struct {
         lhs: string,
         rhs: IrTerm,
-    }?,
+    },
     t_if: struct {
         condition: IrTerm,
         then_term: IrTerm,
         else_term: IrTerm,
-    }?,
+    },
     t_while: struct {
         condition: IrTerm,
         block: IrTerm,
         cleanup: IrTerm?,
-    }?,
+    },
     t_seq: struct {
         terms: vec[IrTerm],
-    }?,
+    },
     t_store: struct {
         type_: IrType,
         address: IrTerm,
         offset: IrTerm,
         value: IrTerm,
-    }?,
+        raw_offset: i32,
+    },
     t_load: struct {
         type_: IrType,
         address: IrTerm,
         offset: IrTerm,
-    }?,
+        raw_offset: i32,
+    },
     t_sizeof: struct {
         type_: IrType,
-    }?,
-    t_string: i32?,
+    },
+    t_string: i32,
     t_data: struct {
         data: string,
         offset: i32,
-    }?,
-    t_discard: IrTerm?,
-    t_inst: string?,
-    t_bool: bool?,
+    },
+    t_discard: IrTerm,
+    t_inst: string,
+    t_bool: bool,
     t_and: struct {
         lhs: IrTerm,
         rhs: IrTerm,
-    }?,
+    },
     t_or: struct {
         lhs: IrTerm,
         rhs: IrTerm,
-    }?,
-    t_continue: bool?,
-    t_break: bool?,
-    t_size: IrType?,
-    t_u32: u32?,
+    },
+    t_continue: bool,
+    t_break: bool,
+    t_size: IrType,
+    t_u32: u32,
+    t_comment: string,
 }
 
 module IrTerm {
@@ -76,15 +79,13 @@ module IrTerm {
 
     fun ident(name: string): IrTerm {
         return IrTerm {
-            t_ident: name?,
-            ..nil,
+            t_ident: name,
         };
     }
 
     fun i32(value: i32): IrTerm {
         return IrTerm {
-            t_i32: value?,
-            ..nil,
+            t_i32: value,
         };
     }
 
@@ -139,6 +140,14 @@ module IrTerm {
         if self.t_discard != nil {
             locals.extend(self.t_discard!.find_locals());
         }
+        if self.t_and != nil {
+            locals.extend(self.t_and!.lhs.find_locals());
+            locals.extend(self.t_and!.rhs.find_locals());
+        }
+        if self.t_or != nil {
+            locals.extend(self.t_or!.lhs.find_locals());
+            locals.extend(self.t_or!.rhs.find_locals());
+        }
 
         return locals;
     }
@@ -150,8 +159,8 @@ struct IrFunc {
         name: string,
         type_: IrType,
     }],
-    body: vec[IrTerm],
     result_type: IrType,
+    body: vec[IrTerm],
 }
 
 struct IrCall {
@@ -169,97 +178,91 @@ struct IrReturn {
     value: IrTerm,
 }
 
-struct IrType {
-    t_nil: bool?,
-    t_i32: bool?,
-    t_address: bool?,
-    t_byte: bool?,
-    t_bool: bool?,
-    t_any: bool?,
+enum IrType {
+    t_nil: bool,
+    t_i32: bool,
+    t_address: bool,
+    t_byte: bool,
+    t_bool: bool,
+    t_any: bool,
+    t_i64: bool,
 }
 
 module IrType {
     fun new(t: Type): IrType {
         if t.t_nil != nil {
             return IrType {
-                t_address: true?,
-                ..nil,
+                t_address: true,
             };
         }
         if t.t_i32 != nil {
             return IrType {
-                t_i32: true?,
-                ..nil,
+                t_i32: true,
             };
         }
         if t.t_ident != nil {
+            if t.t_ident!.equal("i64") {
+                return IrType {
+                    t_i64: true,
+                };
+            }
+
             return IrType {
-                t_address: true?,
-                ..nil,
+                t_address: true,
             };
         }
         if t.t_byte != nil {
             return IrType {
-                t_byte: true?,
-                ..nil,
+                t_byte: true,
             };
         }
         if t.t_ptr != nil {
             return IrType {
-                t_address: true?,
-                ..nil,
+                t_address: true,
             };
         }
         if t.t_optional != nil {
             return IrType {
-                t_address: true?,
-                ..nil,
+                t_address: true,
             };
         }
         if t.t_bool != nil {
             return IrType {
-                t_bool: true?,
-                ..nil,
+                t_bool: true,
             };
         }
         if t.t_vec != nil {
             return IrType {
-                t_address: true?,
-                ..nil,
+                t_address: true,
             };
         }
         if t.t_or != nil {
             return IrType {
-                t_address: true?,
-                ..nil,
+                t_address: true,
             };
         }
         if t.t_any != nil {
             return IrType {
-                t_any: true?,
-                ..nil,
+                t_any: true,
             };
         }
         if t.t_u32 != nil {
             return IrType {
-                t_i32: true?,
-                ..nil,
+                t_i32: true,
             };
         }
         if t.t_struct != nil {
             return IrType {
-                t_address: true?,
-                ..nil,
+                t_address: true,
             };
         }
         if t.t_map != nil {
             return IrType {
-                t_address: true?,
-                ..nil,
+                t_address: true,
             };
         }
 
-        return panic("unknown type: {}", t.to_string());
+        return panic("unknown type: {} (IrType::new)", t.to_string());
     }
 
     fun to_string(self): string {

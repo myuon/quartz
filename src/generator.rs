@@ -1,19 +1,17 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use anyhow::{bail, Ok, Result};
 
 use crate::{
-    ast::Type,
     compiler::{MODE_OPTIMIZE_ARITH_OPS_IN_CODE_GEN, MODE_READABLE_WASM},
     ir::{IrTerm, IrType},
-    util::{ident::Ident, path::Path, sexpr_writer::SExprWriter},
+    util::{path::Path, sexpr_writer::SExprWriter},
     value::Value,
 };
 
 pub struct Generator {
     pub writer: SExprWriter,
     pub globals: HashSet<String>,
-    pub types: HashMap<Ident, (Vec<Type>, Type)>,
     pub main_signature: Option<(Vec<IrType>, IrType)>,
     pub entrypoint: Path,
     pub strings: Vec<String>,
@@ -24,7 +22,6 @@ impl Generator {
         Generator {
             writer: SExprWriter::new(),
             globals: HashSet::new(),
-            types: HashMap::new(),
             main_signature: None,
             entrypoint: Path::new(vec![]),
             strings: vec![],
@@ -36,10 +33,6 @@ impl Generator {
             .iter()
             .map(|p| p.as_joined_str("_"))
             .collect::<HashSet<_>>();
-    }
-
-    pub fn set_types(&mut self, types: HashMap<Ident, (Vec<Type>, Type)>) {
-        self.types = types;
     }
 
     pub fn set_entrypoint(&mut self, entrypoint: Path) {
@@ -161,7 +154,7 @@ impl Generator {
         })?;
 
         self.decl(&mut IrTerm::Func {
-            name: "reflection_is_pointer".to_string(),
+            name: "_reflection_is_pointer".to_string(),
             params: vec![("value".to_string(), IrType::Any)],
             result: Some(IrType::Bool),
             body: vec![
@@ -177,7 +170,7 @@ impl Generator {
         })?;
 
         self.decl(&mut IrTerm::Func {
-            name: "reflection_is_bool".to_string(),
+            name: "_reflection_is_bool".to_string(),
             params: vec![("value".to_string(), IrType::Any)],
             result: Some(IrType::Bool),
             body: vec![
@@ -484,7 +477,7 @@ impl Generator {
 
                     self.writer.new_statement();
                     self.writer.write(&format!(
-                        " ;; {}",
+                        " ;; string: {}",
                         if s.len() > 30 {
                             format!("{:?}...", &s[0..30])
                         } else {
@@ -738,6 +731,10 @@ impl Generator {
             IrTerm::Instruction(i) => {
                 self.writer.new_statement();
                 self.writer.write(i);
+            }
+            IrTerm::Comment(c) => {
+                self.writer.new_statement();
+                self.writer.write(format!(";; {:?}", c));
             }
             _ => todo!("{:?}", expr),
         }
