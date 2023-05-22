@@ -79,13 +79,13 @@ module IrTerm {
 
     fun ident(name: string): IrTerm {
         return IrTerm {
-            t_ident: name
+            t_ident: name,
         };
     }
 
     fun i32(value: i32): IrTerm {
         return IrTerm {
-            t_i32: value
+            t_i32: value,
         };
     }
 
@@ -159,8 +159,8 @@ struct IrFunc {
         name: string,
         type_: IrType,
     }],
-    body: vec[IrTerm],
     result_type: IrType,
+    body: vec[IrTerm],
 }
 
 struct IrCall {
@@ -192,73 +192,73 @@ module IrType {
     fun new(t: Type): IrType {
         if t.t_nil != nil {
             return IrType {
-                t_address: true
+                t_address: true,
             };
         }
         if t.t_i32 != nil {
             return IrType {
-                t_i32: true
+                t_i32: true,
             };
         }
         if t.t_ident != nil {
             if t.t_ident!.equal("i64") {
                 return IrType {
-                    t_i64: true
+                    t_i64: true,
                 };
             }
 
             return IrType {
-                t_address: true
+                t_address: true,
             };
         }
         if t.t_byte != nil {
             return IrType {
-                t_byte: true
+                t_byte: true,
             };
         }
         if t.t_ptr != nil {
             return IrType {
-                t_address: true
+                t_address: true,
             };
         }
         if t.t_optional != nil {
             return IrType {
-                t_address: true
+                t_address: true,
             };
         }
         if t.t_bool != nil {
             return IrType {
-                t_bool: true
+                t_bool: true,
             };
         }
         if t.t_vec != nil {
             return IrType {
-                t_address: true
+                t_address: true,
             };
         }
         if t.t_or != nil {
             return IrType {
-                t_address: true
+                t_address: true,
             };
         }
         if t.t_any != nil {
             return IrType {
-                t_any: true
+                t_any: true,
             };
         }
         if t.t_u32 != nil {
             return IrType {
-                t_i32: true
+                t_i32: true,
             };
         }
         if t.t_struct != nil {
             return IrType {
-                t_address: true
+                t_address: true,
             };
         }
         if t.t_map != nil {
             return IrType {
-                t_address: true
+                t_address: true,
             };
         }
 

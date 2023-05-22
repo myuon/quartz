@@ -111,6 +111,9 @@ module Generator {
 
             self.write(escape(element.t_data!.data));
             self.end();
+        } else if element.t_comment != nil {
+            self.new_statement();
+            self.write(format(" ;; {}", escape(element.t_comment!)));
         } else {
             panic("decl: {}", element.to_string());
         }

@@ -105,7 +105,7 @@ module InternalTypeRep {
         if self.kind != other.kind {
             return false;
         }
-        if self.name.equal(other.name) {
+        if !self.name.equal(other.name) {
             return false;
         }
         if self.params.length != other.params.length {
@@ -475,10 +475,10 @@ module IrCodeGenerator {
                     name: string,
                     type_: IrType,
                 }]](),
-                body: body,
                 result_type: IrType {
                     t_nil: true,
                 },
+                body: body,
             },
         });
 
@@ -522,8 +522,8 @@ module IrCodeGenerator {
         return IrFunc {
             name: self.path_to(func.name),
             params: params,
-            body: body,
             result_type: IrType::new(func.result_type),
+            body: body,
         };
     }
 
