@@ -475,10 +475,10 @@ module IrCodeGenerator {
                     name: string,
                     type_: IrType,
                 }]](),
+                body: body,
                 result_type: IrType {
                     t_nil: true,
                 },
-                body: body,
             },
         });
 
@@ -1389,6 +1389,7 @@ module IrCodeGenerator {
                 }
 
                 let t = record_type.t_struct!;
+                let fields_map = expr.t_record!.to_fields_map();
 
                 let record = make[vec[struct {
                     label: string?,
@@ -1397,8 +1398,8 @@ module IrCodeGenerator {
                 }]]();
                 for i in 0..t.fields.length {
                     let field = t.fields.at(i);
-                    if i < expr.t_record!.fields.length {
-                        let value = expr.t_record!.fields.at(i).value;
+                    if fields_map.has(field.name) {
+                        let value = fields_map.at(field.name);
 
                         record.push(struct {
                             label: field.name?,

@@ -684,7 +684,7 @@ module Typechecker {
                 return t;
             }
 
-            return _ or error::new("unbound identifier: ".concat(expr.t_ident!.name));
+            return _ or error::new("unbound identifier: {}".format(expr.t_ident!.name));
         } else if expr.t_call != nil {
             let callee_type = self.expression(expr.t_call!.callee).try;
             if callee_type.t_func != nil {
