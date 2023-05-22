@@ -1396,19 +1396,34 @@ module IrCodeGenerator {
             if expr.t_anonymous_record!.type_ == nil {
                 return _ or error::new("anonymous record type not found");
             }
+            if expr.t_anonymous_record!.type_!.t_struct == nil {
+                return _ or error::new("anonymous record type is not a struct");
+            }
+            let struct_type = expr.t_anonymous_record!.type_!.t_struct!;
 
             let terms = make[vec[struct {
                 label: string?,
                 type_: IrType,
                 term: IrTerm,
             }]]();
-            for field in expr.t_anonymous_record!.fields {
-                let type_ = expr.t_anonymous_record!.type_!.t_struct!.at(field.field);
 
+            for field in struct_type.fields {
+                let field_expr = nil as Expression?;
+                for f in expr.t_anonymous_record!.fields {
+                    if f.field == field.name {
+                        field_expr = f.value?;
+                        break;
+                    }
+                }
+                if field_expr == nil {
+                    return _ or error::new(format("field not found: {}", field.name));
+                }
+
+                let value = self.expression(field_expr!).try;
                 terms.push(struct {
-                    label: field.field?,
-                    type_: IrType::new(type_),
-                    term: self.expression(field.value).try,
+                    label: field.name?,
+                    type_: IrType::new(field.type_),
+                    term: value,
                 });
             }
 

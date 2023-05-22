@@ -59,7 +59,7 @@ fun test() {
 
 fun main() {
     // dump_strings();
-    // test();
+    test();
 
     let result or err = run(stdin());
     if err != nil {

@@ -267,56 +267,54 @@ module Generator {
             panic("main_signature_result is nil");
         }
 
-        self.decl(IrTerm {
-            t_func: IrFunc {
-                name: "start",
-                params: make[vec[struct {
-                    name: string,
-                    type_: IrType,
-                }]](),
-                result_type: self.main_signature_result!,
-                body: make[vec[IrTerm]](
-                    IrTerm {
-                        t_assign: struct {
-                            lhs: "quartz_std_alloc_ptr",
-                            rhs: IrTerm {
-                                t_i32: data_section_offset,
-                            },
+        self.function(IrFunc {
+            name: "start",
+            params: make[vec[struct {
+                name: string,
+                type_: IrType,
+            }]](),
+            result_type: self.main_signature_result!,
+            body: make[vec[IrTerm]](
+                IrTerm {
+                    t_assign: struct {
+                        lhs: "quartz_std_alloc_ptr",
+                        rhs: IrTerm {
+                            t_i32: data_section_offset,
                         },
                     },
-                    IrTerm {
-                        t_assign: struct {
-                            lhs: "quartz_std_strings_count",
-                            rhs: IrTerm {
-                                t_i32: self.strings.length,
-                            },
+                },
+                IrTerm {
+                    t_assign: struct {
+                        lhs: "quartz_std_strings_count",
+                        rhs: IrTerm {
+                            t_i32: self.strings.length,
                         },
                     },
-                    IrTerm {
-                        t_call: IrCall {
-                            callee: IrTerm {
-                                t_ident: "prepare_strings",
-                            },
-                            args: make[vec[IrTerm]](),
+                },
+                IrTerm {
+                    t_call: IrCall {
+                        callee: IrTerm {
+                            t_ident: "prepare_strings",
+                        },
+                        args: make[vec[IrTerm]](),
+                    },
+                },
+                IrTerm {
+                    t_call: IrCall {
+                        callee: IrTerm {
+                            t_ident: "prepare_type_reps",
+                        },
+                        args: make[vec[IrTerm]](),
+                    },
+                },
+                IrTerm {
+                    t_return: IrReturn {
+                        value: IrTerm {
+                            t_inst: "call $main_main",
                         },
                     },
-                    IrTerm {
-                        t_call: IrCall {
-                            callee: IrTerm {
-                                t_ident: "prepare_type_reps",
-                            },
-                            args: make[vec[IrTerm]](),
-                        },
-                    },
-                    IrTerm {
-                        t_return: IrReturn {
-                            value: IrTerm {
-                                t_inst: "call $main_main",
-                            },
-                        },
-                    },
-                ),
-            },
+                },
+            ),
         });
 
         self.start();
@@ -379,8 +377,8 @@ module Generator {
             }
         }
 
-        for i in 0..func.body.length {
-            self.expression(func.body.at(i));
+        for b in func.body {
+            self.expression(b);
         }
 
         // When the last instruction is exhaustive if block, we still need to put soemthing to tell the compiler that the function forgets to return
