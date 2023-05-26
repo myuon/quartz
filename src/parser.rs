@@ -1009,15 +1009,44 @@ impl Parser {
     }
 
     fn lit(&mut self) -> Result<Lit> {
-        let current = self.consume()?;
+        println!("lit: {:?}", self.peek());
+        let current = self.peek()?;
         match current.lexeme {
-            Lexeme::Int(int) if int <= i32::MAX as i64 => Ok(Lit::I32(int as i32)),
-            Lexeme::Int(int) if int <= u32::MAX as i64 => Ok(Lit::U32(int as u32)),
-            Lexeme::IntBase2(int) if int <= i32::MAX as i64 => Ok(Lit::I32Base2(int as i32)),
-            Lexeme::String(string) => Ok(Lit::String(string, StringLiteralType::String)),
-            Lexeme::RawString(string) => Ok(Lit::String(string, StringLiteralType::Raw)),
-            Lexeme::True => Ok(Lit::Bool(true)),
-            Lexeme::False => Ok(Lit::Bool(false)),
+            Lexeme::Int(int) if int <= i32::MAX as i64 => {
+                self.consume()?;
+
+                Ok(Lit::I32(int as i32))
+            }
+            Lexeme::Int(int) if int <= u32::MAX as i64 => {
+                self.consume()?;
+
+                Ok(Lit::U32(int as u32))
+            }
+            Lexeme::IntBase2(int) if int <= i32::MAX as i64 => {
+                self.consume()?;
+
+                Ok(Lit::I32Base2(int as i32))
+            }
+            Lexeme::String(string) => {
+                self.consume()?;
+
+                Ok(Lit::String(string, StringLiteralType::String))
+            }
+            Lexeme::RawString(string) => {
+                self.consume()?;
+
+                Ok(Lit::String(string, StringLiteralType::Raw))
+            }
+            Lexeme::True => {
+                self.consume()?;
+
+                Ok(Lit::Bool(true))
+            }
+            Lexeme::False => {
+                self.consume()?;
+
+                Ok(Lit::Bool(false))
+            }
             _ => {
                 return Err(
                     anyhow!("Expected literal, got {:?}", current.lexeme).context(ErrorInSource {
@@ -1025,7 +1054,7 @@ impl Parser {
                         start: self.input[self.position - 1].start,
                         end: self.input[self.position - 1].start,
                     }),
-                )
+                );
             }
         }
     }

@@ -523,7 +523,7 @@ impl Compiler {
         let (module, comments) = Compiler::run_parser_with_comments(
             input,
             Path::ident(Ident("main".to_string())),
-            true,
+            false,
         )?;
         let mut formatter = Formatter::new(input, &comments, 0);
 
