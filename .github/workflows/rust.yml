@@ -29,3 +29,6 @@ jobs:
 
       - name: Run compiler_tests
         run: just test_compiler
+
+      - name: Check gen2, gen3 diff
+        run: just test_self_compile
