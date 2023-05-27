@@ -1,4 +1,5 @@
 import quartz::ast;
+import quartz::path;
 
 enum IrTerm {
     t_nil: bool,

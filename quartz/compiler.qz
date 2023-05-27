@@ -5,6 +5,8 @@ import quartz::ir_code_gen;
 import quartz::generator;
 import quartz::path;
 import quartz::ast;
+import quartz::ir;
+import quartz::value;
 
 struct LoadedModule {
     path: Path,

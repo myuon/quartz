@@ -85,14 +85,14 @@ module Function {
                     params: params_type,
                     result: self.result_type,
                     variadic: self.variadic!.type_,
-                }
+                },
             };
         } else {
             return Type {
                 t_func: struct {
                     params: params_type,
                     result: self.result_type,
-                }
+                },
             };
         }
     }
@@ -338,7 +338,7 @@ module Type {
 
     fun string(): Type {
         return Type {
-            t_ident: "string"
+            t_ident: "string",
         };
     }
 
@@ -381,10 +381,7 @@ module TypeStruct {
             }
         }
 
-        return panic("unimplemented: typestruct.index, {}, {}".format(
-            derive::to_string(self),
-            name,
-        ));
+        return panic("unimplemented: typestruct.index, {}, {}".format(derive::to_string(self), name));
     }
 }
 
