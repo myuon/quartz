@@ -1009,7 +1009,6 @@ impl Parser {
     }
 
     fn lit(&mut self) -> Result<Lit> {
-        println!("lit: {:?}", self.peek());
         let current = self.peek()?;
         match current.lexeme {
             Lexeme::Int(int) if int <= i32::MAX as i64 => {
