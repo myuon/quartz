@@ -40,6 +40,7 @@ impl Parser {
     }
 
     pub fn module(&mut self) -> Result<Module> {
+        let mut prev = 0;
         let mut decls = vec![];
 
         while !self.is_end() && self.peek()?.lexeme != Lexeme::RBrace {
@@ -47,7 +48,11 @@ impl Parser {
             let result = self.decl();
             if result.is_ok() || !self.skip_errors {
                 decls.push(self.source_from(result?, position));
+            } else if self.position == prev {
+                bail!("Infinite loop detected");
             }
+
+            prev = self.position;
         }
 
         Ok(Module(decls))
@@ -227,13 +232,18 @@ impl Parser {
     }
 
     fn block(&mut self) -> Result<Vec<Source<Statement>>> {
+        let mut prev = 0;
         let mut statements = vec![];
         while !self.is_end() && self.peek()?.lexeme != Lexeme::RBrace {
             let result = self.statement();
             if result.is_ok() || !self.skip_errors {
                 let statement = result?;
                 statements.push(statement);
+            } else if self.position == prev {
+                bail!("Infinite loop");
             }
+
+            prev = self.position;
         }
 
         Ok(statements)
