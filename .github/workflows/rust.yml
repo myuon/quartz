@@ -32,3 +32,8 @@ jobs:
 
       - name: Check gen2, gen3 diff
         run: just test_self_compile
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: quartz
+          path: build/gen*.wat
