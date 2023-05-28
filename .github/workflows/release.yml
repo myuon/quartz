@@ -1,10 +1,8 @@
-name: Rust
+name: release
 
 on:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    tags: []
 
 env:
   CARGO_TERM_COLOR: always
@@ -24,11 +22,10 @@ jobs:
 
       - run: mkdir -p ./build
 
-      - name: Run tests
-        run: just test
-
-      - name: Run compiler_tests
-        run: just test_compiler
-
       - name: Check gen2, gen3 diff
         run: just test_self_compile
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: quartz
+          path: build/gen*.wat
