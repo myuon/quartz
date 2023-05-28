@@ -38,4 +38,4 @@ fuzztest:
   cd fuzz && cargo afl build --release && cargo afl fuzz -i in -o out target/release/fuzz_target_1
 
 test_self_compile:
-  just build_compiler_source && just build_gen1 && just build_gen2 && just build_gen3 && diff ./build/gen2.wat ./build/gen3.wat
+  just build_gen1 && just build_gen2 && just build_gen3 && diff ./build/gen2.wat ./build/gen3.wat
