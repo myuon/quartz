@@ -42,6 +42,9 @@ enum SubCommand {
         #[clap(long)]
         stdin: bool,
 
+        #[clap(long, short = 'o')]
+        output: Option<String>,
+
         file: Option<String>,
     },
     #[clap(name = "run", about = "Run a file")]
@@ -50,6 +53,9 @@ enum SubCommand {
         stdin: bool,
         #[clap(long)]
         entrypoint: Option<String>,
+
+        #[clap(long, short = 'o')]
+        output: Option<String>,
 
         file: Option<String>,
     },
@@ -193,15 +199,26 @@ fn main() -> Result<()> {
 
     let cli = Cli::parse();
     match cli.subcmd {
-        SubCommand::Compile { stdin, file } => {
-            compile(&mut compiler, stdin, file, None)?;
+        SubCommand::Compile {
+            stdin,
+            file,
+            output,
+        } => {
+            compile(&mut compiler, stdin, file, None, output)?;
         }
         SubCommand::Run {
             stdin,
             file,
             entrypoint,
+            output,
         } => {
-            let wat = compile(&mut compiler, stdin, file, entrypoint.map(|t| Ident(t)))?;
+            let wat = compile(
+                &mut compiler,
+                stdin,
+                file,
+                entrypoint.map(|t| Ident(t)),
+                output,
+            )?;
             let result = runtime.run(&wat)?;
 
             print_result_value(result);
@@ -367,6 +384,7 @@ fn compile(
     stdin: bool,
     file: Option<String>,
     entrypoint_name: Option<Ident>,
+    output: Option<String>,
 ) -> Result<String> {
     let cwd = std::env::current_dir()?.to_str().unwrap().to_string();
     let input = if stdin {
@@ -378,7 +396,7 @@ fn compile(
     };
     let wat = compiler.compile(&cwd, &input, entrypoint_name)?;
 
-    let file = std::fs::File::create("build/build.wat")?;
+    let file = std::fs::File::create(output.unwrap_or("build/build.wat".to_string()))?;
     let mut writer = std::io::BufWriter::new(file);
     writer.write_all(wat.as_bytes())?;
 

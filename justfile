@@ -14,10 +14,13 @@ run_gen0_compiler:
   cargo run --release -- run ./quartz/main.qz
 
 build_gen1:
-  cargo run --release -- compile ./quartz/main.qz && mv ./build/build.wat ./build/gen1.wat
+  cargo run --release -- compile -o ./build/gen1.wat ./quartz/main.qz
 
 run_gen1:
   cargo run --release -- run-wat ./build/gen1.wat
+
+execute_gen1:
+  cargo run --release -- run-wat ./build/gen1.wat < ./quartz/main.qz > ./build/test_compiled.wat && cargo run --release -- run-wat ./build/test_compiled.wat
 
 build_gen2:
   cargo run --release -- run-wat ./build/gen1.wat < ./quartz/main.qz > ./build/gen2.wat
