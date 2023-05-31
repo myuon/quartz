@@ -90,6 +90,11 @@ impl TypeChecker {
                     "i64_to_string_at",
                     Type::Func(vec![Type::I32, Type::I32, Type::I32], Box::new(Type::I32)),
                 ),
+                ("get_args_len", Type::Func(vec![], Box::new(Type::I32))),
+                (
+                    "get_args_at",
+                    Type::Func(vec![Type::I32], Box::new(Type::Byte)),
+                ),
             ]
             .into_iter()
             .map(|(k, v)| (Path::ident(Ident(k.to_string())), Source::unknown(v)))

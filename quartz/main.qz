@@ -58,6 +58,7 @@ fun test() {
 }
 
 fun main() {
+    // println("{}", derive::to_string(args()));
     // dump_strings();
     test();
 

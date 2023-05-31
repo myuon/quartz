@@ -120,6 +120,18 @@ impl Generator {
             result: IrType::I32,
         })?;
 
+        self.decl(&mut IrTerm::Declare {
+            name: "get_args_len".to_string(),
+            params: vec![],
+            result: IrType::I32,
+        })?;
+
+        self.decl(&mut IrTerm::Declare {
+            name: "get_args_at".to_string(),
+            params: vec![IrType::I32],
+            result: IrType::Byte,
+        })?;
+
         self.writer.start();
         self.writer.write(r#"memory 50000"#);
         self.writer.end();

@@ -277,6 +277,30 @@ module Typechecker {
                 },
             },
         );
+        globals.insert(
+            "get_args_len",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](),
+                    result: Type {
+                        t_i32: true,
+                    },
+                },
+            },
+        );
+        globals.insert(
+            "get_args_at",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](Type {
+                        t_i32: true,
+                    }),
+                    result: Type {
+                        t_byte: true,
+                    },
+                },
+            },
+        );
 
         return Typechecker {
             locals: make[map[string, Type]](),

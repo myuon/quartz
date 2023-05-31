@@ -936,3 +936,31 @@ fun file_read(path: string): string {
     return vec_byte_to_string(bs);
 }
 
+fun args_string(): string {
+    let result = make[vec[byte]]();
+    let n = get_args_len();
+    for i in 0..n {
+        result.push(get_args_at(i));
+    }
+
+    return vec_byte_to_string(result);
+}
+
+fun args(): vec[string] {
+    let result = make[vec[string]]();
+    let s = args_string();
+
+    while true {
+        let n = s.find_first(" ");
+        if n == nil {
+            result.push(s);
+            break;
+        }
+
+        result.push(s.slice(0, n!));
+        s = s.slice(n! + 1, s.length);
+    }
+
+    return result;
+}
+

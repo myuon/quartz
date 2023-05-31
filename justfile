@@ -10,7 +10,7 @@ compile:
 run:
   cargo run --release -- run --stdin
 
-run_gen0_compiler:
+run_gen0:
   cargo run --release -- run ./quartz/main.qz
 
 build_gen1:

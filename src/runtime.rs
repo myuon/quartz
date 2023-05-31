@@ -37,6 +37,9 @@ impl Runtime {
         let handler_initialize = self.handler.clone();
         let handler_read = self.handler.clone();
 
+        let args_string = std::env::args().collect::<Vec<_>>().join(" ");
+        let args_string_len = args_string.len();
+
         let import_object = imports! {
             "env" => {
                 "write_stdout" => Function::new_typed(&mut store, |ch: i64| {
@@ -122,6 +125,14 @@ impl Runtime {
                     } else {
                         Value::I32(bs[at as usize].to_digit(10).unwrap() as i32)
                     }.as_i64()
+                }),
+                "get_args_len" => Function::new_typed(&mut store, move || {
+                    Value::I32(args_string_len as i32).as_i64()
+                }),
+                "get_args_at" => Function::new_typed(&mut store, move |value: i64| {
+                    let v = Value::from_i64(value).as_i32().unwrap() as usize;
+
+                    Value::Byte(args_string.chars().nth(v).unwrap() as u8).as_i64()
                 }),
             }
         };
