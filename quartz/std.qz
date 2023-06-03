@@ -944,7 +944,11 @@ fun file_write(path: string, content: string) {
     open_handler_initialize(handler, 2);
 
     for i in 0..content.length {
-        write_handler(handler, content.at(i));
+        let ch = content.at(i);
+
+        if (ch != 0 as byte) {
+            write_handler(handler, content.at(i));
+        }
     }
 }
 
