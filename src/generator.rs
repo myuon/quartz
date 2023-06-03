@@ -15,6 +15,7 @@ pub struct Generator {
     pub main_signature: Option<(Vec<IrType>, IrType)>,
     pub entrypoint: Path,
     pub strings: Vec<String>,
+    used: HashSet<String>,
 }
 
 impl Generator {
@@ -25,6 +26,7 @@ impl Generator {
             main_signature: None,
             entrypoint: Path::new(vec![]),
             strings: vec![],
+            used: HashSet::new(),
         }
     }
 
@@ -41,6 +43,10 @@ impl Generator {
 
     pub fn set_strings(&mut self, strings: Vec<String>) {
         self.strings = strings;
+    }
+
+    pub fn set_used(&mut self, used: HashSet<String>) {
+        self.used = used;
     }
 
     pub fn run(&mut self, module: &mut IrTerm, data_section_offset: usize) -> Result<()> {
@@ -222,7 +228,10 @@ impl Generator {
 
         self.writer.end();
 
-        let (_, result) = self.main_signature.clone().unwrap();
+        let (_, result) = self.main_signature.clone().expect(&format!(
+            "main function signature not found: {:?}",
+            self.main_signature
+        ));
 
         self.decl(&mut IrTerm::Func {
             name: "start".to_string(),
@@ -326,6 +335,10 @@ impl Generator {
         result: &mut Option<IrType>,
         body: &mut Vec<IrTerm>,
     ) -> Result<()> {
+        if !self.used.contains(name) {
+            return Ok(());
+        }
+
         if name == &self.entrypoint.as_joined_str("_") {
             if let Some(result) = result {
                 self.main_signature = Some((

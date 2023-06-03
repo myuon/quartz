@@ -332,13 +332,18 @@ impl Compiler {
             .run(&mut module)
             .context("ir code generator phase")?;
 
-        generator.set_entrypoint(Path::new(
+        let entrypoint = Path::new(
             vec![
                 main_path.0,
                 vec![entrypoint_name.unwrap_or(Ident("main".to_string()))],
             ]
             .concat(),
-        ));
+        );
+
+        let used = ir_code_generator.check_used(entrypoint.clone());
+        println!("{:?}", ir);
+
+        generator.set_entrypoint(entrypoint);
         generator.set_globals(typechecker.globals.keys().into_iter().cloned().collect());
         generator.set_strings(
             ir_code_generator
@@ -348,6 +353,7 @@ impl Compiler {
                 .map(|p| p.0)
                 .collect(),
         );
+        generator.set_used(used.into_iter().map(|t| t.as_joined_str("_")).collect());
         generator
             .run(&mut ir, ir_code_generator.data_section_offset)
             .context("generator phase")?;

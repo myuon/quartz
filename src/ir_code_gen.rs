@@ -1,4 +1,7 @@
-use std::{collections::HashMap, vec};
+use std::{
+    collections::{HashMap, HashSet},
+    vec,
+};
 
 use anyhow::{anyhow, bail, Context, Result};
 use rand::{distributions::Alphanumeric, prelude::Distribution};
@@ -84,6 +87,8 @@ pub struct IrCodeGenerator {
     pub strings: SerialIdMap<String>,
     pub type_reps: SerialIdMap<TypeRep>,
     pub data_section_offset: usize,
+    current_function_path: Path,
+    call_graph: HashMap<Path, HashSet<Path>>,
 }
 
 impl IrCodeGenerator {
@@ -94,6 +99,8 @@ impl IrCodeGenerator {
             strings: SerialIdMap::new(),
             type_reps: SerialIdMap::new(),
             data_section_offset: 0,
+            current_function_path: Path::empty(),
+            call_graph: HashMap::new(),
         }
     }
 
@@ -288,6 +295,11 @@ impl IrCodeGenerator {
     }
 
     fn func(&mut self, func: &mut Func) -> Result<IrTerm> {
+        let mut path = self.current_path.clone();
+        path.push(func.name.data.clone());
+
+        self.current_function_path = path.clone();
+
         let elements = self.statements(&mut func.body.data)?;
 
         let mut params = vec![];
@@ -308,9 +320,6 @@ impl IrCodeGenerator {
         if let Some((name, type_)) = &func.variadic {
             params.push((name.0.clone(), IrType::from_type(type_)?));
         }
-
-        let mut path = self.current_path.clone();
-        path.push(func.name.data.clone());
 
         Ok(IrTerm::Func {
             name: path.as_joined_str("_"),
@@ -580,12 +589,28 @@ impl IrCodeGenerator {
         IrTerm::String(index)
     }
 
+    fn register_call_graph(&mut self, path: Path) {
+        if !self.call_graph.contains_key(&self.current_function_path) {
+            self.call_graph
+                .insert(self.current_function_path.clone(), HashSet::new());
+        }
+
+        self.call_graph
+            .get_mut(&self.current_function_path)
+            .unwrap()
+            .insert(path.clone());
+    }
+
     fn expr(&mut self, expr: &mut Source<Expr>) -> Result<IrTerm> {
         match &mut expr.data {
             Expr::Ident {
                 ident,
                 resolved_path,
             } => {
+                if let Some(resolved_path) = resolved_path {
+                    self.register_call_graph(resolved_path.clone());
+                }
+
                 let resolved_path = resolved_path.clone().unwrap_or(Path::ident(ident.clone()));
 
                 Ok(IrTerm::ident(resolved_path.as_joined_str("_")))
@@ -595,6 +620,8 @@ impl IrCodeGenerator {
                 path,
                 resolved_path,
             } => {
+                self.register_call_graph(path.data.clone());
+
                 let resolved_path = resolved_path.clone().unwrap_or(path.data.clone());
 
                 Ok(IrTerm::ident(resolved_path.as_joined_str("_")))
@@ -1892,5 +1919,61 @@ impl IrCodeGenerator {
         array.push(IrTerm::ident(var_name.clone()));
 
         Ok(IrTerm::Seq { elements: array })
+    }
+
+    pub fn check_used(&self, entrypoint: Path) -> HashSet<Path> {
+        let mut stack = vec![
+            entrypoint,
+            // These functions are used in compiler
+            Path::new(
+                vec!["quartz", "std", "load_string"]
+                    .into_iter()
+                    .map(|t| Ident(t.to_string()))
+                    .collect(),
+            ),
+            Path::new(
+                vec!["quartz", "std", "derive", "to_string"]
+                    .into_iter()
+                    .map(|t| Ident(t.to_string()))
+                    .collect(),
+            ),
+            Path::new(
+                vec!["quartz", "std", "alloc"]
+                    .into_iter()
+                    .map(|t| Ident(t.to_string()))
+                    .collect(),
+            ),
+            Path::new(
+                vec!["quartz", "std", "reflection", "is_pointer"]
+                    .into_iter()
+                    .map(|t| Ident(t.to_string()))
+                    .collect(),
+            ),
+            Path::new(
+                vec!["quartz", "std", "i32_to_i64"]
+                    .into_iter()
+                    .map(|t| Ident(t.to_string()))
+                    .collect(),
+            ),
+        ];
+        let mut visited = HashSet::new();
+
+        while let Some(path) = stack.pop() {
+            if visited.contains(&path) {
+                continue;
+            }
+
+            if let Some(items) = self.call_graph.get(&path) {
+                for item in items {
+                    if !visited.contains(item) {
+                        stack.push(item.clone());
+                    }
+                }
+            }
+
+            visited.insert(path);
+        }
+
+        visited
     }
 }
