@@ -58,9 +58,23 @@ fun test() {
 }
 
 fun main() {
-    // println("{}", derive::to_string(args()));
-    // dump_strings();
     test();
+
+    let args = args();
+    if args.at(1) == "compile" {
+        if args.at(2) == "-o" {
+            let file = args.at(3);
+
+            let result or err = run(stdin());
+            if err != nil {
+                panic(err!.message);
+            }
+        }
+    } else {
+        println("{}", derive::to_string(args));
+
+        return nil;
+    }
 
     let result or err = run(stdin());
     if err != nil {

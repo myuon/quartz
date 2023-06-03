@@ -36,6 +36,7 @@ impl Runtime {
         let handler_open = self.handler.clone();
         let handler_initialize = self.handler.clone();
         let handler_read = self.handler.clone();
+        let handler_write = self.handler.clone();
 
         let args_string = std::env::args().collect::<Vec<_>>().join(" ");
         let args_string_len = args_string.len();
@@ -112,6 +113,19 @@ impl Runtime {
                     } else {
                         Value::Byte(buf[0]).as_i64()
                     }
+                }),
+                "write_handler" => Function::new_typed(&mut store, move |_handler_code: i64, i: i64| {
+                    let mut handler = handler_write.file.lock().unwrap();
+                    let file = handler.as_mut().unwrap();
+                    let v = Value::from_i64(i);
+                    match v {
+                        Value::Byte(b) => {
+                            file.write(&[b]).unwrap();
+                        }
+                        _ => unreachable!()
+                    }
+
+                    Value::nil().as_i64()
                 }),
                 "i64_to_string_at" => Function::new_typed(&mut store, |a_value: i64, b_value: i64, at_value: i64| {
                     let a = Value::from_i64(a_value).as_i32().unwrap();

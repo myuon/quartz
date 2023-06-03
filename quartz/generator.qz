@@ -169,6 +169,14 @@ module Generator {
         );
         self.end();
 
+        self.start();
+        self.write(`import "env" "get_args_len" (func $get_args_len (result i64))`);
+        self.end();
+
+        self.start();
+        self.write(`import "env" "get_args_at" (func $get_args_at (param i64) (result i64))`);
+        self.end();
+
         if m.t_module != nil {
             for i in 0..m.t_module!.elements.length {
                 let element = m.t_module!.elements.at(i);

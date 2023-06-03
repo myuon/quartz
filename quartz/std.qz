@@ -936,6 +936,18 @@ fun file_read(path: string): string {
     return vec_byte_to_string(bs);
 }
 
+fun file_write(path: string, content: string) {
+    let handler = create_handler();
+    for i in 0..path.length {
+        open_handler_stream(handler, path.at(i));
+    }
+    open_handler_initialize(handler);
+
+    for i in 0..content.length {
+        write_handler(handler, content.at(i));
+    }
+}
+
 fun args_string(): string {
     let result = make[vec[byte]]();
     let n = get_args_len();
