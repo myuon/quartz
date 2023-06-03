@@ -75,7 +75,7 @@ impl TypeChecker {
                 (
                     "open_handler_initialize",
                     Type::Func(
-                        vec![Type::Ident(Ident("handler".to_string()))],
+                        vec![Type::Ident(Ident("handler".to_string())), Type::I32],
                         Box::new(Type::Nil),
                     ),
                 ),

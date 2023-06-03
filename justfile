@@ -19,14 +19,11 @@ build_gen1:
 run_gen1:
   cargo run --release -- run-wat ./build/gen1.wat
 
-execute_gen1:
-  cargo run --release -- run-wat ./build/gen1.wat < ./quartz/main.qz > ./build/test_compiled.wat && cargo run --release -- run-wat ./build/test_compiled.wat
-
 build_gen2:
-  cargo run --release -- run-wat ./build/gen1.wat < ./quartz/main.qz > ./build/gen2.wat
+  MODE=run-wat WAT_FILE=./build/gen1.wat cargo run --release -- compile -o ./build/gen2.wat ./quartz/main.qz
 
 build_gen3:
-  cargo run --release -- run-wat ./build/gen2.wat < ./quartz/main.qz > ./build/gen3.wat
+  MODE=run-wat WAT_FILE=./build/gen2.wat cargo run --release -- compile -o ./build/gen3.wat ./quartz/main.qz
 
 run_wat:
   cargo run -- run-wat ./build/build.wat

@@ -923,7 +923,7 @@ fun file_read(path: string): string {
     for i in 0..path.length {
         open_handler_stream(handler, path.at(i));
     }
-    open_handler_initialize(handler);
+    open_handler_initialize(handler, 1);
 
     let bs = make[vec[byte]]();
 
@@ -941,7 +941,7 @@ fun file_write(path: string, content: string) {
     for i in 0..path.length {
         open_handler_stream(handler, path.at(i));
     }
-    open_handler_initialize(handler);
+    open_handler_initialize(handler, 2);
 
     for i in 0..content.length {
         write_handler(handler, content.at(i));

@@ -236,6 +236,8 @@ module Typechecker {
                 t_func: struct {
                     params: make[vec[Type]](Type {
                         t_any: true,
+                    }, Type {
+                        t_i32: true,
                     }),
                     result: Type {
                         t_nil: true,

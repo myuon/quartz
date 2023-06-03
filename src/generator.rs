@@ -104,7 +104,7 @@ impl Generator {
 
         self.decl(&mut IrTerm::Declare {
             name: "open_handler_initialize".to_string(),
-            params: vec![IrType::I32],
+            params: vec![IrType::I32, IrType::I32],
             result: IrType::Nil,
         })?;
 

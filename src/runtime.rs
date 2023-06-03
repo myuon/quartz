@@ -93,12 +93,17 @@ impl Runtime {
 
                     Value::nil().as_i64()
                 }),
-                "open_handler_initialize" => Function::new_typed(&mut store, move |_handler_code: i64| {
+                "open_handler_initialize" => Function::new_typed(&mut store, move |_handler_code: i64, mode: i64| {
                     let mut handler = handler_initialize.path.lock().unwrap();
                     let path = handler.take().unwrap();
                     let path = String::from_utf8(path).unwrap();
 
-                    let file = File::open(path).unwrap();
+                    let mode = Value::from_i64(mode).as_i32().unwrap();
+                    let file = if mode == 1 {
+                        File::open(path).unwrap()
+                    } else {
+                        File::create(path).unwrap()
+                    };
                     *handler_initialize.file.lock().unwrap() = Some(file);
 
                     Value::nil().as_i64()

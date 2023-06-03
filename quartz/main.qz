@@ -76,7 +76,12 @@ fun main() {
             if err != nil {
                 panic(err!.message);
             }
+
+            println("compiled: writing wat to {}", file);
+            file_write(file, result!);
         }
+
+        return nil;
     } else {
         println("{}", derive::to_string(args));
         println("{}", args.at(1));
@@ -84,12 +89,7 @@ fun main() {
         return nil;
     }
 
-    let result or err = run(stdin());
-    if err != nil {
-        panic(err!.message);
-    }
-
-    println(result!);
+    return nil;
 }
 
 fun run(input_: string): string or error {

@@ -155,12 +155,16 @@ module Generator {
 
         self.start();
         self.write(
-            `import "env" "open_handler_initialize" (func $open_handler_initialize (param i64) (result i64))`,
+            `import "env" "open_handler_initialize" (func $open_handler_initialize (param i64) (param i64) (result i64))`,
         );
         self.end();
 
         self.start();
         self.write(`import "env" "read_handler" (func $read_handler (param i64) (result i64))`);
+        self.end();
+
+        self.start();
+        self.write(`import "env" "write_handler" (func $write_handler (param i64) (param i64) (result i64))`);
         self.end();
 
         self.start();
