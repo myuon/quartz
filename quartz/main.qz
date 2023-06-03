@@ -61,17 +61,25 @@ fun main() {
     test();
 
     let args = args();
-    if args.at(1) == "compile" {
-        if args.at(2) == "-o" {
+    if args.at(1).equal("compile") {
+        if args.at(2).equal("-o") {
             let file = args.at(3);
 
-            let result or err = run(stdin());
+            let input = "";
+            if args.length >= 5 {
+                input = file_read(args.at(4));
+            } else {
+                input = stdin();
+            }
+
+            let result or err = run(input);
             if err != nil {
                 panic(err!.message);
             }
         }
     } else {
         println("{}", derive::to_string(args));
+        println("{}", args.at(1));
 
         return nil;
     }

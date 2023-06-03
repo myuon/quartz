@@ -196,6 +196,18 @@ fn print_result_value(result: Box<[Value]>) {
 fn main() -> Result<()> {
     let mut compiler = Compiler::new();
     let mut runtime = Runtime::new();
+    if std::env::var("MODE") == Ok("run-wat".to_string()) {
+        let wat_file = std::env::var("WAT_FILE")?;
+        let mut file = std::fs::File::open(wat_file)?;
+        let mut buffer = String::new();
+        file.read_to_string(&mut buffer)?;
+
+        let result = runtime.run(&buffer)?;
+
+        print_result_value(result);
+
+        return Ok(());
+    }
 
     let cli = Cli::parse();
     match cli.subcmd {
