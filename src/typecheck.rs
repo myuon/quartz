@@ -75,7 +75,7 @@ impl TypeChecker {
                 (
                     "open_handler_initialize",
                     Type::Func(
-                        vec![Type::Ident(Ident("handler".to_string()))],
+                        vec![Type::Ident(Ident("handler".to_string())), Type::I32],
                         Box::new(Type::Nil),
                     ),
                 ),
@@ -87,8 +87,20 @@ impl TypeChecker {
                     ),
                 ),
                 (
+                    "write_handler",
+                    Type::Func(
+                        vec![Type::Ident(Ident("handler".to_string())), Type::Byte],
+                        Box::new(Type::Nil),
+                    ),
+                ),
+                (
                     "i64_to_string_at",
                     Type::Func(vec![Type::I32, Type::I32, Type::I32], Box::new(Type::I32)),
+                ),
+                ("get_args_len", Type::Func(vec![], Box::new(Type::I32))),
+                (
+                    "get_args_at",
+                    Type::Func(vec![Type::I32], Box::new(Type::Byte)),
                 ),
             ]
             .into_iter()

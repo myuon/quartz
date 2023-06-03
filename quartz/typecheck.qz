@@ -236,6 +236,8 @@ module Typechecker {
                 t_func: struct {
                     params: make[vec[Type]](Type {
                         t_any: true,
+                    }, Type {
+                        t_i32: true,
                     }),
                     result: Type {
                         t_nil: true,
@@ -257,6 +259,24 @@ module Typechecker {
             },
         );
         globals.insert(
+            "write_handler",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](
+                        Type {
+                            t_any: true,
+                        },
+                        Type {
+                            t_byte: true,
+                        },
+                    ),
+                    result: Type {
+                        t_nil: true,
+                    },
+                },
+            },
+        );
+        globals.insert(
             "i64_to_string_at",
             Type {
                 t_func: struct {
@@ -273,6 +293,30 @@ module Typechecker {
                     ),
                     result: Type {
                         t_i32: true,
+                    },
+                },
+            },
+        );
+        globals.insert(
+            "get_args_len",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](),
+                    result: Type {
+                        t_i32: true,
+                    },
+                },
+            },
+        );
+        globals.insert(
+            "get_args_at",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](Type {
+                        t_i32: true,
+                    }),
+                    result: Type {
+                        t_byte: true,
                     },
                 },
             },

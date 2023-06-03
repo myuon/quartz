@@ -36,6 +36,10 @@ impl Runtime {
         let handler_open = self.handler.clone();
         let handler_initialize = self.handler.clone();
         let handler_read = self.handler.clone();
+        let handler_write = self.handler.clone();
+
+        let args_string = std::env::args().collect::<Vec<_>>().join(" ");
+        let args_string_len = args_string.len();
 
         let import_object = imports! {
             "env" => {
@@ -89,12 +93,17 @@ impl Runtime {
 
                     Value::nil().as_i64()
                 }),
-                "open_handler_initialize" => Function::new_typed(&mut store, move |_handler_code: i64| {
+                "open_handler_initialize" => Function::new_typed(&mut store, move |_handler_code: i64, mode: i64| {
                     let mut handler = handler_initialize.path.lock().unwrap();
                     let path = handler.take().unwrap();
                     let path = String::from_utf8(path).unwrap();
 
-                    let file = File::open(path).unwrap();
+                    let mode = Value::from_i64(mode).as_i32().unwrap();
+                    let file = if mode == 1 {
+                        File::open(path).unwrap()
+                    } else {
+                        File::create(path).unwrap()
+                    };
                     *handler_initialize.file.lock().unwrap() = Some(file);
 
                     Value::nil().as_i64()
@@ -110,6 +119,19 @@ impl Runtime {
                         Value::Byte(buf[0]).as_i64()
                     }
                 }),
+                "write_handler" => Function::new_typed(&mut store, move |_handler_code: i64, i: i64| {
+                    let mut handler = handler_write.file.lock().unwrap();
+                    let file = handler.as_mut().unwrap();
+                    let v = Value::from_i64(i);
+                    match v {
+                        Value::Byte(b) => {
+                            file.write(&[b]).unwrap();
+                        }
+                        _ => unreachable!()
+                    }
+
+                    Value::nil().as_i64()
+                }),
                 "i64_to_string_at" => Function::new_typed(&mut store, |a_value: i64, b_value: i64, at_value: i64| {
                     let a = Value::from_i64(a_value).as_i32().unwrap();
                     let b = Value::from_i64(b_value).as_i32().unwrap();
@@ -122,6 +144,14 @@ impl Runtime {
                     } else {
                         Value::I32(bs[at as usize].to_digit(10).unwrap() as i32)
                     }.as_i64()
+                }),
+                "get_args_len" => Function::new_typed(&mut store, move || {
+                    Value::I32(args_string_len as i32).as_i64()
+                }),
+                "get_args_at" => Function::new_typed(&mut store, move |value: i64| {
+                    let v = Value::from_i64(value).as_i32().unwrap() as usize;
+
+                    Value::Byte(args_string.chars().nth(v).unwrap() as u8).as_i64()
                 }),
             }
         };

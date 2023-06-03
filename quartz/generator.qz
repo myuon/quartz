@@ -155,7 +155,7 @@ module Generator {
 
         self.start();
         self.write(
-            `import "env" "open_handler_initialize" (func $open_handler_initialize (param i64) (result i64))`,
+            `import "env" "open_handler_initialize" (func $open_handler_initialize (param i64) (param i64) (result i64))`,
         );
         self.end();
 
@@ -164,9 +164,21 @@ module Generator {
         self.end();
 
         self.start();
+        self.write(`import "env" "write_handler" (func $write_handler (param i64) (param i64) (result i64))`);
+        self.end();
+
+        self.start();
         self.write(
             `import "env" "i64_to_string_at" (func $i64_to_string_at (param i64) (param i64) (param i64) (result i64))`,
         );
+        self.end();
+
+        self.start();
+        self.write(`import "env" "get_args_len" (func $get_args_len (result i64))`);
+        self.end();
+
+        self.start();
+        self.write(`import "env" "get_args_at" (func $get_args_at (param i64) (result i64))`);
         self.end();
 
         if m.t_module != nil {

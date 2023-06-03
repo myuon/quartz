@@ -58,15 +58,52 @@ fun test() {
 }
 
 fun main() {
-    // dump_strings();
     test();
 
-    let result or err = run(stdin());
-    if err != nil {
-        panic(err!.message);
+    let args = args();
+    if args.at(1).equal("compile") {
+        if args.at(2).equal("-o") {
+            let file = args.at(3);
+
+            let input = "";
+            if args.length >= 5 {
+                input = file_read(args.at(4));
+            } else {
+                input = stdin();
+            }
+
+            let result or err = run(input);
+            if err != nil {
+                panic(err!.message);
+            }
+
+            println("compiled: writing wat to {}", file);
+            file_write(file, result!);
+        }
+
+        return nil;
+    } else if args.at(1).equal("run") {
+        let input = "";
+        if args.length >= 3 {
+            input = file_read(args.at(2));
+        } else {
+            input = stdin();
+        }
+
+        let result or err = run(input);
+        if err != nil {
+            panic(err!.message);
+        }
+
+        println("{}", result!);
+    } else {
+        println("{}", derive::to_string(args));
+        println("{}", args.at(1));
+
+        return nil;
     }
 
-    println(result!);
+    return nil;
 }
 
 fun run(input_: string): string or error {
