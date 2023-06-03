@@ -82,6 +82,20 @@ fun main() {
         }
 
         return nil;
+    } else if args.at(1).equal("run") {
+        let input = "";
+        if args.length >= 3 {
+            input = file_read(args.at(2));
+        } else {
+            input = stdin();
+        }
+
+        let result or err = run(input);
+        if err != nil {
+            panic(err!.message);
+        }
+
+        println("{}", result!);
     } else {
         println("{}", derive::to_string(args));
         println("{}", args.at(1));

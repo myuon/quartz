@@ -1,8 +1,16 @@
 use std::io::Write;
 
-fn run_command(command: &str, args: &[&str], stdin: &[u8]) -> Option<String> {
+fn run_command(
+    command: &str,
+    args: &[&str],
+    stdin: &[u8],
+    envs: Vec<(String, String)>,
+) -> Option<String> {
     let mut cmd = std::process::Command::new(command);
     cmd.args(args);
+    for (key, value) in envs {
+        cmd.env(key, value);
+    }
 
     let mut child = cmd
         .stdin(std::process::Stdio::piped())
@@ -357,26 +365,25 @@ fun main(): i32 {
             "cargo",
             &["run", "--release", "--quiet", "--", "run", "--stdin"],
             input.as_bytes(),
+            vec![],
         )
         .expect(format!("[INPUT:gen0]\n{}\n", input).as_str());
 
         let stdout = run_command(
             "cargo",
-            &[
-                "run",
-                "--release",
-                "--quiet",
-                "--",
-                "run",
-                "./quartz/main.qz",
-            ],
+            &["run", "--release", "--quiet", "--", "run"],
             input.as_bytes(),
+            vec![("WAT_FILE", "./build/gen1.wat"), ("MODE", "run-wat")]
+                .into_iter()
+                .map(|(k, v)| (k.to_string(), v.to_string()))
+                .collect(),
         )
         .expect(format!("[INPUT:gen1:compile]\n{}\n", input).as_str());
         let stdout_gen1 = run_command(
             "cargo",
             &["run", "--release", "--quiet", "--", "run-wat", "--stdin"],
             stdout.as_bytes(),
+            vec![],
         )
         .expect(
             format!(
