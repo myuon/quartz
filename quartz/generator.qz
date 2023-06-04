@@ -626,10 +626,14 @@ module Generator {
 
             self.convert_stack_to_i32_1();
 
-            self.optimize_i32(expr.t_load!.offset);
+            if expr.t_load!.offset.t_i32 != nil && expr.t_load!.offset.t_i32! == 0 {
+                // do nothing
+            } else {
+                self.optimize_i32(expr.t_load!.offset);
 
-            self.new_statement();
-            self.write("i32.add");
+                self.new_statement();
+                self.write("i32.add");
+            }
 
             let load_size = expr.t_load!.type_.sizeof() * 8;
             let suffix = "";
@@ -662,10 +666,14 @@ module Generator {
 
             self.convert_stack_to_i32_1();
 
-            self.optimize_i32(expr.t_store!.offset);
+            if expr.t_store!.offset.t_i32 != nil && expr.t_store!.offset.t_i32! == 0 {
+                // do nothing
+            } else {
+                self.optimize_i32(expr.t_store!.offset);
 
-            self.new_statement();
-            self.write("i32.add");
+                self.new_statement();
+                self.write("i32.add");
+            }
 
             self.new_statement();
             self.expression(expr.t_store!.value);
