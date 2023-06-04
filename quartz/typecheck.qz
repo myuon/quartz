@@ -110,19 +110,6 @@ module Typechecker {
             },
         );
         globals.insert(
-            "write_stdout",
-            Type {
-                t_func: struct {
-                    params: make[vec[Type]](Type {
-                        t_byte: true,
-                    }),
-                    result: Type {
-                        t_nil: true,
-                    },
-                },
-            },
-        );
-        globals.insert(
             "abort",
             Type {
                 t_func: struct {

@@ -68,12 +68,6 @@ impl Generator {
         self.writer.end();
 
         self.decl(&mut IrTerm::Declare {
-            name: "write_stdout".to_string(),
-            params: vec![IrType::Byte],
-            result: IrType::I32,
-        })?;
-
-        self.decl(&mut IrTerm::Declare {
             name: "debug_i32".to_string(),
             params: vec![IrType::I32],
             result: IrType::I32,

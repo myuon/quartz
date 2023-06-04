@@ -132,10 +132,6 @@ module Generator {
         self.end();
 
         self.start();
-        self.write(`import "env" "write_stdout" (func $write_stdout (param i64) (result i64))`);
-        self.end();
-
-        self.start();
         self.write(`import "env" "abort" (func $abort (result i64))`);
         self.end();
 

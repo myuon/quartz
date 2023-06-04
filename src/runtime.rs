@@ -47,17 +47,6 @@ impl Runtime {
 
         let mut import_object = imports! {
             "env" => {
-                "write_stdout" => Function::new_typed(&mut store, |ch: i64| {
-                    let w = Value::from_i64(ch);
-                    match w {
-                        Value::Byte(b) => {
-                            std::io::stdout().lock().write(&[b]).unwrap();
-                        }
-                        _ => println!("write_stdout: invalid value, {:?}", w),
-                    }
-
-                    Value::i32(0).as_i64()
-                }),
                 "debug_i32" => Function::new_typed(&mut store, |i: i64| {
                     let w = Value::from_i64(i);
 

@@ -39,7 +39,8 @@ fun println(f: string, ..arg: vec[string]) {
     print(f, ..arg);
 
     // \newline
-    write_stdout(10 as byte);
+    let b = make[vec[byte]](10 as byte);
+    print_string(vec_byte_to_string(b));
 }
 
 fun vec_make(capacity: i32): vec[any] {
