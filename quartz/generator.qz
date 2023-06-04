@@ -624,10 +624,9 @@ module Generator {
             self.new_statement();
             self.expression(expr.t_load!.address);
 
-            self.new_statement();
-            self.expression(expr.t_load!.offset);
+            self.convert_stack_to_i32_1();
 
-            self.convert_stack_to_i32_2();
+            self.optimize_i32(expr.t_load!.offset);
 
             self.new_statement();
             self.write("i32.add");
@@ -663,10 +662,7 @@ module Generator {
 
             self.convert_stack_to_i32_1();
 
-            self.new_statement();
-            self.expression(expr.t_store!.offset);
-
-            self.convert_stack_to_i32_1();
+            self.optimize_i32(expr.t_store!.offset);
 
             self.new_statement();
             self.write("i32.add");
@@ -1097,6 +1093,22 @@ module Generator {
         } else if term.t_load != nil {
             self.fold_consts(term.t_load!.address);
             self.fold_consts(term.t_load!.offset);
+        }
+    }
+
+    fun optimize_i32(self, term: IrTerm) {
+        let optimized = false;
+        if term.t_i32 != nil {
+            self.new_statement();
+            self.write(format("i32.const {}", term.t_i32!.to_string()));
+
+            optimized = true;
+        }
+        if !optimized {
+            self.new_statement();
+            self.expression(term);
+
+            self.convert_stack_to_i32_1();
         }
     }
 }
