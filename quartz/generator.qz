@@ -185,6 +185,71 @@ module Generator {
         self.write(`import "wasi_unstable" "fd_write" (func $fd_write (param i32 i32 i32 i32) (result i32))`);
         self.end();
 
+        self.start();
+        self.write(
+            `func $_fd_write (param $fd i64) (param $ciovec i64) (param $ptr_size i64) (result i64)
+    local.get $fd
+    i64.const 32
+    i64.shr_u
+    i32.wrap_i64
+
+    local.get $ciovec
+    i64.const 32
+    i64.shr_u
+    i32.wrap_i64
+    i32.const 8
+    i32.add
+
+    i32.const 1
+
+    local.get $ptr_size
+    i64.const 32
+    i64.shr_u
+    i32.wrap_i64
+
+    call $fd_write
+    i64.extend_i32_u
+    i64.const 32
+    i64.shl
+
+    return
+`,
+        );
+        self.end();
+
+        self.start();
+        self.write(
+            `func $set_ciovec (param $ptr i64) (param $x i64) (param $y i64) (result i64)
+    local.get $ptr
+    i64.const 32
+    i64.shr_u
+    i32.wrap_i64
+
+    local.get $x
+    i64.const 32
+    i64.shr_u
+    i32.wrap_i64
+    i32.const 8
+    i32.add
+    i32.store offset=8
+
+    local.get $ptr
+    i64.const 32
+    i64.shr_u
+    i32.wrap_i64
+
+    local.get $y
+    i64.const 32
+    i64.shr_u
+    i32.wrap_i64
+    i32.store offset=12
+
+    i64.const 1
+    return
+`,
+        );
+        self.end();
+
         if m.t_module != nil {
             for i in 0..m.t_module!.elements.length {
                 let element = m.t_module!.elements.at(i);
