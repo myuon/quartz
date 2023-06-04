@@ -3,8 +3,8 @@ use std::io::{Read, Write};
 use std::sync::{Arc, Mutex};
 
 use anyhow::{anyhow, Result};
-use wasmer::{imports, Instance, Module, Store};
-use wasmer::{Function, Value as WasmValue};
+use wasmer::{imports, Function, Instance, Module, Store, Value as WasmValue};
+use wasmer_wasi::{WasiEnv, WasiFunctionEnv, WasiState};
 
 use crate::value::Value;
 
@@ -41,7 +41,11 @@ impl Runtime {
         let args_string = std::env::args().collect::<Vec<_>>().join(" ");
         let args_string_len = args_string.len();
 
-        let import_object = imports! {
+        let wasi_env = WasiEnv::new(WasiState::new("quartz").build()?);
+        let mut wasi_func_env = WasiFunctionEnv::new(&mut store, wasi_env);
+        let wasi_import_object = wasi_func_env.import_object(&mut store, &module)?;
+
+        let mut import_object = imports! {
             "env" => {
                 "write_stdout" => Function::new_typed(&mut store, |ch: i64| {
                     let w = Value::from_i64(ch);
@@ -156,7 +160,10 @@ impl Runtime {
                 }),
             }
         };
+        import_object.extend(wasi_import_object.into_iter());
+
         let instance = Instance::new(&mut store, &module, &import_object)?;
+        wasi_func_env.initialize(&mut store, &instance)?;
 
         let main = instance.exports.get_function("main")?;
         let result = main.call(&mut store, &[])?;

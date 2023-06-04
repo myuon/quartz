@@ -102,6 +102,28 @@ impl TypeChecker {
                     "get_args_at",
                     Type::Func(vec![Type::I32], Box::new(Type::Byte)),
                 ),
+                (
+                    "_fd_write",
+                    Type::Func(
+                        vec![
+                            Type::I32,
+                            Type::Ptr(Box::new(Type::Any)),
+                            Type::Ptr(Box::new(Type::I32)),
+                        ],
+                        Box::new(Type::I32),
+                    ),
+                ),
+                (
+                    "set_ciovec",
+                    Type::Func(
+                        vec![
+                            Type::Ptr(Box::new(Type::Byte)),
+                            Type::Ptr(Box::new(Type::Any)),
+                            Type::I32,
+                        ],
+                        Box::new(Type::Nil),
+                    ),
+                ),
             ]
             .into_iter()
             .map(|(k, v)| (Path::ident(Ident(k.to_string())), Source::unknown(v)))

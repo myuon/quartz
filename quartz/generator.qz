@@ -181,6 +181,10 @@ module Generator {
         self.write(`import "env" "get_args_at" (func $get_args_at (param i64) (result i64))`);
         self.end();
 
+        self.start();
+        self.write(`import "wasi_unstable" "fd_write" (func $fd_write (param i32 i32 i32 i32) (result i32))`);
+        self.end();
+
         if m.t_module != nil {
             for i in 0..m.t_module!.elements.length {
                 let element = m.t_module!.elements.at(i);
@@ -232,7 +236,7 @@ module Generator {
         });
 
         self.start();
-        self.write("memory 50000");
+        self.write("memory (export \"memory\") 50000");
         self.end();
 
         self.start();

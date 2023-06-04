@@ -15,7 +15,8 @@ regex = "1.7.0"
 serde = { version = "1.0.152", features = ["derive"] }
 serde_json = "1.0.93"
 thiserror = "1.0.37"
-wasmer = "3.0.2"
+wasmer = "3.1.1"
+wasmer-wasi = "3.1.1"
 wat = "1.0.52"
 
 [dev-dependencies]
