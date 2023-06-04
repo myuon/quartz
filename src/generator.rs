@@ -655,10 +655,9 @@ impl Generator {
                 self.writer.new_statement();
                 self.expr(address)?;
 
-                self.writer.new_statement();
-                self.expr(offset)?;
+                self.convert_stack_to_i32_1();
 
-                self.convert_stack_to_i32_2();
+                self.optimize_i32(offset)?;
 
                 self.writer.new_statement();
                 self.writer.write("i32.add");
@@ -711,10 +710,7 @@ impl Generator {
 
                 self.convert_stack_to_i32_1();
 
-                self.writer.new_statement();
-                self.expr(offset)?;
-
-                self.convert_stack_to_i32_1();
+                self.optimize_i32(offset)?;
 
                 self.writer.new_statement();
                 self.writer.write("i32.add");
@@ -1264,5 +1260,25 @@ impl Generator {
             IrTerm::Data { .. } => {}
             IrTerm::Comment(_) => {}
         }
+    }
+
+    fn optimize_i32(&mut self, term: &mut IrTerm) -> Result<()> {
+        let mut optimized = false;
+        if MODE_OPTIMIZE_CONSTANT_FOLDING {
+            if let IrTerm::I32(v) = term {
+                self.writer.new_statement();
+                self.writer.write(&format!("i32.const {}", v));
+
+                optimized = true;
+            }
+        }
+        if !optimized {
+            self.writer.new_statement();
+            self.expr(term)?;
+
+            self.convert_stack_to_i32_1();
+        }
+
+        Ok(())
     }
 }
