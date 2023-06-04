@@ -19,6 +19,7 @@ use crate::{
 pub const MODE_TYPE_REP: bool = true;
 pub const MODE_OPTIMIZE_ARITH_OPS_IN_CODE_GEN: bool = true;
 pub const MODE_READABLE_WASM: bool = true;
+pub const MODE_OPTIMIZE_CONSTANT_FOLDING: bool = true;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SourcePosition {
@@ -348,6 +349,11 @@ impl Compiler {
                 .map(|p| p.0)
                 .collect(),
         );
+
+        if MODE_OPTIMIZE_CONSTANT_FOLDING {
+            generator.fold_consts(&mut ir);
+        }
+
         generator
             .run(&mut ir, ir_code_generator.data_section_offset)
             .context("generator phase")?;

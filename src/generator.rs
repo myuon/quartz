@@ -3,7 +3,9 @@ use std::collections::HashSet;
 use anyhow::{bail, Ok, Result};
 
 use crate::{
-    compiler::{MODE_OPTIMIZE_ARITH_OPS_IN_CODE_GEN, MODE_READABLE_WASM},
+    compiler::{
+        MODE_OPTIMIZE_ARITH_OPS_IN_CODE_GEN, MODE_OPTIMIZE_CONSTANT_FOLDING, MODE_READABLE_WASM,
+    },
     ir::{IrTerm, IrType},
     util::{path::Path, sexpr_writer::SExprWriter},
     value::Value,
@@ -653,10 +655,9 @@ impl Generator {
                 self.writer.new_statement();
                 self.expr(address)?;
 
-                self.writer.new_statement();
-                self.expr(offset)?;
+                self.convert_stack_to_i32_1();
 
-                self.convert_stack_to_i32_2();
+                self.optimize_i32(offset)?;
 
                 self.writer.new_statement();
                 self.writer.write("i32.add");
@@ -707,10 +708,9 @@ impl Generator {
                 self.writer.new_statement();
                 self.expr(address)?;
 
-                self.writer.new_statement();
-                self.expr(offset)?;
+                self.convert_stack_to_i32_1();
 
-                self.convert_stack_to_i32_2();
+                self.optimize_i32(offset)?;
 
                 self.writer.new_statement();
                 self.writer.write("i32.add");
@@ -1139,5 +1139,146 @@ impl Generator {
         self.convert_stack_to_i32_2();
         self.writer.write(format!("i32.{}", code));
         self.convert_stack_from_bool_1();
+    }
+
+    pub fn fold_consts(&mut self, term: &mut IrTerm) {
+        match term {
+            IrTerm::Module { elements } => {
+                for element in elements {
+                    self.fold_consts(element);
+                }
+            }
+            IrTerm::Nil => {}
+            IrTerm::Bool(_) => {}
+            IrTerm::Byte(_) => {}
+            IrTerm::I32(_) => {}
+            IrTerm::U32(_) => {}
+            IrTerm::I64(_) => {}
+            IrTerm::Ident(_) => {}
+            IrTerm::String(_) => {}
+            IrTerm::Func { body, .. } => {
+                for b in body {
+                    self.fold_consts(b);
+                }
+            }
+            IrTerm::GlobalLet { value, .. } => {
+                self.fold_consts(value);
+            }
+            IrTerm::Call { callee, args, .. } => {
+                self.fold_consts(callee);
+                for arg in args.iter_mut() {
+                    self.fold_consts(arg);
+                }
+
+                if let IrTerm::Ident(op) = &**callee {
+                    if op == "add" {
+                        if let (IrTerm::I32(a), IrTerm::I32(b)) = (&args[0], &args[1]) {
+                            *term = IrTerm::I32(a + b);
+                        }
+                    } else if op == "sub" {
+                        if let (IrTerm::I32(a), IrTerm::I32(b)) = (&args[0], &args[1]) {
+                            *term = IrTerm::I32(a - b);
+                        }
+                    } else if op == "mult" {
+                        if let (IrTerm::I32(a), IrTerm::I32(b)) = (&args[0], &args[1]) {
+                            *term = IrTerm::I32(a * b);
+                        }
+                    } else if op == "div" {
+                        if let (IrTerm::I32(a), IrTerm::I32(b)) = (&args[0], &args[1]) {
+                            *term = IrTerm::I32(a / b);
+                        }
+                    }
+                }
+            }
+            IrTerm::Seq { elements } => {
+                for element in elements {
+                    self.fold_consts(element);
+                }
+            }
+            IrTerm::Let { value, .. } => {
+                self.fold_consts(value);
+            }
+            IrTerm::Return { value } => {
+                self.fold_consts(value);
+            }
+            IrTerm::Assign { rhs, .. } => {
+                self.fold_consts(rhs);
+            }
+            IrTerm::If {
+                cond, then, else_, ..
+            } => {
+                self.fold_consts(cond);
+                self.fold_consts(then);
+                self.fold_consts(else_);
+            }
+            IrTerm::While {
+                cond,
+                body,
+                cleanup,
+            } => {
+                self.fold_consts(cond);
+                self.fold_consts(body);
+                if let Some(cleanup) = cleanup {
+                    self.fold_consts(cleanup);
+                }
+            }
+            IrTerm::SizeOf { type_ } => {
+                let size = type_.sizeof();
+                *term = IrTerm::I32(size as i32);
+            }
+            IrTerm::Continue => {}
+            IrTerm::Break => {}
+            IrTerm::Discard { element } => {
+                self.fold_consts(element);
+            }
+            IrTerm::And { lhs, rhs } => {
+                self.fold_consts(lhs);
+                self.fold_consts(rhs);
+            }
+            IrTerm::Or { lhs, rhs } => {
+                self.fold_consts(lhs);
+                self.fold_consts(rhs);
+            }
+            IrTerm::Store {
+                address,
+                offset,
+                value,
+                ..
+            } => {
+                self.fold_consts(address);
+                self.fold_consts(offset);
+                self.fold_consts(value);
+            }
+            IrTerm::Load {
+                address, offset, ..
+            } => {
+                self.fold_consts(address);
+                self.fold_consts(offset);
+            }
+            IrTerm::Instruction(_) => {}
+            IrTerm::Declare { .. } => {}
+            IrTerm::Data { .. } => {}
+            IrTerm::Comment(_) => {}
+        }
+    }
+
+    fn optimize_i32(&mut self, term: &mut IrTerm) -> Result<()> {
+        let mut optimized = false;
+        if MODE_OPTIMIZE_CONSTANT_FOLDING {
+            if let IrTerm::I32(v) = term {
+                self.writer.new_statement();
+                self.writer.write(&format!("i32.const {}", v));
+
+                optimized = true;
+            }
+        }
+        if !optimized {
+            self.writer.new_statement();
+            self.expr(term)?;
+
+            self.convert_stack_to_i32_1();
+        }
+
+        Ok(())
     }
 }
