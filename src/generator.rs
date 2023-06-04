@@ -3,7 +3,9 @@ use std::collections::HashSet;
 use anyhow::{bail, Ok, Result};
 
 use crate::{
-    compiler::{MODE_OPTIMIZE_ARITH_OPS_IN_CODE_GEN, MODE_READABLE_WASM},
+    compiler::{
+        MODE_OPTIMIZE_ARITH_OPS_IN_CODE_GEN, MODE_OPTIMIZE_CONSTANT_FOLDING, MODE_READABLE_WASM,
+    },
     ir::{IrTerm, IrType},
     util::{path::Path, sexpr_writer::SExprWriter},
     value::Value,
@@ -707,10 +709,12 @@ impl Generator {
                 self.writer.new_statement();
                 self.expr(address)?;
 
+                self.convert_stack_to_i32_1();
+
                 self.writer.new_statement();
                 self.expr(offset)?;
 
-                self.convert_stack_to_i32_2();
+                self.convert_stack_to_i32_1();
 
                 self.writer.new_statement();
                 self.writer.write("i32.add");
