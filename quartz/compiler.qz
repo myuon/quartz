@@ -96,7 +96,7 @@ module Compiler {
         gen.set_globals(typechecker.globals);
         gen.set_strings(irgen.strings.strings);
 
-        gen.fold_consts(term);
+        term = gen.fold_consts(term);
 
         let code = gen.run(term, irgen.data_section_offset);
 

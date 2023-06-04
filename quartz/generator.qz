@@ -1006,94 +1006,158 @@ module Generator {
         self.end();
     }
 
-    fun fold_consts(self, term: IrTerm) {
+    fun fold_consts(self, term: IrTerm): IrTerm {
         if term.t_module != nil {
-            for element in term.t_module!.elements {
-                self.fold_consts(element);
+            let elements = make[vec[IrTerm]]();
+            for i in 0..term.t_module!.elements.length {
+                let element = term.t_module!.elements.at(i);
+                let t = self.fold_consts(element);
+
+                elements.push(t);
             }
+
+            term.t_module!.elements = elements;
         } else if term.t_func != nil {
-            for b in term.t_func!.body {
-                self.fold_consts(b);
+            let body = make[vec[IrTerm]]();
+            for i in 0..term.t_func!.body.length {
+                let b = term.t_func!.body.at(i);
+                let t = self.fold_consts(b);
+
+                body.push(t);
             }
+
+            term.t_func!.body = body;
         } else if term.t_global_let != nil {
-            self.fold_consts(term.t_global_let!.value);
+            let v = self.fold_consts(term.t_global_let!.value);
+
+            term.t_global_let!.value = v;
         } else if term.t_call != nil {
-            self.fold_consts(term.t_call!.callee);
-            for arg in term.t_call!.args {
-                self.fold_consts(arg);
+            let c = self.fold_consts(term.t_call!.callee);
+            term.t_call!.callee = c;
+
+            let args = make[vec[IrTerm]]();
+            for i in 0..term.t_call!.args.length {
+                let arg = term.t_call!.args.at(i);
+                let t = self.fold_consts(arg);
+
+                args.push(t);
             }
+
+            term.t_call!.args = args;
 
             if term.t_call!.callee.t_ident != nil {
                 let op = term.t_call!.callee.t_ident!;
 
                 if op.equal("add") {
                     if term.t_call!.args.at(0).t_i32 != nil && term.t_call!.args.at(1).t_i32 != nil {
-                        term = IrTerm {
+                        return IrTerm {
                             t_i32: (term.t_call!.args.at(0).t_i32! + term.t_call!.args.at(1).t_i32!),
                         };
                     }
                 } else if op.equal("sub") {
                     if term.t_call!.args.at(0).t_i32 != nil && term.t_call!.args.at(1).t_i32 != nil {
-                        term = IrTerm {
+                        return IrTerm {
                             t_i32: (term.t_call!.args.at(0).t_i32! - term.t_call!.args.at(1).t_i32!),
                         };
                     }
                 } else if op.equal("mult") {
                     if term.t_call!.args.at(0).t_i32 != nil && term.t_call!.args.at(1).t_i32 != nil {
-                        term = IrTerm {
+                        return IrTerm {
                             t_i32: (term.t_call!.args.at(0).t_i32! * term.t_call!.args.at(1).t_i32!),
                         };
                     }
                 } else if op.equal("div") {
                     if term.t_call!.args.at(0).t_i32 != nil && term.t_call!.args.at(1).t_i32 != nil {
-                        term = IrTerm {
+                        return IrTerm {
                             t_i32: (term.t_call!.args.at(0).t_i32! / term.t_call!.args.at(1).t_i32!),
                         };
                     }
                 }
             }
         } else if term.t_seq != nil {
-            for element in term.t_seq!.terms {
-                self.fold_consts(element);
+            let terms = make[vec[IrTerm]]();
+            for i in 0..term.t_seq!.terms.length {
+                let element = term.t_seq!.terms.at(i);
+                let t = self.fold_consts(element);
+
+                terms.push(t);
             }
+
+            term.t_seq!.terms = terms;
         } else if term.t_let != nil {
-            self.fold_consts(term.t_let!.value);
+            let t = self.fold_consts(term.t_let!.value);
+
+            term.t_let!.value = t;
         } else if term.t_return != nil {
-            self.fold_consts(term.t_return!.value);
+            let t = self.fold_consts(term.t_return!.value);
+
+            term.t_return!.value = t;
         } else if term.t_assign != nil {
-            self.fold_consts(term.t_assign!.rhs);
+            let t = self.fold_consts(term.t_assign!.rhs);
+
+            term.t_assign!.rhs = t;
         } else if term.t_if != nil {
-            self.fold_consts(term.t_if!.condition);
-            self.fold_consts(term.t_if!.then_term);
-            self.fold_consts(term.t_if!.else_term);
+            let c = self.fold_consts(term.t_if!.condition);
+            term.t_if!.condition = c;
+
+            let t = self.fold_consts(term.t_if!.then_term);
+            term.t_if!.then_term = t;
+
+            let e = self.fold_consts(term.t_if!.else_term);
+            term.t_if!.else_term = e;
         } else if term.t_while != nil {
-            self.fold_consts(term.t_while!.condition);
-            self.fold_consts(term.t_while!.block);
+            let c = self.fold_consts(term.t_while!.condition);
+            term.t_while!.condition = c;
+
+            let b = self.fold_consts(term.t_while!.block);
+            term.t_while!.block = b;
+
             if term.t_while!.cleanup != nil {
-                self.fold_consts(term.t_while!.cleanup!);
+                let t = self.fold_consts(term.t_while!.cleanup!);
+                term.t_while!.cleanup! = t;
             }
         } else if term.t_sizeof != nil {
             let size = term.t_sizeof!.type_.sizeof();
 
-            term = IrTerm {
+            return IrTerm {
                 t_i32: size,
             };
         } else if term.t_discard != nil {
-            self.fold_consts(term.t_discard!);
+            let d = self.fold_consts(term.t_discard!);
+
+            return IrTerm {
+                t_discard: d,
+            };
         } else if term.t_and != nil {
-            self.fold_consts(term.t_and!.lhs);
-            self.fold_consts(term.t_and!.rhs);
+            let l = self.fold_consts(term.t_and!.lhs);
+            term.t_and!.lhs = l;
+
+            let r = self.fold_consts(term.t_and!.rhs);
+            term.t_and!.rhs = r;
         } else if term.t_or != nil {
-            self.fold_consts(term.t_or!.lhs);
-            self.fold_consts(term.t_or!.rhs);
+            let l = self.fold_consts(term.t_or!.lhs);
+            term.t_or!.lhs = l;
+
+            let r = self.fold_consts(term.t_or!.rhs);
+            term.t_or!.rhs = r;
         } else if term.t_store != nil {
-            self.fold_consts(term.t_store!.address);
-            self.fold_consts(term.t_store!.offset);
-            self.fold_consts(term.t_store!.value);
+            let a = self.fold_consts(term.t_store!.address);
+            term.t_store!.address = a;
+
+            let o = self.fold_consts(term.t_store!.offset);
+            term.t_store!.offset = o;
+
+            let v = self.fold_consts(term.t_store!.value);
+            term.t_store!.value = v;
         } else if term.t_load != nil {
-            self.fold_consts(term.t_load!.address);
-            self.fold_consts(term.t_load!.offset);
+            let a = self.fold_consts(term.t_load!.address);
+            term.t_load!.address = a;
+
+            let o = self.fold_consts(term.t_load!.offset);
+            term.t_load!.offset = o;
         }
+
+        return term;
     }
 
     fun optimize_i32(self, term: IrTerm) {

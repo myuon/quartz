@@ -137,7 +137,8 @@ impl Runtime {
                     let b = Value::from_i64(b_value).as_i32().unwrap();
                     let at = Value::from_i64(at_value).as_i32().unwrap() as usize;
 
-                    let bs = format!("{}", ((a as i64) << 32_i64) | (b as i64)).chars().collect::<Vec<_>>();
+                    // FIXME: support u64
+                    let bs = format!("{}", ((a as u64) << 32_u64) | (b as u64)).chars().collect::<Vec<_>>();
 
                     if at >= bs.len() {
                         Value::I32(-1)
