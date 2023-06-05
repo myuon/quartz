@@ -62,11 +62,10 @@ impl Generator {
         self.writer.start();
         self.writer.write("module");
 
-        self.decl(&mut IrTerm::Declare {
-            name: "write_stdout".to_string(),
-            params: vec![IrType::Byte],
-            result: IrType::I32,
-        })?;
+        // wasi must be declared first
+        self.writer.start();
+        self.writer.write(r#"import "wasi_unstable" "fd_write" (func $fd_write (param i32 i32 i32 i32) (result i32))"#);
+        self.writer.end();
 
         self.decl(&mut IrTerm::Declare {
             name: "debug_i32".to_string(),
@@ -140,8 +139,84 @@ impl Generator {
             result: IrType::Byte,
         })?;
 
+        self.decl(&mut IrTerm::Func {
+            name: "_fd_write".to_string(),
+            params: vec![
+                ("fd".to_string(), IrType::I32),
+                ("ciovec".to_string(), IrType::Address),
+                ("ptr_size".to_string(), IrType::Address),
+            ],
+            result: Some(IrType::I32),
+            body: vec![
+                // fd
+                IrTerm::Instruction("local.get $fd".to_string()),
+                IrTerm::Instruction("i64.const 32".to_string()),
+                IrTerm::Instruction("i64.shr_u".to_string()),
+                IrTerm::Instruction("i32.wrap_i64".to_string()),
+                // ciovec.ptr
+                IrTerm::Instruction("local.get $ciovec".to_string()),
+                IrTerm::Instruction("i64.const 32".to_string()),
+                IrTerm::Instruction("i64.shr_u".to_string()),
+                IrTerm::Instruction("i32.wrap_i64".to_string()),
+                IrTerm::Instruction("i32.const 8".to_string()),
+                IrTerm::Instruction("i32.add".to_string()),
+                // ciovec.len
+                IrTerm::Instruction("i32.const 1".to_string()),
+                // ptr_size
+                IrTerm::Instruction("local.get $ptr_size".to_string()),
+                IrTerm::Instruction("i64.const 32".to_string()),
+                IrTerm::Instruction("i64.shr_u".to_string()),
+                IrTerm::Instruction("i32.wrap_i64".to_string()),
+                // call $fd_write
+                IrTerm::Instruction("call $fd_write".to_string()),
+                IrTerm::Instruction("i64.extend_i32_s".to_string()),
+                IrTerm::Instruction("i64.const 32".to_string()),
+                IrTerm::Instruction("i64.shl".to_string()),
+                IrTerm::Instruction("return".to_string()),
+            ],
+        })?;
+
+        self.decl(&mut IrTerm::Func {
+            name: "set_ciovec".to_string(),
+            params: vec![
+                ("ptr".to_string(), IrType::Address),
+                ("x".to_string(), IrType::Address),
+                ("y".to_string(), IrType::I32),
+            ],
+            result: Some(IrType::Nil),
+            body: vec![
+                // $ptr
+                IrTerm::Instruction("local.get $ptr".to_string()),
+                IrTerm::Instruction("i64.const 32".to_string()),
+                IrTerm::Instruction("i64.shr_u".to_string()),
+                IrTerm::Instruction("i32.wrap_i64".to_string()),
+                // $x
+                IrTerm::Instruction("local.get $x".to_string()),
+                IrTerm::Instruction("i64.const 32".to_string()),
+                IrTerm::Instruction("i64.shr_u".to_string()),
+                IrTerm::Instruction("i32.wrap_i64".to_string()),
+                IrTerm::Instruction("i32.const 8".to_string()),
+                IrTerm::Instruction("i32.add".to_string()),
+                IrTerm::Instruction("i32.store offset=8".to_string()), // offset for string data
+                // $ptr
+                IrTerm::Instruction("local.get $ptr".to_string()),
+                IrTerm::Instruction("i64.const 32".to_string()),
+                IrTerm::Instruction("i64.shr_u".to_string()),
+                IrTerm::Instruction("i32.wrap_i64".to_string()),
+                // $y
+                IrTerm::Instruction("local.get $y".to_string()),
+                IrTerm::Instruction("i64.const 32".to_string()),
+                IrTerm::Instruction("i64.shr_u".to_string()),
+                IrTerm::Instruction("i32.wrap_i64".to_string()),
+                IrTerm::Instruction("i32.store offset=12".to_string()),
+                // return nil
+                IrTerm::Instruction("i64.const 1".to_string()),
+                IrTerm::Instruction("return".to_string()),
+            ],
+        })?;
+
         self.writer.start();
-        self.writer.write(r#"memory 50000"#);
+        self.writer.write(r#"memory (export "memory") 50000"#);
         self.writer.end();
 
         for term in elements {

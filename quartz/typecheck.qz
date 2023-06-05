@@ -110,19 +110,6 @@ module Typechecker {
             },
         );
         globals.insert(
-            "write_stdout",
-            Type {
-                t_func: struct {
-                    params: make[vec[Type]](Type {
-                        t_byte: true,
-                    }),
-                    result: Type {
-                        t_nil: true,
-                    },
-                },
-            },
-        );
-        globals.insert(
             "abort",
             Type {
                 t_func: struct {
@@ -234,11 +221,14 @@ module Typechecker {
             "open_handler_initialize",
             Type {
                 t_func: struct {
-                    params: make[vec[Type]](Type {
-                        t_any: true,
-                    }, Type {
-                        t_i32: true,
-                    }),
+                    params: make[vec[Type]](
+                        Type {
+                            t_any: true,
+                        },
+                        Type {
+                            t_i32: true,
+                        },
+                    ),
                     result: Type {
                         t_nil: true,
                     },
@@ -317,6 +307,56 @@ module Typechecker {
                     }),
                     result: Type {
                         t_byte: true,
+                    },
+                },
+            },
+        );
+        globals.insert(
+            "_fd_write",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](
+                        Type {
+                            t_i32: true,
+                        },
+                        Type {
+                            t_ptr: Type {
+                                t_any: true,
+                            },
+                        },
+                        Type {
+                            t_ptr: Type {
+                                t_i32: true,
+                            },
+                        },
+                    ),
+                    result: Type {
+                        t_i32: true,
+                    },
+                },
+            },
+        );
+        globals.insert(
+            "set_ciovec",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](
+                        Type {
+                            t_ptr: Type {
+                                t_byte: true,
+                            },
+                        },
+                        Type {
+                            t_ptr: Type {
+                                t_any: true,
+                            },
+                        },
+                        Type {
+                            t_i32: true,
+                        },
+                    ),
+                    result: Type {
+                        t_nil: true,
                     },
                 },
             },

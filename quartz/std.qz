@@ -3,14 +3,11 @@ fun print_string(s: string) {
     let d = s.data;
     let n = 0;
 
-    while n < l {
-        let ch = d.at(n);
-        // Hack: WHY?
-        if ch != (0 as byte) {
-            write_stdout(d.at(n));
-        }
-        n = n + 1;
-    }
+    let ciovec = make[ptr[byte]](8); // [address (4byte), length (4byte)]
+    set_ciovec(ciovec, d, l);
+
+    let ptr_size = make[ptr[i32]](1);
+    _fd_write(1, ciovec, ptr_size);
 }
 
 fun print_vec_string(v: vec[string]) {
@@ -39,10 +36,7 @@ fun print(f: string, ..arg: vec[string]) {
 }
 
 fun println(f: string, ..arg: vec[string]) {
-    print(f, ..arg);
-
-    // \newline
-    write_stdout(10 as byte);
+    print(format("{}\n", f), ..arg);
 }
 
 fun vec_make(capacity: i32): vec[any] {

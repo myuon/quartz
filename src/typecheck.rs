@@ -30,10 +30,6 @@ impl TypeChecker {
             locals: HashMap::new(),
             globals: vec![
                 ("not", Type::Func(vec![Type::Bool], Box::new(Type::Bool))),
-                (
-                    "write_stdout",
-                    Type::Func(vec![Type::Byte], Box::new(Type::Nil)),
-                ),
                 ("read_stdin", Type::Func(vec![], Box::new(Type::Byte))),
                 (
                     "debug_i32",
@@ -101,6 +97,28 @@ impl TypeChecker {
                 (
                     "get_args_at",
                     Type::Func(vec![Type::I32], Box::new(Type::Byte)),
+                ),
+                (
+                    "_fd_write",
+                    Type::Func(
+                        vec![
+                            Type::I32,
+                            Type::Ptr(Box::new(Type::Any)),
+                            Type::Ptr(Box::new(Type::I32)),
+                        ],
+                        Box::new(Type::I32),
+                    ),
+                ),
+                (
+                    "set_ciovec",
+                    Type::Func(
+                        vec![
+                            Type::Ptr(Box::new(Type::Byte)),
+                            Type::Ptr(Box::new(Type::Any)),
+                            Type::I32,
+                        ],
+                        Box::new(Type::Nil),
+                    ),
                 ),
             ]
             .into_iter()
