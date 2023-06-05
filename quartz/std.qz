@@ -36,7 +36,8 @@ fun print(f: string, ..arg: vec[string]) {
 }
 
 fun println(f: string, ..arg: vec[string]) {
-    print(format("{}\n", f), ..arg);
+    print(f, ..arg);
+    print_string("\n");
 }
 
 fun vec_make(capacity: i32): vec[any] {
