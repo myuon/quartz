@@ -36,11 +36,7 @@ fun print(f: string, ..arg: vec[string]) {
 }
 
 fun println(f: string, ..arg: vec[string]) {
-    print(f, ..arg);
-
-    // \newline
-    let b = make[vec[byte]](10 as byte);
-    print_string(vec_byte_to_string(b));
+    print(format("{}\n", f), ..arg);
 }
 
 fun vec_make(capacity: i32): vec[any] {
