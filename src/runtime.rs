@@ -41,8 +41,9 @@ impl Runtime {
         let args_string = std::env::args().collect::<Vec<_>>().join(" ");
         let args_string_len = args_string.len();
 
-        let wasi_env = WasiEnv::new(WasiState::new("quartz").build()?);
-        let mut wasi_func_env = WasiFunctionEnv::new(&mut store, wasi_env);
+        let mut wasi_func_env = WasiState::new("quartz")
+            .preopen_dir(".")?
+            .finalize(&mut store)?;
         let wasi_import_object = wasi_func_env.import_object(&mut store, &module)?;
 
         let mut import_object = imports! {

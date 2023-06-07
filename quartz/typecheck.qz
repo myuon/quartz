@@ -361,6 +361,71 @@ module Typechecker {
                 },
             },
         );
+        globals.insert(
+            "_path_open",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](
+                        // dirfd
+                        Type {
+                            t_i32: true,
+                        },
+                        // dirflags
+                        Type {
+                            t_i32: true,
+                        },
+                        // path
+                        Type {
+                            t_ptr: Type {
+                                t_byte: true,
+                            },
+                        },
+                        // path_len
+                        Type {
+                            t_i32: true,
+                        },
+                        // o_flags
+                        Type {
+                            t_i32: true,
+                        },
+                        // fs_rights_base
+                        Type {
+                            t_i32: true,
+                        },
+                        // fs_rights_inheriting
+                        Type {
+                            t_i32: true,
+                        },
+                        // fs_flags
+                        Type {
+                            t_i32: true,
+                        },
+                        // *fd
+                        Type {
+                            t_ptr: Type {
+                                t_i32: true,
+                            },
+                        },
+                    ),
+                    result: Type {
+                        t_i32: true,
+                    },
+                },
+            },
+        );
+        globals.insert(
+            "_fd_close",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](Type {
+                        t_i32: true,
+                    }),
+                    result: Type {
+                        t_i32: true,
+                    },
+                },
+            }
+        );
 
         return Typechecker {
             locals: make[map[string, Type]](),

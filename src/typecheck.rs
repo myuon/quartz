@@ -120,6 +120,32 @@ impl TypeChecker {
                         Box::new(Type::Nil),
                     ),
                 ),
+                (
+                    "_path_open",
+                    Type::Func(
+                        vec![
+                            Type::I32,                       // dirfd
+                            Type::I32,                       // dirflags
+                            Type::Ptr(Box::new(Type::Byte)), // path
+                            Type::I32,                       // path_len
+                            Type::I32,                       // o_flags
+                            Type::I32,                       // fs_rights_base
+                            Type::I32,                       // fs_rights_inheriting
+                            Type::I32,                       // fs_flags
+                            Type::Ptr(Box::new(Type::I32)),  // *fd
+                        ],
+                        Box::new(Type::I32),
+                    ),
+                ),
+                (
+                    "_fd_close",
+                    Type::Func(
+                        vec![
+                            Type::I32, // fd
+                        ],
+                        Box::new(Type::I32),
+                    ),
+                ),
             ]
             .into_iter()
             .map(|(k, v)| (Path::ident(Ident(k.to_string())), Source::unknown(v)))

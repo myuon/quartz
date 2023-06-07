@@ -932,18 +932,30 @@ fun file_read(path: string): string {
 }
 
 fun file_write(path: string, content: string) {
-    let handler = create_handler();
-    for i in 0..path.length {
-        open_handler_stream(handler, path.at(i));
+    // TODO: check preopened directories
+    let dirfd = 4; 
+
+    let fd = make[ptr[byte]](8);
+    let err = _path_open(dirfd, 0, path.data, path.length, 1, 1 << 6, 0, 0, fd as ptr[i32]);
+    if err != 0 {
+        panic("[file_write] path_open {}", err.to_string());
     }
-    open_handler_initialize(handler, 2);
 
-    for i in 0..content.length {
-        let ch = content.at(i);
+    // TODO: what if fd is over 255?
+    let fd_n = fd.at(0) as i32;
 
-        if (ch != 0 as byte) {
-            write_handler(handler, content.at(i));
-        }
+    let ciovec = make[ptr[byte]](8);
+    set_ciovec(ciovec, content.data, content.length);
+
+    let ptr_size = make[ptr[i32]](1);
+    let err = _fd_write(fd_n, ciovec, ptr_size);
+    if err != 0 {
+        panic("[file_write] fd_write {}", err.to_string());
+    }
+
+    let err = _fd_close(fd_n);
+    if err != 0 {
+        panic("[file_write] fd_close {}", err.to_string());
     }
 }
 
