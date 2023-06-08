@@ -933,10 +933,10 @@ fun file_read(path: string): string {
 
 fun file_write(path: string, content: string) {
     // TODO: check preopened directories
-    let dirfd = 4; 
+    let dirfd = 4;
 
     let fd = make[ptr[byte]](8);
-    let err = _path_open(dirfd, 0, path.data, path.length, 1, 1 << 6, 0, 0, fd as ptr[i32]);
+    let err = _path_open(dirfd, 0, path.data, path.length, 9, 1 << 6, 0, 0, fd as ptr[i32]);
     if err != 0 {
         panic("[file_write] path_open {}", err.to_string());
     }

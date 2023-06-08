@@ -418,7 +418,7 @@ module IrCodeGenerator {
             let str_len = str.length;
             let str_memory_size = str_len + 8;
 
-            let new_str = "\\00\\00\\00\\00\\00\\00\\00\\00".concat(str);
+            let new_str = "\00\00\00\00\00\00\00\00".concat(str);
             terms.push(IrTerm {
                 t_data: struct {
                     data: new_str,
