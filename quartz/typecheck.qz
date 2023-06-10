@@ -249,24 +249,6 @@ module Typechecker {
             },
         );
         globals.insert(
-            "write_handler",
-            Type {
-                t_func: struct {
-                    params: make[vec[Type]](
-                        Type {
-                            t_any: true,
-                        },
-                        Type {
-                            t_byte: true,
-                        },
-                    ),
-                    result: Type {
-                        t_nil: true,
-                    },
-                },
-            },
-        );
-        globals.insert(
             "i64_to_string_at",
             Type {
                 t_func: struct {

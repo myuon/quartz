@@ -83,13 +83,6 @@ impl TypeChecker {
                     ),
                 ),
                 (
-                    "write_handler",
-                    Type::Func(
-                        vec![Type::Ident(Ident("handler".to_string())), Type::Byte],
-                        Box::new(Type::Nil),
-                    ),
-                ),
-                (
                     "i64_to_string_at",
                     Type::Func(vec![Type::I32, Type::I32, Type::I32], Box::new(Type::I32)),
                 ),

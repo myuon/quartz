@@ -139,12 +139,6 @@ impl Generator {
         })?;
 
         self.decl(&mut IrTerm::Declare {
-            name: "write_handler".to_string(),
-            params: vec![IrType::I32, IrType::Byte],
-            result: IrType::Address,
-        })?;
-
-        self.decl(&mut IrTerm::Declare {
             name: "i64_to_string_at".to_string(),
             params: vec![IrType::I32, IrType::I32, IrType::I32],
             result: IrType::I32,
