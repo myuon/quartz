@@ -19,6 +19,7 @@ pub struct Generator {
     pub entrypoint: Path,
     pub strings: Vec<String>,
     pub type_reps: Vec<TypeRep>,
+    pub start: Vec<IrTerm>,
 }
 
 impl Generator {
@@ -30,6 +31,7 @@ impl Generator {
             entrypoint: Path::new(vec![]),
             strings: vec![],
             type_reps: vec![],
+            start: vec![],
         }
     }
 
@@ -50,6 +52,10 @@ impl Generator {
 
     pub fn set_type_reps(&mut self, type_reps: Vec<TypeRep>) {
         self.type_reps = type_reps;
+    }
+
+    pub fn set_start(&mut self, start: Vec<IrTerm>) {
+        self.start = start;
     }
 
     pub fn run(&mut self, module: &mut IrTerm, data_section_offset: usize) -> Result<()> {
@@ -390,37 +396,44 @@ impl Generator {
             name: "start".to_string(),
             params: vec![],
             result: Some(result),
-            body: vec![
-                IrTerm::Assign {
-                    lhs: "quartz_std_alloc_ptr".to_string(),
-                    rhs: Box::new(IrTerm::i32(data_section_offset as i32)),
-                },
-                IrTerm::Assign {
-                    lhs: "quartz_std_strings_count".to_string(),
-                    rhs: Box::new(IrTerm::i32(self.strings.len() as i32)),
-                },
-                IrTerm::Assign {
-                    lhs: "quartz_std_type_reps_count".to_string(),
-                    rhs: Box::new(IrTerm::i32(self.type_reps.len() as i32)),
-                },
-                IrTerm::Call {
-                    callee: Box::new(IrTerm::ident("prepare_type_reps")),
-                    args: vec![],
-                    source: None,
-                },
-                IrTerm::Call {
-                    callee: Box::new(IrTerm::ident("prepare_strings")),
-                    args: vec![],
-                    source: None,
-                },
-                IrTerm::Return {
-                    value: Box::new(IrTerm::Call {
-                        callee: Box::new(IrTerm::ident(entrypoint_symbol.clone())),
+            body: {
+                let mut v = vec![
+                    IrTerm::Assign {
+                        lhs: "quartz_std_alloc_ptr".to_string(),
+                        rhs: Box::new(IrTerm::i32(data_section_offset as i32)),
+                    },
+                    IrTerm::Assign {
+                        lhs: "quartz_std_strings_count".to_string(),
+                        rhs: Box::new(IrTerm::i32(self.strings.len() as i32)),
+                    },
+                    IrTerm::Assign {
+                        lhs: "quartz_std_type_reps_count".to_string(),
+                        rhs: Box::new(IrTerm::i32(self.type_reps.len() as i32)),
+                    },
+                ];
+                v.extend(self.start.clone());
+                v.extend(vec![
+                    IrTerm::Call {
+                        callee: Box::new(IrTerm::ident("prepare_strings")),
                         args: vec![],
                         source: None,
-                    }),
-                },
-            ],
+                    },
+                    IrTerm::Call {
+                        callee: Box::new(IrTerm::ident("prepare_type_reps")),
+                        args: vec![],
+                        source: None,
+                    },
+                    IrTerm::Return {
+                        value: Box::new(IrTerm::Call {
+                            callee: Box::new(IrTerm::ident(entrypoint_symbol.clone())),
+                            args: vec![],
+                            source: None,
+                        }),
+                    },
+                ]);
+
+                v
+            },
         })?;
 
         self.writer.start();
@@ -608,7 +621,7 @@ impl Generator {
             IrTerm::Nil => {
                 if MODE_READABLE_WASM {
                     self.writer.new_statement();
-                    self.writer.write(";; nil");
+                    self.writer.write(" ;; nil");
                 }
 
                 self.write_value(Value::nil());
@@ -692,7 +705,7 @@ impl Generator {
                 self.convert_stack_from_i32_1();
 
                 self.writer.new_statement();
-                self.writer.write("call $quartz_std_load_type_rep");
+                self.writer.write("call $quartz_std_get_type_rep_address");
             }
             IrTerm::Call { callee, args, .. } => self.call(callee, args)?,
             IrTerm::Seq { elements } => {

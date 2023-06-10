@@ -84,6 +84,7 @@ pub struct IrCodeGenerator {
     pub strings: SerialIdMap<String>,
     pub type_reps: SerialIdMap<TypeRep>,
     pub data_section_offset: usize,
+    pub start: Vec<IrTerm>,
 }
 
 impl IrCodeGenerator {
@@ -94,6 +95,7 @@ impl IrCodeGenerator {
             strings: SerialIdMap::new(),
             type_reps: SerialIdMap::new(),
             data_section_offset: 0,
+            start: vec![],
         }
     }
 
@@ -181,14 +183,19 @@ impl IrCodeGenerator {
         type_reps.sort_by(|(_, a), (_, b)| a.cmp(&b));
 
         let mut body = vec![];
+
         // quartz_std_type_reps_ptr = make[ptr[any]](${type_reps.len()});
-        body.push(IrTerm::Assign {
-            lhs: var_ptr.to_string(),
-            rhs: Box::new(self.expr(&mut Source::unknown(Expr::Make(
+        {
+            let allocated = self.expr(&mut Source::unknown(Expr::Make(
                 Type::Ptr(Box::new(Type::Any)),
                 vec![Source::unknown(Expr::Lit(Lit::I32(type_reps.len() as i32)))],
-            )))?),
-        });
+            )))?;
+
+            self.start.push(IrTerm::Assign {
+                lhs: var_ptr.to_string(),
+                rhs: Box::new(allocated),
+            });
+        }
 
         for (type_rep, rep_id) in type_reps {
             let var_p = "p".to_string();
@@ -231,16 +238,21 @@ impl IrCodeGenerator {
 
         let var_strings = "quartz_std_strings_ptr";
         let mut body = vec![];
+
         // quartz_std_strings_ptr = make[ptr[string]](${strings.len()});
-        body.push(IrTerm::Assign {
-            lhs: var_strings.to_string(),
-            rhs: Box::new(self.expr(&mut Source::unknown(Expr::Make(
+        {
+            let allocated = self.expr(&mut Source::unknown(Expr::Make(
                 Type::Ptr(Box::new(Type::Ident(Ident("string".to_string())))),
                 vec![Source::unknown(Expr::Lit(Lit::I32(
                     self.strings.keys.len() as i32,
                 )))],
-            )))?),
-        });
+            )))?;
+
+            self.start.push(IrTerm::Assign {
+                lhs: var_strings.to_string(),
+                rhs: Box::new(allocated),
+            });
+        }
 
         // avoid 0-8 for null pointer
         self.data_section_offset = 8;

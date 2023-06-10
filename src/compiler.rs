@@ -357,6 +357,7 @@ impl Compiler {
                 .map(|(k, _)| k)
                 .collect(),
         );
+        generator.set_start(ir_code_generator.start);
 
         if MODE_OPTIMIZE_CONSTANT_FOLDING {
             generator.fold_consts(&mut ir);
