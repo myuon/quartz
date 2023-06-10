@@ -113,12 +113,6 @@ impl Generator {
         })?;
 
         self.decl(&mut IrTerm::Declare {
-            name: "read_stdin".to_string(),
-            params: vec![],
-            result: IrType::Byte,
-        })?;
-
-        self.decl(&mut IrTerm::Declare {
             name: "abort".to_string(),
             params: vec![],
             result: IrType::I32,

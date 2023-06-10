@@ -1,4 +1,4 @@
-use std::io::{Read, Write};
+use std::io::Write;
 
 use anyhow::{anyhow, Result};
 use wasmer::{imports, Function, Instance, Module, Store, Value as WasmValue};
@@ -41,11 +41,6 @@ impl Runtime {
                 }),
                 "abort" => Function::new_typed(&mut store, || -> i64 {
                     panic!("[ABORT]");
-                }),
-                "read_stdin" => Function::new_typed(&mut store, || {
-                    let mut buffer = [0u8; 1];
-                    std::io::stdin().lock().read(&mut buffer).unwrap();
-                    Value::Byte(buffer[0]).as_i64()
                 }),
                 "i64_to_string_at" => Function::new_typed(&mut store, |a_value: i64, b_value: i64, at_value: i64| {
                     let a = Value::from_i64(a_value).as_i32().unwrap();
