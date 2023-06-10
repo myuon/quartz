@@ -657,6 +657,10 @@ impl<'s> Formatter<'s> {
     }
 
     fn need_empty_lines(&self, start: usize, end: usize) -> bool {
+        if start > end {
+            return false;
+        }
+
         self.source[start..end]
             .chars()
             .filter(|p| p == &'\n')
@@ -665,6 +669,10 @@ impl<'s> Formatter<'s> {
     }
 
     fn need_line_follow(&self, start: usize, end: usize) -> bool {
+        if start > end {
+            return false;
+        }
+
         self.source[start..end]
             .chars()
             .filter(|p| p == &'\n')

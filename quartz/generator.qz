@@ -2,6 +2,7 @@ import quartz::ast;
 import quartz::ir;
 import quartz::value;
 import quartz::path;
+import quartz::ir_code_gen;
 
 let MODE_READABLE_WASM = true;
 
@@ -45,7 +46,9 @@ struct Generator {
     index: i32,
     globals: map[string, Type],
     strings: vec[string],
+    type_reps: vec[InternalTypeRep],
     main_signature_result: IrType?,
+    start_terms: vec[IrTerm],
 }
 
 module Generator {
@@ -56,7 +59,9 @@ module Generator {
             index: 0,
             globals: make[map[string, Type]](),
             strings: make[vec[string]](),
+            type_reps: make[vec[InternalTypeRep]](),
             main_signature_result: nil as IrType?,
+            start_terms: make[vec[IrTerm]](),
         };
     }
 
@@ -97,6 +102,14 @@ module Generator {
 
     fun set_strings(self, strings: vec[string]) {
         self.strings = strings;
+    }
+
+    fun set_type_reps(self, type_reps: vec[InternalTypeRep]) {
+        self.type_reps = type_reps;
+    }
+
+    fun set_start_terms(self, start: vec[IrTerm]) {
+        self.start_terms = start;
     }
 
     fun generate(self): string {
@@ -207,8 +220,6 @@ module Generator {
     i64.const 32
     i64.shr_u
     i32.wrap_i64
-    i32.const 8
-    i32.add
 
     i32.const 1
 
@@ -239,9 +250,7 @@ module Generator {
     i64.const 32
     i64.shr_u
     i32.wrap_i64
-    i32.const 8
-    i32.add
-    i32.store offset=8
+    i32.store
 
     local.get $ptr
     i64.const 32
@@ -252,7 +261,7 @@ module Generator {
     i64.const 32
     i64.shr_u
     i32.wrap_i64
-    i32.store offset=12
+    i32.store offset=4
 
     i64.const 1
     return
@@ -288,8 +297,6 @@ module Generator {
     i64.const 32
     i64.shr_u
     i32.wrap_i64
-    i32.const 8
-    i32.add
 
     local.get $path_len
     i64.const 32
@@ -322,8 +329,6 @@ module Generator {
     i64.const 32
     i64.shr_u
     i32.wrap_i64
-    i32.const 8
-    i32.add
 
     call $path_open
 
@@ -459,6 +464,59 @@ module Generator {
             panic("main_signature_result is nil");
         }
 
+        let start_body = make[vec[IrTerm]](
+            IrTerm {
+                t_assign: struct {
+                    lhs: "quartz_std_alloc_ptr",
+                    rhs: IrTerm {
+                        t_i32: data_section_offset,
+                    },
+                },
+            },
+            IrTerm {
+                t_assign: struct {
+                    lhs: "quartz_std_strings_count",
+                    rhs: IrTerm {
+                        t_i32: self.strings.length,
+                    },
+                },
+            },
+            IrTerm {
+                t_assign: struct {
+                    lhs: "quartz_std_type_reps_count",
+                    rhs: IrTerm {
+                        t_i32: self.type_reps.length,
+                    },
+                },
+            },
+        );
+        start_body.extend(self.start_terms);
+        start_body.extend(make[vec[IrTerm]](
+            IrTerm {
+                t_call: IrCall {
+                    callee: IrTerm {
+                        t_ident: "prepare_strings",
+                    },
+                    args: make[vec[IrTerm]](),
+                },
+            },
+            IrTerm {
+                t_call: IrCall {
+                    callee: IrTerm {
+                        t_ident: "prepare_type_reps",
+                    },
+                    args: make[vec[IrTerm]](),
+                },
+            },
+            IrTerm {
+                t_return: IrReturn {
+                    value: IrTerm {
+                        t_inst: "call $main_main",
+                    },
+                },
+            },
+        ));
+
         self.function(IrFunc {
             name: "start",
             params: make[vec[struct {
@@ -466,47 +524,7 @@ module Generator {
                 type_: IrType,
             }]](),
             result_type: self.main_signature_result!,
-            body: make[vec[IrTerm]](
-                IrTerm {
-                    t_assign: struct {
-                        lhs: "quartz_std_alloc_ptr",
-                        rhs: IrTerm {
-                            t_i32: data_section_offset,
-                        },
-                    },
-                },
-                IrTerm {
-                    t_assign: struct {
-                        lhs: "quartz_std_strings_count",
-                        rhs: IrTerm {
-                            t_i32: self.strings.length,
-                        },
-                    },
-                },
-                IrTerm {
-                    t_call: IrCall {
-                        callee: IrTerm {
-                            t_ident: "prepare_strings",
-                        },
-                        args: make[vec[IrTerm]](),
-                    },
-                },
-                IrTerm {
-                    t_call: IrCall {
-                        callee: IrTerm {
-                            t_ident: "prepare_type_reps",
-                        },
-                        args: make[vec[IrTerm]](),
-                    },
-                },
-                IrTerm {
-                    t_return: IrReturn {
-                        value: IrTerm {
-                            t_inst: "call $main_main",
-                        },
-                    },
-                },
-            ),
+            body: start_body,
         });
 
         self.start();
@@ -892,6 +910,17 @@ module Generator {
 
             self.new_statement();
             self.write("call $quartz_std_load_string");
+        } else if expr.t_type_rep != nil {
+            self.new_statement();
+            self.write(format(";; type_rep: {}", derive::to_string(expr.t_type_rep!)));
+
+            self.new_statement();
+            self.write(format("i32.const {}", expr.t_type_rep!.to_string()));
+
+            self.convert_stack_from_i32_1();
+
+            self.new_statement();
+            self.write("call $quartz_std_get_type_rep_address");
         } else if expr.t_discard != nil {
             self.new_statement();
             self.expression(expr.t_discard!);

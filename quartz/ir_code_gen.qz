@@ -188,6 +188,7 @@ struct IrCodeGenerator {
     type_reps: TypeRepTable,
     data_section_offset: i32,
     counter: i32,
+    start: vec[IrTerm],
 }
 
 module IrCodeGenerator {
@@ -200,6 +201,7 @@ module IrCodeGenerator {
             type_reps: TypeRepTable::new(),
             data_section_offset: 0,
             counter: 0,
+            start: make[vec[IrTerm]](),
         };
     }
 
@@ -300,8 +302,9 @@ module IrCodeGenerator {
         }
 
         let body = make[vec[IrTerm]]();
+
         // quartz_std_type_reps_ptr = make[ptr[any]](${type_reps.len()});
-        body.push(IrTerm {
+        self.start.push(IrTerm {
             t_assign: struct {
                 lhs: var_ptr,
                 rhs: self.expression(Expression {
@@ -338,19 +341,25 @@ module IrCodeGenerator {
             });
 
             // quartz_std_type_reps_ptr.at(${rep_id}) = p
-            let lhs = self.generate_array_at(
-                Type {
-                    t_ptr: Type {
-                        t_ident: "any",
+            let lhs = IrTerm {
+                t_load: struct {
+                    type_: IrType {
+                        t_address: true,
                     },
+                    address: IrTerm {
+                        t_ident: var_ptr,
+                    },
+                    offset: IrCodeGenerator::wrap_mult_sizeof(
+                        IrType {
+                            t_address: true,
+                        },
+                        IrTerm {
+                            t_i32: rep_id,
+                        },
+                    ),
+                    raw_offset: 0,
                 },
-                IrTerm {
-                    t_ident: var_ptr,
-                },
-                IrTerm {
-                    t_i32: rep_id,
-                },
-            ).try;
+            };
             body.push(self.assign(
                 lhs,
                 IrType {
@@ -390,7 +399,7 @@ module IrCodeGenerator {
 
         let var_strings = "quartz_std_strings_ptr";
         let body = make[vec[IrTerm]]();
-        body.push(IrTerm {
+        self.start.push(IrTerm {
             t_assign: struct {
                 lhs: var_strings,
                 rhs: self.expression(Expression {
@@ -416,25 +425,37 @@ module IrCodeGenerator {
         for i in 0..self.strings.strings.length {
             let str = self.strings.strings.at(i);
             let str_len = str.length;
-            let str_memory_size = str_len + 8;
+            let str_memory_size = str_len;
 
-            let new_str = "\00\00\00\00\00\00\00\00".concat(str);
             terms.push(IrTerm {
                 t_data: struct {
-                    data: new_str,
+                    data: str,
                     offset: self.data_section_offset,
                 },
             });
 
-            let lhs = self.generate_array_at(
-                Type::string(),
-                IrTerm {
-                    t_ident: var_strings,
+            // strings.at(i) = new_empty_string(${offset}, ${string.len()})
+            // FIXME: shoule be converted to ptr[byte]
+            let lhs = IrTerm {
+                t_load: struct {
+                    type_: IrType {
+                        t_address: true,
+                    },
+                    address: IrTerm {
+                        t_ident: var_strings,
+                    },
+                    offset: IrCodeGenerator::wrap_mult_sizeof(
+                        IrType {
+                            t_address: true,
+                        },
+                        IrTerm {
+                            t_i32: i,
+                        },
+                    ),
+                    raw_offset: 0,
                 },
-                IrTerm {
-                    t_i32: i,
-                },
-            ).try;
+            };
+
             body.push(self.assign(
                 lhs,
                 IrType {
@@ -1128,7 +1149,14 @@ module IrCodeGenerator {
                     let term = self.expression(project.expr).try;
                     let offset = self.expression(expr.t_call!.args.at(0)).try;
 
-                    return self.generate_array_at(t_ptr_elem, term, offset).try;
+                    return IrTerm {
+                        t_load: struct {
+                            type_: IrType::new(t_ptr_elem),
+                            address: term,
+                            offset: offset,
+                            raw_offset: 0,
+                        },
+                    };
                 } else if project.type_!.t_ptr != nil && project.field.equal("offset") {
                     if expr.t_call!.args.length != 1 {
                         return _ or error::new("offset() takes 2 arguments");
@@ -1606,14 +1634,16 @@ module IrCodeGenerator {
                 let len = self.expression(expr.t_make!.args.at(0)).try;
                 let ptr_type = expr.t_make!.type_.t_ptr!;
 
-                return self.allocate_heap_object(
-                    InternalTypeRep::from_name(
-                        "ptr",
-                        make[vec[InternalTypeRep]](InternalTypeRep::from_ir_type(IrType::new(ptr_type))),
-                    ),
-                    IrType::new(ptr_type),
-                    len,
-                );
+                return IrTerm {
+                    t_call: IrCall {
+                        callee: IrTerm {
+                            t_ident: "quartz_std_alloc",
+                        },
+                        args: make[vec[IrTerm]](
+                            IrCodeGenerator::wrap_mult_sizeof(IrType::new(ptr_type), len),
+                        ),
+                    },
+                };
             } else if expr.t_make!.type_.t_vec != nil {
                 let var_vec = format("vec_{}", self.counter.to_string());
                 self.counter = self.counter + 1;
@@ -2179,7 +2209,7 @@ module IrCodeGenerator {
                 address: IrTerm::ident(var),
                 offset: IrTerm::i32(0),
                 value: IrTerm {
-                    t_i32: rep_id,
+                    t_type_rep: rep_id,
                 },
                 raw_offset: 0,
             },
