@@ -975,7 +975,7 @@ fun main(): bool {
 fun main(): bool {
     let t = derive::to_string(reflection::get_type_rep("foo"));
     println("{}", t);
-    return t.equal("TypeRep { name: \"foo\", kind: Struct, .. }");
+    return t.equal(`TypeRep { kind: 1, name: "string", params: vec(), fields: vec("data", "length") }`);
 }
 "#,
                 vec![

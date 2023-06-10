@@ -804,12 +804,16 @@ module reflection {
 
     // [nil, kind, rep_name, size of params, *params, size of fields, *fields]
     fun parse_type_rep(t: ptr[any]): TypeRep {
-        let kind = t.at(0) as i32;
-        let name = t.at(1) as string;
-        let params_size = t.at(2) as i32;
-        let params_ptr = t.at(3) as ptr[ptr[any]];
-        let fields_size = t.at(4) as i32;
-        let fields_ptr = t.at(5) as ptr[string];
+        if t.at(0) != nil {
+            abort();
+        }
+
+        let kind = t.at(1) as i32;
+        let name = t.at(2) as string;
+        let params_size = t.at(3) as i32;
+        let params_ptr = (t.at(4) as ptr[ptr[any]]).offset(1);
+        let fields_size = t.at(5) as i32;
+        let fields_ptr = (t.at(6) as ptr[string]).offset(1);
 
         let params = make[vec[TypeRep]]();
         for i in 0..params_size {
@@ -954,7 +958,7 @@ module derive {
                 s = s.concat(format(",{}", sep));
             }
             let f = rep.fields.at(i);
-            let v = (t as ptr[any]).at(i);
+            let v = (t as ptr[any]).offset(1).at(i);
             s = s.concat(format("{}{}: {}", indent, f, derive::to_string_internal(v, pretty, depth + 1)));
         }
 
