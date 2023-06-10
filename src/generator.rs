@@ -7,6 +7,7 @@ use crate::{
         MODE_OPTIMIZE_ARITH_OPS_IN_CODE_GEN, MODE_OPTIMIZE_CONSTANT_FOLDING, MODE_READABLE_WASM,
     },
     ir::{IrTerm, IrType},
+    ir_code_gen::TypeRep,
     util::{path::Path, sexpr_writer::SExprWriter},
     value::Value,
 };
@@ -17,7 +18,7 @@ pub struct Generator {
     pub main_signature: Option<(Vec<IrType>, IrType)>,
     pub entrypoint: Path,
     pub strings: Vec<String>,
-    pub type_reps_count: usize,
+    pub type_reps: Vec<TypeRep>,
 }
 
 impl Generator {
@@ -28,7 +29,7 @@ impl Generator {
             main_signature: None,
             entrypoint: Path::new(vec![]),
             strings: vec![],
-            type_reps_count: 0,
+            type_reps: vec![],
         }
     }
 
@@ -47,8 +48,8 @@ impl Generator {
         self.strings = strings;
     }
 
-    pub fn set_type_reps_count(&mut self, type_reps_count: usize) {
-        self.type_reps_count = type_reps_count;
+    pub fn set_type_reps(&mut self, type_reps: Vec<TypeRep>) {
+        self.type_reps = type_reps;
     }
 
     pub fn run(&mut self, module: &mut IrTerm, data_section_offset: usize) -> Result<()> {
@@ -400,15 +401,15 @@ impl Generator {
                 },
                 IrTerm::Assign {
                     lhs: "quartz_std_type_reps_count".to_string(),
-                    rhs: Box::new(IrTerm::i32(self.type_reps_count as i32)),
+                    rhs: Box::new(IrTerm::i32(self.type_reps.len() as i32)),
                 },
                 IrTerm::Call {
-                    callee: Box::new(IrTerm::ident("prepare_strings")),
+                    callee: Box::new(IrTerm::ident("prepare_type_reps")),
                     args: vec![],
                     source: None,
                 },
                 IrTerm::Call {
-                    callee: Box::new(IrTerm::ident("prepare_type_reps")),
+                    callee: Box::new(IrTerm::ident("prepare_strings")),
                     args: vec![],
                     source: None,
                 },
@@ -676,6 +677,22 @@ impl Generator {
 
                 self.writer.new_statement();
                 self.writer.write("call $quartz_std_load_string");
+            }
+            IrTerm::TypeRep(p) => {
+                if MODE_READABLE_WASM {
+                    let s = &self.type_reps[*p];
+
+                    self.writer.new_statement();
+                    self.writer.write(&format!(" ;; type rep: {:?}", s));
+                }
+
+                self.writer.new_statement();
+                self.writer.write(&format!("i32.const {}", p));
+
+                self.convert_stack_from_i32_1();
+
+                self.writer.new_statement();
+                self.writer.write("call $quartz_std_load_type_rep");
             }
             IrTerm::Call { callee, args, .. } => self.call(callee, args)?,
             IrTerm::Seq { elements } => {
@@ -1422,6 +1439,7 @@ impl Generator {
             IrTerm::Declare { .. } => {}
             IrTerm::Data { .. } => {}
             IrTerm::Comment(_) => {}
+            IrTerm::TypeRep(_) => {}
         }
     }
 

@@ -201,11 +201,16 @@ impl IrCodeGenerator {
             });
 
             // quartz_std_type_reps_ptr.at(${rep_id}) = p
-            let lhs = self.generate_array_at(
-                &Type::Any,
-                IrTerm::ident(var_ptr.to_string()),
-                IrTerm::i32(rep_id as i32),
-            )?;
+            let lhs = IrTerm::Load {
+                type_: IrType::Address,
+                // FIXME: shoule be converted to ptr[byte]
+                address: Box::new(IrTerm::ident(var_ptr.to_string())),
+                offset: Box::new(IrTerm::wrap_mult_sizeof(
+                    IrType::Address,
+                    IrTerm::i32(rep_id as i32),
+                )),
+                raw_offset: None,
+            };
             body.push(self.assign(lhs, IrType::Address, IrTerm::ident(var_p.clone()))?);
         }
 
@@ -1829,7 +1834,7 @@ impl IrCodeGenerator {
                 type_: IrType::Address,
                 address: Box::new(IrTerm::ident(var.clone())),
                 offset: Box::new(IrTerm::i32(0)),
-                value: Box::new(IrTerm::i32(rep_id as i32)),
+                value: Box::new(IrTerm::TypeRep(rep_id)),
                 raw_offset: None,
             });
         }

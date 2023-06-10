@@ -732,12 +732,13 @@ let type_reps_ptr = 0;
 
 let type_reps_count = 0;
 
-fun is_type_rep_pointer(t: any): bool {
-    if !reflection::is_pointer(t) {
-        return false;
+fun load_type_rep(id: i32): ptr[any] {
+    let p = (type_reps_ptr as ptr[ptr[any]]).at(id);
+    if !reflection::is_pointer(p) {
+        panic("load_type_rep: not a pointer");
     }
 
-    return type_reps_ptr <= t as i32 && t as i32 < type_reps_ptr + (type_reps_count * sizeof[ptr[any]]() as i32);
+    return p;
 }
 
 struct TypeRep {
@@ -761,7 +762,7 @@ module reflection {
     fun get_type_rep_ptr(t: any): ptr[any] {
         let index = reflection_get_type_rep_id(t);
 
-        return (type_reps_ptr as ptr[ptr[any]]).at(index);
+        return load_type_rep(index);
     }
 
     // [nil, kind, rep_name, size of params, *params, size of fields, *fields]
@@ -802,8 +803,6 @@ module reflection {
                     fields: make[vec[string]](),
                 };
             }
-
-            debug(is_type_rep_pointer((t as ptr[any]).at(0)));
 
             return TypeRep {
                 kind: 1,

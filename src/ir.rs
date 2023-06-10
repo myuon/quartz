@@ -97,6 +97,7 @@ pub enum IrTerm {
         data: String,
     },
     Comment(String),
+    TypeRep(usize),
 }
 
 impl IrTerm {
@@ -364,6 +365,12 @@ impl IrTerm {
                 writer.write(c);
                 writer.end();
             }
+            IrTerm::TypeRep(t) => {
+                writer.start();
+                writer.write("type-rep");
+                writer.write(format!("{}", t));
+                writer.end();
+            }
         }
     }
 
@@ -497,6 +504,7 @@ impl IrTerm {
             }
             IrTerm::Data { offset, data } => vec![],
             IrTerm::Comment(c) => vec![],
+            IrTerm::TypeRep(t) => vec![],
         }
     }
 
