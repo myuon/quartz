@@ -1153,7 +1153,7 @@ module IrCodeGenerator {
                         t_load: struct {
                             type_: IrType::new(t_ptr_elem),
                             address: term,
-                            offset: offset,
+                            offset: IrCodeGenerator::wrap_mult_sizeof(IrType::new(t_ptr_elem), offset),
                             raw_offset: 0,
                         },
                     };

@@ -702,6 +702,8 @@ module Generator {
                     self.generate_op_comparison("ge_s");
                 } else if ident.equal("i32_to_address") {
                     self.convert_value_i32_to_address_1();
+                } else if ident.equal("address_to_i32") {
+                    self.convert_value_address_to_i32_1();
                 } else if ident.equal("i32_to_byte") {
                     self.convert_value_i32_to_byte_1();
                 } else if ident.equal("byte_to_i32") {
@@ -1168,6 +1170,14 @@ module Generator {
     }
 
     fun convert_value_i32_to_address_1(self) {
+        self.new_statement();
+        self.write("i64.const 1");
+
+        self.new_statement();
+        self.write("i64.xor");
+    }
+
+    fun convert_value_address_to_i32_1(self) {
         self.new_statement();
         self.write("i64.const 1");
 
