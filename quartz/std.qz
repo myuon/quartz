@@ -688,14 +688,33 @@ fun hash_string(key: string, length: i32): u32 {
     return hash;
 }
 
+fun read_stdin_byte(): byte {
+    let buffer_len = 1;
+    let buffer = make[ptr[byte]](buffer_len);
+
+    let ciovec = make[ptr[byte]](8);
+    set_ciovec(ciovec, buffer, buffer_len);
+
+    let nread = make[ptr[byte]](8);
+
+    let err = _fd_read(0, ciovec, 1, nread);
+    if err != 0 {
+        panic("[read_stdin_byte] fd_read {}", err.to_string());
+    }
+
+    let n = read_i32_from_bytes_le(nread, 0);
+
+    return buffer.at(0);
+}
+
 fun stdin(): string {
     let str = make[vec[byte]]();
 
-    let b = read_stdin();
+    let b = read_stdin_byte();
     while b != 0 as byte {
         str.push(b);
 
-        b = read_stdin();
+        b = read_stdin_byte();
     }
 
     return vec_byte_to_string(str);
