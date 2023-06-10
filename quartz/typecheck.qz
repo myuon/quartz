@@ -366,41 +366,32 @@ module Typechecker {
             Type {
                 t_func: struct {
                     params: make[vec[Type]](
-                        // dirfd
                         Type {
                             t_i32: true,
                         },
-                        // dirflags
                         Type {
                             t_i32: true,
                         },
-                        // path
                         Type {
                             t_ptr: Type {
                                 t_byte: true,
                             },
                         },
-                        // path_len
                         Type {
                             t_i32: true,
                         },
-                        // o_flags
                         Type {
                             t_i32: true,
                         },
-                        // fs_rights_base
                         Type {
                             t_i32: true,
                         },
-                        // fs_rights_inheriting
                         Type {
                             t_i32: true,
                         },
-                        // fs_flags
                         Type {
                             t_i32: true,
                         },
-                        // *fd
                         Type {
                             t_ptr: Type {
                                 t_i32: true,
@@ -413,6 +404,24 @@ module Typechecker {
                 },
             },
         );
+        // dirfd
+
+        // dirflags
+
+        // path
+
+        // path_len
+
+        // o_flags
+
+        // fs_rights_base
+
+        // fs_rights_inheriting
+
+        // fs_flags
+
+        // *fd
+
         globals.insert(
             "_fd_close",
             Type {
@@ -424,7 +433,7 @@ module Typechecker {
                         t_i32: true,
                     },
                 },
-            }
+            },
         );
 
         return Typechecker {

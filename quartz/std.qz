@@ -943,10 +943,10 @@ module derive {
             // enum
             let s = format("{} {{}", rep.name, sep);
 
-            let tag = (t as ptr[any]).at(0) as i32;
+            let tag = (t as ptr[any]).offset(1).at(0) as i32;
             let tag_name = rep.fields.at(tag);
 
-            let v = (t as ptr[any]).at(1);
+            let v = (t as ptr[any]).offset(1).at(1);
             s = s.concat(format(" {}: {} }", tag_name, derive::to_string_internal(v, pretty, depth + 1)));
 
             return s;
