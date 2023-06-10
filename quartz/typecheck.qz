@@ -294,6 +294,54 @@ module Typechecker {
             },
         );
         globals.insert(
+            "_fd_read",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](
+                        Type {
+                            t_i32: true,
+                        },
+                        Type {
+                            t_ptr: Type {
+                                t_byte: true,
+                            },
+                        },
+                        Type {
+                            t_i32: true,
+                        },
+                        Type {
+                            t_ptr: Type {
+                                t_byte: true,
+                            },
+                        },
+                    ),
+                    result: Type {
+                        t_i32: true,
+                    },
+                },
+            },
+        );
+        globals.insert(
+            "_fd_filestat_get",
+            Type {
+                t_func: struct {
+                    params: make[vec[Type]](
+                        Type {
+                            t_i32: true,
+                        },
+                        Type {
+                            t_ptr: Type {
+                                t_byte: true,
+                            },
+                        },
+                    ),
+                    result: Type {
+                        t_i32: true,
+                    },
+                },
+            },
+        );
+        globals.insert(
             "_fd_write",
             Type {
                 t_func: struct {
