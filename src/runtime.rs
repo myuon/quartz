@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{anyhow, Result};
 use wasmer::{imports, Function, Instance, Module, Store, Value as WasmValue};
-use wasmer_wasi::{WasiEnv, WasiFunctionEnv, WasiState};
+use wasmer_wasi::WasiState;
 
 use crate::value::Value;
 
@@ -57,7 +57,7 @@ impl Runtime {
                 "debug" => Function::new_typed(&mut store, |i: i64| {
                     let w = Value::from_i64(i);
 
-                    println!("[DEBUG] {:?} ({:#032b})", w, i >> 32);
+                    println!("[DEBUG] {:?} ({:#032b} | {:#b})", w, i >> 32, i & 0xffffffff);
                     Value::i32(0).as_i64()
                 }),
                 "abort" => Function::new_typed(&mut store, || -> i64 {
@@ -972,6 +972,18 @@ fun main(): bool {
             ),
             (
                 r#"
+fun main(): bool {
+    let t = derive::to_string(reflection::get_type_rep("foo"));
+    println("{}", t);
+    return t.equal(`TypeRep { kind: 1, name: "string", params: vec(), fields: vec("data", "length") }`);
+}
+"#,
+                vec![
+                    Value::Bool(true),
+                ],
+            ),
+            (
+                r#"
 struct P {
     x: i32,
     y: string,
@@ -982,7 +994,19 @@ fun main(): bool {
         x: 10,
         y: "hello",
     };
+    let s = "====";
+    debug(s.data);
+    debug(s.length);
+
+    let ciovec = make[ptr[byte]](8);
+    set_ciovec(ciovec, s.data, s.length);
+
+    for i in 0..8 {
+        debug(ciovec.at(i));
+    }
+
     println(derive::to_string(p));
+    debug(derive::to_string(p));
 
     return derive::to_string(p).equal(`P { x: 10, y: "hello" }`);
 }

@@ -7,6 +7,7 @@ use crate::{
         MODE_OPTIMIZE_ARITH_OPS_IN_CODE_GEN, MODE_OPTIMIZE_CONSTANT_FOLDING, MODE_READABLE_WASM,
     },
     ir::{IrTerm, IrType},
+    ir_code_gen::TypeRep,
     util::{path::Path, sexpr_writer::SExprWriter},
     value::Value,
 };
@@ -17,6 +18,8 @@ pub struct Generator {
     pub main_signature: Option<(Vec<IrType>, IrType)>,
     pub entrypoint: Path,
     pub strings: Vec<String>,
+    pub type_reps: Vec<TypeRep>,
+    pub start: Vec<IrTerm>,
 }
 
 impl Generator {
@@ -27,6 +30,8 @@ impl Generator {
             main_signature: None,
             entrypoint: Path::new(vec![]),
             strings: vec![],
+            type_reps: vec![],
+            start: vec![],
         }
     }
 
@@ -43,6 +48,14 @@ impl Generator {
 
     pub fn set_strings(&mut self, strings: Vec<String>) {
         self.strings = strings;
+    }
+
+    pub fn set_type_reps(&mut self, type_reps: Vec<TypeRep>) {
+        self.type_reps = type_reps;
+    }
+
+    pub fn set_start(&mut self, start: Vec<IrTerm>) {
+        self.start = start;
     }
 
     pub fn run(&mut self, module: &mut IrTerm, data_section_offset: usize) -> Result<()> {
@@ -168,8 +181,6 @@ impl Generator {
                 IrTerm::Instruction("i64.const 32".to_string()),
                 IrTerm::Instruction("i64.shr_u".to_string()),
                 IrTerm::Instruction("i32.wrap_i64".to_string()),
-                IrTerm::Instruction("i32.const 8".to_string()),
-                IrTerm::Instruction("i32.add".to_string()),
                 // ciovec.len
                 IrTerm::Instruction("i32.const 1".to_string()),
                 // ptr_size
@@ -205,9 +216,7 @@ impl Generator {
                 IrTerm::Instruction("i64.const 32".to_string()),
                 IrTerm::Instruction("i64.shr_u".to_string()),
                 IrTerm::Instruction("i32.wrap_i64".to_string()),
-                IrTerm::Instruction("i32.const 8".to_string()),
-                IrTerm::Instruction("i32.add".to_string()),
-                IrTerm::Instruction("i32.store offset=8".to_string()), // offset for string data
+                IrTerm::Instruction("i32.store".to_string()),
                 // $ptr
                 IrTerm::Instruction("local.get $ptr".to_string()),
                 IrTerm::Instruction("i64.const 32".to_string()),
@@ -218,7 +227,7 @@ impl Generator {
                 IrTerm::Instruction("i64.const 32".to_string()),
                 IrTerm::Instruction("i64.shr_u".to_string()),
                 IrTerm::Instruction("i32.wrap_i64".to_string()),
-                IrTerm::Instruction("i32.store offset=12".to_string()),
+                IrTerm::Instruction("i32.store offset=4".to_string()),
                 // return nil
                 IrTerm::Instruction("i64.const 1".to_string()),
                 IrTerm::Instruction("return".to_string()),
@@ -387,33 +396,44 @@ impl Generator {
             name: "start".to_string(),
             params: vec![],
             result: Some(result),
-            body: vec![
-                IrTerm::Assign {
-                    lhs: "quartz_std_alloc_ptr".to_string(),
-                    rhs: Box::new(IrTerm::i32(data_section_offset as i32)),
-                },
-                IrTerm::Assign {
-                    lhs: "quartz_std_strings_count".to_string(),
-                    rhs: Box::new(IrTerm::i32(self.strings.len() as i32)),
-                },
-                IrTerm::Call {
-                    callee: Box::new(IrTerm::ident("prepare_strings")),
-                    args: vec![],
-                    source: None,
-                },
-                IrTerm::Call {
-                    callee: Box::new(IrTerm::ident("prepare_type_reps")),
-                    args: vec![],
-                    source: None,
-                },
-                IrTerm::Return {
-                    value: Box::new(IrTerm::Call {
-                        callee: Box::new(IrTerm::ident(entrypoint_symbol.clone())),
+            body: {
+                let mut v = vec![
+                    IrTerm::Assign {
+                        lhs: "quartz_std_alloc_ptr".to_string(),
+                        rhs: Box::new(IrTerm::i32(data_section_offset as i32)),
+                    },
+                    IrTerm::Assign {
+                        lhs: "quartz_std_strings_count".to_string(),
+                        rhs: Box::new(IrTerm::i32(self.strings.len() as i32)),
+                    },
+                    IrTerm::Assign {
+                        lhs: "quartz_std_type_reps_count".to_string(),
+                        rhs: Box::new(IrTerm::i32(self.type_reps.len() as i32)),
+                    },
+                ];
+                v.extend(self.start.clone());
+                v.extend(vec![
+                    IrTerm::Call {
+                        callee: Box::new(IrTerm::ident("prepare_strings")),
                         args: vec![],
                         source: None,
-                    }),
-                },
-            ],
+                    },
+                    IrTerm::Call {
+                        callee: Box::new(IrTerm::ident("prepare_type_reps")),
+                        args: vec![],
+                        source: None,
+                    },
+                    IrTerm::Return {
+                        value: Box::new(IrTerm::Call {
+                            callee: Box::new(IrTerm::ident(entrypoint_symbol.clone())),
+                            args: vec![],
+                            source: None,
+                        }),
+                    },
+                ]);
+
+                v
+            },
         })?;
 
         self.writer.start();
@@ -601,7 +621,7 @@ impl Generator {
             IrTerm::Nil => {
                 if MODE_READABLE_WASM {
                     self.writer.new_statement();
-                    self.writer.write(";; nil");
+                    self.writer.write(" ;; nil");
                 }
 
                 self.write_value(Value::nil());
@@ -670,6 +690,22 @@ impl Generator {
 
                 self.writer.new_statement();
                 self.writer.write("call $quartz_std_load_string");
+            }
+            IrTerm::TypeRep(p) => {
+                if MODE_READABLE_WASM {
+                    let s = &self.type_reps[*p];
+
+                    self.writer.new_statement();
+                    self.writer.write(&format!(" ;; type rep: {:?}", s));
+                }
+
+                self.writer.new_statement();
+                self.writer.write(&format!("i32.const {}", p));
+
+                self.convert_stack_from_i32_1();
+
+                self.writer.new_statement();
+                self.writer.write("call $quartz_std_get_type_rep_address");
             }
             IrTerm::Call { callee, args, .. } => self.call(callee, args)?,
             IrTerm::Seq { elements } => {
@@ -1416,6 +1452,7 @@ impl Generator {
             IrTerm::Declare { .. } => {}
             IrTerm::Data { .. } => {}
             IrTerm::Comment(_) => {}
+            IrTerm::TypeRep(_) => {}
         }
     }
 
@@ -1462,13 +1499,7 @@ impl Generator {
     }
 
     fn fragment_ptr_to_wasmptr() -> Vec<&'static str> {
-        vec![
-            "i64.const 32",
-            "i64.shr_u",
-            "i32.wrap_i64",
-            "i32.const 8",
-            "i32.add",
-        ]
+        vec!["i64.const 32", "i64.shr_u", "i32.wrap_i64"]
     }
 
     fn instructions_ptr_to_wasmptr() -> Vec<IrTerm> {

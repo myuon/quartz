@@ -84,6 +84,7 @@ pub struct IrCodeGenerator {
     pub strings: SerialIdMap<String>,
     pub type_reps: SerialIdMap<TypeRep>,
     pub data_section_offset: usize,
+    pub start: Vec<IrTerm>,
 }
 
 impl IrCodeGenerator {
@@ -94,6 +95,7 @@ impl IrCodeGenerator {
             strings: SerialIdMap::new(),
             type_reps: SerialIdMap::new(),
             data_section_offset: 0,
+            start: vec![],
         }
     }
 
@@ -181,14 +183,19 @@ impl IrCodeGenerator {
         type_reps.sort_by(|(_, a), (_, b)| a.cmp(&b));
 
         let mut body = vec![];
+
         // quartz_std_type_reps_ptr = make[ptr[any]](${type_reps.len()});
-        body.push(IrTerm::Assign {
-            lhs: var_ptr.to_string(),
-            rhs: Box::new(self.expr(&mut Source::unknown(Expr::Make(
+        {
+            let allocated = self.expr(&mut Source::unknown(Expr::Make(
                 Type::Ptr(Box::new(Type::Any)),
                 vec![Source::unknown(Expr::Lit(Lit::I32(type_reps.len() as i32)))],
-            )))?),
-        });
+            )))?;
+
+            self.start.push(IrTerm::Assign {
+                lhs: var_ptr.to_string(),
+                rhs: Box::new(allocated),
+            });
+        }
 
         for (type_rep, rep_id) in type_reps {
             let var_p = "p".to_string();
@@ -201,11 +208,16 @@ impl IrCodeGenerator {
             });
 
             // quartz_std_type_reps_ptr.at(${rep_id}) = p
-            let lhs = self.generate_array_at(
-                &Type::Any,
-                IrTerm::ident(var_ptr.to_string()),
-                IrTerm::i32(rep_id as i32),
-            )?;
+            let lhs = IrTerm::Load {
+                type_: IrType::Address,
+                // FIXME: shoule be converted to ptr[byte]
+                address: Box::new(IrTerm::ident(var_ptr.to_string())),
+                offset: Box::new(IrTerm::wrap_mult_sizeof(
+                    IrType::Address,
+                    IrTerm::i32(rep_id as i32),
+                )),
+                raw_offset: None,
+            };
             body.push(self.assign(lhs, IrType::Address, IrTerm::ident(var_p.clone()))?);
         }
 
@@ -226,37 +238,42 @@ impl IrCodeGenerator {
 
         let var_strings = "quartz_std_strings_ptr";
         let mut body = vec![];
+
         // quartz_std_strings_ptr = make[ptr[string]](${strings.len()});
-        body.push(IrTerm::Assign {
-            lhs: var_strings.to_string(),
-            rhs: Box::new(self.expr(&mut Source::unknown(Expr::Make(
+        {
+            let allocated = self.expr(&mut Source::unknown(Expr::Make(
                 Type::Ptr(Box::new(Type::Ident(Ident("string".to_string())))),
                 vec![Source::unknown(Expr::Lit(Lit::I32(
                     self.strings.keys.len() as i32,
                 )))],
-            )))?),
-        });
+            )))?;
+
+            self.start.push(IrTerm::Assign {
+                lhs: var_strings.to_string(),
+                rhs: Box::new(allocated),
+            });
+        }
 
         // avoid 0-8 for null pointer
         self.data_section_offset = 8;
 
         for (string, i) in self.strings.to_vec() {
             let string_len = string.len();
-            // add 8 bytes padding for object header
-            // In quartz, ptr.at will load with offset=8
-            let string_memory_size = string_len + 8;
-            let string = "\00\00\00\00\00\00\00\00".to_string() + &string;
+            let string_memory_size = string_len;
             terms.push(IrTerm::Data {
                 offset: self.data_section_offset,
                 data: string,
             });
 
             // strings.at(i) = new_empty_string(${offset}, ${string.len()})
-            let lhs = self.generate_array_at(
-                &Type::Ident(Ident("string".to_string())),
-                IrTerm::ident(var_strings.to_string()),
-                IrTerm::i32(i as i32),
-            )?;
+            let type_ = IrType::from_type(&Type::Ident(Ident("string".to_string())))?;
+            let lhs = IrTerm::Load {
+                type_: type_.clone(),
+                // FIXME: shoule be converted to ptr[byte]
+                address: Box::new(IrTerm::ident(var_strings.to_string())),
+                offset: Box::new(IrTerm::wrap_mult_sizeof(type_, IrTerm::i32(i as i32))),
+                raw_offset: None,
+            };
             body.push(self.assign(
                 lhs,
                 IrType::Address,
@@ -835,7 +852,12 @@ impl IrCodeGenerator {
                                 let ptr = self.expr(expr)?;
                                 let offset = self.expr(&mut args[0])?;
 
-                                Ok(self.generate_array_at(&p, ptr, offset)?)
+                                Ok(IrTerm::Load {
+                                    type_: IrType::from_type(p)?,
+                                    address: Box::new(ptr),
+                                    offset: Box::new(self.generate_mult_sizeof(p, offset)?),
+                                    raw_offset: None,
+                                })
                             }
                             (Type::Ptr(p), "offset") => {
                                 assert_eq!(args.len(), 1);
@@ -1285,14 +1307,18 @@ impl IrCodeGenerator {
                     assert_eq!(args.len(), 1);
                     let len = self.expr(&mut args[0])?;
 
-                    Ok(self.allocate_heap_object(
-                        TypeRep::from_name(
-                            "ptr".to_string(),
-                            vec![TypeRep::from_type(IrType::from_type(p)?)],
-                        ),
-                        IrType::from_type(p)?,
-                        len,
-                    )?)
+                    Ok(IrTerm::Call {
+                        callee: Box::new(IrTerm::ident(
+                            Path::new(vec![
+                                Ident("quartz".to_string()),
+                                Ident("std".to_string()),
+                                Ident("alloc".to_string()),
+                            ])
+                            .as_joined_str("_"),
+                        )),
+                        args: vec![IrTerm::wrap_mult_sizeof(IrType::from_type(p)?, len)],
+                        source: None,
+                    })
                 }
                 Type::Array(elem, size) => {
                     let data_ptr = self.expr(&mut Source::unknown(Expr::Make(
@@ -1820,7 +1846,7 @@ impl IrCodeGenerator {
                 type_: IrType::Address,
                 address: Box::new(IrTerm::ident(var.clone())),
                 offset: Box::new(IrTerm::i32(0)),
-                value: Box::new(IrTerm::i32(rep_id as i32)),
+                value: Box::new(IrTerm::TypeRep(rep_id)),
                 raw_offset: None,
             });
         }

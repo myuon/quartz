@@ -543,6 +543,10 @@ let strings_ptr = 0;
 let strings_count = 0;
 
 fun load_string(index: i32): string {
+    if strings_ptr == 0 {
+        panic("strings_ptr is nil");
+    }
+
     return (strings_ptr as ptr[string]).at(index);
 }
 
@@ -728,7 +732,51 @@ module error {
 }
 
 // used in compiler
-let type_reps_ptr = 0;
+let type_reps_ptr = nil;
+
+let type_reps_count = 0;
+
+fun load_type_rep(id: i32): ptr[any] {
+    if type_reps_ptr == nil {
+        panic("load_type_rep: type_reps_ptr == 0");
+    }
+
+    let p = (type_reps_ptr as ptr[ptr[any]]).at(id);
+    if !reflection::is_pointer(p) {
+        panic("load_type_rep: not a pointer");
+    }
+
+    return p;
+}
+
+fun get_type_rep_address(rep_id: i32): ptr[ptr[any]] {
+    if type_reps_ptr == nil {
+        panic("get_type_rep_address: type_reps_ptr == 0");
+    }
+
+    return (type_reps_ptr as ptr[ptr[any]]).offset(rep_id);
+}
+
+fun is_address_type_rep(p: ptr[any]): bool {
+    if !reflection::is_pointer(p) {
+        return false;
+    }
+
+    let p_address = p as i32;
+    let type_reps_ptr_address = type_reps_ptr as i32;
+
+    return p_address >= type_reps_ptr_address && p_address < ((type_reps_ptr as ptr[any]).offset(
+        type_reps_count,
+    )) as i32;
+}
+
+fun is_a_record(p: ptr[ptr[any]]): bool {
+    if !reflection::is_pointer(p) {
+        return false;
+    }
+
+    return is_address_type_rep(p.at(0));
+}
 
 struct TypeRep {
     kind: i32,
@@ -751,17 +799,21 @@ module reflection {
     fun get_type_rep_ptr(t: any): ptr[any] {
         let index = reflection_get_type_rep_id(t);
 
-        return (type_reps_ptr as ptr[ptr[any]]).at(index);
+        return load_type_rep(index);
     }
 
     // [nil, kind, rep_name, size of params, *params, size of fields, *fields]
     fun parse_type_rep(t: ptr[any]): TypeRep {
-        let kind = t.at(0) as i32;
-        let name = t.at(1) as string;
-        let params_size = t.at(2) as i32;
-        let params_ptr = t.at(3) as ptr[ptr[any]];
-        let fields_size = t.at(4) as i32;
-        let fields_ptr = t.at(5) as ptr[string];
+        if t.at(0) != nil {
+            abort();
+        }
+
+        let kind = t.at(1) as i32;
+        let name = t.at(2) as string;
+        let params_size = t.at(3) as i32;
+        let params_ptr = (t.at(4) as ptr[ptr[any]]).offset(1);
+        let fields_size = t.at(5) as i32;
+        let fields_ptr = (t.at(6) as ptr[string]).offset(1);
 
         let params = make[vec[TypeRep]]();
         for i in 0..params_size {
@@ -793,7 +845,16 @@ module reflection {
                 };
             }
 
-            return parse_type_rep(get_type_rep_ptr(t));
+            if is_a_record(t) {
+                return parse_type_rep((t as ptr[ptr[any]]).at(0).at(0));
+            }
+
+            return TypeRep {
+                kind: 1,
+                name: "ptr",
+                params: make[vec[TypeRep]]((t as ptr[any]).at(0)),
+                fields: make[vec[string]](),
+            };
         }
         if reflection::is_bool(t) {
             return TypeRep {
@@ -882,10 +943,10 @@ module derive {
             // enum
             let s = format("{} {{}", rep.name, sep);
 
-            let tag = (t as ptr[any]).at(0) as i32;
+            let tag = (t as ptr[any]).offset(1).at(0) as i32;
             let tag_name = rep.fields.at(tag);
 
-            let v = (t as ptr[any]).at(1);
+            let v = (t as ptr[any]).offset(1).at(1);
             s = s.concat(format(" {}: {} }", tag_name, derive::to_string_internal(v, pretty, depth + 1)));
 
             return s;
@@ -897,7 +958,7 @@ module derive {
                 s = s.concat(format(",{}", sep));
             }
             let f = rep.fields.at(i);
-            let v = (t as ptr[any]).at(i);
+            let v = (t as ptr[any]).offset(1).at(i);
             s = s.concat(format("{}{}: {}", indent, f, derive::to_string_internal(v, pretty, depth + 1)));
         }
 
