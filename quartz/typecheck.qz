@@ -189,66 +189,6 @@ module Typechecker {
             },
         );
         globals.insert(
-            "create_handler",
-            Type {
-                t_func: struct {
-                    params: make[vec[Type]](),
-                    result: Type {
-                        t_any: true,
-                    },
-                },
-            },
-        );
-        globals.insert(
-            "open_handler_stream",
-            Type {
-                t_func: struct {
-                    params: make[vec[Type]](
-                        Type {
-                            t_any: true,
-                        },
-                        Type {
-                            t_byte: true,
-                        },
-                    ),
-                    result: Type {
-                        t_nil: true,
-                    },
-                },
-            },
-        );
-        globals.insert(
-            "open_handler_initialize",
-            Type {
-                t_func: struct {
-                    params: make[vec[Type]](
-                        Type {
-                            t_any: true,
-                        },
-                        Type {
-                            t_i32: true,
-                        },
-                    ),
-                    result: Type {
-                        t_nil: true,
-                    },
-                },
-            },
-        );
-        globals.insert(
-            "read_handler",
-            Type {
-                t_func: struct {
-                    params: make[vec[Type]](Type {
-                        t_any: true,
-                    }),
-                    result: Type {
-                        t_byte: true,
-                    },
-                },
-            },
-        );
-        globals.insert(
             "i64_to_string_at",
             Type {
                 t_func: struct {

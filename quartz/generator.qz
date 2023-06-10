@@ -157,26 +157,6 @@ module Generator {
         self.end();
 
         self.start();
-        self.write(`import "env" "create_handler" (func $create_handler (result i64))`);
-        self.end();
-
-        self.start();
-        self.write(
-            `import "env" "open_handler_stream" (func $open_handler_stream (param i64) (param i64) (result i64))`,
-        );
-        self.end();
-
-        self.start();
-        self.write(
-            `import "env" "open_handler_initialize" (func $open_handler_initialize (param i64) (param i64) (result i64))`,
-        );
-        self.end();
-
-        self.start();
-        self.write(`import "env" "read_handler" (func $read_handler (param i64) (result i64))`);
-        self.end();
-
-        self.start();
         self.write(
             `import "env" "i64_to_string_at" (func $i64_to_string_at (param i64) (param i64) (param i64) (result i64))`,
         );
