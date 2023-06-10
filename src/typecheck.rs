@@ -92,6 +92,25 @@ impl TypeChecker {
                     Type::Func(vec![Type::I32], Box::new(Type::Byte)),
                 ),
                 (
+                    "_fd_read",
+                    Type::Func(
+                        vec![
+                            Type::I32,
+                            Type::Ptr(Box::new(Type::Byte)),
+                            Type::I32,
+                            Type::Ptr(Box::new(Type::Byte)),
+                        ],
+                        Box::new(Type::I32),
+                    ),
+                ),
+                (
+                    "_fd_filestat_get",
+                    Type::Func(
+                        vec![Type::I32, Type::Ptr(Box::new(Type::Byte))],
+                        Box::new(Type::I32),
+                    ),
+                ),
+                (
                     "_fd_write",
                     Type::Func(
                         vec![

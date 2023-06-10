@@ -77,6 +77,10 @@ impl Generator {
 
         // wasi must be declared first
         self.writer.start();
+        self.writer.write(r#"import "wasi_unstable" "fd_read" (func $fd_read (param i32 i32 i32 i32) (result i32))"#);
+        self.writer.end();
+
+        self.writer.start();
         self.writer.write(r#"import "wasi_unstable" "fd_write" (func $fd_write (param i32 i32 i32 i32) (result i32))"#);
         self.writer.end();
 
@@ -87,6 +91,12 @@ impl Generator {
         self.writer.start();
         self.writer.write(
             r#"import "wasi_unstable" "fd_close" (func $fd_close (param i32) (result i32))"#,
+        );
+        self.writer.end();
+
+        self.writer.start();
+        self.writer.write(
+            r#"import "wasi_unstable" "fd_filestat_get" (func $fd_filestat_get (param i32 i32) (result i32))"#,
         );
         self.writer.end();
 
@@ -154,6 +164,72 @@ impl Generator {
             name: "get_args_at".to_string(),
             params: vec![IrType::I32],
             result: IrType::Byte,
+        })?;
+
+        self.decl(&mut IrTerm::Func {
+            name: "_fd_read".to_string(),
+            params: vec![
+                ("fd".to_string(), IrType::I32),
+                ("iovs".to_string(), IrType::Address),
+                ("iovs_len".to_string(), IrType::I32),
+                ("nread".to_string(), IrType::Address),
+            ],
+            result: Some(IrType::I32),
+            body: vec![
+                // fd
+                IrTerm::Instruction("local.get $fd".to_string()),
+                IrTerm::Instruction("i64.const 32".to_string()),
+                IrTerm::Instruction("i64.shr_u".to_string()),
+                IrTerm::Instruction("i32.wrap_i64".to_string()),
+                // iovs
+                IrTerm::Instruction("local.get $iovs".to_string()),
+                IrTerm::Instruction("i64.const 32".to_string()),
+                IrTerm::Instruction("i64.shr_u".to_string()),
+                IrTerm::Instruction("i32.wrap_i64".to_string()),
+                // iovs_len
+                IrTerm::Instruction("local.get $iovs_len".to_string()),
+                IrTerm::Instruction("i64.const 32".to_string()),
+                IrTerm::Instruction("i64.shr_u".to_string()),
+                IrTerm::Instruction("i32.wrap_i64".to_string()),
+                // nread
+                IrTerm::Instruction("local.get $nread".to_string()),
+                IrTerm::Instruction("i64.const 32".to_string()),
+                IrTerm::Instruction("i64.shr_u".to_string()),
+                IrTerm::Instruction("i32.wrap_i64".to_string()),
+                // call $fd_read
+                IrTerm::Instruction("call $fd_read".to_string()),
+                IrTerm::Instruction("i64.extend_i32_s".to_string()),
+                IrTerm::Instruction("i64.const 32".to_string()),
+                IrTerm::Instruction("i64.shl".to_string()),
+                IrTerm::Instruction("return".to_string()),
+            ],
+        })?;
+
+        self.decl(&mut IrTerm::Func {
+            name: "_fd_filestat_get".to_string(),
+            params: vec![
+                ("fd".to_string(), IrType::I32),
+                ("buf".to_string(), IrType::Address),
+            ],
+            result: Some(IrType::I32),
+            body: vec![
+                // fd
+                IrTerm::Instruction("local.get $fd".to_string()),
+                IrTerm::Instruction("i64.const 32".to_string()),
+                IrTerm::Instruction("i64.shr_u".to_string()),
+                IrTerm::Instruction("i32.wrap_i64".to_string()),
+                // buf
+                IrTerm::Instruction("local.get $buf".to_string()),
+                IrTerm::Instruction("i64.const 32".to_string()),
+                IrTerm::Instruction("i64.shr_u".to_string()),
+                IrTerm::Instruction("i32.wrap_i64".to_string()),
+                // call $fd_filestat_get
+                IrTerm::Instruction("call $fd_filestat_get".to_string()),
+                IrTerm::Instruction("i64.extend_i32_s".to_string()),
+                IrTerm::Instruction("i64.const 32".to_string()),
+                IrTerm::Instruction("i64.shl".to_string()),
+                IrTerm::Instruction("return".to_string()),
+            ],
         })?;
 
         self.decl(&mut IrTerm::Func {

@@ -974,36 +974,78 @@ module derive {
     }
 }
 
-fun file_read(path: string): string {
-    let handler = create_handler();
-    for i in 0..path.length {
-        open_handler_stream(handler, path.at(i));
-    }
-    open_handler_initialize(handler, 1);
-
-    let bs = make[vec[byte]]();
-
-    let b = read_handler(handler);
-    while b != (0 as byte) {
-        bs.push(b);
-        b = read_handler(handler);
-    }
-
-    return vec_byte_to_string(bs);
-}
-
-fun file_write(path: string, content: string) {
+fun file_open(path: string, oflags: i32, rights: i32): i32 {
     // TODO: check preopened directories
     let dirfd = 4;
 
     let fd = make[ptr[byte]](8);
-    let err = _path_open(dirfd, 0, path.data, path.length, 9, 1 << 6, 0, 0, fd as ptr[i32]);
+    let err = _path_open(dirfd, 0, path.data, path.length, oflags, rights, 0, 0, fd as ptr[i32]);
     if err != 0 {
         panic("[file_write] path_open {}", err.to_string());
     }
 
     // TODO: what if fd is over 255?
     let fd_n = fd.at(0) as i32;
+
+    return fd_n;
+}
+
+fun file_close(fd: i32) {
+    let err = _fd_close(fd);
+    if err != 0 {
+        panic("fd_close {}", err.to_string());
+    }
+}
+
+fun read_i32_from_bytes_le(p: ptr[byte], offset: i32): i32 {
+    let result = 0;
+
+    for i in offset..(offset + 4) {
+        result = result | ((p.at(i) as i32) << (i * 8));
+    }
+
+    return result;
+}
+
+fun read_filestat_get(fd: i32): ptr[byte] {
+    let stat = make[ptr[byte]](72);
+    let err = _fd_filestat_get(fd, stat);
+    if err != 0 {
+        panic("fd_filestat_get {}", err.to_string());
+    }
+
+    return stat;
+}
+
+fun file_read(path: string): string {
+    let fd_n = file_open(path, 0, 1 << 1);
+
+    let filestat = read_filestat_get(fd_n);
+    let size = read_i32_from_bytes_le(filestat, 24);
+
+    let buffer_len = size;
+    let buffer = make[ptr[byte]](buffer_len);
+
+    let ciovec = make[ptr[byte]](8);
+    set_ciovec(ciovec, buffer, buffer_len);
+
+    let nread = make[ptr[byte]](8);
+
+    let err = _fd_read(fd_n, ciovec, 1, nread);
+    if err != 0 {
+        panic("fd_read {}", err.to_string());
+    }
+
+    let n = read_i32_from_bytes_le(nread, 0);
+    let v = new_string(buffer, n);
+
+    file_close(fd_n);
+
+    return v;
+}
+
+fun file_write(path: string, content: string) {
+    let fd_n = file_open(path, 9, 1 << 6);
 
     let ciovec = make[ptr[byte]](8);
     set_ciovec(ciovec, content.data, content.length);
@@ -1014,10 +1056,7 @@ fun file_write(path: string, content: string) {
         panic("[file_write] fd_write {}", err.to_string());
     }
 
-    let err = _fd_close(fd_n);
-    if err != 0 {
-        panic("[file_write] fd_close {}", err.to_string());
-    }
+    file_close(fd_n);
 }
 
 fun args_string(): string {
