@@ -349,6 +349,15 @@ impl Compiler {
                 .map(|p| p.0)
                 .collect(),
         );
+        generator.set_type_reps(
+            ir_code_generator
+                .type_reps
+                .to_vec()
+                .into_iter()
+                .map(|(k, _)| k)
+                .collect(),
+        );
+        generator.set_start(ir_code_generator.start);
 
         if MODE_OPTIMIZE_CONSTANT_FOLDING {
             generator.fold_consts(&mut ir);

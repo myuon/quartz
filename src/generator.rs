@@ -7,6 +7,7 @@ use crate::{
         MODE_OPTIMIZE_ARITH_OPS_IN_CODE_GEN, MODE_OPTIMIZE_CONSTANT_FOLDING, MODE_READABLE_WASM,
     },
     ir::{IrTerm, IrType},
+    ir_code_gen::TypeRep,
     util::{path::Path, sexpr_writer::SExprWriter},
     value::Value,
 };
@@ -17,6 +18,8 @@ pub struct Generator {
     pub main_signature: Option<(Vec<IrType>, IrType)>,
     pub entrypoint: Path,
     pub strings: Vec<String>,
+    pub type_reps: Vec<TypeRep>,
+    pub start: Vec<IrTerm>,
 }
 
 impl Generator {
@@ -27,6 +30,8 @@ impl Generator {
             main_signature: None,
             entrypoint: Path::new(vec![]),
             strings: vec![],
+            type_reps: vec![],
+            start: vec![],
         }
     }
 
@@ -43,6 +48,14 @@ impl Generator {
 
     pub fn set_strings(&mut self, strings: Vec<String>) {
         self.strings = strings;
+    }
+
+    pub fn set_type_reps(&mut self, type_reps: Vec<TypeRep>) {
+        self.type_reps = type_reps;
+    }
+
+    pub fn set_start(&mut self, start: Vec<IrTerm>) {
+        self.start = start;
     }
 
     pub fn run(&mut self, module: &mut IrTerm, data_section_offset: usize) -> Result<()> {
@@ -64,7 +77,27 @@ impl Generator {
 
         // wasi must be declared first
         self.writer.start();
+        self.writer.write(r#"import "wasi_unstable" "fd_read" (func $fd_read (param i32 i32 i32 i32) (result i32))"#);
+        self.writer.end();
+
+        self.writer.start();
         self.writer.write(r#"import "wasi_unstable" "fd_write" (func $fd_write (param i32 i32 i32 i32) (result i32))"#);
+        self.writer.end();
+
+        self.writer.start();
+        self.writer.write(r#"import "wasi_unstable" "path_open" (func $path_open (param i32 i32 i32 i32 i32 i64 i64 i32 i32) (result i32))"#);
+        self.writer.end();
+
+        self.writer.start();
+        self.writer.write(
+            r#"import "wasi_unstable" "fd_close" (func $fd_close (param i32) (result i32))"#,
+        );
+        self.writer.end();
+
+        self.writer.start();
+        self.writer.write(
+            r#"import "wasi_unstable" "fd_filestat_get" (func $fd_filestat_get (param i32 i32) (result i32))"#,
+        );
         self.writer.end();
 
         self.decl(&mut IrTerm::Declare {
@@ -92,36 +125,6 @@ impl Generator {
         })?;
 
         self.decl(&mut IrTerm::Declare {
-            name: "create_handler".to_string(),
-            params: vec![],
-            result: IrType::I32,
-        })?;
-
-        self.decl(&mut IrTerm::Declare {
-            name: "open_handler_stream".to_string(),
-            params: vec![IrType::I32, IrType::Byte],
-            result: IrType::Nil,
-        })?;
-
-        self.decl(&mut IrTerm::Declare {
-            name: "open_handler_initialize".to_string(),
-            params: vec![IrType::I32, IrType::I32],
-            result: IrType::Nil,
-        })?;
-
-        self.decl(&mut IrTerm::Declare {
-            name: "read_handler".to_string(),
-            params: vec![IrType::I32],
-            result: IrType::I32,
-        })?;
-
-        self.decl(&mut IrTerm::Declare {
-            name: "write_handler".to_string(),
-            params: vec![IrType::I32, IrType::Byte],
-            result: IrType::Address,
-        })?;
-
-        self.decl(&mut IrTerm::Declare {
             name: "i64_to_string_at".to_string(),
             params: vec![IrType::I32, IrType::I32, IrType::I32],
             result: IrType::I32,
@@ -137,6 +140,72 @@ impl Generator {
             name: "get_args_at".to_string(),
             params: vec![IrType::I32],
             result: IrType::Byte,
+        })?;
+
+        self.decl(&mut IrTerm::Func {
+            name: "_fd_read".to_string(),
+            params: vec![
+                ("fd".to_string(), IrType::I32),
+                ("iovs".to_string(), IrType::Address),
+                ("iovs_len".to_string(), IrType::I32),
+                ("nread".to_string(), IrType::Address),
+            ],
+            result: Some(IrType::I32),
+            body: vec![
+                // fd
+                IrTerm::Instruction("local.get $fd".to_string()),
+                IrTerm::Instruction("i64.const 32".to_string()),
+                IrTerm::Instruction("i64.shr_u".to_string()),
+                IrTerm::Instruction("i32.wrap_i64".to_string()),
+                // iovs
+                IrTerm::Instruction("local.get $iovs".to_string()),
+                IrTerm::Instruction("i64.const 32".to_string()),
+                IrTerm::Instruction("i64.shr_u".to_string()),
+                IrTerm::Instruction("i32.wrap_i64".to_string()),
+                // iovs_len
+                IrTerm::Instruction("local.get $iovs_len".to_string()),
+                IrTerm::Instruction("i64.const 32".to_string()),
+                IrTerm::Instruction("i64.shr_u".to_string()),
+                IrTerm::Instruction("i32.wrap_i64".to_string()),
+                // nread
+                IrTerm::Instruction("local.get $nread".to_string()),
+                IrTerm::Instruction("i64.const 32".to_string()),
+                IrTerm::Instruction("i64.shr_u".to_string()),
+                IrTerm::Instruction("i32.wrap_i64".to_string()),
+                // call $fd_read
+                IrTerm::Instruction("call $fd_read".to_string()),
+                IrTerm::Instruction("i64.extend_i32_s".to_string()),
+                IrTerm::Instruction("i64.const 32".to_string()),
+                IrTerm::Instruction("i64.shl".to_string()),
+                IrTerm::Instruction("return".to_string()),
+            ],
+        })?;
+
+        self.decl(&mut IrTerm::Func {
+            name: "_fd_filestat_get".to_string(),
+            params: vec![
+                ("fd".to_string(), IrType::I32),
+                ("buf".to_string(), IrType::Address),
+            ],
+            result: Some(IrType::I32),
+            body: vec![
+                // fd
+                IrTerm::Instruction("local.get $fd".to_string()),
+                IrTerm::Instruction("i64.const 32".to_string()),
+                IrTerm::Instruction("i64.shr_u".to_string()),
+                IrTerm::Instruction("i32.wrap_i64".to_string()),
+                // buf
+                IrTerm::Instruction("local.get $buf".to_string()),
+                IrTerm::Instruction("i64.const 32".to_string()),
+                IrTerm::Instruction("i64.shr_u".to_string()),
+                IrTerm::Instruction("i32.wrap_i64".to_string()),
+                // call $fd_filestat_get
+                IrTerm::Instruction("call $fd_filestat_get".to_string()),
+                IrTerm::Instruction("i64.extend_i32_s".to_string()),
+                IrTerm::Instruction("i64.const 32".to_string()),
+                IrTerm::Instruction("i64.shl".to_string()),
+                IrTerm::Instruction("return".to_string()),
+            ],
         })?;
 
         self.decl(&mut IrTerm::Func {
@@ -158,8 +227,6 @@ impl Generator {
                 IrTerm::Instruction("i64.const 32".to_string()),
                 IrTerm::Instruction("i64.shr_u".to_string()),
                 IrTerm::Instruction("i32.wrap_i64".to_string()),
-                IrTerm::Instruction("i32.const 8".to_string()),
-                IrTerm::Instruction("i32.add".to_string()),
                 // ciovec.len
                 IrTerm::Instruction("i32.const 1".to_string()),
                 // ptr_size
@@ -195,9 +262,7 @@ impl Generator {
                 IrTerm::Instruction("i64.const 32".to_string()),
                 IrTerm::Instruction("i64.shr_u".to_string()),
                 IrTerm::Instruction("i32.wrap_i64".to_string()),
-                IrTerm::Instruction("i32.const 8".to_string()),
-                IrTerm::Instruction("i32.add".to_string()),
-                IrTerm::Instruction("i32.store offset=8".to_string()), // offset for string data
+                IrTerm::Instruction("i32.store".to_string()),
                 // $ptr
                 IrTerm::Instruction("local.get $ptr".to_string()),
                 IrTerm::Instruction("i64.const 32".to_string()),
@@ -208,11 +273,83 @@ impl Generator {
                 IrTerm::Instruction("i64.const 32".to_string()),
                 IrTerm::Instruction("i64.shr_u".to_string()),
                 IrTerm::Instruction("i32.wrap_i64".to_string()),
-                IrTerm::Instruction("i32.store offset=12".to_string()),
+                IrTerm::Instruction("i32.store offset=4".to_string()),
                 // return nil
                 IrTerm::Instruction("i64.const 1".to_string()),
                 IrTerm::Instruction("return".to_string()),
             ],
+        })?;
+
+        self.decl(&mut IrTerm::Func {
+            name: "_path_open".to_string(),
+            params: vec![
+                ("dirfd".to_string(), IrType::I32),
+                ("dirflags".to_string(), IrType::I32),
+                ("path".to_string(), IrType::Address),
+                ("path_len".to_string(), IrType::I32),
+                ("o_flags".to_string(), IrType::I32),
+                ("fs_rights_base".to_string(), IrType::I32),
+                ("fs_rights_inheriting".to_string(), IrType::I32),
+                ("fs_flags".to_string(), IrType::I32),
+                ("fd".to_string(), IrType::Address),
+            ],
+            result: Some(IrType::I32),
+            body: {
+                let mut body = vec![];
+                body.extend(vec![IrTerm::Instruction("local.get $dirfd".to_string())]);
+                body.extend(Generator::instructions_i32_to_wasmi32());
+
+                body.extend(vec![IrTerm::Instruction("local.get $dirflags".to_string())]);
+                body.extend(Generator::instructions_i32_to_wasmi32());
+
+                body.extend(vec![IrTerm::Instruction("local.get $path".to_string())]);
+                body.extend(Generator::instructions_ptr_to_wasmptr());
+
+                body.extend(vec![IrTerm::Instruction("local.get $path_len".to_string())]);
+                body.extend(Generator::instructions_i32_to_wasmi32());
+
+                body.extend(vec![IrTerm::Instruction("local.get $o_flags".to_string())]);
+                body.extend(Generator::instructions_i32_to_wasmi32());
+
+                body.extend(vec![IrTerm::Instruction(
+                    "local.get $fs_rights_base".to_string(),
+                )]);
+                body.extend(Generator::instructions_i32_to_wasmi64());
+
+                body.extend(vec![IrTerm::Instruction(
+                    "local.get $fs_rights_inheriting".to_string(),
+                )]);
+                body.extend(Generator::instructions_i32_to_wasmi64());
+
+                body.extend(vec![IrTerm::Instruction("local.get $fs_flags".to_string())]);
+                body.extend(Generator::instructions_i32_to_wasmi32());
+
+                body.extend(vec![IrTerm::Instruction("local.get $fd".to_string())]);
+                body.extend(Generator::instructions_ptr_to_wasmptr());
+
+                body.extend(vec![IrTerm::Instruction("call $path_open".to_string())]);
+                body.extend(Generator::instructions_wasmi32_to_i32());
+
+                body.extend(vec![IrTerm::Instruction("return".to_string())]);
+
+                body
+            },
+        })?;
+
+        self.decl(&mut IrTerm::Func {
+            name: "_fd_close".to_string(),
+            params: vec![("fd".to_string(), IrType::I32)],
+            result: Some(IrType::Nil),
+            body: {
+                let mut body = vec![];
+                body.extend(vec![IrTerm::Instruction("local.get $fd".to_string())]);
+                body.extend(Generator::instructions_i32_to_wasmi32());
+
+                body.extend(vec![IrTerm::Instruction("call $fd_close".to_string())]);
+                body.extend(Generator::instructions_wasmi32_to_i32());
+
+                body
+            },
         })?;
 
         self.writer.start();
@@ -305,33 +442,44 @@ impl Generator {
             name: "start".to_string(),
             params: vec![],
             result: Some(result),
-            body: vec![
-                IrTerm::Assign {
-                    lhs: "quartz_std_alloc_ptr".to_string(),
-                    rhs: Box::new(IrTerm::i32(data_section_offset as i32)),
-                },
-                IrTerm::Assign {
-                    lhs: "quartz_std_strings_count".to_string(),
-                    rhs: Box::new(IrTerm::i32(self.strings.len() as i32)),
-                },
-                IrTerm::Call {
-                    callee: Box::new(IrTerm::ident("prepare_strings")),
-                    args: vec![],
-                    source: None,
-                },
-                IrTerm::Call {
-                    callee: Box::new(IrTerm::ident("prepare_type_reps")),
-                    args: vec![],
-                    source: None,
-                },
-                IrTerm::Return {
-                    value: Box::new(IrTerm::Call {
-                        callee: Box::new(IrTerm::ident(entrypoint_symbol.clone())),
+            body: {
+                let mut v = vec![
+                    IrTerm::Assign {
+                        lhs: "quartz_std_alloc_ptr".to_string(),
+                        rhs: Box::new(IrTerm::i32(data_section_offset as i32)),
+                    },
+                    IrTerm::Assign {
+                        lhs: "quartz_std_strings_count".to_string(),
+                        rhs: Box::new(IrTerm::i32(self.strings.len() as i32)),
+                    },
+                    IrTerm::Assign {
+                        lhs: "quartz_std_type_reps_count".to_string(),
+                        rhs: Box::new(IrTerm::i32(self.type_reps.len() as i32)),
+                    },
+                ];
+                v.extend(self.start.clone());
+                v.extend(vec![
+                    IrTerm::Call {
+                        callee: Box::new(IrTerm::ident("prepare_strings")),
                         args: vec![],
                         source: None,
-                    }),
-                },
-            ],
+                    },
+                    IrTerm::Call {
+                        callee: Box::new(IrTerm::ident("prepare_type_reps")),
+                        args: vec![],
+                        source: None,
+                    },
+                    IrTerm::Return {
+                        value: Box::new(IrTerm::Call {
+                            callee: Box::new(IrTerm::ident(entrypoint_symbol.clone())),
+                            args: vec![],
+                            source: None,
+                        }),
+                    },
+                ]);
+
+                v
+            },
         })?;
 
         self.writer.start();
@@ -519,7 +667,7 @@ impl Generator {
             IrTerm::Nil => {
                 if MODE_READABLE_WASM {
                     self.writer.new_statement();
-                    self.writer.write(";; nil");
+                    self.writer.write(" ;; nil");
                 }
 
                 self.write_value(Value::nil());
@@ -588,6 +736,22 @@ impl Generator {
 
                 self.writer.new_statement();
                 self.writer.write("call $quartz_std_load_string");
+            }
+            IrTerm::TypeRep(p) => {
+                if MODE_READABLE_WASM {
+                    let s = &self.type_reps[*p];
+
+                    self.writer.new_statement();
+                    self.writer.write(&format!(" ;; type rep: {:?}", s));
+                }
+
+                self.writer.new_statement();
+                self.writer.write(&format!("i32.const {}", p));
+
+                self.convert_stack_from_i32_1();
+
+                self.writer.new_statement();
+                self.writer.write("call $quartz_std_get_type_rep_address");
             }
             IrTerm::Call { callee, args, .. } => self.call(callee, args)?,
             IrTerm::Seq { elements } => {
@@ -1334,6 +1498,7 @@ impl Generator {
             IrTerm::Declare { .. } => {}
             IrTerm::Data { .. } => {}
             IrTerm::Comment(_) => {}
+            IrTerm::TypeRep(_) => {}
         }
     }
 
@@ -1355,5 +1520,54 @@ impl Generator {
         }
 
         Ok(())
+    }
+
+    fn fragment_i32_to_wasmi32() -> Vec<&'static str> {
+        vec!["i64.const 32", "i64.shr_u", "i32.wrap_i64"]
+    }
+
+    fn instructions_i32_to_wasmi32() -> Vec<IrTerm> {
+        Generator::fragment_i32_to_wasmi32()
+            .into_iter()
+            .map(|s| IrTerm::Instruction(s.to_string()))
+            .collect()
+    }
+
+    fn fragment_wasmi32_to_i32() -> Vec<&'static str> {
+        vec!["i64.extend_i32_s", "i64.const 32", "i64.shl"]
+    }
+
+    fn instructions_wasmi32_to_i32() -> Vec<IrTerm> {
+        Generator::fragment_wasmi32_to_i32()
+            .into_iter()
+            .map(|s| IrTerm::Instruction(s.to_string()))
+            .collect()
+    }
+
+    fn fragment_ptr_to_wasmptr() -> Vec<&'static str> {
+        vec!["i64.const 32", "i64.shr_u", "i32.wrap_i64"]
+    }
+
+    fn instructions_ptr_to_wasmptr() -> Vec<IrTerm> {
+        Generator::fragment_ptr_to_wasmptr()
+            .into_iter()
+            .map(|s| IrTerm::Instruction(s.to_string()))
+            .collect()
+    }
+
+    fn fragment_i32_to_wasmi64() -> Vec<&'static str> {
+        vec![
+            "i64.const 32",
+            "i64.shr_u",
+            "i32.wrap_i64",
+            "i64.extend_i32_s",
+        ]
+    }
+
+    fn instructions_i32_to_wasmi64() -> Vec<IrTerm> {
+        Generator::fragment_i32_to_wasmi64()
+            .into_iter()
+            .map(|s| IrTerm::Instruction(s.to_string()))
+            .collect()
     }
 }

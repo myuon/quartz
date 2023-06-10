@@ -95,6 +95,8 @@ module Compiler {
         let gen = Generator::new();
         gen.set_globals(typechecker.globals);
         gen.set_strings(irgen.strings.strings);
+        gen.set_type_reps(irgen.type_reps.type_reps);
+        gen.set_start_terms(irgen.start);
 
         term = gen.fold_consts(term);
 

@@ -85,6 +85,18 @@ module Lexer {
                 str.push(quote);
                 self.position = self.position + 2;
                 continue;
+            } else if input.at(self.position) == backslash && input.at(self.position + 1) == 110 as byte {
+                str.push(10 as byte);
+                self.position = self.position + 2;
+                continue;
+            } else if input.at(self.position) == backslash && input.at(self.position + 1) == backslash {
+                str.push(backslash);
+                self.position = self.position + 2;
+                continue;
+            } else if input.at(self.position) == backslash && input.at(self.position + 1) == 48 as byte {
+                str.push(0 as byte);
+                self.position = self.position + 2;
+                continue;
             }
 
             str.push(input.at(self.position));

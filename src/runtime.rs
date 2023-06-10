@@ -1,48 +1,28 @@
-use std::fs::File;
 use std::io::{Read, Write};
-use std::sync::{Arc, Mutex};
 
 use anyhow::{anyhow, Result};
 use wasmer::{imports, Function, Instance, Module, Store, Value as WasmValue};
-use wasmer_wasi::{WasiEnv, WasiFunctionEnv, WasiState};
+use wasmer_wasi::WasiState;
 
 use crate::value::Value;
 
-#[derive(Clone)]
-struct Handler {
-    path: Arc<Mutex<Option<Vec<u8>>>>,
-    file: Arc<Mutex<Option<File>>>,
-}
-
-pub struct Runtime {
-    handler: Handler,
-}
+pub struct Runtime {}
 
 impl Runtime {
     pub fn new() -> Runtime {
-        Runtime {
-            handler: Handler {
-                path: Arc::new(Mutex::new(None)),
-                file: Arc::new(Mutex::new(None)),
-            },
-        }
+        Runtime {}
     }
 
     pub fn _run(&mut self, wat: &str) -> Result<Box<[WasmValue]>> {
         let mut store = Store::default();
         let module = Module::new(&store, &wat)?;
 
-        let handler_create = self.handler.clone();
-        let handler_open = self.handler.clone();
-        let handler_initialize = self.handler.clone();
-        let handler_read = self.handler.clone();
-        let handler_write = self.handler.clone();
-
         let args_string = std::env::args().collect::<Vec<_>>().join(" ");
         let args_string_len = args_string.len();
 
-        let wasi_env = WasiEnv::new(WasiState::new("quartz").build()?);
-        let mut wasi_func_env = WasiFunctionEnv::new(&mut store, wasi_env);
+        let mut wasi_func_env = WasiState::new("quartz")
+            .preopen_dir(".")?
+            .finalize(&mut store)?;
         let wasi_import_object = wasi_func_env.import_object(&mut store, &module)?;
 
         let mut import_object = imports! {
@@ -56,7 +36,7 @@ impl Runtime {
                 "debug" => Function::new_typed(&mut store, |i: i64| {
                     let w = Value::from_i64(i);
 
-                    println!("[DEBUG] {:?} ({:#032b})", w, i >> 32);
+                    println!("[DEBUG] {:?} ({:#032b} | {:#b})", w, i >> 32, i & 0xffffffff);
                     Value::i32(0).as_i64()
                 }),
                 "abort" => Function::new_typed(&mut store, || -> i64 {
@@ -66,64 +46,6 @@ impl Runtime {
                     let mut buffer = [0u8; 1];
                     std::io::stdin().lock().read(&mut buffer).unwrap();
                     Value::Byte(buffer[0]).as_i64()
-                }),
-                "create_handler" => Function::new_typed(&mut store, move || {
-                    handler_create.path.lock().unwrap().replace(Vec::new());
-
-                    Value::i32(0).as_i64()
-                }),
-                "open_handler_stream" => Function::new_typed(&mut store, move |_handler_code: i64, i: i64| {
-                    let v = Value::from_i64(i);
-                    match v {
-                        Value::Byte(b) => {
-                            let mut handler = handler_open.path.lock().unwrap();
-                            if let Some(ref mut path) = *handler {
-                                path.push(b);
-                            }
-                        }
-                        _ => unreachable!()
-                    }
-
-                    Value::nil().as_i64()
-                }),
-                "open_handler_initialize" => Function::new_typed(&mut store, move |_handler_code: i64, mode: i64| {
-                    let mut handler = handler_initialize.path.lock().unwrap();
-                    let path = handler.take().unwrap();
-                    let path = String::from_utf8(path).unwrap();
-
-                    let mode = Value::from_i64(mode).as_i32().unwrap();
-                    let file = if mode == 1 {
-                        File::open(path).unwrap()
-                    } else {
-                        File::create(path).unwrap()
-                    };
-                    *handler_initialize.file.lock().unwrap() = Some(file);
-
-                    Value::nil().as_i64()
-                }),
-                "read_handler" => Function::new_typed(&mut store, move |_handler_code: i64| {
-                    let mut handler = handler_read.file.lock().unwrap();
-                    let file = handler.as_mut().unwrap();
-                    let mut buf = [0u8; 1];
-                    let bs = file.read(&mut buf).unwrap();
-                    if bs == 0 {
-                        Value::Byte(0).as_i64()
-                    } else {
-                        Value::Byte(buf[0]).as_i64()
-                    }
-                }),
-                "write_handler" => Function::new_typed(&mut store, move |_handler_code: i64, i: i64| {
-                    let mut handler = handler_write.file.lock().unwrap();
-                    let file = handler.as_mut().unwrap();
-                    let v = Value::from_i64(i);
-                    match v {
-                        Value::Byte(b) => {
-                            file.write(&[b]).unwrap();
-                        }
-                        _ => unreachable!()
-                    }
-
-                    Value::nil().as_i64()
                 }),
                 "i64_to_string_at" => Function::new_typed(&mut store, |a_value: i64, b_value: i64, at_value: i64| {
                     let a = Value::from_i64(a_value).as_i32().unwrap();
@@ -971,6 +893,18 @@ fun main(): bool {
             ),
             (
                 r#"
+fun main(): bool {
+    let t = derive::to_string(reflection::get_type_rep("foo"));
+    println("{}", t);
+    return t.equal(`TypeRep { kind: 1, name: "string", params: vec(), fields: vec("data", "length") }`);
+}
+"#,
+                vec![
+                    Value::Bool(true),
+                ],
+            ),
+            (
+                r#"
 struct P {
     x: i32,
     y: string,
@@ -981,7 +915,19 @@ fun main(): bool {
         x: 10,
         y: "hello",
     };
+    let s = "====";
+    debug(s.data);
+    debug(s.length);
+
+    let ciovec = make[ptr[byte]](8);
+    set_ciovec(ciovec, s.data, s.length);
+
+    for i in 0..8 {
+        debug(ciovec.at(i));
+    }
+
     println(derive::to_string(p));
+    debug(derive::to_string(p));
 
     return derive::to_string(p).equal(`P { x: 10, y: "hello" }`);
 }

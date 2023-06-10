@@ -58,38 +58,6 @@ impl TypeChecker {
                     Type::Func(vec![Type::Any, Type::I32], Box::new(Type::Any)),
                 ),
                 (
-                    "create_handler",
-                    Type::Func(vec![], Box::new(Type::Ident(Ident("handler".to_string())))),
-                ),
-                (
-                    "open_handler_stream",
-                    Type::Func(
-                        vec![Type::Ident(Ident("handler".to_string())), Type::Byte],
-                        Box::new(Type::Nil),
-                    ),
-                ),
-                (
-                    "open_handler_initialize",
-                    Type::Func(
-                        vec![Type::Ident(Ident("handler".to_string())), Type::I32],
-                        Box::new(Type::Nil),
-                    ),
-                ),
-                (
-                    "read_handler",
-                    Type::Func(
-                        vec![Type::Ident(Ident("handler".to_string()))],
-                        Box::new(Type::Byte),
-                    ),
-                ),
-                (
-                    "write_handler",
-                    Type::Func(
-                        vec![Type::Ident(Ident("handler".to_string())), Type::Byte],
-                        Box::new(Type::Nil),
-                    ),
-                ),
-                (
                     "i64_to_string_at",
                     Type::Func(vec![Type::I32, Type::I32, Type::I32], Box::new(Type::I32)),
                 ),
@@ -97,6 +65,25 @@ impl TypeChecker {
                 (
                     "get_args_at",
                     Type::Func(vec![Type::I32], Box::new(Type::Byte)),
+                ),
+                (
+                    "_fd_read",
+                    Type::Func(
+                        vec![
+                            Type::I32,
+                            Type::Ptr(Box::new(Type::Byte)),
+                            Type::I32,
+                            Type::Ptr(Box::new(Type::Byte)),
+                        ],
+                        Box::new(Type::I32),
+                    ),
+                ),
+                (
+                    "_fd_filestat_get",
+                    Type::Func(
+                        vec![Type::I32, Type::Ptr(Box::new(Type::Byte))],
+                        Box::new(Type::I32),
+                    ),
                 ),
                 (
                     "_fd_write",
@@ -118,6 +105,32 @@ impl TypeChecker {
                             Type::I32,
                         ],
                         Box::new(Type::Nil),
+                    ),
+                ),
+                (
+                    "_path_open",
+                    Type::Func(
+                        vec![
+                            Type::I32,                       // dirfd
+                            Type::I32,                       // dirflags
+                            Type::Ptr(Box::new(Type::Byte)), // path
+                            Type::I32,                       // path_len
+                            Type::I32,                       // o_flags
+                            Type::I32,                       // fs_rights_base
+                            Type::I32,                       // fs_rights_inheriting
+                            Type::I32,                       // fs_flags
+                            Type::Ptr(Box::new(Type::I32)),  // *fd
+                        ],
+                        Box::new(Type::I32),
+                    ),
+                ),
+                (
+                    "_fd_close",
+                    Type::Func(
+                        vec![
+                            Type::I32, // fd
+                        ],
+                        Box::new(Type::I32),
                     ),
                 ),
             ]

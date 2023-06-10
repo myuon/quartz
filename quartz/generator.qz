@@ -2,6 +2,7 @@ import quartz::ast;
 import quartz::ir;
 import quartz::value;
 import quartz::path;
+import quartz::ir_code_gen;
 
 let MODE_READABLE_WASM = true;
 
@@ -12,17 +13,21 @@ fun escape(s: string): string {
     result.push(34 as byte);
 
     while n < s.length {
-        if is_prefix(s, n, "\n") {
-            result.push(92 as byte);
-            result.push(110 as byte);
-            n = n + 1;
-        } else if s.at(n) == 10 as byte {
+        if s.at(n) == 10 as byte {
             result.push(92 as byte);
             result.push(110 as byte);
             n = n + 1;
         } else if is_prefix(s, n, "\"") {
             result.push(92 as byte);
             result.push(34 as byte);
+            n = n + 1;
+        } else if s.at(n) == 0 as byte {
+            result.push(92 as byte);
+            result.push(48 as byte);
+            n = n + 1;
+        } else if s.at(n) == 92 as byte {
+            result.push(92 as byte);
+            result.push(92 as byte);
             n = n + 1;
         } else {
             result.push(s.at(n) as byte);
@@ -41,7 +46,9 @@ struct Generator {
     index: i32,
     globals: map[string, Type],
     strings: vec[string],
+    type_reps: vec[InternalTypeRep],
     main_signature_result: IrType?,
+    start_terms: vec[IrTerm],
 }
 
 module Generator {
@@ -52,7 +59,9 @@ module Generator {
             index: 0,
             globals: make[map[string, Type]](),
             strings: make[vec[string]](),
+            type_reps: make[vec[InternalTypeRep]](),
             main_signature_result: nil as IrType?,
+            start_terms: make[vec[IrTerm]](),
         };
     }
 
@@ -93,6 +102,14 @@ module Generator {
 
     fun set_strings(self, strings: vec[string]) {
         self.strings = strings;
+    }
+
+    fun set_type_reps(self, type_reps: vec[InternalTypeRep]) {
+        self.type_reps = type_reps;
+    }
+
+    fun set_start_terms(self, start: vec[IrTerm]) {
+        self.start_terms = start;
     }
 
     fun generate(self): string {
@@ -140,30 +157,6 @@ module Generator {
         self.end();
 
         self.start();
-        self.write(`import "env" "create_handler" (func $create_handler (result i64))`);
-        self.end();
-
-        self.start();
-        self.write(
-            `import "env" "open_handler_stream" (func $open_handler_stream (param i64) (param i64) (result i64))`,
-        );
-        self.end();
-
-        self.start();
-        self.write(
-            `import "env" "open_handler_initialize" (func $open_handler_initialize (param i64) (param i64) (result i64))`,
-        );
-        self.end();
-
-        self.start();
-        self.write(`import "env" "read_handler" (func $read_handler (param i64) (result i64))`);
-        self.end();
-
-        self.start();
-        self.write(`import "env" "write_handler" (func $write_handler (param i64) (param i64) (result i64))`);
-        self.end();
-
-        self.start();
         self.write(
             `import "env" "i64_to_string_at" (func $i64_to_string_at (param i64) (param i64) (param i64) (result i64))`,
         );
@@ -183,6 +176,82 @@ module Generator {
 
         self.start();
         self.write(
+            `import "wasi_unstable" "path_open" (func $path_open (param i32 i32 i32 i32 i32 i64 i64 i32 i32) (result i32))`,
+        );
+        self.end();
+
+        self.start();
+        self.write(`import "wasi_unstable" "fd_close" (func $fd_close (param i32) (result i32))`);
+        self.end();
+
+        self.start();
+        self.write(`import "wasi_unstable" "fd_read" (func $fd_read (param i32 i32 i32 i32) (result i32))`);
+        self.end();
+
+        self.start();
+        self.write(
+            `import "wasi_unstable" "fd_filestat_get" (func $fd_filestat_get (param i32 i32) (result i32))`,
+        );
+        self.end();
+
+        self.start();
+        self.write(
+            `func $_fd_read (param $fd i64) (param $iovs i64) (param $iovs_len i64) (param $nread i64) (result i64)
+    local.get $fd
+    i64.const 32
+    i64.shr_u
+    i32.wrap_i64
+
+    local.get $iovs
+    i64.const 32
+    i64.shr_u
+    i32.wrap_i64
+
+    local.get $iovs_len
+    i64.const 32
+    i64.shr_u
+    i32.wrap_i64
+
+    local.get $nread
+    i64.const 32
+    i64.shr_u
+    i32.wrap_i64
+
+    call $fd_read
+    i64.extend_i32_u
+    i64.const 32
+    i64.shl
+
+    return
+`,
+        );
+        self.end();
+
+        self.start();
+        self.write(
+            `func $_fd_filestat_get (param $fd i64) (param $buf i64) (result i64)
+    local.get $fd
+    i64.const 32
+    i64.shr_u
+    i32.wrap_i64
+
+    local.get $buf
+    i64.const 32
+    i64.shr_u
+    i32.wrap_i64
+
+    call $fd_filestat_get
+    i64.extend_i32_u
+    i64.const 32
+    i64.shl
+
+    return
+`,
+        );
+        self.end();
+
+        self.start();
+        self.write(
             `func $_fd_write (param $fd i64) (param $ciovec i64) (param $ptr_size i64) (result i64)
     local.get $fd
     i64.const 32
@@ -193,8 +262,6 @@ module Generator {
     i64.const 32
     i64.shr_u
     i32.wrap_i64
-    i32.const 8
-    i32.add
 
     i32.const 1
 
@@ -225,9 +292,7 @@ module Generator {
     i64.const 32
     i64.shr_u
     i32.wrap_i64
-    i32.const 8
-    i32.add
-    i32.store offset=8
+    i32.store
 
     local.get $ptr
     i64.const 32
@@ -238,9 +303,99 @@ module Generator {
     i64.const 32
     i64.shr_u
     i32.wrap_i64
-    i32.store offset=12
+    i32.store offset=4
 
     i64.const 1
+    return
+`,
+        );
+        self.end();
+
+        self.start();
+        self.write(
+            `func $_path_open
+    (param $dirfd i64)
+    (param $dirflags i64)
+    (param $path i64)
+    (param $path_len i64)
+    (param $o_flags i64)
+    (param $fs_rights_base i64)
+    (param $fs_rights_inheriting i64)
+    (param $fs_flags i64)
+    (param $fd i64)
+    (result i64)
+
+    local.get $dirfd
+    i64.const 32
+    i64.shr_u
+    i32.wrap_i64
+
+    local.get $dirflags
+    i64.const 32
+    i64.shr_u
+    i32.wrap_i64
+
+    local.get $path
+    i64.const 32
+    i64.shr_u
+    i32.wrap_i64
+
+    local.get $path_len
+    i64.const 32
+    i64.shr_u
+    i32.wrap_i64
+
+    local.get $o_flags
+    i64.const 32
+    i64.shr_u
+    i32.wrap_i64
+
+    local.get $fs_rights_base
+    i64.const 32
+    i64.shr_u
+    i32.wrap_i64
+    i64.extend_i32_s
+
+    local.get $fs_rights_inheriting
+    i64.const 32
+    i64.shr_u
+    i32.wrap_i64
+    i64.extend_i32_s
+
+    local.get $fs_flags
+    i64.const 32
+    i64.shr_u
+    i32.wrap_i64
+
+    local.get $fd
+    i64.const 32
+    i64.shr_u
+    i32.wrap_i64
+
+    call $path_open
+
+    i64.extend_i32_s
+    i64.const 32
+    i64.shl
+
+    return
+`,
+        );
+        self.end();
+
+        self.start();
+        self.write(
+            `func $_fd_close (param $fd i64) (result i64)
+    local.get $fd
+    i64.const 32
+    i64.shr_u
+    i32.wrap_i64
+
+    call $fd_close
+    i64.extend_i32_s
+    i64.const 32
+    i64.shl
+
     return
 `,
         );
@@ -351,6 +506,59 @@ module Generator {
             panic("main_signature_result is nil");
         }
 
+        let start_body = make[vec[IrTerm]](
+            IrTerm {
+                t_assign: struct {
+                    lhs: "quartz_std_alloc_ptr",
+                    rhs: IrTerm {
+                        t_i32: data_section_offset,
+                    },
+                },
+            },
+            IrTerm {
+                t_assign: struct {
+                    lhs: "quartz_std_strings_count",
+                    rhs: IrTerm {
+                        t_i32: self.strings.length,
+                    },
+                },
+            },
+            IrTerm {
+                t_assign: struct {
+                    lhs: "quartz_std_type_reps_count",
+                    rhs: IrTerm {
+                        t_i32: self.type_reps.length,
+                    },
+                },
+            },
+        );
+        start_body.extend(self.start_terms);
+        start_body.extend(make[vec[IrTerm]](
+            IrTerm {
+                t_call: IrCall {
+                    callee: IrTerm {
+                        t_ident: "prepare_strings",
+                    },
+                    args: make[vec[IrTerm]](),
+                },
+            },
+            IrTerm {
+                t_call: IrCall {
+                    callee: IrTerm {
+                        t_ident: "prepare_type_reps",
+                    },
+                    args: make[vec[IrTerm]](),
+                },
+            },
+            IrTerm {
+                t_return: IrReturn {
+                    value: IrTerm {
+                        t_inst: "call $main_main",
+                    },
+                },
+            },
+        ));
+
         self.function(IrFunc {
             name: "start",
             params: make[vec[struct {
@@ -358,47 +566,7 @@ module Generator {
                 type_: IrType,
             }]](),
             result_type: self.main_signature_result!,
-            body: make[vec[IrTerm]](
-                IrTerm {
-                    t_assign: struct {
-                        lhs: "quartz_std_alloc_ptr",
-                        rhs: IrTerm {
-                            t_i32: data_section_offset,
-                        },
-                    },
-                },
-                IrTerm {
-                    t_assign: struct {
-                        lhs: "quartz_std_strings_count",
-                        rhs: IrTerm {
-                            t_i32: self.strings.length,
-                        },
-                    },
-                },
-                IrTerm {
-                    t_call: IrCall {
-                        callee: IrTerm {
-                            t_ident: "prepare_strings",
-                        },
-                        args: make[vec[IrTerm]](),
-                    },
-                },
-                IrTerm {
-                    t_call: IrCall {
-                        callee: IrTerm {
-                            t_ident: "prepare_type_reps",
-                        },
-                        args: make[vec[IrTerm]](),
-                    },
-                },
-                IrTerm {
-                    t_return: IrReturn {
-                        value: IrTerm {
-                            t_inst: "call $main_main",
-                        },
-                    },
-                },
-            ),
+            body: start_body,
         });
 
         self.start();
@@ -576,6 +744,8 @@ module Generator {
                     self.generate_op_comparison("ge_s");
                 } else if ident.equal("i32_to_address") {
                     self.convert_value_i32_to_address_1();
+                } else if ident.equal("address_to_i32") {
+                    self.convert_value_address_to_i32_1();
                 } else if ident.equal("i32_to_byte") {
                     self.convert_value_i32_to_byte_1();
                 } else if ident.equal("byte_to_i32") {
@@ -784,6 +954,17 @@ module Generator {
 
             self.new_statement();
             self.write("call $quartz_std_load_string");
+        } else if expr.t_type_rep != nil {
+            self.new_statement();
+            self.write(format(";; type_rep: {}", derive::to_string(expr.t_type_rep!)));
+
+            self.new_statement();
+            self.write(format("i32.const {}", expr.t_type_rep!.to_string()));
+
+            self.convert_stack_from_i32_1();
+
+            self.new_statement();
+            self.write("call $quartz_std_get_type_rep_address");
         } else if expr.t_discard != nil {
             self.new_statement();
             self.expression(expr.t_discard!);
@@ -1031,6 +1212,14 @@ module Generator {
     }
 
     fun convert_value_i32_to_address_1(self) {
+        self.new_statement();
+        self.write("i64.const 1");
+
+        self.new_statement();
+        self.write("i64.xor");
+    }
+
+    fun convert_value_address_to_i32_1(self) {
         self.new_statement();
         self.write("i64.const 1");
 
