@@ -242,21 +242,21 @@ impl IrCodeGenerator {
 
         for (string, i) in self.strings.to_vec() {
             let string_len = string.len();
-            // add 8 bytes padding for object header
-            // In quartz, ptr.at will load with offset=8
-            let string_memory_size = string_len + 8;
-            let string = "\00\00\00\00\00\00\00\00".to_string() + &string;
+            let string_memory_size = string_len;
             terms.push(IrTerm::Data {
                 offset: self.data_section_offset,
                 data: string,
             });
 
             // strings.at(i) = new_empty_string(${offset}, ${string.len()})
-            let lhs = self.generate_array_at(
-                &Type::Ident(Ident("string".to_string())),
-                IrTerm::ident(var_strings.to_string()),
-                IrTerm::i32(i as i32),
-            )?;
+            let type_ = IrType::from_type(&Type::Ident(Ident("string".to_string())))?;
+            let lhs = IrTerm::Load {
+                type_: type_.clone(),
+                // FIXME: shoule be converted to ptr[byte]
+                address: Box::new(IrTerm::ident(var_strings.to_string())),
+                offset: Box::new(IrTerm::wrap_mult_sizeof(type_, IrTerm::i32(i as i32))),
+                raw_offset: None,
+            };
             body.push(self.assign(
                 lhs,
                 IrType::Address,
@@ -835,7 +835,12 @@ impl IrCodeGenerator {
                                 let ptr = self.expr(expr)?;
                                 let offset = self.expr(&mut args[0])?;
 
-                                Ok(self.generate_array_at(&p, ptr, offset)?)
+                                Ok(IrTerm::Load {
+                                    type_: IrType::from_type(p)?,
+                                    address: Box::new(ptr),
+                                    offset: Box::new(self.generate_mult_sizeof(p, offset)?),
+                                    raw_offset: None,
+                                })
                             }
                             (Type::Ptr(p), "offset") => {
                                 assert_eq!(args.len(), 1);
@@ -1285,14 +1290,18 @@ impl IrCodeGenerator {
                     assert_eq!(args.len(), 1);
                     let len = self.expr(&mut args[0])?;
 
-                    Ok(self.allocate_heap_object(
-                        TypeRep::from_name(
-                            "ptr".to_string(),
-                            vec![TypeRep::from_type(IrType::from_type(p)?)],
-                        ),
-                        IrType::from_type(p)?,
-                        len,
-                    )?)
+                    Ok(IrTerm::Call {
+                        callee: Box::new(IrTerm::ident(
+                            Path::new(vec![
+                                Ident("quartz".to_string()),
+                                Ident("std".to_string()),
+                                Ident("alloc".to_string()),
+                            ])
+                            .as_joined_str("_"),
+                        )),
+                        args: vec![IrTerm::wrap_mult_sizeof(IrType::from_type(p)?, len)],
+                        source: None,
+                    })
                 }
                 Type::Array(elem, size) => {
                     let data_ptr = self.expr(&mut Source::unknown(Expr::Make(

@@ -730,6 +730,16 @@ module error {
 // used in compiler
 let type_reps_ptr = 0;
 
+let type_reps_count = 0;
+
+fun is_type_rep_pointer(t: any): bool {
+    if !reflection::is_pointer(t) {
+        return false;
+    }
+
+    return type_reps_ptr <= t as i32 && t as i32 < type_reps_ptr + (type_reps_count * sizeof[ptr[any]]() as i32);
+}
+
 struct TypeRep {
     kind: i32,
     name: string,
@@ -793,7 +803,14 @@ module reflection {
                 };
             }
 
-            return parse_type_rep(get_type_rep_ptr(t));
+            debug(is_type_rep_pointer((t as ptr[any]).at(0)));
+
+            return TypeRep {
+                kind: 1,
+                name: "ptr",
+                params: make[vec[TypeRep]]((t as ptr[any]).at(0)),
+                fields: make[vec[string]](),
+            };
         }
         if reflection::is_bool(t) {
             return TypeRep {

@@ -17,6 +17,7 @@ pub struct Generator {
     pub main_signature: Option<(Vec<IrType>, IrType)>,
     pub entrypoint: Path,
     pub strings: Vec<String>,
+    pub type_reps_count: usize,
 }
 
 impl Generator {
@@ -27,6 +28,7 @@ impl Generator {
             main_signature: None,
             entrypoint: Path::new(vec![]),
             strings: vec![],
+            type_reps_count: 0,
         }
     }
 
@@ -43,6 +45,10 @@ impl Generator {
 
     pub fn set_strings(&mut self, strings: Vec<String>) {
         self.strings = strings;
+    }
+
+    pub fn set_type_reps_count(&mut self, type_reps_count: usize) {
+        self.type_reps_count = type_reps_count;
     }
 
     pub fn run(&mut self, module: &mut IrTerm, data_section_offset: usize) -> Result<()> {
@@ -168,8 +174,6 @@ impl Generator {
                 IrTerm::Instruction("i64.const 32".to_string()),
                 IrTerm::Instruction("i64.shr_u".to_string()),
                 IrTerm::Instruction("i32.wrap_i64".to_string()),
-                IrTerm::Instruction("i32.const 8".to_string()),
-                IrTerm::Instruction("i32.add".to_string()),
                 // ciovec.len
                 IrTerm::Instruction("i32.const 1".to_string()),
                 // ptr_size
@@ -205,9 +209,7 @@ impl Generator {
                 IrTerm::Instruction("i64.const 32".to_string()),
                 IrTerm::Instruction("i64.shr_u".to_string()),
                 IrTerm::Instruction("i32.wrap_i64".to_string()),
-                IrTerm::Instruction("i32.const 8".to_string()),
-                IrTerm::Instruction("i32.add".to_string()),
-                IrTerm::Instruction("i32.store offset=8".to_string()), // offset for string data
+                IrTerm::Instruction("i32.store".to_string()),
                 // $ptr
                 IrTerm::Instruction("local.get $ptr".to_string()),
                 IrTerm::Instruction("i64.const 32".to_string()),
@@ -218,7 +220,7 @@ impl Generator {
                 IrTerm::Instruction("i64.const 32".to_string()),
                 IrTerm::Instruction("i64.shr_u".to_string()),
                 IrTerm::Instruction("i32.wrap_i64".to_string()),
-                IrTerm::Instruction("i32.store offset=12".to_string()),
+                IrTerm::Instruction("i32.store offset=4".to_string()),
                 // return nil
                 IrTerm::Instruction("i64.const 1".to_string()),
                 IrTerm::Instruction("return".to_string()),
@@ -395,6 +397,10 @@ impl Generator {
                 IrTerm::Assign {
                     lhs: "quartz_std_strings_count".to_string(),
                     rhs: Box::new(IrTerm::i32(self.strings.len() as i32)),
+                },
+                IrTerm::Assign {
+                    lhs: "quartz_std_type_reps_count".to_string(),
+                    rhs: Box::new(IrTerm::i32(self.type_reps_count as i32)),
                 },
                 IrTerm::Call {
                     callee: Box::new(IrTerm::ident("prepare_strings")),
@@ -1462,13 +1468,7 @@ impl Generator {
     }
 
     fn fragment_ptr_to_wasmptr() -> Vec<&'static str> {
-        vec![
-            "i64.const 32",
-            "i64.shr_u",
-            "i32.wrap_i64",
-            "i32.const 8",
-            "i32.add",
-        ]
+        vec!["i64.const 32", "i64.shr_u", "i32.wrap_i64"]
     }
 
     fn instructions_ptr_to_wasmptr() -> Vec<IrTerm> {
