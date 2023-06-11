@@ -30,7 +30,6 @@ impl TypeChecker {
             locals: HashMap::new(),
             globals: vec![
                 ("not", Type::Func(vec![Type::Bool], Box::new(Type::Bool))),
-                ("read_stdin", Type::Func(vec![], Box::new(Type::Byte))),
                 (
                     "debug_i32",
                     Type::Func(vec![Type::I32], Box::new(Type::Nil)),

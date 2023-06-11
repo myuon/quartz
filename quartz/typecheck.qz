@@ -139,17 +139,6 @@ module Typechecker {
             },
         );
         globals.insert(
-            "read_stdin",
-            Type {
-                t_func: struct {
-                    params: make[vec[Type]](),
-                    result: Type {
-                        t_byte: true,
-                    },
-                },
-            },
-        );
-        globals.insert(
             "reflection_get_type_rep_id",
             Type {
                 t_func: struct {
