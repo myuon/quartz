@@ -112,33 +112,33 @@ enum Statement {
     t_let: struct {
         pattern: Pattern,
         name_type: Type,
-        expr: Expression,
+        expr: LExpression,
     },
     t_return: struct {
-        expr: Expression,
+        expr: LExpression,
     },
     t_assign: struct {
-        lhs: Expression,
+        lhs: LExpression,
         rhs_type: Type?,
-        rhs: Expression,
+        rhs: LExpression,
     },
     t_expr: struct {
-        expr: Expression,
+        expr: LExpression,
     },
     t_if: struct {
-        condition: Expression,
+        condition: LExpression,
         then_block: Block,
         else_block: Block?,
     },
     t_while: struct {
-        condition: Expression,
+        condition: LExpression,
         block: Block,
     },
     t_for: struct {
         mode: string,
         type_: Type?,
         ident: string,
-        range: Expression,
+        range: LExpression,
         block: Block,
     },
     t_continue: bool,
@@ -164,8 +164,8 @@ enum Expression {
     t_binop: struct {
         binop: string,
         type_: Type?,
-        left: Expression,
-        right: Expression,
+        left: LExpression,
+        right: LExpression,
     },
     t_i32: struct {
         value: i32,
@@ -174,16 +174,16 @@ enum Expression {
         value: u32,
     },
     t_call: struct {
-        callee: Expression,
-        args: vec[Expression],
+        callee: LExpression,
+        args: vec[LExpression],
         variadic: struct {
             element_type: Type,
             index: i32,
         }?,
-        expansion: Expression?,
+        expansion: LExpression?,
     },
     t_project: struct {
-        expr: Expression,
+        expr: LExpression,
         field: string,
         type_: Type?,
         resolved_path: Path?,
@@ -192,16 +192,16 @@ enum Expression {
     t_anonymous_record: struct {
         fields: vec[struct {
             field: string,
-            value: Expression,
+            value: LExpression,
         }],
         type_: Type?,
     },
     t_make: struct {
         type_: Type,
-        args: vec[Expression],
+        args: vec[LExpression],
     },
     t_as: struct {
-        expr: Expression,
+        expr: LExpression,
         source_type: Type,
         target_type: Type,
     },
@@ -211,36 +211,36 @@ enum Expression {
     },
     t_self: bool,
     t_string: string,
-    t_paren: Expression,
+    t_paren: LExpression,
     t_range: struct {
-        start: Expression,
-        end: Expression,
+        start: LExpression,
+        end: LExpression,
     },
     t_unop: struct {
         unop: string,
-        expr: Expression,
+        expr: LExpression,
     },
     t_unwrap: struct {
         type_: Type,
-        expr: Expression,
+        expr: LExpression,
     },
     t_wrap: struct {
         type_: Type,
-        expr: Expression,
+        expr: LExpression,
     },
     t_bool: bool,
     t_nil: bool,
     t_omit: bool,
     t_enumor: struct {
-        lhs: Expression?,
-        rhs: Expression?,
+        lhs: LExpression?,
+        rhs: LExpression?,
         lhs_type: Type,
         rhs_type: Type,
     },
     t_sizeof: struct {
         type_: Type,
     },
-    t_try: Expression,
+    t_try: LExpression,
 }
 
 module Expression {
@@ -258,40 +258,29 @@ struct RecordExpression {
     name: string,
     fields: vec[struct {
         field: string,
-        value: Expression,
+        value: LExpression,
     }],
-    expansion: Expression?,
+    expansion: LExpression?,
 }
 
 module RecordExpression {
     fun to_string(self): string {
-        let result = format("{} {{", self.name);
-
-        for i in 0..self.fields.length {
-            let f = self.fields.at(i);
-            result = result.concat(f.field).concat(": ").concat(f.value.to_string());
-
-            if i != self.fields.length - 1 {
-                result = result.concat(", ");
-            }
-        }
-
-        return result.concat("}");
+        return derive::to_string(self);
     }
 
     fun at(self, field: string): Expression or error {
         for i in 0..self.fields.length {
             let f = self.fields.at(i);
             if f.field == field {
-                return f.value;
+                return f.value.data;
             }
         }
 
         return _ or error::new("Field not found");
     }
 
-    fun to_fields_map(self): map[string, Expression] {
-        let result = make[map[string, Expression]]();
+    fun to_fields_map(self): map[string, LExpression] {
+        let result = make[map[string, LExpression]]();
         for i in 0..self.fields.length {
             let f = self.fields.at(i);
             result.insert(f.field, f.value);

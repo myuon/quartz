@@ -270,7 +270,7 @@ module IrCodeGenerator {
                         type_: IrType {
                             t_i32: true,
                         },
-                        value: self.expression(d.t_let!.expr.data).try,
+                        value: self.expression(d.t_let!.expr).try,
                     },
                 });
             }
@@ -307,19 +307,25 @@ module IrCodeGenerator {
         self.start.push(IrTerm {
             t_assign: struct {
                 lhs: var_ptr,
-                rhs: self.expression(Expression {
-                    t_make: struct {
-                        type_: Type {
-                            t_ptr: Type {
-                                t_ident: "any",
+                rhs: self.expression(LExpression {
+                    data: Expression {
+                        t_make: struct {
+                            type_: Type {
+                                t_ptr: Type {
+                                    t_ident: "any",
+                                },
                             },
+                            args: make[vec[LExpression]](LExpression {
+                                data: Expression {
+                                    t_i32: struct {
+                                        value: self.type_reps.type_reps.length,
+                                    },
+                                },
+                                location: Location::unknown(),
+                            }),
                         },
-                        args: make[vec[Expression]](Expression {
-                            t_i32: struct {
-                                value: self.type_reps.type_reps.length,
-                            },
-                        }),
                     },
+                    location: Location::unknown(),
                 }).try,
             },
         });
@@ -402,19 +408,25 @@ module IrCodeGenerator {
         self.start.push(IrTerm {
             t_assign: struct {
                 lhs: var_strings,
-                rhs: self.expression(Expression {
-                    t_make: struct {
-                        type_: Type {
-                            t_ptr: Type {
-                                t_ident: "string",
+                rhs: self.expression(LExpression {
+                    data: Expression {
+                        t_make: struct {
+                            type_: Type {
+                                t_ptr: Type {
+                                    t_ident: "string",
+                                },
                             },
+                            args: make[vec[LExpression]](LExpression {
+                                data: Expression {
+                                    t_i32: struct {
+                                        value: self.strings.strings.length,
+                                    },
+                                },
+                                location: Location::unknown(),
+                            }),
                         },
-                        args: make[vec[Expression]](Expression {
-                            t_i32: struct {
-                                value: self.strings.strings.length,
-                            },
-                        }),
                     },
+                    location: Location::unknown(),
                 }).try,
             },
         });
@@ -706,7 +718,7 @@ module IrCodeGenerator {
             };
         } else if stm.t_for != nil {
             if stm.t_for!.mode.equal("range") {
-                let range = stm.t_for!.range.t_range!;
+                let range = stm.t_for!.range.data.t_range!;
 
                 return IrTerm {
                     t_seq: struct {
@@ -790,25 +802,34 @@ module IrCodeGenerator {
                                 ..nil,
                             },
                             name_type: vec_type,
-                            expr: Expression {
-                                t_call: struct {
-                                    callee: Expression {
-                                        t_project: struct {
-                                            expr: stm.t_for!.range,
-                                            field: "at",
-                                            type_: stm.t_for!.type_,
-                                            resolved_path: nil as Path?,
+                            expr: LExpression {
+                                data: Expression {
+                                    t_call: struct {
+                                        callee: LExpression {
+                                            data: Expression {
+                                                t_project: struct {
+                                                    expr: stm.t_for!.range,
+                                                    field: "at",
+                                                    type_: stm.t_for!.type_,
+                                                    resolved_path: nil as Path?,
+                                                },
+                                            },
+                                            location: Location::unknown(),
                                         },
+                                        args: make[vec[LExpression]](LExpression {
+                                            data: Expression {
+                                                t_ident: struct {
+                                                    name: var_index,
+                                                    resolved_path: nil as Path?,
+                                                },
+                                            },
+                                            location: Location::unknown(),
+                                        }),
+                                        variadic: nil,
+                                        expansion: nil,
                                     },
-                                    args: make[vec[Expression]](Expression {
-                                        t_ident: struct {
-                                            name: var_index,
-                                            resolved_path: nil as Path?,
-                                        },
-                                    }),
-                                    variadic: nil,
-                                    expansion: nil,
                                 },
+                                location: Location::unknown(),
                             },
                         },
                     },
@@ -824,22 +845,31 @@ module IrCodeGenerator {
                             mode: "range",
                             type_: nil,
                             ident: var_index,
-                            range: Expression {
-                                t_range: struct {
-                                    start: Expression {
-                                        t_i32: struct {
-                                            value: 0,
+                            range: LExpression {
+                                data: Expression {
+                                    t_range: struct {
+                                        start: LExpression {
+                                            data: Expression {
+                                                t_i32: struct {
+                                                    value: 0,
+                                                },
+                                            },
+                                            location: Location::unknown(),
                                         },
-                                    },
-                                    end: Expression {
-                                        t_project: struct {
-                                            expr: stm.t_for!.range,
-                                            field: "length",
-                                            type_: stm.t_for!.type_,
-                                            resolved_path: nil as Path?,
+                                        end: LExpression {
+                                            data: Expression {
+                                                t_project: struct {
+                                                    expr: stm.t_for!.range,
+                                                    field: "length",
+                                                    type_: stm.t_for!.type_,
+                                                    resolved_path: nil as Path?,
+                                                },
+                                            },
+                                            location: Location::unknown(),
                                         },
                                     },
                                 },
+                                location: Location::unknown(),
                             },
                             block: Block {
                                 block: new_body,
@@ -863,7 +893,8 @@ module IrCodeGenerator {
         return _ or error::new(format("statement exhausted: {}", stm.to_string()));
     }
 
-    fun expression(self, expr: Expression): IrTerm or error {
+    fun expression(self, lexpr: LExpression): IrTerm or error {
+        let expr = lexpr.data;
         if expr.t_i32 != nil {
             let term = IrTerm {
                 t_i32: expr.t_i32!.value,
@@ -1143,7 +1174,7 @@ module IrCodeGenerator {
                 t_ident: expr.t_ident!.name,
             };
         } else if expr.t_call != nil {
-            let callee = expr.t_call!.callee;
+            let callee = expr.t_call!.callee.data;
             if callee.t_project != nil {
                 let project = callee.t_project!;
                 if project.type_!.t_ptr != nil && project.field.equal("at") {
@@ -1334,7 +1365,7 @@ module IrCodeGenerator {
                         },
                     };
                 } else {
-                    let args_with_self = make[vec[Expression]](project.expr);
+                    let args_with_self = make[vec[LExpression]](project.expr);
                     args_with_self.extend(expr.t_call!.args);
 
                     if expr.t_call!.variadic != nil {
@@ -1346,11 +1377,14 @@ module IrCodeGenerator {
                     }
 
                     return self.generate_call(
-                        Expression {
-                            t_path: struct {
-                                path: project.resolved_path!,
-                                resolved_path: project.resolved_path,
+                        LExpression {
+                            data: Expression {
+                                t_path: struct {
+                                    path: project.resolved_path!,
+                                    resolved_path: project.resolved_path,
+                                },
                             },
+                            location: Location::unknown(),
                         },
                         args_with_self,
                         expr.t_call!.variadic,
@@ -1474,7 +1508,7 @@ module IrCodeGenerator {
             }]]();
 
             for field in struct_type.fields {
-                let field_expr = nil as Expression?;
+                let field_expr = nil as LExpression?;
                 for f in expr.t_anonymous_record!.fields {
                     if f.field == field.name {
                         field_expr = f.value?;
@@ -2427,13 +2461,13 @@ module IrCodeGenerator {
 
     fun generate_call(
         self,
-        callee: Expression,
-        args: vec[Expression],
+        callee: LExpression,
+        args: vec[LExpression],
         variadic: struct {
             element_type: Type,
             index: i32,
         }?,
-        expansion: Expression?,
+        expansion: LExpression?,
     ): IrTerm or error {
         if variadic != nil {
             let terms = make[vec[IrTerm]]();

@@ -472,7 +472,7 @@ module Typechecker {
             return;
         }
         if d.t_let != nil {
-            let t = self.expression(d.t_let!.expr.data).try;
+            let t = self.expression(d.t_let!.expr).try;
             let type_ = unify(t, d.t_let!.name_type).try;
             d.t_let!.name_type = type_;
 
@@ -553,13 +553,16 @@ module Typechecker {
                 if self.result_type!.t_or != nil {
                     unify(self.result_type!.t_or!.left, t).try;
 
-                    s.t_return!.expr = Expression {
-                        t_enumor: struct {
-                            lhs: s.t_return!.expr?,
-                            rhs: nil as Expression?,
-                            lhs_type: self.result_type!.t_or!.left,
-                            rhs_type: self.result_type!.t_or!.right,
+                    s.t_return!.expr = LExpression {
+                        data: Expression {
+                            t_enumor: struct {
+                                lhs: s.t_return!.expr?,
+                                rhs: nil as LExpression?,
+                                lhs_type: self.result_type!.t_or!.left,
+                                rhs_type: self.result_type!.t_or!.right,
+                            },
                         },
+                        location: s.t_return!.expr.location,
                     };
                 } else {
                     return _ or err!;
@@ -676,7 +679,7 @@ module Typechecker {
         return nil;
     }
 
-    fun expression_left_value(self, expr: Expression): Type or error {
+    fun expression_left_value(self, expr: LExpression): Type or error {
         let t = self.expression(expr).try;
 
         return Type {
@@ -684,7 +687,9 @@ module Typechecker {
         };
     }
 
-    fun expression(self, expr: Expression): Type or error {
+    fun expression(self, lexpr: LExpression): Type or error {
+        let expr = lexpr.data;
+
         if expr.t_i32 != nil {
             return Type {
                 t_i32: true,

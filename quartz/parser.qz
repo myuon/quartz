@@ -1,6 +1,7 @@
 import quartz::path;
 import quartz::lexer;
 import quartz::ast;
+import quartz::location;
 
 struct Parser {
     position: i32,
@@ -91,11 +92,11 @@ module Parser {
     }
 
     fun path(self): Path or error {
-        let path = make[vec[string]](self.ident().try);
+        let path = make[vec[string]](self.ident().try.data);
         while true {
             if self.peek().lexeme.equal("double_colon") {
                 self.expect("double_colon").try;
-                path.push(self.ident().try);
+                path.push(self.ident().try.data);
             } else {
                 break;
             }
@@ -122,7 +123,7 @@ module Parser {
         }]]();
 
         while !self.peek().lexeme.equal("rbrace") {
-            let name = self.ident().try;
+            let name = self.ident().try.data;
             self.expect("colon").try;
             let t = self.type_().try;
 
@@ -141,7 +142,7 @@ module Parser {
         self.expect("rbrace").try;
 
         return struct {
-            name: ident,
+            name: ident.data,
             type_: Type {
                 t_struct: TypeStruct {
                     fields: fields,
@@ -166,7 +167,7 @@ module Parser {
         }]]();
 
         while !self.peek().lexeme.equal("rbrace") {
-            let name = self.ident().try;
+            let name = self.ident().try.data;
             self.expect("colon").try;
             let t = self.type_().try;
 
@@ -185,7 +186,7 @@ module Parser {
         self.expect("rbrace").try;
 
         return struct {
-            name: ident,
+            name: ident.data,
             type_: Type {
                 t_enum: TypeStruct {
                     fields: fields,
@@ -207,7 +208,7 @@ module Parser {
         self.expect("rbrace").try;
 
         return struct {
-            path: Path::ident(name),
+            path: Path::ident(name.data),
             module_: module_,
         };
     }
@@ -229,7 +230,7 @@ module Parser {
         self.expect("semicolon").try;
 
         return Let {
-            name: name,
+            name: name.data,
             name_type: t,
             expr: value,
         };
@@ -255,7 +256,7 @@ module Parser {
         self.expect("rbrace").try;
 
         return Function {
-            name: name,
+            name: name.data,
             result_type: result_type,
             body: body,
             params: params.params,
@@ -300,7 +301,7 @@ module Parser {
                 let t = self.type_().try;
 
                 variadic = struct {
-                    name: name,
+                    name: name.data,
                     type_: t,
                 }?;
             } else {
@@ -309,7 +310,7 @@ module Parser {
                 let t = self.type_().try;
 
                 params.push(struct {
-                    name: name,
+                    name: name.data,
                     type_: t,
                 });
             }
@@ -420,7 +421,7 @@ module Parser {
                 let t = self.type_().try;
 
                 fields.push(struct {
-                    name: name,
+                    name: name.data,
                     type_: t,
                 });
 
@@ -462,10 +463,18 @@ module Parser {
         return token;
     }
 
-    fun ident(self): string or error {
+    fun ident(
+        self,
+    ): struct {
+        data: string,
+        position: i32,
+    } or error {
         let token = self.consume();
         if token.lexeme.equal("ident") {
-            return token.string_value!;
+            return struct {
+                data: token.string_value!,
+                position: token.position,
+            };
         } else {
             return _ or error::new(format("Expected IDENT, got {}", derive::to_string(token)));
         }
@@ -482,8 +491,8 @@ module Parser {
 
     fun expect_ident(self, expected: string): nil or error {
         let i = self.ident().try;
-        if !i.equal(expected) {
-            return _ or error::new("Expected ".concat(expected).concat(", got ").concat(i));
+        if !i.data.equal(expected) {
+            return _ or error::new("Expected ".concat(expected).concat(", got ").concat(i.data));
         }
 
         return nil;
@@ -585,7 +594,7 @@ module Parser {
                     t_for: struct {
                         mode: "",
                         type_: nil,
-                        ident: ident,
+                        ident: ident.data,
                         range: range,
                         block: body,
                     },
@@ -623,7 +632,7 @@ module Parser {
             return LStatement {
                 data: Statement {
                     t_expr: struct {
-                        expr: expr.data,
+                        expr: expr,
                     },
                 },
                 location: expr.location,
@@ -637,9 +646,9 @@ module Parser {
             return LStatement {
                 data: Statement {
                     t_assign: struct {
-                        lhs: expr.data,
+                        lhs: expr,
                         rhs_type: nil,
-                        rhs: rhs.data,
+                        rhs: rhs,
                     },
                 },
                 location: Location {
@@ -652,7 +661,7 @@ module Parser {
         return _ or error::new(format("Unexpected token {} (statement)", self.peek().to_string()));
     }
 
-    fun expression_conditional(self): Expression or error {
+    fun expression_conditional(self): LExpression or error {
         return self.expression_(false).try;
     }
 
@@ -677,7 +686,7 @@ module Parser {
                 t_let: struct {
                     pattern: pattern,
                     name_type: t,
-                    expr: value.data,
+                    expr: value,
                 },
             },
             location: self.span_location(start_token, end_token),
@@ -701,7 +710,7 @@ module Parser {
             let name = self.ident().try;
 
             current = Pattern {
-                t_ident: name?,
+                t_ident: name.data?,
                 ..nil,
             };
         }
@@ -731,8 +740,11 @@ module Parser {
             return LStatement {
                 data: Statement {
                     t_return: struct {
-                        expr: Expression {
-                            t_nil: true,
+                        expr: LExpression {
+                            data: Expression {
+                                t_nil: true,
+                            },
+                            location: Location::unknown(),
                         },
                     },
                 },
@@ -746,7 +758,7 @@ module Parser {
         return LStatement {
             data: Statement {
                 t_return: struct {
-                    expr: value.data,
+                    expr: value,
                 },
             },
             location: self.span_location(start_token, end_token),
@@ -754,66 +766,81 @@ module Parser {
     }
 
     fun expression(self): LExpression or error {
-        let expr = self.expression_(true).try;
-        return LExpression {
-            data: expr,
-            location: Location::unknown(),
-        };
+        return self.expression_(true).try;
     }
 
-    fun expression_(self, with_struct: bool): Expression or error {
+    fun expression_(self, with_struct: bool): LExpression or error {
         return self.term_5(with_struct).try;
     }
 
-    fun term_5(self, with_struct: bool): Expression or error {
+    fun term_5(self, with_struct: bool): LExpression or error {
         let current = self.term_4(with_struct).try;
         while true {
             if self.peek().lexeme.equal("double_amp") {
                 self.expect("double_amp").try;
                 let rhs = self.term_4(with_struct).try;
 
-                current = Expression {
-                    t_binop: struct {
-                        binop: "and",
-                        type_: nil,
-                        left: current,
-                        right: rhs,
+                current = LExpression {
+                    data: Expression {
+                        t_binop: struct {
+                            binop: "and",
+                            type_: nil,
+                            left: current,
+                            right: rhs,
+                        },
+                    },
+                    location: Location {
+                        start: current.location.start,
+                        end: rhs.location.end,
                     },
                 };
             } else if self.peek().lexeme.equal("double_pipe") {
                 self.expect("double_pipe").try;
                 let rhs = self.term_4(with_struct).try;
 
-                current = Expression {
-                    t_binop: struct {
-                        binop: "or",
-                        type_: nil,
-                        left: current,
-                        right: rhs,
+                current = LExpression {
+                    data: Expression {
+                        t_binop: struct {
+                            binop: "or",
+                            type_: nil,
+                            left: current,
+                            right: rhs,
+                        },
+                    },
+                    location: Location {
+                        start: current.location.start,
+                        end: rhs.location.end,
                     },
                 };
             } else if self.peek().lexeme.equal("or") {
                 self.expect("or").try;
                 let lhs = current?;
-                if lhs!.t_omit != nil {
+                if lhs!.data.t_omit != nil {
                     lhs = nil;
                 }
 
-                let rhs = self.term_4(with_struct).try?;
-                if rhs!.t_omit != nil {
-                    rhs = nil;
+                let rhs = self.term_4(with_struct).try;
+                let rhs_optional = rhs?;
+                if rhs.data.t_omit != nil {
+                    rhs_optional = nil;
                 }
 
-                current = Expression {
-                    t_enumor: struct {
-                        lhs: lhs,
-                        rhs: rhs,
-                        lhs_type: Type {
-                            t_omit: true,
+                current = LExpression {
+                    data: Expression {
+                        t_enumor: struct {
+                            lhs: lhs,
+                            rhs: rhs_optional,
+                            lhs_type: Type {
+                                t_omit: true,
+                            },
+                            rhs_type: Type {
+                                t_omit: true,
+                            },
                         },
-                        rhs_type: Type {
-                            t_omit: true,
-                        },
+                    },
+                    location: Location {
+                        start: current.location.start,
+                        end: rhs.location.end,
                     },
                 };
             } else {
@@ -824,31 +851,47 @@ module Parser {
         return current;
     }
 
-    fun term_4(self, with_struct: bool): Expression or error {
+    fun term_4(self, with_struct: bool): LExpression or error {
         let current = self.term_3(with_struct).try;
 
         while true {
             if self.peek().lexeme.equal("double_equal") {
                 self.expect("double_equal").try;
 
-                current = Expression {
-                    t_binop: struct {
-                        binop: "equal",
-                        type_: nil,
-                        left: current,
-                        right: self.term_3(with_struct).try,
+                let rhs = self.term_3(with_struct).try;
+
+                current = LExpression {
+                    data: Expression {
+                        t_binop: struct {
+                            binop: "equal",
+                            type_: nil,
+                            left: current,
+                            right: rhs,
+                        },
+                    },
+                    location: Location {
+                        start: current.location.start,
+                        end: rhs.location.end,
                     },
                 };
                 continue;
             } else if self.peek().lexeme.equal("not_equal") {
                 self.expect("not_equal").try;
 
-                current = Expression {
-                    t_binop: struct {
-                        binop: "not_equal",
-                        type_: nil,
-                        left: current,
-                        right: self.term_3(with_struct).try,
+                let rhs = self.term_3(with_struct).try;
+
+                current = LExpression {
+                    data: Expression {
+                        t_binop: struct {
+                            binop: "not_equal",
+                            type_: nil,
+                            left: current,
+                            right: rhs,
+                        },
+                    },
+                    location: Location {
+                        start: current.location.start,
+                        end: rhs.location.end,
                     },
                 };
                 continue;
@@ -858,61 +901,99 @@ module Parser {
         }
     }
 
-    fun term_3(self, with_struct: bool): Expression or error {
+    fun term_3(self, with_struct: bool): LExpression or error {
         let current = self.term_2(with_struct).try;
 
         if self.peek().lexeme.equal("lt") {
             self.expect("lt").try;
 
-            return Expression {
-                t_binop: struct {
-                    binop: "lt",
-                    type_: nil,
-                    left: current,
-                    right: self.term_2(with_struct).try,
+            let rhs = self.term_2(with_struct).try;
+
+            return LExpression {
+                data: Expression {
+                    t_binop: struct {
+                        binop: "lt",
+                        type_: nil,
+                        left: current,
+                        right: rhs,
+                    },
+                },
+                location: Location {
+                    start: current.location.start,
+                    end: rhs.location.end,
                 },
             };
         } else if self.peek().lexeme.equal("gt") {
             self.expect("gt").try;
 
-            return Expression {
-                t_binop: struct {
-                    binop: "gt",
-                    type_: nil,
-                    left: current,
-                    right: self.term_2(with_struct).try,
+            let rhs = self.term_2(with_struct).try;
+
+            return LExpression {
+                data: Expression {
+                    t_binop: struct {
+                        binop: "gt",
+                        type_: nil,
+                        left: current,
+                        right: rhs,
+                    },
+                },
+                location: Location {
+                    start: current.location.start,
+                    end: rhs.location.end,
                 },
             };
         } else if self.peek().lexeme.equal("gte") {
             self.expect("gte").try;
 
-            return Expression {
-                t_binop: struct {
-                    binop: "gte",
-                    type_: nil,
-                    left: current,
-                    right: self.term_2(with_struct).try,
+            let rhs = self.term_2(with_struct).try;
+
+            return LExpression {
+                data: Expression {
+                    t_binop: struct {
+                        binop: "gte",
+                        type_: nil,
+                        left: current,
+                        right: rhs,
+                    },
+                },
+                location: Location {
+                    start: current.location.start,
+                    end: rhs.location.end,
                 },
             };
         } else if self.peek().lexeme.equal("lte") {
             self.expect("lte").try;
 
-            return Expression {
-                t_binop: struct {
-                    binop: "lte",
-                    type_: nil,
-                    left: current,
-                    right: self.term_2(with_struct).try,
+            let rhs = self.term_2(with_struct).try;
+
+            return LExpression {
+                data: Expression {
+                    t_binop: struct {
+                        binop: "lte",
+                        type_: nil,
+                        left: current,
+                        right: rhs,
+                    },
+                },
+                location: Location {
+                    start: current.location.start,
+                    end: rhs.location.end,
                 },
             };
         } else if self.peek().lexeme.equal("double_dot") {
             self.expect("double_dot").try;
             let expr = self.term_3(with_struct).try;
 
-            return Expression {
-                t_range: struct {
-                    start: current,
-                    end: expr,
+            return LExpression {
+                data: Expression {
+                    t_range: struct {
+                        start: current,
+                        end: expr,
+                    },
+                },
+                location: Location {
+                    start: current.location.start,
+                    end: expr.location.end,
                 },
             };
         }
@@ -920,19 +1001,27 @@ module Parser {
         return current;
     }
 
-    fun term_2(self, with_struct: bool): Expression or error {
+    fun term_2(self, with_struct: bool): LExpression or error {
         let current = self.term_1(with_struct).try;
 
         while true {
             if self.peek().lexeme.equal("plus") {
                 self.expect("plus").try;
 
-                current = Expression {
-                    t_binop: struct {
-                        binop: "plus",
-                        type_: nil,
-                        left: current,
-                        right: self.term_1(with_struct).try,
+                let rhs = self.term_1(with_struct).try;
+
+                current = LExpression {
+                    data: Expression {
+                        t_binop: struct {
+                            binop: "plus",
+                            type_: nil,
+                            left: current,
+                            right: rhs,
+                        },
+                    },
+                    location: Location {
+                        start: current.location.start,
+                        end: rhs.location.end,
                     },
                 };
                 continue;
@@ -940,26 +1029,41 @@ module Parser {
             if self.peek().lexeme.equal("minus") {
                 self.expect("minus").try;
 
-                current = Expression {
-                    t_binop: struct {
-                        binop: "minus",
-                        type_: nil,
-                        left: current,
-                        right: self.term_1(with_struct).try,
+                let rhs = self.term_1(with_struct).try;
+
+                current = LExpression {
+                    data: Expression {
+                        t_binop: struct {
+                            binop: "minus",
+                            type_: nil,
+                            left: current,
+                            right: rhs,
+                        },
+                    },
+                    location: Location {
+                        start: current.location.start,
+                        end: rhs.location.end,
                     },
                 };
                 continue;
             }
             if self.peek().lexeme.equal("as") {
-                self.expect("as").try;
+                let end_token = self.expect("as").try;
+                let t = self.type_().try;
 
-                current = Expression {
-                    t_as: struct {
-                        expr: current,
-                        source_type: Type {
-                            t_omit: true,
+                current = LExpression {
+                    data: Expression {
+                        t_as: struct {
+                            expr: current,
+                            source_type: Type {
+                                t_omit: true,
+                            },
+                            target_type: t,
                         },
-                        target_type: self.type_().try,
+                    },
+                    location: Location {
+                        start: current.location.start,
+                        end: self.location_from_token(end_token)?,
                     },
                 };
                 continue;
@@ -967,12 +1071,20 @@ module Parser {
             if self.peek().lexeme.equal("bit_and") {
                 self.expect("bit_and").try;
 
-                current = Expression {
-                    t_binop: struct {
-                        binop: "bit_and",
-                        type_: nil,
-                        left: current,
-                        right: self.term_4(with_struct).try,
+                let rhs = self.term_4(with_struct).try;
+
+                current = LExpression {
+                    data: Expression {
+                        t_binop: struct {
+                            binop: "bit_and",
+                            type_: nil,
+                            left: current,
+                            right: rhs,
+                        },
+                    },
+                    location: Location {
+                        start: current.location.start,
+                        end: rhs.location.end,
                     },
                 };
                 continue;
@@ -980,12 +1092,20 @@ module Parser {
             if self.peek().lexeme.equal("bit_or") {
                 self.expect("bit_or").try;
 
-                current = Expression {
-                    t_binop: struct {
-                        binop: "bit_or",
-                        type_: nil,
-                        left: current,
-                        right: self.term_4(with_struct).try,
+                let rhs = self.term_4(with_struct).try;
+
+                current = LExpression {
+                    data: Expression {
+                        t_binop: struct {
+                            binop: "bit_or",
+                            type_: nil,
+                            left: current,
+                            right: rhs,
+                        },
+                    },
+                    location: Location {
+                        start: current.location.start,
+                        end: rhs.location.end,
                     },
                 };
                 continue;
@@ -995,67 +1115,107 @@ module Parser {
         }
     }
 
-    fun term_1(self, with_struct: bool): Expression or error {
+    fun term_1(self, with_struct: bool): LExpression or error {
         let current = self.term_0(with_struct).try;
 
         while true {
             if self.peek().lexeme.equal("star") {
                 self.expect("star").try;
 
-                current = Expression {
-                    t_binop: struct {
-                        binop: "mult",
-                        type_: nil,
-                        left: current,
-                        right: self.term_1(with_struct).try,
+                let rhs = self.term_1(with_struct).try;
+
+                current = LExpression {
+                    data: Expression {
+                        t_binop: struct {
+                            binop: "mult",
+                            type_: nil,
+                            left: current,
+                            right: rhs,
+                        },
+                    },
+                    location: Location {
+                        start: current.location.start,
+                        end: rhs.location.end,
                     },
                 };
                 continue;
             } else if self.peek().lexeme.equal("slash") {
                 self.expect("slash").try;
 
-                current = Expression {
-                    t_binop: struct {
-                        binop: "div",
-                        type_: nil,
-                        left: current,
-                        right: self.term_1(with_struct).try,
+                let rhs = self.term_1(with_struct).try;
+
+                current = LExpression {
+                    data: Expression {
+                        t_binop: struct {
+                            binop: "div",
+                            type_: nil,
+                            left: current,
+                            right: rhs,
+                        },
+                    },
+                    location: Location {
+                        start: current.location.start,
+                        end: rhs.location.end,
                     },
                 };
                 continue;
             } else if self.peek().lexeme.equal("percent") {
                 self.expect("percent").try;
 
-                current = Expression {
-                    t_binop: struct {
-                        binop: "mod",
-                        type_: nil,
-                        left: current,
-                        right: self.term_1(with_struct).try,
+                let rhs = self.term_1(with_struct).try;
+
+                current = LExpression {
+                    data: Expression {
+                        t_binop: struct {
+                            binop: "mod",
+                            type_: nil,
+                            left: current,
+                            right: rhs,
+                        },
+                    },
+                    location: Location {
+                        start: current.location.start,
+                        end: rhs.location.end,
                     },
                 };
                 continue;
             } else if self.peek().lexeme.equal("bit_shift_left") {
                 self.expect("bit_shift_left").try;
 
-                current = Expression {
-                    t_binop: struct {
-                        binop: "bit_shift_left",
-                        type_: nil,
-                        left: current,
-                        right: self.term_1(with_struct).try,
+                let rhs = self.term_1(with_struct).try;
+
+                current = LExpression {
+                    data: Expression {
+                        t_binop: struct {
+                            binop: "bit_shift_left",
+                            type_: nil,
+                            left: current,
+                            right: rhs,
+                        },
+                    },
+                    location: Location {
+                        start: current.location.start,
+                        end: rhs.location.end,
                     },
                 };
                 continue;
             } else if self.peek().lexeme.equal("bit_shift_right") {
                 self.expect("bit_shift_right").try;
 
-                current = Expression {
-                    t_binop: struct {
-                        binop: "bit_shift_right",
-                        type_: nil,
-                        left: current,
-                        right: self.term_1(with_struct).try,
+                let rhs = self.term_1(with_struct).try;
+
+                current = LExpression {
+                    data: Expression {
+                        t_binop: struct {
+                            binop: "bit_shift_right",
+                            type_: nil,
+                            left: current,
+                            right: rhs,
+                        },
+                    },
+                    location: Location {
+                        start: current.location.start,
+                        end: rhs.location.end,
                     },
                 };
                 continue;
@@ -1065,7 +1225,7 @@ module Parser {
         }
     }
 
-    fun term_0(self, with_struct: bool): Expression or error {
+    fun term_0(self, with_struct: bool): LExpression or error {
         let current = self.term_0_1(with_struct).try;
 
         while true {
@@ -1074,17 +1234,17 @@ module Parser {
             if token.lexeme.equal("lparen") {
                 self.expect("lparen").try;
 
-                let args = make[vec[Expression]]();
-                let expansion = nil as Expression?;
+                let args = make[vec[LExpression]]();
+                let expansion = nil as LExpression?;
                 while !self.peek().lexeme.equal("rparen") {
                     // expansion
                     if self.peek().lexeme.equal("double_dot") {
                         self.expect("double_dot").try;
-                        expansion = self.expression().try.data?;
+                        expansion = self.expression().try?;
                         break;
                     }
 
-                    args.push(self.expression().try.data);
+                    args.push(self.expression().try);
 
                     if self.peek().lexeme.equal("comma") {
                         self.expect("comma").try;
@@ -1092,51 +1252,69 @@ module Parser {
                         break;
                     }
                 }
-                self.expect("rparen").try;
+                let end_token = self.expect("rparen").try;
 
-                current = Expression {
-                    t_call: struct {
-                        callee: current,
-                        args: args,
-                        variadic: nil,
-                        expansion: expansion,
+                current = LExpression {
+                    data: Expression {
+                        t_call: struct {
+                            callee: current,
+                            args: args,
+                            variadic: nil,
+                            expansion: expansion,
+                        },
+                    },
+                    location: Location {
+                        start: current.location.start,
+                        end: self.location_from_token(end_token)?,
                     },
                 };
             } else if token.lexeme.equal("dot") {
                 self.expect("dot").try;
 
                 if self.peek().lexeme.equal("try") {
-                    self.expect("try").try;
+                    let end_token = self.expect("try").try;
 
-                    current = Expression {
-                        t_try: current,
+                    current = LExpression {
+                        data: Expression {
+                            t_try: current,
+                        },
+                        location: Location {
+                            start: current.location.start,
+                            end: self.location_from_token(end_token)?,
+                        },
                     };
                 } else {
                     let field = self.ident().try;
 
-                    current = Expression {
-                        t_project: struct {
-                            expr: current,
-                            field: field,
-                            type_: nil as Type?,
-                            resolved_path: nil,
+                    current = LExpression {
+                        data: Expression {
+                            t_project: struct {
+                                expr: current,
+                                field: field.data,
+                                type_: nil as Type?,
+                                resolved_path: nil,
+                            },
+                        },
+                        location: Location {
+                            start: current.location.start,
+                            end: field.position?,
                         },
                     };
                 }
             } else if with_struct && token.lexeme.equal("lbrace") {
                 self.expect("lbrace").try;
 
-                if current.t_ident == nil {
-                    return _ or error::new(format("Expected identifier, got {}", current.to_string()));
+                if current.data.t_ident == nil {
+                    return _ or error::new(format("Expected identifier, got {}", current.data.to_string()));
                 }
 
-                let ident = current.t_ident!;
+                let ident = current.data.t_ident!;
                 let fields = make[vec[struct {
                     field: string,
-                    value: Expression,
+                    value: LExpression,
                 }]]();
 
-                let expansion = nil as Expression?;
+                let expansion = nil as LExpression?;
 
                 while !self.peek().lexeme.equal("rbrace") {
                     let field = self.ident().try;
@@ -1144,8 +1322,8 @@ module Parser {
                     let value = self.expression().try;
 
                     fields.push(struct {
-                        field: field,
-                        value: value.data,
+                        field: field.data,
+                        value: value,
                     });
 
                     if self.peek().lexeme.equal("comma") {
@@ -1153,7 +1331,7 @@ module Parser {
 
                         if self.peek().lexeme.equal("double_dot") {
                             self.expect("double_dot").try;
-                            expansion = self.expression().try.data?;
+                            expansion = self.expression().try?;
 
                             if self.peek().lexeme.equal("comma") {
                                 self.expect("comma").try;
@@ -1165,22 +1343,28 @@ module Parser {
                         break;
                     }
                 }
-                self.expect("rbrace").try;
+                let end_token = self.expect("rbrace").try;
 
-                current = Expression {
-                    t_record: RecordExpression {
-                        name: ident.name,
-                        fields: fields,
-                        expansion: expansion,
+                current = LExpression {
+                    data: Expression {
+                        t_record: RecordExpression {
+                            name: ident.name,
+                            fields: fields,
+                            expansion: expansion,
+                        },
+                    },
+                    location: Location {
+                        start: current.location.start,
+                        end: self.location_from_token(end_token)?,
                     },
                 };
             } else if token.lexeme.equal("lbracket") {
                 self.expect("lbracket").try;
 
-                if current.t_ident == nil {
+                if current.data.t_ident == nil {
                     return _ or error::new(format(
                         "Expected identifier for record name, found {}",
-                        current.to_string(),
+                        current.data.to_string(),
                     ));
                 }
 
@@ -1188,9 +1372,9 @@ module Parser {
                 self.expect("rbracket").try;
 
                 self.expect("lparen").try;
-                let args = make[vec[Expression]]();
+                let args = make[vec[LExpression]]();
                 while !self.peek().lexeme.equal("rparen") {
-                    args.push(self.expression().try.data);
+                    args.push(self.expression().try);
 
                     if self.peek().lexeme.equal("comma") {
                         self.expect("comma").try;
@@ -1198,20 +1382,32 @@ module Parser {
                         break;
                     }
                 }
-                self.expect("rparen").try;
+                let end_token = self.expect("rparen").try;
 
-                let ident = current.t_ident!.name;
+                let ident = current.data.t_ident!.name;
                 if ident.equal("make") {
-                    current = Expression {
-                        t_make: struct {
-                            type_: t,
-                            args: args,
+                    current = LExpression {
+                        data: Expression {
+                            t_make: struct {
+                                type_: t,
+                                args: args,
+                            },
+                        },
+                        location: Location {
+                            start: current.location.start,
+                            end: self.location_from_token(end_token)?,
                         },
                     };
                 } else if ident.equal("sizeof") {
-                    current = Expression {
-                        t_sizeof: struct {
-                            type_: t,
+                    current = LExpression {
+                        data: Expression {
+                            t_sizeof: struct {
+                                type_: t,
+                            },
+                        },
+                        location: Location {
+                            start: current.location.start,
+                            end: self.location_from_token(end_token)?,
                         },
                     };
                 } else {
@@ -1220,44 +1416,62 @@ module Parser {
             } else if token.lexeme.equal("double_colon") {
                 self.expect("double_colon").try;
 
-                if current.t_ident == nil {
+                if current.data.t_ident == nil {
                     return _ or error::new(format(
                         "Expected identifier for record name, found {}",
-                        current.to_string(),
+                        current.data.to_string(),
                     ));
                 }
 
                 let name = self.ident().try;
 
-                let path = Path::ident(current.t_ident!.name);
-                path.push(name);
+                let path = Path::ident(current.data.t_ident!.name);
+                path.push(name.data);
 
-                current = Expression {
-                    t_path: struct {
-                        path: path,
-                        resolved_path: nil,
+                current = LExpression {
+                    data: Expression {
+                        t_path: struct {
+                            path: path,
+                            resolved_path: nil,
+                        },
+                    },
+                    location: Location {
+                        start: current.location.start,
+                        end: name.position?,
                     },
                 };
             } else if token.lexeme.equal("bang") {
-                self.expect("bang").try;
+                let end_token = self.expect("bang").try;
 
-                current = Expression {
-                    t_unwrap: struct {
-                        type_: Type {
-                            t_omit: true,
+                current = LExpression {
+                    data: Expression {
+                        t_unwrap: struct {
+                            type_: Type {
+                                t_omit: true,
+                            },
+                            expr: current,
                         },
-                        expr: current,
+                    },
+                    location: Location {
+                        start: current.location.start,
+                        end: self.location_from_token(end_token)?,
                     },
                 };
             } else if token.lexeme.equal("question") {
-                self.expect("question").try;
+                let end_token = self.expect("question").try;
 
-                current = Expression {
-                    t_wrap: struct {
-                        type_: Type {
-                            t_omit: true,
+                current = LExpression {
+                    data: Expression {
+                        t_wrap: struct {
+                            type_: Type {
+                                t_omit: true,
+                            },
+                            expr: current,
                         },
-                        expr: current,
+                    },
+                    location: Location {
+                        start: current.location.start,
+                        end: self.location_from_token(end_token)?,
                     },
                 };
             } else {
@@ -1268,29 +1482,47 @@ module Parser {
         return panic("unreachable");
     }
 
-    fun term_0_1(self, with_struct: bool): Expression or error {
+    fun term_0_1(self, with_struct: bool): LExpression or error {
         if self.peek().lexeme.equal("ident") {
             let name = self.ident().try;
 
-            return Expression {
-                t_ident: struct {
-                    name: name,
-                    resolved_path: nil,
+            return LExpression {
+                data: Expression {
+                    t_ident: struct {
+                        name: name.data,
+                        resolved_path: nil,
+                    },
+                },
+                location: Location {
+                    start: name.position?,
+                    end: (name.position + name.data.length)?,
                 },
             };
         }
         if self.peek().lexeme.equal("number") {
             let token = self.consume();
             if token.string_value!.compare_lte("2147483647") {
-                return Expression {
-                    t_i32: struct {
-                        value: i32::parse(token.string_value!),
+                return LExpression {
+                    data: Expression {
+                        t_i32: struct {
+                            value: i32::parse(token.string_value!),
+                        },
+                    },
+                    location: Location {
+                        start: token.position?,
+                        end: (token.position + token.string_value!.length)?,
                     },
                 };
             } else if token.string_value!.compare_lte("4294967295") {
-                return Expression {
-                    t_u32: struct {
-                        value: u32::parse(token.string_value!),
+                return LExpression {
+                    data: Expression {
+                        t_u32: struct {
+                            value: u32::parse(token.string_value!),
+                        },
+                    },
+                    location: Location {
+                        start: token.position?,
+                        end: (token.position + token.string_value!.length)?,
                     },
                 };
             } else {
@@ -1298,70 +1530,109 @@ module Parser {
             }
         }
         if self.peek().lexeme.equal("self") {
-            self.expect("self").try;
+            let token = self.expect("self").try;
 
-            return Expression {
-                t_self: true,
+            return LExpression {
+                data: Expression {
+                    t_self: true,
+                },
+                location: Location {
+                    start: token.position?,
+                    end: (token.position + token.string_value!.length)?,
+                },
             };
         }
         if self.peek().lexeme.equal("string") {
             let token = self.consume();
 
-            return Expression {
-                t_string: token.string_value!,
+            return LExpression {
+                data: Expression {
+                    t_string: token.string_value!,
+                },
+                location: Location {
+                    start: token.position?,
+                    end: (token.position + token.string_value!.length)?,
+                },
             };
         }
         if self.peek().lexeme.equal("lparen") {
-            self.expect("lparen").try;
+            let start_token = self.expect("lparen").try;
 
             let expr = self.expression().try;
 
-            self.expect("rparen").try;
+            let end_token = self.expect("rparen").try;
 
-            return Expression {
-                t_paren: expr.data,
+            return LExpression {
+                data: Expression {
+                    t_paren: expr,
+                },
+                location: self.span_location(start_token, end_token),
             };
         }
         if self.peek().lexeme.equal("bang") {
-            self.expect("bang").try;
+            let start_token = self.expect("bang").try;
 
             let expr = self.term_0(with_struct).try;
 
-            return Expression {
-                t_unop: struct {
-                    unop: "not",
-                    expr: expr,
+            return LExpression {
+                data: Expression {
+                    t_unop: struct {
+                        unop: "not",
+                        expr: expr,
+                    },
+                },
+                location: Location {
+                    start: start_token.position?,
+                    end: expr.location.end,
                 },
             };
         }
         if self.peek().lexeme.equal("true") {
-            self.expect("true").try;
+            let token = self.expect("true").try;
 
-            return Expression {
-                t_bool: true,
+            return LExpression {
+                data: Expression {
+                    t_bool: true,
+                },
+                location: Location {
+                    start: token.position?,
+                    end: (token.position + token.string_value!.length)?,
+                },
             };
         }
         if self.peek().lexeme.equal("false") {
-            self.expect("false").try;
+            let token = self.expect("false").try;
 
-            return Expression {
-                t_bool: false,
+            return LExpression {
+                data: Expression {
+                    t_bool: false,
+                },
+                location: Location {
+                    start: token.position?,
+                    end: (token.position + token.string_value!.length)?,
+                },
             };
         }
         if self.peek().lexeme.equal("nil") {
-            self.expect("nil").try;
+            let token = self.expect("nil").try;
 
-            return Expression {
-                t_nil: true,
+            return LExpression {
+                data: Expression {
+                    t_nil: true,
+                },
+                location: Location {
+                    start: token.position?,
+                    end: (token.position + token.string_value!.length)?,
+                },
             };
         }
         if self.peek().lexeme.equal("struct") {
-            self.expect("struct").try;
+            let start_token = self.expect("struct").try;
             self.expect("lbrace").try;
 
             let fields = make[vec[struct {
                 field: string,
-                value: Expression,
+                value: LExpression,
             }]]();
 
             while !self.peek().lexeme.equal("rbrace") {
@@ -1370,8 +1641,8 @@ module Parser {
                 let value = self.expression().try;
 
                 fields.push(struct {
-                    field: ident,
-                    value: value.data,
+                    field: ident.data,
+                    value: value,
                 });
 
                 if self.peek().lexeme.equal("comma") {
@@ -1380,20 +1651,29 @@ module Parser {
                     break;
                 }
             }
-            self.expect("rbrace").try;
+            let end_token = self.expect("rbrace").try;
 
-            return Expression {
-                t_anonymous_record: struct {
-                    fields: fields,
-                    type_: nil,
+            return LExpression {
+                data: Expression {
+                    t_anonymous_record: struct {
+                        fields: fields,
+                        type_: nil,
+                    },
                 },
+                location: self.span_location(start_token, end_token),
             };
         }
         if self.peek().lexeme.equal("underscore") {
-            self.expect("underscore").try;
+            let token = self.expect("underscore").try;
 
-            return Expression {
-                t_omit: true,
+            return LExpression {
+                data: Expression {
+                    t_omit: true,
+                },
+                location: Location {
+                    start: token.position?,
+                    end: (token.position + token.string_value!.length)?,
+                },
             };
         }
 
