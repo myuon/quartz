@@ -1404,14 +1404,10 @@ module Parser {
         return token.position;
     }
 
-    fun location_from_position(self, position: i32): i32 {
-        return self.input.at(position).position;
-    }
-
     fun span_location(self, start: Token, end: Token): Location {
         return Location {
-            start: self.location_from_token(start)?,
-            end: self.location_from_token(end)?,
+            start: start.position?,
+            end: end.position?,
         };
     }
 }
