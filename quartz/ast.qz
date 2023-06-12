@@ -1,19 +1,14 @@
 import quartz::ast;
 import quartz::path;
+import quartz::location;
 
 struct Module {
-    decls: vec[Decl],
+    decls: vec[LDecl],
 }
 
 module Module {
     fun to_string(self): string {
-        let result = "Module{";
-
-        for i in 0..self.decls.length {
-            result = result.concat(self.decls.at(i).to_string()).concat("\n");
-        }
-
-        return result.concat("}");
+        return derive::to_string(self);
     }
 }
 
@@ -39,6 +34,11 @@ module Decl {
     fun to_string(self): string {
         return derive::to_string(self);
     }
+}
+
+struct LDecl {
+    data: Decl,
+    location: Location,
 }
 
 struct Let {

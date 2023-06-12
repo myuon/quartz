@@ -1,6 +1,7 @@
 import quartz::ast;
 import quartz::ir;
 import quartz::path;
+import quartz::location;
 
 let typeRepKindStruct = 1;
 
@@ -256,7 +257,7 @@ module IrCodeGenerator {
         let elements = make[vec[IrTerm]]();
 
         for i in 0..m.decls.length {
-            let d = m.decls.at(i);
+            let d = m.decls.at(i).data;
 
             if d.t_func != nil {
                 elements.push(IrTerm {

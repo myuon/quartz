@@ -26,7 +26,7 @@ module Parser {
     }
 
     fun module_(self): Module or error {
-        let decls = make[vec[Decl]]();
+        let decls = make[vec[LDecl]]();
 
         while !self.is_end() && !self.peek().lexeme.equal("rbrace") {
             decls.push(self.decl().try);
@@ -37,52 +37,70 @@ module Parser {
         };
     }
 
-    fun decl(self): Decl or error {
+    fun decl(self): LDecl or error {
         let token = self.peek();
         if token.lexeme.equal("fun") {
             let func = self.function().try;
 
-            return Decl {
-                t_func: func,
+            return LDecl {
+                data: Decl {
+                    t_func: func.data,
+                },
+                location: func.location,
             };
         }
         if token.lexeme.equal("let") {
             let let_ = self.global_let().try;
 
-            return Decl {
-                t_let: let_,
+            return LDecl {
+                data: Decl {
+                    t_let: let_.data,
+                },
+                location: let_.location,
             };
         }
         if token.lexeme.equal("struct") {
             let struct_ = self.struct_decl().try;
 
-            return Decl {
-                t_type: struct_,
+            return LDecl {
+                data: Decl {
+                    t_type: struct_.data,
+                },
+                location: struct_.location,
             };
         }
         if token.lexeme.equal("enum") {
             let enum_ = self.enum_decl().try;
 
-            return Decl {
-                t_enum: enum_,
+            return LDecl {
+                data: Decl {
+                    t_enum: enum_.data,
+                },
+                location: enum_.location,
             };
         }
         if token.lexeme.equal("module") {
             let module_ = self.module_decl().try;
 
-            return Decl {
-                t_module: module_,
+            return LDecl {
+                data: Decl {
+                    t_module: module_.data,
+                },
+                location: module_.location,
             };
         }
         if token.lexeme.equal("import") {
-            self.expect("import").try;
+            let start_token = self.expect("import").try;
             let path = self.path().try;
-            self.expect("semicolon").try;
+            let end_token = self.expect("semicolon").try;
 
             self.imports.push(path);
 
-            return Decl {
-                t_import: path,
+            return LDecl {
+                data: Decl {
+                    t_import: path,
+                },
+                location: self.span_location(start_token, end_token),
             };
         }
 
@@ -110,10 +128,13 @@ module Parser {
     fun struct_decl(
         self,
     ): struct {
-        name: string,
-        type_: Type,
+        data: struct {
+            name: string,
+            type_: Type,
+        },
+        location: Location,
     } or error {
-        self.expect("struct").try;
+        let start_token = self.expect("struct").try;
         let ident = self.ident().try;
         self.expect("lbrace").try;
 
@@ -139,25 +160,31 @@ module Parser {
             }
         }
 
-        self.expect("rbrace").try;
+        let end_token = self.expect("rbrace").try;
 
         return struct {
-            name: ident.data,
-            type_: Type {
-                t_struct: TypeStruct {
-                    fields: fields,
+            data: struct {
+                name: ident.data,
+                type_: Type {
+                    t_struct: TypeStruct {
+                        fields: fields,
+                    },
                 },
             },
+            location: self.span_location(start_token, end_token),
         };
     }
 
     fun enum_decl(
         self,
     ): struct {
-        name: string,
-        type_: Type,
+        data: struct {
+            name: string,
+            type_: Type,
+        },
+        location: Location,
     } or error {
-        self.expect("enum").try;
+        let start_token = self.expect("enum").try;
         let ident = self.ident().try;
         self.expect("lbrace").try;
 
@@ -183,38 +210,52 @@ module Parser {
             }
         }
 
-        self.expect("rbrace").try;
+        let end_token = self.expect("rbrace").try;
 
         return struct {
-            name: ident.data,
-            type_: Type {
-                t_enum: TypeStruct {
-                    fields: fields,
+            data: struct {
+                name: ident.data,
+                type_: Type {
+                    t_enum: TypeStruct {
+                        fields: fields,
+                    },
                 },
             },
+            location: self.span_location(start_token, end_token),
         };
     }
 
     fun module_decl(
         self,
     ): struct {
-        path: Path,
-        module_: Module,
+        data: struct {
+            path: Path,
+            module_: Module,
+        },
+        location: Location,
     } or error {
-        self.expect("module").try;
+        let start_token = self.expect("module").try;
         let name = self.ident().try;
         self.expect("lbrace").try;
         let module_ = self.module_().try;
-        self.expect("rbrace").try;
+        let end_token = self.expect("rbrace").try;
 
         return struct {
-            path: Path::ident(name.data),
-            module_: module_,
+            data: struct {
+                path: Path::ident(name.data),
+                module_: module_,
+            },
+            location: self.span_location(start_token, end_token),
         };
     }
 
-    fun global_let(self): Let or error {
-        self.expect("let").try;
+    fun global_let(
+        self,
+    ): struct {
+        data: Let,
+        location: Location,
+    } or error {
+        let start_token = self.expect("let").try;
         let name = self.ident().try;
 
         let t = Type {
@@ -227,17 +268,25 @@ module Parser {
 
         self.expect("equal").try;
         let value = self.expression().try;
-        self.expect("semicolon").try;
+        let end_token = self.expect("semicolon").try;
 
-        return Let {
-            name: name.data,
-            name_type: t,
-            expr: value,
+        return struct {
+            data: Let {
+                name: name.data,
+                name_type: t,
+                expr: value,
+            },
+            location: self.span_location(start_token, end_token),
         };
     }
 
-    fun function(self): Function or error {
-        self.expect("fun").try;
+    fun function(
+        self,
+    ): struct {
+        data: Function,
+        location: Location,
+    } or error {
+        let start_token = self.expect("fun").try;
         let name = self.ident().try;
         self.expect("lparen").try;
         let params = self.parameters().try;
@@ -253,14 +302,17 @@ module Parser {
 
         self.expect("lbrace").try;
         let body = self.block().try;
-        self.expect("rbrace").try;
+        let end_token = self.expect("rbrace").try;
 
-        return Function {
-            name: name.data,
-            result_type: result_type,
-            body: body,
-            params: params.params,
-            variadic: params.variadic,
+        return struct {
+            data: Function {
+                name: name.data,
+                result_type: result_type,
+                body: body,
+                params: params.params,
+                variadic: params.variadic,
+            },
+            location: self.span_location(start_token, end_token),
         };
     }
 

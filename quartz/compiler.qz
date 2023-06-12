@@ -67,13 +67,16 @@ module Compiler {
         // println("loaded modules");
         // debug(alloc_ptr);
 
-        let decls = make[vec[Decl]]();
+        let decls = make[vec[LDecl]]();
         for loaded in self.loaded {
-            decls.push(Decl {
-                t_module: struct {
-                    path: loaded.path,
-                    module_: loaded.module_,
+            decls.push(LDecl {
+                data: Decl {
+                    t_module: struct {
+                        path: loaded.path,
+                        module_: loaded.module_,
+                    },
                 },
+                location: Location::unknown(),
             });
         }
 

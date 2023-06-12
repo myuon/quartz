@@ -417,7 +417,7 @@ module Typechecker {
 
     fun module_register_for_back_reference(self, m: Module): nil or error {
         for i in 0..m.decls.length {
-            let d = m.decls.at(i);
+            let d = m.decls.at(i).data;
             if d.t_func != nil {
                 self.globals.insert(self.path_to(d.t_func!.name), d.t_func!.to_type());
 
@@ -461,7 +461,8 @@ module Typechecker {
         return self.current_path.join("_").concat("_").concat(ident);
     }
 
-    fun decl(self, d: Decl): nil or error {
+    fun decl(self, ld: LDecl): nil or error {
+        let d = ld.data;
         if d.t_func != nil {
             // For recursive functions
             self.globals.insert(self.path_to(d.t_func!.name), d.t_func!.to_type());
