@@ -472,7 +472,7 @@ module Typechecker {
             return;
         }
         if d.t_let != nil {
-            let t = self.expression(d.t_let!.expr).try;
+            let t = self.expression(d.t_let!.expr.data).try;
             let type_ = unify(t, d.t_let!.name_type).try;
             d.t_let!.name_type = type_;
 
@@ -527,13 +527,16 @@ module Typechecker {
             let result = Type {
                 t_omit: true,
             };
+
             self.statement(b.block.at(i)).try;
         }
 
         return nil;
     }
 
-    fun statement(self, s: Statement): nil or error {
+    fun statement(self, ls: LStatement): nil or error {
+        let s = ls.data;
+
         if s.t_let != nil {
             let t = self.expression(s.t_let!.expr).try;
             let type_ = unify(t, s.t_let!.name_type).try;

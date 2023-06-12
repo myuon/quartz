@@ -471,10 +471,10 @@ module Parser {
         }
     }
 
-    fun expect(self, lexeme: string): nil or error {
+    fun expect(self, lexeme: string): Token or error {
         let token = self.consume();
         if token.lexeme.equal(lexeme) {
-            return nil;
+            return token;
         } else {
             return _ or error::new(format("Expected {}, got {}", lexeme, derive::to_string(token)));
         }
@@ -490,7 +490,7 @@ module Parser {
     }
 
     fun block(self): Block or error {
-        let statements = make[vec[Statement]]();
+        let statements = make[vec[LStatement]]();
 
         while !self.is_end() && !self.peek().lexeme.equal("rbrace") {
             let s = self.statement().try;
@@ -502,7 +502,7 @@ module Parser {
         };
     }
 
-    fun statement(self): Statement or error {
+    fun statement(self): LStatement or error {
         let token = self.peek();
         if token.lexeme.equal("let") {
             return self.let_statement();
@@ -511,11 +511,12 @@ module Parser {
             return self.return_statement();
         }
         if token.lexeme.equal("if") {
-            self.consume();
+            let start_token = self.consume();
             let condition = self.expression_conditional().try;
             self.expect("lbrace").try;
             let then_block = self.block().try;
-            self.expect("rbrace").try;
+            let end_block = self.expect("rbrace").try;
+            let end_position = self.location_from_token(end_block);
 
             let else_block = nil as Block?;
             if self.peek().lexeme.equal("else") {
@@ -524,71 +525,94 @@ module Parser {
                 if self.peek().lexeme.equal("if") {
                     let s = self.statement().try;
                     else_block = Block {
-                        block: make[vec[Statement]](s),
+                        block: make[vec[LStatement]](s),
                     }?;
+
+                    if s.location.end != nil {
+                        end_position = s.location.end!;
+                    }
                 } else {
                     self.expect("lbrace").try;
                     else_block = self.block().try?;
-                    self.expect("rbrace").try;
+                    let rbrace = self.expect("rbrace").try;
+                    end_position = self.location_from_token(rbrace);
                 }
             }
 
-            return Statement {
-                t_if: struct {
-                    condition: condition,
-                    then_block: then_block,
-                    else_block: else_block,
+            return LStatement {
+                data: Statement {
+                    t_if: struct {
+                        condition: condition,
+                        then_block: then_block,
+                        else_block: else_block,
+                    },
+                },
+                location: Location {
+                    start: self.location_from_token(start_token)?,
+                    end: end_position?,
                 },
             };
         }
         if token.lexeme.equal("while") {
-            self.consume();
+            let start_token = self.consume();
             let condition = self.expression_conditional().try;
             self.expect("lbrace").try;
             let block = self.block().try;
-            self.expect("rbrace").try;
+            let end_token = self.expect("rbrace").try;
 
-            return Statement {
-                t_while: struct {
-                    condition: condition,
-                    block: block,
+            return LStatement {
+                data: Statement {
+                    t_while: struct {
+                        condition: condition,
+                        block: block,
+                    },
                 },
+                location: self.span_location(start_token, end_token),
             };
         }
         if token.lexeme.equal("for") {
-            self.expect("for").try;
+            let start_token = self.expect("for").try;
             let ident = self.ident().try;
             self.expect("in").try;
             let range = self.expression_conditional().try;
 
             self.expect("lbrace").try;
             let body = self.block().try;
-            self.expect("rbrace").try;
+            let end_token = self.expect("rbrace").try;
 
-            return Statement {
-                t_for: struct {
-                    mode: "",
-                    type_: nil,
-                    ident: ident,
-                    range: range,
-                    block: body,
+            return LStatement {
+                data: Statement {
+                    t_for: struct {
+                        mode: "",
+                        type_: nil,
+                        ident: ident,
+                        range: range,
+                        block: body,
+                    },
                 },
+                location: self.span_location(start_token, end_token),
             };
         }
         if self.peek().lexeme.equal("continue") {
-            self.expect("continue").try;
-            self.expect("semicolon").try;
+            let start_token = self.expect("continue").try;
+            let end_token = self.expect("semicolon").try;
 
-            return Statement {
-                t_continue: true,
+            return LStatement {
+                data: Statement {
+                    t_continue: true,
+                },
+                location: self.span_location(start_token, end_token),
             };
         }
         if self.peek().lexeme.equal("break") {
-            self.expect("break").try;
-            self.expect("semicolon").try;
+            let start_token = self.expect("break").try;
+            let end_token = self.expect("semicolon").try;
 
-            return Statement {
-                t_break: true,
+            return LStatement {
+                data: Statement {
+                    t_break: true,
+                },
+                location: self.span_location(start_token, end_token),
             };
         }
 
@@ -596,22 +620,31 @@ module Parser {
         if self.peek().lexeme.equal("semicolon") {
             self.consume();
 
-            return Statement {
-                t_expr: struct {
-                    expr: expr,
+            return LStatement {
+                data: Statement {
+                    t_expr: struct {
+                        expr: expr.data,
+                    },
                 },
+                location: expr.location,
             };
         }
         if self.peek().lexeme.equal("equal") {
             self.consume();
             let rhs = self.expression().try;
-            self.expect("semicolon").try;
+            let end_token = self.expect("semicolon").try;
 
-            return Statement {
-                t_assign: struct {
-                    lhs: expr,
-                    rhs_type: nil,
-                    rhs: rhs,
+            return LStatement {
+                data: Statement {
+                    t_assign: struct {
+                        lhs: expr.data,
+                        rhs_type: nil,
+                        rhs: rhs.data,
+                    },
+                },
+                location: Location {
+                    start: expr.location.start,
+                    end: self.location_from_token(end_token)?,
                 },
             };
         }
@@ -623,8 +656,8 @@ module Parser {
         return self.expression_(false).try;
     }
 
-    fun let_statement(self): Statement or error {
-        self.expect("let").try;
+    fun let_statement(self): LStatement or error {
+        let start_token = self.expect("let").try;
         let pattern = self.pattern().try;
 
         let t = Type {
@@ -637,14 +670,17 @@ module Parser {
 
         self.expect("equal").try;
         let value = self.expression().try;
-        self.expect("semicolon").try;
+        let end_token = self.expect("semicolon").try;
 
-        return Statement {
-            t_let: struct {
-                pattern: pattern,
-                name_type: t,
-                expr: value,
+        return LStatement {
+            data: Statement {
+                t_let: struct {
+                    pattern: pattern,
+                    name_type: t,
+                    expr: value.data,
+                },
             },
+            location: self.span_location(start_token, end_token),
         };
     }
 
@@ -686,32 +722,43 @@ module Parser {
         }
     }
 
-    fun return_statement(self): Statement or error {
-        self.expect("return").try;
+    fun return_statement(self): LStatement or error {
+        let start_token = self.expect("return").try;
 
         if self.peek().lexeme.equal("semicolon") {
-            self.expect("semicolon").try;
-            return Statement {
-                t_return: struct {
-                    expr: Expression {
-                        t_nil: true,
+            let end_token = self.expect("semicolon").try;
+
+            return LStatement {
+                data: Statement {
+                    t_return: struct {
+                        expr: Expression {
+                            t_nil: true,
+                        },
                     },
                 },
+                location: self.span_location(start_token, end_token),
             };
         }
 
         let value = self.expression().try;
-        self.expect("semicolon").try;
+        let end_token = self.expect("semicolon").try;
 
-        return Statement {
-            t_return: struct {
-                expr: value,
+        return LStatement {
+            data: Statement {
+                t_return: struct {
+                    expr: value.data,
+                },
             },
+            location: self.span_location(start_token, end_token),
         };
     }
 
-    fun expression(self): Expression or error {
-        return self.expression_(true).try;
+    fun expression(self): LExpression or error {
+        let expr = self.expression_(true).try;
+        return LExpression {
+            data: expr,
+            location: Location::unknown(),
+        };
     }
 
     fun expression_(self, with_struct: bool): Expression or error {
@@ -1033,11 +1080,11 @@ module Parser {
                     // expansion
                     if self.peek().lexeme.equal("double_dot") {
                         self.expect("double_dot").try;
-                        expansion = self.expression().try?;
+                        expansion = self.expression().try.data?;
                         break;
                     }
 
-                    args.push(self.expression().try);
+                    args.push(self.expression().try.data);
 
                     if self.peek().lexeme.equal("comma") {
                         self.expect("comma").try;
@@ -1098,7 +1145,7 @@ module Parser {
 
                     fields.push(struct {
                         field: field,
-                        value: value,
+                        value: value.data,
                     });
 
                     if self.peek().lexeme.equal("comma") {
@@ -1106,7 +1153,7 @@ module Parser {
 
                         if self.peek().lexeme.equal("double_dot") {
                             self.expect("double_dot").try;
-                            expansion = self.expression().try?;
+                            expansion = self.expression().try.data?;
 
                             if self.peek().lexeme.equal("comma") {
                                 self.expect("comma").try;
@@ -1143,7 +1190,7 @@ module Parser {
                 self.expect("lparen").try;
                 let args = make[vec[Expression]]();
                 while !self.peek().lexeme.equal("rparen") {
-                    args.push(self.expression().try);
+                    args.push(self.expression().try.data);
 
                     if self.peek().lexeme.equal("comma") {
                         self.expect("comma").try;
@@ -1272,7 +1319,7 @@ module Parser {
             self.expect("rparen").try;
 
             return Expression {
-                t_paren: expr,
+                t_paren: expr.data,
             };
         }
         if self.peek().lexeme.equal("bang") {
@@ -1324,7 +1371,7 @@ module Parser {
 
                 fields.push(struct {
                     field: ident,
-                    value: value,
+                    value: value.data,
                 });
 
                 if self.peek().lexeme.equal("comma") {
@@ -1351,6 +1398,21 @@ module Parser {
         }
 
         return _ or error::new(format("Unexpected token {} (term)", self.peek().lexeme.to_string()));
+    }
+
+    fun location_from_token(self, token: Token): i32 {
+        return token.position;
+    }
+
+    fun location_from_position(self, position: i32): i32 {
+        return self.input.at(position).position;
+    }
+
+    fun span_location(self, start: Token, end: Token): Location {
+        return Location {
+            start: self.location_from_token(start)?,
+            end: self.location_from_token(end)?,
+        };
     }
 }
 

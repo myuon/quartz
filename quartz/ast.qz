@@ -44,12 +44,12 @@ module Decl {
 struct Let {
     name: string,
     name_type: Type,
-    expr: Expression,
+    expr: LExpression,
 }
 
 module Let {
     fun to_string(self): string {
-        return format("let {} : {} = {};", self.name, self.name_type.to_string(), self.expr.to_string());
+        return derive::to_string(self);
     }
 }
 
@@ -99,18 +99,12 @@ module Function {
 }
 
 struct Block {
-    block: vec[Statement],
+    block: vec[LStatement],
 }
 
 module Block {
     fun to_string(self): string {
-        let result = "";
-
-        for i in 0..self.block.length {
-            result = result.concat("    ").concat(self.block.at(i).to_string());
-        }
-
-        return result;
+        return derive::to_string(self);
     }
 }
 
@@ -155,6 +149,11 @@ module Statement {
     fun to_string(self): string {
         return derive::to_string(self);
     }
+}
+
+struct LStatement {
+    data: Statement,
+    location: Location,
 }
 
 enum Expression {
@@ -248,6 +247,11 @@ module Expression {
     fun to_string(self): string {
         return derive::to_string(self);
     }
+}
+
+struct LExpression {
+    data: Expression,
+    location: Location,
 }
 
 struct RecordExpression {

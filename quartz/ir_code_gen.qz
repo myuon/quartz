@@ -270,7 +270,7 @@ module IrCodeGenerator {
                         type_: IrType {
                             t_i32: true,
                         },
-                        value: self.expression(d.t_let!.expr).try,
+                        value: self.expression(d.t_let!.expr.data).try,
                     },
                 });
             }
@@ -562,7 +562,8 @@ module IrCodeGenerator {
         return elements;
     }
 
-    fun statement(self, stm: Statement): IrTerm or error {
+    fun statement(self, lstm: LStatement): IrTerm or error {
+        let stm = lstm.data;
         if stm.t_let != nil {
             if stm.t_let!.pattern.t_ident != nil {
                 let name = stm.t_let!.pattern.t_ident!;
@@ -779,32 +780,35 @@ module IrCodeGenerator {
                 }
                 let vec_type = stm.t_for!.type_!.t_vec!;
 
-                let new_body = make[vec[Statement]]();
-                new_body.push(Statement {
-                    t_let: struct {
-                        pattern: Pattern {
-                            t_ident: stm.t_for!.ident?,
-                            ..nil,
-                        },
-                        name_type: vec_type,
-                        expr: Expression {
-                            t_call: struct {
-                                callee: Expression {
-                                    t_project: struct {
-                                        expr: stm.t_for!.range,
-                                        field: "at",
-                                        type_: stm.t_for!.type_,
-                                        resolved_path: nil as Path?,
+                let new_body = make[vec[LStatement]]();
+                new_body.push(LStatement {
+                    location: Location::unknown(),
+                    data: Statement {
+                        t_let: struct {
+                            pattern: Pattern {
+                                t_ident: stm.t_for!.ident?,
+                                ..nil,
+                            },
+                            name_type: vec_type,
+                            expr: Expression {
+                                t_call: struct {
+                                    callee: Expression {
+                                        t_project: struct {
+                                            expr: stm.t_for!.range,
+                                            field: "at",
+                                            type_: stm.t_for!.type_,
+                                            resolved_path: nil as Path?,
+                                        },
                                     },
+                                    args: make[vec[Expression]](Expression {
+                                        t_ident: struct {
+                                            name: var_index,
+                                            resolved_path: nil as Path?,
+                                        },
+                                    }),
+                                    variadic: nil,
+                                    expansion: nil,
                                 },
-                                args: make[vec[Expression]](Expression {
-                                    t_ident: struct {
-                                        name: var_index,
-                                        resolved_path: nil as Path?,
-                                    },
-                                }),
-                                variadic: nil,
-                                expansion: nil,
                             },
                         },
                     },
@@ -813,30 +817,33 @@ module IrCodeGenerator {
                     new_body.push(body);
                 }
 
-                return self.statement(Statement {
-                    t_for: struct {
-                        mode: "range",
-                        type_: nil,
-                        ident: var_index,
-                        range: Expression {
-                            t_range: struct {
-                                start: Expression {
-                                    t_i32: struct {
-                                        value: 0,
+                return self.statement(LStatement {
+                    location: Location::unknown(),
+                    data: Statement {
+                        t_for: struct {
+                            mode: "range",
+                            type_: nil,
+                            ident: var_index,
+                            range: Expression {
+                                t_range: struct {
+                                    start: Expression {
+                                        t_i32: struct {
+                                            value: 0,
+                                        },
                                     },
-                                },
-                                end: Expression {
-                                    t_project: struct {
-                                        expr: stm.t_for!.range,
-                                        field: "length",
-                                        type_: stm.t_for!.type_,
-                                        resolved_path: nil as Path?,
+                                    end: Expression {
+                                        t_project: struct {
+                                            expr: stm.t_for!.range,
+                                            field: "length",
+                                            type_: stm.t_for!.type_,
+                                            resolved_path: nil as Path?,
+                                        },
                                     },
                                 },
                             },
-                        },
-                        block: Block {
-                            block: new_body,
+                            block: Block {
+                                block: new_body,
+                            },
                         },
                     },
                 }).try;
