@@ -508,6 +508,28 @@ module string {
             return true;
         }
     }
+
+    fun split(self, sep: string): vec[string] {
+        let result = make[vec[string]]();
+        let n = 0;
+
+        while n <= self.length - sep.length {
+            if is_prefix(self, n, sep) {
+                result.push(self.slice(0, n));
+                n = n + sep.length;
+            } else {
+                n = n + 1;
+            }
+        }
+
+        result.push(self.slice_start(n));
+
+        return result;
+    }
+
+    fun lines(self): vec[string] {
+        return self.split("\n");
+    }
 }
 
 struct stringbuilder {

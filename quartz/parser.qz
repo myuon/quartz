@@ -21,7 +21,12 @@ module Parser {
     }
 
     fun run(self, input: vec[Token]): Module or error {
-        self.input = input;
+        self.input = make[vec[Token]]();
+        for token in input {
+            if !token.lexeme.equal("comment") {
+                self.input.push(token);
+            }
+        }
         return self.module_();
     }
 

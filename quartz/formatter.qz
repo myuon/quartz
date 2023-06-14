@@ -1,0 +1,790 @@
+import quartz::lexer;
+import quartz::ast;
+import quartz::location;
+import quartz::path;
+
+struct Formatter {
+    source: string,
+    max_width: i32,
+    indent_size: i32,
+    depth: i32,
+    column: i32,
+    comments: vec[Token],
+    comment_position: i32,
+}
+
+module Formatter {
+    fun new(source: string, comments: vec[Token], comment_position: i32): Formatter {
+        return Formatter {
+            source: source,
+            max_width: 110,
+            indent_size: 4,
+            depth: 0,
+            column: 0,
+            comments: comments,
+            comment_position: comment_position,
+        };
+    }
+
+    fun clone(self): Formatter {
+        return Formatter {
+            source: self.source,
+            max_width: self.max_width,
+            indent_size: self.indent_size,
+            depth: self.depth,
+            column: self.column,
+            comments: self.comments,
+            comment_position: self.comment_position,
+        };
+    }
+
+    fun format(self, module_: Module): string {
+        let builder = stringbuilder::new();
+        self.module_(builder, module_);
+
+        return builder.to_string();
+    }
+
+    fun module_(self, writer: stringbuilder, module_: Module) {
+        let imports = make[vec[LDecl]]();
+        let non_imports = make[vec[LDecl]]();
+        for decl in module_.decls {
+            if decl.data.t_import != nil {
+                imports.push(decl);
+            } else {
+                non_imports.push(decl);
+            }
+        }
+
+        for decl in imports {
+            if decl.location.start != nil {
+                self.restore_comments(decl.location.start!, writer);
+            }
+            self.decl(writer, decl);
+            self.newline(writer);
+        }
+
+        if imports.length != 0 {
+            self.newline(writer);
+        }
+
+        self.decls(writer, non_imports);
+    }
+
+    fun decls(self, writer: stringbuilder, decls: vec[LDecl]) {
+        for i in 0..decls.length {
+            let decl = decls.at(i);
+
+            if decl.location.start != nil {
+                self.restore_comments(decl.location.start!, writer);
+            }
+            self.decl(writer, decl);
+            self.newline(writer);
+            if i != decls.length - 1 {
+                self.newline(writer);
+            }
+        }
+    }
+
+    fun decl(self, writer: stringbuilder, decl: LDecl) {
+        let d = decl.data;
+        if d.t_func != nil {
+            self.func(writer, d.t_func!);
+        } else if d.t_let != nil {
+            self.write(writer, "let");
+            self.write(writer, d.t_let!.name);
+            if d.t_let!.name_type.t_omit == nil {
+                self.write_no_space(writer, ":");
+                self.type_(
+                    writer,
+                    d.t_let!.name_type,
+                    struct {
+                        skip_space: false,
+                    },
+                );
+            }
+            self.write(writer, "=");
+            self.expr(writer, d.t_let!.expr, false);
+            self.write_no_space(writer, ";");
+        } else if d.t_type != nil {
+            self.write(writer, "struct");
+            self.write(writer, d.t_type!.name);
+            self.record_fields(writer, d.t_type!.type_.t_struct!);
+        } else if d.t_enum != nil {
+            self.write(writer, "enum");
+            self.write(writer, d.t_enum!.name);
+            self.record_fields(writer, d.t_enum!.type_.t_enum!);
+        } else if d.t_module != nil {
+            self.write(writer, "module");
+            self.write(writer, d.t_module!.path.join("::"));
+            self.write(writer, "{");
+            self.newline(writer);
+
+            self.depth = self.depth + 1;
+            self.decls(writer, d.t_module!.module_.decls);
+            self.depth = self.depth - 1;
+
+            self.write(writer, "}");
+        } else if d.t_import != nil {
+            self.write(writer, "import");
+            self.write(writer, d.t_import!.join("::"));
+            self.write_no_space(writer, ";");
+        }
+    }
+
+    fun func(self, writer: stringbuilder, func: Function) {
+        let fformatter = self.clone();
+        let fwriter = stringbuilder::new();
+
+        fformatter.write(fwriter, "fun");
+        fformatter.write(fwriter, func.name);
+        fformatter.params(fwriter, func.params, func.variadic);
+        if func.result_type.t_nil == nil {
+            fformatter.write_no_space(fwriter, ":");
+            fformatter.type_(
+                fwriter,
+                func.result_type,
+                struct {
+                    skip_space: false,
+                },
+            );
+        }
+
+        let fstring = fwriter.to_string();
+        if fstring.lines().length == 1 && self.indent_size * self.depth + fstring.length < self.max_width {
+            self.write_no_space(writer, fstring);
+            self = fformatter;
+        } else {
+            self.write(writer, "fun");
+            self.write(writer, func.name);
+            self.params_multilines(writer, func.params, func.variadic);
+            if func.result_type.t_nil == nil {
+                self.write_no_space(writer, ":");
+                self.type_(
+                    writer,
+                    func.result_type,
+                    struct {
+                        skip_space: true,
+                    },
+                );
+            }
+        }
+
+        self.statements(writer, func.body.block);
+    }
+
+    fun params(
+        self,
+        writer: stringbuilder,
+        params: vec[struct {
+            name: string,
+            type_: Type,
+        }],
+        variadic: struct {
+            name: string,
+            type_: Type,
+        }?,
+    ) {
+        self.write_no_space(writer, "(");
+
+        for i in 0..params.length {
+            let param = params.at(i);
+            if param.name.equal("self") {
+                self.write_no_space(writer, "self");
+            } else {
+                self.write_no_space(writer, param.name);
+                self.write_no_space(writer, ":");
+                self.type_(
+                    writer,
+                    param.type_,
+                    struct {
+                        skip_space: false,
+                    },
+                );
+            }
+
+            if i != params.length - 1 {
+                self.write_no_space(writer, ", ");
+            }
+        }
+        if variadic != nil {
+            if params.length != 0 {
+                self.write_no_space(writer, ", ");
+            }
+
+            self.write_no_space(writer, "..");
+            self.write_no_space(writer, variadic!.name);
+            self.write_no_space(writer, ":");
+            self.type_(
+                writer,
+                variadic!.type_,
+                struct {
+                    skip_space: false,
+                },
+            );
+        }
+
+        self.write_no_space(writer, ")");
+    }
+
+    fun params_multilines(
+        self,
+        writer: stringbuilder,
+        params: vec[struct {
+            name: string,
+            type_: Type,
+        }],
+        variadic: struct {
+            name: string,
+            type_: Type,
+        }?,
+    ) {
+        self.write(writer, "(");
+        self.newline(writer);
+        self.depth = self.depth + 1;
+
+        for param in params {
+            if param.name.equal("self") {
+                self.write(writer, "self");
+            } else {
+                self.write(writer, param.name);
+                self.write(writer, ":");
+                self.type_(
+                    writer,
+                    param.type_,
+                    struct {
+                        skip_space: true,
+                    },
+                );
+            }
+
+            self.write_no_space(writer, ",");
+            self.newline(writer);
+        }
+        if variadic != nil {
+            self.write(writer, "..");
+            self.write(writer, variadic!.name);
+            self.write(writer, ":");
+            self.type_(
+                writer,
+                variadic!.type_,
+                struct {
+                    skip_space: true,
+                },
+            );
+            self.write_no_space(writer, ",");
+            self.newline(writer);
+        }
+
+        self.depth = self.depth - 1;
+        self.write(writer, ")");
+    }
+
+    fun statements(self, writer: stringbuilder, statements: vec[LStatement]) {
+        self.write(writer, "{");
+        self.depth = self.depth + 1;
+
+        let current_pos = 0;
+
+        for statement in statements {
+            if statement.location.start == nil || statement.location.end == nil {
+                panic("statement.start/end == nil");
+            }
+
+            let comments = self.consume_comments(statement.location.start!);
+            for comment in comments {
+                if current_pos > 0 && self.need_empty_lines(current_pos, comment.position) {
+                    self.newline(writer);
+                }
+
+                if self.need_line_follow(current_pos, comment.position) {
+                    self.write(writer, comment.raw);
+                } else {
+                    self.newline(writer);
+                    self.write(writer, comment.raw);
+                }
+
+                current_pos = comment.position + comment.raw.length;
+            }
+
+            if current_pos > 0 && self.need_empty_lines(current_pos, statement.location.start!) {
+                self.newline(writer);
+            }
+
+            if self.need_line_follow(current_pos, statement.location.start!) {
+                self.statement(writer, statement);
+            } else {
+                self.newline(writer);
+                self.statement(writer, statement);
+            }
+
+            if statement.location.end != nil {
+                current_pos = statement.location.end!;
+            }
+
+            if statement.location.end != nil {
+                let comments = self.consume_comments(statement.location.end!);
+                for comment in comments {
+                    if current_pos > 0 && self.need_empty_lines(current_pos, comment.position) {
+                        self.newline(writer);
+                    }
+
+                    if self.need_line_follow(current_pos, comment.position) {
+                        self.write(writer, comment.raw);
+                    } else {
+                        self.newline(writer);
+                        self.write(writer, comment.raw);
+                    }
+
+                    current_pos = comment.position + comment.raw.length;
+                }
+            }
+        }
+
+        self.depth = self.depth - 1;
+        self.newline(writer);
+        self.write(writer, "}");
+    }
+
+    fun statement(self, writer: stringbuilder, lstatement: LStatement) {
+        let statement = lstatement.data;
+
+        if statement.t_let != nil {
+            self.write(writer, "let");
+            self.pattern(writer, statement.t_let!.pattern);
+            if statement.t_let!.name_type.t_nil == nil {
+                self.write_no_space(writer, ":");
+                self.type_(
+                    writer,
+                    statement.t_let!.name_type,
+                    struct {
+                        skip_space: false,
+                    },
+                );
+            }
+            self.write(writer, "=");
+            self.expr(writer, statement.t_let!.expr, false);
+            self.write_no_space(writer, ";");
+        } else if statement.t_return != nil {
+            self.write(writer, "return");
+            self.expr(writer, statement.t_return!.expr, false);
+            self.write_no_space(writer, ";");
+        } else if statement.t_expr != nil {
+            self.expr(writer, statement.t_expr!.expr, false);
+            self.write_no_space(writer, ";");
+        } else if statement.t_assign != nil {
+            self.expr(writer, statement.t_assign!.lhs, false);
+            self.write(writer, "=");
+            if statement.t_assign!.rhs.location.start != nil {
+                self.restore_comments(statement.t_assign!.rhs.location.start!, writer);
+            }
+            self.expr(writer, statement.t_assign!.rhs, false);
+            self.write_no_space(writer, ";");
+        } else if statement.t_if != nil {
+            self.write(writer, "if");
+            self.expr(writer, statement.t_if!.condition, false);
+            self.statements(writer, statement.t_if!.then_block.block);
+            if statement.t_if!.else_block != nil {
+                self.write(writer, "else");
+                if statement.t_if!.else_block!.block.length == 1 && statement.t_if!.else_block!.block.at(0).data.t_if != nil {
+                    self.statement(writer, statement.t_if!.else_block!.block.at(0));
+                } else {
+                    self.statements(writer, statement.t_if!.else_block!.block);
+                }
+            }
+        } else if statement.t_while != nil {
+            self.write(writer, "while");
+            self.expr(writer, statement.t_while!.condition, false);
+            self.statements(writer, statement.t_while!.block.block);
+        } else if statement.t_for != nil {
+            self.write(writer, "for");
+            self.write(writer, statement.t_for!.ident);
+            self.write(writer, "in");
+            self.expr(writer, statement.t_for!.range, false);
+            self.statements(writer, statement.t_for!.block.block);
+        } else if statement.t_continue != nil {
+            self.write(writer, "continue;");
+        } else if statement.t_break != nil {
+            self.write(writer, "break;");
+        }
+    }
+
+    fun pattern(self, writer: stringbuilder, pattern: Pattern) {
+        if pattern.t_ident != nil {
+            self.write(writer, pattern.t_ident!);
+        } else if pattern.t_or != nil {
+            self.pattern(writer, pattern.t_or!.lhs);
+            self.write(writer, "or");
+            self.pattern(writer, pattern.t_or!.rhs);
+        } else if pattern.t_omit != nil {
+            self.write(writer, "_");
+        }
+    }
+
+    fun expr(self, writer: stringbuilder, lexpr: LExpression, skip_space: bool) {
+        let expr = lexpr.data;
+
+        if expr.t_ident != nil {
+            self.write_if(writer, expr.t_ident!.name, skip_space);
+        } else if expr.t_self != nil {
+            self.write_if(writer, "self", skip_space);
+        } else if expr.t_nil != nil {
+            self.write_if(writer, "nil", skip_space);
+        } else if expr.t_bool != nil {
+            if expr.t_bool! {
+                self.write_if(writer, "true", skip_space);
+            } else {
+                self.write_if(writer, "false", skip_space);
+            }
+        } else if expr.t_i32 != nil {
+            self.write_if(writer, expr.t_i32!.value.to_string(), skip_space);
+        } else if expr.t_u32 != nil {
+            self.write_if(writer, expr.t_u32!.value.to_string(), skip_space);
+        } else if expr.t_string != nil {
+            self.write_if(writer, expr.t_string!.to_string(), skip_space);
+        } else if expr.t_call != nil {
+            self.expr(writer, expr.t_call!.callee, skip_space);
+            self.arguments(writer, expr.t_call!.args, expr.t_call!.expansion);
+        } else if expr.t_unop != nil && expr.t_unop!.unop.equal("not") {
+            self.write_if(writer, "!", skip_space);
+            self.expr(writer, expr.t_unop!.expr, false);
+        } else if expr.t_binop != nil {
+            self.expr(writer, expr.t_binop!.left, skip_space);
+            self.write(writer, expr.t_binop!.binop);
+            self.expr(writer, expr.t_binop!.right, false);
+        } else if expr.t_record != nil {
+            self.write_if(writer, expr.t_record!.name, skip_space);
+            self.write(writer, "{");
+            self.newline(writer);
+            self.depth = self.depth + 1;
+            for field in expr.t_record!.fields {
+                self.write(writer, field.field);
+                self.write_no_space(writer, ":");
+                self.expr(writer, field.value, false);
+                self.write_no_space(writer, ",");
+                self.newline(writer);
+            }
+            if expr.t_record!.expansion != nil {
+                self.write(writer, "..");
+                self.expr(writer, expr.t_record!.expansion!, false);
+                self.write_no_space(writer, ",");
+                self.newline(writer);
+            }
+            self.depth = self.depth - 1;
+            self.write(writer, "}");
+        } else if expr.t_anonymous_record != nil {
+            self.write_if(writer, "struct", skip_space);
+            self.write(writer, "{");
+            self.depth = self.depth + 1;
+            self.newline(writer);
+            for field in expr.t_anonymous_record!.fields {
+                self.write(writer, field.field);
+                self.write_no_space(writer, ":");
+                self.expr(writer, field.value, false);
+                self.write_no_space(writer, ",");
+                self.newline(writer);
+            }
+            self.depth = self.depth - 1;
+            self.write(writer, "}");
+        } else if expr.t_project != nil {
+            self.expr(writer, expr.t_project!.expr, skip_space);
+            self.write_no_space(writer, ".");
+            self.write_no_space(writer, expr.t_project!.field);
+        } else if expr.t_make != nil {
+            self.write_if(writer, "make", skip_space);
+            self.write(writer, "[");
+            self.type_(
+                writer,
+                expr.t_make!.type_,
+                struct {
+                    skip_space: true,
+                },
+            );
+            self.write_no_space(writer, "]");
+            self.arguments(writer, expr.t_make!.args, nil);
+        } else if expr.t_sizeof != nil {
+            self.write_if(writer, "sizeof", skip_space);
+            self.write_no_space(writer, "[");
+            self.type_(
+                writer,
+                expr.t_sizeof!.type_,
+                struct {
+                    skip_space: true,
+                },
+            );
+            self.write_no_space(writer, "]");
+            self.write_no_space(writer, "()");
+        } else if expr.t_range != nil {
+            self.expr(writer, expr.t_range!.start, skip_space);
+            self.write_no_space(writer, "..");
+
+            let fwriter = Formatter::new(self.source, self.comments, self.comment_position);
+            let buf = stringbuilder::new();
+            fwriter.expr(buf, expr.t_range!.end, false);
+            self.write_no_space(writer, buf.to_string());
+            self.comment_position = fwriter.comment_position;
+        } else if expr.t_as != nil {
+            self.expr(writer, expr.t_as!.expr, skip_space);
+            self.write(writer, "as");
+            self.type_(
+                writer,
+                expr.t_as!.target_type,
+                struct {
+                    skip_space: false,
+                },
+            );
+        } else if expr.t_path != nil {
+            self.write_if(writer, expr.t_path!.path.join("::"), skip_space);
+        } else if expr.t_wrap != nil {
+            self.expr(writer, expr.t_wrap!.expr, skip_space);
+            self.write_no_space(writer, "?");
+        } else if expr.t_unwrap != nil {
+            self.expr(writer, expr.t_unwrap!.expr, skip_space);
+            self.write_no_space(writer, "!");
+        } else if expr.t_omit != nil {
+            self.write(writer, "_");
+        } else if expr.t_enumor != nil {
+            if expr.t_enumor!.lhs != nil {
+                self.expr(writer, expr.t_enumor!.lhs!, skip_space);
+            } else {
+                self.write(writer, "_");
+            }
+
+            self.write(writer, "or");
+
+            if expr.t_enumor!.rhs != nil {
+                self.expr(writer, expr.t_enumor!.rhs!, false);
+            } else {
+                self.write(writer, "_");
+            }
+        } else if expr.t_try != nil {
+            self.expr(writer, expr.t_try!, skip_space);
+            self.write_no_space(writer, ".try");
+        } else if expr.t_paren != nil {
+            self.write_if(writer, "(", skip_space);
+            self.expr(writer, expr.t_paren!, false);
+            self.write(writer, ")");
+        }
+    }
+
+    fun type_(
+        self,
+        writer: stringbuilder,
+        type_: Type,
+        options: struct {
+            skip_space: bool,
+        },
+    ) {
+        if type_.t_struct != nil {
+            self.write_if(writer, "struct", options.skip_space);
+            self.record_fields(writer, type_.t_struct!);
+        } else if type_.t_vec != nil {
+            self.write_if(writer, "vec", options.skip_space);
+            self.write_no_space(writer, "[");
+            self.type_(
+                writer,
+                type_.t_vec!,
+                struct {
+                    skip_space: true,
+                },
+            );
+            self.write_no_space(writer, "]");
+        } else if type_.t_ident != nil {
+            self.write_if(writer, type_.t_ident!, options.skip_space);
+        } else if type_.t_ptr != nil {
+            self.write_if(writer, "ptr", options.skip_space);
+            self.write_no_space(writer, "[");
+            self.type_(
+                writer,
+                type_.t_ptr!,
+                struct {
+                    skip_space: true,
+                },
+            );
+            self.write_no_space(writer, "]");
+        } else if type_.t_optional != nil {
+            self.type_(writer, type_.t_optional!, options);
+            self.write_no_space(writer, "?");
+        } else if type_.t_map != nil {
+            self.write_if(writer, "map", options.skip_space);
+            self.write_no_space(writer, "[");
+            self.type_(
+                writer,
+                type_.t_map!.key,
+                struct {
+                    skip_space: true,
+                },
+            );
+            self.write_no_space(writer, ":");
+            self.type_(
+                writer,
+                type_.t_map!.value,
+                struct {
+                    skip_space: false,
+                },
+            );
+            self.write_no_space(writer, "]");
+        } else if type_.t_or != nil {
+            self.type_(writer, type_.t_or!.left, options);
+            self.write(writer, "or");
+            self.type_(
+                writer,
+                type_.t_or!.right,
+                struct {
+                    skip_space: false,
+                },
+            );
+        } else {
+            self.write_if(writer, derive::to_string(type_), options.skip_space);
+        }
+    }
+
+    fun arguments(self, writer: stringbuilder, args: vec[LExpression], expansion: LExpression?) {
+        let fwriter = self.clone();
+        let buf = stringbuilder::new();
+        fwriter.write_no_space(buf, "(");
+        for i in 0..args.length {
+            let arg = args.at(i);
+            fwriter.expr(buf, arg, true);
+            if i < args.length - 1 {
+                fwriter.write_no_space(buf, ", ");
+            }
+        }
+        if expansion != nil {
+            if args.length > 0 {
+                fwriter.write_no_space(buf, ", ");
+            }
+
+            fwriter.write_no_space(buf, "..");
+            fwriter.expr(buf, expansion!, false);
+        }
+        fwriter.write_no_space(buf, ")");
+
+        let s = buf.to_string();
+        if (s.lines().length == 1 || args.length == 1) && fwriter.column < self.max_width {
+            self.write_no_space(writer, s);
+            self = fwriter;
+        } else {
+            self.write_no_space(writer, "(");
+            self.newline(writer);
+            self.depth = self.depth + 1;
+
+            for arg in args {
+                self.expr(writer, arg, true);
+                self.write_no_space(writer, ",");
+                self.newline(writer);
+            }
+            if expansion != nil {
+                self.write_no_space(writer, "..");
+                self.expr(writer, expansion!, false);
+                self.newline(writer);
+            }
+
+            self.depth = self.depth - 1;
+            self.write(writer, ")");
+        }
+    }
+
+    fun record_fields(self, writer: stringbuilder, fields: TypeStruct) {
+        self.write(writer, "{");
+        self.newline(writer);
+        self.depth = self.depth + 1;
+        for item in fields.fields {
+            self.write(writer, item.name);
+            self.write(writer, ":");
+            self.type_(
+                writer,
+                item.type_,
+                struct {
+                    skip_space: false,
+                },
+            );
+            self.write_no_space(writer, ",");
+
+            self.newline(writer);
+        }
+
+        self.depth = self.depth - 1;
+        self.write(writer, "}");
+    }
+
+    fun need_empty_lines(self, start: i32, end: i32): bool {
+        if start > end {
+            return false;
+        }
+
+        let count = 0;
+        for i in start..end {
+            let c = self.source.at(i);
+            if c == 10 as byte {
+                count = count + 1;
+            }
+        }
+
+        return count > 1;
+    }
+
+    fun need_line_follow(self, start: i32, end: i32): bool {
+        if start > end {
+            return false;
+        }
+
+        for i in start..end {
+            let c = self.source.at(i);
+            if c == 10 as byte {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    fun consume_comments(self, start: i32): vec[Token] {
+        let comments = make[vec[Token]]();
+        while self.comment_position < self.comments.length && self.comments.at(self.comment_position).position <= start {
+            comments.push(self.comments.at(self.comment_position));
+            self.comment_position = self.comment_position + 1;
+        }
+
+        return comments;
+    }
+
+    fun restore_comments(self, start: i32, writer: stringbuilder): bool {
+        let comments = self.consume_comments(start);
+        for comment in comments {
+            self.write(writer, comment.raw);
+            self.newline(writer);
+        }
+
+        return comments.length != 0;
+    }
+
+    fun write(self, writer: stringbuilder, text: string) {
+        if self.column == 0 {
+            self.write_no_space(writer, " ".repeat(self.depth * self.indent_size));
+        } else {
+            self.write_no_space(writer, " ");
+        }
+
+        self.write_no_space(writer, text);
+    }
+
+    fun write_no_space(self, writer: stringbuilder, text: string) {
+        writer.append(text);
+        self.column = self.column + text.length;
+    }
+
+    fun write_if(self, writer: stringbuilder, text: string, skip_space: bool) {
+        if skip_space {
+            self.write_no_space(writer, text);
+        } else {
+            self.write(writer, text);
+        }
+    }
+
+    fun newline(self, writer: stringbuilder) {
+        writer.append("\n");
+        self.column = 0;
+    }
+}
+
