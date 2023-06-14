@@ -98,6 +98,14 @@ fun main() {
         }
 
         println("{}", result!);
+    } else if args.at(1).equal("format") {
+        let content = file_read(args.at(2));
+        let result or err = run_format(content);
+        if err != nil {
+            panic(err!.message);
+        }
+
+        println("{}", content);
     } else {
         println("{}", derive::to_string(args));
         println("{}", args.at(1));
@@ -111,5 +119,23 @@ fun main() {
 fun run(input_: string): string or error {
     let compiler = Compiler::new();
     return compiler.compile(input_).try;
+}
+
+fun run_format(input_: string): string or error {
+    let lexer = Lexer::new();
+    lexer.run(input_).try;
+
+    let comments = make[vec[Token]]();
+    for token in lexer.tokens {
+        if token.lexeme.equal("comment") {
+            comments.push(token);
+        }
+    }
+
+    let parser = Parser::new();
+    let module_ = parser.run(lexer.tokens).try;
+
+    let formatter = Formatter::new(input_, comments, 0);
+    return formatter.format(module_);
 }
 
