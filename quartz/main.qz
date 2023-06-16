@@ -135,6 +135,7 @@ module CliCommand {
                 if args.at(i).equal("-w") {
                     format_.write = true?;
                 } else {
+                    break;
                 }
 
                 i = i + 1;
@@ -182,28 +183,16 @@ fun main() {
         file_write(compile.output!, result!);
 
         return nil;
-    } else if args.at(1).equal("run") {
-        let input = "";
-        if args.length >= 3 {
-            input = file_read(args.at(2));
-        } else {
-            input = stdin();
-        }
+    } else if command.format != nil {
+        let f = command.format!;
 
-        let result or err = run(input);
+        let input = file_read(f.input!);
+        let result or err = run_format(input);
         if err != nil {
             panic(err!.message);
         }
 
         println("{}", result!);
-    } else if args.at(1).equal("format") {
-        let content = file_read(args.at(2));
-        let result or err = run_format(content);
-        if err != nil {
-            panic(err!.message);
-        }
-
-        println("{}", content);
     } else {
         println("{}", derive::to_string(args));
         println("{}", args.at(1));
