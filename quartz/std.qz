@@ -530,6 +530,41 @@ module string {
     fun lines(self): vec[string] {
         return self.split("\n");
     }
+
+    fun escape(self): string {
+        let s = self;
+        let result = make[vec[byte]]();
+        let n = 0;
+
+        result.push(34 as byte);
+
+        while n < s.length {
+            if s.at(n) == 10 as byte {
+                result.push(92 as byte);
+                result.push(110 as byte);
+                n = n + 1;
+            } else if is_prefix(s, n, "\"") {
+                result.push(92 as byte);
+                result.push(34 as byte);
+                n = n + 1;
+            } else if s.at(n) == 0 as byte {
+                result.push(92 as byte);
+                result.push(48 as byte);
+                n = n + 1;
+            } else if s.at(n) == 92 as byte {
+                result.push(92 as byte);
+                result.push(92 as byte);
+                n = n + 1;
+            } else {
+                result.push(s.at(n) as byte);
+                n = n + 1;
+            }
+        }
+
+        result.push(34 as byte);
+
+        return vec_byte_to_string(result);
+    }
 }
 
 struct stringbuilder {

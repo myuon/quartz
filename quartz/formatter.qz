@@ -352,7 +352,7 @@ module Formatter {
         if statement.t_let != nil {
             self.write(writer, "let");
             self.pattern(writer, statement.t_let!.pattern);
-            if statement.t_let!.name_type.t_nil == nil {
+            if statement.t_let!.name_type.t_omit == nil {
                 self.write_no_space(writer, ":");
                 self.type_(
                     writer,
@@ -441,16 +441,46 @@ module Formatter {
         } else if expr.t_u32 != nil {
             self.write_if(writer, expr.t_u32!.value.to_string(), skip_space);
         } else if expr.t_string != nil {
-            self.write_if(writer, expr.t_string!.to_string(), skip_space);
+            self.write_if(writer, expr.t_string!.escape(), skip_space);
         } else if expr.t_call != nil {
             self.expr(writer, expr.t_call!.callee, skip_space);
             self.arguments(writer, expr.t_call!.args, expr.t_call!.expansion);
         } else if expr.t_unop != nil && expr.t_unop!.unop.equal("not") {
             self.write_if(writer, "!", skip_space);
-            self.expr(writer, expr.t_unop!.expr, false);
+            self.expr(writer, expr.t_unop!.expr, true);
         } else if expr.t_binop != nil {
             self.expr(writer, expr.t_binop!.left, skip_space);
-            self.write(writer, expr.t_binop!.binop);
+            let op = expr.t_binop!.binop;
+            if op.equal("plus") {
+                self.write(writer, "+");
+            } else if op.equal("minus") {
+                self.write(writer, "-");
+            } else if op.equal("mult") {
+                self.write(writer, "*");
+            } else if op.equal("div") {
+                self.write(writer, "/");
+            } else if op.equal("mod") {
+                self.write(writer, "%");
+            } else if op.equal("equal") {
+                self.write(writer, "==");
+            } else if op.equal("not_equal") {
+                self.write(writer, "!=");
+            } else if op.equal("lt") {
+                self.write(writer, "<");
+            } else if op.equal("le") {
+                self.write(writer, "<=");
+            } else if op.equal("gt") {
+                self.write(writer, ">");
+            } else if op.equal("ge") {
+                self.write(writer, ">=");
+            } else if op.equal("and") {
+                self.write(writer, "&&");
+            } else if op.equal("or") {
+                self.write(writer, "||");
+            } else {
+                panic("unknown binop, {}", op);
+            }
+
             self.expr(writer, expr.t_binop!.right, false);
         } else if expr.t_record != nil {
             self.write_if(writer, expr.t_record!.name, skip_space);
@@ -492,7 +522,7 @@ module Formatter {
             self.write_no_space(writer, expr.t_project!.field);
         } else if expr.t_make != nil {
             self.write_if(writer, "make", skip_space);
-            self.write(writer, "[");
+            self.write_no_space(writer, "[");
             self.type_(
                 writer,
                 expr.t_make!.type_,
@@ -562,8 +592,8 @@ module Formatter {
             self.write_no_space(writer, ".try");
         } else if expr.t_paren != nil {
             self.write_if(writer, "(", skip_space);
-            self.expr(writer, expr.t_paren!, false);
-            self.write(writer, ")");
+            self.expr(writer, expr.t_paren!, true);
+            self.write_if(writer, ")", true);
         }
     }
 
@@ -634,8 +664,12 @@ module Formatter {
                     skip_space: false,
                 },
             );
+        } else if type_.t_bool != nil {
+            self.write_if(writer, "bool", options.skip_space);
+        } else if type_.t_i32 != nil {
+            self.write_if(writer, "i32", options.skip_space);
         } else {
-            self.write_if(writer, derive::to_string(type_), options.skip_space);
+            panic("unknown type: {}", derive::to_string(type_));
         }
     }
 
@@ -670,7 +704,7 @@ module Formatter {
             self.depth = self.depth + 1;
 
             for arg in args {
-                self.expr(writer, arg, true);
+                self.expr(writer, arg, false);
                 self.write_no_space(writer, ",");
                 self.newline(writer);
             }
@@ -691,7 +725,7 @@ module Formatter {
         self.depth = self.depth + 1;
         for item in fields.fields {
             self.write(writer, item.name);
-            self.write(writer, ":");
+            self.write_no_space(writer, ":");
             self.type_(
                 writer,
                 item.type_,
