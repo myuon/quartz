@@ -133,13 +133,18 @@ module Lexer {
             return nil;
         }
 
+        let comment = make[vec[byte]]();
+        comment.push(47 as byte);
+        comment.push(47 as byte);
         self.position = self.position + 2;
 
-        let comment = make[vec[byte]]();
         while input.at(self.position) != 10 as byte {
             comment.push(input.at(self.position));
             self.position = self.position + 1;
         }
+
+        comment.push(10 as byte);
+        self.position = self.position + 1;
 
         return vec_byte_to_string(comment)?;
     }

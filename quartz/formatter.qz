@@ -164,7 +164,7 @@ module Formatter {
                     writer,
                     func.result_type,
                     struct {
-                        skip_space: true,
+                        skip_space: false,
                     },
                 );
             }
@@ -239,7 +239,7 @@ module Formatter {
             type_: Type,
         }?,
     ) {
-        self.write(writer, "(");
+        self.write_if(writer, "(", true);
         self.newline(writer);
         self.depth = self.depth + 1;
 
@@ -248,12 +248,12 @@ module Formatter {
                 self.write(writer, "self");
             } else {
                 self.write(writer, param.name);
-                self.write(writer, ":");
+                self.write_if(writer, ":", true);
                 self.type_(
                     writer,
                     param.type_,
                     struct {
-                        skip_space: true,
+                        skip_space: false,
                     },
                 );
             }
@@ -500,7 +500,7 @@ module Formatter {
             }
             if expr.t_record!.expansion != nil {
                 self.write(writer, "..");
-                self.expr(writer, expr.t_record!.expansion!, false);
+                self.expr(writer, expr.t_record!.expansion!, true);
                 self.write_no_space(writer, ",");
                 self.newline(writer);
             }
@@ -649,7 +649,7 @@ module Formatter {
                     skip_space: true,
                 },
             );
-            self.write_no_space(writer, ":");
+            self.write_no_space(writer, ",");
             self.type_(
                 writer,
                 type_.t_map!.value,
