@@ -1604,7 +1604,26 @@ module Parser {
 
             return LExpression {
                 data: Expression {
-                    t_string: token.string_value!,
+                    t_string: struct {
+                        value: token.string_value!,
+                        raw: false,
+                    },
+                },
+                location: Location {
+                    start: token.position?,
+                    end: (token.position + token.string_value!.length)?,
+                },
+            };
+        }
+        if self.peek().lexeme.equal("raw_string") {
+            let token = self.consume();
+
+            return LExpression {
+                data: Expression {
+                    t_string: struct {
+                        value: token.string_value!,
+                        raw: true,
+                    },
                 },
                 location: Location {
                     start: token.position?,

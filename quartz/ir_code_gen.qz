@@ -1822,7 +1822,7 @@ module IrCodeGenerator {
 
             return _ or error::new(format("cannot cast {} to {}", source.to_string(), target.to_string()));
         } else if expr.t_string != nil {
-            return self.register_string(expr.t_string!);
+            return self.register_string(expr.t_string!.value);
         } else if expr.t_paren != nil {
             return self.expression(expr.t_paren!).try;
         } else if expr.t_wrap != nil {

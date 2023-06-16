@@ -210,7 +210,10 @@ enum Expression {
         resolved_path: Path?,
     },
     t_self: bool,
-    t_string: string,
+    t_string: struct {
+        value: string,
+        raw: bool,
+    },
     t_paren: LExpression,
     t_range: struct {
         start: LExpression,

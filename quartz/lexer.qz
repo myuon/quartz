@@ -402,7 +402,7 @@ module Lexer {
             let str = self.consume_raw_string_literal(input);
             if str != nil {
                 self.tokens.push(Token {
-                    lexeme: "string",
+                    lexeme: "raw_string",
                     string_value: str,
                     position: self.position,
                     raw: str!,

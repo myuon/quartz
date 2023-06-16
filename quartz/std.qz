@@ -531,19 +531,19 @@ module string {
         return self.split("\n");
     }
 
-    fun escape(self): string {
+    fun escape_with(self, char: byte): string {
         let s = self;
         let result = make[vec[byte]]();
         let n = 0;
 
-        result.push(34 as byte);
+        result.push(char);
 
         while n < s.length {
             if s.at(n) == 10 as byte {
                 result.push(92 as byte);
                 result.push(110 as byte);
                 n = n + 1;
-            } else if is_prefix(s, n, "\"") {
+            } else if char == 34 as byte && is_prefix(s, n, "\"") {
                 result.push(92 as byte);
                 result.push(34 as byte);
                 n = n + 1;
@@ -561,9 +561,17 @@ module string {
             }
         }
 
-        result.push(34 as byte);
+        result.push(char);
 
         return vec_byte_to_string(result);
+    }
+
+    fun escape(self): string {
+        return self.escape_with(34 as byte);
+    }
+
+    fun escape_raw(self): string {
+        return self.escape_with(96 as byte);
     }
 }
 
