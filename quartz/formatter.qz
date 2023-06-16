@@ -318,26 +318,22 @@ module Formatter {
                 self.statement(writer, statement);
             }
 
-            if statement.location.end != nil {
-                current_pos = statement.location.end!;
-            }
+            current_pos = statement.location.end!;
 
-            if statement.location.end != nil {
-                let comments = self.consume_comments(statement.location.end!);
-                for comment in comments {
-                    if current_pos > 0 && self.need_empty_lines(current_pos, comment.position) {
-                        self.newline(writer);
-                    }
-
-                    if self.need_line_follow(current_pos, comment.position) {
-                        self.write(writer, comment.raw);
-                    } else {
-                        self.newline(writer);
-                        self.write(writer, comment.raw);
-                    }
-
-                    current_pos = comment.position + comment.raw.length;
+            let comments = self.consume_comments(statement.location.end!);
+            for comment in comments {
+                if current_pos > 0 && self.need_empty_lines(current_pos, comment.position) {
+                    self.newline(writer);
                 }
+
+                if self.need_line_follow(current_pos, comment.position) {
+                    self.write(writer, comment.raw);
+                } else {
+                    self.newline(writer);
+                    self.write(writer, comment.raw);
+                }
+
+                current_pos = comment.position + comment.raw.length;
             }
         }
 

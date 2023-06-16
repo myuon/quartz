@@ -143,9 +143,6 @@ module Lexer {
             self.position = self.position + 1;
         }
 
-        comment.push(10 as byte);
-        self.position = self.position + 1;
-
         return vec_byte_to_string(comment)?;
     }
 
@@ -191,7 +188,7 @@ module Lexer {
                 self.tokens.push(Token {
                     lexeme: "comment",
                     string_value: comment,
-                    position: self.position,
+                    position: self.position - comment!.length,
                     raw: comment!,
                 });
                 continue;
