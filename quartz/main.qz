@@ -59,29 +59,127 @@ fun test() {
     assert_eq_string((1 as i64).to_string(), "1");
 }
 
+enum CliCommand {
+    compile: struct {
+        output: string?,
+        stdin: bool?,
+        input: string?,
+    },
+    run: struct {
+        stdin: bool?,
+        input: string?,
+    },
+    format: struct {
+        input: string?,
+        write: bool?,
+    },
+}
+
+module CliCommand {
+    fun parse(args: vec[string]): CliCommand or error {
+        if args.at(0).equal("compile") {
+            let i = 1;
+            let compile = struct {
+                output: nil,
+                stdin: nil,
+                input: nil,
+            };
+
+            while i < args.length {
+                if args.at(i).equal("-o") {
+                    compile.output = args.at(i + 1)?;
+                    i = i + 1;
+                } else if args.at(i).equal("--output") {
+                    compile.output = args.at(i + 1)?;
+                    i = i + 1;
+                } else if args.at(i).equal("--stdin") {
+                    compile.stdin = true?;
+                } else {
+                    break;
+                }
+
+                i = i + 1;
+            }
+
+            if compile.stdin == nil {
+                compile.input = args.at(i)?;
+            }
+
+            return CliCommand {
+                compile: compile,
+            };
+        } else if args.at(0).equal("run") {
+            let i = 1;
+            let run = struct {
+                stdin: nil,
+                input: nil,
+            };
+
+            while i < args.length {
+                if args.at(i).equal("-o") {
+                    run.stdin = true?;
+                }
+            }
+
+            return CliCommand {
+                run: run,
+            };
+        } else if args.at(0).equal("format") {
+            let i = 1;
+            let format_ = struct {
+                input: nil,
+                write: nil,
+            };
+
+            while i < args.length {
+                if args.at(i).equal("-w") {
+                    format_.write = true?;
+                } else {
+                }
+
+                i = i + 1;
+            }
+
+            format_.input = args.at(i)?;
+
+            return CliCommand {
+                format: format_,
+            };
+        } else {
+            return _ or error::new(format("unknown command: {}", derive::to_string(args)));
+        }
+    }
+}
+
 fun main() {
     test();
 
     let args = args();
-    if args.at(1).equal("compile") {
-        if args.at(2).equal("-o") {
-            let file = args.at(3);
+    let command or err = CliCommand::parse(args.slice(1, args.length));
+    if err != nil {
+        panic(err!.message);
+    }
 
-            let input = "";
-            if args.length >= 5 {
-                input = file_read(args.at(4));
-            } else {
-                input = stdin();
-            }
+    let command = command!;
+    if command.compile != nil {
+        let compile = command.compile!;
 
-            let result or err = run(input);
-            if err != nil {
-                panic(err!.message);
-            }
-
-            println("compiled: writing wat to {}", file);
-            file_write(file, result!);
+        let input = "";
+        if compile.input != nil {
+            input = file_read(compile.input!);
+        } else if compile.stdin != nil {
+            input = stdin();
+        } else {
+            panic("no input");
         }
+
+        let result or err = run(input);
+        if err != nil {
+            panic(err!.message);
+        }
+
+        println("compiled: writing wat to {}", compile.output!);
+        file_write(compile.output!, result!);
 
         return nil;
     } else if args.at(1).equal("run") {
