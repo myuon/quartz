@@ -486,16 +486,24 @@ module Formatter {
                 self.write(writer, "!=");
             } else if op.equal("lt") {
                 self.write(writer, "<");
-            } else if op.equal("le") {
+            } else if op.equal("lte") {
                 self.write(writer, "<=");
             } else if op.equal("gt") {
                 self.write(writer, ">");
-            } else if op.equal("ge") {
+            } else if op.equal("gte") {
                 self.write(writer, ">=");
             } else if op.equal("and") {
                 self.write(writer, "&&");
             } else if op.equal("or") {
                 self.write(writer, "||");
+            } else if op.equal("bit_shift_left") {
+                self.write(writer, "<<");
+            } else if op.equal("bit_shift_right") {
+                self.write(writer, ">>");
+            } else if op.equal("bit_and") {
+                self.write(writer, "&");
+            } else if op.equal("bit_or") {
+                self.write(writer, "|");
             } else {
                 panic("unknown binop, {}", op);
             }
@@ -691,6 +699,10 @@ module Formatter {
             self.write_if(writer, "u32", options.skip_space);
         } else if type_.t_byte != nil {
             self.write_if(writer, "byte", options.skip_space);
+        } else if type_.t_nil != nil {
+            self.write_if(writer, "nil", options.skip_space);
+        } else if type_.t_any != nil {
+            self.write_if(writer, "any", options.skip_space);
         } else {
             panic("unknown type: {}", derive::to_string(type_));
         }
@@ -713,7 +725,7 @@ module Formatter {
             }
 
             fwriter.write_no_space(buf, "..");
-            fwriter.expr(buf, expansion!, false);
+            fwriter.expr(buf, expansion!, true);
         }
         fwriter.write_no_space(buf, ")");
 
