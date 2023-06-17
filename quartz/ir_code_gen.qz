@@ -1423,8 +1423,8 @@ module IrCodeGenerator {
                 }]]();
                 for field in record_type.t_enum!.fields {
                     fields.push(struct {
-                        name: field.name,
-                        type_: InternalTypeRep::from_ir_type(IrType::new(field.type_)),
+                        name: field.data.name,
+                        type_: InternalTypeRep::from_ir_type(IrType::new(field.data.type_)),
                     });
                 }
 
@@ -1450,7 +1450,7 @@ module IrCodeGenerator {
                             },
                         },
                         struct {
-                            type_: IrType::new(record_type.t_enum!.fields.at(index).type_),
+                            type_: IrType::new(record_type.t_enum!.fields.at(index).data.type_),
                             term: value,
                         },
                     ),
@@ -1470,7 +1470,7 @@ module IrCodeGenerator {
                     term: IrTerm,
                 }]]();
                 for i in 0..t.fields.length {
-                    let field = t.fields.at(i);
+                    let field = t.fields.at(i).data;
                     if fields_map.has(field.name) {
                         let value = fields_map.at(field.name);
 
@@ -1514,19 +1514,19 @@ module IrCodeGenerator {
             for field in struct_type.fields {
                 let field_expr = nil as LExpression?;
                 for f in expr.t_anonymous_record!.fields {
-                    if f.field == field.name {
-                        field_expr = f.value?;
+                    if f.data.field == field.data.name {
+                        field_expr = f.data.value?;
                         break;
                     }
                 }
                 if field_expr == nil {
-                    return _ or error::new(format("field not found: {}", field.name));
+                    return _ or error::new(format("field not found: {}", field.data.name));
                 }
 
                 let value = self.expression(field_expr!).try;
                 terms.push(struct {
-                    label: field.name?,
-                    type_: IrType::new(field.type_),
+                    label: field.data.name?,
+                    type_: IrType::new(field.data.type_),
                     term: value,
                 });
             }
@@ -1550,23 +1550,32 @@ module IrCodeGenerator {
 
                     let value = self.expression(expr.t_project!.expr).try;
                     let label_index = enum_type.index(expr.t_project!.field);
-                    let value_type = enum_type.fields.at(label_index).type_;
+                    let value_type = enum_type.fields.at(label_index).data.type_;
 
                     let enum_rep = Type {
                         t_struct: TypeStruct {
                             fields: make[vec[struct {
-                                name: string,
-                                type_: Type,
+                                data: struct {
+                                    name: string,
+                                    type_: Type,
+                                },
+                                location: Location,
                             }]](
                                 struct {
-                                    name: "tag",
-                                    type_: Type {
-                                        t_ident: "i32",
+                                    data: struct {
+                                        name: "tag",
+                                        type_: Type {
+                                            t_ident: "i32",
+                                        },
                                     },
+                                    location: Location::unknown(),
                                 },
                                 struct {
-                                    name: "value",
-                                    type_: value_type,
+                                    data: struct {
+                                        name: "value",
+                                        type_: value_type,
+                                    },
+                                    location: Location::unknown(),
                                 },
                             ),
                         },

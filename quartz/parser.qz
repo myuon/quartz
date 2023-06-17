@@ -144,18 +144,27 @@ module Parser {
         self.expect("lbrace").try;
 
         let fields = make[vec[struct {
-            name: string,
-            type_: Type,
+            data: struct {
+                name: string,
+                type_: Type,
+            },
+            location: Location,
         }]]();
 
         while !self.peek().lexeme.equal("rbrace") {
-            let name = self.ident().try.data;
-            self.expect("colon").try;
+            let name = self.ident().try;
+            let colon_token = self.expect("colon").try;
             let t = self.type_().try;
 
             fields.push(struct {
-                name: name,
-                type_: t,
+                data: struct {
+                    name: name.data,
+                    type_: t,
+                },
+                location: Location {
+                    start: name.position?,
+                    end: self.location_from_token(colon_token)?,
+                },
             });
 
             if self.peek().lexeme.equal("comma") {
@@ -194,18 +203,27 @@ module Parser {
         self.expect("lbrace").try;
 
         let fields = make[vec[struct {
-            name: string,
-            type_: Type,
+            data: struct {
+                name: string,
+                type_: Type,
+            },
+            location: Location,
         }]]();
 
         while !self.peek().lexeme.equal("rbrace") {
-            let name = self.ident().try.data;
-            self.expect("colon").try;
+            let name = self.ident().try;
+            let colon_token = self.expect("colon").try;
             let t = self.type_().try;
 
             fields.push(struct {
-                name: name,
-                type_: t,
+                data: struct {
+                    name: name.data,
+                    type_: t,
+                },
+                location: Location {
+                    start: name.position?,
+                    end: self.location_from_token(colon_token)?,
+                },
             });
 
             if self.peek().lexeme.equal("comma") {
@@ -469,18 +487,27 @@ module Parser {
             self.expect("lbrace").try;
 
             let fields = make[vec[struct {
-                name: string,
-                type_: Type,
+                data: struct {
+                    name: string,
+                    type_: Type,
+                },
+                location: Location,
             }]]();
 
             while !self.peek().lexeme.equal("rbrace") {
                 let name = self.ident().try;
-                self.expect("colon").try;
+                let colon_token = self.expect("colon").try;
                 let t = self.type_().try;
 
                 fields.push(struct {
-                    name: name.data,
-                    type_: t,
+                    data: struct {
+                        name: name.data,
+                        type_: t,
+                    },
+                    location: Location {
+                        start: name.position?,
+                        end: self.location_from_token(colon_token)?,
+                    },
                 });
 
                 if self.peek().lexeme.equal("comma") {
@@ -1717,18 +1744,27 @@ module Parser {
             self.expect("lbrace").try;
 
             let fields = make[vec[struct {
-                field: string,
-                value: LExpression,
+                data: struct {
+                    field: string,
+                    value: LExpression,
+                },
+                location: Location,
             }]]();
 
             while !self.peek().lexeme.equal("rbrace") {
                 let ident = self.ident().try;
-                self.expect("colon").try;
+                let colon_token = self.expect("colon").try;
                 let value = self.expression().try;
 
                 fields.push(struct {
-                    field: ident.data,
-                    value: value,
+                    data: struct {
+                        field: ident.data,
+                        value: value,
+                    },
+                    location: Location {
+                        start: ident.position?,
+                        end: value.location.end,
+                    },
                 });
 
                 if self.peek().lexeme.equal("comma") {

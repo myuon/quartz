@@ -527,9 +527,9 @@ module Formatter {
             self.depth = self.depth + 1;
             self.newline(writer);
             for field in expr.t_anonymous_record!.fields {
-                self.write(writer, field.field);
+                self.write(writer, field.data.field);
                 self.write_no_space(writer, ":");
-                self.expr(writer, field.value, false);
+                self.expr(writer, field.data.value, false);
                 self.write_no_space(writer, ",");
                 self.newline(writer);
             }
@@ -687,6 +687,8 @@ module Formatter {
             self.write_if(writer, "bool", options.skip_space);
         } else if type_.t_i32 != nil {
             self.write_if(writer, "i32", options.skip_space);
+        } else if type_.t_u32 != nil {
+            self.write_if(writer, "u32", options.skip_space);
         } else if type_.t_byte != nil {
             self.write_if(writer, "byte", options.skip_space);
         } else {
@@ -745,18 +747,21 @@ module Formatter {
         self.newline(writer);
         self.depth = self.depth + 1;
         for item in fields.fields {
-            self.write(writer, item.name);
+            self.write(writer, item.data.name);
             self.write_no_space(writer, ":");
             self.type_(
                 writer,
-                item.type_,
+                item.data.type_,
                 struct {
                     skip_space: false,
                 },
             );
             self.write_no_space(writer, ",");
 
-            self.newline(writer);
+            let has_comments = self.restore_comments(self.find_next_newline(item.location.end!), writer);
+            if !has_comments {
+                self.newline(writer);
+            }
         }
 
         self.depth = self.depth - 1;
@@ -840,6 +845,19 @@ module Formatter {
     fun newline(self, writer: stringbuilder) {
         writer.append("\n");
         self.column = 0;
+    }
+
+    fun find_next_newline(self, start: i32): i32 {
+        let i = 0;
+
+        let text = self.source.slice_start(start);
+        for i in 0..text.length {
+            if text.at(i) == 10 as byte {
+                return i + start;
+            }
+        }
+
+        return self.source.length;
     }
 }
 

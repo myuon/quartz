@@ -17,22 +17,31 @@ module Typechecker {
             Type {
                 t_struct: TypeStruct {
                     fields: make[vec[struct {
-                        name: string,
-                        type_: Type,
+                        data: struct {
+                            name: string,
+                            type_: Type,
+                        },
+                        location: Location,
                     }]](
                         struct {
-                            name: "data",
-                            type_: Type {
-                                t_ptr: Type {
-                                    t_byte: true,
+                            data: struct {
+                                name: "data",
+                                type_: Type {
+                                    t_ptr: Type {
+                                        t_byte: true,
+                                    },
                                 },
                             },
+                            location: Location::unknown(),
                         },
                         struct {
-                            name: "length",
-                            type_: Type {
-                                t_i32: true,
+                            data: struct {
+                                name: "length",
+                                type_: Type {
+                                    t_i32: true,
+                                },
                             },
+                            location: Location::unknown(),
                         },
                     ),
                 },
@@ -56,28 +65,40 @@ module Typechecker {
             Type {
                 t_struct: TypeStruct {
                     fields: make[vec[struct {
-                        name: string,
-                        type_: Type,
+                        data: struct {
+                            name: string,
+                            type_: Type,
+                        },
+                        location: Location,
                     }]](
                         struct {
-                            name: "data",
-                            type_: Type {
-                                t_ptr: Type {
-                                    t_any: true,
+                            data: struct {
+                                name: "data",
+                                type_: Type {
+                                    t_ptr: Type {
+                                        t_any: true,
+                                    },
                                 },
                             },
+                            location: Location::unknown(),
                         },
                         struct {
-                            name: "length",
-                            type_: Type {
-                                t_i32: true,
+                            data: struct {
+                                name: "length",
+                                type_: Type {
+                                    t_i32: true,
+                                },
                             },
+                            location: Location::unknown(),
                         },
                         struct {
-                            name: "capacity",
-                            type_: Type {
-                                t_i32: true,
+                            data: struct {
+                                name: "capacity",
+                                type_: Type {
+                                    t_i32: true,
+                                },
                             },
+                            location: Location::unknown(),
                         },
                     ),
                 },
@@ -1098,15 +1119,21 @@ module Typechecker {
             };
         } else if expr.t_anonymous_record != nil {
             let record_type = make[vec[struct {
-                name: string,
-                type_: Type,
+                data: struct {
+                    name: string,
+                    type_: Type,
+                },
+                location: Location,
             }]]();
 
             for field in expr.t_anonymous_record!.fields {
-                let t = self.expression(field.value).try;
+                let t = self.expression(field.data.value).try;
                 record_type.push(struct {
-                    name: field.field,
-                    type_: t,
+                    data: struct {
+                        name: field.data.field,
+                        type_: t,
+                    },
+                    location: field.location,
                 });
             }
 
@@ -1283,7 +1310,7 @@ module Typechecker {
             let fields = type_.t_struct!.fields;
 
             for i in 0..fields.length {
-                let field = fields.at(i);
+                let field = fields.at(i).data;
 
                 result.insert(field.name, field.type_);
             }
@@ -1294,9 +1321,9 @@ module Typechecker {
             if type_.t_enum != nil {
                 for field in type_.t_enum!.fields {
                     fields.insert(
-                        field.name,
+                        field.data.name,
                         Type {
-                            t_optional: field.type_,
+                            t_optional: field.data.type_,
                         },
                     );
                 }
@@ -1440,8 +1467,8 @@ fun unify(type1: Type, type2: Type): Type or error {
         }
 
         for i in 0..type1.t_struct!.fields.length {
-            let rs1 = type1.t_struct!.fields.at(i);
-            let rs2 = type2.t_struct!.fields.at(i);
+            let rs1 = type1.t_struct!.fields.at(i).data;
+            let rs2 = type2.t_struct!.fields.at(i).data;
 
             if !rs1.name.equal(rs2.name) {
                 return _ or error::new("unification failed: ".concat(derive::to_string(rs1)).concat(" != ").concat(derive::to_string(

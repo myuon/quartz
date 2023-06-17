@@ -196,8 +196,11 @@ enum Expression {
     t_record: RecordExpression,
     t_anonymous_record: struct {
         fields: vec[struct {
-            field: string,
-            value: LExpression,
+            data: struct {
+                field: string,
+                value: LExpression,
+            },
+            location: Location,
         }],
         type_: Type?,
     },
@@ -350,15 +353,18 @@ module Type {
 
 struct TypeStruct {
     fields: vec[struct {
-        name: string,
-        type_: Type,
+        data: struct {
+            name: string,
+            type_: Type,
+        },
+        location: Location,
     }],
 }
 
 module TypeStruct {
     fun has(self, name: string): bool {
         for i in 0..self.fields.length {
-            if self.fields.at(i).name.equal(name) {
+            if self.fields.at(i).data.name.equal(name) {
                 return true;
             }
         }
@@ -367,8 +373,8 @@ module TypeStruct {
 
     fun at(self, name: string): Type {
         for i in 0..self.fields.length {
-            if self.fields.at(i).name.equal(name) {
-                return self.fields.at(i).type_;
+            if self.fields.at(i).data.name.equal(name) {
+                return self.fields.at(i).data.type_;
             }
         }
 
@@ -377,7 +383,7 @@ module TypeStruct {
 
     fun index(self, name: string): i32 {
         for i in 0..self.fields.length {
-            if self.fields.at(i).name.equal(name) {
+            if self.fields.at(i).data.name.equal(name) {
                 return i;
             }
         }
