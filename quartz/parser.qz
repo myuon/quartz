@@ -1606,7 +1606,7 @@ module Parser {
                 data: Expression {
                     t_string: struct {
                         value: token.string_value!,
-                        raw: false,
+                        raw: token.raw,
                     },
                 },
                 location: Location {
@@ -1622,7 +1622,7 @@ module Parser {
                 data: Expression {
                     t_string: struct {
                         value: token.string_value!,
-                        raw: true,
+                        raw: token.raw,
                     },
                 },
                 location: Location {

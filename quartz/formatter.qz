@@ -440,11 +440,7 @@ module Formatter {
         } else if expr.t_u32 != nil {
             self.write_if(writer, expr.t_u32!.value.to_string(), skip_space);
         } else if expr.t_string != nil {
-            if expr.t_string!.raw {
-                self.write_if(writer, expr.t_string!.value.escape_raw(), skip_space);
-            } else {
-                self.write_if(writer, expr.t_string!.value.escape(), skip_space);
-            }
+            self.write_if(writer, expr.t_string!.raw, skip_space);
         } else if expr.t_call != nil {
             self.expr(writer, expr.t_call!.callee, skip_space);
             self.arguments(writer, expr.t_call!.args, expr.t_call!.expansion);

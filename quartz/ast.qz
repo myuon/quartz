@@ -212,7 +212,7 @@ enum Expression {
     t_self: bool,
     t_string: struct {
         value: string,
-        raw: bool,
+        raw: string,
     },
     t_paren: LExpression,
     t_range: struct {

@@ -71,13 +71,22 @@ module Lexer {
         return vec_byte_to_string(number)?;
     }
 
-    fun consume_string_literal(self, input: string): string? {
+    fun consume_string_literal(
+        self,
+        input: string,
+    ): struct {
+        value: string,
+        raw: string,
+    }? {
         let quote = 34 as byte;
         let backslash = 92 as byte;
+
         let str = make[vec[byte]]();
         if input.at(self.position) != quote {
             return nil;
         }
+
+        let start_position = self.position;
 
         self.position = self.position + 1;
 
@@ -106,12 +115,27 @@ module Lexer {
 
         self.position = self.position + 1;
 
-        return vec_byte_to_string(str)?;
+        let end_position = self.position;
+        let raw = input.slice(start_position, end_position);
+
+        return struct {
+            value: vec_byte_to_string(str),
+            raw: raw,
+        }?;
     }
 
-    fun consume_raw_string_literal(self, input: string): string? {
+    fun consume_raw_string_literal(
+        self,
+        input: string,
+    ): struct {
+        value: string,
+        raw: string,
+    }? {
         let backquote = 96 as byte;
+
         let str = make[vec[byte]]();
+        let start_position = self.position;
+
         if input.at(self.position) != backquote {
             return nil;
         }
@@ -125,7 +149,13 @@ module Lexer {
 
         self.position = self.position + 1;
 
-        return vec_byte_to_string(str)?;
+        let end_position = self.position;
+        let raw = input.slice(start_position, end_position);
+
+        return struct {
+            value: vec_byte_to_string(str),
+            raw: raw,
+        }?;
     }
 
     fun consume_comment(self, input: string): string? {
@@ -393,9 +423,9 @@ module Lexer {
             if str != nil {
                 self.tokens.push(Token {
                     lexeme: "string",
-                    string_value: str,
+                    string_value: str!.value?,
                     position: self.position,
-                    raw: str!,
+                    raw: str!.raw,
                 });
 
                 continue;
@@ -405,9 +435,9 @@ module Lexer {
             if str != nil {
                 self.tokens.push(Token {
                     lexeme: "raw_string",
-                    string_value: str,
+                    string_value: str!.value?,
                     position: self.position,
-                    raw: str!,
+                    raw: str!.raw,
                 });
 
                 continue;
