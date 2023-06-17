@@ -1260,7 +1260,7 @@ module Typechecker {
                 self.set_search_node_type(t, expr.t_project!.expr.location);
                 // FIXME: need to strip current package path
                 self.set_search_node_definition(
-                    Path::new(..path.path.slice(0, 2)),
+                    Path::new(path.path.at(0), path.path.at(1)),
                     resolved.type_.location,
                     resolved.type_.location,
                 );
@@ -1448,7 +1448,7 @@ module Typechecker {
             self.set_search_node_type(result.data, lexpr.location);
             // FIXME: need to strip current package path
             self.set_search_node_definition(
-                Path::new(..resolved_path.path.slice(0, 2)),
+                Path::new(resolved_path.path.at(0), resolved_path.path.at(1)),
                 result.location,
                 lexpr.location,
             );

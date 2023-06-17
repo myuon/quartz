@@ -1380,7 +1380,11 @@ module IrCodeGenerator {
                     }
 
                     if project.resolved_path == nil {
-                        return _ or error::new("project.resolved_path is nil");
+                        return _ or error::new(format(
+                            "project.resolved_path is nil: {}, {}",
+                            self.current_path.join("::"),
+                            derive::to_string(project),
+                        ));
                     }
 
                     return self.generate_call(
