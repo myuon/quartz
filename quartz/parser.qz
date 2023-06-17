@@ -305,9 +305,7 @@ module Parser {
             result_type = self.type_().try;
         }
 
-        self.expect("lbrace").try;
         let body = self.block().try;
-        let end_token = self.expect("rbrace").try;
 
         return struct {
             data: Function {
@@ -317,7 +315,10 @@ module Parser {
                 params: params.params,
                 variadic: params.variadic,
             },
-            location: self.span_location(start_token, end_token),
+            location: Location {
+                start: self.location_from_token(start_token)?,
+                end: body.location.end,
+            },
         };
     }
 
@@ -555,16 +556,23 @@ module Parser {
         return nil;
     }
 
-    fun block(self): Block or error {
+    fun block(self): LBlock or error {
         let statements = make[vec[LStatement]]();
+
+        let start_token = self.expect("lbrace").try;
 
         while !self.is_end() && !self.peek().lexeme.equal("rbrace") {
             let s = self.statement().try;
             statements.push(s);
         }
 
-        return Block {
-            block: statements,
+        let end_token = self.expect("rbrace").try;
+
+        return LBlock {
+            data: Block {
+                block: statements,
+            },
+            location: self.span_location(start_token, end_token),
         };
     }
 
@@ -579,29 +587,29 @@ module Parser {
         if token.lexeme.equal("if") {
             let start_token = self.consume();
             let condition = self.expression_conditional().try;
-            self.expect("lbrace").try;
             let then_block = self.block().try;
-            let end_block = self.expect("rbrace").try;
-            let end_position = self.location_from_token(end_block);
+            let end_position = then_block.location.end!;
 
-            let else_block = nil as Block?;
+            let else_block = nil as LBlock?;
             if self.peek().lexeme.equal("else") {
                 self.consume();
 
                 if self.peek().lexeme.equal("if") {
                     let s = self.statement().try;
-                    else_block = Block {
-                        block: make[vec[LStatement]](s),
+                    else_block = LBlock {
+                        data: Block {
+                            block: make[vec[LStatement]](s),
+                        },
+                        location: s.location,
                     }?;
 
                     if s.location.end != nil {
                         end_position = s.location.end!;
                     }
                 } else {
-                    self.expect("lbrace").try;
-                    else_block = self.block().try?;
-                    let rbrace = self.expect("rbrace").try;
-                    end_position = self.location_from_token(rbrace);
+                    let b = self.block().try;
+                    end_position = b.location.end!;
+                    else_block = b?;
                 }
             }
 
@@ -622,9 +630,7 @@ module Parser {
         if token.lexeme.equal("while") {
             let start_token = self.consume();
             let condition = self.expression_conditional().try;
-            self.expect("lbrace").try;
             let block = self.block().try;
-            let end_token = self.expect("rbrace").try;
 
             return LStatement {
                 data: Statement {
@@ -633,7 +639,10 @@ module Parser {
                         block: block,
                     },
                 },
-                location: self.span_location(start_token, end_token),
+                location: Location {
+                    start: self.location_from_token(start_token)?,
+                    end: block.location.end,
+                },
             };
         }
         if token.lexeme.equal("for") {
@@ -642,9 +651,7 @@ module Parser {
             self.expect("in").try;
             let range = self.expression_conditional().try;
 
-            self.expect("lbrace").try;
             let body = self.block().try;
-            let end_token = self.expect("rbrace").try;
 
             return LStatement {
                 data: Statement {
@@ -656,7 +663,10 @@ module Parser {
                         block: body,
                     },
                 },
-                location: self.span_location(start_token, end_token),
+                location: Location {
+                    start: self.location_from_token(start_token)?,
+                    end: body.location.end,
+                },
             };
         }
         if self.peek().lexeme.equal("continue") {

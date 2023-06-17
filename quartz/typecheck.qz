@@ -523,13 +523,13 @@ module Typechecker {
         return nil;
     }
 
-    fun block(self, b: Block): nil or error {
-        for i in 0..b.block.length {
+    fun block(self, b: LBlock): nil or error {
+        for i in 0..b.data.block.length {
             let result = Type {
                 t_omit: true,
             };
 
-            self.statement(b.block.at(i)).try;
+            self.statement(b.data.block.at(i)).try;
         }
 
         return nil;

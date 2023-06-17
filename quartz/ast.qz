@@ -56,7 +56,7 @@ module Let {
 struct Function {
     name: string,
     result_type: Type,
-    body: Block,
+    body: LBlock,
     params: vec[struct {
         name: string,
         type_: Type,
@@ -69,7 +69,7 @@ struct Function {
 
 module Function {
     fun to_string(self): string {
-        return "fun ".concat(self.name).concat("(??) {\n").concat(self.body.to_string()).concat("}\n");
+        return derive::to_string(self);
     }
 
     fun to_type(self): Type {
@@ -108,6 +108,11 @@ module Block {
     }
 }
 
+struct LBlock {
+    data: Block,
+    location: Location,
+}
+
 enum Statement {
     t_let: struct {
         pattern: Pattern,
@@ -127,19 +132,19 @@ enum Statement {
     },
     t_if: struct {
         condition: LExpression,
-        then_block: Block,
-        else_block: Block?,
+        then_block: LBlock,
+        else_block: LBlock?,
     },
     t_while: struct {
         condition: LExpression,
-        block: Block,
+        block: LBlock,
     },
     t_for: struct {
         mode: string,
         type_: Type?,
         ident: string,
         range: LExpression,
-        block: Block,
+        block: LBlock,
     },
     t_continue: bool,
     t_break: bool,

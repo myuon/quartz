@@ -565,11 +565,11 @@ module IrCodeGenerator {
         return self.current_path.join("_").concat("_").concat(s);
     }
 
-    fun block(self, b: Block): vec[IrTerm] or error {
+    fun block(self, b: LBlock): vec[IrTerm] or error {
         let elements = make[vec[IrTerm]]();
 
-        for i in 0..b.block.length {
-            elements.push(self.statement(b.block.at(i)).try);
+        for i in 0..b.data.block.length {
+            elements.push(self.statement(b.data.block.at(i)).try);
         }
 
         return elements;
@@ -674,14 +674,14 @@ module IrCodeGenerator {
             return self.assign(lhs, IrType::new(stm.t_assign!.rhs_type!), rhs).try;
         } else if stm.t_if != nil {
             let then_elements = make[vec[IrTerm]]();
-            for i in 0..stm.t_if!.then_block.block.length {
-                then_elements.push(self.statement(stm.t_if!.then_block.block.at(i)).try);
+            for i in 0..stm.t_if!.then_block.data.block.length {
+                then_elements.push(self.statement(stm.t_if!.then_block.data.block.at(i)).try);
             }
 
             let else_elements = make[vec[IrTerm]]();
             if stm.t_if!.else_block != nil {
-                for i in 0..stm.t_if!.else_block!.block.length {
-                    else_elements.push(self.statement(stm.t_if!.else_block!.block.at(i)).try);
+                for i in 0..stm.t_if!.else_block!.data.block.length {
+                    else_elements.push(self.statement(stm.t_if!.else_block!.data.block.at(i)).try);
                 }
             }
 
@@ -702,8 +702,8 @@ module IrCodeGenerator {
             };
         } else if stm.t_while != nil {
             let body_elements = make[vec[IrTerm]]();
-            for i in 0..stm.t_while!.block.block.length {
-                body_elements.push(self.statement(stm.t_while!.block.block.at(i)).try);
+            for i in 0..stm.t_while!.block.data.block.length {
+                body_elements.push(self.statement(stm.t_while!.block.data.block.at(i)).try);
             }
 
             return IrTerm {
@@ -835,7 +835,7 @@ module IrCodeGenerator {
                         },
                     },
                 });
-                for body in stm.t_for!.block.block {
+                for body in stm.t_for!.block.data.block {
                     new_body.push(body);
                 }
 
@@ -872,8 +872,11 @@ module IrCodeGenerator {
                                 },
                                 location: Location::unknown(),
                             },
-                            block: Block {
-                                block: new_body,
+                            block: LBlock {
+                                data: Block {
+                                    block: new_body,
+                                },
+                                location: Location::unknown(),
                             },
                         },
                     },

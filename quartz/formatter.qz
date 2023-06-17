@@ -171,7 +171,7 @@ module Formatter {
             }
         }
 
-        self.statements(writer, func.body.block);
+        self.block(writer, func.body);
 
         return self.comment_position;
     }
@@ -283,13 +283,13 @@ module Formatter {
         self.write(writer, ")");
     }
 
-    fun statements(self, writer: stringbuilder, statements: vec[LStatement]) {
+    fun block(self, writer: stringbuilder, block: LBlock) {
         self.write(writer, "{");
         self.depth = self.depth + 1;
 
         let current_pos = 0;
 
-        for statement in statements {
+        for statement in block.data.block {
             if statement.location.start == nil || statement.location.end == nil {
                 panic("statement.start/end == nil");
             }
@@ -382,25 +382,27 @@ module Formatter {
         } else if statement.t_if != nil {
             self.write(writer, "if");
             self.expr(writer, statement.t_if!.condition, false);
-            self.statements(writer, statement.t_if!.then_block.block);
+            self.block(writer, statement.t_if!.then_block);
             if statement.t_if!.else_block != nil {
                 self.write(writer, "else");
-                if statement.t_if!.else_block!.block.length == 1 && statement.t_if!.else_block!.block.at(0).data.t_if != nil {
-                    self.statement(writer, statement.t_if!.else_block!.block.at(0));
+                if statement.t_if!.else_block!.data.block.length == 1 && statement.t_if!.else_block!.data.block.at(
+                    0,
+                ).data.t_if != nil {
+                    self.statement(writer, statement.t_if!.else_block!.data.block.at(0));
                 } else {
-                    self.statements(writer, statement.t_if!.else_block!.block);
+                    self.block(writer, statement.t_if!.else_block!);
                 }
             }
         } else if statement.t_while != nil {
             self.write(writer, "while");
             self.expr(writer, statement.t_while!.condition, false);
-            self.statements(writer, statement.t_while!.block.block);
+            self.block(writer, statement.t_while!.block);
         } else if statement.t_for != nil {
             self.write(writer, "for");
             self.write(writer, statement.t_for!.ident);
             self.write(writer, "in");
             self.expr(writer, statement.t_for!.range, false);
-            self.statements(writer, statement.t_for!.block.block);
+            self.block(writer, statement.t_for!.block);
         } else if statement.t_continue != nil {
             self.write(writer, "continue;");
         } else if statement.t_break != nil {
