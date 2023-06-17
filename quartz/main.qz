@@ -76,6 +76,11 @@ enum CliCommand {
     check: struct {
         input: string?,
     },
+    check_type: struct {
+        input: string?,
+        line: i32,
+        column: i32,
+    },
 }
 
 module CliCommand {
@@ -160,6 +165,33 @@ module CliCommand {
             return CliCommand {
                 check: check,
             };
+        } else if args.at(0).equal("check-type") {
+            let i = 1;
+            let check_type = struct {
+                input: nil,
+                line: 0,
+                column: 0,
+            };
+
+            while i < args.length {
+                if args.at(i).equal("--line") {
+                    check_type.line = i32::parse(args.at(i + 1));
+                    i = i + 1;
+                } else if args.at(i).equal("--column") {
+                    check_type.column = i32::parse(args.at(i + 1));
+                    i = i + 1;
+                } else {
+                    break;
+                }
+
+                i = i + 1;
+            }
+
+            check_type.input = args.at(i)?;
+
+            return CliCommand {
+                check_type: check_type,
+            };
         } else {
             return _ or error::new(format("unknown command: {}", derive::to_string(args)));
         }
@@ -235,8 +267,18 @@ fun main() {
         if err != nil {
             panic(err!.message);
         }
+    } else if command.check_type != nil {
+        let check_type = command.check_type!;
+
+        let input = file_read(check_type.input!);
+
+        let compiler = Compiler::new();
+        let result or err = compiler.check_type(input, check_type.line, check_type.column);
+        if err != nil {
+            panic(err!.message);
+        }
     } else {
-        println("{}", derive::to_string(args));
+        println("unknown args: {}", derive::to_string(args));
         println("{}", args.at(1));
 
         return nil;

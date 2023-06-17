@@ -119,5 +119,63 @@ module Compiler {
 
         return nil;
     }
+
+    fun check_type(self, input: string, line: i32, column: i32): nil or error {
+        let main_path = Path::new("main");
+        let module_ = self.parse(input).try;
+
+        let position = find_line_column_from_position(input, line, column);
+
+        let typechecker = Typechecker::new();
+        typechecker.find_at_cursor(module_, main_path, position).try;
+
+        return nil;
+    }
+}
+
+fun find_position(
+    input: string,
+    position: i32,
+): struct {
+    line: i32,
+    column: i32,
+} {
+    let line_number = 0;
+    let count = 0;
+    for line in input.lines() {
+        if count + line.length > position {
+            break;
+        }
+
+        line_number = line_number + 1;
+        count = count + line.length + 1;
+    }
+
+    return struct {
+        line: line_number,
+        column: position - count,
+    };
+}
+
+fun find_line_column_from_position(input: string, line: i32, column: i32): i32 {
+    let start = 0;
+    let end = input.length;
+
+    while start < end {
+        let mid = (start + end) / 2;
+        let pos = find_position(input, mid);
+
+        if pos.line == line && pos.column == column {
+            return mid;
+        }
+
+        if pos.line < line || (pos.line == line && pos.column < column) {
+            start = mid + 1;
+        } else {
+            end = mid;
+        }
+    }
+
+    return start;
 }
 

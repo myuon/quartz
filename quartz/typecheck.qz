@@ -1,5 +1,6 @@
 import quartz::ast;
 import quartz::path;
+import quartz::location;
 
 struct Typechecker {
     locals: map[string, Type],
@@ -7,6 +8,11 @@ struct Typechecker {
     current_path: Path,
     imported: vec[Path],
     result_type: Type?,
+    search_node: struct {
+        path: Path,
+        cursor: i32,
+    }?,
+    search_node_type: Type?,
 }
 
 module Typechecker {
@@ -422,6 +428,8 @@ module Typechecker {
             current_path: Path::new(),
             imported: make[vec[Path]](Path::new("quartz", "std")),
             result_type: nil,
+            search_node: nil,
+            search_node_type: nil,
         };
     }
 
@@ -429,8 +437,14 @@ module Typechecker {
         self.module_register_for_back_reference(m).try;
 
         for i in 0..m.decls.length {
+            self.locals = make[map[string, Type]]();
             let d = m.decls.at(i);
-            self.decl(d).try;
+            let result or err = self.decl(d);
+            if result != nil || self.search_node == nil {
+                if err != nil {
+                    return _ or err!;
+                }
+            }
         }
 
         return nil;
@@ -557,6 +571,12 @@ module Typechecker {
     }
 
     fun statement(self, ls: LStatement): nil or error {
+        if self.search_node != nil {
+            if self.is_search_finished(ls.location, self.search_node!) {
+                return nil;
+            }
+        }
+
         let s = ls.data;
 
         if s.t_let != nil {
@@ -713,9 +733,12 @@ module Typechecker {
         let expr = lexpr.data;
 
         if expr.t_i32 != nil {
-            return Type {
+            let result = Type {
                 t_i32: true,
             };
+            self.set_search_node_type(result, lexpr.location);
+
+            return result;
         } else if expr.t_u32 != nil {
             return Type {
                 t_u32: true,
@@ -1382,6 +1405,58 @@ module Typechecker {
 
         return _ or error::new("unknown symbol: {}".format(specified.join("_")));
     }
+
+    // for LSP
+    fun find_at_cursor(self, module_: Module, path: Path, cursor: i32): Type or error {
+        self.search_node = struct {
+            path: path,
+            cursor: cursor,
+        }?;
+
+        let result = self.module_(module_).try;
+
+        if self.search_node_type == nil {
+            return _ or error::new("not found");
+        } else {
+            return self.search_node_type!;
+        }
+    }
+
+    fun is_search_finished(
+        self,
+        location: Location,
+        node: struct {
+            path: Path,
+            cursor: i32,
+        },
+    ): bool {
+        if self.search_node_type != nil {
+            return true;
+        }
+        if location.start != nil {
+            if location.start! > node.cursor {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    fun set_search_node_type(self, type_: Type, location: Location) {
+        if self.search_node != nil {
+            let path = self.search_node!.path;
+            let cursor = self.search_node!.cursor;
+            if is_prefix_path(path, self.current_path) {
+                if self.search_node_type == nil {
+                    if location.start != nil && location.end != nil {
+                        if location.start! <= cursor && cursor <= location.end! {
+                            self.search_node_type = type_?;
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 fun unify(type1: Type, type2: Type): Type or error {
@@ -1506,5 +1581,19 @@ fun unify(type1: Type, type2: Type): Type or error {
 
     return _ or error::new("unification failed: ".concat(type1.to_string()).concat(" != ").concat(type2.to_string(
     )));
+}
+
+fun is_prefix_path(a: Path, b: Path): bool {
+    if a.path.length > b.path.length {
+        return false;
+    }
+
+    for i in 0..a.path.length {
+        if !a.path.at(i).equal(b.path.at(i)) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
