@@ -426,7 +426,9 @@ module Formatter {
         }
     }
 
-    fun pattern(self, writer: stringbuilder, pattern: Pattern) {
+    fun pattern(self, writer: stringbuilder, lpattern: LPattern) {
+        let pattern = lpattern.data;
+
         if pattern.t_ident != nil {
             self.write(writer, pattern.t_ident!);
         } else if pattern.t_or != nil {

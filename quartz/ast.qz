@@ -115,7 +115,7 @@ struct LBlock {
 
 enum Statement {
     t_let: struct {
-        pattern: Pattern,
+        pattern: LPattern,
         name_type: Type,
         expr: LExpression,
     },
@@ -395,8 +395,8 @@ module TypeStruct {
 struct Pattern {
     t_ident: string?,
     t_or: struct {
-        lhs: Pattern,
-        rhs: Pattern,
+        lhs: LPattern,
+        rhs: LPattern,
     }?,
     t_omit: bool?,
 }
@@ -405,5 +405,10 @@ module Pattern {
     fun to_string(self): string {
         return derive::to_string(self);
     }
+}
+
+struct LPattern {
+    data: Pattern,
+    location: Location,
 }
 

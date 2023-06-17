@@ -578,8 +578,8 @@ module IrCodeGenerator {
     fun statement(self, lstm: LStatement): IrTerm or error {
         let stm = lstm.data;
         if stm.t_let != nil {
-            if stm.t_let!.pattern.t_ident != nil {
-                let name = stm.t_let!.pattern.t_ident!;
+            if stm.t_let!.pattern.data.t_ident != nil {
+                let name = stm.t_let!.pattern.data.t_ident!;
 
                 let term = IrTerm {
                     t_let: IrLet {
@@ -593,9 +593,9 @@ module IrCodeGenerator {
                 self.locals.insert(name, true);
 
                 return term;
-            } else if stm.t_let!.pattern.t_or != nil {
-                let lhs = stm.t_let!.pattern.t_or!.lhs.t_ident!;
-                let rhs = stm.t_let!.pattern.t_or!.rhs.t_ident!;
+            } else if stm.t_let!.pattern.data.t_or != nil {
+                let lhs = stm.t_let!.pattern.data.t_or!.lhs.data.t_ident!;
+                let rhs = stm.t_let!.pattern.data.t_or!.rhs.data.t_ident!;
 
                 if stm.t_let!.name_type.t_or == nil {
                     return _ or error::new("expected or type");
@@ -798,9 +798,12 @@ module IrCodeGenerator {
                     location: Location::unknown(),
                     data: Statement {
                         t_let: struct {
-                            pattern: Pattern {
-                                t_ident: stm.t_for!.ident?,
-                                ..nil,
+                            pattern: LPattern {
+                                data: Pattern {
+                                    t_ident: stm.t_for!.ident?,
+                                    ..nil,
+                                },
+                                location: Location::unknown(),
                             },
                             name_type: vec_type,
                             expr: LExpression {

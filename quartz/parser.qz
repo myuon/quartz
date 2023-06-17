@@ -787,25 +787,40 @@ module Parser {
         };
     }
 
-    fun pattern(self): Pattern or error {
-        let current = Pattern {
-            t_omit: true?,
-            ..nil,
+    fun pattern(self): LPattern or error {
+        let current = LPattern {
+            data: Pattern {
+                t_omit: true?,
+                ..nil,
+            },
+            location: Location::unknown(),
         };
 
         if self.peek().lexeme.equal("underscore") {
-            self.consume();
+            let token = self.consume();
 
-            current = Pattern {
-                t_omit: true?,
-                ..nil,
+            current = LPattern {
+                data: Pattern {
+                    t_omit: true?,
+                    ..nil,
+                },
+                location: Location {
+                    start: self.location_from_token(token)?,
+                    end: (self.location_from_token(token) + 1)?,
+                },
             };
         } else {
             let name = self.ident().try;
 
-            current = Pattern {
-                t_ident: name.data?,
-                ..nil,
+            current = LPattern {
+                data: Pattern {
+                    t_ident: name.data?,
+                    ..nil,
+                },
+                location: Location {
+                    start: name.position?,
+                    end: (name.position + name.data.length)?,
+                },
             };
         }
 
@@ -813,12 +828,18 @@ module Parser {
             self.consume();
             let rhs = self.pattern().try;
 
-            return Pattern {
-                t_or: struct {
-                    lhs: current,
-                    rhs: rhs,
-                }?,
-                ..nil,
+            return LPattern {
+                data: Pattern {
+                    t_or: struct {
+                        lhs: current,
+                        rhs: rhs,
+                    }?,
+                    ..nil,
+                },
+                location: Location {
+                    start: current.location.start,
+                    end: rhs.location.end,
+                },
             };
         } else {
             return current;

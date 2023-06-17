@@ -694,9 +694,11 @@ module Typechecker {
         return _ or error::new("unimplemented: statement, {}".format(s.to_string()));
     }
 
-    fun register_locals_with_pattern(self, pattern: Pattern, type_: Type): nil or error {
+    fun register_locals_with_pattern(self, lpattern: LPattern, type_: Type): nil or error {
+        let pattern = lpattern.data;
         if pattern.t_ident != nil {
             self.locals.insert(pattern.t_ident!, type_);
+            self.set_search_node_type(type_, lpattern.location);
         } else if pattern.t_or != nil {
             if type_.t_or != nil {
                 self.register_locals_with_pattern(
