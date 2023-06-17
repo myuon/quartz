@@ -89,7 +89,8 @@ module Formatter {
     fun decl(self, writer: stringbuilder, decl: LDecl) {
         let d = decl.data;
         if d.t_func != nil {
-            self.func(writer, d.t_func!);
+            // Why do we need to set explicitly after func call?
+            self.comment_position = self.func(writer, d.t_func!);
         } else if d.t_let != nil {
             self.write(writer, "let");
             self.write(writer, d.t_let!.name);
@@ -132,7 +133,7 @@ module Formatter {
         }
     }
 
-    fun func(self, writer: stringbuilder, func: Function) {
+    fun func(self, writer: stringbuilder, func: Function): i32 {
         let fformatter = self.clone();
         let fwriter = stringbuilder::new();
 
@@ -171,6 +172,8 @@ module Formatter {
         }
 
         self.statements(writer, func.body.block);
+
+        return self.comment_position;
     }
 
     fun params(
