@@ -182,7 +182,7 @@ module TypeRepTable {
 }
 
 struct IrCodeGenerator {
-    globals: map[string, Type],
+    globals: map[string, LType],
     locals: map[string, bool],
     current_path: Path,
     strings: StringTable,
@@ -195,7 +195,7 @@ struct IrCodeGenerator {
 module IrCodeGenerator {
     fun new(): IrCodeGenerator {
         return IrCodeGenerator {
-            globals: make[map[string, Type]](),
+            globals: make[map[string, LType]](),
             locals: make[map[string, bool]](),
             current_path: Path::new(),
             strings: StringTable::new(),
@@ -1410,7 +1410,7 @@ module IrCodeGenerator {
             if !self.globals.has(expr.t_record!.name) {
                 return _ or error::new(format("record not found: {}", expr.t_record!.name));
             }
-            let record_type = self.globals.at(expr.t_record!.name);
+            let record_type = self.globals.at(expr.t_record!.name).data;
 
             if record_type.t_enum != nil {
                 if expr.t_record!.fields.length != 1 {
@@ -1542,7 +1542,7 @@ module IrCodeGenerator {
 
             let expr_type = expr.t_project!.type_!;
             if expr_type.t_ident != nil && self.globals.has(expr_type.t_ident!) {
-                let ident_type = self.globals.at(expr_type.t_ident!);
+                let ident_type = self.globals.at(expr_type.t_ident!).data;
                 if ident_type.t_enum != nil {
                     let enum_type = ident_type.t_enum!;
                     let name = "enum_{}".format(self.counter.to_string());
@@ -2419,7 +2419,7 @@ module IrCodeGenerator {
             let ident = t.t_ident!;
 
             if self.globals.has(ident) {
-                return self.resolve_type_struct(self.globals.at(ident));
+                return self.resolve_type_struct(self.globals.at(ident).data);
             } else {
                 return _ or error::new(format("unknown symbol: {}", ident));
             }

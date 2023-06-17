@@ -44,7 +44,7 @@ struct Generator {
     writer: stringbuilder,
     depth: i32,
     index: i32,
-    globals: map[string, Type],
+    globals: map[string, LType],
     strings: vec[string],
     type_reps: vec[InternalTypeRep],
     main_signature_result: IrType?,
@@ -57,7 +57,7 @@ module Generator {
             writer: stringbuilder::new(),
             depth: 0,
             index: 0,
-            globals: make[map[string, Type]](),
+            globals: make[map[string, LType]](),
             strings: make[vec[string]](),
             type_reps: make[vec[InternalTypeRep]](),
             main_signature_result: nil as IrType?,
@@ -96,7 +96,7 @@ module Generator {
         self.index = 0;
     }
 
-    fun set_globals(self, globals: map[string, Type]) {
+    fun set_globals(self, globals: map[string, LType]) {
         self.globals = globals;
     }
 

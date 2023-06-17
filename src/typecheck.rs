@@ -1718,6 +1718,12 @@ impl Constrains {
             (Type::Vec(_), Type::Ident(ident)) if ident.as_str() == "vec" => {
                 Ok(Constrains::empty())
             }
+            (Type::Map(key1, value1), Type::Map(key2, value2)) => {
+                let mut constrains = Constrains::empty();
+                constrains.merge(&Constrains::unify(key1.as_mut(), key2.as_mut())?);
+                constrains.merge(&Constrains::unify(value1.as_mut(), value2.as_mut())?);
+                Ok(constrains)
+            }
             (Type::Nil, Type::Optional(_)) => Ok(Constrains::empty()),
             (Type::Optional(_), Type::Nil) => Ok(Constrains::empty()),
             (Type::Optional(type1), Type::Optional(type2)) => {

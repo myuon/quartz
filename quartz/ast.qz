@@ -392,6 +392,11 @@ module TypeStruct {
     }
 }
 
+struct LType {
+    data: Type,
+    location: Location,
+}
+
 struct Pattern {
     t_ident: string?,
     t_or: struct {
