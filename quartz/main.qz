@@ -73,6 +73,9 @@ enum CliCommand {
         input: string?,
         write: bool?,
     },
+    check: struct {
+        input: string?,
+    },
 }
 
 module CliCommand {
@@ -146,6 +149,17 @@ module CliCommand {
             return CliCommand {
                 format: format_,
             };
+        } else if args.at(0).equal("check") {
+            let i = 1;
+            let check = struct {
+                input: nil,
+            };
+
+            check.input = args.at(i)?;
+
+            return CliCommand {
+                check: check,
+            };
         } else {
             return _ or error::new(format("unknown command: {}", derive::to_string(args)));
         }
@@ -211,6 +225,16 @@ fun main() {
         }
 
         println("{}", result!);
+    } else if command.check != nil {
+        let check = command.check!;
+
+        let input = file_read(check.input!);
+
+        let compiler = Compiler::new();
+        let result or err = compiler.check(input);
+        if err != nil {
+            panic(err!.message);
+        }
     } else {
         println("{}", derive::to_string(args));
         println("{}", args.at(1));

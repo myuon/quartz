@@ -7,6 +7,7 @@ import quartz::path;
 import quartz::ast;
 import quartz::ir;
 import quartz::value;
+import quartz::location;
 
 struct LoadedModule {
     path: Path,
@@ -47,7 +48,7 @@ module Compiler {
         return parser.imports;
     }
 
-    fun compile(self, input: string): string or error {
+    fun parse(self, input: string): Module or error {
         let main_path = Path::new("main");
         let imports = self.register_module(main_path, input).try;
 
@@ -84,16 +85,18 @@ module Compiler {
             decls: decls,
         };
 
+        return module_;
+    }
+
+    fun compile(self, input: string): string or error {
+        let module_ = self.parse(input).try;
+
         let typechecker = Typechecker::new();
         typechecker.module_(module_).try;
-        // println("typecheck");
-        // debug(alloc_ptr);
 
         let irgen = IrCodeGenerator::new();
         irgen.globals = typechecker.globals;
         let term = irgen.run(module_).try;
-        // println("irgen");
-        // debug(alloc_ptr);
 
         let gen = Generator::new();
         gen.set_globals(typechecker.globals);
@@ -106,6 +109,15 @@ module Compiler {
         let code = gen.run(term, irgen.data_section_offset);
 
         return code;
+    }
+
+    fun check(self, input: string): nil or error {
+        let module_ = self.parse(input).try;
+
+        let typechecker = Typechecker::new();
+        typechecker.module_(module_).try;
+
+        return nil;
     }
 }
 
