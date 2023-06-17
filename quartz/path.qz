@@ -47,5 +47,29 @@ module Path {
     fun extend(self, other: Path) {
         self.path.extend(other.path);
     }
+
+    fun starts_with(self, prefix: Path): bool {
+        if self.path.length < prefix.path.length {
+            return false;
+        }
+
+        for i in 0..prefix.path.length {
+            if self.path.at(i) != prefix.path.at(i) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    fun remove_prefix(self, prefix: Path): Path {
+        if !self.starts_with(prefix) {
+            return self.clone();
+        }
+
+        return Path {
+            path: self.path.slice(prefix.path.length, self.path.length),
+        };
+    }
 }
 

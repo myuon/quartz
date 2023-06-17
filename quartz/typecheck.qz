@@ -1810,6 +1810,44 @@ module Typechecker {
                     }
 
                     // method completion
+                    if type_.t_ident != nil {
+                        let search_path = Path::ident(type_.t_ident!);
+
+                        for import_path in self.imported {
+                            import_path.extend(search_path);
+                            for key in self.globals.list_keys() {
+                                let key_path = Path::new(key);
+                                let value = self.globals.at(key);
+                                if is_prefix_path(key_path, import_path) {
+                                    let label = key_path.remove_prefix(import_path);
+
+                                    completion.push(struct {
+                                        kind: "function",
+                                        label: key,
+                                        text: derive::to_string(value.data),
+                                    });
+                                }
+                            }
+                        }
+                    }
+
+                    // special syntax
+                    if type_.t_optional != nil {
+                        completion.push(struct {
+                            kind: "keyword",
+                            label: "!",
+                            text: "unwrap",
+                        });
+                    }
+                    if type_.t_or != nil {
+                        completion.push(struct {
+                            kind: "keyword",
+                            label: "try",
+                            text: "try",
+                        });
+                    }
+
+                    self.completed = completion?;
                 }
             }
         }
