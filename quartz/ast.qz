@@ -232,7 +232,7 @@ enum Expression {
         expr: LExpression,
     },
     t_bool: bool,
-    t_nil: bool,
+    t_nil: bool, // if nil is explicit
     t_omit: bool,
     t_enumor: struct {
         lhs: LExpression?,

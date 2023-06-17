@@ -428,7 +428,9 @@ module Formatter {
         } else if expr.t_self != nil {
             self.write_if(writer, "self", skip_space);
         } else if expr.t_nil != nil {
-            self.write_if(writer, "nil", skip_space);
+            if expr.t_nil! {
+                self.write_if(writer, "nil", skip_space);
+            }
         } else if expr.t_bool != nil {
             if expr.t_bool! {
                 self.write_if(writer, "true", skip_space);

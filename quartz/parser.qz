@@ -799,7 +799,7 @@ module Parser {
                     t_return: struct {
                         expr: LExpression {
                             data: Expression {
-                                t_nil: true,
+                                t_nil: false,
                             },
                             location: Location::unknown(),
                         },
