@@ -120,16 +120,16 @@ module Compiler {
         return nil;
     }
 
-    fun check_type(self, input: string, line: i32, column: i32): nil or error {
+    fun check_type(self, input: string, line: i32, column: i32): string or error {
         let main_path = Path::new("main");
         let module_ = self.parse(input).try;
 
         let position = find_line_column_from_position(input, line, column);
 
         let typechecker = Typechecker::new();
-        typechecker.find_at_cursor(module_, main_path, position).try;
+        let t = typechecker.find_at_cursor(module_, main_path, position).try;
 
-        return nil;
+        return format("```quartz\n{}\n```", derive::to_string(t));
     }
 }
 

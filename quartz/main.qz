@@ -277,6 +277,10 @@ fun main() {
         if err != nil {
             panic(err!.message);
         }
+
+        if result != nil {
+            println(result!);
+        }
     } else {
         println("unknown args: {}", derive::to_string(args));
         println("{}", args.at(1));
