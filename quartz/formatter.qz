@@ -340,6 +340,22 @@ module Formatter {
             }
         }
 
+        let comments = self.consume_comments(block.location.end!);
+        for comment in comments {
+            if current_pos > 0 && self.need_empty_lines(current_pos, comment.position) {
+                self.newline(writer);
+            }
+
+            if self.need_line_follow(current_pos, comment.position) {
+                self.write(writer, comment.raw);
+            } else {
+                self.newline(writer);
+                self.write(writer, comment.raw);
+            }
+
+            current_pos = comment.position + comment.raw.length;
+        }
+
         self.depth = self.depth - 1;
         self.newline(writer);
         self.write(writer, "}");
