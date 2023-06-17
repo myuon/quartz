@@ -162,7 +162,7 @@ module Parser {
                     type_: t,
                 },
                 location: Location {
-                    start: name.position?,
+                    start: name.location.start,
                     end: self.location_from_token(colon_token)?,
                 },
             });
@@ -221,7 +221,7 @@ module Parser {
                     type_: t,
                 },
                 location: Location {
-                    start: name.position?,
+                    start: name.location.start,
                     end: self.location_from_token(colon_token)?,
                 },
             });
@@ -505,7 +505,7 @@ module Parser {
                         type_: t,
                     },
                     location: Location {
-                        start: name.position?,
+                        start: name.location.start,
                         end: self.location_from_token(colon_token)?,
                     },
                 });
@@ -548,17 +548,15 @@ module Parser {
         return token;
     }
 
-    fun ident(
-        self,
-    ): struct {
-        data: string,
-        position: i32,
-    } or error {
+    fun ident(self): Ident or error {
         let token = self.consume();
         if token.lexeme.equal("ident") {
-            return struct {
+            return Ident {
                 data: token.string_value!,
-                position: token.position,
+                location: Location {
+                    start: token.position?,
+                    end: (token.position + token.string_value!.length)?,
+                },
             };
         } else {
             return _ or error::new(format("Expected IDENT, got {}", derive::to_string(token)));
@@ -817,10 +815,7 @@ module Parser {
                     t_ident: name.data?,
                     ..nil,
                 },
-                location: Location {
-                    start: name.position?,
-                    end: (name.position + name.data.length)?,
-                },
+                location: name.location,
             };
         }
 
@@ -1405,14 +1400,14 @@ module Parser {
                         data: Expression {
                             t_project: struct {
                                 expr: current,
-                                field: field.data,
+                                field: field,
                                 type_: nil as Type?,
                                 resolved_path: nil,
                             },
                         },
                         location: Location {
                             start: current.location.start,
-                            end: field.position?,
+                            end: field.location.end,
                         },
                     };
                 }
@@ -1552,7 +1547,7 @@ module Parser {
                     },
                     location: Location {
                         start: current.location.start,
-                        end: name.position?,
+                        end: name.location.end,
                     },
                 };
             } else if token.lexeme.equal("bang") {
@@ -1608,10 +1603,7 @@ module Parser {
                         resolved_path: nil,
                     },
                 },
-                location: Location {
-                    start: name.position?,
-                    end: (name.position + name.data.length)?,
-                },
+                location: name.location,
             };
         }
         if self.peek().lexeme.equal("number") {
@@ -1783,7 +1775,7 @@ module Parser {
                         value: value,
                     },
                     location: Location {
-                        start: ident.position?,
+                        start: ident.location.start,
                         end: value.location.end,
                     },
                 });

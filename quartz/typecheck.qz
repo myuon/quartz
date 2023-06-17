@@ -1113,7 +1113,7 @@ module Typechecker {
             expr.t_project!.type_ = t?;
 
             if t.t_ptr != nil {
-                if expr.t_project!.field.equal("at") {
+                if expr.t_project!.field.data.equal("at") {
                     let ps = make[vec[Type]]();
                     ps.push(Type {
                         t_i32: true,
@@ -1125,7 +1125,7 @@ module Typechecker {
                             result: t.t_ptr!,
                         },
                     };
-                } else if expr.t_project!.field.equal("offset") {
+                } else if expr.t_project!.field.data.equal("offset") {
                     return Type {
                         t_func: struct {
                             params: make[vec[Type]](Type {
@@ -1136,7 +1136,7 @@ module Typechecker {
                     };
                 }
             } else if t.t_vec != nil {
-                if expr.t_project!.field.equal("push") {
+                if expr.t_project!.field.data.equal("push") {
                     return Type {
                         t_func: struct {
                             params: make[vec[Type]](t.t_vec!),
@@ -1145,7 +1145,7 @@ module Typechecker {
                             },
                         },
                     };
-                } else if expr.t_project!.field.equal("at") {
+                } else if expr.t_project!.field.data.equal("at") {
                     return Type {
                         t_func: struct {
                             params: make[vec[Type]](Type {
@@ -1154,7 +1154,7 @@ module Typechecker {
                             result: t.t_vec!,
                         },
                     };
-                } else if expr.t_project!.field.equal("extend") {
+                } else if expr.t_project!.field.data.equal("extend") {
                     return Type {
                         t_func: struct {
                             params: make[vec[Type]](t),
@@ -1163,7 +1163,7 @@ module Typechecker {
                             },
                         },
                     };
-                } else if expr.t_project!.field.equal("slice") {
+                } else if expr.t_project!.field.data.equal("slice") {
                     return Type {
                         t_func: struct {
                             params: make[vec[Type]](
@@ -1179,7 +1179,7 @@ module Typechecker {
                     };
                 }
             } else if t.t_map != nil {
-                if expr.t_project!.field.equal("insert") {
+                if expr.t_project!.field.data.equal("insert") {
                     return Type {
                         t_func: struct {
                             params: make[vec[Type]](t.t_map!.key, t.t_map!.value),
@@ -1188,14 +1188,14 @@ module Typechecker {
                             },
                         },
                     };
-                } else if expr.t_project!.field.equal("at") {
+                } else if expr.t_project!.field.data.equal("at") {
                     return Type {
                         t_func: struct {
                             params: make[vec[Type]](t.t_map!.key),
                             result: t.t_map!.value,
                         },
                     };
-                } else if expr.t_project!.field.equal("has") {
+                } else if expr.t_project!.field.data.equal("has") {
                     return Type {
                         t_func: struct {
                             params: make[vec[Type]](t.t_map!.key),
@@ -1204,7 +1204,7 @@ module Typechecker {
                             },
                         },
                     };
-                } else if expr.t_project!.field.equal("list_keys") {
+                } else if expr.t_project!.field.data.equal("list_keys") {
                     return Type {
                         t_func: struct {
                             params: make[vec[Type]](),
@@ -1220,12 +1220,12 @@ module Typechecker {
 
             let fields = self.resolve_record_type(t, make[vec[Type]]()).try;
 
-            if fields.has(label) {
+            if fields.has(label.data) {
                 // field access
-                let t = fields.at(label);
+                let t = fields.at(label.data);
 
                 // FIXME: use label_path
-                let label_path = expr.t_project!.expr.location;
+                let label_path = label.location;
                 self.set_search_node_type(t, label_path);
                 self.set_completion(t, label_path).try;
                 if expr.t_project!.expr.data.t_ident != nil {
@@ -1247,12 +1247,12 @@ module Typechecker {
                 } else if t.t_bool != nil {
                     type_name = "bool";
                 } else {
-                    return _ or error::new("unknown type: {}.{}".format(t.to_string(), label));
+                    return _ or error::new("unknown type: {}.{}".format(t.to_string(), label.data));
                 }
 
                 // method access
 
-                let func_ident_name = type_name.concat("_").concat(label);
+                let func_ident_name = type_name.concat("_").concat(label.data);
                 let resolved = self.resolve_path(Path::ident(func_ident_name)).try;
                 let path = resolved.path;
                 expr.t_project!.resolved_path = path?;

@@ -548,7 +548,7 @@ module Formatter {
         } else if expr.t_project != nil {
             self.expr(writer, expr.t_project!.expr, skip_space);
             self.write_no_space(writer, ".");
-            self.write_no_space(writer, expr.t_project!.field);
+            self.write_no_space(writer, expr.t_project!.field.data);
         } else if expr.t_make != nil {
             self.write_if(writer, "make", skip_space);
             self.write_no_space(writer, "[");

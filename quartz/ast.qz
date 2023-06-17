@@ -2,6 +2,11 @@ import quartz::ast;
 import quartz::path;
 import quartz::location;
 
+struct Ident {
+    data: string,
+    location: Location,
+}
+
 struct Module {
     decls: vec[LDecl],
 }
@@ -189,7 +194,7 @@ enum Expression {
     },
     t_project: struct {
         expr: LExpression,
-        field: string,
+        field: Ident,
         type_: Type?,
         resolved_path: Path?,
     },

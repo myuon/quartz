@@ -813,7 +813,10 @@ module IrCodeGenerator {
                                             data: Expression {
                                                 t_project: struct {
                                                     expr: stm.t_for!.range,
-                                                    field: "at",
+                                                    field: Ident {
+                                                        data: "at",
+                                                        location: Location::unknown(),
+                                                    },
                                                     type_: stm.t_for!.type_,
                                                     resolved_path: nil as Path?,
                                                 },
@@ -864,7 +867,10 @@ module IrCodeGenerator {
                                             data: Expression {
                                                 t_project: struct {
                                                     expr: stm.t_for!.range,
-                                                    field: "length",
+                                                    field: Ident {
+                                                        data: "length",
+                                                        location: Location::unknown(),
+                                                    },
                                                     type_: stm.t_for!.type_,
                                                     resolved_path: nil as Path?,
                                                 },
@@ -1184,7 +1190,7 @@ module IrCodeGenerator {
             let callee = expr.t_call!.callee.data;
             if callee.t_project != nil {
                 let project = callee.t_project!;
-                if project.type_!.t_ptr != nil && project.field.equal("at") {
+                if project.type_!.t_ptr != nil && project.field.data.equal("at") {
                     if expr.t_call!.args.length != 1 {
                         return _ or error::new("at() takes 2 arguments");
                     }
@@ -1202,7 +1208,7 @@ module IrCodeGenerator {
                             raw_offset: 0,
                         },
                     };
-                } else if project.type_!.t_ptr != nil && project.field.equal("offset") {
+                } else if project.type_!.t_ptr != nil && project.field.data.equal("offset") {
                     if expr.t_call!.args.length != 1 {
                         return _ or error::new("offset() takes 2 arguments");
                     }
@@ -1223,7 +1229,7 @@ module IrCodeGenerator {
                             ),
                         },
                     };
-                } else if project.type_!.t_vec != nil && project.field.equal("at") {
+                } else if project.type_!.t_vec != nil && project.field.data.equal("at") {
                     if expr.t_call!.args.length != 1 {
                         return _ or error::new("at() takes 2 arguments");
                     }
@@ -1246,7 +1252,7 @@ module IrCodeGenerator {
                             ),
                         },
                     };
-                } else if project.type_!.t_vec != nil && project.field.equal("push") {
+                } else if project.type_!.t_vec != nil && project.field.data.equal("push") {
                     if expr.t_call!.args.length != 1 {
                         return _ or error::new("push() takes 2 arguments");
                     }
@@ -1269,7 +1275,7 @@ module IrCodeGenerator {
                             ),
                         },
                     };
-                } else if project.type_!.t_vec != nil && project.field.equal("extend") {
+                } else if project.type_!.t_vec != nil && project.field.data.equal("extend") {
                     if expr.t_call!.args.length != 1 {
                         return _ or error::new("extend() takes 2 arguments");
                     }
@@ -1292,7 +1298,7 @@ module IrCodeGenerator {
                             ),
                         },
                     };
-                } else if project.type_!.t_vec != nil && project.field.equal("slice") {
+                } else if project.type_!.t_vec != nil && project.field.data.equal("slice") {
                     if expr.t_call!.args.length != 2 {
                         return _ or error::new("slice() takes 2 arguments");
                     }
@@ -1309,7 +1315,7 @@ module IrCodeGenerator {
                             ),
                         },
                     };
-                } else if project.type_!.t_map != nil && project.field.equal("insert") {
+                } else if project.type_!.t_map != nil && project.field.data.equal("insert") {
                     if expr.t_call!.args.length != 2 {
                         return _ or error::new("insert() takes 2 arguments");
                     }
@@ -1326,7 +1332,7 @@ module IrCodeGenerator {
                             ),
                         },
                     };
-                } else if project.type_!.t_map != nil && project.field.equal("at") {
+                } else if project.type_!.t_map != nil && project.field.data.equal("at") {
                     if expr.t_call!.args.length != 1 {
                         return _ or error::new("at() takes 1 arguments");
                     }
@@ -1342,7 +1348,7 @@ module IrCodeGenerator {
                             ),
                         },
                     };
-                } else if project.type_!.t_map != nil && project.field.equal("has") {
+                } else if project.type_!.t_map != nil && project.field.data.equal("has") {
                     if expr.t_call!.args.length != 1 {
                         return _ or error::new("has() takes 1 arguments");
                     }
@@ -1358,7 +1364,7 @@ module IrCodeGenerator {
                             ),
                         },
                     };
-                } else if project.type_!.t_map != nil && project.field.equal("list_keys") {
+                } else if project.type_!.t_map != nil && project.field.data.equal("list_keys") {
                     if expr.t_call!.args.length != 0 {
                         return _ or error::new("list_keys() takes 0 arguments");
                     }
@@ -1556,7 +1562,7 @@ module IrCodeGenerator {
                     self.counter = self.counter + 1;
 
                     let value = self.expression(expr.t_project!.expr).try;
-                    let label_index = enum_type.index(expr.t_project!.field);
+                    let label_index = enum_type.index(expr.t_project!.field.data);
                     let value_type = enum_type.fields.at(label_index).data.type_;
 
                     let enum_rep = Type {
@@ -1677,10 +1683,10 @@ module IrCodeGenerator {
             }
 
             let t = self.resolve_type_struct(expr.t_project!.type_!).try;
-            let index = t.index(expr.t_project!.field);
+            let index = t.index(expr.t_project!.field.data);
 
             return self.generate_array_at(
-                t.at(expr.t_project!.field),
+                t.at(expr.t_project!.field.data),
                 self.expression(expr.t_project!.expr).try,
                 IrTerm {
                     t_i32: index,
