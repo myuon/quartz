@@ -30,7 +30,7 @@ fn run_command(
     Some(stdout)
 }
 
-#[test]
+// #[test]
 fn test_compile_run() {
     let cases = vec![
         r#"

@@ -183,6 +183,24 @@ fun main() {
         file_write(compile.output!, result!);
 
         return nil;
+    } else if command.run != nil {
+        let runc = command.run!;
+
+        let input = "";
+        if runc.input != nil {
+            input = file_read(runc.input!);
+        } else if runc.stdin != nil {
+            input = stdin();
+        } else {
+            panic("no input");
+        }
+
+        let result or err = run(input);
+        if err != nil {
+            panic(err!.message);
+        }
+
+        println("{}", result!);
     } else if command.format != nil {
         let f = command.format!;
 
