@@ -1,6 +1,7 @@
 import quartz::ast;
 import quartz::ir;
 import quartz::path;
+import quartz::location;
 
 let typeRepKindStruct = 1;
 
@@ -256,7 +257,7 @@ module IrCodeGenerator {
         let elements = make[vec[IrTerm]]();
 
         for i in 0..m.decls.length {
-            let d = m.decls.at(i);
+            let d = m.decls.at(i).data;
 
             if d.t_func != nil {
                 elements.push(IrTerm {
@@ -307,19 +308,25 @@ module IrCodeGenerator {
         self.start.push(IrTerm {
             t_assign: struct {
                 lhs: var_ptr,
-                rhs: self.expression(Expression {
-                    t_make: struct {
-                        type_: Type {
-                            t_ptr: Type {
-                                t_ident: "any",
+                rhs: self.expression(LExpression {
+                    data: Expression {
+                        t_make: struct {
+                            type_: Type {
+                                t_ptr: Type {
+                                    t_ident: "any",
+                                },
                             },
+                            args: make[vec[LExpression]](LExpression {
+                                data: Expression {
+                                    t_i32: struct {
+                                        value: self.type_reps.type_reps.length,
+                                    },
+                                },
+                                location: Location::unknown(),
+                            }),
                         },
-                        args: make[vec[Expression]](Expression {
-                            t_i32: struct {
-                                value: self.type_reps.type_reps.length,
-                            },
-                        }),
                     },
+                    location: Location::unknown(),
                 }).try,
             },
         });
@@ -402,19 +409,25 @@ module IrCodeGenerator {
         self.start.push(IrTerm {
             t_assign: struct {
                 lhs: var_strings,
-                rhs: self.expression(Expression {
-                    t_make: struct {
-                        type_: Type {
-                            t_ptr: Type {
-                                t_ident: "string",
+                rhs: self.expression(LExpression {
+                    data: Expression {
+                        t_make: struct {
+                            type_: Type {
+                                t_ptr: Type {
+                                    t_ident: "string",
+                                },
                             },
+                            args: make[vec[LExpression]](LExpression {
+                                data: Expression {
+                                    t_i32: struct {
+                                        value: self.strings.strings.length,
+                                    },
+                                },
+                                location: Location::unknown(),
+                            }),
                         },
-                        args: make[vec[Expression]](Expression {
-                            t_i32: struct {
-                                value: self.strings.strings.length,
-                            },
-                        }),
                     },
+                    location: Location::unknown(),
                 }).try,
             },
         });
@@ -552,17 +565,18 @@ module IrCodeGenerator {
         return self.current_path.join("_").concat("_").concat(s);
     }
 
-    fun block(self, b: Block): vec[IrTerm] or error {
+    fun block(self, b: LBlock): vec[IrTerm] or error {
         let elements = make[vec[IrTerm]]();
 
-        for i in 0..b.block.length {
-            elements.push(self.statement(b.block.at(i)).try);
+        for i in 0..b.data.block.length {
+            elements.push(self.statement(b.data.block.at(i)).try);
         }
 
         return elements;
     }
 
-    fun statement(self, stm: Statement): IrTerm or error {
+    fun statement(self, lstm: LStatement): IrTerm or error {
+        let stm = lstm.data;
         if stm.t_let != nil {
             if stm.t_let!.pattern.t_ident != nil {
                 let name = stm.t_let!.pattern.t_ident!;
@@ -660,14 +674,14 @@ module IrCodeGenerator {
             return self.assign(lhs, IrType::new(stm.t_assign!.rhs_type!), rhs).try;
         } else if stm.t_if != nil {
             let then_elements = make[vec[IrTerm]]();
-            for i in 0..stm.t_if!.then_block.block.length {
-                then_elements.push(self.statement(stm.t_if!.then_block.block.at(i)).try);
+            for i in 0..stm.t_if!.then_block.data.block.length {
+                then_elements.push(self.statement(stm.t_if!.then_block.data.block.at(i)).try);
             }
 
             let else_elements = make[vec[IrTerm]]();
             if stm.t_if!.else_block != nil {
-                for i in 0..stm.t_if!.else_block!.block.length {
-                    else_elements.push(self.statement(stm.t_if!.else_block!.block.at(i)).try);
+                for i in 0..stm.t_if!.else_block!.data.block.length {
+                    else_elements.push(self.statement(stm.t_if!.else_block!.data.block.at(i)).try);
                 }
             }
 
@@ -688,8 +702,8 @@ module IrCodeGenerator {
             };
         } else if stm.t_while != nil {
             let body_elements = make[vec[IrTerm]]();
-            for i in 0..stm.t_while!.block.block.length {
-                body_elements.push(self.statement(stm.t_while!.block.block.at(i)).try);
+            for i in 0..stm.t_while!.block.data.block.length {
+                body_elements.push(self.statement(stm.t_while!.block.data.block.at(i)).try);
             }
 
             return IrTerm {
@@ -705,7 +719,7 @@ module IrCodeGenerator {
             };
         } else if stm.t_for != nil {
             if stm.t_for!.mode.equal("range") {
-                let range = stm.t_for!.range.t_range!;
+                let range = stm.t_for!.range.data.t_range!;
 
                 return IrTerm {
                     t_seq: struct {
@@ -779,64 +793,91 @@ module IrCodeGenerator {
                 }
                 let vec_type = stm.t_for!.type_!.t_vec!;
 
-                let new_body = make[vec[Statement]]();
-                new_body.push(Statement {
-                    t_let: struct {
-                        pattern: Pattern {
-                            t_ident: stm.t_for!.ident?,
-                            ..nil,
-                        },
-                        name_type: vec_type,
-                        expr: Expression {
-                            t_call: struct {
-                                callee: Expression {
-                                    t_project: struct {
-                                        expr: stm.t_for!.range,
-                                        field: "at",
-                                        type_: stm.t_for!.type_,
-                                        resolved_path: nil as Path?,
+                let new_body = make[vec[LStatement]]();
+                new_body.push(LStatement {
+                    location: Location::unknown(),
+                    data: Statement {
+                        t_let: struct {
+                            pattern: Pattern {
+                                t_ident: stm.t_for!.ident?,
+                                ..nil,
+                            },
+                            name_type: vec_type,
+                            expr: LExpression {
+                                data: Expression {
+                                    t_call: struct {
+                                        callee: LExpression {
+                                            data: Expression {
+                                                t_project: struct {
+                                                    expr: stm.t_for!.range,
+                                                    field: "at",
+                                                    type_: stm.t_for!.type_,
+                                                    resolved_path: nil as Path?,
+                                                },
+                                            },
+                                            location: Location::unknown(),
+                                        },
+                                        args: make[vec[LExpression]](LExpression {
+                                            data: Expression {
+                                                t_ident: struct {
+                                                    name: var_index,
+                                                    resolved_path: nil as Path?,
+                                                },
+                                            },
+                                            location: Location::unknown(),
+                                        }),
+                                        variadic: nil,
+                                        expansion: nil,
                                     },
                                 },
-                                args: make[vec[Expression]](Expression {
-                                    t_ident: struct {
-                                        name: var_index,
-                                        resolved_path: nil as Path?,
-                                    },
-                                }),
-                                variadic: nil,
-                                expansion: nil,
+                                location: Location::unknown(),
                             },
                         },
                     },
                 });
-                for body in stm.t_for!.block.block {
+                for body in stm.t_for!.block.data.block {
                     new_body.push(body);
                 }
 
-                return self.statement(Statement {
-                    t_for: struct {
-                        mode: "range",
-                        type_: nil,
-                        ident: var_index,
-                        range: Expression {
-                            t_range: struct {
-                                start: Expression {
-                                    t_i32: struct {
-                                        value: 0,
+                return self.statement(LStatement {
+                    location: Location::unknown(),
+                    data: Statement {
+                        t_for: struct {
+                            mode: "range",
+                            type_: nil,
+                            ident: var_index,
+                            range: LExpression {
+                                data: Expression {
+                                    t_range: struct {
+                                        start: LExpression {
+                                            data: Expression {
+                                                t_i32: struct {
+                                                    value: 0,
+                                                },
+                                            },
+                                            location: Location::unknown(),
+                                        },
+                                        end: LExpression {
+                                            data: Expression {
+                                                t_project: struct {
+                                                    expr: stm.t_for!.range,
+                                                    field: "length",
+                                                    type_: stm.t_for!.type_,
+                                                    resolved_path: nil as Path?,
+                                                },
+                                            },
+                                            location: Location::unknown(),
+                                        },
                                     },
                                 },
-                                end: Expression {
-                                    t_project: struct {
-                                        expr: stm.t_for!.range,
-                                        field: "length",
-                                        type_: stm.t_for!.type_,
-                                        resolved_path: nil as Path?,
-                                    },
-                                },
+                                location: Location::unknown(),
                             },
-                        },
-                        block: Block {
-                            block: new_body,
+                            block: LBlock {
+                                data: Block {
+                                    block: new_body,
+                                },
+                                location: Location::unknown(),
+                            },
                         },
                     },
                 }).try;
@@ -856,7 +897,8 @@ module IrCodeGenerator {
         return _ or error::new(format("statement exhausted: {}", stm.to_string()));
     }
 
-    fun expression(self, expr: Expression): IrTerm or error {
+    fun expression(self, lexpr: LExpression): IrTerm or error {
+        let expr = lexpr.data;
         if expr.t_i32 != nil {
             let term = IrTerm {
                 t_i32: expr.t_i32!.value,
@@ -1136,7 +1178,7 @@ module IrCodeGenerator {
                 t_ident: expr.t_ident!.name,
             };
         } else if expr.t_call != nil {
-            let callee = expr.t_call!.callee;
+            let callee = expr.t_call!.callee.data;
             if callee.t_project != nil {
                 let project = callee.t_project!;
                 if project.type_!.t_ptr != nil && project.field.equal("at") {
@@ -1327,7 +1369,7 @@ module IrCodeGenerator {
                         },
                     };
                 } else {
-                    let args_with_self = make[vec[Expression]](project.expr);
+                    let args_with_self = make[vec[LExpression]](project.expr);
                     args_with_self.extend(expr.t_call!.args);
 
                     if expr.t_call!.variadic != nil {
@@ -1339,11 +1381,14 @@ module IrCodeGenerator {
                     }
 
                     return self.generate_call(
-                        Expression {
-                            t_path: struct {
-                                path: project.resolved_path!,
-                                resolved_path: project.resolved_path,
+                        LExpression {
+                            data: Expression {
+                                t_path: struct {
+                                    path: project.resolved_path!,
+                                    resolved_path: project.resolved_path,
+                                },
                             },
+                            location: Location::unknown(),
                         },
                         args_with_self,
                         expr.t_call!.variadic,
@@ -1378,8 +1423,8 @@ module IrCodeGenerator {
                 }]]();
                 for field in record_type.t_enum!.fields {
                     fields.push(struct {
-                        name: field.name,
-                        type_: InternalTypeRep::from_ir_type(IrType::new(field.type_)),
+                        name: field.data.name,
+                        type_: InternalTypeRep::from_ir_type(IrType::new(field.data.type_)),
                     });
                 }
 
@@ -1405,7 +1450,7 @@ module IrCodeGenerator {
                             },
                         },
                         struct {
-                            type_: IrType::new(record_type.t_enum!.fields.at(index).type_),
+                            type_: IrType::new(record_type.t_enum!.fields.at(index).data.type_),
                             term: value,
                         },
                     ),
@@ -1425,7 +1470,7 @@ module IrCodeGenerator {
                     term: IrTerm,
                 }]]();
                 for i in 0..t.fields.length {
-                    let field = t.fields.at(i);
+                    let field = t.fields.at(i).data;
                     if fields_map.has(field.name) {
                         let value = fields_map.at(field.name);
 
@@ -1467,21 +1512,21 @@ module IrCodeGenerator {
             }]]();
 
             for field in struct_type.fields {
-                let field_expr = nil as Expression?;
+                let field_expr = nil as LExpression?;
                 for f in expr.t_anonymous_record!.fields {
-                    if f.field == field.name {
-                        field_expr = f.value?;
+                    if f.data.field == field.data.name {
+                        field_expr = f.data.value?;
                         break;
                     }
                 }
                 if field_expr == nil {
-                    return _ or error::new(format("field not found: {}", field.name));
+                    return _ or error::new(format("field not found: {}", field.data.name));
                 }
 
                 let value = self.expression(field_expr!).try;
                 terms.push(struct {
-                    label: field.name?,
-                    type_: IrType::new(field.type_),
+                    label: field.data.name?,
+                    type_: IrType::new(field.data.type_),
                     term: value,
                 });
             }
@@ -1505,23 +1550,32 @@ module IrCodeGenerator {
 
                     let value = self.expression(expr.t_project!.expr).try;
                     let label_index = enum_type.index(expr.t_project!.field);
-                    let value_type = enum_type.fields.at(label_index).type_;
+                    let value_type = enum_type.fields.at(label_index).data.type_;
 
                     let enum_rep = Type {
                         t_struct: TypeStruct {
                             fields: make[vec[struct {
-                                name: string,
-                                type_: Type,
+                                data: struct {
+                                    name: string,
+                                    type_: Type,
+                                },
+                                location: Location,
                             }]](
                                 struct {
-                                    name: "tag",
-                                    type_: Type {
-                                        t_ident: "i32",
+                                    data: struct {
+                                        name: "tag",
+                                        type_: Type {
+                                            t_ident: "i32",
+                                        },
                                     },
+                                    location: Location::unknown(),
                                 },
                                 struct {
-                                    name: "value",
-                                    type_: value_type,
+                                    data: struct {
+                                        name: "value",
+                                        type_: value_type,
+                                    },
+                                    location: Location::unknown(),
                                 },
                             ),
                         },
@@ -1780,7 +1834,7 @@ module IrCodeGenerator {
 
             return _ or error::new(format("cannot cast {} to {}", source.to_string(), target.to_string()));
         } else if expr.t_string != nil {
-            return self.register_string(expr.t_string!);
+            return self.register_string(expr.t_string!.value);
         } else if expr.t_paren != nil {
             return self.expression(expr.t_paren!).try;
         } else if expr.t_wrap != nil {
@@ -2420,13 +2474,13 @@ module IrCodeGenerator {
 
     fun generate_call(
         self,
-        callee: Expression,
-        args: vec[Expression],
+        callee: LExpression,
+        args: vec[LExpression],
         variadic: struct {
             element_type: Type,
             index: i32,
         }?,
-        expansion: Expression?,
+        expansion: LExpression?,
     ): IrTerm or error {
         if variadic != nil {
             let terms = make[vec[IrTerm]]();

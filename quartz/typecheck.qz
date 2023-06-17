@@ -17,22 +17,31 @@ module Typechecker {
             Type {
                 t_struct: TypeStruct {
                     fields: make[vec[struct {
-                        name: string,
-                        type_: Type,
+                        data: struct {
+                            name: string,
+                            type_: Type,
+                        },
+                        location: Location,
                     }]](
                         struct {
-                            name: "data",
-                            type_: Type {
-                                t_ptr: Type {
-                                    t_byte: true,
+                            data: struct {
+                                name: "data",
+                                type_: Type {
+                                    t_ptr: Type {
+                                        t_byte: true,
+                                    },
                                 },
                             },
+                            location: Location::unknown(),
                         },
                         struct {
-                            name: "length",
-                            type_: Type {
-                                t_i32: true,
+                            data: struct {
+                                name: "length",
+                                type_: Type {
+                                    t_i32: true,
+                                },
                             },
+                            location: Location::unknown(),
                         },
                     ),
                 },
@@ -56,28 +65,40 @@ module Typechecker {
             Type {
                 t_struct: TypeStruct {
                     fields: make[vec[struct {
-                        name: string,
-                        type_: Type,
+                        data: struct {
+                            name: string,
+                            type_: Type,
+                        },
+                        location: Location,
                     }]](
                         struct {
-                            name: "data",
-                            type_: Type {
-                                t_ptr: Type {
-                                    t_any: true,
+                            data: struct {
+                                name: "data",
+                                type_: Type {
+                                    t_ptr: Type {
+                                        t_any: true,
+                                    },
                                 },
                             },
+                            location: Location::unknown(),
                         },
                         struct {
-                            name: "length",
-                            type_: Type {
-                                t_i32: true,
+                            data: struct {
+                                name: "length",
+                                type_: Type {
+                                    t_i32: true,
+                                },
                             },
+                            location: Location::unknown(),
                         },
                         struct {
-                            name: "capacity",
-                            type_: Type {
-                                t_i32: true,
+                            data: struct {
+                                name: "capacity",
+                                type_: Type {
+                                    t_i32: true,
+                                },
                             },
+                            location: Location::unknown(),
                         },
                     ),
                 },
@@ -417,7 +438,7 @@ module Typechecker {
 
     fun module_register_for_back_reference(self, m: Module): nil or error {
         for i in 0..m.decls.length {
-            let d = m.decls.at(i);
+            let d = m.decls.at(i).data;
             if d.t_func != nil {
                 self.globals.insert(self.path_to(d.t_func!.name), d.t_func!.to_type());
 
@@ -461,7 +482,8 @@ module Typechecker {
         return self.current_path.join("_").concat("_").concat(ident);
     }
 
-    fun decl(self, d: Decl): nil or error {
+    fun decl(self, ld: LDecl): nil or error {
+        let d = ld.data;
         if d.t_func != nil {
             // For recursive functions
             self.globals.insert(self.path_to(d.t_func!.name), d.t_func!.to_type());
@@ -522,18 +544,21 @@ module Typechecker {
         return nil;
     }
 
-    fun block(self, b: Block): nil or error {
-        for i in 0..b.block.length {
+    fun block(self, b: LBlock): nil or error {
+        for i in 0..b.data.block.length {
             let result = Type {
                 t_omit: true,
             };
-            self.statement(b.block.at(i)).try;
+
+            self.statement(b.data.block.at(i)).try;
         }
 
         return nil;
     }
 
-    fun statement(self, s: Statement): nil or error {
+    fun statement(self, ls: LStatement): nil or error {
+        let s = ls.data;
+
         if s.t_let != nil {
             let t = self.expression(s.t_let!.expr).try;
             let type_ = unify(t, s.t_let!.name_type).try;
@@ -550,13 +575,16 @@ module Typechecker {
                 if self.result_type!.t_or != nil {
                     unify(self.result_type!.t_or!.left, t).try;
 
-                    s.t_return!.expr = Expression {
-                        t_enumor: struct {
-                            lhs: s.t_return!.expr?,
-                            rhs: nil as Expression?,
-                            lhs_type: self.result_type!.t_or!.left,
-                            rhs_type: self.result_type!.t_or!.right,
+                    s.t_return!.expr = LExpression {
+                        data: Expression {
+                            t_enumor: struct {
+                                lhs: s.t_return!.expr?,
+                                rhs: nil as LExpression?,
+                                lhs_type: self.result_type!.t_or!.left,
+                                rhs_type: self.result_type!.t_or!.right,
+                            },
                         },
+                        location: s.t_return!.expr.location,
                     };
                 } else {
                     return _ or err!;
@@ -673,7 +701,7 @@ module Typechecker {
         return nil;
     }
 
-    fun expression_left_value(self, expr: Expression): Type or error {
+    fun expression_left_value(self, expr: LExpression): Type or error {
         let t = self.expression(expr).try;
 
         return Type {
@@ -681,7 +709,9 @@ module Typechecker {
         };
     }
 
-    fun expression(self, expr: Expression): Type or error {
+    fun expression(self, lexpr: LExpression): Type or error {
+        let expr = lexpr.data;
+
         if expr.t_i32 != nil {
             return Type {
                 t_i32: true,
@@ -1089,15 +1119,21 @@ module Typechecker {
             };
         } else if expr.t_anonymous_record != nil {
             let record_type = make[vec[struct {
-                name: string,
-                type_: Type,
+                data: struct {
+                    name: string,
+                    type_: Type,
+                },
+                location: Location,
             }]]();
 
             for field in expr.t_anonymous_record!.fields {
-                let t = self.expression(field.value).try;
+                let t = self.expression(field.data.value).try;
                 record_type.push(struct {
-                    name: field.field,
-                    type_: t,
+                    data: struct {
+                        name: field.data.field,
+                        type_: t,
+                    },
+                    location: field.location,
                 });
             }
 
@@ -1274,7 +1310,7 @@ module Typechecker {
             let fields = type_.t_struct!.fields;
 
             for i in 0..fields.length {
-                let field = fields.at(i);
+                let field = fields.at(i).data;
 
                 result.insert(field.name, field.type_);
             }
@@ -1285,9 +1321,9 @@ module Typechecker {
             if type_.t_enum != nil {
                 for field in type_.t_enum!.fields {
                     fields.insert(
-                        field.name,
+                        field.data.name,
                         Type {
-                            t_optional: field.type_,
+                            t_optional: field.data.type_,
                         },
                     );
                 }
@@ -1431,8 +1467,8 @@ fun unify(type1: Type, type2: Type): Type or error {
         }
 
         for i in 0..type1.t_struct!.fields.length {
-            let rs1 = type1.t_struct!.fields.at(i);
-            let rs2 = type2.t_struct!.fields.at(i);
+            let rs1 = type1.t_struct!.fields.at(i).data;
+            let rs2 = type2.t_struct!.fields.at(i).data;
 
             if !rs1.name.equal(rs2.name) {
                 return _ or error::new("unification failed: ".concat(derive::to_string(rs1)).concat(" != ").concat(derive::to_string(

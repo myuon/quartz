@@ -1,0 +1,14 @@
+struct Location {
+    start: i32?,
+    end: i32?,
+}
+
+module Location {
+    fun unknown(): Location {
+        return Location {
+            start: nil,
+            end: nil,
+        };
+    }
+}
+
