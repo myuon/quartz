@@ -671,6 +671,8 @@ module Formatter {
             self.write_if(writer, "bool", options.skip_space);
         } else if type_.t_i32 != nil {
             self.write_if(writer, "i32", options.skip_space);
+        } else if type_.t_byte != nil {
+            self.write_if(writer, "byte", options.skip_space);
         } else {
             panic("unknown type: {}", derive::to_string(type_));
         }
