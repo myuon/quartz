@@ -32,6 +32,16 @@ module Compiler {
         return self.register_module(path, input).try;
     }
 
+    fun matches(self, path: Path): LoadedModule? {
+        for loaded in self.loaded {
+            if is_prefix_path(path, loaded.path) {
+                return loaded?;
+            }
+        }
+
+        return nil;
+    }
+
     fun register_module(self, path: Path, input: string): vec[Path] or error {
         let lexer = Lexer::new();
         lexer.run(input).try;
@@ -130,6 +140,62 @@ module Compiler {
         let t = typechecker.find_at_cursor(module_, main_path, position).try;
 
         return format("```quartz\n{}\n```", derive::to_string(t));
+    }
+
+    fun completion(
+        self,
+        input: string,
+        path: Path,
+        line: i32,
+        column: i32,
+        dot: bool,
+    ): vec[struct {
+        kind: string,
+        label: string,
+        text: string,
+    }] or error {
+        let module_ = self.parse(input).try;
+        let position = find_line_column_from_position(input, line, column);
+
+        let typechecker = Typechecker::new();
+        let result = typechecker.completion(module_, path, position, dot).try;
+
+        return result;
+    }
+
+    fun go_to_def(
+        self,
+        input: string,
+        path: Path,
+        line: i32,
+        column: i32,
+    ): struct {
+        module_name: string,
+        start: struct {
+            line: i32,
+            column: i32,
+        },
+        end: struct {
+            line: i32,
+            column: i32,
+        },
+    } or error {
+        let module_ = self.parse(input).try;
+        let position = find_line_column_from_position(input, line, column);
+
+        let typechecker = Typechecker::new();
+        let result = typechecker.find_definition(module_, path, position).try;
+
+        let loaded = self.matches(path);
+        if loaded != nil {
+            return struct {
+                module_name: loaded!.path.path.at(0),
+                start: find_position(loaded!.source, result.start),
+                end: find_position(loaded!.source, result.end),
+            };
+        } else {
+            return _ or error::new("module not found");
+        }
     }
 }
 

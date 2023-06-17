@@ -81,6 +81,18 @@ enum CliCommand {
         line: i32,
         column: i32,
     },
+    go_to_def: struct {
+        input: string?,
+        line: i32,
+        column: i32,
+    },
+    completion: struct {
+        input: string?,
+        line: i32,
+        column: i32,
+        stdin: bool,
+        dot: bool,
+    },
 }
 
 module CliCommand {
@@ -192,6 +204,68 @@ module CliCommand {
             return CliCommand {
                 check_type: check_type,
             };
+        } else if args.at(0).equal("go-to-def") {
+            let i = 1;
+            let go_to_def = struct {
+                input: nil,
+                line: 0,
+                column: 0,
+            };
+
+            while i < args.length {
+                if args.at(i).equal("--line") {
+                    go_to_def.line = i32::parse(args.at(i + 1));
+                    i = i + 1;
+                } else if args.at(i).equal("--column") {
+                    go_to_def.column = i32::parse(args.at(i + 1));
+                    i = i + 1;
+                } else {
+                    break;
+                }
+
+                i = i + 1;
+            }
+
+            go_to_def.input = args.at(i)?;
+
+            return CliCommand {
+                go_to_def: go_to_def,
+            };
+        } else if args.at(0).equal("completion") {
+            let i = 1;
+            let completion = struct {
+                input: nil,
+                line: 0,
+                column: 0,
+                stdin: false,
+                dot: false,
+            };
+
+            while i < args.length {
+                if args.at(i).equal("--line") {
+                    completion.line = i32::parse(args.at(i + 1));
+                    i = i + 1;
+                } else if args.at(i).equal("--column") {
+                    completion.column = i32::parse(args.at(i + 1));
+                    i = i + 1;
+                } else if args.at(i).equal("--stdin") {
+                    completion.stdin = true;
+                } else if args.at(i).equal("--dot") {
+                    completion.dot = true;
+                } else {
+                    break;
+                }
+
+                i = i + 1;
+            }
+
+            if !completion.stdin {
+                completion.input = args.at(i)?;
+            }
+
+            return CliCommand {
+                completion: completion,
+            };
         } else {
             return _ or error::new(format("unknown command: {}", derive::to_string(args)));
         }
@@ -280,6 +354,47 @@ fun main() {
 
         if result != nil {
             println(result!);
+        }
+    } else if command.go_to_def != nil {
+        let go_to_def = command.go_to_def!;
+
+        let input = file_read(go_to_def.input!);
+
+        let compiler = Compiler::new();
+        let result or err = compiler.go_to_def(input, Path::new("main"), go_to_def.line, go_to_def.column);
+        if err != nil {
+            panic(err!.message);
+        }
+
+        if result != nil {
+            println(derive::to_string(result!));
+        }
+    } else if command.completion != nil {
+        let completion = command.completion!;
+
+        let input = "";
+        if completion.input != nil {
+            input = file_read(completion.input!);
+        } else if completion.stdin {
+            input = stdin();
+        } else {
+            panic("no input");
+        }
+
+        let compiler = Compiler::new();
+        let result or err = compiler.completion(
+            input,
+            Path::new("main"),
+            completion.line,
+            completion.column,
+            completion.dot,
+        );
+        if err != nil {
+            panic(err!.message);
+        }
+
+        if result != nil {
+            println(derive::to_string(result!));
         }
     } else {
         println("unknown args: {}", derive::to_string(args));

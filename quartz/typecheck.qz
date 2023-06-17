@@ -18,7 +18,7 @@ struct Typechecker {
         start: i32,
         end: i32,
     }?,
-    completion: vec[struct {
+    completed: vec[struct {
         kind: string,
         label: string,
         text: string,
@@ -508,7 +508,7 @@ module Typechecker {
             search_node: nil,
             search_node_type: nil,
             search_node_definition: nil,
-            completion: nil,
+            completed: nil,
             types_def: make[map[string, struct {
                 path: Path,
                 fields: vec[struct {
@@ -1262,7 +1262,7 @@ module Typechecker {
                 self.set_search_node_definition(
                     Path::new(path.path.at(0), path.path.at(1)),
                     resolved.type_.location,
-                    resolved.type_.location,
+                    expr.t_project!.field.location,
                 );
 
                 if self.globals.has(path.join("_")) {
@@ -1775,13 +1775,13 @@ module Typechecker {
                 });
             }
 
-            self.completion = items?;
+            self.completed = items?;
         }
 
         if self.search_node_type == nil {
             return _ or error::new("not found");
         } else {
-            return self.completion!;
+            return self.completed!;
         }
     }
 
