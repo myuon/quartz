@@ -201,14 +201,16 @@ module CliCommand {
                 } else if args.at(i).equal("--column") {
                     check_type.column = i32::parse(args.at(i + 1));
                     i = i + 1;
+                } else if args.at(i).equal("--project") {
+                    i = i + 1;
                 } else {
-                    break;
+                    check_type.input = args.at(i)?;
                 }
 
                 i = i + 1;
             }
 
-            check_type.input = args.at(i)?;
+            println("{}", derive::to_string(check_type));
 
             return CliCommand {
                 check_type: check_type,
@@ -506,7 +508,36 @@ fun main() {
         }
 
         if result != nil {
-            println(derive::to_string(result!));
+            let items = make[vec[Json]]();
+            for r in result! {
+                let item = make[map[string, Json]]();
+                item.insert(
+                    "kind",
+                    Json {
+                        t_string: r.kind,
+                    },
+                );
+                item.insert(
+                    "label",
+                    Json {
+                        t_string: r.label,
+                    },
+                );
+                item.insert(
+                    "detail",
+                    Json {
+                        t_string: r.text,
+                    },
+                );
+
+                items.push(Json {
+                    t_object: item,
+                });
+            }
+
+            println(Json {
+                t_array: items,
+            }.to_string());
         }
     } else {
         println("unknown args: {}", derive::to_string(args));
