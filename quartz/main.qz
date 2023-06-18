@@ -11,6 +11,7 @@ import quartz::value;
 import quartz::compiler;
 import quartz::location;
 import quartz::formatter;
+import quartz::json;
 
 fun assert_eq_string(a: string, b: string) {
     if !a.equal(b) {
@@ -359,8 +360,48 @@ fun main() {
         let compiler = Compiler::new();
         let result or err = compiler.check(input);
         if err != nil {
-            panic(err!.message);
+            let message = make[map[string, Json]]();
+            message.insert(
+                "message",
+                Json {
+                    t_string: err!.message,
+                },
+            );
+            message.insert(
+                "start",
+                Json {
+                    t_array: make[vec[Json]](
+                        Json {
+                            t_i32: 0,
+                        },
+                        Json {
+                            t_i32: 0,
+                        },
+                    ),
+                },
+            );
+            message.insert(
+                "end",
+                Json {
+                    t_array: make[vec[Json]](
+                        Json {
+                            t_i32: 0,
+                        },
+                        Json {
+                            t_i32: 0,
+                        },
+                    ),
+                },
+            );
+
+            println(Json {
+                t_array: make[vec[Json]](Json {
+                    t_object: message,
+                }),
+            }.to_string());
         }
+
+        println("[]");
     } else if command.check_type != nil {
         let check_type = command.check_type!;
 
