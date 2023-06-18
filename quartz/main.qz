@@ -71,6 +71,7 @@ enum CliCommand {
     },
     format: struct {
         input: string?,
+        stdin: bool?,
         write: bool?,
     },
     check: struct {
@@ -148,12 +149,17 @@ module CliCommand {
             let i = 1;
             let format_ = struct {
                 input: nil,
+                stdin: nil,
                 write: nil,
             };
 
             while i < args.length {
                 if args.at(i).equal("-w") {
                     format_.write = true?;
+                } else if args.at(i).equal("--write") {
+                    format_.write = true?;
+                } else if args.at(i).equal("--stdin") {
+                    format_.stdin = true?;
                 } else {
                     break;
                 }
@@ -161,7 +167,9 @@ module CliCommand {
                 i = i + 1;
             }
 
-            format_.input = args.at(i)?;
+            if format_.stdin == nil {
+                format_.input = args.at(i)?;
+            }
 
             return CliCommand {
                 format: format_,
@@ -324,13 +332,25 @@ fun main() {
     } else if command.format != nil {
         let f = command.format!;
 
-        let input = file_read(f.input!);
+        let input = "";
+        if f.input != nil {
+            input = file_read(f.input!);
+        } else if f.stdin != nil {
+            input = stdin();
+        } else {
+            panic("no input");
+        }
+
         let result or err = run_format(input);
         if err != nil {
             panic(err!.message);
         }
 
-        println("{}", result!);
+        if f.write != nil {
+            file_write(f.input!, result!);
+        } else {
+            println("{}", result!);
+        }
     } else if command.check != nil {
         let check = command.check!;
 
@@ -426,6 +446,7 @@ fun run_format(input_: string): string or error {
     let module_ = parser.run(lexer.tokens).try;
 
     let formatter = Formatter::new(input_, comments, 0);
+
     return formatter.format(module_);
 }
 
