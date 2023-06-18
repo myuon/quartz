@@ -428,7 +428,58 @@ fun main() {
         }
 
         if result != nil {
-            println(derive::to_string(result!));
+            let items = make[map[string, Json]]();
+            items.insert(
+                "file",
+                Json {
+                    t_string: result!.module_name,
+                },
+            );
+
+            let start = make[map[string, Json]]();
+            start.insert(
+                "line",
+                Json {
+                    t_i32: result!.start.line,
+                },
+            );
+            start.insert(
+                "column",
+                Json {
+                    t_i32: result!.start.column,
+                },
+            );
+
+            let end = make[map[string, Json]]();
+            end.insert(
+                "line",
+                Json {
+                    t_i32: result!.end.line,
+                },
+            );
+            end.insert(
+                "column",
+                Json {
+                    t_i32: result!.end.column,
+                },
+            );
+
+            items.insert(
+                "start",
+                Json {
+                    t_object: start,
+                },
+            );
+            items.insert(
+                "end",
+                Json {
+                    t_object: end,
+                },
+            );
+
+            println(Json {
+                t_object: items,
+            }.to_string());
         }
     } else if command.completion != nil {
         let completion = command.completion!;
