@@ -573,6 +573,10 @@ module string {
     fun escape_raw(self): string {
         return self.escape_with(96 as byte);
     }
+
+    fun starts_with(self, prefix: string): bool {
+        return is_prefix(self, 0, prefix);
+    }
 }
 
 struct stringbuilder {

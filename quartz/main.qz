@@ -60,6 +60,42 @@ fun test() {
     assert_eq_string((1 as i64).to_string(), "1");
 }
 
+struct ArgCommand {
+    command: string,
+    args: vec[string],
+    options: map[string, string],
+}
+
+struct ArgParser {
+}
+
+module ArgParser {
+    fun parse(args: vec[string]): ArgCommand {
+        let command = args.at(0);
+        let command_args = make[vec[string]]();
+        let options = make[map[string, string]]();
+
+        let i = 1;
+        while i < args.length {
+            let arg = args.at(i);
+            if arg.starts_with("--") {
+                options.insert(arg.slice_start(2), args.at(i + 1));
+                i = i + 1;
+            } else {
+                command_args.push(arg);
+            }
+
+            i = i + 1;
+        }
+
+        return ArgCommand {
+            command: command,
+            args: command_args,
+            options: options,
+        };
+    }
+}
+
 enum CliCommand {
     compile: struct {
         output: string?,
