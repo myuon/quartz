@@ -1798,7 +1798,6 @@ module Typechecker {
         if self.search_node != nil {
             let path = self.search_node!.path;
             let cursor = self.search_node!.cursor;
-            println("{}, {}", path.join("_"), self.current_path.join("_"));
             if is_prefix_path(path, self.current_path) {
                 // UGLY HACK: For dot completion, some nodes are skipped. So we need to search nodes for a bit wider range.
                 if source.start != nil && source.end != nil && source.start! <= cursor && cursor <= source.end! + 5 {
@@ -1815,7 +1814,7 @@ module Typechecker {
                         completion.push(struct {
                             kind: "field",
                             label: key,
-                            text: derive::to_string(value),
+                            text: value.to_string(),
                         });
                     }
 
@@ -1834,7 +1833,7 @@ module Typechecker {
                                     completion.push(struct {
                                         kind: "function",
                                         label: key,
-                                        text: derive::to_string(value.data),
+                                        text: value.data.to_string(),
                                     });
                                 }
                             }
