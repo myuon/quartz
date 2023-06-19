@@ -1260,12 +1260,12 @@ module Typechecker {
                 let path = resolved.path;
                 expr.t_project!.resolved_path = path?;
 
-                self.set_search_node_type(t, expr.t_project!.expr.location);
+                self.set_search_node_type(t, label.location);
                 // FIXME: need to strip current package path
                 self.set_search_node_definition(
                     Path::new(path.path.at(0), path.path.at(1)),
                     resolved.type_.location,
-                    expr.t_project!.field.location,
+                    label.location,
                 );
 
                 if self.globals.has(path.join("_")) {

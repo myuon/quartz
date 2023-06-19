@@ -460,11 +460,15 @@ fun main() {
     } else if command.go_to_def != nil {
         let go_to_def = command.go_to_def!;
 
+        let path_segments = go_to_def.input!.split(".").at(0).split("/");
+        let path = Path::new(path_segments.at(path_segments.length - 1));
+
         let input = file_read(go_to_def.input!);
 
         let compiler = Compiler::new();
-        let result or err = compiler.go_to_def(input, Path::new("main"), go_to_def.line, go_to_def.column);
+        let result or err = compiler.go_to_def(input, path, go_to_def.line, go_to_def.column);
         if err != nil {
+            println(err!.message);
             return;
         }
 
