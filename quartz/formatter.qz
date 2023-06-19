@@ -693,20 +693,8 @@ module Formatter {
                     skip_space: false,
                 },
             );
-        } else if type_.t_bool != nil {
-            self.write_if(writer, "bool", options.skip_space);
-        } else if type_.t_i32 != nil {
-            self.write_if(writer, "i32", options.skip_space);
-        } else if type_.t_u32 != nil {
-            self.write_if(writer, "u32", options.skip_space);
-        } else if type_.t_byte != nil {
-            self.write_if(writer, "byte", options.skip_space);
-        } else if type_.t_nil != nil {
-            self.write_if(writer, "nil", options.skip_space);
-        } else if type_.t_any != nil {
-            self.write_if(writer, "any", options.skip_space);
         } else {
-            panic("unknown type: {}", derive::to_string(type_));
+            self.write_if(writer, type_.to_string(), options.skip_space);
         }
     }
 

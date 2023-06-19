@@ -343,7 +343,94 @@ enum Type {
 
 module Type {
     fun to_string(self): string {
-        return derive::to_string(self);
+        if self.t_omit != nil {
+            return "_";
+        } else if self.t_nil != nil {
+            return "nil"; 
+        } else if self.t_i32 != nil {
+            return "i32";
+        } else if self.t_u32 != nil {
+            return "u32";
+        } else if self.t_bool != nil {
+            return "bool";
+        } else if self.t_byte != nil {
+            return "byte";
+        } else if self.t_any != nil {
+            return "any";
+        } else if self.t_ident != nil {
+            return self.t_ident!;
+        } else if self.t_range != nil {
+            return "range[{}]".format(self.t_range!.to_string());
+        } else if self.t_optional != nil {
+            return "{}?".format(self.t_optional!.to_string());
+        } else if self.t_vec != nil {
+            return "vec[{}]".format(self.t_vec!.to_string());
+        } else if self.t_or != nil {
+            return "{} or {}".format(self.t_or!.left.to_string(), self.t_or!.right.to_string());
+        } else if self.t_map != nil {
+            return "map[{}, {}]".format(self.t_map!.key.to_string(), self.t_map!.value.to_string());
+        } else if self.t_struct != nil {
+            let builder = stringbuilder::new();
+            builder.append("struct {");
+            for i in 0..self.t_struct!.fields.length {
+                let field = self.t_struct!.fields.at(i);
+                builder.append(format("{}: {}", field.data.name, field.data.type_.to_string()));
+
+                if i != self.t_struct!.fields.length - 1 {
+                    builder.append(", ");
+                }
+            }
+            builder.append("}");
+
+            return builder.to_string();
+        } else if self.t_enum != nil {
+            let builder = stringbuilder::new();
+            builder.append("enum {");
+            for i in 0..self.t_enum!.fields.length {
+                let field = self.t_enum!.fields.at(i);
+                builder.append(field.data.name);
+
+                if i != self.t_enum!.fields.length - 1 {
+                    builder.append(", ");
+                }
+            }
+            builder.append("}");
+
+            return builder.to_string();
+        } else if self.t_func != nil {
+            let builder = stringbuilder::new();
+            builder.append("fun (");
+            for i in 0..self.t_func!.params.length {
+                let param = self.t_func!.params.at(i);
+                builder.append(param.to_string());
+
+                if i != self.t_func!.params.length - 1 {
+                    builder.append(", ");
+                }
+            }
+            builder.append(format(") -> {}", self.t_func!.result.to_string()));
+
+            return builder.to_string();
+        } else if self.t_variadic_func != nil {
+            let builder = stringbuilder::new();
+            builder.append("fun (");
+            for i in 0..self.t_variadic_func!.params.length {
+                let param = self.t_variadic_func!.params.at(i);
+                builder.append(param.to_string());
+
+                if i != self.t_variadic_func!.params.length - 1 {
+                    builder.append(", ");
+                }
+            }
+            builder.append(format(", ..{}) -> {}", self.t_variadic_func!.variadic.to_string(), self.t_variadic_func!.result.to_string()));
+
+            return builder.to_string();
+        } else if self.t_ptr != nil {
+            return "ptr[{}]".format(self.t_ptr!.to_string());
+        }
+
+        panic("Unknown type: {}", derive::to_string(self));
+        return "";
     }
 
     fun string(): Type {

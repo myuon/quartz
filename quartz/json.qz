@@ -35,13 +35,14 @@ module Json {
             builder.append("{");
 
             let i = 0;
-            for k in self.t_object!.list_keys() {
+            let keys = self.t_object!.list_keys();
+            for k in keys {
                 let v = self.t_object!.at(k);
                 builder.append(k.escape());
                 builder.append(":");
                 builder.append(v.to_string_internal());
 
-                if i < self.t_object!.list_keys().length - 1 {
+                if i < keys.length - 1 {
                     builder.append(",");
                 }
             }

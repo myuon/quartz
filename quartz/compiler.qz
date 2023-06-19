@@ -147,7 +147,7 @@ module Compiler {
         let typechecker = Typechecker::new();
         let t = typechecker.find_at_cursor(module_, path, position).try;
 
-        return format("```quartz\n{}\n```", derive::to_string(t));
+        return format("```quartz\n{}\n```", t.to_string());
     }
 
     fun completion(
