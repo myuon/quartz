@@ -513,16 +513,16 @@ module string {
         let result = make[vec[string]]();
         let n = 0;
 
-        while n <= self.length - sep.length {
-            if is_prefix(self, n, sep) {
-                result.push(self.slice(0, n));
-                n = n + sep.length;
+        while n < self.length {
+            let m = self.slice_start(n).find_first(sep);
+            if m == nil {
+                result.push(self.slice(n, self.length));
+                return result;
             } else {
-                n = n + 1;
+                result.push(self.slice(n, n + m!));
+                n = n + m! + sep.length;
             }
         }
-
-        result.push(self.slice_start(n));
 
         return result;
     }

@@ -33,6 +33,11 @@ fun test() {
     assert_eq_string("hoge".concat(" fuga"), "hoge fuga");
     assert_eq_string("hoge".repeat(3), "hogehogehoge");
 
+    assert_eq_string(
+        derive::to_string("apple/banana/orange/lime".split("/")),
+        derive::to_string(make[vec[string]]("apple", "banana", "orange", "lime")),
+    );
+
     assert_eq_string(derive::to_string(false), "false");
     assert_eq_string(derive::to_string(1), "1");
     assert_eq_string(derive::to_string("hello"), "\"hello\"");
@@ -246,8 +251,6 @@ module CliCommand {
                 i = i + 1;
             }
 
-            println("{}", derive::to_string(check_type));
-
             return CliCommand {
                 check_type: check_type,
             };
@@ -446,7 +449,7 @@ fun main() {
         let input = file_read(check_type.input!);
 
         let compiler = Compiler::new();
-        let result or err = compiler.check_type(input, check_type.line, check_type.column);
+        let result or err = compiler.check_type(check_type.input!, input, check_type.line, check_type.column);
         if err != nil {
             panic(err!.message);
         }

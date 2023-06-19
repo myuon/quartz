@@ -1228,10 +1228,11 @@ module Typechecker {
                 let label_path = label.location;
                 self.set_search_node_type(t, label_path);
                 self.set_completion(t, label_path).try;
-                if expr.t_project!.expr.data.t_ident != nil {
-                    if self.types_def.has(expr.t_project!.expr.data.t_ident!.name) {
-                        let def = self.types_def.at(expr.t_project!.expr.data.t_ident!.name);
-                        self.set_search_node_definition(def.path, label_path, label_path);
+                if expr.t_project!.type_!.t_ident != nil {
+                    let type_ident = expr.t_project!.type_!.t_ident!;
+                    if self.types_def.has(type_ident) {
+                        let def = self.types_def.at(type_ident);
+                        self.set_search_node_definition(def.path, lexpr.location, label_path);
                     }
                 }
 
