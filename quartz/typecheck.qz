@@ -1787,7 +1787,7 @@ module Typechecker {
             self.completed = items?;
         }
 
-        if self.search_node_type == nil {
+        if self.completed == nil {
             return _ or error::new("not found");
         } else {
             return self.completed!;
