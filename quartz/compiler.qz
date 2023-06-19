@@ -26,10 +26,10 @@ module Compiler {
         };
     }
 
-    fun load_module(self, path: Path): vec[Path] or error {
+    fun load_module(self, path: Path, skip_errors: bool): vec[Path] or error {
         let input = file_read(format("{}.qz", path.join("/")));
 
-        return self.register_module(path, input).try;
+        return self.register_module(path, input, skip_errors).try;
     }
 
     fun matches(self, path: Path): LoadedModule? {
@@ -42,12 +42,12 @@ module Compiler {
         return nil;
     }
 
-    fun register_module(self, path: Path, input: string): vec[Path] or error {
+    fun register_module(self, path: Path, input: string, skip_errors: bool): vec[Path] or error {
         let lexer = Lexer::new();
         lexer.run(input).try;
 
         let parser = Parser::new();
-        let module_ = parser.run(lexer.tokens).try;
+        let module_ = parser.run(lexer.tokens, skip_errors).try;
 
         self.loaded.push(LoadedModule {
             path: path,
@@ -58,9 +58,9 @@ module Compiler {
         return parser.imports;
     }
 
-    fun parse(self, input: string): Module or error {
+    fun parse(self, input: string, skip_errors: bool): Module or error {
         let main_path = Path::new("main");
-        let imports = self.register_module(main_path, input).try;
+        let imports = self.register_module(main_path, input, skip_errors).try;
 
         let visited = make[map[string, bool]]();
         visited.insert(main_path.join("_"), true);
@@ -72,7 +72,7 @@ module Compiler {
                 continue;
             }
 
-            imports.extend(self.load_module(path).try);
+            imports.extend(self.load_module(path, skip_errors).try);
             visited.insert(path.join("_"), true);
         }
 
@@ -96,8 +96,8 @@ module Compiler {
         return module_;
     }
 
-    fun compile(self, input: string): string or error {
-        let module_ = self.parse(input).try;
+    fun compile(self, input: string, skip_errors: bool): string or error {
+        let module_ = self.parse(input, skip_errors).try;
 
         let typechecker = Typechecker::new();
         typechecker.module_(module_).try;
@@ -120,7 +120,7 @@ module Compiler {
     }
 
     fun check(self, input: string): nil or error {
-        let module_ = self.parse(input).try;
+        let module_ = self.parse(input, true).try;
 
         let typechecker = Typechecker::new();
         typechecker.module_(module_).try;
@@ -131,7 +131,7 @@ module Compiler {
     fun check_type(self, filepath: string, input: string, line: i32, column: i32): string or error {
         let path = Path::new("main");
 
-        let module_ = self.parse(input).try;
+        let module_ = self.parse(input, true).try;
 
         let position = find_line_column_from_position(input, line, column);
 
@@ -153,7 +153,7 @@ module Compiler {
         label: string,
         text: string,
     }] or error {
-        let module_ = self.parse(input).try;
+        let module_ = self.parse(input, true).try;
         let position = find_line_column_from_position(input, line, column);
 
         let typechecker = Typechecker::new();
@@ -179,7 +179,7 @@ module Compiler {
             column: i32,
         },
     } or error {
-        let module_ = self.parse(input).try;
+        let module_ = self.parse(input, true).try;
         let position = find_line_column_from_position(input, line, column);
 
         let typechecker = Typechecker::new();

@@ -8,6 +8,7 @@ struct Parser {
     input: vec[Token],
     omit_index: i32,
     imports: vec[Path],
+    skip_errors: bool,
 }
 
 module Parser {
@@ -17,10 +18,11 @@ module Parser {
             input: make[vec[Token]](),
             omit_index: 0,
             imports: make[vec[Path]](),
+            skip_errors: false,
         };
     }
 
-    fun run(self, input: vec[Token]): Module or error {
+    fun run(self, input: vec[Token], skip_errors: bool): Module or error {
         self.input = make[vec[Token]]();
         for token in input {
             if !token.lexeme.equal("comment") {
@@ -1417,35 +1419,13 @@ module Parser {
             } else if token.lexeme.equal("dot") {
                 self.expect("dot").try;
 
-                if self.peek().lexeme.equal("try") {
-                    let end_token = self.expect("try").try;
+                let result or err = self.dot_after(current);
+                if result != nil || !self.skip_errors {
+                    if err != nil {
+                        return _ or err!;
+                    }
 
-                    current = LExpression {
-                        data: Expression {
-                            t_try: current,
-                        },
-                        location: Location {
-                            start: current.location.start,
-                            end: end_token.location.end,
-                        },
-                    };
-                } else {
-                    let field = self.ident().try;
-
-                    current = LExpression {
-                        data: Expression {
-                            t_project: struct {
-                                expr: current,
-                                field: field,
-                                type_: nil as Type?,
-                                resolved_path: nil,
-                            },
-                        },
-                        location: Location {
-                            start: current.location.start,
-                            end: field.location.end,
-                        },
-                    };
+                    current = result!;
                 }
             } else if with_struct && token.lexeme.equal("lbrace") {
                 self.expect("lbrace").try;
@@ -1822,6 +1802,39 @@ module Parser {
         }
 
         return _ or error::new(format("Unexpected token {} (term)", self.peek().lexeme.to_string()));
+    }
+
+    fun dot_after(self, current: LExpression): LExpression or error {
+        if self.peek().lexeme.equal("try") {
+            let end_token = self.expect("try").try;
+
+            return LExpression {
+                data: Expression {
+                    t_try: current,
+                },
+                location: Location {
+                    start: current.location.start,
+                    end: end_token.location.end,
+                },
+            };
+        }
+
+        let field = self.ident().try;
+
+        return LExpression {
+            data: Expression {
+                t_project: struct {
+                    expr: current,
+                    field: field,
+                    type_: nil as Type?,
+                    resolved_path: nil,
+                },
+            },
+            location: Location {
+                start: current.location.start,
+                end: field.location.end,
+            },
+        };
     }
 
     fun span_location(self, start: Token, end: Token): Location {

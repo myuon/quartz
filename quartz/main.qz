@@ -592,7 +592,7 @@ fun main() {
 
 fun run(input_: string): string or error {
     let compiler = Compiler::new();
-    return compiler.compile(input_).try;
+    return compiler.compile(input_, false).try;
 }
 
 fun run_format(input_: string): string or error {
@@ -607,7 +607,7 @@ fun run_format(input_: string): string or error {
     }
 
     let parser = Parser::new();
-    let module_ = parser.run(lexer.tokens).try;
+    let module_ = parser.run(lexer.tokens, false).try;
 
     let formatter = Formatter::new(input_, comments, 0);
 
