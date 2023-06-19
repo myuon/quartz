@@ -58,8 +58,11 @@ module Compiler {
         return parser.imports;
     }
 
-    fun parse(self, input: string, skip_errors: bool): Module or error {
+    fun parse(self, input: string, load_path: Path?, skip_errors: bool): Module or error {
         let main_path = Path::new("main");
+        if load_path != nil {
+            main_path = load_path!;
+        }
         let imports = self.register_module(main_path, input, skip_errors).try;
 
         let visited = make[map[string, bool]]();
@@ -97,7 +100,7 @@ module Compiler {
     }
 
     fun compile(self, input: string, skip_errors: bool): string or error {
-        let module_ = self.parse(input, skip_errors).try;
+        let module_ = self.parse(input, nil, skip_errors).try;
 
         let typechecker = Typechecker::new();
         typechecker.module_(module_).try;
@@ -120,7 +123,7 @@ module Compiler {
     }
 
     fun check(self, input: string): nil or error {
-        let module_ = self.parse(input, true).try;
+        let module_ = self.parse(input, nil, true).try;
 
         let typechecker = Typechecker::new();
         typechecker.module_(module_).try;
@@ -131,7 +134,7 @@ module Compiler {
     fun check_type(self, filepath: string, input: string, line: i32, column: i32): string or error {
         let path = Path::new("main");
 
-        let module_ = self.parse(input, true).try;
+        let module_ = self.parse(input, nil, true).try;
 
         let position = find_line_column_from_position(input, line, column);
 
@@ -153,7 +156,7 @@ module Compiler {
         label: string,
         text: string,
     }] or error {
-        let module_ = self.parse(input, true).try;
+        let module_ = self.parse(input, nil, true).try;
         let position = find_line_column_from_position(input, line, column);
 
         let typechecker = Typechecker::new();
@@ -179,7 +182,7 @@ module Compiler {
             column: i32,
         },
     } or error {
-        let module_ = self.parse(input, true).try;
+        let module_ = self.parse(input, path?, true).try;
         let position = find_line_column_from_position(input, line, column);
 
         let typechecker = Typechecker::new();

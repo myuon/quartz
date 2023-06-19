@@ -127,6 +127,7 @@ enum CliCommand {
     },
     go_to_def: struct {
         input: string?,
+        project: string?,
         line: i32,
         column: i32,
     },
@@ -259,6 +260,7 @@ module CliCommand {
             let i = 1;
             let go_to_def = struct {
                 input: nil,
+                project: nil,
                 line: 0,
                 column: 0,
             };
@@ -271,6 +273,7 @@ module CliCommand {
                     go_to_def.column = i32::parse(args.at(i + 1));
                     i = i + 1;
                 } else if args.at(i).equal("--project") {
+                    go_to_def.project = args.at(i + 1)?;
                     i = i + 1;
                 } else {
                     go_to_def.input = args.at(i)?;
@@ -461,7 +464,7 @@ fun main() {
         let go_to_def = command.go_to_def!;
 
         let path_segments = go_to_def.input!.split(".").at(0).split("/");
-        let path = Path::new(path_segments.at(path_segments.length - 1));
+        let path = Path::new(path_segments.at(path_segments.length - 2), path_segments.at(path_segments.length - 1));
 
         let input = file_read(go_to_def.input!);
 

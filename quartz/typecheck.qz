@@ -1734,7 +1734,7 @@ module Typechecker {
         if self.search_node != nil {
             let search_path = self.search_node!.path;
             let cursor = self.search_node!.cursor;
-            if is_prefix_path(self.current_path, search_path) {
+            if is_prefix_path(search_path, self.current_path) {
                 if source.start != nil && source.end != nil {
                     if source.start! <= cursor && cursor <= source.end! {
                         if self.search_node_definition == nil {
