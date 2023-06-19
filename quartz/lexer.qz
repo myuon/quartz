@@ -419,24 +419,26 @@ module Lexer {
                 continue;
             }
 
+            let position = self.position;
             let str = self.consume_string_literal(input);
             if str != nil {
                 self.tokens.push(Token {
                     lexeme: "string",
                     string_value: str!.value?,
-                    position: self.position,
+                    position: position,
                     raw: str!.raw,
                 });
 
                 continue;
             }
 
+            let position = self.position;
             let str = self.consume_raw_string_literal(input);
             if str != nil {
                 self.tokens.push(Token {
                     lexeme: "raw_string",
                     string_value: str!.value?,
-                    position: self.position,
+                    position: position,
                     raw: str!.raw,
                 });
 

@@ -465,7 +465,7 @@ fun main() {
         let compiler = Compiler::new();
         let result or err = compiler.go_to_def(input, Path::new("main"), go_to_def.line, go_to_def.column);
         if err != nil {
-            panic(err!.message);
+            return;
         }
 
         if result != nil {

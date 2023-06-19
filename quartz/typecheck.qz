@@ -959,8 +959,9 @@ module Typechecker {
             )) {
                 let t1 = self.expression(expr.t_binop!.left).try;
                 if !t1.is_integer_type() {
-                    return _ or error::new("left operand must be integer type, but got {}".format(t1.to_string(
-                    )));
+                    return _ or error::new(
+                        "left operand must be integer type, but got {}".format(t1.to_string()),
+                    );
                 }
 
                 let t2 = self.expression(expr.t_binop!.right).try;
@@ -983,8 +984,9 @@ module Typechecker {
                 let t1 = self.expression(expr.t_binop!.left).try;
                 let t2 = self.expression(expr.t_binop!.right).try;
                 if !t1.is_integer_type() {
-                    return _ or error::new("left operand must be integer type, but got {}".format(t1.to_string(
-                    )));
+                    return _ or error::new(
+                        "left operand must be integer type, but got {}".format(t1.to_string()),
+                    );
                 }
 
                 let r = unify(t1, t2).try;
@@ -1456,9 +1458,12 @@ module Typechecker {
 
             return result.data;
         } else if expr.t_string != nil {
-            return Type {
+            let r = Type {
                 t_ident: "string",
             };
+            self.set_search_node_type(r, lexpr.location);
+
+            return r;
         } else if expr.t_paren != nil {
             return self.expression(expr.t_paren!).try;
         } else if expr.t_range != nil {
@@ -1471,9 +1476,12 @@ module Typechecker {
                 t_range: start,
             };
         } else if expr.t_bool != nil {
-            return Type {
+            let r = Type {
                 t_bool: true,
             };
+            self.set_search_node_type(r, lexpr.location);
+
+            return r;
         } else if expr.t_wrap != nil {
             let t = self.expression(expr.t_wrap!.expr).try;
             expr.t_wrap!.type_ = t;
@@ -1881,8 +1889,9 @@ fun unify(type1: Type, type2: Type): Type or error {
     }
     if type1.t_ident != nil && type2.t_ident != nil {
         if !type1.t_ident!.equal(type2.t_ident!) {
-            return _ or error::new("unification failed: ".concat(type1.to_string()).concat(" != ").concat(type2.to_string(
-            )));
+            return _ or error::new(
+                "unification failed: ".concat(type1.to_string()).concat(" != ").concat(type2.to_string()),
+            );
         }
 
         return type1;
@@ -1944,9 +1953,11 @@ fun unify(type1: Type, type2: Type): Type or error {
             let rs2 = type2.t_struct!.fields.at(i).data;
 
             if !rs1.name.equal(rs2.name) {
-                return _ or error::new("unification failed: ".concat(derive::to_string(rs1)).concat(" != ").concat(derive::to_string(
-                    rs2,
-                )));
+                return _ or error::new(
+                    "unification failed: ".concat(derive::to_string(rs1)).concat(" != ").concat(derive::to_string(
+                        rs2,
+                    )),
+                );
             }
 
             unify(rs1.type_, rs2.type_).try;
@@ -1977,8 +1988,9 @@ fun unify(type1: Type, type2: Type): Type or error {
         };
     }
 
-    return _ or error::new("unification failed: ".concat(type1.to_string()).concat(" != ").concat(type2.to_string(
-    )));
+    return _ or error::new(
+        "unification failed: ".concat(type1.to_string()).concat(" != ").concat(type2.to_string()),
+    );
 }
 
 fun is_prefix_path(a: Path, b: Path): bool {

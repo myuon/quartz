@@ -75,8 +75,6 @@ module Compiler {
             imports.extend(self.load_module(path).try);
             visited.insert(path.join("_"), true);
         }
-        // println("loaded modules");
-        // debug(alloc_ptr);
 
         let decls = make[vec[LDecl]]();
         for loaded in self.loaded {
