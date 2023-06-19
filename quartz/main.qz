@@ -526,10 +526,10 @@ fun main() {
         let completion = command.completion!;
 
         let input = "";
-        if completion.input != nil {
-            input = file_read(completion.input!);
-        } else if completion.stdin {
+        if completion.stdin {
             input = stdin();
+        } else if completion.input != nil {
+            input = file_read(completion.input!);
         } else {
             panic("no input");
         }
@@ -543,6 +543,7 @@ fun main() {
             completion.dot,
         );
         if err != nil {
+            println(err!.message);
             return;
         }
 

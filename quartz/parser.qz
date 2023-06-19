@@ -23,6 +23,7 @@ module Parser {
     }
 
     fun run(self, input: vec[Token], skip_errors: bool): Module or error {
+        self.skip_errors = skip_errors;
         self.input = make[vec[Token]]();
         for token in input {
             if !token.lexeme.equal("comment") {
@@ -606,8 +607,10 @@ module Parser {
     }
 
     fun ident(self): Ident or error {
-        let token = self.consume();
+        let token = self.peek();
         if token.lexeme.equal("ident") {
+            self.consume();
+
             return Ident {
                 data: token.string_value!,
                 location: token.location,
