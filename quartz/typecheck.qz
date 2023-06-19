@@ -33,6 +33,7 @@ struct Typechecker {
             location: Location,
         }],
     }],
+    current_function_name: string?,
 }
 
 module Typechecker {
@@ -519,6 +520,7 @@ module Typechecker {
                     location: Location,
                 }],
             }]](),
+            current_function_name: nil,
         };
     }
 
@@ -698,6 +700,7 @@ module Typechecker {
     fun function(self, f: Function): nil or error {
         let locals = self.locals;
         self.locals = make[map[string, LType]]();
+        self.current_function_name = f.name.data?;
 
         for i in 0..f.params.length {
             let p = f.params.at(i);
@@ -725,6 +728,7 @@ module Typechecker {
         self.block(f.body).try;
 
         self.locals = locals;
+        self.current_function_name = nil;
 
         return nil;
     }
@@ -1444,15 +1448,15 @@ module Typechecker {
             }
         } else if expr.t_path != nil {
             let path = expr.t_path!.path;
-            let resolved_path = self.resolve_path(path).try.path;
-            expr.t_path!.resolved_path = resolved_path?;
+            let resolved_path = self.resolve_path(path).try;
+            expr.t_path!.resolved_path = resolved_path.path?;
 
-            let result = self.globals.at(resolved_path.join("_"));
+            let result = self.globals.at(resolved_path.path.join("_"));
             self.set_search_node_type(result.data, lexpr.location);
             // FIXME: need to strip current package path
             self.set_search_node_definition(
-                Path::new(resolved_path.path.at(0), resolved_path.path.at(1)),
-                result.location,
+                Path::new(resolved_path.path.path.at(0), resolved_path.path.path.at(1)),
+                resolved_path.type_.location,
                 lexpr.location,
             );
 
