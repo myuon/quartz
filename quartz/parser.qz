@@ -34,9 +34,18 @@ module Parser {
 
     fun module_(self): Module or error {
         let decls = make[vec[LDecl]]();
+        let prev = 0;
 
         while !self.is_end() && !self.peek().lexeme.equal("rbrace") {
-            decls.push(self.decl().try);
+            let position = self.position;
+            let result or err = self.decl();
+            if result != nil || !self.skip_errors {
+                decls.push(result!);
+            } else if self.position == prev {
+                return _ or error::new("Infinite loop detected");
+            }
+
+            prev = self.position;
         }
 
         return Module {
@@ -625,11 +634,22 @@ module Parser {
     fun block(self): LBlock or error {
         let statements = make[vec[LStatement]]();
 
+        let prev = 0;
         let start_token = self.expect("lbrace").try;
 
         while !self.is_end() && !self.peek().lexeme.equal("rbrace") {
-            let s = self.statement().try;
-            statements.push(s);
+            let result or err = self.statement();
+            if result != nil || !self.skip_errors {
+                if err != nil {
+                    return _ or err!;
+                }
+
+                statements.push(result!);
+            } else if self.position == prev {
+                return _ or error::new("Infinite loop deteted");
+            }
+
+            prev = self.position;
         }
 
         let end_token = self.expect("rbrace").try;
@@ -788,6 +808,18 @@ module Parser {
                     start: expr.location.start,
                     end: end_token.location.end,
                 },
+            };
+        }
+
+        // Mainly for dot completion
+        if self.skip_errors {
+            return LStatement {
+                data: Statement {
+                    t_expr: struct {
+                        expr: expr,
+                    },
+                },
+                location: expr.location,
             };
         }
 
