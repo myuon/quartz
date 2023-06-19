@@ -531,6 +531,24 @@ module string {
         return self.split("\n");
     }
 
+    fun line_counts(self): vec[i32] {
+        let result = make[vec[i32]]();
+        let n = 0;
+
+        while n < self.length {
+            let m = self.slice_start(n).find_first("\n");
+            if m == nil {
+                result.push(self.length - n);
+                return result;
+            } else {
+                result.push(m!);
+                n = n + m! + 1;
+            }
+        }
+
+        return result;
+    }
+
     fun escape_with(self, char: byte): string {
         let s = self;
         let result = make[vec[byte]]();

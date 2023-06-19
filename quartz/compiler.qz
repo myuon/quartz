@@ -216,13 +216,13 @@ fun find_position(
 } {
     let line_number = 0;
     let count = 0;
-    for line in input.lines() {
-        if count + line.length > position {
+    for line in input.line_counts() {
+        if count + line > position {
             break;
         }
 
         line_number = line_number + 1;
-        count = count + line.length + 1;
+        count = count + line + 1;
     }
 
     return struct {
@@ -234,10 +234,11 @@ fun find_position(
 fun find_line_column_from_position(input: string, line: i32, column: i32): i32 {
     let start = 0;
     let end = input.length;
+    let line_counts = input.line_counts();
 
     while start < end {
         let mid = (start + end) / 2;
-        let pos = find_position(input, mid);
+        let pos = find_position_by_line_counts(line_counts, mid);
 
         if pos.line == line && pos.column == column {
             return mid;
@@ -251,5 +252,29 @@ fun find_line_column_from_position(input: string, line: i32, column: i32): i32 {
     }
 
     return start;
+}
+
+fun find_position_by_line_counts(
+    line_counts: vec[i32],
+    position: i32,
+): struct {
+    line: i32,
+    column: i32,
+} {
+    let line_number = 0;
+    let count = 0;
+    for line in line_counts {
+        if count + line > position {
+            break;
+        }
+
+        line_number = line_number + 1;
+        count = count + line + 1;
+    }
+
+    return struct {
+        line: line_number,
+        column: position - count,
+    };
 }
 

@@ -1689,7 +1689,7 @@ module Typechecker {
             if is_prefix_path(path, self.current_path) {
                 if self.search_node_type == nil {
                     if location.start != nil && location.end != nil {
-                        if location.start! <= cursor && cursor <= location.end! {
+                        if location.start! - 5 <= cursor && cursor <= location.end! + 5 {
                             self.search_node_type = type_?;
                         }
                     }
