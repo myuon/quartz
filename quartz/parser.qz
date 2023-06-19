@@ -40,6 +40,10 @@ module Parser {
             let position = self.position;
             let result or err = self.decl();
             if result != nil || !self.skip_errors {
+                if err != nil {
+                    return _ or err!;
+                }
+
                 decls.push(result!);
             } else if self.position == prev {
                 return _ or error::new("Infinite loop detected");
