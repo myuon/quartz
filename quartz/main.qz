@@ -576,8 +576,16 @@ fun main() {
                 });
             }
 
+            let container = make[map[string, Json]]();
+            container.insert(
+                "items",
+                Json {
+                    t_array: items,
+                },
+            );
+
             println(Json {
-                t_array: items,
+                t_object: container,
             }.to_string());
         }
     } else {

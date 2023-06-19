@@ -1780,7 +1780,7 @@ module Typechecker {
                 items.push(struct {
                     kind: "function",
                     label: key,
-                    text: derive::to_string(value.data),
+                    text: value.data.to_string(),
                 });
             }
 
