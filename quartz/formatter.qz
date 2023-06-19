@@ -296,18 +296,18 @@ module Formatter {
 
             let comments = self.consume_comments(statement.location.start!);
             for comment in comments {
-                if current_pos > 0 && self.need_empty_lines(current_pos, comment.position) {
+                if current_pos > 0 && self.need_empty_lines(current_pos, comment.location.start!) {
                     self.newline(writer);
                 }
 
-                if self.need_line_follow(current_pos, comment.position) {
+                if self.need_line_follow(current_pos, comment.location.start!) {
                     self.write(writer, comment.raw);
                 } else {
                     self.newline(writer);
                     self.write(writer, comment.raw);
                 }
 
-                current_pos = comment.position + comment.raw.length;
+                current_pos = comment.location.end!;
             }
 
             if current_pos > 0 && self.need_empty_lines(current_pos, statement.location.start!) {
@@ -325,35 +325,35 @@ module Formatter {
 
             let comments = self.consume_comments(statement.location.end!);
             for comment in comments {
-                if current_pos > 0 && self.need_empty_lines(current_pos, comment.position) {
+                if current_pos > 0 && self.need_empty_lines(current_pos, comment.location.start!) {
                     self.newline(writer);
                 }
 
-                if self.need_line_follow(current_pos, comment.position) {
+                if self.need_line_follow(current_pos, comment.location.start!) {
                     self.write(writer, comment.raw);
                 } else {
                     self.newline(writer);
                     self.write(writer, comment.raw);
                 }
 
-                current_pos = comment.position + comment.raw.length;
+                current_pos = comment.location.end!;
             }
         }
 
         let comments = self.consume_comments(block.location.end!);
         for comment in comments {
-            if current_pos > 0 && self.need_empty_lines(current_pos, comment.position) {
+            if current_pos > 0 && self.need_empty_lines(current_pos, comment.location.start!) {
                 self.newline(writer);
             }
 
-            if self.need_line_follow(current_pos, comment.position) {
+            if self.need_line_follow(current_pos, comment.location.start!) {
                 self.write(writer, comment.raw);
             } else {
                 self.newline(writer);
                 self.write(writer, comment.raw);
             }
 
-            current_pos = comment.position + comment.raw.length;
+            current_pos = comment.location.end!;
         }
 
         self.depth = self.depth - 1;
@@ -803,7 +803,7 @@ module Formatter {
 
     fun consume_comments(self, start: i32): vec[Token] {
         let comments = make[vec[Token]]();
-        while self.comment_position < self.comments.length && self.comments.at(self.comment_position).position <= start {
+        while self.comment_position < self.comments.length && self.comments.at(self.comment_position).location.start! <= start {
             comments.push(self.comments.at(self.comment_position));
             self.comment_position = self.comment_position + 1;
         }

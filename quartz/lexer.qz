@@ -1,7 +1,9 @@
+import quartz::location;
+
 struct Token {
     lexeme: string,
     string_value: string?,
-    position: i32,
+    location: Location,
     raw: string,
 }
 
@@ -39,8 +41,12 @@ module Lexer {
         return consumed;
     }
 
-    fun consume_ident(self, input: string): string? {
+    fun consume_ident(self, input: string): struct {
+        data: string,
+        location: Location,
+    }? {
         let ident = make[vec[byte]]();
+        let position = self.position;
         while is_included(
             input,
             self.position,
@@ -54,11 +60,21 @@ module Lexer {
             return nil;
         }
 
-        return vec_byte_to_string(ident)?;
+        return struct {
+            data: vec_byte_to_string(ident),
+            location: Location {
+                start: position?,
+                end: self.position?,
+            },
+        }?;
     }
 
-    fun consume_number(self, input: string): string? {
+    fun consume_number(self, input: string): struct {
+        data: string,
+        location: Location,
+    }? {
         let number = make[vec[byte]]();
+        let position = self.position;
         while is_included(input, self.position, "0123456789") {
             number.push(input.data.at(self.position));
             self.position = self.position + 1;
@@ -68,7 +84,13 @@ module Lexer {
             return nil;
         }
 
-        return vec_byte_to_string(number)?;
+        return struct {
+            data: vec_byte_to_string(number),
+            location: Location {
+                start: position?,
+                end: self.position?,
+            },
+        }?;
     }
 
     fun consume_string_literal(
@@ -76,6 +98,7 @@ module Lexer {
         input: string,
     ): struct {
         value: string,
+        location: Location,
         raw: string,
     }? {
         let quote = 34 as byte;
@@ -120,6 +143,10 @@ module Lexer {
 
         return struct {
             value: vec_byte_to_string(str),
+            location: Location {
+                start: start_position?,
+                end: end_position?,
+            },
             raw: raw,
         }?;
     }
@@ -129,6 +156,7 @@ module Lexer {
         input: string,
     ): struct {
         value: string,
+        location: Location,
         raw: string,
     }? {
         let backquote = 96 as byte;
@@ -154,16 +182,25 @@ module Lexer {
 
         return struct {
             value: vec_byte_to_string(str),
+            location: Location {
+                start: start_position?,
+                end: end_position?,
+            },
             raw: raw,
         }?;
     }
 
-    fun consume_comment(self, input: string): string? {
+    fun consume_comment(self, input: string): struct {
+        data: string,
+        location: Location,
+    }? {
         if !is_prefix(input, self.position, "//") {
             return nil;
         }
 
         let comment = make[vec[byte]]();
+        let position = self.position;
+
         comment.push(47 as byte);
         comment.push(47 as byte);
         self.position = self.position + 2;
@@ -173,7 +210,13 @@ module Lexer {
             self.position = self.position + 1;
         }
 
-        return vec_byte_to_string(comment)?;
+        return struct {
+            data: vec_byte_to_string(comment),
+            location: Location {
+                start: position?,
+                end: self.position?,
+            },
+        }?;
     }
 
     fun match(self, input: string, token: string, token_name: string): bool {
@@ -181,7 +224,10 @@ module Lexer {
             self.tokens.push(Token {
                 lexeme: token_name,
                 string_value: nil,
-                position: self.position,
+                location: Location {
+                    start: self.position?,
+                    end: (self.position + token.length)?,
+                },
                 raw: token,
             });
             self.position = self.position + token.length;
@@ -196,7 +242,10 @@ module Lexer {
             self.tokens.push(Token {
                 lexeme: token_name,
                 string_value: nil,
-                position: self.position,
+                location: Location {
+                    start: self.position?,
+                    end: (self.position + token.length)?,
+                },
                 raw: token,
             });
             self.position = self.position + token.length;
@@ -217,9 +266,9 @@ module Lexer {
             if comment != nil {
                 self.tokens.push(Token {
                     lexeme: "comment",
-                    string_value: comment,
-                    position: self.position - comment!.length,
-                    raw: comment!,
+                    string_value: comment!.data?,
+                    location: comment!.location,
+                    raw: comment!.data,
                 });
                 continue;
             }
@@ -388,9 +437,9 @@ module Lexer {
             if number != nil {
                 self.tokens.push(Token {
                     lexeme: "number",
-                    string_value: number,
-                    position: self.position,
-                    raw: number!,
+                    string_value: number!.data?,
+                    location: number!.location,
+                    raw: number!.data,
                 });
 
                 continue;
@@ -398,11 +447,11 @@ module Lexer {
 
             let ident = self.consume_ident(input);
             if ident != nil {
-                if ident!.equal("_") {
+                if ident!.data.equal("_") {
                     self.tokens.push(Token {
                         lexeme: "underscore",
                         string_value: nil,
-                        position: self.position,
+                        location: ident!.location,
                         raw: "_",
                     });
 
@@ -411,34 +460,32 @@ module Lexer {
 
                 self.tokens.push(Token {
                     lexeme: "ident",
-                    string_value: ident,
-                    position: self.position,
-                    raw: ident!,
+                    string_value: ident!.data?,
+                    location: ident!.location,
+                    raw: ident!.data,
                 });
 
                 continue;
             }
 
-            let position = self.position;
             let str = self.consume_string_literal(input);
             if str != nil {
                 self.tokens.push(Token {
                     lexeme: "string",
                     string_value: str!.value?,
-                    position: position,
+                    location: str!.location,
                     raw: str!.raw,
                 });
 
                 continue;
             }
 
-            let position = self.position;
             let str = self.consume_raw_string_literal(input);
             if str != nil {
                 self.tokens.push(Token {
                     lexeme: "raw_string",
                     string_value: str!.value?,
-                    position: position,
+                    location: str!.location,
                     raw: str!.raw,
                 });
 
