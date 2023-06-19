@@ -451,7 +451,7 @@ fun main() {
         let compiler = Compiler::new();
         let result or err = compiler.check_type(check_type.input!, input, check_type.line, check_type.column);
         if err != nil {
-            println(err!.message);
+            return;
         }
 
         if result != nil {
@@ -543,7 +543,7 @@ fun main() {
             completion.dot,
         );
         if err != nil {
-            println(err!.message);
+            return;
         }
 
         if result != nil {
