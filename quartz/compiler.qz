@@ -191,7 +191,7 @@ module Compiler {
         let loaded = self.matches(path);
         if loaded != nil {
             return struct {
-                module_name: loaded!.path.path.at(0),
+                module_name: loaded!.path.join("/"),
                 start: find_position(loaded!.source, result.start),
                 end: find_position(loaded!.source, result.end),
             };

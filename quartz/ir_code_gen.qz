@@ -554,7 +554,7 @@ module IrCodeGenerator {
         }
 
         return IrFunc {
-            name: self.path_to(func.name),
+            name: self.path_to(func.name.data),
             params: params,
             result_type: IrType::new(func.result_type),
             body: body,
@@ -1768,8 +1768,9 @@ module IrCodeGenerator {
                     },
                 };
             } else {
-                return _ or error::new("make() expects a pointer or vector type, {}".format(expr.t_make!.type_.to_string(
-                )));
+                return _ or error::new(
+                    "make() expects a pointer or vector type, {}".format(expr.t_make!.type_.to_string()),
+                );
             }
         } else if expr.t_path != nil {
             if expr.t_path!.resolved_path == nil {

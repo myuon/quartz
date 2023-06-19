@@ -544,10 +544,10 @@ module Typechecker {
             let d = decl.data;
             if d.t_func != nil {
                 self.globals.insert(
-                    self.path_to(d.t_func!.name),
+                    self.path_to(d.t_func!.name.data),
                     LType {
                         data: d.t_func!.to_type(),
-                        location: decl.location,
+                        location: d.t_func!.name.location,
                     },
                 );
 
@@ -628,20 +628,20 @@ module Typechecker {
         if d.t_func != nil {
             // For recursive functions
             self.globals.insert(
-                self.path_to(d.t_func!.name),
+                self.path_to(d.t_func!.name.data),
                 LType {
                     data: d.t_func!.to_type(),
-                    location: ld.location,
+                    location: d.t_func!.name.location,
                 },
             );
 
             self.function(d.t_func!).try;
 
             self.globals.insert(
-                self.path_to(d.t_func!.name),
+                self.path_to(d.t_func!.name.data),
                 LType {
                     data: d.t_func!.to_type(),
-                    location: ld.location,
+                    location: d.t_func!.name.location,
                 },
             );
             return;

@@ -138,7 +138,7 @@ module Formatter {
         let fwriter = stringbuilder::new();
 
         fformatter.write(fwriter, "fun");
-        fformatter.write(fwriter, func.name);
+        fformatter.write(fwriter, func.name.data);
         fformatter.params(fwriter, func.params, func.variadic);
         if func.result_type.t_nil == nil {
             fformatter.write_no_space(fwriter, ":");
@@ -157,7 +157,7 @@ module Formatter {
             self = fformatter;
         } else {
             self.write(writer, "fun");
-            self.write(writer, func.name);
+            self.write(writer, func.name.data);
             self.params_multilines(writer, func.params, func.variadic);
             if func.result_type.t_nil == nil {
                 self.write_no_space(writer, ":");

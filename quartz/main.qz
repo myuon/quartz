@@ -480,7 +480,7 @@ fun main() {
             items.insert(
                 "file",
                 Json {
-                    t_string: result!.module_name,
+                    t_string: format("{}/{}.qz", go_to_def.project!, result!.module_name),
                 },
             );
 

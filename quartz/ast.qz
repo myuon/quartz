@@ -17,7 +17,6 @@ module Module {
     }
 }
 
-
 enum Decl {
     t_func: Function,
     t_let: Let,
@@ -60,7 +59,7 @@ module Let {
 }
 
 struct Function {
-    name: string,
+    name: Ident,
     result_type: Type,
     body: LBlock,
     params: vec[struct {
@@ -346,7 +345,7 @@ module Type {
         if self.t_omit != nil {
             return "_";
         } else if self.t_nil != nil {
-            return "nil"; 
+            return "nil";
         } else if self.t_i32 != nil {
             return "i32";
         } else if self.t_u32 != nil {
@@ -422,7 +421,11 @@ module Type {
                     builder.append(", ");
                 }
             }
-            builder.append(format(", ..{}) -> {}", self.t_variadic_func!.variadic.to_string(), self.t_variadic_func!.result.to_string()));
+            builder.append(format(
+                ", ..{}) -> {}",
+                self.t_variadic_func!.variadic.to_string(),
+                self.t_variadic_func!.result.to_string(),
+            ));
 
             return builder.to_string();
         } else if self.t_ptr != nil {
