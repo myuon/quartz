@@ -26,7 +26,11 @@ const execAsync = async (command: string) => {
   globalControllers.push(controller);
 
   setTimeout(() => {
-    controller.abort();
+    try {
+      controller.abort();
+    } catch (err) {
+      console.log(`Aborted: ${err}`);
+    }
   }, 10000);
 
   const child = await execAsync_(command, { signal });

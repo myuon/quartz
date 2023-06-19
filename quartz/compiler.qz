@@ -129,14 +129,7 @@ module Compiler {
     }
 
     fun check_type(self, filepath: string, input: string, line: i32, column: i32): string or error {
-        let path_segments = filepath.split(".").at(0).split("/");
         let path = Path::new("main");
-        if !path_segments.at(path_segments.length - 1).equal("main") {
-            path = Path::new(
-                path_segments.at(path_segments.length - 2),
-                path_segments.at(path_segments.length - 1),
-            );
-        }
 
         let module_ = self.parse(input).try;
 

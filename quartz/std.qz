@@ -827,12 +827,21 @@ fun alloc(size: i32): ptr[any] {
 
 struct error {
     message: string,
+    detail: any,
 }
 
 module error {
     fun new(message: string): error {
         return error {
             message: message,
+            detail: nil as any,
+        };
+    }
+
+    fun detail(message: string, detail: any): error {
+        return error {
+            message: message,
+            detail: detail,
         };
     }
 }

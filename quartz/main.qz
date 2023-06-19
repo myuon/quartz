@@ -12,6 +12,7 @@ import quartz::compiler;
 import quartz::location;
 import quartz::formatter;
 import quartz::json;
+import quartz::errors;
 
 fun assert_eq_string(a: string, b: string) {
     if !a.equal(b) {
@@ -440,6 +441,7 @@ fun main() {
                     t_object: message,
                 }),
             }.to_string());
+            return;
         }
 
         println("[]");

@@ -1228,8 +1228,8 @@ module Typechecker {
 
                 // FIXME: use label_path
                 let label_path = label.location;
-                self.set_search_node_type(t, label_path);
-                self.set_completion(t, label_path).try;
+                self.set_search_node_type(t, label.location);
+                self.set_completion(t, label.location).try;
                 if expr.t_project!.type_!.t_ident != nil {
                     let type_ident = expr.t_project!.type_!.t_ident!;
                     if self.types_def.has(type_ident) {
@@ -1697,7 +1697,7 @@ module Typechecker {
             if is_prefix_path(path, self.current_path) {
                 if self.search_node_type == nil {
                     if location.start != nil && location.end != nil {
-                        if location.start! - 5 <= cursor && cursor <= location.end! + 5 {
+                        if location.start! <= cursor && cursor <= location.end! {
                             self.search_node_type = type_?;
                         }
                     }
