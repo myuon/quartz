@@ -303,15 +303,13 @@ module CliCommand {
                     completion.stdin = true;
                 } else if args.at(i).equal("--dot") {
                     completion.dot = true;
+                } else if args.at(i).equal("--project") {
+                    i = i + 1;
                 } else {
-                    break;
+                    completion.input = args.at(i)?;
                 }
 
                 i = i + 1;
-            }
-
-            if !completion.stdin {
-                completion.input = args.at(i)?;
             }
 
             return CliCommand {
