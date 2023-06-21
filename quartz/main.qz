@@ -346,7 +346,9 @@ fun main() {
             panic("no input");
         }
 
-        let result or err = run(input);
+        let path = Path::new("main");
+
+        let result or err = run(input, path);
         if err != nil {
             panic(err!.message);
         }
@@ -367,7 +369,9 @@ fun main() {
             panic("no input");
         }
 
-        let result or err = run(input);
+        let path = Path::new("main");
+
+        let result or err = run(input, path);
         if err != nil {
             panic(err!.message);
         }
@@ -400,8 +404,10 @@ fun main() {
 
         let input = file_read(check.input!);
 
+        let path = Path::new("main");
+
         let compiler = Compiler::new();
-        let result or err = compiler.check(input);
+        let result or err = compiler.check(input, path);
         if err != nil {
             let message = make[map[string, Json]]();
             message.insert(
@@ -604,9 +610,9 @@ fun main() {
     return nil;
 }
 
-fun run(input_: string): string or error {
+fun run(input_: string, main_path: Path): string or error {
     let compiler = Compiler::new();
-    return compiler.compile(input_, false).try;
+    return compiler.compile(input_, main_path, false).try;
 }
 
 fun run_format(input_: string): string or error {

@@ -99,11 +99,11 @@ module Compiler {
         return module_;
     }
 
-    fun compile(self, input: string, skip_errors: bool): string or error {
+    fun compile(self, input: string, main_path: Path, skip_errors: bool): string or error {
         let module_ = self.parse(input, nil, skip_errors).try;
 
         let typechecker = Typechecker::new();
-        typechecker.module_(module_).try;
+        typechecker.run(module_, main_path).try;
 
         let irgen = IrCodeGenerator::new();
         irgen.globals = typechecker.globals;
@@ -122,11 +122,11 @@ module Compiler {
         return code;
     }
 
-    fun check(self, input: string): nil or error {
+    fun check(self, input: string, path: Path): nil or error {
         let module_ = self.parse(input, nil, true).try;
 
         let typechecker = Typechecker::new();
-        typechecker.module_(module_).try;
+        typechecker.run(module_, path).try;
 
         return nil;
     }

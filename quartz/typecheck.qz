@@ -524,6 +524,13 @@ module Typechecker {
         };
     }
 
+    fun run(self, m: Module, path: Path): nil or error {
+        self.imported.push(path);
+        self.module_(m).try;
+
+        return nil;
+    }
+
     fun module_(self, m: Module): nil or error {
         self.module_register_for_back_reference(m).try;
 
@@ -1641,7 +1648,6 @@ module Typechecker {
     } or error {
         let candidates = vec_clone(self.imported) as vec[Path];
         candidates.push(self.current_path);
-        candidates.push(Path::ident("main"));
 
         for path_prefix in candidates {
             let path = path_prefix.clone();
@@ -1720,6 +1726,7 @@ module Typechecker {
         start: i32,
         end: i32,
     } or error {
+        self.imported.push(path);
         self.search_node = struct {
             path: path,
             cursor: cursor,
