@@ -1,0 +1,5 @@
+#!/bin/bash
+export MODE=run-wat
+export WAT_FILE=./build/gen2.wat
+
+./target/release/quartz "$@"

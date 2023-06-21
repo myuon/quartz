@@ -182,7 +182,7 @@ module TypeRepTable {
 }
 
 struct IrCodeGenerator {
-    globals: map[string, Type],
+    globals: map[string, LType],
     locals: map[string, bool],
     current_path: Path,
     strings: StringTable,
@@ -195,7 +195,7 @@ struct IrCodeGenerator {
 module IrCodeGenerator {
     fun new(): IrCodeGenerator {
         return IrCodeGenerator {
-            globals: make[map[string, Type]](),
+            globals: make[map[string, LType]](),
             locals: make[map[string, bool]](),
             current_path: Path::new(),
             strings: StringTable::new(),
@@ -554,7 +554,7 @@ module IrCodeGenerator {
         }
 
         return IrFunc {
-            name: self.path_to(func.name),
+            name: self.path_to(func.name.data),
             params: params,
             result_type: IrType::new(func.result_type),
             body: body,
@@ -578,8 +578,8 @@ module IrCodeGenerator {
     fun statement(self, lstm: LStatement): IrTerm or error {
         let stm = lstm.data;
         if stm.t_let != nil {
-            if stm.t_let!.pattern.t_ident != nil {
-                let name = stm.t_let!.pattern.t_ident!;
+            if stm.t_let!.pattern.data.t_ident != nil {
+                let name = stm.t_let!.pattern.data.t_ident!;
 
                 let term = IrTerm {
                     t_let: IrLet {
@@ -593,9 +593,9 @@ module IrCodeGenerator {
                 self.locals.insert(name, true);
 
                 return term;
-            } else if stm.t_let!.pattern.t_or != nil {
-                let lhs = stm.t_let!.pattern.t_or!.lhs.t_ident!;
-                let rhs = stm.t_let!.pattern.t_or!.rhs.t_ident!;
+            } else if stm.t_let!.pattern.data.t_or != nil {
+                let lhs = stm.t_let!.pattern.data.t_or!.lhs.data.t_ident!;
+                let rhs = stm.t_let!.pattern.data.t_or!.rhs.data.t_ident!;
 
                 if stm.t_let!.name_type.t_or == nil {
                     return _ or error::new("expected or type");
@@ -798,9 +798,12 @@ module IrCodeGenerator {
                     location: Location::unknown(),
                     data: Statement {
                         t_let: struct {
-                            pattern: Pattern {
-                                t_ident: stm.t_for!.ident?,
-                                ..nil,
+                            pattern: LPattern {
+                                data: Pattern {
+                                    t_ident: stm.t_for!.ident?,
+                                    ..nil,
+                                },
+                                location: Location::unknown(),
                             },
                             name_type: vec_type,
                             expr: LExpression {
@@ -810,7 +813,10 @@ module IrCodeGenerator {
                                             data: Expression {
                                                 t_project: struct {
                                                     expr: stm.t_for!.range,
-                                                    field: "at",
+                                                    field: Ident {
+                                                        data: "at",
+                                                        location: Location::unknown(),
+                                                    },
                                                     type_: stm.t_for!.type_,
                                                     resolved_path: nil as Path?,
                                                 },
@@ -861,7 +867,10 @@ module IrCodeGenerator {
                                             data: Expression {
                                                 t_project: struct {
                                                     expr: stm.t_for!.range,
-                                                    field: "length",
+                                                    field: Ident {
+                                                        data: "length",
+                                                        location: Location::unknown(),
+                                                    },
                                                     type_: stm.t_for!.type_,
                                                     resolved_path: nil as Path?,
                                                 },
@@ -1181,7 +1190,7 @@ module IrCodeGenerator {
             let callee = expr.t_call!.callee.data;
             if callee.t_project != nil {
                 let project = callee.t_project!;
-                if project.type_!.t_ptr != nil && project.field.equal("at") {
+                if project.type_!.t_ptr != nil && project.field.data.equal("at") {
                     if expr.t_call!.args.length != 1 {
                         return _ or error::new("at() takes 2 arguments");
                     }
@@ -1199,7 +1208,7 @@ module IrCodeGenerator {
                             raw_offset: 0,
                         },
                     };
-                } else if project.type_!.t_ptr != nil && project.field.equal("offset") {
+                } else if project.type_!.t_ptr != nil && project.field.data.equal("offset") {
                     if expr.t_call!.args.length != 1 {
                         return _ or error::new("offset() takes 2 arguments");
                     }
@@ -1220,7 +1229,7 @@ module IrCodeGenerator {
                             ),
                         },
                     };
-                } else if project.type_!.t_vec != nil && project.field.equal("at") {
+                } else if project.type_!.t_vec != nil && project.field.data.equal("at") {
                     if expr.t_call!.args.length != 1 {
                         return _ or error::new("at() takes 2 arguments");
                     }
@@ -1243,7 +1252,7 @@ module IrCodeGenerator {
                             ),
                         },
                     };
-                } else if project.type_!.t_vec != nil && project.field.equal("push") {
+                } else if project.type_!.t_vec != nil && project.field.data.equal("push") {
                     if expr.t_call!.args.length != 1 {
                         return _ or error::new("push() takes 2 arguments");
                     }
@@ -1266,7 +1275,7 @@ module IrCodeGenerator {
                             ),
                         },
                     };
-                } else if project.type_!.t_vec != nil && project.field.equal("extend") {
+                } else if project.type_!.t_vec != nil && project.field.data.equal("extend") {
                     if expr.t_call!.args.length != 1 {
                         return _ or error::new("extend() takes 2 arguments");
                     }
@@ -1289,7 +1298,7 @@ module IrCodeGenerator {
                             ),
                         },
                     };
-                } else if project.type_!.t_vec != nil && project.field.equal("slice") {
+                } else if project.type_!.t_vec != nil && project.field.data.equal("slice") {
                     if expr.t_call!.args.length != 2 {
                         return _ or error::new("slice() takes 2 arguments");
                     }
@@ -1306,7 +1315,7 @@ module IrCodeGenerator {
                             ),
                         },
                     };
-                } else if project.type_!.t_map != nil && project.field.equal("insert") {
+                } else if project.type_!.t_map != nil && project.field.data.equal("insert") {
                     if expr.t_call!.args.length != 2 {
                         return _ or error::new("insert() takes 2 arguments");
                     }
@@ -1323,7 +1332,7 @@ module IrCodeGenerator {
                             ),
                         },
                     };
-                } else if project.type_!.t_map != nil && project.field.equal("at") {
+                } else if project.type_!.t_map != nil && project.field.data.equal("at") {
                     if expr.t_call!.args.length != 1 {
                         return _ or error::new("at() takes 1 arguments");
                     }
@@ -1339,7 +1348,7 @@ module IrCodeGenerator {
                             ),
                         },
                     };
-                } else if project.type_!.t_map != nil && project.field.equal("has") {
+                } else if project.type_!.t_map != nil && project.field.data.equal("has") {
                     if expr.t_call!.args.length != 1 {
                         return _ or error::new("has() takes 1 arguments");
                     }
@@ -1355,7 +1364,7 @@ module IrCodeGenerator {
                             ),
                         },
                     };
-                } else if project.type_!.t_map != nil && project.field.equal("list_keys") {
+                } else if project.type_!.t_map != nil && project.field.data.equal("list_keys") {
                     if expr.t_call!.args.length != 0 {
                         return _ or error::new("list_keys() takes 0 arguments");
                     }
@@ -1377,7 +1386,11 @@ module IrCodeGenerator {
                     }
 
                     if project.resolved_path == nil {
-                        return _ or error::new("project.resolved_path is nil");
+                        return _ or error::new(format(
+                            "project.resolved_path is nil: {}, {}",
+                            self.current_path.join("::"),
+                            derive::to_string(project),
+                        ));
                     }
 
                     return self.generate_call(
@@ -1407,7 +1420,7 @@ module IrCodeGenerator {
             if !self.globals.has(expr.t_record!.name) {
                 return _ or error::new(format("record not found: {}", expr.t_record!.name));
             }
-            let record_type = self.globals.at(expr.t_record!.name);
+            let record_type = self.globals.at(expr.t_record!.name).data;
 
             if record_type.t_enum != nil {
                 if expr.t_record!.fields.length != 1 {
@@ -1539,7 +1552,7 @@ module IrCodeGenerator {
 
             let expr_type = expr.t_project!.type_!;
             if expr_type.t_ident != nil && self.globals.has(expr_type.t_ident!) {
-                let ident_type = self.globals.at(expr_type.t_ident!);
+                let ident_type = self.globals.at(expr_type.t_ident!).data;
                 if ident_type.t_enum != nil {
                     let enum_type = ident_type.t_enum!;
                     let name = "enum_{}".format(self.counter.to_string());
@@ -1549,7 +1562,7 @@ module IrCodeGenerator {
                     self.counter = self.counter + 1;
 
                     let value = self.expression(expr.t_project!.expr).try;
-                    let label_index = enum_type.index(expr.t_project!.field);
+                    let label_index = enum_type.index(expr.t_project!.field.data);
                     let value_type = enum_type.fields.at(label_index).data.type_;
 
                     let enum_rep = Type {
@@ -1670,10 +1683,10 @@ module IrCodeGenerator {
             }
 
             let t = self.resolve_type_struct(expr.t_project!.type_!).try;
-            let index = t.index(expr.t_project!.field);
+            let index = t.index(expr.t_project!.field.data);
 
             return self.generate_array_at(
-                t.at(expr.t_project!.field),
+                t.at(expr.t_project!.field.data),
                 self.expression(expr.t_project!.expr).try,
                 IrTerm {
                     t_i32: index,
@@ -1755,8 +1768,9 @@ module IrCodeGenerator {
                     },
                 };
             } else {
-                return _ or error::new("make() expects a pointer or vector type, {}".format(expr.t_make!.type_.to_string(
-                )));
+                return _ or error::new(
+                    "make() expects a pointer or vector type, {}".format(expr.t_make!.type_.to_string()),
+                );
             }
         } else if expr.t_path != nil {
             if expr.t_path!.resolved_path == nil {
@@ -2416,7 +2430,7 @@ module IrCodeGenerator {
             let ident = t.t_ident!;
 
             if self.globals.has(ident) {
-                return self.resolve_type_struct(self.globals.at(ident));
+                return self.resolve_type_struct(self.globals.at(ident).data);
             } else {
                 return _ or error::new(format("unknown symbol: {}", ident));
             }

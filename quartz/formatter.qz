@@ -138,7 +138,7 @@ module Formatter {
         let fwriter = stringbuilder::new();
 
         fformatter.write(fwriter, "fun");
-        fformatter.write(fwriter, func.name);
+        fformatter.write(fwriter, func.name.data);
         fformatter.params(fwriter, func.params, func.variadic);
         if func.result_type.t_nil == nil {
             fformatter.write_no_space(fwriter, ":");
@@ -157,7 +157,7 @@ module Formatter {
             self = fformatter;
         } else {
             self.write(writer, "fun");
-            self.write(writer, func.name);
+            self.write(writer, func.name.data);
             self.params_multilines(writer, func.params, func.variadic);
             if func.result_type.t_nil == nil {
                 self.write_no_space(writer, ":");
@@ -296,18 +296,18 @@ module Formatter {
 
             let comments = self.consume_comments(statement.location.start!);
             for comment in comments {
-                if current_pos > 0 && self.need_empty_lines(current_pos, comment.position) {
+                if current_pos > 0 && self.need_empty_lines(current_pos, comment.location.start!) {
                     self.newline(writer);
                 }
 
-                if self.need_line_follow(current_pos, comment.position) {
+                if self.need_line_follow(current_pos, comment.location.start!) {
                     self.write(writer, comment.raw);
                 } else {
                     self.newline(writer);
                     self.write(writer, comment.raw);
                 }
 
-                current_pos = comment.position + comment.raw.length;
+                current_pos = comment.location.end!;
             }
 
             if current_pos > 0 && self.need_empty_lines(current_pos, statement.location.start!) {
@@ -325,35 +325,35 @@ module Formatter {
 
             let comments = self.consume_comments(statement.location.end!);
             for comment in comments {
-                if current_pos > 0 && self.need_empty_lines(current_pos, comment.position) {
+                if current_pos > 0 && self.need_empty_lines(current_pos, comment.location.start!) {
                     self.newline(writer);
                 }
 
-                if self.need_line_follow(current_pos, comment.position) {
+                if self.need_line_follow(current_pos, comment.location.start!) {
                     self.write(writer, comment.raw);
                 } else {
                     self.newline(writer);
                     self.write(writer, comment.raw);
                 }
 
-                current_pos = comment.position + comment.raw.length;
+                current_pos = comment.location.end!;
             }
         }
 
         let comments = self.consume_comments(block.location.end!);
         for comment in comments {
-            if current_pos > 0 && self.need_empty_lines(current_pos, comment.position) {
+            if current_pos > 0 && self.need_empty_lines(current_pos, comment.location.start!) {
                 self.newline(writer);
             }
 
-            if self.need_line_follow(current_pos, comment.position) {
+            if self.need_line_follow(current_pos, comment.location.start!) {
                 self.write(writer, comment.raw);
             } else {
                 self.newline(writer);
                 self.write(writer, comment.raw);
             }
 
-            current_pos = comment.position + comment.raw.length;
+            current_pos = comment.location.end!;
         }
 
         self.depth = self.depth - 1;
@@ -426,7 +426,9 @@ module Formatter {
         }
     }
 
-    fun pattern(self, writer: stringbuilder, pattern: Pattern) {
+    fun pattern(self, writer: stringbuilder, lpattern: LPattern) {
+        let pattern = lpattern.data;
+
         if pattern.t_ident != nil {
             self.write(writer, pattern.t_ident!);
         } else if pattern.t_or != nil {
@@ -546,7 +548,7 @@ module Formatter {
         } else if expr.t_project != nil {
             self.expr(writer, expr.t_project!.expr, skip_space);
             self.write_no_space(writer, ".");
-            self.write_no_space(writer, expr.t_project!.field);
+            self.write_no_space(writer, expr.t_project!.field.data);
         } else if expr.t_make != nil {
             self.write_if(writer, "make", skip_space);
             self.write_no_space(writer, "[");
@@ -691,20 +693,8 @@ module Formatter {
                     skip_space: false,
                 },
             );
-        } else if type_.t_bool != nil {
-            self.write_if(writer, "bool", options.skip_space);
-        } else if type_.t_i32 != nil {
-            self.write_if(writer, "i32", options.skip_space);
-        } else if type_.t_u32 != nil {
-            self.write_if(writer, "u32", options.skip_space);
-        } else if type_.t_byte != nil {
-            self.write_if(writer, "byte", options.skip_space);
-        } else if type_.t_nil != nil {
-            self.write_if(writer, "nil", options.skip_space);
-        } else if type_.t_any != nil {
-            self.write_if(writer, "any", options.skip_space);
         } else {
-            panic("unknown type: {}", derive::to_string(type_));
+            self.write_if(writer, type_.to_string(), options.skip_space);
         }
     }
 
@@ -813,7 +803,7 @@ module Formatter {
 
     fun consume_comments(self, start: i32): vec[Token] {
         let comments = make[vec[Token]]();
-        while self.comment_position < self.comments.length && self.comments.at(self.comment_position).position <= start {
+        while self.comment_position < self.comments.length && self.comments.at(self.comment_position).location.start! <= start {
             comments.push(self.comments.at(self.comment_position));
             self.comment_position = self.comment_position + 1;
         }

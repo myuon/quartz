@@ -31,11 +31,17 @@ run_wat:
 test_compiler:
   cargo run --release -- run ./quartz/main.qz --entrypoint test
 
-install:
+install_legacy:
   cargo build --release && cp target/release/quartz ~/.local/bin
+
+install:
+  ln -s $(pwd)/quartzcli ~/.local/bin/quartz
 
 fuzztest:
   cd fuzz && cargo afl build --release && cargo afl fuzz -i in -o out target/release/fuzz_target_1
 
 test_self_compile:
   just build_gen1 && just build_gen2 && just build_gen3 && diff ./build/gen2.wat ./build/gen3.wat
+
+quartz:
+  MODE=run-wat WAT_FILE=./build/gen2.wat cargo run --quiet --release

@@ -26,7 +26,11 @@ const execAsync = async (command: string) => {
   globalControllers.push(controller);
 
   setTimeout(() => {
-    controller.abort();
+    try {
+      controller.abort();
+    } catch (err) {
+      console.log(`Aborted: ${err}`);
+    }
   }, 10000);
 
   const child = await execAsync_(command, { signal });
@@ -121,33 +125,37 @@ connection.onDefinition(async (params) => {
   const cargo = await execAsync(command);
 
   if (cargo.stdout) {
-    const result = JSON.parse(cargo.stdout) as {
-      file: string;
-      start: {
-        line: number;
-        column: number;
+    try {
+      const result = JSON.parse(cargo.stdout) as {
+        file: string;
+        start: {
+          line: number;
+          column: number;
+        };
+        end: {
+          line: number;
+          column: number;
+        };
       };
-      end: {
-        line: number;
-        column: number;
-      };
-    };
 
-    return [
-      {
-        uri: `file://${result.file}`,
-        range: {
-          start: {
-            line: result.start.line,
-            character: result.start.column,
-          },
-          end: {
-            line: result.end.line,
-            character: result.end.column,
+      return [
+        {
+          uri: `file://${result.file}`,
+          range: {
+            start: {
+              line: result.start.line,
+              character: result.start.column,
+            },
+            end: {
+              line: result.end.line,
+              character: result.end.column,
+            },
           },
         },
-      },
-    ];
+      ];
+    } catch (err) {
+      console.log(err);
+    }
   }
 
   return null;
@@ -170,25 +178,29 @@ connection.onCompletion(async (params) => {
     `${command} --stdin << 'EOF'\n${currentContent}\nEOF\n`
   );
   if (cargo.stdout) {
-    const result = JSON.parse(cargo.stdout) as {
-      items: {
-        kind: "function" | "field" | "keyword";
-        label: string;
-        detail: string;
-      }[];
-    };
-    const kindMap = {
-      function: CompletionItemKind.Function,
-      field: CompletionItemKind.Field,
-      keyword: CompletionItemKind.Keyword,
-    };
+    try {
+      const result = JSON.parse(cargo.stdout) as {
+        items: {
+          kind: "function" | "field" | "keyword";
+          label: string;
+          detail: string;
+        }[];
+      };
+      const kindMap = {
+        function: CompletionItemKind.Function,
+        field: CompletionItemKind.Field,
+        keyword: CompletionItemKind.Keyword,
+      };
 
-    return result.items.map((item) => ({
-      label: item.label,
-      insertText: item.kind === "function" ? `${item.label}()` : item.label,
-      kind: kindMap[item.kind],
-      detail: item.detail,
-    }));
+      return result.items.map((item) => ({
+        label: item.label,
+        insertText: item.kind === "function" ? `${item.label}()` : item.label,
+        kind: kindMap[item.kind],
+        detail: item.detail,
+      }));
+    } catch (err) {
+      console.log(err);
+    }
   }
 
   return undefined;

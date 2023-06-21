@@ -8,6 +8,7 @@ struct Parser {
     input: vec[Token],
     omit_index: i32,
     imports: vec[Path],
+    skip_errors: bool,
 }
 
 module Parser {
@@ -17,10 +18,12 @@ module Parser {
             input: make[vec[Token]](),
             omit_index: 0,
             imports: make[vec[Path]](),
+            skip_errors: false,
         };
     }
 
-    fun run(self, input: vec[Token]): Module or error {
+    fun run(self, input: vec[Token], skip_errors: bool): Module or error {
+        self.skip_errors = skip_errors;
         self.input = make[vec[Token]]();
         for token in input {
             if !token.lexeme.equal("comment") {
@@ -32,9 +35,22 @@ module Parser {
 
     fun module_(self): Module or error {
         let decls = make[vec[LDecl]]();
+        let prev = 0;
 
         while !self.is_end() && !self.peek().lexeme.equal("rbrace") {
-            decls.push(self.decl().try);
+            let position = self.position;
+            let result or err = self.decl();
+            if result != nil || !self.skip_errors {
+                if err != nil {
+                    return _ or err!;
+                }
+
+                decls.push(result!);
+            } else if self.position == prev {
+                return _ or error::new("Infinite loop detected");
+            }
+
+            prev = self.position;
         }
 
         return Module {
@@ -153,17 +169,17 @@ module Parser {
 
         while !self.peek().lexeme.equal("rbrace") {
             let name = self.ident().try;
-            let colon_token = self.expect("colon").try;
+            self.expect("colon").try;
             let t = self.type_().try;
 
             fields.push(struct {
                 data: struct {
                     name: name.data,
-                    type_: t,
+                    type_: t.data,
                 },
                 location: Location {
-                    start: name.position?,
-                    end: self.location_from_token(colon_token)?,
+                    start: name.location.start,
+                    end: t.location.end,
                 },
             });
 
@@ -212,17 +228,17 @@ module Parser {
 
         while !self.peek().lexeme.equal("rbrace") {
             let name = self.ident().try;
-            let colon_token = self.expect("colon").try;
+            self.expect("colon").try;
             let t = self.type_().try;
 
             fields.push(struct {
                 data: struct {
                     name: name.data,
-                    type_: t,
+                    type_: t.data,
                 },
                 location: Location {
-                    start: name.position?,
-                    end: self.location_from_token(colon_token)?,
+                    start: name.location.start,
+                    end: t.location.end,
                 },
             });
 
@@ -286,7 +302,7 @@ module Parser {
         };
         if self.peek().lexeme.equal("colon") {
             self.expect("colon").try;
-            t = self.type_().try;
+            t = self.type_().try.data;
         }
 
         self.expect("equal").try;
@@ -320,21 +336,21 @@ module Parser {
         };
         if self.peek().lexeme.equal("colon") {
             self.consume();
-            result_type = self.type_().try;
+            result_type = self.type_().try.data;
         }
 
         let body = self.block().try;
 
         return struct {
             data: Function {
-                name: name.data,
+                name: name,
                 result_type: result_type,
                 body: body,
                 params: params.params,
                 variadic: params.variadic,
             },
             location: Location {
-                start: self.location_from_token(start_token)?,
+                start: start_token.location.start,
                 end: body.location.end,
             },
         };
@@ -378,7 +394,7 @@ module Parser {
 
                 variadic = struct {
                     name: name.data,
-                    type_: t,
+                    type_: t.data,
                 }?;
             } else {
                 let name = self.ident().try;
@@ -387,7 +403,7 @@ module Parser {
 
                 params.push(struct {
                     name: name.data,
-                    type_: t,
+                    type_: t.data,
                 });
             }
 
@@ -402,23 +418,32 @@ module Parser {
         };
     }
 
-    fun type_(self): Type or error {
+    fun type_(self): LType or error {
         let current = self.type_primitive().try;
         if self.peek().lexeme.equal("question") {
             self.expect("question").try;
 
-            return Type {
-                t_optional: current,
+            return LType {
+                data: Type {
+                    t_optional: current.data,
+                },
+                location: current.location,
             };
         }
         if self.peek().lexeme.equal("or") {
             self.expect("or").try;
             let t = self.type_().try;
 
-            return Type {
-                t_or: struct {
-                    left: current,
-                    right: t,
+            return LType {
+                data: Type {
+                    t_or: struct {
+                        left: current.data,
+                        right: t.data,
+                    },
+                },
+                location: Location {
+                    start: current.location.start,
+                    end: t.location.end,
                 },
             };
         }
@@ -426,65 +451,92 @@ module Parser {
         return current;
     }
 
-    fun type_primitive(self): Type or error {
+    fun type_primitive(self): LType or error {
         let token = self.consume();
         if token.lexeme.equal("ident") {
             if token.string_value!.equal("i32") {
-                return Type {
-                    t_i32: true,
+                return LType {
+                    data: Type {
+                        t_i32: true,
+                    },
+                    location: token.location,
                 };
             } else if token.string_value!.equal("u32") {
-                return Type {
-                    t_u32: true,
+                return LType {
+                    data: Type {
+                        t_u32: true,
+                    },
+                    location: token.location,
                 };
             } else if token.string_value!.equal("byte") {
-                return Type {
-                    t_byte: true,
+                return LType {
+                    data: Type {
+                        t_byte: true,
+                    },
+                    location: token.location,
                 };
             } else if token.string_value!.equal("bool") {
-                return Type {
-                    t_bool: true,
+                return LType {
+                    data: Type {
+                        t_bool: true,
+                    },
+                    location: token.location,
                 };
             } else if token.string_value!.equal("ptr") {
-                self.expect("lbracket").try;
+                let start_token = self.expect("lbracket").try;
                 let t = self.type_().try;
-                self.expect("rbracket").try;
+                let end_token = self.expect("rbracket").try;
 
-                return Type {
-                    t_ptr: t,
+                return LType {
+                    data: Type {
+                        t_ptr: t.data,
+                    },
+                    location: self.span_location(start_token, end_token),
                 };
             } else if token.string_value!.equal("vec") {
-                self.expect("lbracket").try;
+                let start_token = self.expect("lbracket").try;
                 let t = self.type_().try;
-                self.expect("rbracket").try;
+                let end_token = self.expect("rbracket").try;
 
-                return Type {
-                    t_vec: t,
+                return LType {
+                    data: Type {
+                        t_vec: t.data,
+                    },
+                    location: self.span_location(start_token, end_token),
                 };
             } else if token.string_value!.equal("any") {
-                return Type {
-                    t_any: true,
+                return LType {
+                    data: Type {
+                        t_any: true,
+                    },
+                    location: token.location,
                 };
             } else if token.string_value!.equal("map") {
-                self.expect("lbracket").try;
+                let start_token = self.expect("lbracket").try;
                 let key = self.type_().try;
                 self.expect("comma").try;
                 let value = self.type_().try;
-                self.expect("rbracket").try;
+                let end_token = self.expect("rbracket").try;
 
-                return Type {
-                    t_map: struct {
-                        key: key,
-                        value: value,
+                return LType {
+                    data: Type {
+                        t_map: struct {
+                            key: key.data,
+                            value: value.data,
+                        },
                     },
+                    location: self.span_location(start_token, end_token),
                 };
             }
 
-            return Type {
-                t_ident: token.string_value!,
+            return LType {
+                data: Type {
+                    t_ident: token.string_value!,
+                },
+                location: token.location,
             };
         } else if token.lexeme.equal("struct") {
-            self.expect("lbrace").try;
+            let start_token = self.expect("lbrace").try;
 
             let fields = make[vec[struct {
                 data: struct {
@@ -496,17 +548,17 @@ module Parser {
 
             while !self.peek().lexeme.equal("rbrace") {
                 let name = self.ident().try;
-                let colon_token = self.expect("colon").try;
+                self.expect("colon").try;
                 let t = self.type_().try;
 
                 fields.push(struct {
                     data: struct {
                         name: name.data,
-                        type_: t,
+                        type_: t.data,
                     },
                     location: Location {
-                        start: name.position?,
-                        end: self.location_from_token(colon_token)?,
+                        start: name.location.start,
+                        end: t.location.end,
                     },
                 });
 
@@ -517,16 +569,22 @@ module Parser {
                 }
             }
 
-            self.expect("rbrace").try;
+            let end_token = self.expect("rbrace").try;
 
-            return Type {
-                t_struct: TypeStruct {
-                    fields: fields,
+            return LType {
+                data: Type {
+                    t_struct: TypeStruct {
+                        fields: fields,
+                    },
                 },
+                location: self.span_location(start_token, end_token),
             };
         } else if token.lexeme.equal("nil") {
-            return Type {
-                t_nil: true,
+            return LType {
+                data: Type {
+                    t_nil: true,
+                },
+                location: token.location,
             };
         } else {
             return _ or error::new(format("Expected type, got {}", token.to_string()));
@@ -548,17 +606,14 @@ module Parser {
         return token;
     }
 
-    fun ident(
-        self,
-    ): struct {
-        data: string,
-        position: i32,
-    } or error {
-        let token = self.consume();
+    fun ident(self): Ident or error {
+        let token = self.peek();
         if token.lexeme.equal("ident") {
-            return struct {
+            self.consume();
+
+            return Ident {
                 data: token.string_value!,
-                position: token.position,
+                location: token.location,
             };
         } else {
             return _ or error::new(format("Expected IDENT, got {}", derive::to_string(token)));
@@ -586,11 +641,22 @@ module Parser {
     fun block(self): LBlock or error {
         let statements = make[vec[LStatement]]();
 
+        let prev = 0;
         let start_token = self.expect("lbrace").try;
 
         while !self.is_end() && !self.peek().lexeme.equal("rbrace") {
-            let s = self.statement().try;
-            statements.push(s);
+            let result or err = self.statement();
+            if result != nil || !self.skip_errors {
+                if err != nil {
+                    return _ or err!;
+                }
+
+                statements.push(result!);
+            } else if self.position == prev {
+                return _ or error::new("Infinite loop deteted");
+            }
+
+            prev = self.position;
         }
 
         let end_token = self.expect("rbrace").try;
@@ -649,7 +715,7 @@ module Parser {
                     },
                 },
                 location: Location {
-                    start: self.location_from_token(start_token)?,
+                    start: start_token.location.start,
                     end: end_position?,
                 },
             };
@@ -667,7 +733,7 @@ module Parser {
                     },
                 },
                 location: Location {
-                    start: self.location_from_token(start_token)?,
+                    start: start_token.location.start,
                     end: block.location.end,
                 },
             };
@@ -691,7 +757,7 @@ module Parser {
                     },
                 },
                 location: Location {
-                    start: self.location_from_token(start_token)?,
+                    start: start_token.location.start,
                     end: body.location.end,
                 },
             };
@@ -747,8 +813,20 @@ module Parser {
                 },
                 location: Location {
                     start: expr.location.start,
-                    end: self.location_from_token(end_token)?,
+                    end: end_token.location.end,
                 },
+            };
+        }
+
+        // Mainly for dot completion
+        if self.skip_errors {
+            return LStatement {
+                data: Statement {
+                    t_expr: struct {
+                        expr: expr,
+                    },
+                },
+                location: expr.location,
             };
         }
 
@@ -768,7 +846,7 @@ module Parser {
         };
         if self.peek().lexeme.equal("colon") {
             self.expect("colon").try;
-            t = self.type_().try;
+            t = self.type_().try.data;
         }
 
         self.expect("equal").try;
@@ -787,25 +865,34 @@ module Parser {
         };
     }
 
-    fun pattern(self): Pattern or error {
-        let current = Pattern {
-            t_omit: true?,
-            ..nil,
+    fun pattern(self): LPattern or error {
+        let current = LPattern {
+            data: Pattern {
+                t_omit: true?,
+                ..nil,
+            },
+            location: Location::unknown(),
         };
 
         if self.peek().lexeme.equal("underscore") {
-            self.consume();
+            let token = self.consume();
 
-            current = Pattern {
-                t_omit: true?,
-                ..nil,
+            current = LPattern {
+                data: Pattern {
+                    t_omit: true?,
+                    ..nil,
+                },
+                location: token.location,
             };
         } else {
             let name = self.ident().try;
 
-            current = Pattern {
-                t_ident: name.data?,
-                ..nil,
+            current = LPattern {
+                data: Pattern {
+                    t_ident: name.data?,
+                    ..nil,
+                },
+                location: name.location,
             };
         }
 
@@ -813,12 +900,18 @@ module Parser {
             self.consume();
             let rhs = self.pattern().try;
 
-            return Pattern {
-                t_or: struct {
-                    lhs: current,
-                    rhs: rhs,
-                }?,
-                ..nil,
+            return LPattern {
+                data: Pattern {
+                    t_or: struct {
+                        lhs: current,
+                        rhs: rhs,
+                    }?,
+                    ..nil,
+                },
+                location: Location {
+                    start: current.location.start,
+                    end: rhs.location.end,
+                },
             };
         } else {
             return current;
@@ -1152,12 +1245,12 @@ module Parser {
                             source_type: Type {
                                 t_omit: true,
                             },
-                            target_type: t,
+                            target_type: t.data,
                         },
                     },
                     location: Location {
                         start: current.location.start,
-                        end: self.location_from_token(end_token)?,
+                        end: end_token.location.end,
                     },
                 };
                 continue;
@@ -1359,41 +1452,19 @@ module Parser {
                     },
                     location: Location {
                         start: current.location.start,
-                        end: self.location_from_token(end_token)?,
+                        end: end_token.location.end,
                     },
                 };
             } else if token.lexeme.equal("dot") {
                 self.expect("dot").try;
 
-                if self.peek().lexeme.equal("try") {
-                    let end_token = self.expect("try").try;
+                let result or err = self.dot_after(current);
+                if result != nil || !self.skip_errors {
+                    if err != nil {
+                        return _ or err!;
+                    }
 
-                    current = LExpression {
-                        data: Expression {
-                            t_try: current,
-                        },
-                        location: Location {
-                            start: current.location.start,
-                            end: self.location_from_token(end_token)?,
-                        },
-                    };
-                } else {
-                    let field = self.ident().try;
-
-                    current = LExpression {
-                        data: Expression {
-                            t_project: struct {
-                                expr: current,
-                                field: field.data,
-                                type_: nil as Type?,
-                                resolved_path: nil,
-                            },
-                        },
-                        location: Location {
-                            start: current.location.start,
-                            end: field.position?,
-                        },
-                    };
+                    current = result!;
                 }
             } else if with_struct && token.lexeme.equal("lbrace") {
                 self.expect("lbrace").try;
@@ -1449,7 +1520,7 @@ module Parser {
                     },
                     location: Location {
                         start: current.location.start,
-                        end: self.location_from_token(end_token)?,
+                        end: end_token.location.end,
                     },
                 };
             } else if token.lexeme.equal("lbracket") {
@@ -1483,25 +1554,25 @@ module Parser {
                     current = LExpression {
                         data: Expression {
                             t_make: struct {
-                                type_: t,
+                                type_: t.data,
                                 args: args,
                             },
                         },
                         location: Location {
                             start: current.location.start,
-                            end: self.location_from_token(end_token)?,
+                            end: end_token.location.end,
                         },
                     };
                 } else if ident.equal("sizeof") {
                     current = LExpression {
                         data: Expression {
                             t_sizeof: struct {
-                                type_: t,
+                                type_: t.data,
                             },
                         },
                         location: Location {
                             start: current.location.start,
-                            end: self.location_from_token(end_token)?,
+                            end: end_token.location.end,
                         },
                     };
                 } else {
@@ -1531,7 +1602,7 @@ module Parser {
                     },
                     location: Location {
                         start: current.location.start,
-                        end: name.position?,
+                        end: name.location.end,
                     },
                 };
             } else if token.lexeme.equal("bang") {
@@ -1548,7 +1619,7 @@ module Parser {
                     },
                     location: Location {
                         start: current.location.start,
-                        end: self.location_from_token(end_token)?,
+                        end: end_token.location.end,
                     },
                 };
             } else if token.lexeme.equal("question") {
@@ -1565,7 +1636,7 @@ module Parser {
                     },
                     location: Location {
                         start: current.location.start,
-                        end: self.location_from_token(end_token)?,
+                        end: end_token.location.end,
                     },
                 };
             } else {
@@ -1587,10 +1658,7 @@ module Parser {
                         resolved_path: nil,
                     },
                 },
-                location: Location {
-                    start: name.position?,
-                    end: (name.position + name.data.length)?,
-                },
+                location: name.location,
             };
         }
         if self.peek().lexeme.equal("number") {
@@ -1602,10 +1670,7 @@ module Parser {
                             value: i32::parse(token.string_value!),
                         },
                     },
-                    location: Location {
-                        start: token.position?,
-                        end: (token.position + token.string_value!.length)?,
-                    },
+                    location: token.location,
                 };
             } else if token.string_value!.compare_lte("4294967295") {
                 return LExpression {
@@ -1614,10 +1679,7 @@ module Parser {
                             value: u32::parse(token.string_value!),
                         },
                     },
-                    location: Location {
-                        start: token.position?,
-                        end: (token.position + token.string_value!.length)?,
-                    },
+                    location: token.location,
                 };
             } else {
                 return _ or error::new(format("Invalid number {}", token.string_value!));
@@ -1630,10 +1692,7 @@ module Parser {
                 data: Expression {
                     t_self: true,
                 },
-                location: Location {
-                    start: token.position?,
-                    end: (token.position + token.string_value!.length)?,
-                },
+                location: token.location,
             };
         }
         if self.peek().lexeme.equal("string") {
@@ -1646,10 +1705,7 @@ module Parser {
                         raw: token.raw,
                     },
                 },
-                location: Location {
-                    start: token.position?,
-                    end: (token.position + token.string_value!.length)?,
-                },
+                location: token.location,
             };
         }
         if self.peek().lexeme.equal("raw_string") {
@@ -1662,10 +1718,7 @@ module Parser {
                         raw: token.raw,
                     },
                 },
-                location: Location {
-                    start: token.position?,
-                    end: (token.position + token.string_value!.length)?,
-                },
+                location: token.location,
             };
         }
         if self.peek().lexeme.equal("lparen") {
@@ -1695,7 +1748,7 @@ module Parser {
                     },
                 },
                 location: Location {
-                    start: start_token.position?,
+                    start: start_token.location.start,
                     end: expr.location.end,
                 },
             };
@@ -1707,10 +1760,7 @@ module Parser {
                 data: Expression {
                     t_bool: true,
                 },
-                location: Location {
-                    start: token.position?,
-                    end: (token.position + token.string_value!.length)?,
-                },
+                location: token.location,
             };
         }
         if self.peek().lexeme.equal("false") {
@@ -1720,10 +1770,7 @@ module Parser {
                 data: Expression {
                     t_bool: false,
                 },
-                location: Location {
-                    start: token.position?,
-                    end: (token.position + token.string_value!.length)?,
-                },
+                location: token.location,
             };
         }
         if self.peek().lexeme.equal("nil") {
@@ -1733,10 +1780,7 @@ module Parser {
                 data: Expression {
                     t_nil: true,
                 },
-                location: Location {
-                    start: token.position?,
-                    end: (token.position + token.string_value!.length)?,
-                },
+                location: token.location,
             };
         }
         if self.peek().lexeme.equal("struct") {
@@ -1762,7 +1806,7 @@ module Parser {
                         value: value,
                     },
                     location: Location {
-                        start: ident.position?,
+                        start: ident.location.start,
                         end: value.location.end,
                     },
                 });
@@ -1792,24 +1836,50 @@ module Parser {
                 data: Expression {
                     t_omit: true,
                 },
-                location: Location {
-                    start: token.position?,
-                    end: (token.position + token.string_value!.length)?,
-                },
+                location: token.location,
             };
         }
 
         return _ or error::new(format("Unexpected token {} (term)", self.peek().lexeme.to_string()));
     }
 
-    fun location_from_token(self, token: Token): i32 {
-        return token.position;
+    fun dot_after(self, current: LExpression): LExpression or error {
+        if self.peek().lexeme.equal("try") {
+            let end_token = self.expect("try").try;
+
+            return LExpression {
+                data: Expression {
+                    t_try: current,
+                },
+                location: Location {
+                    start: current.location.start,
+                    end: end_token.location.end,
+                },
+            };
+        }
+
+        let field = self.ident().try;
+
+        return LExpression {
+            data: Expression {
+                t_project: struct {
+                    expr: current,
+                    field: field,
+                    type_: nil as Type?,
+                    resolved_path: nil,
+                },
+            },
+            location: Location {
+                start: current.location.start,
+                end: field.location.end,
+            },
+        };
     }
 
     fun span_location(self, start: Token, end: Token): Location {
         return Location {
-            start: start.position?,
-            end: end.position?,
+            start: start.location.start,
+            end: end.location.end,
         };
     }
 }

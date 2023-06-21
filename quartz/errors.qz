@@ -1,0 +1,8 @@
+import quartz::path;
+import quartz::location;
+
+struct ErrorSource {
+    path: Path,
+    location: Location,
+}
+

@@ -513,22 +513,40 @@ module string {
         let result = make[vec[string]]();
         let n = 0;
 
-        while n <= self.length - sep.length {
-            if is_prefix(self, n, sep) {
-                result.push(self.slice(0, n));
-                n = n + sep.length;
+        while n < self.length {
+            let m = self.slice_start(n).find_first(sep);
+            if m == nil {
+                result.push(self.slice(n, self.length));
+                return result;
             } else {
-                n = n + 1;
+                result.push(self.slice(n, n + m!));
+                n = n + m! + sep.length;
             }
         }
-
-        result.push(self.slice_start(n));
 
         return result;
     }
 
     fun lines(self): vec[string] {
         return self.split("\n");
+    }
+
+    fun line_counts(self): vec[i32] {
+        let result = make[vec[i32]]();
+        let n = 0;
+
+        while n < self.length {
+            let m = self.slice_start(n).find_first("\n");
+            if m == nil {
+                result.push(self.length - n);
+                return result;
+            } else {
+                result.push(m!);
+                n = n + m! + 1;
+            }
+        }
+
+        return result;
     }
 
     fun escape_with(self, char: byte): string {
@@ -572,6 +590,10 @@ module string {
 
     fun escape_raw(self): string {
         return self.escape_with(96 as byte);
+    }
+
+    fun starts_with(self, prefix: string): bool {
+        return is_prefix(self, 0, prefix);
     }
 }
 
@@ -805,12 +827,21 @@ fun alloc(size: i32): ptr[any] {
 
 struct error {
     message: string,
+    detail: any,
 }
 
 module error {
     fun new(message: string): error {
         return error {
             message: message,
+            detail: nil as any,
+        };
+    }
+
+    fun detail(message: string, detail: any): error {
+        return error {
+            message: message,
+            detail: detail,
         };
     }
 }

@@ -2,7 +2,7 @@
   "name": "quartz-mode",
   "displayName": "quartz-mode",
   "description": "",
-  "version": "0.5.1",
+  "version": "0.5.4",
   "engines": {
     "vscode": "^1.76.0"
   },
