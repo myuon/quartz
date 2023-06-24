@@ -358,6 +358,18 @@ fun main() {
 
         let result or err = run(input, path, entrypoint);
         if err != nil {
+            println("Error: {}", err!.message);
+            for detail in err!.detail {
+                let detail_type = reflection::get_type_rep(detail);
+                if detail_type.name.equal("ErrorSource") {
+                    let source = detail as ErrorSource;
+                    println("  {} at {}", derive::to_string(source.location), source.path.join("::"));
+                } else {
+                    println("  {}", derive::to_string(detail));
+                }
+            }
+            println("");
+
             panic(err!.message);
         }
 
@@ -415,13 +427,15 @@ fun main() {
         let path = Path::new("main");
 
         let compiler = Compiler::new();
-        let result or err = compiler.check(input, path);
-        if err != nil {
+        let errs = compiler.check(input, path);
+
+        let result = make[vec[Json]]();
+        for err in errs {
             let message = make[map[string, Json]]();
             message.insert(
                 "message",
                 Json {
-                    t_string: err!.message,
+                    t_string: err.message,
                 },
             );
             message.insert(
@@ -429,10 +443,10 @@ fun main() {
                 Json {
                     t_array: make[vec[Json]](
                         Json {
-                            t_i32: 0,
+                            t_i32: err.start.line,
                         },
                         Json {
-                            t_i32: 0,
+                            t_i32: err.start.column,
                         },
                     ),
                 },
@@ -442,24 +456,23 @@ fun main() {
                 Json {
                     t_array: make[vec[Json]](
                         Json {
-                            t_i32: 0,
+                            t_i32: err.end.line,
                         },
                         Json {
-                            t_i32: 0,
+                            t_i32: err.end.column,
                         },
                     ),
                 },
             );
 
-            println(Json {
-                t_array: make[vec[Json]](Json {
-                    t_object: message,
-                }),
-            }.to_string());
-            return;
+            result.push(Json {
+                t_object: message,
+            });
         }
 
-        println("[]");
+        println(Json {
+            t_array: result,
+        }.to_string());
     } else if command.check_type != nil {
         let check_type = command.check_type!;
 

@@ -109,7 +109,28 @@ module Compiler {
         let module_ = self.parse(input, nil, skip_errors).try;
 
         let typechecker = Typechecker::new();
-        typechecker.run(module_, main_path).try;
+        let n or err = typechecker.run(module_, main_path);
+        if err != nil {
+            let err_internal = err!;
+
+            for detail in err!.detail {
+                let detail_type = reflection::get_type_rep(detail);
+                if detail_type.name.equal("ErrorSource") {
+                    let source = detail as ErrorSource;
+
+                    let start_position = find_position(input, source.location.start!);
+                    let end_position = find_position(input, source.location.end!);
+
+                    err_internal = err_internal.context(struct {
+                        path: source.path,
+                        start: start_position,
+                        end: end_position,
+                    });
+                }
+            }
+
+            return _ or err_internal;
+        }
 
         let irgen = IrCodeGenerator::new();
         irgen.globals = typechecker.globals;
@@ -128,13 +149,111 @@ module Compiler {
         return code;
     }
 
-    fun check(self, input: string, path: Path): nil or error {
-        let module_ = self.parse(input, nil, true).try;
+    fun check(
+        self,
+        input: string,
+        path: Path,
+    ): vec[struct {
+        start: struct {
+            line: i32,
+            column: i32,
+        },
+        end: struct {
+            line: i32,
+            column: i32,
+        },
+        message: string,
+    }] {
+        let module_ or err = self.parse(input, nil, true);
+        if err != nil {
+            return make[vec[struct {
+                start: struct {
+                    line: i32,
+                    column: i32,
+                },
+                end: struct {
+                    line: i32,
+                    column: i32,
+                },
+                message: string,
+            }]](struct {
+                start: struct {
+                    line: 0,
+                    column: 0,
+                },
+                end: struct {
+                    line: 0,
+                    column: 0,
+                },
+                message: err!.message,
+            });
+        }
 
         let typechecker = Typechecker::new();
-        typechecker.run(module_, path).try;
+        let n or err = typechecker.run(module_!, path);
+        if err == nil {
+            return make[vec[struct {
+                start: struct {
+                    line: i32,
+                    column: i32,
+                },
+                end: struct {
+                    line: i32,
+                    column: i32,
+                },
+                message: string,
+            }]]();
+        }
 
-        return nil;
+        let err_internal = err!;
+
+        for detail in err!.detail {
+            let detail_type = reflection::get_type_rep(detail);
+            if detail_type.name.equal("ErrorSource") {
+                let source = detail as ErrorSource;
+
+                let start_position = find_position(input, source.location.start!);
+                let end_position = find_position(input, source.location.end!);
+
+                return make[vec[struct {
+                    start: struct {
+                        line: i32,
+                        column: i32,
+                    },
+                    end: struct {
+                        line: i32,
+                        column: i32,
+                    },
+                    message: string,
+                }]](struct {
+                    start: start_position,
+                    end: end_position,
+                    message: err!.message,
+                });
+            }
+        }
+
+        return make[vec[struct {
+            start: struct {
+                line: i32,
+                column: i32,
+            },
+            end: struct {
+                line: i32,
+                column: i32,
+            },
+            message: string,
+        }]](struct {
+            start: struct {
+                line: 0,
+                column: 0,
+            },
+            end: struct {
+                line: 0,
+                column: 0,
+            },
+            message: err!.message,
+        });
     }
 
     fun check_type(self, filepath: string, input: string, line: i32, column: i32): string or error {
