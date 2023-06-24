@@ -540,12 +540,10 @@ module Typechecker {
             let result or err = self.decl(d);
             if result != nil || self.search_node == nil {
                 if err != nil {
-                    return _ or err!.context(
-                        ErrorSource {
-                            path: self.current_path,
-                            location: d.location,
-                        }
-                    );
+                    return _ or err!.context(ErrorSource {
+                        path: self.current_path,
+                        location: d.location,
+                    });
                 }
             }
         }
@@ -1113,7 +1111,10 @@ module Typechecker {
                 return t.data;
             }
 
-            return _ or error::new("unbound identifier: {}".format(expr.t_ident!.name));
+            return _ or error::new("unbound identifier: {}".format(expr.t_ident!.name)).context(ErrorSource {
+                path: self.current_path,
+                location: lexpr.location,
+            });
         } else if expr.t_call != nil {
             let callee_type = self.expression(expr.t_call!.callee).try;
             if callee_type.t_func != nil {
@@ -1122,7 +1123,10 @@ module Typechecker {
                     return _ or error::new("wrong number of arguments, {} != {}".format(
                         derive::to_string(func_type.params),
                         derive::to_string(expr.t_call!.args),
-                    ));
+                    )).context(ErrorSource {
+                        path: self.current_path,
+                        location: expr.t_call!.callee.location,
+                    });
                 }
 
                 for i in 0..expr.t_call!.args.length {
@@ -1143,7 +1147,10 @@ module Typechecker {
                     return _ or error::new("wrong number of arguments, {} != {}".format(
                         derive::to_string(func_type.params),
                         derive::to_string(expr.t_call!.args),
-                    ));
+                    )).context(ErrorSource {
+                        path: self.current_path,
+                        location: expr.t_call!.callee.location,
+                    });
                 }
 
                 let variadic_type = callee_type.t_variadic_func!.variadic.t_vec!;
