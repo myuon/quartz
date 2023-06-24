@@ -426,32 +426,41 @@ module Typechecker {
                 data: Type {
                     t_func: struct {
                         params: make[vec[Type]](
+                            // dirfd
                             Type {
                                 t_i32: true,
                             },
+                            // dirflags
                             Type {
                                 t_i32: true,
                             },
+                            // path
                             Type {
                                 t_ptr: Type {
                                     t_byte: true,
                                 },
                             },
+                            // path_len
                             Type {
                                 t_i32: true,
                             },
+                            // o_flags
                             Type {
                                 t_i32: true,
                             },
+                            // fs_rights_base
                             Type {
                                 t_i32: true,
                             },
+                            // fs_rights_inheriting
                             Type {
                                 t_i32: true,
                             },
+                            // fs_flags
                             Type {
                                 t_i32: true,
                             },
+                            // *fd
                             Type {
                                 t_ptr: Type {
                                     t_i32: true,
@@ -466,24 +475,6 @@ module Typechecker {
                 location: Location::unknown(),
             },
         );
-        // dirfd
-
-        // dirflags
-
-        // path
-
-        // path_len
-
-        // o_flags
-
-        // fs_rights_base
-
-        // fs_rights_inheriting
-
-        // fs_flags
-
-        // *fd
-
         globals.insert(
             "_fd_close",
             LType {
@@ -1000,12 +991,10 @@ module Typechecker {
                 if !t1.is_integer_type() {
                     return _ or error::new(
                         "left operand must be integer type, but got {}".format(t1.to_string()),
-                    ).context(
-                        ErrorSource {
-                            path: self.current_path,
-                            location: expr.t_binop!.left.location,
-                        },
-                    );
+                    ).context(ErrorSource {
+                        path: self.current_path,
+                        location: expr.t_binop!.left.location,
+                    });
                 }
 
                 let t2 = self.expression(expr.t_binop!.right).try;

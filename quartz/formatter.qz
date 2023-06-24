@@ -512,11 +512,15 @@ module Formatter {
 
             self.expr(writer, expr.t_binop!.right, false);
         } else if expr.t_record != nil {
+            self.restore_comments(lexpr.location.start!, writer);
+
             self.write_if(writer, expr.t_record!.name, skip_space);
             self.write(writer, "{");
             self.newline(writer);
             self.depth = self.depth + 1;
             for field in expr.t_record!.fields {
+                self.restore_comments(field.value.location.start!, writer);
+
                 self.write(writer, field.field);
                 self.write_no_space(writer, ":");
                 self.expr(writer, field.value, false);
