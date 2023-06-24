@@ -1644,7 +1644,7 @@ module Parser {
             }
         }
 
-        return _ or error::new("unreachable");
+        return panic("unreachable");
     }
 
     fun term_0_1(self, with_struct: bool): LExpression or error {
