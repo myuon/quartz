@@ -49,3 +49,7 @@ quartz:
 download version:
 	@echo "Downloading version {{version}}"
 	@wget -P ./build https://github.com/myuon/quartz/releases/download/v{{version}}/quartz-{{version}}.wat
+
+build_compiler version new_version:
+  @echo "Building compiler {{version}} -> {{new_version}}"
+  @MODE=run-wat WAT_FILE=./build/quartz-{{version}}.wat cargo run --release -- compile -o ./build/quartz-{{new_version}}.wat ./quartz/main.qz
