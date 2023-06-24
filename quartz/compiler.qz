@@ -185,7 +185,7 @@ module Compiler {
                     line: 0,
                     column: 0,
                 },
-                message: err!.message,
+                message: format("parse error: {}", err!.message),
             });
         }
 
@@ -207,10 +207,14 @@ module Compiler {
 
         let err_internal = err!;
 
-        for detail in err!.detail {
+        for detail in err_internal.detail {
             let detail_type = reflection::get_type_rep(detail);
             if detail_type.name.equal("ErrorSource") {
                 let source = detail as ErrorSource;
+
+                if source.location.start == nil || source.location.end == nil {
+                    panic("NPE");
+                }
 
                 let start_position = find_position(input, source.location.start!);
                 let end_position = find_position(input, source.location.end!);
@@ -228,7 +232,7 @@ module Compiler {
                 }]](struct {
                     start: start_position,
                     end: end_position,
-                    message: err!.message,
+                    message: err_internal.message,
                 });
             }
         }
@@ -252,7 +256,7 @@ module Compiler {
                 line: 0,
                 column: 0,
             },
-            message: err!.message,
+            message: format("typecheck error: {}", err_internal.message),
         });
     }
 

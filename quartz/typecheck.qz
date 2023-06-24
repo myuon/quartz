@@ -540,7 +540,10 @@ module Typechecker {
             let result or err = self.decl(d);
             if result != nil || self.search_node == nil {
                 if err != nil {
-                    return _ or err!;
+                    return _ or err!.context(ErrorSource {
+                        path: self.current_path,
+                        location: d.location,
+                    });
                 }
             }
         }
@@ -658,7 +661,10 @@ module Typechecker {
         }
         if d.t_let != nil {
             let t = self.expression(d.t_let!.expr).try;
-            let type_ = unify(t, d.t_let!.name_type).try;
+            let type_ = unify(t, d.t_let!.name_type).context(ErrorSource {
+                path: self.current_path,
+                location: ld.location,
+            }).try;
             d.t_let!.name_type = type_;
 
             self.globals.insert(
@@ -764,7 +770,10 @@ module Typechecker {
 
         if s.t_let != nil {
             let t = self.expression(s.t_let!.expr).try;
-            let type_ = unify(t, s.t_let!.name_type).try;
+            let type_ = unify(t, s.t_let!.name_type).context(ErrorSource {
+                path: self.current_path,
+                location: s.t_let!.expr.location,
+            }).try;
             s.t_let!.name_type = type_;
 
             self.register_locals_with_pattern(s.t_let!.pattern, type_).try;
@@ -779,7 +788,10 @@ module Typechecker {
                 self.result_type = result!?;
             } else if err != nil {
                 if self.result_type!.t_or != nil {
-                    unify(self.result_type!.t_or!.left, t).try;
+                    unify(self.result_type!.t_or!.left, t).context(ErrorSource {
+                        path: self.current_path,
+                        location: s.t_return!.expr.location,
+                    }).try;
 
                     s.t_return!.expr = LExpression {
                         data: Expression {
@@ -807,7 +819,10 @@ module Typechecker {
                 t_ptr: self.expression(s.t_assign!.rhs).try,
             };
 
-            let r = unify(lhs_type, rhs_type).try;
+            let r = unify(lhs_type, rhs_type).context(ErrorSource {
+                path: self.current_path,
+                location: s.t_assign!.lhs.location,
+            }).try;
             s.t_assign!.rhs_type = r?;
 
             return nil;
@@ -818,7 +833,10 @@ module Typechecker {
                 Type {
                     t_bool: true,
                 },
-            ).try;
+            ).context(ErrorSource {
+                path: self.current_path,
+                location: s.t_if!.condition.location,
+            }).try;
 
             let type_ = Type {
                 t_omit: true,
@@ -835,7 +853,10 @@ module Typechecker {
                 Type {
                     t_bool: true,
                 },
-            ).try;
+            ).context(ErrorSource {
+                path: self.current_path,
+                location: s.t_while!.condition.location,
+            }).try;
 
             let type_ = Type {
                 t_omit: true,
@@ -959,7 +980,10 @@ module Typechecker {
                 Type {
                     t_bool: true,
                 },
-            ).try;
+            ).context(ErrorSource {
+                path: self.current_path,
+                location: expr.t_unop!.expr.location,
+            }).try;
 
             return Type {
                 t_bool: true,
@@ -980,14 +1004,20 @@ module Typechecker {
                 }
 
                 let t2 = self.expression(expr.t_binop!.right).try;
-                let r = unify(t1, t2).try;
+                let r = unify(t1, t2).context(ErrorSource {
+                    path: self.current_path,
+                    location: expr.t_binop!.right.location,
+                }).try;
                 expr.t_binop!.type_ = r?;
 
                 return r;
             } else if (expr.t_binop!.binop.equal("equal") || expr.t_binop!.binop.equal("not_equal")) {
                 let t1 = self.expression(expr.t_binop!.left).try;
                 let t2 = self.expression(expr.t_binop!.right).try;
-                let r = unify(t1, t2).try;
+                let r = unify(t1, t2).context(ErrorSource {
+                    path: self.current_path,
+                    location: expr.t_binop!.right.location,
+                }).try;
                 expr.t_binop!.type_ = r?;
 
                 return Type {
@@ -1004,7 +1034,10 @@ module Typechecker {
                     );
                 }
 
-                let r = unify(t1, t2).try;
+                let r = unify(t1, t2).context(ErrorSource {
+                    path: self.current_path,
+                    location: expr.t_binop!.right.location,
+                }).try;
                 expr.t_binop!.type_ = r?;
 
                 return Type {
@@ -1017,7 +1050,10 @@ module Typechecker {
                     Type {
                         t_bool: true,
                     },
-                ).try;
+                ).context(ErrorSource {
+                    path: self.current_path,
+                    location: expr.t_binop!.left.location,
+                }).try;
 
                 let t2 = self.expression(expr.t_binop!.right).try;
                 let r = unify(
@@ -1025,7 +1061,10 @@ module Typechecker {
                     Type {
                         t_bool: true,
                     },
-                ).try;
+                ).context(ErrorSource {
+                    path: self.current_path,
+                    location: expr.t_binop!.right.location,
+                }).try;
 
                 expr.t_binop!.type_ = r?;
 
@@ -1072,7 +1111,10 @@ module Typechecker {
                 return t.data;
             }
 
-            return _ or error::new("unbound identifier: {}".format(expr.t_ident!.name));
+            return _ or error::new("unbound identifier: {}".format(expr.t_ident!.name)).context(ErrorSource {
+                path: self.current_path,
+                location: lexpr.location,
+            });
         } else if expr.t_call != nil {
             let callee_type = self.expression(expr.t_call!.callee).try;
             if callee_type.t_func != nil {
@@ -1081,7 +1123,10 @@ module Typechecker {
                     return _ or error::new("wrong number of arguments, {} != {}".format(
                         derive::to_string(func_type.params),
                         derive::to_string(expr.t_call!.args),
-                    ));
+                    )).context(ErrorSource {
+                        path: self.current_path,
+                        location: expr.t_call!.callee.location,
+                    });
                 }
 
                 for i in 0..expr.t_call!.args.length {
@@ -1089,7 +1134,10 @@ module Typechecker {
                     let arg_type = self.expression(arg).try;
                     let param_type = func_type.params.at(i);
 
-                    unify(arg_type, param_type).try;
+                    unify(arg_type, param_type).context(ErrorSource {
+                        path: self.current_path,
+                        location: arg.location,
+                    }).try;
                 }
 
                 return func_type.result;
@@ -1099,7 +1147,10 @@ module Typechecker {
                     return _ or error::new("wrong number of arguments, {} != {}".format(
                         derive::to_string(func_type.params),
                         derive::to_string(expr.t_call!.args),
-                    ));
+                    )).context(ErrorSource {
+                        path: self.current_path,
+                        location: expr.t_call!.callee.location,
+                    });
                 }
 
                 let variadic_type = callee_type.t_variadic_func!.variadic.t_vec!;
@@ -1110,9 +1161,15 @@ module Typechecker {
 
                     if i < func_type.params.length {
                         let param_type = func_type.params.at(i);
-                        unify(arg_type, param_type).try;
+                        unify(arg_type, param_type).context(ErrorSource {
+                            path: self.current_path,
+                            location: arg.location,
+                        }).try;
                     } else {
-                        unify(arg_type, variadic_type).try;
+                        unify(arg_type, variadic_type).context(ErrorSource {
+                            path: self.current_path,
+                            location: arg.location,
+                        }).try;
                     }
                 }
 
@@ -1306,7 +1363,10 @@ module Typechecker {
                             return _ or error::new("method {} has no arguements".format(path.join("_")));
                         }
 
-                        unify(arg_types.at(0), t).try;
+                        unify(arg_types.at(0), t).context(ErrorSource {
+                            path: self.current_path,
+                            location: lexpr.location,
+                        }).try;
 
                         return Type {
                             t_func: struct {
@@ -1322,7 +1382,10 @@ module Typechecker {
                             return _ or error::new("method {} has no arguements".format(path.join("_")));
                         }
 
-                        unify(arg_types.at(0), t).try;
+                        unify(arg_types.at(0), t).context(ErrorSource {
+                            path: self.current_path,
+                            location: lexpr.location,
+                        }).try;
 
                         return Type {
                             t_variadic_func: struct {
@@ -1362,7 +1425,10 @@ module Typechecker {
 
                     if value_type.t_optional != nil {
                         let t = self.expression(expr.t_record!.fields.at(0).value).try;
-                        unify(t, value_type.t_optional!).try;
+                        unify(t, value_type.t_optional!).context(ErrorSource {
+                            path: self.current_path,
+                            location: lexpr.location,
+                        }).try;
                     } else {
                         return _ or error::new("expected optional, {}".format(expr.to_string()));
                     }
@@ -1380,10 +1446,16 @@ module Typechecker {
                     let expr_field = expr_fields_map.at(field);
                     let expr_type = self.expression(expr_field).try;
 
-                    unify(expr_type, field_map.at(field)).try;
+                    unify(expr_type, field_map.at(field)).context(ErrorSource {
+                        path: self.current_path,
+                        location: lexpr.location,
+                    }).try;
                 } else if expr.t_record!.expansion != nil {
                     let expr_type = self.expression(expr.t_record!.expansion!).try;
-                    unify(expr_type, field_map.at(field)).try;
+                    unify(expr_type, field_map.at(field)).context(ErrorSource {
+                        path: self.current_path,
+                        location: lexpr.location,
+                    }).try;
                 } else {
                     return _ or error::new("missing field: {}".format(field));
                 }
@@ -1431,12 +1503,18 @@ module Typechecker {
                     Type {
                         t_i32: true,
                     },
-                ).try;
+                ).context(ErrorSource {
+                    path: self.current_path,
+                    location: lexpr.location,
+                }).try;
             } else if expr.t_make!.type_.t_vec != nil {
                 for arg in expr.t_make!.args {
                     let t = self.expression(arg).try;
 
-                    unify(t, expr.t_make!.type_.t_vec!).try;
+                    unify(t, expr.t_make!.type_.t_vec!).context(ErrorSource {
+                        path: self.current_path,
+                        location: lexpr.location,
+                    }).try;
                 }
             }
 
@@ -1498,7 +1576,10 @@ module Typechecker {
             let start = self.expression(expr.t_range!.start).try;
             let end = self.expression(expr.t_range!.end).try;
 
-            unify(start, end).try;
+            unify(start, end).context(ErrorSource {
+                path: self.current_path,
+                location: lexpr.location,
+            }).try;
 
             return Type {
                 t_range: start,
@@ -1524,7 +1605,10 @@ module Typechecker {
                 let wrapped = Type {
                     t_optional: expr.t_unwrap!.type_,
                 };
-                let unified = unify(wrapped, t).try;
+                let unified = unify(wrapped, t).context(ErrorSource {
+                    path: self.current_path,
+                    location: lexpr.location,
+                }).try;
                 let element_type = unified.t_optional!;
                 expr.t_unwrap!.type_ = element_type;
 
@@ -1580,7 +1664,10 @@ module Typechecker {
                             right: rhs,
                         },
                     },
-                ).try;
+                ).context(ErrorSource {
+                    path: self.current_path,
+                    location: lexpr.location,
+                }).try;
                 self.result_type = t?;
 
                 return lhs;
