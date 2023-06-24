@@ -420,32 +420,37 @@ module Parser {
 
     fun type_(self): LType or error {
         let current = self.type_primitive().try;
-        if self.peek().lexeme.equal("question") {
-            self.expect("question").try;
 
-            return LType {
-                data: Type {
-                    t_optional: current.data,
-                },
-                location: current.location,
-            };
-        }
-        if self.peek().lexeme.equal("or") {
-            self.expect("or").try;
-            let t = self.type_().try;
+        while true {
+            let token = self.peek();
+            if token.lexeme.equal("question") {
+                self.expect("question").try;
 
-            return LType {
-                data: Type {
-                    t_or: struct {
-                        left: current.data,
-                        right: t.data,
+                current = LType {
+                    data: Type {
+                        t_optional: current.data,
                     },
-                },
-                location: Location {
-                    start: current.location.start,
-                    end: t.location.end,
-                },
-            };
+                    location: current.location,
+                };
+            } else if token.lexeme.equal("or") {
+                self.expect("or").try;
+                let t = self.type_().try;
+
+                current = LType {
+                    data: Type {
+                        t_or: struct {
+                            left: current.data,
+                            right: t.data,
+                        },
+                    },
+                    location: Location {
+                        start: current.location.start,
+                        end: t.location.end,
+                    },
+                };
+            } else {
+                break;
+            }
         }
 
         return current;
