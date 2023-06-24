@@ -107,6 +107,7 @@ enum CliCommand {
         output: string?,
         stdin: bool?,
         input: string?,
+        entrypoint: string?,
     },
     run: struct {
         stdin: bool?,
@@ -148,6 +149,7 @@ module CliCommand {
                 output: nil,
                 stdin: nil,
                 input: nil,
+                entrypoint: nil,
             };
 
             while i < args.length {
@@ -159,6 +161,9 @@ module CliCommand {
                     i = i + 1;
                 } else if args.at(i).equal("--stdin") {
                     compile.stdin = true?;
+                } else if args.at(i).equal("--entrypoint") {
+                    compile.entrypoint = args.at(i + 1)?;
+                    i = i + 1;
                 } else {
                     break;
                 }
@@ -325,8 +330,6 @@ module CliCommand {
 }
 
 fun main() {
-    test();
-
     let args = args();
     let command or err = CliCommand::parse(args.slice(1, args.length));
     if err != nil {
@@ -348,7 +351,12 @@ fun main() {
 
         let path = Path::new("main");
 
-        let result or err = run(input, path);
+        let entrypoint = "main";
+        if compile.entrypoint != nil {
+            entrypoint = compile.entrypoint!;
+        }
+
+        let result or err = run(input, path, entrypoint);
         if err != nil {
             panic(err!.message);
         }
@@ -371,7 +379,7 @@ fun main() {
 
         let path = Path::new("main");
 
-        let result or err = run(input, path);
+        let result or err = run(input, path, "main");
         if err != nil {
             panic(err!.message);
         }
@@ -470,7 +478,10 @@ fun main() {
         let go_to_def = command.go_to_def!;
 
         let path_segments = go_to_def.input!.split(".").at(0).split("/");
-        let path = Path::new(path_segments.at(path_segments.length - 2), path_segments.at(path_segments.length - 1));
+        let path = Path::new(
+            path_segments.at(path_segments.length - 2),
+            path_segments.at(path_segments.length - 1),
+        );
 
         let input = file_read(go_to_def.input!);
 
@@ -610,9 +621,9 @@ fun main() {
     return nil;
 }
 
-fun run(input_: string, main_path: Path): string or error {
+fun run(input_: string, main_path: Path, entrypoint: string): string or error {
     let compiler = Compiler::new();
-    return compiler.compile(input_, main_path, false).try;
+    return compiler.compile(input_, main_path, entrypoint, false).try;
 }
 
 fun run_format(input_: string): string or error {

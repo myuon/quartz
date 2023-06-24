@@ -140,7 +140,7 @@ module Generator {
         }
     }
 
-    fun run(self, m: IrTerm, data_section_offset: i32): string {
+    fun run(self, m: IrTerm, entrypoint: string, data_section_offset: i32): string {
         self.start();
         self.write("module");
 
@@ -549,7 +549,7 @@ module Generator {
             IrTerm {
                 t_return: IrReturn {
                     value: IrTerm {
-                        t_inst: "call $main_main",
+                        t_inst: "call $main_{}".format(entrypoint),
                     },
                 },
             },

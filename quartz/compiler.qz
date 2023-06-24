@@ -99,7 +99,13 @@ module Compiler {
         return module_;
     }
 
-    fun compile(self, input: string, main_path: Path, skip_errors: bool): string or error {
+    fun compile(
+        self,
+        input: string,
+        main_path: Path,
+        entrypoint: string,
+        skip_errors: bool,
+    ): string or error {
         let module_ = self.parse(input, nil, skip_errors).try;
 
         let typechecker = Typechecker::new();
@@ -117,7 +123,7 @@ module Compiler {
 
         term = gen.fold_consts(term);
 
-        let code = gen.run(term, irgen.data_section_offset);
+        let code = gen.run(term, entrypoint, irgen.data_section_offset);
 
         return code;
     }
