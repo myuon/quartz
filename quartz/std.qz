@@ -808,7 +808,7 @@ fun stdin(): string {
 }
 
 // used in compiler
-let alloc_ptr = 0 as u32;
+let alloc_ptr: u32 = 0 as u32;
 
 fun alloc(size: i32): ptr[any] {
     let size_ = size;
