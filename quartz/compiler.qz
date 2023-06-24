@@ -109,7 +109,28 @@ module Compiler {
         let module_ = self.parse(input, nil, skip_errors).try;
 
         let typechecker = Typechecker::new();
-        typechecker.run(module_, main_path).try;
+        let n or err = typechecker.run(module_, main_path);
+        if err != nil {
+            let err_internal = err!;
+
+            for detail in err!.detail {
+                let detail_type = reflection::get_type_rep(detail);
+                if detail_type.name.equal("ErrorSource") {
+                    let source = detail as ErrorSource;
+
+                    let start_position = find_position(input, source.location.start!);
+                    let end_position = find_position(input, source.location.end!);
+
+                    err_internal = err_internal.context(struct {
+                        path: source.path,
+                        start: start_position,
+                        end: end_position,
+                    });
+                }
+            }
+
+            return _ or err_internal;
+        }
 
         let irgen = IrCodeGenerator::new();
         irgen.globals = typechecker.globals;

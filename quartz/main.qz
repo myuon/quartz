@@ -358,6 +358,18 @@ fun main() {
 
         let result or err = run(input, path, entrypoint);
         if err != nil {
+            println("Error: {}", err!.message);
+            for detail in err!.detail {
+                let detail_type = reflection::get_type_rep(detail);
+                if detail_type.name.equal("ErrorSource") {
+                    let source = detail as ErrorSource;
+                    println("  {} at {}", derive::to_string(source.location), source.path.join("::"));
+                } else {
+                    println("  {}", derive::to_string(detail));
+                }
+            }
+            println("");
+
             panic(err!.message);
         }
 

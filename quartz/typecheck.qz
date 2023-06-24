@@ -1,6 +1,7 @@
 import quartz::ast;
 import quartz::path;
 import quartz::location;
+import quartz::errors;
 
 struct Typechecker {
     locals: map[string, LType],
@@ -770,7 +771,10 @@ module Typechecker {
             return nil;
         } else if s.t_return != nil {
             let t = self.expression(s.t_return!.expr).try;
-            let result or err = unify(t, self.result_type!);
+            let result or err = unify(t, self.result_type!).context(ErrorSource {
+                path: self.current_path,
+                location: s.t_return!.expr.location,
+            });
             if result != nil {
                 self.result_type = result!?;
             } else if err != nil {
