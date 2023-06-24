@@ -45,3 +45,7 @@ test_self_compile:
 
 quartz:
   MODE=run-wat WAT_FILE=./build/gen2.wat cargo run --quiet --release
+
+download version:
+	@echo "Downloading version {{version}}"
+	@wget -P ./build https://github.com/myuon/quartz/releases/download/v{{version}}/quartz-{{version}}.wat
