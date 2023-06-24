@@ -18,3 +18,6 @@ find_latest_version:
 
 download_latest:
   @just download $(just find_latest_version)
+
+build_current_compiler:
+  @just build_compiler $(just find_latest_version) current
