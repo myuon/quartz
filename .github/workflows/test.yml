@@ -29,3 +29,9 @@ jobs:
 
       - name: Build a compiler
         run: just build_compiler $(just find_latest_version) latest
+
+      - name: Compile a test function
+        run: MODE=run-wat WAT_FILE=./build/quartz-latest.wat cargo run --release -- compile --entrypoint test -o ./build/quartz-test.wat ./quartz/main.qz
+
+      - name: Run the test function
+        run: MODE=run-wat WAT_FILE=./build/quartz-test.wat cargo run --release
