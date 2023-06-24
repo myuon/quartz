@@ -1377,6 +1377,24 @@ module IrCodeGenerator {
                             args: make[vec[IrTerm]](self.expression(project.expr).try),
                         },
                     };
+                } else if project.type_!.t_or != nil && project.type_!.t_or!.right.t_ident != nil && project.type_!.t_or!.right.t_ident!.equal(
+                    "error",
+                ) && project.field.data.equal("context") {
+                    if expr.t_call!.args.length != 1 {
+                        return _ or error::new("context() takes 1 arguments");
+                    }
+
+                    return IrTerm {
+                        t_call: IrCall {
+                            callee: IrTerm {
+                                t_ident: "quartz_std_or_error_context",
+                            },
+                            args: make[vec[IrTerm]](
+                                self.expression(project.expr).try,
+                                self.expression(expr.t_call!.args.at(0)).try,
+                            ),
+                        },
+                    };
                 } else {
                     let args_with_self = make[vec[LExpression]](project.expr);
                     args_with_self.extend(expr.t_call!.args);

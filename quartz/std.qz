@@ -827,23 +827,31 @@ fun alloc(size: i32): ptr[any] {
 
 struct error {
     message: string,
-    detail: any,
+    detail: vec[any],
 }
 
 module error {
     fun new(message: string): error {
         return error {
             message: message,
-            detail: nil as any,
+            detail: make[vec[any]](),
         };
     }
 
-    fun detail(message: string, detail: any): error {
-        return error {
-            message: message,
-            detail: detail,
-        };
+    fun context(self, detail: any): error {
+        self.detail.push(detail);
+
+        return self;
     }
+}
+
+fun or_error_context(this: any or error, detail: any): any or error {
+    let result or err = this;
+    if err != nil {
+        return _ or err!.context(detail);
+    }
+
+    return result!;
 }
 
 // used in compiler
