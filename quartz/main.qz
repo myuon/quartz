@@ -330,8 +330,6 @@ module CliCommand {
 }
 
 fun main() {
-    test();
-
     let args = args();
     let command or err = CliCommand::parse(args.slice(1, args.length));
     if err != nil {
