@@ -1227,6 +1227,17 @@ module Typechecker {
                         },
                     };
                 }
+            } else if t.t_or != nil && t.t_or!.right.t_ident != nil && t.t_or!.right.t_ident!.equal("error") {
+                if expr.t_project!.field.data.equal("context") {
+                    return Type {
+                        t_func: struct {
+                            params: make[vec[Type]](Type {
+                                t_any: true,
+                            }),
+                            result: t,
+                        },
+                    };
+                }
             }
 
             let label = expr.t_project!.field;
@@ -1260,6 +1271,8 @@ module Typechecker {
                     type_name = "u32";
                 } else if t.t_bool != nil {
                     type_name = "bool";
+                } else if t.t_or != nil {
+                    type_name = "or_type";
                 } else {
                     return _ or error::new("unknown type: {}.{}".format(t.to_string(), label.data));
                 }
@@ -1634,9 +1647,11 @@ module Typechecker {
             return make[map[string, Type]]();
         } else if type_.t_byte != nil {
             return make[map[string, Type]]();
+        } else if type_.t_or != nil {
+            return make[map[string, Type]]();
         }
 
-        return _ or error::new("unimplemented: resolve_record_type, {}".format(type_.to_string()));
+        return _ or error::new("unimplemented: resolve_record_type, {}".format(derive::to_string(type_)));
     }
 
     fun resolve_path(
