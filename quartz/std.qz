@@ -851,7 +851,8 @@ fun or_error_context(this: any or error, detail: any): any or error {
         return _ or err!.context(detail);
     }
 
-    return result!;
+    // FIXME: `return result!` won't work
+    return result! or _;
 }
 
 // used in compiler
