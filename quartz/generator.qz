@@ -647,7 +647,16 @@ module Generator {
         self.start();
         self.write(format("global ${} (mut {})", global_let.name, "i64"));
         self.start();
-        self.expression(global_let.value);
+        let value = global_let.value;
+        if value.t_i32 != nil {
+            self.write_value(Value {
+                t_i32: value.t_i32!,
+            });
+        } else if value.t_nil != nil {
+            self.write_value(Value::nil_());
+        } else {
+            panic("global expected an immediate value, but got {}", value.to_string());
+        }
         self.end();
         self.end();
     }
@@ -1110,6 +1119,14 @@ module Generator {
     fun write_value(self, value: Value) {
         self.new_statement();
         self.write(format("{}.const {}", Value::wasm_type(), value.as_i64().to_string()));
+
+        if value.t_pointer != nil && !value.is_nil() {
+            self.new_statement();
+            self.write(format("{}.const {}", Value::wasm_type(), value.as_i64().to_string()));
+
+            self.new_statement();
+            self.write("call $_push_memstack");
+        }
     }
 
     fun convert_stack_to_i32_2(self) {
