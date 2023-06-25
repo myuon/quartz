@@ -448,7 +448,17 @@ module Generator {
         });
 
         self.global_let(struct {
-            name: "_memstack_pointer",
+            name: "_sp",
+            type_: IrType {
+                t_address: true,
+            },
+            value: IrTerm {
+                t_i32: 50000 * 64 * 8,
+            },
+        });
+
+        self.global_let(struct {
+            name: "_bp",
             type_: IrType {
                 t_address: true,
             },
@@ -460,7 +470,7 @@ module Generator {
         self.start();
         self.write(
             `func $_push_memstack (param $val i64)
-    global.get $_memstack_pointer
+    global.get $_sp
     i64.const 32
     i64.shr_u
     i32.wrap_i64
@@ -469,12 +479,12 @@ module Generator {
 
     i64.store
 
-    global.get $_memstack_pointer
+    global.get $_sp
     i64.const 8
     i64.const 32
     i64.shl
     i64.sub
-    global.set $_memstack_pointer
+    global.set $_sp
 `,
         );
         self.end();
@@ -482,7 +492,7 @@ module Generator {
         self.start();
         self.write(
             `func $_pop_memstack (param $count i64)
-    global.get $_memstack_pointer
+    global.get $_sp
 
     i64.const 8
     local.get $count
@@ -494,7 +504,7 @@ module Generator {
     i64.shl
     i64.add
 
-    global.set $_memstack_pointer
+    global.set $_sp
 `,
         );
         self.end();
@@ -738,6 +748,10 @@ module Generator {
             self.expression_left_value(IrTerm {
                 t_ident: expr.t_let!.name,
             });
+
+            self.new_statement();
+            self.expression(expr.t_let!.value);
+            self.write("call $_push_memstack");
         } else if expr.t_return != nil {
             self.new_statement();
             self.expression(expr.t_return!.value);
@@ -1484,6 +1498,28 @@ module Generator {
 
             self.convert_stack_to_i32_1();
         }
+    }
+
+    fun prologue(self) {
+        self.new_statement();
+        self.write("global.get $_bp");
+        self.new_statement();
+        self.write("call $_push_memstack");
+
+        self.new_statement();
+        self.write("global.get $_sp");
+        self.new_statement();
+        self.write("global.set $_bp");
+    }
+
+    fun epilogue(self) {
+        self.new_statement();
+        self.write("global.get $_bp");
+        self.new_statement();
+        self.write("call $_pop_memstack");
+
+        self.new_statement();
+        self.write("global.set $_sp");
     }
 }
 
