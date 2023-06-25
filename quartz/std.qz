@@ -809,7 +809,9 @@ fun stdin(): string {
 
 // used in compiler
 let alloc_ptr: u32 = 0 as u32;
+
 let prev_ptr: u32 = 0 as u32;
+
 let heap_root_ptr: u32 = 0 as u32;
 
 fun alloc(size: i32): ptr[any] {
@@ -834,14 +836,22 @@ fun alloc(size: i32): ptr[any] {
 }
 
 struct Header {
-    prev: ptr[any],
-    next: ptr[any],
+    prev: ptr[Header],
+    next: ptr[Header],
     size: i32,
 }
 
 module Header {
     fun sizeof(): i32 {
         return 2 * sizeof[ptr[any]]() + sizeof[i32]();
+    }
+
+    fun from_ptr(p: ptr[any]): Header {
+        return Header {
+            prev: p.at(0) as ptr[Header],
+            next: p.at(1) as ptr[Header],
+            size: p.at(2) as i32,
+        };
     }
 }
 
