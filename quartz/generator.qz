@@ -447,6 +447,38 @@ module Generator {
             },
         });
 
+        self.global_let(struct {
+            name: "_memstack_pointer",
+            type_: IrType {
+                t_address: true,
+            },
+            value: IrTerm {
+                t_i32: 50000 * 64 * 8,
+            },
+        });
+
+        self.start();
+        self.write(
+            `func $_push_memstack (param $val i64)
+    global.get $_memstack_pointer
+    i64.const 32
+    i64.shr_u
+    i32.wrap_i64
+
+    local.get $val
+
+    i64.store
+
+    global.get $_memstack_pointer
+    i64.const 8
+    i64.const 32
+    i64.shl
+    i64.sub
+    global.set $_memstack_pointer
+`,
+        );
+        self.end();
+
         self.start();
         self.write("memory (export \"memory\") 50000");
         self.end();
