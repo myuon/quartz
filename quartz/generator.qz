@@ -742,6 +742,8 @@ module Generator {
 
             self.new_statement();
             self.expression(expr.t_let!.value);
+
+            self.new_statement();
             self.write("call $_push_memstack");
         } else if expr.t_return != nil {
             self.epilogue();
