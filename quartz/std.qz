@@ -809,6 +809,7 @@ fun stdin(): string {
 
 // used in compiler
 let alloc_ptr: u32 = 0 as u32;
+let prev_ptr: u32 = 0 as u32;
 
 fun alloc(size: i32): ptr[any] {
     let size_ = size;
@@ -820,12 +821,15 @@ fun alloc(size: i32): ptr[any] {
     }
 
     let current = alloc_ptr as ptr[any];
-    let address_size = (sizeof[ptr[any]]() as u32);
+    let address_size = (2 * sizeof[ptr[any]]()) as u32;
     alloc_ptr = alloc_ptr + (size_ as u32) + address_size;
 
-    current.at(0) = alloc_ptr;
+    current.at(0) = prev_ptr;
+    current.at(1) = alloc_ptr;
 
-    return current.offset(1);
+    prev_ptr = current as u32;
+
+    return current.offset(2);
 }
 
 struct error {
