@@ -480,6 +480,26 @@ module Generator {
         self.end();
 
         self.start();
+        self.write(
+            `func $_pop_memstack (param $count i64)
+    global.get $_memstack_pointer
+
+    i64.const 8
+    local.get $count
+    i64.const 32
+    i64.shl
+    i64.mul
+
+    i64.const 32
+    i64.shl
+    i64.add
+
+    global.set $_memstack_pointer
+`,
+        );
+        self.end();
+
+        self.start();
         self.write("memory (export \"memory\") 50000");
         self.end();
 
