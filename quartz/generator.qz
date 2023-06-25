@@ -490,26 +490,6 @@ module Generator {
         self.end();
 
         self.start();
-        self.write(
-            `func $_pop_memstack (param $count i64)
-    global.get $_sp
-
-    i64.const 8
-    local.get $count
-    i64.const 32
-    i64.shl
-    i64.mul
-
-    i64.const 32
-    i64.shl
-    i64.add
-
-    global.set $_sp
-`,
-        );
-        self.end();
-
-        self.start();
         self.write("memory (export \"memory\") 50000");
         self.end();
 
@@ -696,6 +676,8 @@ module Generator {
             }
         }
 
+        self.prologue();
+
         for b in func.body {
             self.expression(b);
         }
@@ -762,6 +744,8 @@ module Generator {
             self.expression(expr.t_let!.value);
             self.write("call $_push_memstack");
         } else if expr.t_return != nil {
+            self.epilogue();
+
             self.new_statement();
             self.expression(expr.t_return!.value);
 
@@ -1519,24 +1503,38 @@ module Generator {
 
     fun prologue(self) {
         self.new_statement();
+        self.write(";; prologue");
+
+        self.new_statement();
         self.write("global.get $_bp");
+
         self.new_statement();
         self.write("call $_push_memstack");
 
         self.new_statement();
         self.write("global.get $_sp");
+
         self.new_statement();
         self.write("global.set $_bp");
     }
 
     fun epilogue(self) {
         self.new_statement();
-        self.write("global.get $_bp");
+        self.write(";; epilogue");
+
         self.new_statement();
-        self.write("call $_pop_memstack");
+        self.write("global.get $_bp");
 
         self.new_statement();
         self.write("global.set $_sp");
+
+        self.new_statement();
+        self.write("global.get $_bp");
+
+        self.convert_stack_to_i32_1();
+
+        self.new_statement();
+        self.write("i64.load");
     }
 }
 
