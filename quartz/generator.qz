@@ -634,6 +634,10 @@ module Generator {
             });
         } else if value.t_nil != nil {
             self.write_value(Value::nil_());
+        } else if value.t_bool != nil {
+            self.write_value(Value {
+                t_bool: value.t_bool!,
+            });
         } else {
             panic("global expected an immediate value, but got {}", value.to_string());
         }
