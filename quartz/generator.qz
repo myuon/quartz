@@ -555,6 +555,14 @@ module Generator {
             },
             IrTerm {
                 t_assign: struct {
+                    lhs: "quartz_std_heap_root_ptr",
+                    rhs: IrTerm {
+                        t_i32: data_section_offset,
+                    },
+                },
+            },
+            IrTerm {
+                t_assign: struct {
                     lhs: "quartz_std_strings_count",
                     rhs: IrTerm {
                         t_i32: self.strings.length,
