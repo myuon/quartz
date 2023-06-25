@@ -25,4 +25,4 @@ build_current_compiler:
 run file:
   @just build_current_compiler
   MODE=run-wat WAT_FILE=./build/quartz-current.wat cargo run --release -- compile -o ./build/quartz-compiled.wat {{file}}
-  MODE=run-wat WAT_FILE=./build/quartz-compiled.wat gtime -v cargo run --release
+  MODE=run-wat WAT_FILE=./build/quartz-compiled.wat cargo run --release

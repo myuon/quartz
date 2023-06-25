@@ -60,6 +60,7 @@ fun vec_push(v: vec[any], e: any) {
         for i in 0..v.length {
             new_data.at(i) = v.data.at(i);
         }
+        free(v.data);
         v.data = new_data;
         v.capacity = new_capacity;
     }
@@ -833,6 +834,20 @@ fun alloc(size: i32): ptr[any] {
     prev_ptr = current as u32;
 
     return (current as i32 + Header::sizeof()) as ptr[any];
+}
+
+fun free(p: ptr[any]) {
+    let header = Header::from_ptr((p as i32 - Header::sizeof()) as ptr[any]);
+    let prev = header.prev;
+    let next = header.next;
+
+    if prev != (nil as ptr[Header]) {
+        (prev as ptr[any]).at(1) = next;
+    }
+
+    if next != (nil as ptr[Header]) {
+        (next as ptr[any]).at(0) = prev;
+    }
 }
 
 struct Header {
