@@ -819,10 +819,13 @@ fun alloc(size: i32): ptr[any] {
         return nil as ptr[any];
     }
 
-    let current = alloc_ptr;
-    alloc_ptr = alloc_ptr + (size_ as u32);
+    let current = alloc_ptr as ptr[any];
+    let address_size = (sizeof[ptr[any]]() as u32);
+    alloc_ptr = alloc_ptr + (size_ as u32) + address_size;
 
-    return current as ptr[any];
+    current.at(0) = alloc_ptr;
+
+    return current.offset(1);
 }
 
 struct error {
