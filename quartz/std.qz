@@ -813,6 +813,10 @@ struct Bitmap {
 }
 
 module Bitmap {
+    fun get(self, p: i32): bool {
+        return ((self.data.at(p / 8) as i32) & (1 << (p % 8))) != 0;
+    }
+
     fun set(self, p: i32, b: bool) {
         if b {
             self.data.at(p / 8) = ((self.data.at(p / 8) as i32) & (255 - (1 << (p % 8)))) as byte;
@@ -830,9 +834,6 @@ fun std_init() {
         // allocate enough space for 32bit address space
         data: alloc_ptr as ptr[byte],
     }?;
-
-    alloc_ptr = alloc_ptr + (1024 * 1024 * 64 as u32);
-    heap_root_ptr = alloc_ptr;
 }
 
 // used in compiler
@@ -855,19 +856,21 @@ fun alloc(size: i32): ptr[any] {
     current.at(0) = alloc_ptr as ptr[any];
     current.at(1) = size;
 
-    // if bitmap != nil {
-    //     bitmap!.set(current as i32, true);
-    // }
+    if bitmap != nil {
+        bitmap!.set(current as i32, true);
+    }
 
     return (current as i32 + Header::sizeof()) as ptr[any];
 }
 
 fun free(p: ptr[any]) {
-    // let current = (p as i32 - Header::sizeof()) as ptr[any];
-    // let current_header = Header::from_ptr(current);
-    // let next = current_header.next;
+    let current = (p as i32 - Header::sizeof()) as ptr[any];
+    let current_header = Header::from_ptr(current);
+    let next = current_header.next;
 
-    // bitmap!.set(current as i32, false);
+    if bitmap != nil {
+        bitmap!.set(current as i32, false);
+    }
 }
 
 struct Header {
