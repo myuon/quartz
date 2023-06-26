@@ -891,6 +891,29 @@ module Header {
     }
 }
 
+fun print_header(name: string, header: Header) {
+    println("{} [size: {}, next: {}]", name, header.size.to_string(), (header.next as i32).to_string());
+}
+
+fun print_heap_objects() {
+    let count = 0;
+    let p = heap_root_ptr as ptr[any];
+    while (p as i32) < (alloc_ptr as i32) {
+        let header = Header::from_ptr(p);
+
+        if bitmap != nil && bitmap!.get(p as i32) {
+            print_header((p as i32).to_string(), header);
+        }
+
+        if p == header.next || header.next == (nil as ptr[Header]) {
+            break;
+        }
+
+        p = header.next;
+        count = count + 1;
+    }
+}
+
 struct error {
     message: string,
     detail: vec[any],
