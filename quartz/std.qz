@@ -808,10 +808,35 @@ fun stdin(): string {
     return vec_byte_to_string(str);
 }
 
+struct Bitmap {
+    data: ptr[byte],
+}
+
+module Bitmap {
+    fun set(self, p: i32, b: bool) {
+        if b {
+            self.data.at(p / 8) = ((self.data.at(p / 8) as i32) & (255 - (1 << (p % 8)))) as byte;
+        } else {
+            self.data.at(p / 8) = ((self.data.at(p / 8) as i32) | (1 << (p % 8))) as byte;
+        }
+    }
+}
+
+let bitmap: Bitmap? = nil;
+
+fun std_init() {
+    // preallocate bitmap
+    bitmap = Bitmap {
+        // allocate enough space for 32bit address space
+        data: alloc_ptr as ptr[byte],
+    }?;
+
+    alloc_ptr = alloc_ptr + (1024 * 1024 * 64 as u32);
+    heap_root_ptr = alloc_ptr;
+}
+
 // used in compiler
 let alloc_ptr: u32 = 0 as u32;
-
-let prev_ptr: u32 = 0 as u32;
 
 let heap_root_ptr: u32 = 0 as u32;
 
@@ -827,45 +852,38 @@ fun alloc(size: i32): ptr[any] {
     let current = alloc_ptr as ptr[any];
     alloc_ptr = alloc_ptr + (size_ as u32) + (Header::sizeof() as u32);
 
-    current.at(0) = prev_ptr as ptr[any];
-    current.at(1) = alloc_ptr as ptr[any];
-    current.at(2) = size;
+    current.at(0) = alloc_ptr as ptr[any];
+    current.at(1) = size;
 
-    prev_ptr = current as u32;
+    // if bitmap != nil {
+    //     bitmap!.set(current as i32, true);
+    // }
 
     return (current as i32 + Header::sizeof()) as ptr[any];
 }
 
 fun free(p: ptr[any]) {
-    let header = Header::from_ptr((p as i32 - Header::sizeof()) as ptr[any]);
-    let prev = header.prev;
-    let next = header.next;
+    // let current = (p as i32 - Header::sizeof()) as ptr[any];
+    // let current_header = Header::from_ptr(current);
+    // let next = current_header.next;
 
-    if prev != (nil as ptr[Header]) {
-        (prev as ptr[any]).at(1) = next;
-    }
-
-    if next != (nil as ptr[Header]) {
-        (next as ptr[any]).at(0) = prev;
-    }
+    // bitmap!.set(current as i32, false);
 }
 
 struct Header {
-    prev: ptr[Header],
     next: ptr[Header],
     size: i32,
 }
 
 module Header {
     fun sizeof(): i32 {
-        return 2 * sizeof[ptr[any]]() + sizeof[i32]();
+        return sizeof[ptr[any]]() + sizeof[i32]();
     }
 
     fun from_ptr(p: ptr[any]): Header {
         return Header {
-            prev: p.at(0) as ptr[Header],
-            next: p.at(1) as ptr[Header],
-            size: p.at(2) as i32,
+            next: p.at(0) as ptr[Header],
+            size: p.at(1) as i32,
         };
     }
 }
