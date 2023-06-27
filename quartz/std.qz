@@ -853,8 +853,7 @@ fun alloc(size: i32): ptr[any] {
     let current = alloc_ptr as ptr[any];
     alloc_ptr = alloc_ptr + (size_ as u32) + (Header::sizeof() as u32);
 
-    current.at(0) = alloc_ptr as ptr[any];
-    current.at(1) = size;
+    current.at(0) = size_;
 
     if bitmap != nil {
         bitmap!.set(current as i32, true);
@@ -866,7 +865,9 @@ fun alloc(size: i32): ptr[any] {
 fun free(p: ptr[any]) {
     let current = (p as i32 - Header::sizeof()) as ptr[any];
     let current_header = Header::from_ptr(current);
-    let next = current_header.next;
+    let next = current_header.get_next();
+
+    // TODO: merge with next
 
     if bitmap != nil {
         bitmap!.set(current as i32, false);
@@ -874,25 +875,29 @@ fun free(p: ptr[any]) {
 }
 
 struct Header {
-    next: ptr[Header],
+    current: ptr[Header],
     size: i32,
 }
 
 module Header {
     fun sizeof(): i32 {
-        return sizeof[ptr[any]]() + sizeof[i32]();
+        return sizeof[i32]();
     }
 
-    fun from_ptr(p: ptr[any]): Header {
+    fun from_ptr(p: ptr[Header]): Header {
         return Header {
-            next: p.at(0) as ptr[Header],
-            size: p.at(1) as i32,
+            current: p,
+            size: p.at(0) as i32,
         };
+    }
+
+    fun get_next(self): ptr[Header] {
+        return ((self.current as i32) + self.size) as ptr[Header];
     }
 }
 
 fun print_header(name: string, header: Header) {
-    println("{} [size: {}, next: {}]", name, header.size.to_string(), (header.next as i32).to_string());
+    println("{} [size: {}, next: {}]", name, header.size.to_string(), (header.get_next() as i32).to_string());
 }
 
 fun print_heap_objects() {
@@ -905,11 +910,11 @@ fun print_heap_objects() {
             print_header((p as i32).to_string(), header);
         }
 
-        if p == header.next || header.next == (nil as ptr[Header]) {
+        if p == header.get_next() || header.get_next() == (nil as ptr[Header]) {
             break;
         }
 
-        p = header.next;
+        p = header.get_next();
         count = count + 1;
     }
 }
