@@ -830,10 +830,10 @@ let bitmap: Bitmap? = nil;
 
 fun std_init() {
     // preallocate bitmap
-    bitmap = Bitmap {
-        // allocate enough space for 32bit address space
-        data: alloc_ptr as ptr[byte],
-    }?;
+    // bitmap = Bitmap {
+    //     // allocate enough space for 32bit address space
+    //     data: alloc_ptr as ptr[byte],
+    // }?;
 }
 
 // used in compiler
