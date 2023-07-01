@@ -597,11 +597,6 @@ module Generator {
                 },
             },
             IrTerm {
-                t_discard: IrTerm {
-                    t_inst: "call $quartz_std_std_init",
-                },
-            },
-            IrTerm {
                 t_return: IrReturn {
                     value: IrTerm {
                         t_inst: "call $main_{}".format(entrypoint),

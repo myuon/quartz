@@ -825,16 +825,6 @@ let alloc_ptr: u32 = 0 as u32;
 
 let heap_root_ptr: u32 = 0 as u32;
 
-let bitmap: ptr[byte] = nil as ptr[byte];
-
-fun std_init() {
-    // preallocate bitmap
-    bitmap = alloc_ptr as ptr[byte];
-
-    alloc_ptr = ((alloc_ptr as i32) + 64 * 1024 * 1024) as u32;
-    heap_root_ptr = alloc_ptr;
-}
-
 fun alloc(size: i32): ptr[any] {
     let size_ = size;
     if size % sizeof[i32]() != 0 {
@@ -848,10 +838,7 @@ fun alloc(size: i32): ptr[any] {
     alloc_ptr = alloc_ptr + (size_ as u32) + (Header::sizeof() as u32);
 
     current.at(0) = size_;
-
-    if bitmap != (nil as ptr[byte]) {
-        bitmap_set(bitmap, current as i32, true);
-    }
+    current.at(1) = false;
 
     return (current as i32 + Header::sizeof()) as ptr[any];
 }
@@ -860,37 +847,29 @@ fun free(p: ptr[any]) {
     let current = (p as i32 - Header::sizeof()) as ptr[any];
     let current_header = Header::from_ptr(current);
 
-    if bitmap == (nil as ptr[byte]) {
-        return;
-    }
-
     let search = current_header;
     let size = current_header.size;
-    // merge with next
-    if !bitmap_get(bitmap, search as i32) {
-        size = size + search.size;
-        search = search.get_next().at(0);
-    }
 
     current.at(0) = size;
-
-    bitmap_set(bitmap, current as i32, false);
+    current.at(1) = true;
 }
 
 struct Header {
     current: ptr[Header],
     size: i32,
+    is_free: bool,
 }
 
 module Header {
     fun sizeof(): i32 {
-        return sizeof[i32]();
+        return sizeof[i32]() + sizeof[bool]();
     }
 
     fun from_ptr(p: ptr[Header]): Header {
         return Header {
             current: p,
             size: p.at(0) as i32,
+            is_free: (p.at(1) as i32) == 1,
         };
     }
 
@@ -909,8 +888,10 @@ fun print_heap_objects() {
     while (p as i32) < (alloc_ptr as i32) {
         let header = Header::from_ptr(p);
 
-        if bitmap != (nil as ptr[byte]) && bitmap_get(bitmap, p as i32) {
+        if !header.is_free {
             print_header((p as i32).to_string(), header);
+        } else {
+            println("free space {} [size: {}]", (p as i32).to_string(), header.size.to_string());
         }
 
         if p == header.get_next() || header.get_next() == (nil as ptr[Header]) {
