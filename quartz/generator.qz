@@ -577,11 +577,6 @@ module Generator {
                     },
                 },
             },
-            IrTerm {
-                t_discard: IrTerm {
-                    t_inst: "call $quartz_std_std_init",
-                },
-            },
         );
         start_body.extend(self.start_terms);
         start_body.extend(make[vec[IrTerm]](
@@ -599,6 +594,11 @@ module Generator {
                         t_ident: "prepare_type_reps",
                     },
                     args: make[vec[IrTerm]](),
+                },
+            },
+            IrTerm {
+                t_discard: IrTerm {
+                    t_inst: "call $quartz_std_std_init",
                 },
             },
             IrTerm {
