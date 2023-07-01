@@ -859,13 +859,22 @@ fun alloc(size: i32): ptr[any] {
 fun free(p: ptr[any]) {
     let current = (p as i32 - Header::sizeof()) as ptr[any];
     let current_header = Header::from_ptr(current);
-    let next = current_header.get_next();
 
-    // TODO: merge with next
-
-    if bitmap != (nil as ptr[byte]) {
-        bitmap_set(bitmap, current as i32, false);
+    if bitmap == (nil as ptr[byte]) {
+        return;
     }
+
+    let search = current_header;
+    let size = current_header.size;
+    // merge with next
+    if !bitmap_get(bitmap, search as i32) {
+        size = size + search.size;
+        search = search.get_next().at(0);
+    }
+
+    current.at(0) = size;
+
+    bitmap_set(bitmap, current as i32, false);
 }
 
 struct Header {
