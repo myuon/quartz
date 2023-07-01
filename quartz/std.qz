@@ -808,38 +808,32 @@ fun stdin(): string {
     return vec_byte_to_string(str);
 }
 
-struct Bitmap {
-    data: ptr[byte],
+fun bitmap_get(b: ptr[byte], p: i32): bool {
+    return ((b.at(p / 8) as i32) & (1 << (p % 8))) != 0;
 }
 
-module Bitmap {
-    fun get(self, p: i32): bool {
-        return ((self.data.at(p / 8) as i32) & (1 << (p % 8))) != 0;
+fun bitmap_set(bm: ptr[byte], p: i32, b: bool) {
+    if b {
+        bm.at(p / 8) = ((bm.at(p / 8) as i32) & (255 - (1 << (p % 8)))) as byte;
+    } else {
+        bm.at(p / 8) = ((bm.at(p / 8) as i32) | (1 << (p % 8))) as byte;
     }
-
-    fun set(self, p: i32, b: bool) {
-        if b {
-            self.data.at(p / 8) = ((self.data.at(p / 8) as i32) & (255 - (1 << (p % 8)))) as byte;
-        } else {
-            self.data.at(p / 8) = ((self.data.at(p / 8) as i32) | (1 << (p % 8))) as byte;
-        }
-    }
-}
-
-let bitmap: Bitmap? = nil;
-
-fun std_init() {
-    // preallocate bitmap
-    // bitmap = Bitmap {
-    //     // allocate enough space for 32bit address space
-    //     data: alloc_ptr as ptr[byte],
-    // }?;
 }
 
 // used in compiler
 let alloc_ptr: u32 = 0 as u32;
 
 let heap_root_ptr: u32 = 0 as u32;
+
+let bitmap: ptr[byte] = nil as ptr[byte];
+
+fun std_init() {
+    // preallocate bitmap
+    bitmap = alloc_ptr as ptr[byte];
+
+    alloc_ptr = ((alloc_ptr as i32) + 64 * 1024 * 1024) as u32;
+    heap_root_ptr = alloc_ptr;
+}
 
 fun alloc(size: i32): ptr[any] {
     let size_ = size;
@@ -855,8 +849,8 @@ fun alloc(size: i32): ptr[any] {
 
     current.at(0) = size_;
 
-    if bitmap != nil {
-        bitmap!.set(current as i32, true);
+    if bitmap != (nil as ptr[byte]) {
+        bitmap_set(bitmap, current as i32, true);
     }
 
     return (current as i32 + Header::sizeof()) as ptr[any];
@@ -869,8 +863,8 @@ fun free(p: ptr[any]) {
 
     // TODO: merge with next
 
-    if bitmap != nil {
-        bitmap!.set(current as i32, false);
+    if bitmap != (nil as ptr[byte]) {
+        bitmap_set(bitmap, current as i32, false);
     }
 }
 
@@ -906,7 +900,7 @@ fun print_heap_objects() {
     while (p as i32) < (alloc_ptr as i32) {
         let header = Header::from_ptr(p);
 
-        if bitmap != nil && bitmap!.get(p as i32) {
+        if bitmap != (nil as ptr[byte]) && bitmap_get(bitmap, p as i32) {
             print_header((p as i32).to_string(), header);
         }
 
