@@ -886,7 +886,7 @@ module Header {
     }
 
     fun get_next(self): ptr[Header] {
-        return ((self.current as i32) + self.size) as ptr[Header];
+        return ((self.current as i32) + Header::sizeof() + self.size) as ptr[Header];
     }
 }
 
