@@ -555,14 +555,6 @@ module Generator {
             },
             IrTerm {
                 t_assign: struct {
-                    lhs: "quartz_std_heap_root_ptr",
-                    rhs: IrTerm {
-                        t_i32: data_section_offset,
-                    },
-                },
-            },
-            IrTerm {
-                t_assign: struct {
                     lhs: "quartz_std_strings_count",
                     rhs: IrTerm {
                         t_i32: self.strings.length,
@@ -811,6 +803,8 @@ module Generator {
                     self.generate_op_comparison("le_s");
                 } else if ident.equal("gte") {
                     self.generate_op_comparison("ge_s");
+                } else if ident.equal("gte_u32") {
+                    self.generate_op_comparison("ge_u");
                 } else if ident.equal("i32_to_address") {
                     self.convert_value_i32_to_address_1();
                 } else if ident.equal("address_to_i32") {
