@@ -854,7 +854,7 @@ fun alloc(size: i32): ptr[any] {
 fun find_free_block(size: u32): ptr[any] {
     if (heap_root_ptr as ptr[any]) == (nil as ptr[any]) {
         let current = alloc_ptr as ptr[any];
-        current.at(0) = 100 * 1000 * 1000;
+        current.at(0) = 100 * 1024 * 1024;
         current.at(1) = true;
         heap_root_ptr = alloc_ptr;
     }
@@ -873,14 +873,8 @@ fun find_free_block(size: u32): ptr[any] {
 }
 
 fun free(p: ptr[any]) {
-    // let current = (p as i32 - Header::sizeof()) as ptr[any];
-    // let current_header = Header::from_ptr(current);
-
-    // let search = current_header;
-    // let size = current_header.size;
-
-    // current.at(0) = size;
-    // current.at(1) = true;
+    let header_ptr = ((p as u32) - Header::sizeof()) as ptr[any];
+    header_ptr.at(1) = true;
 }
 
 struct Header {
@@ -902,6 +896,10 @@ module Header {
         };
     }
 
+    fun from_data_ptr(p: ptr[any]): Header {
+        return Header::from_ptr(((p as u32) - Header::sizeof()) as ptr[Header]);
+    }
+
     fun get_next(self): ptr[Header] {
         return ((self.current as u32) + Header::sizeof() + self.size) as ptr[Header];
     }
@@ -913,25 +911,19 @@ fun print_header(name: string, header: Header) {
 
 fun print_heap_objects() {
     let count = 0;
-    let p = heap_root_ptr as ptr[any];
-    let header = Header::from_ptr(p);
+    let header = Header::from_ptr(heap_root_ptr as ptr[any]);
     while header.size > (0 as u32) {
         if !header.is_free {
-            print_header((p as i32).to_string(), header);
+            print_header((header.current as i32).to_string(), header);
         } else {
-            println("free space {} [size: {}]", (p as i32).to_string(), header.size.to_string());
+            println("free space {} [size: {}]", (header.current as i32).to_string(), header.size.to_string());
         }
 
-        if p == header.get_next() || header.get_next() == (nil as ptr[Header]) {
-            break;
-        }
-
-        p = header.get_next();
-        header = Header::from_ptr(p);
+        header = Header::from_ptr(header.get_next());
         count = count + 1;
     }
 
-    println("{} [END]", (p as i32).to_string());
+    println("{} [END]", (header.current as i32).to_string());
 }
 
 struct error {
