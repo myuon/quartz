@@ -60,6 +60,7 @@ fun vec_push(v: vec[any], e: any) {
         for i in 0..v.length {
             new_data.at(i) = v.data.at(i);
         }
+        free(v.data);
         v.data = new_data;
         v.capacity = new_capacity;
     }
@@ -807,8 +808,22 @@ fun stdin(): string {
     return vec_byte_to_string(str);
 }
 
+fun bitmap_get(b: ptr[byte], p: i32): bool {
+    return ((b.at(p / 8) as i32) & (1 << (p % 8))) != 0;
+}
+
+fun bitmap_set(bm: ptr[byte], p: i32, b: bool) {
+    if b {
+        bm.at(p / 8) = ((bm.at(p / 8) as i32) & (255 - (1 << (p % 8)))) as byte;
+    } else {
+        bm.at(p / 8) = ((bm.at(p / 8) as i32) | (1 << (p % 8))) as byte;
+    }
+}
+
 // used in compiler
 let alloc_ptr: u32 = 0 as u32;
+
+let heap_root_ptr: u32 = 0 as u32;
 
 fun alloc(size: i32): ptr[any] {
     let size_ = size;
@@ -819,10 +834,103 @@ fun alloc(size: i32): ptr[any] {
         return nil as ptr[any];
     }
 
-    let current = alloc_ptr;
-    alloc_ptr = alloc_ptr + (size_ as u32);
+    let block = find_free_block(size_ as u32);
+    if !block.at(1) {
+        debug(7);
+        abort();
+    }
 
-    return current as ptr[any];
+    // split
+    block.at(0) = (block.at(0) as u32) - (size_ as u32) - Header::sizeof();
+    block.at(1) = true;
+
+    let current_ptr = ((block as u32) + (block.at(0) as u32) + Header::sizeof()) as ptr[any];
+    current_ptr.at(0) = size_ as u32;
+    current_ptr.at(1) = false;
+
+    return (current_ptr as u32 + Header::sizeof()) as ptr[any];
+}
+
+fun find_free_block(size: u32): ptr[any] {
+    let memory_block_limit = 1 * 1024 * 1024 * 1024;
+
+    if (heap_root_ptr as ptr[any]) == (nil as ptr[any]) {
+        let current = alloc_ptr as ptr[any];
+        current.at(0) = memory_block_limit;
+        current.at(1) = true;
+        heap_root_ptr = alloc_ptr;
+    }
+
+    let current = heap_root_ptr as ptr[any];
+    while !((current.at(1) as bool) && (current.at(0) as i32) >= (size as i32)) {
+        current = ((current as u32) + (current.at(0) as u32) + (Header::sizeof() as u32)) as ptr[any];
+
+        if (current as i32) > memory_block_limit {
+            debug(4);
+            abort();
+        }
+    }
+
+    return current;
+}
+
+fun free(p: ptr[any]) {
+    let header_ptr = ((p as u32) - Header::sizeof()) as ptr[any];
+    header_ptr.at(1) = true;
+
+    let next_ptr = ((header_ptr as u32) + (header_ptr.at(0) as u32) + (Header::sizeof() as u32)) as ptr[any];
+    if next_ptr.at(1) as bool {
+        header_ptr.at(0) = (header_ptr.at(0) as u32) + (next_ptr.at(0) as u32) + Header::sizeof();
+    }
+}
+
+struct Header {
+    current: ptr[Header],
+    size: u32,
+    is_free: bool,
+}
+
+module Header {
+    fun sizeof(): u32 {
+        return (sizeof[i32]() + sizeof[bool]()) as u32;
+    }
+
+    fun from_ptr(p: ptr[any]): Header {
+        return Header {
+            current: p as ptr[Header],
+            size: p.at(0) as u32,
+            is_free: p.at(1) as bool,
+        };
+    }
+
+    fun from_data_ptr(p: ptr[any]): Header {
+        return Header::from_ptr(((p as u32) - Header::sizeof()) as ptr[Header]);
+    }
+
+    fun get_next(self): ptr[Header] {
+        return ((self.current as u32) + Header::sizeof() + self.size) as ptr[Header];
+    }
+}
+
+fun print_header(name: string, header: Header) {
+    println("{} [size: {}, next: {}]", name, header.size.to_string(), (header.get_next() as i32).to_string());
+}
+
+fun print_heap_objects() {
+    let count = 0;
+    let header = Header::from_ptr(heap_root_ptr as ptr[any]);
+    while header.size > (0 as u32) {
+        if !header.is_free {
+            print_header((header.current as i32).to_string(), header);
+        } else {
+            println("free space {} [size: {}]", (header.current as i32).to_string(), header.size.to_string());
+        }
+
+        header = Header::from_ptr(header.get_next());
+        count = count + 1;
+    }
+
+    println("{} [END]", (header.current as i32).to_string());
 }
 
 struct error {

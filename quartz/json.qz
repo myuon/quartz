@@ -52,7 +52,7 @@ module Json {
             return builder.to_string();
         }
 
-        return "";
+        panic("invalid json type: {}", derive::to_string(self));
     }
 
     fun to_string(self): string {
