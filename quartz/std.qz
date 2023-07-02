@@ -852,9 +852,11 @@ fun alloc(size: i32): ptr[any] {
 }
 
 fun find_free_block(size: u32): ptr[any] {
+    let memory_block_limit = 100 * 1024 * 1024;
+
     if (heap_root_ptr as ptr[any]) == (nil as ptr[any]) {
         let current = alloc_ptr as ptr[any];
-        current.at(0) = 100 * 1024 * 1024;
+        current.at(0) = memory_block_limit;
         current.at(1) = true;
         heap_root_ptr = alloc_ptr;
     }
@@ -863,8 +865,8 @@ fun find_free_block(size: u32): ptr[any] {
     while !((current.at(1) as bool) && (current.at(0) as i32) >= (size as i32)) {
         current = ((current as u32) + (current.at(0) as u32) + (Header::sizeof() as u32)) as ptr[any];
 
-        if (current as i32) > (heap_root_ptr as i32) {
-            debug(current);
+        if (current as i32) > memory_block_limit {
+            debug(4);
             abort();
         }
     }
@@ -875,6 +877,11 @@ fun find_free_block(size: u32): ptr[any] {
 fun free(p: ptr[any]) {
     let header_ptr = ((p as u32) - Header::sizeof()) as ptr[any];
     header_ptr.at(1) = true;
+
+    let next_ptr = ((header_ptr as u32) + (header_ptr.at(0) as u32) + (Header::sizeof() as u32)) as ptr[any];
+    if next_ptr.at(1) as bool {
+        header_ptr.at(0) = (header_ptr.at(0) as u32) + (next_ptr.at(0) as u32) + Header::sizeof();
+    }
 }
 
 struct Header {
