@@ -607,7 +607,24 @@ module Generator {
         self.start();
         self.write(format("global ${} (mut {})", global_let.name, "i64"));
         self.start();
-        self.expression(global_let.value);
+        let value = global_let.value;
+        if value.t_i32 != nil {
+            self.write_value(Value {
+                t_i32: value.t_i32!,
+            });
+        } else if value.t_nil != nil {
+            self.write_value(Value::nil_());
+        } else if value.t_u32 != nil {
+            self.write_value(Value {
+                t_u32: value.t_u32!,
+            });
+        } else if value.t_bool != nil {
+            self.write_value(Value {
+                t_bool: value.t_bool!,
+            });
+        } else {
+            panic("global expected an immediate value, but got {}", value.to_string());
+        }
         self.end();
         self.end();
     }
