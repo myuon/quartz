@@ -745,7 +745,9 @@ module Generator {
             });
 
             self.new_statement();
-            self.expression(expr.t_let!.value);
+            self.expression(IrTerm {
+                t_ident: expr.t_let!.name,
+            });
 
             self.new_statement();
             self.write("call $_push_memstack");
