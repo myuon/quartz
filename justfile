@@ -16,11 +16,14 @@ upload new_version:
 find_latest_version:
   @curl -s https://api.github.com/repos/myuon/quartz/releases/latest | jq -r '.tag_name' | tr -d 'v'
 
+find_latest_version_local:
+  @git tag | grep -v 'rc' | sort -V | tail -n 1 | tr -d 'v'
+
 download_latest:
   @just download $(just find_latest_version)
 
 build_current_compiler:
-  @just build_compiler $(just find_latest_version) current
+  @just build_compiler $(just find_latest_version_local) current
 
 check_if_stable:
   @just build_compiler current current.2 && just build_compiler current.2 current.3 && just build_compiler current.3 current.4 && diff -w build/quartz-current.3.wat build/quartz-current.4.wat
