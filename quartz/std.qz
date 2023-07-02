@@ -852,7 +852,7 @@ fun alloc(size: i32): ptr[any] {
 }
 
 fun find_free_block(size: u32): ptr[any] {
-    let memory_block_limit = 100 * 1024 * 1024;
+    let memory_block_limit = 1 * 1024 * 1024 * 1024;
 
     if (heap_root_ptr as ptr[any]) == (nil as ptr[any]) {
         let current = alloc_ptr as ptr[any];
