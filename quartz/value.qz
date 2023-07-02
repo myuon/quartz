@@ -40,9 +40,5 @@ module Value {
             t_pointer: 0 as u32,
         };
     }
-
-    fun is_nil(self): bool {
-        return self.t_pointer != nil && self.t_pointer! == 0 as u32;
-    }
 }
 
