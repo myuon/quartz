@@ -113,6 +113,7 @@ fun vec_push_byte(v: vec[byte], e: byte) {
         for i in 0..v.length {
             new_data.at(i) = v.data.at(i);
         }
+        free(v.data);
         v.data = new_data;
         v.capacity = new_capacity;
     }
@@ -922,10 +923,12 @@ fun print_header(name: string, header: Header) {
 
 fun print_heap_objects() {
     let count = 0;
+    let count_alive = 0;
     let header = Header::from_ptr(heap_root_ptr as ptr[any]);
     while header.size > (0 as u32) {
         if !header.is_free {
             print_header((header as u32).to_string(), header);
+            count_alive = count_alive + 1;
         } else {
             println("free space {} [size: {}]", (header as u32).to_string(), header.size.to_string());
         }
@@ -935,6 +938,7 @@ fun print_heap_objects() {
     }
 
     println("{} [END]", (header as u32).to_string());
+    println("{} objects alive of {} blocks in total", count_alive.to_string(), count.to_string());
 }
 
 struct error {
