@@ -811,11 +811,26 @@ fun stdin(): string {
 // 2 * 1024 * 1024 * 1024
 let _sp: u32 = 2147483648 as u32;
 
+// 2 * 1024 * 1024 * 1024
 let _bp: u32 = 2147483648 as u32;
+
+fun push_memstack(value: ptr[any]) {
+    let sp_ptr = _sp as ptr[ptr[any]];
+    sp_ptr.at(0) = value;
+
+    _sp = _sp - (sizeof[ptr[any]]() as u32);
+
+    if (_sp - (32 as u32)) < memory_block_limit {
+        panic("StackOverflow");
+    }
+}
 
 let alloc_ptr: u32 = 0 as u32;
 
 let heap_root_ptr: u32 = 0 as u32;
+
+// 1 * 1024 * 1024 * 1024
+let memory_block_limit: u32 = 1073741824 as u32;
 
 fun alloc(size: i32): ptr[any] {
     let size_ = size;
@@ -847,8 +862,6 @@ fun alloc(size: i32): ptr[any] {
 }
 
 fun find_free_block(size: u32): Header {
-    let memory_block_limit = 1 * 1024 * 1024 * 1024 as u32;
-
     if (heap_root_ptr as ptr[any]) == (nil as ptr[any]) {
         let current = Header::from_ptr(alloc_ptr as ptr[any]);
         current.size = memory_block_limit;

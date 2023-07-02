@@ -448,28 +448,6 @@ module Generator {
         });
 
         self.start();
-        self.write(
-            `func $_push_memstack (param $val i64)
-    global.get $quartz_std__sp
-    i64.const 32
-    i64.shr_u
-    i32.wrap_i64
-
-    local.get $val
-
-    i64.store
-
-    global.get $quartz_std__sp
-    i64.const 8
-    i64.const 32
-    i64.shl
-    i64.sub
-    global.set $quartz_std__sp
-`,
-        );
-        self.end();
-
-        self.start();
         self.write("memory (export \"memory\") 50000");
         self.end();
 
@@ -664,6 +642,8 @@ module Generator {
             }
         }
 
+        // self.prologue();
+
         for b in func.body {
             self.expression(b);
         }
@@ -726,6 +706,8 @@ module Generator {
                 t_ident: expr.t_let!.name,
             });
         } else if expr.t_return != nil {
+            // self.epilogue();
+
             self.new_statement();
             self.expression(expr.t_return!.value);
 
@@ -1085,6 +1067,14 @@ module Generator {
     fun write_value(self, value: Value) {
         self.new_statement();
         self.write(format("{}.const {}", Value::wasm_type(), value.as_i64().to_string()));
+
+        if value.t_pointer != nil && !value.is_nil() {
+            self.new_statement();
+            self.write(format("{}.const {}", Value::wasm_type(), value.as_i64().to_string()));
+
+            self.new_statement();
+            self.write("call $_push_memstack");
+        }
     }
 
     fun convert_stack_to_i32_2(self) {
@@ -1473,6 +1463,42 @@ module Generator {
 
             self.convert_stack_to_i32_1();
         }
+    }
+
+    fun prologue(self) {
+        self.new_statement();
+        self.write(";; prologue");
+
+        self.new_statement();
+        self.write("global.get $quartz_std__bp");
+
+        self.new_statement();
+        self.write("call $_push_memstack");
+
+        self.new_statement();
+        self.write("global.get $quartz_std__sp");
+
+        self.new_statement();
+        self.write("global.set $quartz_std__bp");
+    }
+
+    fun epilogue(self) {
+        self.new_statement();
+        self.write(";; epilogue");
+
+        self.new_statement();
+        self.write("global.get $quartz_std__bp");
+
+        self.new_statement();
+        self.write("global.set $quartz_std__sp");
+
+        self.new_statement();
+        self.write("global.get $quartz_std__bp");
+
+        self.convert_stack_to_i32_1();
+
+        self.new_statement();
+        self.write("i64.load");
     }
 }
 
