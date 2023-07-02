@@ -888,11 +888,11 @@ module Header {
         return (sizeof[i32]() + sizeof[bool]()) as u32;
     }
 
-    fun from_ptr(p: ptr[Header]): Header {
+    fun from_ptr(p: ptr[any]): Header {
         return Header {
-            current: p,
+            current: p as ptr[Header],
             size: p.at(0) as u32,
-            is_free: (p.at(1) as i32) == 1,
+            is_free: p.at(1) as bool,
         };
     }
 
