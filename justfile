@@ -21,3 +21,6 @@ download_latest:
 
 build_current_compiler:
   @just build_compiler $(just find_latest_version) current
+
+check_if_stable:
+  @just build_compiler current current.2 && just build_compiler current.2 current.3 && just build_compiler current.3 current.4 && diff -w build/quartz-current.3.wat build/quartz-current.4.wat
