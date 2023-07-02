@@ -453,7 +453,7 @@ module Generator {
                 t_address: true,
             },
             value: IrTerm {
-                t_i32: 50000 * 64 * 8,
+                t_u32: 2 * 1024 * 1024 * 1024 as u32,
             },
         });
 
@@ -463,7 +463,7 @@ module Generator {
                 t_address: true,
             },
             value: IrTerm {
-                t_i32: 50000 * 64 * 8,
+                t_u32: 2 * 1024 * 1024 * 1024 as u32,
             },
         });
 

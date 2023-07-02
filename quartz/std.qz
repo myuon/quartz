@@ -852,7 +852,7 @@ fun alloc(size: i32): ptr[any] {
 }
 
 fun find_free_block(size: u32): ptr[any] {
-    let memory_block_limit = 1 * 1024 * 1024 * 1024;
+    let memory_block_limit = 1 * 1024 * 1024 * 1024 as u32;
 
     if (heap_root_ptr as ptr[any]) == (nil as ptr[any]) {
         let current = alloc_ptr as ptr[any];
@@ -862,10 +862,10 @@ fun find_free_block(size: u32): ptr[any] {
     }
 
     let current = heap_root_ptr as ptr[any];
-    while !((current.at(1) as bool) && (current.at(0) as i32) >= (size as i32)) {
+    while !((current.at(1) as bool) && (current.at(0) as u32) >= size) {
         current = ((current as u32) + (current.at(0) as u32) + (Header::sizeof() as u32)) as ptr[any];
 
-        if (current as i32) > memory_block_limit {
+        if (current as u32) > memory_block_limit {
             debug(4);
             abort();
         }
@@ -913,7 +913,7 @@ module Header {
 }
 
 fun print_header(name: string, header: Header) {
-    println("{} [size: {}, next: {}]", name, header.size.to_string(), (header.get_next() as i32).to_string());
+    println("{} [size: {}, next: {}]", name, header.size.to_string(), (header.get_next() as u32).to_string());
 }
 
 fun print_heap_objects() {
@@ -921,16 +921,16 @@ fun print_heap_objects() {
     let header = Header::from_ptr(heap_root_ptr as ptr[any]);
     while header.size > (0 as u32) {
         if !header.is_free {
-            print_header((header.current as i32).to_string(), header);
+            print_header((header.current as u32).to_string(), header);
         } else {
-            println("free space {} [size: {}]", (header.current as i32).to_string(), header.size.to_string());
+            println("free space {} [size: {}]", (header.current as u32).to_string(), header.size.to_string());
         }
 
         header = Header::from_ptr(header.get_next());
         count = count + 1;
     }
 
-    println("{} [END]", (header.current as i32).to_string());
+    println("{} [END]", (header.current as u32).to_string());
 }
 
 struct error {
