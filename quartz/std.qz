@@ -839,8 +839,17 @@ fun epilogue() {
     let bp_ptr = (_bp + (8 as u32)) as ptr[ptr[any]];
     _bp = bp_ptr.at(0) as u32;
 
-    if _bp < memory_block_limit || _bp > _sp {
+    if _bp < _sp || _bp > (1610612736 as u32) {
         panic("StackUnderflow");
+    }
+}
+
+fun print_stack() {
+    let p = _sp;
+    while p < (1610612736 as u32) {
+        println("{}: {}", p.to_string(), derive::to_string((p as ptr[any]).at(0)));
+
+        p = p + (8 as u32);
     }
 }
 
