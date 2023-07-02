@@ -448,6 +448,28 @@ module Generator {
         });
 
         self.start();
+        self.write(
+            `func $_push_memstack (param $val i64)
+    global.get $quartz_std__sp
+    i64.const 32
+    i64.shr_u
+    i32.wrap_i64
+
+    local.get $val
+
+    i64.store
+
+    global.get $quartz_std__sp
+    i64.const 8
+    i64.const 32
+    i64.shl
+    i64.sub
+    global.set $quartz_std__sp
+`,
+        );
+        self.end();
+
+        self.start();
         self.write("memory (export \"memory\") 50000");
         self.end();
 

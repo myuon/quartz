@@ -808,6 +808,11 @@ fun stdin(): string {
 }
 
 // used in compiler
+// 2 * 1024 * 1024 * 1024
+let _sp: u32 = 2147483648 as u32;
+
+let _bp: u32 = 2147483648 as u32;
+
 let alloc_ptr: u32 = 0 as u32;
 
 let heap_root_ptr: u32 = 0 as u32;
