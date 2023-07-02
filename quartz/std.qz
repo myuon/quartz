@@ -1195,6 +1195,9 @@ module derive {
         if rep.name.equal("byte") {
             return ((t as byte) as i32).to_string();
         }
+        if rep.name.equal("ptr") {
+            return format("<#{}>", (t as i32).to_string());
+        }
 
         if rep.kind == 2 {
             // enum
