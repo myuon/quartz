@@ -35,3 +35,6 @@ jobs:
 
       - name: Run the test function
         run: MODE=run-wat WAT_FILE=./build/quartz-test.wat cargo run --release
+
+      - name: Check if stable
+        run: just check_if_stable
