@@ -14,13 +14,16 @@ upload new_version:
   @gh release upload v{{new_version}} ./build/quartz-{{new_version}}.wat
 
 find_latest_version:
+  @curl -s https://api.github.com/repos/myuon/quartz/releases/latest | jq -r '.tag_name' | tr -d 'v'
+
+find_latest_version_local:
   @git tag | grep -v 'rc' | sort -V | tail -n 1 | tr -d 'v'
 
 download_latest:
   @just download $(just find_latest_version)
 
 build_current_compiler:
-  @just build_compiler $(just find_latest_version) current
+  @just build_compiler $(just find_latest_version_local) current
 
 run file:
   @just build_current_compiler
