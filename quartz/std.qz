@@ -810,6 +810,8 @@ fun stdin(): string {
 // used in compiler
 let alloc_ptr: u32 = 0 as u32;
 
+let heap_root_ptr: u32 = 0 as u32;
+
 fun alloc(size: i32): ptr[any] {
     let size_ = size;
     if size % sizeof[i32]() != 0 {
@@ -822,7 +824,98 @@ fun alloc(size: i32): ptr[any] {
     let current = alloc_ptr;
     alloc_ptr = alloc_ptr + (size_ as u32);
 
-    return current as ptr[any];
+    let block = find_free_block(size_ as u32);
+    if !block.is_free {
+        debug(7);
+        abort();
+    }
+
+    // split
+    block.size = block.size - (size_ as u32) - Header::sizeof();
+    block.is_free = true;
+
+    let current = block.get_next();
+    current.size = size_ as u32;
+    current.is_free = false;
+
+    return (current as u32 + Header::sizeof()) as ptr[any];
+}
+
+fun find_free_block(size: u32): Header {
+    let memory_block_limit = 1 * 1024 * 1024 * 1024 as u32;
+
+    if (heap_root_ptr as ptr[any]) == (nil as ptr[any]) {
+        let current = Header::from_ptr(alloc_ptr as ptr[any]);
+        current.size = memory_block_limit;
+        current.is_free = true;
+        heap_root_ptr = alloc_ptr;
+    }
+
+    let current = Header::from_ptr(heap_root_ptr as ptr[any]);
+    while !(current.is_free && current.size >= size) {
+        current = current.get_next();
+
+        if (current as u32) > memory_block_limit {
+            debug(4);
+            abort();
+        }
+    }
+
+    return current;
+}
+
+fun free(p: ptr[any]) {
+    let header = Header::from_ptr(((p as u32) - Header::sizeof()) as ptr[any]);
+    header.is_free = true;
+
+    let next = header.get_next();
+    if next.is_free {
+        header.size = header.size + next.size + Header::sizeof();
+    }
+}
+
+struct Header {
+    size: u32,
+    is_free: bool,
+}
+
+module Header {
+    fun sizeof(): u32 {
+        return (sizeof[i32]() + sizeof[bool]()) as u32;
+    }
+
+    fun from_ptr(p: ptr[any]): Header {
+        return p as Header;
+    }
+
+    fun from_data_ptr(p: ptr[any]): Header {
+        return Header::from_ptr(((p as u32) - Header::sizeof()) as ptr[Header]);
+    }
+
+    fun get_next(self): Header {
+        return Header::from_ptr(((self as u32) + Header::sizeof() + self.size) as ptr[any]);
+    }
+}
+
+fun print_header(name: string, header: Header) {
+    println("{} [size: {}, next: {}]", name, header.size.to_string(), (header.get_next() as u32).to_string());
+}
+
+fun print_heap_objects() {
+    let count = 0;
+    let header = Header::from_ptr(heap_root_ptr as ptr[any]);
+    while header.size > (0 as u32) {
+        if !header.is_free {
+            print_header((header as u32).to_string(), header);
+        } else {
+            println("free space {} [size: {}]", (header as u32).to_string(), header.size.to_string());
+        }
+
+        header = header.get_next();
+        count = count + 1;
+    }
+
+    println("{} [END]", (header as u32).to_string());
 }
 
 struct error {
