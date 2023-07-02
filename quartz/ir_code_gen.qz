@@ -521,6 +521,8 @@ module IrCodeGenerator {
 
     fun function(self, func: Function): IrFunc or error {
         self.locals = make[map[string, bool]]();
+        // println("{}", self.path_to(func.name));
+        // debug(alloc_ptr);
         let body = self.block(func.body).try;
 
         let params = make[vec[struct {

@@ -16,16 +16,8 @@ upload new_version:
 find_latest_version:
   @curl -s https://api.github.com/repos/myuon/quartz/releases/latest | jq -r '.tag_name' | tr -d 'v'
 
-find_latest_version_local:
-  @git tag | grep -v 'rc' | sort -V | tail -n 1 | tr -d 'v'
-
 download_latest:
   @just download $(just find_latest_version)
 
 build_current_compiler:
-  @just build_compiler $(just find_latest_version_local) current
-
-run file:
-  @just build_current_compiler
-  MODE=run-wat WAT_FILE=./build/quartz-current.wat cargo run --release -- compile -o ./build/quartz-compiled.wat {{file}}
-  MODE=run-wat WAT_FILE=./build/quartz-compiled.wat cargo run --release
+  @just build_compiler $(just find_latest_version) current
