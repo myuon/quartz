@@ -810,11 +810,11 @@ fun stdin(): string {
 }
 
 // used in compiler
-// 2 * 1024 * 1024 * 1024
-let _sp: u32 = 2147483648 as u32;
+// 1.5 * 1024 * 1024 * 1024
+let _sp: u32 = 1610612736 as u32;
 
-// 2 * 1024 * 1024 * 1024
-let _bp: u32 = 2147483648 as u32;
+// 1.5 * 1024 * 1024 * 1024
+let _bp: u32 = 1610612736 as u32;
 
 fun push_memstack(value: ptr[any]) {
     let sp_ptr = _sp as ptr[ptr[any]];
@@ -824,6 +824,23 @@ fun push_memstack(value: ptr[any]) {
 
     if (_sp - (32 as u32)) < memory_block_limit {
         panic("StackOverflow");
+    }
+}
+
+fun prologue() {
+    push_memstack(_bp as ptr[any]);
+
+    _bp = _sp;
+}
+
+fun epilogue() {
+    _sp = _bp;
+
+    let bp_ptr = (_bp + (8 as u32)) as ptr[ptr[any]];
+    _bp = bp_ptr.at(0) as u32;
+
+    if _bp < memory_block_limit || _bp > _sp {
+        panic("StackUnderflow");
     }
 }
 
