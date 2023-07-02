@@ -738,6 +738,8 @@ module Generator {
                     self.generate_op_comparison("le_s");
                 } else if ident.equal("gte") {
                     self.generate_op_comparison("ge_s");
+                } else if ident.equal("gte_u32") {
+                    self.generate_op_comparison("ge_u");
                 } else if ident.equal("i32_to_address") {
                     self.convert_value_i32_to_address_1();
                 } else if ident.equal("address_to_i32") {
