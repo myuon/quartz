@@ -60,6 +60,7 @@ fun vec_push(v: vec[any], e: any) {
         for i in 0..v.length {
             new_data.at(i) = v.data.at(i);
         }
+        free(v.data);
         v.data = new_data;
         v.capacity = new_capacity;
     }
