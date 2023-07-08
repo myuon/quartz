@@ -1,5 +1,3 @@
-use crate::ir::IrType;
-
 #[derive(PartialEq, Debug, Clone)]
 #[cfg_attr(test, derive(proptest_derive::Arbitrary))]
 pub enum Value {
@@ -50,28 +48,12 @@ impl Value {
         }
     }
 
-    pub fn wasm_type() -> &'static str {
-        "i64"
-    }
-
-    pub fn from_ir_type(_: &IrType) -> &'static str {
-        Self::wasm_type()
-    }
-
-    pub fn sizeof() -> usize {
-        8
-    }
-
     pub fn nil() -> Value {
         Value::Pointer(0)
     }
 
     pub fn i32(i: i32) -> Value {
         Value::I32(i)
-    }
-
-    pub fn bool(b: bool) -> Value {
-        Value::Bool(b)
     }
 }
 
