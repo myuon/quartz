@@ -25,9 +25,9 @@ download_latest:
 build_current_compiler:
   @just build_compiler $(just find_latest_version_local) current
 
-run file:
+run file options="":
   @just build_current_compiler
-  MODE=run-wat WAT_FILE=./build/quartz-current.wat cargo run --release -- compile -o ./build/quartz-compiled.wat {{file}}
+  MODE=run-wat WAT_FILE=./build/quartz-current.wat cargo run --release -- compile {{options}} -o ./build/quartz-compiled.wat {{file}}
   MODE=run-wat WAT_FILE=./build/quartz-compiled.wat cargo run --release
 
 check_if_stable:

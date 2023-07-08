@@ -520,10 +520,20 @@ module IrCodeGenerator {
     }
 
     fun function(self, func: Function): IrFunc or error {
+        let body = make[vec[IrTerm]]();
+        if !self.path_to(func.name.data).starts_with("quartz_std") {
+            body.push(IrTerm {
+                t_call: IrCall {
+                    callee: IrTerm {
+                        t_ident: "quartz_std_push_memstack",
+                    },
+                    args: make[vec[IrTerm]](self.register_string(self.path_to(func.name.data))),
+                },
+            });
+        }
+
         self.locals = make[map[string, bool]]();
-        // println("{}", self.path_to(func.name));
-        // debug(alloc_ptr);
-        let body = self.block(func.body).try;
+        body.extend(self.block(func.body).try);
 
         let params = make[vec[struct {
             name: string,
