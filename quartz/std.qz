@@ -1364,12 +1364,5 @@ fun validate_address(address: i32) {
         debug(4);
         abort();
     }
-
-    let header = Header::from_data_ptr(p);
-    if header.is_free {
-        println((_bp as ptr[any]).at(0) as string);
-        debug(5);
-        abort();
-    }
 }
 
