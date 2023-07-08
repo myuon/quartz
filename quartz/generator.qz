@@ -719,6 +719,20 @@ module Generator {
             self.expression_left_value(IrTerm {
                 t_ident: expr.t_let!.name,
             });
+
+            // push to stack
+            if expr.t_let!.type_.t_address != nil {
+                self.new_statement();
+                self.expression(IrTerm {
+                    t_ident: expr.t_let!.name,
+                });
+
+                self.new_statement();
+                self.write("call $quartz_std_push_memstack");
+
+                self.new_statement();
+                self.write("drop");
+            }
         } else if expr.t_return != nil {
             // Avoid infinite loop
             if !self.current_function_name.starts_with("quartz_std_") {
@@ -1091,14 +1105,6 @@ module Generator {
     fun write_value(self, value: Value) {
         self.new_statement();
         self.write(format("{}.const {}", Value::wasm_type(), value.as_i64().to_string()));
-
-        // if value.t_pointer != nil && !value.is_nil() {
-        //     self.new_statement();
-        //     self.write(format("{}.const {}", Value::wasm_type(), value.as_i64().to_string()));
-
-        //     self.new_statement();
-        //     self.write("call $quartz_std_push_memstack");
-        // }
     }
 
     fun convert_stack_to_i32_2(self) {
