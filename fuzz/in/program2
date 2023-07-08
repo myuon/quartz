@@ -1,9 +1,0 @@
-struct Position {
-  x: i32,
-  y: i32?,
-}
-
-fun main() {
-  let p = Position { x: 1, y: 2? };
-  println("{} {}", p.x.to_string(), p.y!.to_string());
-}
