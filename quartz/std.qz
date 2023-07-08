@@ -839,7 +839,8 @@ fun epilogue() {
     let bp_ptr = (_bp + (8 as u32)) as ptr[ptr[any]];
     _bp = bp_ptr.at(0) as u32;
 
-    if _bp < _sp || _bp > (1610612736 as u32) {
+    // FIXME: when _bp == 0?
+    if _bp != (0 as u32) && (_bp < _sp || _bp > (1610612736 as u32)) {
         panic("StackUnderflow");
     }
 }
