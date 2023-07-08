@@ -933,6 +933,35 @@ module Generator {
                 suffix = format("{}_u", load_size.to_string());
             }
 
+            if !self.current_function_name.starts_with("quartz_std_") {
+                self.new_statement();
+                self.write("i64.extend_i32_u");
+
+                self.new_statement();
+                self.write("global.set $_value_i32_1");
+
+                self.new_statement();
+                self.write("global.get $_value_i32_1");
+
+                self.new_statement();
+                self.write("i64.const 32");
+
+                self.new_statement();
+                self.write("i64.shl");
+
+                self.new_statement();
+                self.write("call $quartz_std_validate_address");
+
+                self.new_statement();
+                self.write("drop");
+
+                self.new_statement();
+                self.write("global.get $_value_i32_1");
+
+                self.new_statement();
+                self.write("i32.wrap_i64");
+            }
+
             self.new_statement();
             self.write(format("{}.load{}", Value::wasm_type(), suffix));
             if expr.t_load!.raw_offset != 0 {

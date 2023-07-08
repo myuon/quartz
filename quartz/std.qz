@@ -1356,3 +1356,18 @@ fun args(): vec[string] {
 
     return result;
 }
+
+fun validate_address(address: i32) {
+    let p = address as ptr[any];
+    if p == nil as ptr[any] {
+        debug(4);
+        abort();
+    }
+
+    let header = Header::from_data_ptr(p);
+    if header.is_free {
+        debug(5);
+        abort();
+    }
+}
+
