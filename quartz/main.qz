@@ -411,7 +411,8 @@ fun main() {
 
         let result or err = run_format(input);
         if err != nil {
-            panic(err!.message);
+            println(input);
+            // println(err!.message);
         }
 
         if f.write != nil {
