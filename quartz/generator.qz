@@ -49,6 +49,7 @@ struct Generator {
     type_reps: vec[InternalTypeRep],
     main_signature_result: IrType?,
     start_terms: vec[IrTerm],
+    current_function_name: string,
 }
 
 module Generator {
@@ -62,6 +63,7 @@ module Generator {
             type_reps: make[vec[InternalTypeRep]](),
             main_signature_result: nil as IrType?,
             start_terms: make[vec[IrTerm]](),
+            current_function_name: "",
         };
     }
 
@@ -585,7 +587,24 @@ module Generator {
         self.start();
         self.write(format("global ${} (mut {})", global_let.name, "i64"));
         self.start();
-        self.expression(global_let.value);
+        let value = global_let.value;
+        if value.t_i32 != nil {
+            self.write_value(Value {
+                t_i32: value.t_i32!,
+            });
+        } else if value.t_nil != nil {
+            self.write_value(Value::nil_());
+        } else if value.t_u32 != nil {
+            self.write_value(Value {
+                t_u32: value.t_u32!,
+            });
+        } else if value.t_bool != nil {
+            self.write_value(Value {
+                t_bool: value.t_bool!,
+            });
+        } else {
+            panic("global expected an immediate value, but got {}", value.to_string());
+        }
         self.end();
         self.end();
     }
@@ -623,6 +642,20 @@ module Generator {
 
                 visited.insert(local, true);
             }
+        }
+
+        self.current_function_name = func.name;
+
+        // Avoid infinite loop
+        if !func.name.starts_with("quartz_std_") {
+            self.expression(IrTerm {
+                t_call: IrCall {
+                    callee: IrTerm {
+                        t_ident: "quartz_std_prologue",
+                    },
+                    args: make[vec[IrTerm]](),
+                },
+            });
         }
 
         for b in func.body {
@@ -686,7 +719,33 @@ module Generator {
             self.expression_left_value(IrTerm {
                 t_ident: expr.t_let!.name,
             });
+
+            // push to stack
+            if expr.t_let!.type_.t_address != nil {
+                self.new_statement();
+                self.expression(IrTerm {
+                    t_ident: expr.t_let!.name,
+                });
+
+                self.new_statement();
+                self.write("call $quartz_std_push_memstack");
+
+                self.new_statement();
+                self.write("drop");
+            }
         } else if expr.t_return != nil {
+            // Avoid infinite loop
+            if !self.current_function_name.starts_with("quartz_std_") {
+                self.expression(IrTerm {
+                    t_call: IrCall {
+                        callee: IrTerm {
+                            t_ident: "quartz_std_epilogue",
+                        },
+                        args: make[vec[IrTerm]](),
+                    },
+                });
+            }
+
             self.new_statement();
             self.expression(expr.t_return!.value);
 

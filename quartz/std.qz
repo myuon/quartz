@@ -60,6 +60,7 @@ fun vec_push(v: vec[any], e: any) {
         for i in 0..v.length {
             new_data.at(i) = v.data.at(i);
         }
+        free(v.data);
         v.data = new_data;
         v.capacity = new_capacity;
     }
@@ -112,6 +113,7 @@ fun vec_push_byte(v: vec[byte], e: byte) {
         for i in 0..v.length {
             new_data.at(i) = v.data.at(i);
         }
+        free(v.data);
         v.data = new_data;
         v.capacity = new_capacity;
     }
@@ -808,9 +810,55 @@ fun stdin(): string {
 }
 
 // used in compiler
+// 1.5 * 1024 * 1024 * 1024
+let _sp: u32 = 1610612736 as u32;
+
+// 1.5 * 1024 * 1024 * 1024
+let _bp: u32 = 1610612736 as u32;
+
+fun push_memstack(value: ptr[any]) {
+    let sp_ptr = _sp as ptr[ptr[any]];
+    sp_ptr.at(0) = value;
+
+    _sp = _sp - (sizeof[ptr[any]]() as u32);
+
+    if (_sp - (32 as u32)) < memory_block_limit {
+        panic("StackOverflow");
+    }
+}
+
+fun prologue() {
+    push_memstack(_bp as ptr[any]);
+
+    _bp = _sp;
+}
+
+fun epilogue() {
+    _sp = _bp;
+
+    let bp_ptr = (_bp + (8 as u32)) as ptr[ptr[any]];
+    _bp = bp_ptr.at(0) as u32;
+
+    if _bp < _sp || _bp > (1610612736 as u32) {
+        panic("StackUnderflow");
+    }
+}
+
+fun print_stack() {
+    let p = _sp;
+    while p < (1610612736 as u32) {
+        println("{}: {}", p.to_string(), derive::to_string((p as ptr[any]).at(0)));
+
+        p = p + (8 as u32);
+    }
+}
+
 let alloc_ptr: u32 = 0 as u32;
 
 let heap_root_ptr: u32 = 0 as u32;
+
+// 1 * 1024 * 1024 * 1024
+let memory_block_limit: u32 = 1073741824 as u32;
 
 fun alloc(size: i32): ptr[any] {
     let size_ = size;
@@ -842,8 +890,6 @@ fun alloc(size: i32): ptr[any] {
 }
 
 fun find_free_block(size: u32): Header {
-    let memory_block_limit = 1 * 1024 * 1024 * 1024 as u32;
-
     if (heap_root_ptr as ptr[any]) == (nil as ptr[any]) {
         let current = Header::from_ptr(alloc_ptr as ptr[any]);
         current.size = memory_block_limit;
@@ -903,10 +949,12 @@ fun print_header(name: string, header: Header) {
 
 fun print_heap_objects() {
     let count = 0;
+    let count_alive = 0;
     let header = Header::from_ptr(heap_root_ptr as ptr[any]);
     while header.size > (0 as u32) {
         if !header.is_free {
             print_header((header as u32).to_string(), header);
+            count_alive = count_alive + 1;
         } else {
             println("free space {} [size: {}]", (header as u32).to_string(), header.size.to_string());
         }
@@ -916,6 +964,7 @@ fun print_heap_objects() {
     }
 
     println("{} [END]", (header as u32).to_string());
+    println("{} objects alive of {} blocks in total", count_alive.to_string(), count.to_string());
 }
 
 struct error {
@@ -1154,6 +1203,9 @@ module derive {
         }
         if rep.name.equal("byte") {
             return ((t as byte) as i32).to_string();
+        }
+        if rep.name.equal("ptr") {
+            return format("<#{}>", (t as i32).to_string());
         }
 
         if rep.kind == 2 {
