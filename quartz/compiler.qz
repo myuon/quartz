@@ -105,6 +105,7 @@ module Compiler {
         main_path: Path,
         entrypoint: string,
         skip_errors: bool,
+        validate_address: bool,
     ): string or error {
         let module_ = self.parse(input, nil, skip_errors).try;
 
@@ -136,7 +137,7 @@ module Compiler {
         irgen.globals = typechecker.globals;
         let term = irgen.run(module_).try;
 
-        let gen = Generator::new();
+        let gen = Generator::new(validate_address);
         gen.set_globals(typechecker.globals);
         gen.set_strings(irgen.strings.strings);
         gen.set_type_reps(irgen.type_reps.type_reps);

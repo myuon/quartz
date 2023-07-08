@@ -50,10 +50,11 @@ struct Generator {
     main_signature_result: IrType?,
     start_terms: vec[IrTerm],
     current_function_name: string,
+    mode_validate_address: bool,
 }
 
 module Generator {
-    fun new(): Generator {
+    fun new(validate_address: bool): Generator {
         return Generator {
             writer: stringbuilder::new(),
             depth: 0,
@@ -64,6 +65,7 @@ module Generator {
             main_signature_result: nil as IrType?,
             start_terms: make[vec[IrTerm]](),
             current_function_name: "",
+            mode_validate_address: validate_address,
         };
     }
 
@@ -933,7 +935,7 @@ module Generator {
                 suffix = format("{}_u", load_size.to_string());
             }
 
-            if !self.current_function_name.starts_with("quartz_std_") {
+            if self.mode_validate_address && !self.current_function_name.starts_with("quartz_std_") {
                 self.new_statement();
                 self.write("i64.extend_i32_u");
 
