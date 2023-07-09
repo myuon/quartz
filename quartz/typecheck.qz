@@ -1078,23 +1078,17 @@ module Typechecker {
                 return t.data;
             }
 
-            let candidates = vec_clone(self.imported) as vec[Path];
-            candidates.push(self.current_path);
-            candidates.push(Path::ident("main"));
+            let result or _err = self.resolve_path(Path::new(expr.t_ident!.name));
+            if result != nil {
+                let path = result!.path;
+                let t = result!.type_;
+                expr.t_ident!.resolved_path = path?;
 
-            for path_prefix in candidates {
-                let path = path_prefix.clone();
-                path.push(expr.t_ident!.name);
+                let t = self.globals.at(path.join("_"));
+                self.set_search_node_type(t.data, lexpr.location);
+                self.set_search_node_definition(self.current_path, t.location, lexpr.location);
 
-                if self.globals.has(path.join("_")) {
-                    expr.t_ident!.resolved_path = path?;
-
-                    let t = self.globals.at(path.join("_"));
-                    self.set_search_node_type(t.data, lexpr.location);
-                    self.set_search_node_definition(self.current_path, t.location, lexpr.location);
-
-                    return t.data;
-                }
+                return t.data;
             }
 
             if self.globals.has(expr.t_ident!.name) {
@@ -1733,6 +1727,8 @@ module Typechecker {
         } else if type_.t_byte != nil {
             return make[map[string, Type]]();
         } else if type_.t_or != nil {
+            return make[map[string, Type]]();
+        } else if type_.t_optional != nil {
             return make[map[string, Type]]();
         }
 
