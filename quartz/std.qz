@@ -398,6 +398,10 @@ module string {
         return true;
     }
 
+    fun not_equal(self, other: string): bool {
+        return !self.equal(other);
+    }
+
     fun slice(self, start: i32, end: i32): string {
         return string {
             data: self.data.offset(start),
