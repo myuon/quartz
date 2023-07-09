@@ -989,6 +989,29 @@ fun print_heap_objects() {
     println("{} objects alive of {} blocks in total", count_alive.to_string(), count.to_string());
 }
 
+fun count_heap_objects(
+): struct {
+    alive: i32,
+    total: i32,
+} {
+    let count = 0;
+    let count_alive = 0;
+    let header = Header::from_ptr(heap_root_ptr as ptr[any]);
+    while header.size > (0 as u32) {
+        if !header.is_free {
+            count_alive = count_alive + 1;
+        }
+
+        header = header.get_next();
+        count = count + 1;
+    }
+
+    return struct {
+        alive: count_alive,
+        total: count,
+    };
+}
+
 struct error {
     message: string,
     detail: vec[any],
@@ -1425,12 +1448,12 @@ fun perform_gc() {
             if reflection::is_pointer(v) {
                 objects.push(v);
             }
-        }
-
-        for i in 0..rep.fields.length {
-            let v = (object as ptr[any]).offset(1).at(i);
-            if reflection::is_pointer(v) {
-                objects.push(v);
+        } else {
+            for i in 0..rep.fields.length {
+                let v = (object as ptr[any]).offset(1).at(i);
+                if reflection::is_pointer(v) {
+                    objects.push(v);
+                }
             }
         }
     }
