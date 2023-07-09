@@ -1748,6 +1748,7 @@ module Typechecker {
     } or error {
         let candidates = vec_clone(self.imported) as vec[Path];
         candidates.push(self.current_path);
+        candidates.push(Path::ident("main"));
 
         for path_prefix in candidates {
             let path = path_prefix.clone();
