@@ -891,18 +891,18 @@ fun alloc(size: i32): ptr[any] {
     alloc_ptr = alloc_ptr + (size_ as u32);
 
     let block = find_free_block(size_ as u32);
-    if !block.is_free {
+    if !block.get_is_free() {
         debug(7);
         abort();
     }
 
     // split
     block.size = block.size - (size_ as u32) - Header::sizeof();
-    block.is_free = true;
+    block.set_is_free(true);
 
     let current = block.get_next();
     current.size = size_ as u32;
-    current.is_free = false;
+    current.set_is_free(false);
 
     return (current as u32 + Header::sizeof()) as ptr[any];
 }
@@ -911,12 +911,12 @@ fun find_free_block(size: u32): Header {
     if (heap_root_ptr as ptr[any]) == (nil as ptr[any]) {
         let current = Header::from_ptr(alloc_ptr as ptr[any]);
         current.size = memory_block_limit;
-        current.is_free = true;
+        current.set_is_free(true);
         heap_root_ptr = alloc_ptr;
     }
 
     let current = Header::from_ptr(heap_root_ptr as ptr[any]);
-    while !(current.is_free && current.size >= size) {
+    while !(current.get_is_free() && current.size >= size) {
         current = current.get_next();
 
         if (current as u32) > memory_block_limit {
@@ -930,22 +930,22 @@ fun find_free_block(size: u32): Header {
 
 fun free(p: ptr[any]) {
     let header = Header::from_ptr(((p as u32) - Header::sizeof()) as ptr[any]);
-    header.is_free = true;
+    header.set_is_free(true);
 
     let next = header.get_next();
-    if next.is_free {
+    if next.get_is_free() {
         header.size = header.size + next.size + Header::sizeof();
     }
 }
 
 struct Header {
     size: u32,
-    is_free: bool,
+    header_flags: u32,
 }
 
 module Header {
     fun sizeof(): u32 {
-        return (sizeof[i32]() + sizeof[bool]()) as u32;
+        return (sizeof[i32]() + sizeof[u32]()) as u32;
     }
 
     fun from_ptr(p: ptr[any]): Header {
@@ -963,6 +963,34 @@ module Header {
     fun get_data_ptr(self): ptr[any] {
         return ((self as u32) + Header::sizeof()) as ptr[any];
     }
+
+    fun get_is_free(self): bool {
+        return (self.header_flags as i32 & 1) == 1;
+    }
+
+    fun set_is_free(self, value: bool) {
+        if value {
+            self.header_flags = (self.header_flags as i32 | 1) as u32;
+        } else {
+            if !self.get_is_free() {
+                self.header_flags = xor_u32(self.header_flags, 1 as u32);
+            }
+        }
+    }
+
+    fun get_is_marked(self): bool {
+        return (self.header_flags as i32 & 2) == 2;
+    }
+
+    fun set_is_marked(self, value: bool) {
+        if value {
+            self.header_flags = (self.header_flags as i32 | 2) as u32;
+        } else {
+            if !self.get_is_marked() {
+                self.header_flags = xor_u32(self.header_flags, 2 as u32);
+            }
+        }
+    }
 }
 
 fun print_header(name: string, header: Header) {
@@ -974,7 +1002,7 @@ fun print_heap_objects() {
     let count_alive = 0;
     let header = Header::from_ptr(heap_root_ptr as ptr[any]);
     while header.size > (0 as u32) {
-        if !header.is_free {
+        if !header.get_is_free() {
             print_header((header as u32).to_string(), header);
             count_alive = count_alive + 1;
         } else {
@@ -998,7 +1026,7 @@ fun count_heap_objects(
     let count_alive = 0;
     let header = Header::from_ptr(heap_root_ptr as ptr[any]);
     while header.size > (0 as u32) {
-        if !header.is_free {
+        if !header.get_is_free() {
             count_alive = count_alive + 1;
         }
 
@@ -1460,7 +1488,7 @@ fun perform_gc() {
 
     let header = Header::from_ptr(heap_root_ptr as ptr[any]);
     while header.size > (0 as u32) {
-        if !header.is_free && !marked.has(derive::to_string(header.get_data_ptr())) {
+        if !header.get_is_free() && !marked.has(derive::to_string(header.get_data_ptr())) {
             free(header.get_data_ptr());
         }
 
