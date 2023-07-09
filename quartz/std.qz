@@ -813,11 +813,12 @@ fun stdin(): string {
     return vec_byte_to_string(str);
 }
 
-// used in compiler
 // 1.5 * 1024 * 1024 * 1024
+let stack_limit: u32 = 1610612736 as u32;
+
+// used in compiler
 let _sp: u32 = 1610612736 as u32;
 
-// 1.5 * 1024 * 1024 * 1024
 let _bp: u32 = 1610612736 as u32;
 
 fun push_memstack(value: ptr[any]) {
@@ -844,14 +845,26 @@ fun epilogue() {
     _bp = bp_ptr.at(0) as u32;
 
     // FIXME: when _bp == 0?
-    if _bp != (0 as u32) && (_bp < _sp || _bp > (1610612736 as u32)) {
+    if _bp != (0 as u32) && (_bp < _sp || _bp > stack_limit) {
         panic("StackUnderflow");
     }
 }
 
+fun get_stack_objects(): vec[ptr[any]] {
+    let result = make[vec[ptr[any]]]();
+    let p = _sp;
+    while p < stack_limit {
+        result.push((p as ptr[any]).at(0) as ptr[any]);
+
+        p = p + (sizeof[ptr[any]]() as u32);
+    }
+
+    return result;
+}
+
 fun print_stack() {
     let p = _sp;
-    while p < (1610612736 as u32) {
+    while p < stack_limit {
         println("{}: {}", p.to_string(), derive::to_string((p as ptr[any]).at(0)));
 
         p = p + (8 as u32);
@@ -945,6 +958,10 @@ module Header {
 
     fun get_next(self): Header {
         return Header::from_ptr(((self as u32) + Header::sizeof() + self.size) as ptr[any]);
+    }
+
+    fun get_data_ptr(self): ptr[any] {
+        return ((self as u32) + Header::sizeof()) as ptr[any];
     }
 }
 
@@ -1367,6 +1384,64 @@ fun validate_address(address: i32) {
         println((_bp as ptr[any]).at(0) as string);
         debug(4);
         abort();
+    }
+}
+
+fun perform_gc() {
+    let marked = make[map[string, bool]]();
+    let objects = get_stack_objects();
+    while objects.length > 0 {
+        let object = vec_pop(objects);
+        if !reflection::is_pointer(object) {
+            panic("perform_gc: not a pointer");
+        }
+
+        let key = derive::to_string(object);
+        if marked.has(key) {
+            continue;
+        }
+
+        marked.insert(key, true);
+
+        let rep = reflection::get_type_rep(object);
+        if rep.name.equal("vec") {
+            for k in (object as vec[any]) {
+                if reflection::is_pointer(k) {
+                    objects.push(k);
+                }
+            }
+        } else if rep.name.equal("optional") {
+            let v = (object as any?)!;
+            if reflection::is_pointer(v) {
+                objects.push(v);
+            }
+        } else if rep.name.equal("ptr") {
+            let v = (object as ptr[any]).at(0);
+            if reflection::is_pointer(v) {
+                objects.push(v);
+            }
+        } else if rep.kind == 2 {
+            let v = (object as ptr[any]).offset(1).at(1);
+            if reflection::is_pointer(v) {
+                objects.push(v);
+            }
+        }
+
+        for i in 0..rep.fields.length {
+            let v = (object as ptr[any]).offset(1).at(i);
+            if reflection::is_pointer(v) {
+                objects.push(v);
+            }
+        }
+    }
+
+    let header = Header::from_ptr(heap_root_ptr as ptr[any]);
+    while header.size > (0 as u32) {
+        if !header.is_free && !marked.has(derive::to_string(header.get_data_ptr())) {
+            free(header.get_data_ptr());
+        }
+
+        header = header.get_next();
     }
 }
 
