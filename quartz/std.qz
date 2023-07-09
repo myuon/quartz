@@ -1444,53 +1444,12 @@ fun perform_gc() {
     }
 
     // mark
-    let objects = get_stack_objects();
-    while objects.length > 0 {
-        let object = vec_pop(objects);
-        if !reflection::is_pointer(object) {
-            debug(9);
-            abort();
-        }
+    let p = _sp;
+    while p < stack_limit {
+        let data = (p as ptr[any]).at(0) as ptr[any];
+        mark_and_load(data);
 
-        let object_ptr = object as ptr[any];
-        let object_header = Header::from_ptr(object_ptr);
-
-        if object_header.get_is_marked() {
-            continue;
-        }
-
-        object_header.set_is_marked(true);
-
-        let rep = reflection::get_type_rep(object);
-        if rep.name.equal("vec") {
-            for k in (object as vec[any]) {
-                if reflection::is_pointer(k) {
-                    objects.push(k);
-                }
-            }
-        } else if rep.name.equal("optional") {
-            let v = (object as any?)!;
-            if reflection::is_pointer(v) {
-                objects.push(v);
-            }
-        } else if rep.name.equal("ptr") {
-            let v = (object as ptr[any]).at(0);
-            if reflection::is_pointer(v) {
-                objects.push(v);
-            }
-        } else if rep.kind == 2 {
-            let v = (object as ptr[any]).offset(1).at(1);
-            if reflection::is_pointer(v) {
-                objects.push(v);
-            }
-        } else {
-            for i in 0..rep.fields.length {
-                let v = (object as ptr[any]).offset(1).at(i);
-                if reflection::is_pointer(v) {
-                    objects.push(v);
-                }
-            }
-        }
+        p = p + (sizeof[ptr[any]]() as u32);
     }
 
     // sweep
@@ -1501,6 +1460,53 @@ fun perform_gc() {
         }
 
         header = header.get_next();
+    }
+}
+
+fun mark_and_load(object: ptr[any]) {
+    if !reflection::is_pointer(object) {
+        debug(9);
+        abort();
+    }
+
+    let object_ptr = object as ptr[any];
+    let object_header = Header::from_ptr(object_ptr);
+
+    if object_header.get_is_marked() {
+        return;
+    }
+
+    object_header.set_is_marked(true);
+
+    let rep = reflection::get_type_rep(object);
+    if rep.name.equal("vec") {
+        for k in (object as vec[any]) {
+            if reflection::is_pointer(k) {
+                mark_and_load(k);
+            }
+        }
+    } else if rep.name.equal("optional") {
+        let v = (object as any?)!;
+        if reflection::is_pointer(v) {
+            mark_and_load(v);
+        }
+    } else if rep.name.equal("ptr") {
+        let v = (object as ptr[any]).at(0);
+        if reflection::is_pointer(v) {
+            mark_and_load(v);
+        }
+    } else if rep.kind == 2 {
+        let v = (object as ptr[any]).offset(1).at(1);
+        if reflection::is_pointer(v) {
+            mark_and_load(v);
+        }
+    } else {
+        for i in 0..rep.fields.length {
+            let v = (object as ptr[any]).offset(1).at(i);
+            if reflection::is_pointer(v) {
+                mark_and_load(v);
+            }
+        }
     }
 }
 
