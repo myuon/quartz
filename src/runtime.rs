@@ -1,8 +1,8 @@
-use std::io::Write;
+use std::{env, io::Write};
 
 use anyhow::{anyhow, Result};
 use wasmer::{imports, Function, Instance, Module, Store, Value as WasmValue};
-use wasmer_wasi::WasiState;
+use wasmer_wasix::{WasiEnv, WasiFunctionEnv};
 
 use crate::value::Value;
 
@@ -20,10 +20,12 @@ impl Runtime {
         let args_string = std::env::args().collect::<Vec<_>>().join(" ");
         let args_string_len = args_string.len();
 
-        let mut wasi_func_env = WasiState::new("quartz")
-            .preopen_dir(".")?
-            .finalize(&mut store)?;
-        let wasi_import_object = wasi_func_env.import_object(&mut store, &module)?;
+        let wasi_env = WasiEnv::builder("quartz")
+            .map_dir(".", env::current_dir()?)?
+            .build()?;
+        let mut wasi_function_env = WasiFunctionEnv::new(&mut store, wasi_env);
+
+        let wasi_import_object = wasi_function_env.import_object(&mut store, &module)?;
 
         let mut import_object = imports! {
             "env" => {
@@ -69,7 +71,7 @@ impl Runtime {
         import_object.extend(wasi_import_object.into_iter());
 
         let instance = Instance::new(&mut store, &module, &import_object)?;
-        wasi_func_env.initialize(&mut store, &instance)?;
+        wasi_function_env.initialize(&mut store, instance.clone())?;
 
         let main = instance.exports.get_function("main")?;
         let result = main.call(&mut store, &[])?;
@@ -82,31 +84,31 @@ impl Runtime {
             let message = err.to_string();
             // regexp test (at offset %d) against message
             let Ok(re) = regex::Regex::new(r"\(at offset (\d+)\)") else {
-                return anyhow!("Original Error: {}", err);
+                return anyhow!("Original Error: {:?}", err);
             };
             let Some(cap) = re.captures(&message) else {
-                return anyhow!("Original Error: {}", err);
+                return anyhow!("Original Error: {:?}", err);
             };
             let Ok(offset) = cap[1].parse::<usize>() else {
-                return anyhow!("Original Error: {}", err);
+                return anyhow!("Original Error: {:?}", err);
             };
 
             let wasm = wat::parse_str(input).unwrap();
 
             let Ok(mut file) = std::fs::File::create("build/build.wat") else {
-                return anyhow!("Original Error: {}", err);
+                return anyhow!("Original Error: {:?}", err);
             };
             file.write_all(input.as_bytes()).unwrap();
 
             let Ok(mut file) = std::fs::File::create("build/error.wasm") else {
-                return anyhow!("Original Error: {}", err);
+                return anyhow!("Original Error: {:?}", err);
             };
             file.write_all(&wasm).unwrap();
 
             // offset in base-16
             let offset_hex = format!("{:x}", offset);
 
-            anyhow!("Error at: {}\n\nOriginal Error: {}", offset_hex, err)
+            anyhow!("Error at: {}\n\nOriginal Error: {:?}", offset_hex, err)
         })
     }
 }
