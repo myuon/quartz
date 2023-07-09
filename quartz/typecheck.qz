@@ -516,8 +516,18 @@ module Typechecker {
         };
     }
 
-    fun run(self, m: Module, path: Path): nil or error {
+    fun push_to_imported(self, path: Path) {
+        for p in self.imported {
+            if p.join("_") == path.join("_") {
+                return;
+            }
+        }
+
         self.imported.push(path);
+    }
+
+    fun run(self, m: Module, path: Path): nil or error {
+        self.push_to_imported(path);
         self.module_(m).try;
 
         return nil;
@@ -608,7 +618,7 @@ module Typechecker {
 
                 continue;
             } else if d.t_import != nil {
-                self.imported.push(d.t_import!);
+                self.push_to_imported(d.t_import!);
 
                 continue;
             } else {
