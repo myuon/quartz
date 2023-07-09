@@ -2064,9 +2064,13 @@ fun unify(type1: Type, type2: Type): Type or error {
             let rs2 = type2.t_struct!.fields.at(i).data;
 
             if !rs1.name.equal(rs2.name) {
-                return _ or error::new(
-                    format("unification failed, {}: {} != {}: {}", rs1.name, rs1.type_.to_string(), rs2.name, rs2.type_.to_string()),
-                );
+                return _ or error::new(format(
+                    "unification failed, {}: {} != {}: {}",
+                    rs1.name,
+                    rs1.type_.to_string(),
+                    rs2.name,
+                    rs2.type_.to_string(),
+                ));
             }
 
             unify(rs1.type_, rs2.type_).try;
