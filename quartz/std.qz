@@ -929,7 +929,7 @@ fun find_free_block(size: u32): Header {
 }
 
 fun free(p: ptr[any]) {
-    let header = Header::from_ptr(((p as u32) - Header::sizeof()) as ptr[any]);
+    let header = Header::from_data_ptr(p);
     header.set_is_free(true);
 
     let next = header.get_next();
@@ -1139,8 +1139,12 @@ module reflection {
 
     // [nil, kind, rep_name, size of params, *params, size of fields, *fields]
     fun parse_type_rep(t: ptr[any]): TypeRep {
+        if !reflection::is_pointer(t) {
+            panic("Not a pointer");
+        }
         if t.at(0) != nil {
-            abort();
+            debug(t.at(0));
+            panic("Not a type rep");
         }
 
         let kind = t.at(1) as i32;
