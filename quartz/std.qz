@@ -634,7 +634,6 @@ fun panic(s: string, ..arg: vec[string]): any {
 
 fun print_stacktrace() {
     let bp = _bp as ptr[ptr[byte]];
-    debug(_bp);
 
     print_string("=== stack trace ===\n");
 
@@ -1464,14 +1463,22 @@ fun perform_gc() {
         header = header.get_next();
     }
 
+    println("unmark");
+
     // mark
     let p = _sp;
     while p < stack_limit {
-        let data = (p as ptr[any]).at(0) as ptr[i32];
+        let data = (p as ptr[any]).at(0) as ptr[any];
+        if is_pointer_on_stack(data) {
+            continue;
+        }
+
         mark_and_load(data.at(0) as ptr[any]);
 
         p = p + (sizeof[ptr[any]]() as u32);
     }
+
+    println("mark");
 
     // sweep
     let header = Header::from_ptr(heap_root_ptr as ptr[any]);
@@ -1482,6 +1489,12 @@ fun perform_gc() {
 
         header = header.get_next();
     }
+
+    println("sweep");
+}
+
+fun is_pointer_on_stack(p: ptr[any]): bool {
+    return (p as u32) >= _sp && (p as u32) < stack_limit;
 }
 
 fun mark_and_load(object: ptr[any]) {

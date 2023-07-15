@@ -797,6 +797,8 @@ module Generator {
                     self.generate_op_comparison("gt_u");
                 } else if ident.equal("lte") {
                     self.generate_op_comparison("le_s");
+                } else if ident.equal("lte_u32") {
+                    self.generate_op_comparison("le_u");
                 } else if ident.equal("gte") {
                     self.generate_op_comparison("ge_s");
                 } else if ident.equal("gte_u32") {
