@@ -987,7 +987,7 @@ module Header {
     fun set_is_free(self, value: bool) {
         if value {
             self.header_flags = (self.header_flags as i32 | 1) as u32;
-        } else if !self.get_is_free() {
+        } else if self.get_is_free() {
             self.header_flags = xor_u32(self.header_flags, 1 as u32);
         }
     }
@@ -999,7 +999,7 @@ module Header {
     fun set_is_marked(self, value: bool) {
         if value {
             self.header_flags = (self.header_flags as i32 | 2) as u32;
-        } else if !self.get_is_marked() {
+        } else if self.get_is_marked() {
             self.header_flags = xor_u32(self.header_flags, 2 as u32);
         }
     }
@@ -1458,7 +1458,9 @@ fun perform_gc() {
     // unmark all objects
     let header = Header::from_ptr(heap_root_ptr as ptr[any]);
     while header.size > (0 as u32) {
-        header.set_is_marked(false);
+        if !header.get_is_free() {
+            header.set_is_marked(false);
+        }
 
         header = header.get_next();
     }
@@ -1492,7 +1494,7 @@ fun perform_gc() {
     let header = Header::from_ptr(heap_root_ptr as ptr[any]);
     while header.size > (0 as u32) {
         if !header.get_is_free() && !header.get_is_marked() {
-            free(header.get_data_ptr());
+            // free(header.get_data_ptr());
         }
 
         header = header.get_next();
