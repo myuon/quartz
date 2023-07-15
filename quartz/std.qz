@@ -1470,10 +1470,18 @@ fun perform_gc() {
     while p < stack_limit {
         let data = (p as ptr[any]).at(0) as ptr[any];
         if is_pointer_on_stack(data) {
+            p = p + (sizeof[ptr[any]]() as u32);
             continue;
         }
 
-        mark_and_load(data.at(0) as ptr[any]);
+        let d = data.at(0);
+
+        // FIXME: ugly hack
+        if reflection::is_pointer(d) {
+            mark_and_load(d as ptr[any]);
+        } else {
+            mark_and_load(d as i32 as ptr[any]);
+        }
 
         p = p + (sizeof[ptr[any]]() as u32);
     }
