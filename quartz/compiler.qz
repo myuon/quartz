@@ -341,7 +341,7 @@ fun find_position(
     let line_number = 0;
     let count = 0;
     for line in input.line_counts() {
-        if count + line > position {
+        if count + line + 1 > position {
             break;
         }
 
