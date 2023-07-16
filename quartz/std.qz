@@ -1515,6 +1515,9 @@ fun mark_and_load(object: ptr[any]) {
     let object_ptr = object as ptr[any];
     let object_header = Header::from_ptr(object_ptr);
 
+    if object_header.get_is_free() {
+        return;
+    }
     if object_header.get_is_marked() {
         return;
     }
