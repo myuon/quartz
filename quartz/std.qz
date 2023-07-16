@@ -838,7 +838,7 @@ fun push_memstack(value: ptr[any]) {
         panic("push_memstack: value is not a pointer");
     }
 
-    let sp_ptr = _sp as ptr[ptr[any]];
+    let sp_ptr = _sp as ptr[ptr[byte]];
     sp_ptr.at(0) = value;
 
     _sp = _sp - (sizeof[ptr[any]]() as u32);
@@ -857,7 +857,7 @@ fun prologue() {
 fun epilogue() {
     _sp = _bp;
 
-    let bp_ptr = (_bp + (8 as u32)) as ptr[ptr[any]];
+    let bp_ptr = (_bp as ptr[ptr[byte]]).offset(1);
     _bp = bp_ptr.at(0) as u32;
 
     // FIXME: when _bp == 0?
@@ -914,6 +914,9 @@ fun alloc(size: i32): ptr[any] {
 
     // split
     block.size = block.size - (size_ as u32) - Header::sizeof();
+    if block.size <= (0 as u32) {
+        panic("alloc: block.size <= 0");
+    }
     block.set_is_free(true);
 
     let current = block.get_next();
