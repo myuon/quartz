@@ -961,9 +961,9 @@ fun bit_not_u32(x: u32): u32 {
     return xor_u32(x, 4294967295); // 2^32 - 1
 }
 
+// size: u32,
+// header_flags: u32,
 struct Header {
-    // size: u32,
-    // header_flags: u32,
 }
 
 module Header {
@@ -1033,7 +1033,12 @@ module Header {
 }
 
 fun print_header(name: string, header: Header) {
-    println("{} [size: {}, next: {}]", name, header.get_size().to_string(), (header.get_next() as u32).to_string());
+    println(
+        "{} [size: {}, next: {}]",
+        name,
+        header.get_size().to_string(),
+        (header.get_next() as u32).to_string(),
+    );
 }
 
 fun print_heap_objects() {
