@@ -985,26 +985,26 @@ module Header {
     }
 
     fun get_is_free(self): bool {
-        return (self.header_flags as i32 & 1) == 1;
+        return (self.header_flags & 1 as u32) == (1 as u32);
     }
 
     fun set_is_free(self, value: bool) {
         if value {
-            self.header_flags = (self.header_flags as i32 | 1) as u32;
+            self.header_flags = self.header_flags | (1 as u32);
         } else {
-            self.header_flags = (self.header_flags as i32 & bit_not_u32(1 as u32) as i32) as u32;
+            self.header_flags = self.header_flags & bit_not_u32(1 as u32);
         }
     }
 
     fun get_is_marked(self): bool {
-        return (self.header_flags as i32 & 2) == 2;
+        return (self.header_flags & 2 as u32) == 2 as u32;
     }
 
     fun set_is_marked(self, value: bool) {
         if value {
-            self.header_flags = (self.header_flags as i32 | 2) as u32;
+            self.header_flags = self.header_flags | (2 as u32);
         } else {
-            self.header_flags = (self.header_flags as i32 & bit_not_u32(2 as u32) as i32) as u32;
+            self.header_flags = self.header_flags & bit_not_u32(2 as u32);
         }
     }
 }
