@@ -627,7 +627,19 @@ module stringbuilder {
 
 fun panic(s: string, ..arg: vec[string]): any {
     println(s, ..arg);
+    print_stacktrace();
+
     return abort();
+}
+
+fun print_stacktrace() {
+    let bp = _bp as ptr[ptr[byte]];
+
+    print_string("=== stack trace ===\n");
+
+    print_string("  ");
+    print_string(bp.at(0) as string);
+    print_string("\n");
 }
 
 // used in compiler
@@ -813,14 +825,19 @@ fun stdin(): string {
     return vec_byte_to_string(str);
 }
 
-// used in compiler
 // 1.5 * 1024 * 1024 * 1024
+let stack_limit: u32 = 1610612736 as u32;
+
+// used in compiler
 let _sp: u32 = 1610612736 as u32;
 
-// 1.5 * 1024 * 1024 * 1024
 let _bp: u32 = 1610612736 as u32;
 
 fun push_memstack(value: ptr[any]) {
+    if !reflection::is_pointer(value) {
+        panic("push_memstack: value is not a pointer");
+    }
+
     let sp_ptr = _sp as ptr[ptr[any]];
     sp_ptr.at(0) = value;
 
@@ -844,14 +861,26 @@ fun epilogue() {
     _bp = bp_ptr.at(0) as u32;
 
     // FIXME: when _bp == 0?
-    if _bp != (0 as u32) && (_bp < _sp || _bp > (1610612736 as u32)) {
+    if _bp != (0 as u32) && (_bp < _sp || _bp > stack_limit) {
         panic("StackUnderflow");
     }
 }
 
+fun get_stack_objects(): vec[ptr[any]] {
+    let result = make[vec[ptr[any]]]();
+    let p = _sp;
+    while p < stack_limit {
+        result.push((p as ptr[any]).at(0) as ptr[any]);
+
+        p = p + (sizeof[ptr[any]]() as u32);
+    }
+
+    return result;
+}
+
 fun print_stack() {
     let p = _sp;
-    while p < (1610612736 as u32) {
+    while p < stack_limit {
         println("{}: {}", p.to_string(), derive::to_string((p as ptr[any]).at(0)));
 
         p = p + (8 as u32);
@@ -878,18 +907,18 @@ fun alloc(size: i32): ptr[any] {
     alloc_ptr = alloc_ptr + (size_ as u32);
 
     let block = find_free_block(size_ as u32);
-    if !block.is_free {
+    if !block.get_is_free() {
         debug(7);
         abort();
     }
 
     // split
     block.size = block.size - (size_ as u32) - Header::sizeof();
-    block.is_free = true;
+    block.set_is_free(true);
 
     let current = block.get_next();
     current.size = size_ as u32;
-    current.is_free = false;
+    current.set_is_free(false);
 
     return (current as u32 + Header::sizeof()) as ptr[any];
 }
@@ -898,12 +927,12 @@ fun find_free_block(size: u32): Header {
     if (heap_root_ptr as ptr[any]) == (nil as ptr[any]) {
         let current = Header::from_ptr(alloc_ptr as ptr[any]);
         current.size = memory_block_limit;
-        current.is_free = true;
+        current.set_is_free(true);
         heap_root_ptr = alloc_ptr;
     }
 
     let current = Header::from_ptr(heap_root_ptr as ptr[any]);
-    while !(current.is_free && current.size >= size) {
+    while !(current.get_is_free() && current.size >= size) {
         current = current.get_next();
 
         if (current as u32) > memory_block_limit {
@@ -916,23 +945,27 @@ fun find_free_block(size: u32): Header {
 }
 
 fun free(p: ptr[any]) {
-    let header = Header::from_ptr(((p as u32) - Header::sizeof()) as ptr[any]);
-    header.is_free = true;
+    let header = Header::from_data_ptr(p);
+    header.set_is_free(true);
 
     let next = header.get_next();
-    if next.is_free {
+    if next.get_is_free() {
         header.size = header.size + next.size + Header::sizeof();
     }
 }
 
+fun bit_not_u32(x: u32): u32 {
+    return xor_u32(x, 4294967295); // 2^32 - 1
+}
+
 struct Header {
     size: u32,
-    is_free: bool,
+    header_flags: u32,
 }
 
 module Header {
     fun sizeof(): u32 {
-        return (sizeof[i32]() + sizeof[bool]()) as u32;
+        return (sizeof[u32]() + sizeof[u32]()) as u32;
     }
 
     fun from_ptr(p: ptr[any]): Header {
@@ -946,6 +979,34 @@ module Header {
     fun get_next(self): Header {
         return Header::from_ptr(((self as u32) + Header::sizeof() + self.size) as ptr[any]);
     }
+
+    fun get_data_ptr(self): ptr[any] {
+        return ((self as u32) + Header::sizeof()) as ptr[any];
+    }
+
+    fun get_is_free(self): bool {
+        return (self.header_flags as i32 & 1) == 1;
+    }
+
+    fun set_is_free(self, value: bool) {
+        if value {
+            self.header_flags = (self.header_flags as i32 | 1) as u32;
+        } else {
+            self.header_flags = (self.header_flags as i32 & bit_not_u32(1 as u32) as i32) as u32;
+        }
+    }
+
+    fun get_is_marked(self): bool {
+        return (self.header_flags as i32 & 2) == 2;
+    }
+
+    fun set_is_marked(self, value: bool) {
+        if value {
+            self.header_flags = (self.header_flags as i32 | 2) as u32;
+        } else {
+            self.header_flags = (self.header_flags as i32 & bit_not_u32(2 as u32) as i32) as u32;
+        }
+    }
 }
 
 fun print_header(name: string, header: Header) {
@@ -957,7 +1018,7 @@ fun print_heap_objects() {
     let count_alive = 0;
     let header = Header::from_ptr(heap_root_ptr as ptr[any]);
     while header.size > (0 as u32) {
-        if !header.is_free {
+        if !header.get_is_free() {
             print_header((header as u32).to_string(), header);
             count_alive = count_alive + 1;
         } else {
@@ -970,6 +1031,29 @@ fun print_heap_objects() {
 
     println("{} [END]", (header as u32).to_string());
     println("{} objects alive of {} blocks in total", count_alive.to_string(), count.to_string());
+}
+
+fun count_heap_objects(
+): struct {
+    alive: i32,
+    total: i32,
+} {
+    let count = 0;
+    let count_alive = 0;
+    let header = Header::from_ptr(heap_root_ptr as ptr[any]);
+    while header.size > (0 as u32) {
+        if !header.get_is_free() {
+            count_alive = count_alive + 1;
+        }
+
+        header = header.get_next();
+        count = count + 1;
+    }
+
+    return struct {
+        alive: count_alive,
+        total: count,
+    };
 }
 
 struct error {
@@ -1075,8 +1159,12 @@ module reflection {
 
     // [nil, kind, rep_name, size of params, *params, size of fields, *fields]
     fun parse_type_rep(t: ptr[any]): TypeRep {
+        if !reflection::is_pointer(t) {
+            panic("Not a pointer");
+        }
         if t.at(0) != nil {
-            abort();
+            debug(t.at(0));
+            panic("Not a type rep");
         }
 
         let kind = t.at(1) as i32;
@@ -1367,6 +1455,104 @@ fun validate_address(address: i32) {
         println((_bp as ptr[any]).at(0) as string);
         debug(4);
         abort();
+    }
+}
+
+fun perform_gc() {
+    // mark
+    let p = _sp;
+    while p < stack_limit {
+        let data = (p as ptr[any]).at(0) as ptr[any];
+        if is_pointer_on_stack(data) {
+            p = p + (sizeof[ptr[any]]() as u32);
+            continue;
+        }
+
+        let d = data.at(0);
+
+        // FIXME: ugly hack
+        if reflection::is_pointer(d) {
+            mark_and_load(d as ptr[any]);
+        } else {
+            mark_and_load(d as i32 as ptr[any]);
+        }
+
+        p = p + (sizeof[ptr[any]]() as u32);
+    }
+
+    println("mark");
+
+    let count = 0;
+
+    // sweep
+    let header = Header::from_ptr(heap_root_ptr as ptr[any]);
+    while header.size > (0 as u32) {
+        if !header.get_is_free() && !header.get_is_marked() {
+            free(header.get_data_ptr());
+            count = count + 1;
+        }
+        if header.get_is_marked() {
+            header.set_is_marked(false);
+        }
+
+        header = header.get_next();
+    }
+
+    println("sweep");
+    debug(count);
+}
+
+fun is_pointer_on_stack(p: ptr[any]): bool {
+    return (p as u32) >= _sp && (p as u32) < stack_limit;
+}
+
+fun mark_and_load(object: ptr[any]) {
+    if !reflection::is_pointer(object) {
+        debug(object);
+        panic("mark_and_load: not a pointer");
+    }
+
+    let object_ptr = object as ptr[any];
+    let object_header = Header::from_ptr(object_ptr);
+
+    if object_header.get_is_free() {
+        return;
+    }
+    if object_header.get_is_marked() {
+        return;
+    }
+
+    object_header.set_is_marked(true);
+
+    let rep = reflection::get_type_rep(object);
+    if rep.name.equal("vec") {
+        for k in (object as vec[any]) {
+            if reflection::is_pointer(k) {
+                mark_and_load(k);
+            }
+        }
+    } else if rep.name.equal("optional") {
+        let v = (object as any?)!;
+        if reflection::is_pointer(v) {
+            mark_and_load(v);
+        }
+    } else if rep.name.equal("ptr") {
+        let v = (object as ptr[any]).at(0);
+        if reflection::is_pointer(v) {
+            mark_and_load(v);
+        }
+    } else if rep.kind == 2 {
+        let v = (object as ptr[any]).offset(1).at(1);
+        if reflection::is_pointer(v) {
+            mark_and_load(v);
+        }
+    } else {
+        for i in 0..rep.fields.length {
+            let v = (object as ptr[any]).offset(1).at(i);
+            if reflection::is_pointer(v) {
+                mark_and_load(v);
+            }
+        }
     }
 }
 
