@@ -1478,7 +1478,8 @@ fun perform_gc() {
         let d = data.at(0);
 
         if reflection::is_pointer(d) {
-            mark_and_load(d as ptr[any]);
+            let header = Header::from_ptr(d as ptr[any]);
+            mark_and_load(header);
         } else if d != 0 {
             // FIXME: why?
             panic("perform_gc: not a pointer");
@@ -1509,50 +1510,43 @@ fun is_pointer_on_stack(p: ptr[any]): bool {
     return (p as u32) >= _sp && (p as u32) < stack_limit;
 }
 
-fun mark_and_load(object: ptr[any]) {
-    if !reflection::is_pointer(object) {
-        debug(object);
-        panic("mark_and_load: not a pointer");
-    }
-
-    let object_header = Header::from_ptr(object);
-
-    if object_header.get_is_free() {
+fun mark_and_load(object: Header) {
+    if object.get_is_free() {
         return;
     }
-    if object_header.get_is_marked() {
+    if object.get_is_marked() {
         return;
     }
 
-    object_header.set_is_marked(true);
+    object.set_is_marked(true);
 
-    let rep = reflection::get_type_rep(object_header.get_data_ptr());
+    let rep = reflection::get_type_rep(object.get_data_ptr());
     if rep.name.equal("vec") {
         for k in (object as vec[any]) {
             if reflection::is_pointer(k) {
-                mark_and_load(k);
+                mark_and_load(Header::from_data_ptr(k));
             }
         }
     } else if rep.name.equal("optional") {
         let v = (object as any?)!;
         if reflection::is_pointer(v) {
-            mark_and_load(v);
+            mark_and_load(Header::from_data_ptr(v));
         }
     } else if rep.name.equal("ptr") {
         let v = (object as ptr[any]).at(0);
         if reflection::is_pointer(v) {
-            mark_and_load(v);
+            mark_and_load(Header::from_data_ptr(v));
         }
     } else if rep.kind == 2 {
         let v = (object as ptr[any]).offset(1).at(1);
         if reflection::is_pointer(v) {
-            mark_and_load(v);
+            mark_and_load(Header::from_data_ptr(v));
         }
     } else {
         for i in 0..rep.fields.length {
             let v = (object as ptr[any]).offset(1).at(i);
             if reflection::is_pointer(v) {
-                mark_and_load(v);
+                mark_and_load(Header::from_data_ptr(v));
             }
         }
     }
