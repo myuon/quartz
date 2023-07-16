@@ -243,6 +243,9 @@ module i32 {
         if self == 0 {
             return "0";
         }
+        if self < 0 {
+            return "-".concat((0-self).to_string());
+        }
 
         let digit = 0;
         let tmp = self;
