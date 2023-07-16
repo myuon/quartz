@@ -862,6 +862,8 @@ fun epilogue() {
 
     // FIXME: when _bp == 0?
     if _bp != (0 as u32) && (_bp < _sp || _bp > stack_limit) {
+        debug(_bp);
+        debug(stack_limit);
         panic("StackUnderflow");
     }
 }
@@ -1526,7 +1528,7 @@ fun perform_gc() {
     println("sweep");
 }
 
-fun is_pointer_on_stack(p: ptr[any]): bool {
+fun is_pointer_on_stack(p: ptr[ptr[byte]]): bool {
     return (p as u32) >= _sp && (p as u32) < stack_limit;
 }
 
@@ -1535,6 +1537,9 @@ fun mark_and_load(object: Header) {
         return;
     }
     if object.get_is_marked() {
+        return;
+    }
+    if is_pointer_on_stack(object as ptr[ptr[byte]]) {
         return;
     }
 
