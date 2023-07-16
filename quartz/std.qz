@@ -965,7 +965,7 @@ struct Header {
 
 module Header {
     fun sizeof(): u32 {
-        return (sizeof[i32]() + sizeof[u32]()) as u32;
+        return (sizeof[u32]() + sizeof[u32]()) as u32;
     }
 
     fun from_ptr(p: ptr[any]): Header {
@@ -1459,18 +1459,6 @@ fun validate_address(address: i32) {
 }
 
 fun perform_gc() {
-    // unmark all objects
-    let header = Header::from_ptr(heap_root_ptr as ptr[any]);
-    while header.size > (0 as u32) {
-        if !header.get_is_free() {
-            header.set_is_marked(false);
-        }
-
-        header = header.get_next();
-    }
-
-    println("unmark");
-
     // mark
     let p = _sp;
     while p < stack_limit {
@@ -1494,17 +1482,24 @@ fun perform_gc() {
 
     println("mark");
 
+    let count = 0;
+
     // sweep
     let header = Header::from_ptr(heap_root_ptr as ptr[any]);
     while header.size > (0 as u32) {
         if !header.get_is_free() && !header.get_is_marked() {
-            // free(header.get_data_ptr());
+            free(header.get_data_ptr());
+            count = count + 1;
+        }
+        if header.get_is_marked() {
+            header.set_is_marked(false);
         }
 
         header = header.get_next();
     }
 
     println("sweep");
+    debug(count);
 }
 
 fun is_pointer_on_stack(p: ptr[any]): bool {
