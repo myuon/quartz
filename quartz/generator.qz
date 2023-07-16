@@ -651,11 +651,13 @@ module Generator {
         // Avoid infinite loop
         if !func.name.starts_with("quartz_std_") {
             self.expression(IrTerm {
-                t_call: IrCall {
-                    callee: IrTerm {
-                        t_ident: "quartz_std_prologue",
+                t_discard: IrTerm {
+                    t_call: IrCall {
+                        callee: IrTerm {
+                            t_ident: "quartz_std_prologue",
+                        },
+                        args: make[vec[IrTerm]](),
                     },
-                    args: make[vec[IrTerm]](),
                 },
             });
         }
@@ -739,11 +741,13 @@ module Generator {
             // Avoid infinite loop
             if !self.current_function_name.starts_with("quartz_std_") {
                 self.expression(IrTerm {
-                    t_call: IrCall {
-                        callee: IrTerm {
-                            t_ident: "quartz_std_epilogue",
+                    t_discard: IrTerm {
+                        t_call: IrCall {
+                            callee: IrTerm {
+                                t_ident: "quartz_std_epilogue",
+                            },
+                            args: make[vec[IrTerm]](),
                         },
-                        args: make[vec[IrTerm]](),
                     },
                 });
             }
