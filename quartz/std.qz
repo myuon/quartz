@@ -923,7 +923,7 @@ fun alloc(size: i32): ptr[any] {
     current.size = size_ as u32;
     current.set_is_free(false);
 
-    return (current as u32 + Header::sizeof()) as ptr[any];
+    return current.get_data_ptr();
 }
 
 fun find_free_block(size: u32): Header {
@@ -1489,14 +1489,11 @@ fun perform_gc() {
 
     println("mark");
 
-    let count = 0;
-
     // sweep
     let header = Header::from_ptr(heap_root_ptr as ptr[any]);
     while header.size > (0 as u32) {
         if !header.get_is_free() && !header.get_is_marked() {
             free(header.get_data_ptr());
-            count = count + 1;
         }
         if header.get_is_marked() {
             header.set_is_marked(false);
@@ -1506,7 +1503,6 @@ fun perform_gc() {
     }
 
     println("sweep");
-    debug(count);
 }
 
 fun is_pointer_on_stack(p: ptr[any]): bool {
@@ -1519,8 +1515,7 @@ fun mark_and_load(object: ptr[any]) {
         panic("mark_and_load: not a pointer");
     }
 
-    let object_ptr = object as ptr[any];
-    let object_header = Header::from_ptr(object_ptr);
+    let object_header = Header::from_ptr(object);
 
     if object_header.get_is_free() {
         return;
@@ -1531,7 +1526,7 @@ fun mark_and_load(object: ptr[any]) {
 
     object_header.set_is_marked(true);
 
-    let rep = reflection::get_type_rep(object);
+    let rep = reflection::get_type_rep(object_header.get_data_ptr());
     if rep.name.equal("vec") {
         for k in (object as vec[any]) {
             if reflection::is_pointer(k) {
