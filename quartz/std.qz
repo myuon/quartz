@@ -968,20 +968,24 @@ module Header {
         return (sizeof[u32]() + sizeof[u32]()) as u32;
     }
 
-    fun from_ptr(p: ptr[any]): Header {
+    fun offset(): u32 {
+        return 2 as u32;
+    }
+
+    fun from_ptr(p: ptr[byte]): Header {
         return p as Header;
     }
 
-    fun from_data_ptr(p: ptr[any]): Header {
-        return Header::from_ptr(((p as u32) - Header::sizeof()) as ptr[Header]);
+    fun from_data_ptr(p: ptr[byte]): Header {
+        return Header::from_ptr(p.offset(0 - (Header::sizeof() as i32)));
     }
 
     fun get_next(self): Header {
-        return Header::from_ptr(((self as u32) + Header::sizeof() + self.size) as ptr[any]);
+        return Header::from_ptr((self as ptr[byte]).offset((Header::sizeof() + self.size) as i32));
     }
 
-    fun get_data_ptr(self): ptr[any] {
-        return ((self as u32) + Header::sizeof()) as ptr[any];
+    fun get_data_ptr(self): ptr[byte] {
+        return (self as ptr[byte]).offset(Header::sizeof() as i32);
     }
 
     fun get_is_free(self): bool {
@@ -1470,11 +1474,11 @@ fun perform_gc() {
 
         let d = data.at(0);
 
-        // FIXME: ugly hack
         if reflection::is_pointer(d) {
             mark_and_load(d as ptr[any]);
-        } else {
-            mark_and_load(d as i32 as ptr[any]);
+        } else if d != 0 {
+            // FIXME: why?
+            panic("perform_gc: not a pointer");
         }
 
         p = p + (sizeof[ptr[any]]() as u32);
