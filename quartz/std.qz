@@ -244,7 +244,7 @@ module i32 {
             return "0";
         }
         if self < 0 {
-            return "-".concat((0-self).to_string());
+            return "-".concat((0 - self).to_string());
         }
 
         let digit = 0;
@@ -968,16 +968,13 @@ fun bit_not_u32(x: u32): u32 {
 
 // size: u32,
 // header_flags: u32,
+// rep: *StructData[TypeRep]
 struct Header {
 }
 
 module Header {
     fun sizeof(): u32 {
-        return (sizeof[u32]() + sizeof[u32]()) as u32;
-    }
-
-    fun offset(): u32 {
-        return 2 as u32;
+        return (sizeof[u32]() + sizeof[u32]() + sizeof[ptr[byte]]()) as u32;
     }
 
     fun from_ptr(p: ptr[byte]): Header {
@@ -1034,6 +1031,14 @@ module Header {
 
     fun set_header_flags(self, value: u32) {
         (self as ptr[any]).at(1) = value;
+    }
+
+    fun get_type_rep(self): ptr[ptr[byte]] {
+        return (self as ptr[any]).at(2);
+    }
+
+    fun set_type_rep(self, value: ptr[ptr[byte]]) {
+        (self as ptr[any]).at(2) = value;
     }
 }
 
@@ -1185,7 +1190,7 @@ module TypeRep {
 
 module reflection {
     fun get_type_rep_ptr(t: any): ptr[any] {
-        let index = reflection_get_type_rep_id(t);
+        let index = Header::from_data_ptr(t).get_type_rep().at(0) as i32;
 
         return load_type_rep(index);
     }
@@ -1196,6 +1201,7 @@ module reflection {
             panic("Not a pointer");
         }
         if t.at(0) != nil {
+            debug(t.at(0));
             panic("Not a type rep");
         }
 
