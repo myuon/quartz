@@ -2303,21 +2303,26 @@ module IrCodeGenerator {
                 value: IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "quartz_std_alloc",
+                            t_ident: "quartz_std_alloc_with_rep",
                         },
-                        args: make[vec[IrTerm]](IrTerm {
-                            t_call: IrCall {
-                                callee: IrTerm {
-                                    t_ident: "add",
-                                },
-                                args: make[vec[IrTerm]](
-                                    IrCodeGenerator::wrap_mult_sizeof(type_, size),
-                                    IrTerm {
-                                        t_i32: 8,
-                                    },
-                                ),
+                        args: make[vec[IrTerm]](
+                            IrTerm {
+                                t_type_rep: rep_id,
                             },
-                        }),
+                            IrTerm {
+                                t_call: IrCall {
+                                    callee: IrTerm {
+                                        t_ident: "add",
+                                    },
+                                    args: make[vec[IrTerm]](
+                                        IrCodeGenerator::wrap_mult_sizeof(type_, size),
+                                        IrTerm {
+                                            t_i32: 8,
+                                        },
+                                    ),
+                                },
+                            },
+                        ),
                     },
                 },
             },
@@ -2403,14 +2408,19 @@ module IrCodeGenerator {
                 value: IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "quartz_std_alloc",
+                            t_ident: "quartz_std_alloc_with_rep",
                         },
-                        args: make[vec[IrTerm]](IrCodeGenerator::wrap_mult_sizeof(
-                            IrType {
-                                t_any: true,
+                        args: make[vec[IrTerm]](
+                            IrTerm {
+                                t_type_rep: self.type_reps.get_or_insert(rep),
                             },
-                            IrTerm::i32(elements.length),
-                        )),
+                            IrCodeGenerator::wrap_mult_sizeof(
+                                IrType {
+                                    t_any: true,
+                                },
+                                IrTerm::i32(elements.length),
+                            ),
+                        ),
                     },
                 },
             },

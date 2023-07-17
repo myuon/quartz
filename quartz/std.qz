@@ -931,6 +931,39 @@ fun alloc(size: i32): ptr[any] {
     return current.get_data_ptr();
 }
 
+fun alloc_with_rep(rep: ptr[ptr[byte]], size: i32): ptr[any] {
+    let size_ = size;
+    if size % sizeof[i32]() != 0 {
+        size_ = ((size + sizeof[i32]() - 1) / sizeof[i32]()) * sizeof[i32]();
+    }
+    if size == 0 {
+        return nil as ptr[any];
+    }
+
+    let current = alloc_ptr;
+    alloc_ptr = alloc_ptr + (size_ as u32);
+
+    let block = find_free_block(size_ as u32);
+    if !block.get_is_free() {
+        debug(7);
+        abort();
+    }
+
+    // split
+    block.set_size(block.get_size() - (size_ as u32) - Header::sizeof());
+    if block.get_size() <= (0 as u32) {
+        panic("alloc: block.size <= 0");
+    }
+    block.set_is_free(true);
+
+    let current = block.get_next();
+    current.set_size(size_ as u32);
+    current.set_is_free(false);
+    current.set_type_rep(rep);
+
+    return current.get_data_ptr();
+}
+
 fun find_free_block(size: u32): Header {
     if (heap_root_ptr as ptr[any]) == (nil as ptr[any]) {
         let current = Header::from_ptr(alloc_ptr as ptr[any]);
