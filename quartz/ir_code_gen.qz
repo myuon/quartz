@@ -2309,19 +2309,7 @@ module IrCodeGenerator {
                             IrTerm {
                                 t_type_rep: rep_id,
                             },
-                            IrTerm {
-                                t_call: IrCall {
-                                    callee: IrTerm {
-                                        t_ident: "add",
-                                    },
-                                    args: make[vec[IrTerm]](
-                                        IrCodeGenerator::wrap_mult_sizeof(type_, size),
-                                        IrTerm {
-                                            t_i32: 8,
-                                        },
-                                    ),
-                                },
-                            },
+                            IrCodeGenerator::wrap_mult_sizeof(type_, size),
                         ),
                     },
                 },
