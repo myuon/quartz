@@ -2269,7 +2269,7 @@ module IrCodeGenerator {
                         },
                     ),
                     value: term.term,
-                    raw_offset: 8,
+                    raw_offset: 0,
                 },
             };
 
@@ -2325,20 +2325,6 @@ module IrCodeGenerator {
                         ),
                     },
                 },
-            },
-        });
-        // object header
-        object.push(IrTerm {
-            t_store: struct {
-                type_: IrType {
-                    t_i32: true,
-                },
-                address: IrTerm::ident(var),
-                offset: IrTerm::i32(0),
-                value: IrTerm {
-                    t_type_rep: rep_id,
-                },
-                raw_offset: 0,
             },
         });
         object.push(IrTerm {
@@ -2484,7 +2470,7 @@ module IrCodeGenerator {
                 type_: IrType::new(elem_type),
                 address: arr,
                 offset: IrCodeGenerator::wrap_mult_sizeof(IrType::new(elem_type), index),
-                raw_offset: 8,
+                raw_offset: 0,
             },
         };
     }
@@ -2542,7 +2528,7 @@ module IrCodeGenerator {
                     address: lhs,
                     offset: IrTerm::i32(0),
                     value: rhs,
-                    raw_offset: 8,
+                    raw_offset: 0,
                 },
             };
         }
