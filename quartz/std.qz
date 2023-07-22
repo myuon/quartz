@@ -244,7 +244,7 @@ module i32 {
             return "0";
         }
         if self < 0 {
-            return "-".concat((0-self).to_string());
+            return "-".concat((0 - self).to_string());
         }
 
         let digit = 0;
@@ -838,7 +838,8 @@ let _bp: u32 = 1610612736 as u32;
 
 fun push_memstack(value: ptr[any]) {
     if !reflection::is_pointer(value) {
-        panic("push_memstack: value is not a pointer");
+        debug(9);
+        abort();
     }
 
     let sp_ptr = _sp as ptr[ptr[byte]];
@@ -847,7 +848,8 @@ fun push_memstack(value: ptr[any]) {
     _sp = _sp - (sizeof[ptr[any]]() as u32);
 
     if (_sp - (32 as u32)) < memory_block_limit {
-        panic("StackOverflow");
+        debug(8);
+        abort();
     }
 }
 
@@ -931,6 +933,40 @@ fun alloc(size: i32): ptr[any] {
     return current.get_data_ptr();
 }
 
+fun alloc_with_rep(rep: ptr[ptr[byte]], size: i32): ptr[any] {
+    let size_ = size;
+    if size % sizeof[i32]() != 0 {
+        size_ = ((size + sizeof[i32]() - 1) / sizeof[i32]()) * sizeof[i32]();
+    }
+    if size == 0 {
+        return nil as ptr[any];
+    }
+
+    let current = alloc_ptr;
+    alloc_ptr = alloc_ptr + (size_ as u32);
+
+    let block = find_free_block(size_ as u32);
+    if !block.get_is_free() {
+        debug(7);
+        abort();
+    }
+
+    // split
+    block.set_size(block.get_size() - (size_ as u32) - Header::sizeof());
+    if block.get_size() <= (0 as u32) {
+        debug(8);
+        abort();
+    }
+    block.set_is_free(true);
+
+    let current = block.get_next();
+    current.set_size(size_ as u32);
+    current.set_is_free(false);
+    current.set_type_rep(rep);
+
+    return current.get_data_ptr();
+}
+
 fun find_free_block(size: u32): Header {
     if (heap_root_ptr as ptr[any]) == (nil as ptr[any]) {
         let current = Header::from_ptr(alloc_ptr as ptr[any]);
@@ -968,16 +1004,13 @@ fun bit_not_u32(x: u32): u32 {
 
 // size: u32,
 // header_flags: u32,
+// rep: *StructData[TypeRep]
 struct Header {
 }
 
 module Header {
     fun sizeof(): u32 {
-        return (sizeof[u32]() + sizeof[u32]()) as u32;
-    }
-
-    fun offset(): u32 {
-        return 2 as u32;
+        return (sizeof[u32]() + sizeof[u32]() + sizeof[ptr[byte]]()) as u32;
     }
 
     fun from_ptr(p: ptr[byte]): Header {
@@ -1034,6 +1067,14 @@ module Header {
 
     fun set_header_flags(self, value: u32) {
         (self as ptr[any]).at(1) = value;
+    }
+
+    fun get_type_rep(self): ptr[ptr[byte]] {
+        return (self as ptr[any]).at(2);
+    }
+
+    fun set_type_rep(self, value: ptr[ptr[byte]]) {
+        (self as ptr[any]).at(2) = value;
     }
 }
 
@@ -1163,7 +1204,8 @@ fun is_a_record(p: ptr[ptr[any]]): bool {
         return false;
     }
 
-    return is_address_type_rep(p.at(0));
+    let header = Header::from_data_ptr(p as ptr[byte]);
+    return is_address_type_rep(header.get_type_rep());
 }
 
 struct TypeRep {
@@ -1185,9 +1227,7 @@ module TypeRep {
 
 module reflection {
     fun get_type_rep_ptr(t: any): ptr[any] {
-        let index = reflection_get_type_rep_id(t);
-
-        return load_type_rep(index);
+        return Header::from_data_ptr(t).get_type_rep();
     }
 
     // [nil, kind, rep_name, size of params, *params, size of fields, *fields]
@@ -1196,15 +1236,16 @@ module reflection {
             panic("Not a pointer");
         }
         if t.at(0) != nil {
+            debug(t.at(0));
             panic("Not a type rep");
         }
 
         let kind = t.at(1) as i32;
         let name = t.at(2) as string;
         let params_size = t.at(3) as i32;
-        let params_ptr = (t.at(4) as ptr[ptr[any]]).offset(1);
+        let params_ptr = (t.at(4) as ptr[ptr[any]]);
         let fields_size = t.at(5) as i32;
-        let fields_ptr = (t.at(6) as ptr[string]).offset(1);
+        let fields_ptr = (t.at(6) as ptr[string]);
 
         let params = make[vec[TypeRep]]();
         for i in 0..params_size {
@@ -1237,7 +1278,8 @@ module reflection {
             }
 
             if is_a_record(t) {
-                return parse_type_rep((t as ptr[ptr[any]]).at(0).at(0));
+                let header = Header::from_data_ptr((t as ptr[byte]));
+                return parse_type_rep(header.get_type_rep().at(0));
             }
 
             return TypeRep {
@@ -1337,10 +1379,10 @@ module derive {
             // enum
             let s = format("{} {{}", rep.name, sep);
 
-            let tag = (t as ptr[any]).offset(1).at(0) as i32;
+            let tag = (t as ptr[any]).at(0) as i32;
             let tag_name = rep.fields.at(tag);
 
-            let v = (t as ptr[any]).offset(1).at(1);
+            let v = (t as ptr[any]).at(1);
             s = s.concat(format(" {}: {} }", tag_name, derive::to_string_internal(v, pretty, depth + 1)));
 
             return s;
@@ -1352,7 +1394,7 @@ module derive {
                 s = s.concat(format(",{}", sep));
             }
             let f = rep.fields.at(i);
-            let v = (t as ptr[any]).offset(1).at(i);
+            let v = (t as ptr[any]).at(i);
             s = s.concat(format("{}{}: {}", indent, f, derive::to_string_internal(v, pretty, depth + 1)));
         }
 
@@ -1507,7 +1549,8 @@ fun perform_gc() {
             mark_and_load(header);
         } else if d != 0 {
             // FIXME: why?
-            panic("perform_gc: not a pointer");
+            debug(d);
+            abort();
         }
 
         p = p + (sizeof[ptr[any]]() as u32);
@@ -1566,13 +1609,13 @@ fun mark_and_load(object: Header) {
             mark_and_load(Header::from_data_ptr(v));
         }
     } else if rep.kind == 2 {
-        let v = (object as ptr[any]).offset(1).at(1);
+        let v = (object as ptr[any]).at(1);
         if reflection::is_pointer(v) {
             mark_and_load(Header::from_data_ptr(v));
         }
     } else {
         for i in 0..rep.fields.length {
-            let v = (object as ptr[any]).offset(1).at(i);
+            let v = (object as ptr[any]).at(i);
             if reflection::is_pointer(v) {
                 mark_and_load(Header::from_data_ptr(v));
             }

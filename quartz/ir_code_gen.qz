@@ -2269,7 +2269,7 @@ module IrCodeGenerator {
                         },
                     ),
                     value: term.term,
-                    raw_offset: 8,
+                    raw_offset: 0,
                 },
             };
 
@@ -2303,37 +2303,16 @@ module IrCodeGenerator {
                 value: IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "quartz_std_alloc",
+                            t_ident: "quartz_std_alloc_with_rep",
                         },
-                        args: make[vec[IrTerm]](IrTerm {
-                            t_call: IrCall {
-                                callee: IrTerm {
-                                    t_ident: "add",
-                                },
-                                args: make[vec[IrTerm]](
-                                    IrCodeGenerator::wrap_mult_sizeof(type_, size),
-                                    IrTerm {
-                                        t_i32: 8,
-                                    },
-                                ),
+                        args: make[vec[IrTerm]](
+                            IrTerm {
+                                t_type_rep: rep_id,
                             },
-                        }),
+                            IrCodeGenerator::wrap_mult_sizeof(type_, size),
+                        ),
                     },
                 },
-            },
-        });
-        // object header
-        object.push(IrTerm {
-            t_store: struct {
-                type_: IrType {
-                    t_i32: true,
-                },
-                address: IrTerm::ident(var),
-                offset: IrTerm::i32(0),
-                value: IrTerm {
-                    t_type_rep: rep_id,
-                },
-                raw_offset: 0,
             },
         });
         object.push(IrTerm {
@@ -2403,14 +2382,19 @@ module IrCodeGenerator {
                 value: IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "quartz_std_alloc",
+                            t_ident: "quartz_std_alloc_with_rep",
                         },
-                        args: make[vec[IrTerm]](IrCodeGenerator::wrap_mult_sizeof(
-                            IrType {
-                                t_any: true,
+                        args: make[vec[IrTerm]](
+                            IrTerm {
+                                t_type_rep: self.type_reps.get_or_insert(rep),
                             },
-                            IrTerm::i32(elements.length),
-                        )),
+                            IrCodeGenerator::wrap_mult_sizeof(
+                                IrType {
+                                    t_any: true,
+                                },
+                                IrTerm::i32(elements.length),
+                            ),
+                        ),
                     },
                 },
             },
@@ -2474,7 +2458,7 @@ module IrCodeGenerator {
                 type_: IrType::new(elem_type),
                 address: arr,
                 offset: IrCodeGenerator::wrap_mult_sizeof(IrType::new(elem_type), index),
-                raw_offset: 8,
+                raw_offset: 0,
             },
         };
     }
@@ -2532,7 +2516,7 @@ module IrCodeGenerator {
                     address: lhs,
                     offset: IrTerm::i32(0),
                     value: rhs,
-                    raw_offset: 8,
+                    raw_offset: 0,
                 },
             };
         }

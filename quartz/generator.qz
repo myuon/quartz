@@ -1225,7 +1225,7 @@ module Generator {
 
         // load hi address
         self.new_statement();
-        self.write("i64.load offset=8");
+        self.write("i64.load offset=0");
 
         // load lo address
         self.new_statement();
@@ -1234,7 +1234,7 @@ module Generator {
         self.convert_stack_to_i32_1();
 
         self.new_statement();
-        self.write("i64.load offset=16");
+        self.write("i64.load offset=8");
 
         self.new_statement();
         self.write("i64.const 32");
