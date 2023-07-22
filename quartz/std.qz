@@ -838,7 +838,8 @@ let _bp: u32 = 1610612736 as u32;
 
 fun push_memstack(value: ptr[any]) {
     if !reflection::is_pointer(value) {
-        panic("push_memstack: value is not a pointer");
+        debug(9);
+        abort();
     }
 
     let sp_ptr = _sp as ptr[ptr[byte]];
@@ -847,7 +848,8 @@ fun push_memstack(value: ptr[any]) {
     _sp = _sp - (sizeof[ptr[any]]() as u32);
 
     if (_sp - (32 as u32)) < memory_block_limit {
-        panic("StackOverflow");
+        debug(8);
+        abort();
     }
 }
 
