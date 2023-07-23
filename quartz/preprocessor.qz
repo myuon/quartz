@@ -1,0 +1,93 @@
+import quartz::ast;
+
+struct Preprocessor {
+    config: struct {
+        version: string,
+    },
+}
+
+module Preprocessor {
+    fun new(): Preprocessor {
+        return Preprocessor {
+            config: struct {
+                version: "",
+            },
+        };
+    }
+
+    fun run(
+        self,
+        m: Module,
+        config: struct {
+            version: string,
+        },
+    ): nil or error {
+        self.config = config;
+
+        return self.module_(m).try;
+    }
+
+    fun module_(self, m: Module): nil or error {
+        for d in m.decls {
+            self.decl(d.data).try;
+        }
+
+        return nil;
+    }
+
+    fun decl(self, d: Decl): nil or error {
+        if d.t_func != nil {
+            self.block(d.t_func!.body).try;
+        }
+
+        return nil;
+    }
+
+    fun block(self, lb: LBlock): nil or error {
+        let b = lb.data;
+        let index = 0;
+
+        while index < b.block.length {
+            let s = b.block.at(index).data;
+            if s.t_attribute != nil {
+                let next = b.block.at(index + 1);
+                self.process_attribute_for_statement(s.t_attribute!, next).try;
+
+                index = index + 1;
+            }
+
+            index = index + 1;
+        }
+
+        return nil;
+    }
+
+    fun process_attribute_for_statement(self, lattr: LAttribute, ls: LStatement): nil or error {
+        let attr = lattr.data;
+        if attr.name.data == "compiler" {
+            let arg = attr.args.at(0).data;
+            if arg == "version" && ls.data.t_let != nil {
+                let value = ls.data.t_let!.expr.data;
+                if value.t_string != nil {
+                    ls.data.t_let!.expr.data = Expression {
+                        t_string: struct {
+                            value: self.config.version,
+                            raw: self.config.version,
+                        },
+                    };
+
+                    return nil;
+                }
+
+                return _ or error::new("expected string literal");
+            }
+
+            return _ or error::new("unknown compiler attribute");
+        } else {
+            return _ or error::new("unknown attribute");
+        }
+
+        return nil;
+    }
+}
+

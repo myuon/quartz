@@ -13,6 +13,7 @@ import quartz::location;
 import quartz::formatter;
 import quartz::json;
 import quartz::errors;
+import quartz::preprocessor;
 
 fun assert_eq_string(a: string, b: string) {
     if !a.equal(b) {
