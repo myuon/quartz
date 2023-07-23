@@ -65,23 +65,27 @@ documents.onDidChangeContent(async (change) => {
     `quartz check ${file} --project ${path.join(file, "..", "..")}`
   );
   if (cargo.stdout) {
-    const errors: {
-      message: string;
-      start: [number, number];
-      end: [number, number];
-    }[] = JSON.parse(cargo.stdout);
+    try {
+      const errors: {
+        message: string;
+        start: [number, number];
+        end: [number, number];
+      }[] = JSON.parse(cargo.stdout);
 
-    errors.forEach((error) => {
-      diagnostics.push({
-        severity: 1,
-        range: {
-          start: { line: error.start[0], character: error.start[1] },
-          end: { line: error.end[0], character: error.end[1] },
-        },
-        message: error.message,
-        source: "ex",
+      errors.forEach((error) => {
+        diagnostics.push({
+          severity: 1,
+          range: {
+            start: { line: error.start[0], character: error.start[1] },
+            end: { line: error.end[0], character: error.end[1] },
+          },
+          message: error.message,
+          source: "ex",
+        });
       });
-    });
+    } catch (err) {
+      console.log(err);
+    }
   }
 
   connection.sendDiagnostics({ uri: change.document.uri, diagnostics });
