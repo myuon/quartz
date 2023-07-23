@@ -909,6 +909,8 @@ module Typechecker {
             return nil;
         } else if s.t_break != nil {
             return nil;
+        } else if s.t_attribute != nil {
+            return nil;
         }
 
         return _ or error::new("unimplemented: statement, {}".format(s.to_string()));

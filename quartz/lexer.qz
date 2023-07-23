@@ -432,6 +432,9 @@ module Lexer {
             if self.match(input, "&", "bit_and") {
                 continue;
             }
+            if self.match(input, "@", "at") {
+                continue;
+            }
 
             let number = self.consume_number(input);
             if number != nil {

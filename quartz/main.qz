@@ -141,6 +141,8 @@ enum CliCommand {
         stdin: bool,
         dot: bool,
     },
+    version: struct {
+    },
 }
 
 module CliCommand {
@@ -332,6 +334,11 @@ module CliCommand {
 
             return CliCommand {
                 completion: completion,
+            };
+        } else if args.at(0).equal("version") {
+            return CliCommand {
+                version: struct {
+                },
             };
         } else {
             return _ or error::new(format("unknown command: {}", derive::to_string(args)));
@@ -645,6 +652,10 @@ fun main() {
                 t_object: container,
             }.to_string());
         }
+    } else if command.version != nil {
+        // @[compiler(version)]
+        let version = "";
+        println("quartz version {}", version);
     } else {
         println("unknown args: {}", derive::to_string(args));
         println("{}", args.at(1));

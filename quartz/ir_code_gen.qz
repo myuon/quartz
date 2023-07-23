@@ -579,7 +579,12 @@ module IrCodeGenerator {
         let elements = make[vec[IrTerm]]();
 
         for i in 0..b.data.block.length {
-            elements.push(self.statement(b.data.block.at(i)).try);
+            let stm = b.data.block.at(i);
+            if stm.data.t_attribute != nil {
+                continue;
+            }
+
+            elements.push(self.statement(stm).try);
         }
 
         return elements;
