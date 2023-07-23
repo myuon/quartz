@@ -11,19 +11,11 @@ import { exec } from "child_process";
 import * as path from "path";
 import * as util from "util";
 
-let globalControllers: AbortController[] = [];
-
 const execAsync_ = util.promisify(exec);
 
 const execAsync = async (command: string) => {
-  if (globalControllers.length > 3) {
-    globalControllers[0].abort();
-    globalControllers = globalControllers.slice(1);
-  }
-
   const controller = new AbortController();
   const { signal } = controller;
-  globalControllers.push(controller);
 
   setTimeout(() => {
     try {
@@ -31,7 +23,7 @@ const execAsync = async (command: string) => {
     } catch (err) {
       console.log(`Aborted: ${err}`);
     }
-  }, 10000);
+  }, 30000);
 
   const child = await execAsync_(command, { signal });
 
