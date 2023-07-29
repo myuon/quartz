@@ -28,8 +28,32 @@ module Preprocessor {
     }
 
     fun module_(self, m: Module): nil or error {
-        for d in m.decls {
-            self.decl(d.data).try;
+        let index = 0;
+
+        while index < m.decls.length {
+            let d = m.decls.at(index).data;
+            if d.t_attribute != nil {
+                let attr = d.t_attribute!.data;
+                if attr.name.data == "build_if" {
+                    let result = self.interpret_bool(attr.args.at(0)).try;
+                    if !result {
+                        // m.decls.at(index + 1) = LDecl {..} is not working🤔
+                        m.decls.at(index + 1).data = Decl {
+                            t_skip: true,
+                        };
+                    }
+                } else {
+                    return _ or error::new("unknown attribute");
+                }
+
+                index = index + 1;
+
+                continue;
+            }
+
+            self.decl(d).try;
+
+            index = index + 1;
         }
 
         return nil;
@@ -88,6 +112,31 @@ module Preprocessor {
         }
 
         return nil;
+    }
+
+    fun interpret_bool(self, lexpr: LExpression): bool or error {
+        let expr = lexpr.data;
+        if expr.t_binop != nil {
+            let left = self.interpret_string(expr.t_binop!.left).try;
+            let right = self.interpret_string(expr.t_binop!.right).try;
+
+            return left == right;
+        }
+
+        return _ or error::new(format("not implemented: {}", derive::to_string(expr)));
+    }
+
+    fun interpret_string(self, lexpr: LExpression): string or error {
+        let expr = lexpr.data;
+        if expr.t_ident != nil {
+            if expr.t_ident!.name == "version" {
+                return self.config.version;
+            }
+        } else if expr.t_string != nil {
+            return expr.t_string!.value;
+        }
+
+        return _ or error::new(format("not implemented: {}", derive::to_string(expr)));
     }
 }
 

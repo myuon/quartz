@@ -34,6 +34,7 @@ enum Decl {
     },
     t_import: Path,
     t_attribute: LAttribute,
+    t_skip: bool,
 }
 
 module Decl {
