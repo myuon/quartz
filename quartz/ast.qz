@@ -33,6 +33,7 @@ enum Decl {
         module_: Module,
     },
     t_import: Path,
+    t_attribute: LAttribute,
 }
 
 module Decl {
@@ -516,7 +517,7 @@ struct LPattern {
 
 struct Attribute {
     name: Ident,
-    args: vec[Ident],
+    args: vec[LExpression],
 }
 
 struct LAttribute {

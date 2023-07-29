@@ -124,6 +124,17 @@ module Parser {
                 location: self.span_location(start_token, end_token),
             };
         }
+        if token.lexeme == "at" {
+            let start_token = self.expect("at").try;
+            let attr = self.attribute().try;
+
+            return LDecl {
+                data: Decl {
+                    t_attribute: attr,
+                },
+                location: attr.location,
+            };
+        }
 
         return _ or error::new("Expected DECL, got ".concat(token.lexeme).concat("{").concat(
             token.string_value!,
@@ -856,11 +867,11 @@ module Parser {
 
         let lparen = self.expect("lparen").try;
 
-        let args = make[vec[Ident]]();
+        let args = make[vec[LExpression]]();
 
         while self.peek().lexeme != "rparen" {
-            let ident = self.ident().try;
-            args.push(ident);
+            let expr = self.expression().try;
+            args.push(expr);
 
             if self.peek().lexeme.equal("comma") {
                 self.expect("comma").try;

@@ -621,6 +621,8 @@ module Typechecker {
                 self.push_to_imported(d.t_import!);
 
                 continue;
+            } else if d.t_attribute != nil {
+                continue;
             } else {
                 return _ or error::new("Unknown decl type, {}".format(d.to_string()));
             }
@@ -706,6 +708,9 @@ module Typechecker {
         }
         if d.t_import != nil {
             self.imported.push(d.t_import!);
+            return;
+        }
+        if d.t_attribute != nil {
             return;
         }
 
