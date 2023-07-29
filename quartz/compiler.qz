@@ -18,12 +18,14 @@ struct LoadedModule {
 
 struct Compiler {
     loaded: vec[LoadedModule],
+    version: string,
 }
 
 module Compiler {
-    fun new(): Compiler {
+    fun new(version: string): Compiler {
         return Compiler {
             loaded: make[vec[LoadedModule]](),
+            version: version,
         };
     }
 
@@ -61,7 +63,7 @@ module Compiler {
             preprocessor.run(
                 module_,
                 struct {
-                    version: "1.0.0",
+                    version: self.version,
                 },
             ).try;
         }
