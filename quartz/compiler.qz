@@ -8,6 +8,7 @@ import quartz::ast;
 import quartz::ir;
 import quartz::value;
 import quartz::location;
+import quartz::preprocessor;
 
 struct LoadedModule {
     path: Path,
@@ -17,19 +18,21 @@ struct LoadedModule {
 
 struct Compiler {
     loaded: vec[LoadedModule],
+    version: string,
 }
 
 module Compiler {
-    fun new(): Compiler {
+    fun new(version: string): Compiler {
         return Compiler {
             loaded: make[vec[LoadedModule]](),
+            version: version,
         };
     }
 
-    fun load_module(self, path: Path, skip_errors: bool): vec[Path] or error {
+    fun load_module(self, path: Path, skip_errors: bool, preprocess: bool): vec[Path] or error {
         let input = file_read(format("{}.qz", path.join("/")));
 
-        return self.register_module(path, input, skip_errors).try;
+        return self.register_module(path, input, skip_errors, preprocess).try;
     }
 
     fun matches(self, path: Path): LoadedModule? {
@@ -42,12 +45,28 @@ module Compiler {
         return nil;
     }
 
-    fun register_module(self, path: Path, input: string, skip_errors: bool): vec[Path] or error {
+    fun register_module(
+        self,
+        path: Path,
+        input: string,
+        skip_errors: bool,
+        preprocess: bool,
+    ): vec[Path] or error {
         let lexer = Lexer::new();
         lexer.run(input).try;
 
         let parser = Parser::new();
         let module_ = parser.run(lexer.tokens, skip_errors).try;
+
+        if preprocess {
+            let preprocessor = Preprocessor::new();
+            preprocessor.run(
+                module_,
+                struct {
+                    version: self.version,
+                },
+            ).try;
+        }
 
         self.loaded.push(LoadedModule {
             path: path,
@@ -58,12 +77,18 @@ module Compiler {
         return parser.imports;
     }
 
-    fun parse(self, input: string, load_path: Path?, skip_errors: bool): Module or error {
+    fun parse(
+        self,
+        input: string,
+        load_path: Path?,
+        skip_errors: bool,
+        preprocess: bool,
+    ): Module or error {
         let main_path = Path::new("main");
         if load_path != nil {
             main_path = load_path!;
         }
-        let imports = self.register_module(main_path, input, skip_errors).try;
+        let imports = self.register_module(main_path, input, skip_errors, preprocess).try;
 
         let visited = make[map[string, bool]]();
         visited.insert(main_path.join("_"), true);
@@ -75,7 +100,7 @@ module Compiler {
                 continue;
             }
 
-            imports.extend(self.load_module(path, skip_errors).try);
+            imports.extend(self.load_module(path, skip_errors, preprocess).try);
             visited.insert(path.join("_"), true);
         }
 
@@ -107,7 +132,7 @@ module Compiler {
         skip_errors: bool,
         validate_address: bool,
     ): string or error {
-        let module_ = self.parse(input, nil, skip_errors).try;
+        let module_ = self.parse(input, nil, skip_errors, true).try;
 
         let typechecker = Typechecker::new();
         let n or err = typechecker.run(module_, main_path);
@@ -165,7 +190,7 @@ module Compiler {
         },
         message: string,
     }] {
-        let module_ or err = self.parse(input, nil, true);
+        let module_ or err = self.parse(input, nil, true, false);
         if err != nil {
             return make[vec[struct {
                 start: struct {
@@ -264,7 +289,7 @@ module Compiler {
     fun check_type(self, filepath: string, input: string, line: i32, column: i32): string or error {
         let path = Path::new("main");
 
-        let module_ = self.parse(input, nil, true).try;
+        let module_ = self.parse(input, nil, true, false).try;
 
         let position = find_line_column_from_position(input, line, column);
 
@@ -286,7 +311,7 @@ module Compiler {
         label: string,
         text: string,
     }] or error {
-        let module_ = self.parse(input, nil, true).try;
+        let module_ = self.parse(input, nil, true, false).try;
         let position = find_line_column_from_position(input, line, column);
 
         let typechecker = Typechecker::new();
@@ -312,7 +337,7 @@ module Compiler {
             column: i32,
         },
     } or error {
-        let module_ = self.parse(input, path?, true).try;
+        let module_ = self.parse(input, path?, true, false).try;
         let position = find_line_column_from_position(input, line, column);
 
         let typechecker = Typechecker::new();

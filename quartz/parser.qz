@@ -124,6 +124,17 @@ module Parser {
                 location: self.span_location(start_token, end_token),
             };
         }
+        if token.lexeme == "at" {
+            let start_token = self.expect("at").try;
+            let attr = self.attribute().try;
+
+            return LDecl {
+                data: Decl {
+                    t_attribute: attr,
+                },
+                location: attr.location,
+            };
+        }
 
         return _ or error::new("Expected DECL, got ".concat(token.lexeme).concat("{").concat(
             token.string_value!,
@@ -789,6 +800,17 @@ module Parser {
                 location: self.span_location(start_token, end_token),
             };
         }
+        if self.peek().lexeme.equal("at") {
+            self.expect("at").try;
+            let attr = self.attribute().try;
+
+            return LStatement {
+                data: Statement {
+                    t_attribute: attr,
+                },
+                location: attr.location,
+            };
+        }
 
         let expr = self.expression().try;
         if self.peek().lexeme.equal("semicolon") {
@@ -836,6 +858,39 @@ module Parser {
         }
 
         return _ or error::new(format("Unexpected token {} (statement)", self.peek().to_string()));
+    }
+
+    fun attribute(self): LAttribute or error {
+        let lbracket = self.expect("lbracket").try;
+
+        let name = self.ident().try;
+
+        let lparen = self.expect("lparen").try;
+
+        let args = make[vec[LExpression]]();
+
+        while self.peek().lexeme != "rparen" {
+            let expr = self.expression().try;
+            args.push(expr);
+
+            if self.peek().lexeme.equal("comma") {
+                self.expect("comma").try;
+            } else {
+                break;
+            }
+        }
+
+        let rparen = self.expect("rparen").try;
+
+        let rbracket = self.expect("rbracket").try;
+
+        return LAttribute {
+            data: Attribute {
+                name: name,
+                args: args,
+            },
+            location: self.span_location(lbracket, rbracket),
+        };
     }
 
     fun expression_conditional(self): LExpression or error {

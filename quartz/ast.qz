@@ -33,6 +33,8 @@ enum Decl {
         module_: Module,
     },
     t_import: Path,
+    t_attribute: LAttribute,
+    t_skip: bool,
 }
 
 module Decl {
@@ -153,6 +155,7 @@ enum Statement {
     },
     t_continue: bool,
     t_break: bool,
+    t_attribute: LAttribute,
 }
 
 module Statement {
@@ -510,6 +513,16 @@ module Pattern {
 
 struct LPattern {
     data: Pattern,
+    location: Location,
+}
+
+struct Attribute {
+    name: Ident,
+    args: vec[LExpression],
+}
+
+struct LAttribute {
+    data: Attribute,
     location: Location,
 }
 

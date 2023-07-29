@@ -13,6 +13,7 @@ import quartz::location;
 import quartz::formatter;
 import quartz::json;
 import quartz::errors;
+import quartz::preprocessor;
 
 fun assert_eq_string(a: string, b: string) {
     if !a.equal(b) {
@@ -140,6 +141,8 @@ enum CliCommand {
         column: i32,
         stdin: bool,
         dot: bool,
+    },
+    version: struct {
     },
 }
 
@@ -333,6 +336,11 @@ module CliCommand {
             return CliCommand {
                 completion: completion,
             };
+        } else if args.at(0).equal("version") {
+            return CliCommand {
+                version: struct {
+                },
+            };
         } else {
             return _ or error::new(format("unknown command: {}", derive::to_string(args)));
         }
@@ -340,6 +348,8 @@ module CliCommand {
 }
 
 fun main() {
+    let compiler_version = "1.5.0";
+
     let args = args();
     let command or err = CliCommand::parse(args.slice(1, args.length));
     if err != nil {
@@ -371,7 +381,7 @@ fun main() {
             validate_address = compile.validate_address!;
         }
 
-        let result or err = run(input, path, entrypoint, validate_address);
+        let result or err = run(input, path, entrypoint, validate_address, compiler_version);
         if err != nil {
             println("Error: {}", err!.message);
             for detail in err!.detail {
@@ -411,7 +421,7 @@ fun main() {
             validate_address = runc.validate_address!;
         }
 
-        let result or err = run(input, path, "main", validate_address);
+        let result or err = run(input, path, "main", validate_address, compiler_version);
         if err != nil {
             panic(err!.message);
         }
@@ -447,7 +457,7 @@ fun main() {
 
         let path = Path::new("main");
 
-        let compiler = Compiler::new();
+        let compiler = Compiler::new(compiler_version);
         let errs = compiler.check(input, path);
 
         let result = make[vec[Json]]();
@@ -499,7 +509,7 @@ fun main() {
 
         let input = file_read(check_type.input!);
 
-        let compiler = Compiler::new();
+        let compiler = Compiler::new(compiler_version);
         let result or err = compiler.check_type(check_type.input!, input, check_type.line, check_type.column);
         if err != nil {
             return;
@@ -519,7 +529,7 @@ fun main() {
 
         let input = file_read(go_to_def.input!);
 
-        let compiler = Compiler::new();
+        let compiler = Compiler::new(compiler_version);
         let result or err = compiler.go_to_def(input, path, go_to_def.line, go_to_def.column);
         if err != nil {
             println(err!.message);
@@ -592,7 +602,7 @@ fun main() {
             panic("no input");
         }
 
-        let compiler = Compiler::new();
+        let compiler = Compiler::new(compiler_version);
         let result or err = compiler.completion(
             input,
             Path::new("main"),
@@ -645,6 +655,8 @@ fun main() {
                 t_object: container,
             }.to_string());
         }
+    } else if command.version != nil {
+        println("quartz version {}", compiler_version);
     } else {
         println("unknown args: {}", derive::to_string(args));
         println("{}", args.at(1));
@@ -655,8 +667,14 @@ fun main() {
     return nil;
 }
 
-fun run(input_: string, main_path: Path, entrypoint: string, validate_address: bool): string or error {
-    let compiler = Compiler::new();
+fun run(
+    input_: string,
+    main_path: Path,
+    entrypoint: string,
+    validate_address: bool,
+    compiler_version: string,
+): string or error {
+    let compiler = Compiler::new(compiler_version);
     return compiler.compile(input_, main_path, entrypoint, false, validate_address).try;
 }
 

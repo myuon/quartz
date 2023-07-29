@@ -11,19 +11,11 @@ import { exec } from "child_process";
 import * as path from "path";
 import * as util from "util";
 
-let globalControllers: AbortController[] = [];
-
 const execAsync_ = util.promisify(exec);
 
 const execAsync = async (command: string) => {
-  if (globalControllers.length > 3) {
-    globalControllers[0].abort();
-    globalControllers = globalControllers.slice(1);
-  }
-
   const controller = new AbortController();
   const { signal } = controller;
-  globalControllers.push(controller);
 
   setTimeout(() => {
     try {
@@ -31,7 +23,7 @@ const execAsync = async (command: string) => {
     } catch (err) {
       console.log(`Aborted: ${err}`);
     }
-  }, 10000);
+  }, 30000);
 
   const child = await execAsync_(command, { signal });
 
@@ -73,23 +65,27 @@ documents.onDidChangeContent(async (change) => {
     `quartz check ${file} --project ${path.join(file, "..", "..")}`
   );
   if (cargo.stdout) {
-    const errors: {
-      message: string;
-      start: [number, number];
-      end: [number, number];
-    }[] = JSON.parse(cargo.stdout);
+    try {
+      const errors: {
+        message: string;
+        start: [number, number];
+        end: [number, number];
+      }[] = JSON.parse(cargo.stdout);
 
-    errors.forEach((error) => {
-      diagnostics.push({
-        severity: 1,
-        range: {
-          start: { line: error.start[0], character: error.start[1] },
-          end: { line: error.end[0], character: error.end[1] },
-        },
-        message: error.message,
-        source: "ex",
+      errors.forEach((error) => {
+        diagnostics.push({
+          severity: 1,
+          range: {
+            start: { line: error.start[0], character: error.start[1] },
+            end: { line: error.end[0], character: error.end[1] },
+          },
+          message: error.message,
+          source: "ex",
+        });
       });
-    });
+    } catch (err) {
+      console.log(err);
+    }
   }
 
   connection.sendDiagnostics({ uri: change.document.uri, diagnostics });
