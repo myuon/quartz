@@ -836,10 +836,13 @@ fun stdin(): string {
 let stack_limit: u32 = 1610612736 as u32;
 
 // used in compiler
+@[build_if(version == "1.5.0")]
 let _sp: u32 = 1610612736 as u32;
 
+@[build_if(version == "1.5.0")]
 let _bp: u32 = 1610612736 as u32;
 
+@[build_if(version == "1.5.0")]
 fun push_memstack(value: ptr[any]) {
     if !reflection::is_pointer(value) {
         debug(9);
@@ -857,12 +860,14 @@ fun push_memstack(value: ptr[any]) {
     }
 }
 
+@[build_if(version == "1.5.0")]
 fun prologue() {
     push_memstack(_bp as ptr[any]);
 
     _bp = _sp;
 }
 
+@[build_if(version == "1.5.0")]
 fun epilogue() {
     _sp = _bp;
 

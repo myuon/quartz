@@ -1,2 +1,43 @@
 // 1.5 * 1024 * 1024 * 1024
 let stack_limit: u32 = 1610612736 as u32;
+
+let _sp: u32 = 1610612736 as u32;
+
+let _bp: u32 = 1610612736 as u32;
+
+fun push_memstack(value: ptr[any]) {
+    if !reflection::is_pointer(value) {
+        debug(9);
+        abort();
+    }
+
+    let sp_ptr = _sp as ptr[ptr[byte]];
+    sp_ptr.at(0) = value;
+
+    _sp = _sp - (sizeof[ptr[any]]() as u32);
+
+    if (_sp - (32 as u32)) < memory_block_limit {
+        debug(8);
+        abort();
+    }
+}
+
+fun prologue() {
+    push_memstack(_bp as ptr[any]);
+
+    _bp = _sp;
+}
+
+fun epilogue() {
+    _sp = _bp;
+
+    let bp_ptr = (_bp as ptr[ptr[byte]]).offset(1);
+    _bp = bp_ptr.at(0) as u32;
+
+    // FIXME: when _bp == 0?
+    if _bp != (0 as u32) && (_bp < _sp || _bp > stack_limit) {
+        debug(_bp);
+        debug(stack_limit);
+        panic("StackUnderflow");
+    }
+}

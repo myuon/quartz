@@ -649,12 +649,12 @@ module Generator {
         self.current_function_name = func.name;
 
         // Avoid infinite loop
-        if !func.name.starts_with("quartz_std_") {
+        if !func.name.starts_with("quartz_std_") && !func.name.starts_with("quartz_core_") {
             self.expression(IrTerm {
                 t_discard: IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "quartz_std_prologue",
+                            t_ident: "quartz_core_prologue",
                         },
                         args: make[vec[IrTerm]](),
                     },
@@ -732,19 +732,21 @@ module Generator {
                 });
 
                 self.new_statement();
-                self.write("call $quartz_std_push_memstack");
+                self.write("call $quartz_core_push_memstack");
 
                 self.new_statement();
                 self.write("drop");
             }
         } else if expr.t_return != nil {
             // Avoid infinite loop
-            if !self.current_function_name.starts_with("quartz_std_") {
+            if !self.current_function_name.starts_with("quartz_std_") && !self.current_function_name.starts_with(
+                "quartz_core_",
+            ) {
                 self.expression(IrTerm {
                     t_discard: IrTerm {
                         t_call: IrCall {
                             callee: IrTerm {
-                                t_ident: "quartz_std_epilogue",
+                                t_ident: "quartz_core_epilogue",
                             },
                             args: make[vec[IrTerm]](),
                         },
@@ -1211,9 +1213,9 @@ module Generator {
         self.new_statement();
         self.write("i32.wrap_i64");
     }
-
     // FIXME: need GC lock
     // For GC locks, keep value n, which is the number of values to lock (not a standard value)
+
     fun load_i64(self) {
         self.new_statement();
         self.write("global.set $_value_i64_1");
