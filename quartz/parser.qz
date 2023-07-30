@@ -865,22 +865,24 @@ module Parser {
 
         let name = self.ident().try;
 
-        let lparen = self.expect("lparen").try;
-
         let args = make[vec[LExpression]]();
 
-        while self.peek().lexeme != "rparen" {
-            let expr = self.expression().try;
-            args.push(expr);
+        if self.peek().lexeme == "lparen" {
+            let lparen = self.expect("lparen").try;
 
-            if self.peek().lexeme.equal("comma") {
-                self.expect("comma").try;
-            } else {
-                break;
+            while self.peek().lexeme != "rparen" {
+                let expr = self.expression().try;
+                args.push(expr);
+
+                if self.peek().lexeme.equal("comma") {
+                    self.expect("comma").try;
+                } else {
+                    break;
+                }
             }
-        }
 
-        let rparen = self.expect("rparen").try;
+            let rparen = self.expect("rparen").try;
+        }
 
         let rbracket = self.expect("rbracket").try;
 
