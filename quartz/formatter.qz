@@ -46,52 +46,26 @@ module Formatter {
     }
 
     fun module_(self, writer: stringbuilder, module_: Module) {
-        let imports = make[vec[LDecl]]();
-        let non_imports = make[vec[LDecl]]();
-        for decl in module_.decls {
-            if decl.data.t_import != nil {
-                imports.push(decl);
-            } else {
-                non_imports.push(decl);
-            }
-        }
-
-        for decl in imports {
-            if decl.location.start != nil {
-                self.restore_comments(decl.location.start!, writer);
-            }
-            self.decl(writer, decl);
-            self.newline(writer);
-        }
-
-        if imports.length != 0 {
-            self.newline(writer);
-        }
-
-        self.decls(writer, non_imports);
+        self.decls(writer, module_.decls);
     }
 
     fun decls(self, writer: stringbuilder, decls: vec[LDecl]) {
-        let prev = decls.at(0).data;
+        let prev = nil as Decl?;
+
         for i in 0..decls.length {
             let decl = decls.at(i);
 
             if decl.location.start != nil {
                 self.restore_comments(decl.location.start!, writer);
             }
-            if prev.t_attribute != nil {
-                self.attribute(writer, prev.t_attribute!);
-                self.newline(writer);
-            }
-            if decl.data.t_attribute == nil {
-                self.decl(writer, decl);
-                self.newline(writer);
-                if i != decls.length - 1 {
-                    self.newline(writer);
-                }
-            }
 
-            prev = decl.data;
+            if i != 0 && prev != nil && prev!.t_attribute == nil && (prev!.t_import == nil || decl.data.t_import == nil) {
+                self.newline(writer);
+            }
+            self.decl(writer, decl);
+            self.newline(writer);
+
+            prev = decl.data?;
         }
     }
 
@@ -160,7 +134,7 @@ module Formatter {
             self.write(writer, d.t_import!.join("::"));
             self.write_no_space(writer, ";");
         } else if d.t_attribute != nil {
-            return;
+            self.attribute(writer, d.t_attribute!);
         }
     }
 
