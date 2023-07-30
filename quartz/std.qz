@@ -855,6 +855,7 @@ let alloc_ptr: u32 = 0 as u32;
 
 let heap_root_ptr: u32 = 0 as u32;
 
+@[build_if(version == "1.6.0")]
 fun alloc(size: i32): ptr[any] {
     let size_ = size;
     if size % sizeof[i32]() != 0 {
