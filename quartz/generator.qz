@@ -738,6 +738,9 @@ module Generator {
                 self.write("drop");
             }
         } else if expr.t_return != nil {
+            self.new_statement();
+            self.expression(expr.t_return!.value);
+
             // Avoid infinite loop
             if !self.current_function_name.starts_with("quartz_core_") {
                 self.expression(IrTerm {
@@ -751,9 +754,6 @@ module Generator {
                     },
                 });
             }
-
-            self.new_statement();
-            self.expression(expr.t_return!.value);
 
             self.new_statement();
             self.write("return");
