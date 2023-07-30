@@ -55,13 +55,13 @@ module Formatter {
         for i in 0..decls.length {
             let decl = decls.at(i);
 
+            if i != 0 && prev != nil && prev!.t_attribute == nil && (prev!.t_import == nil || decl.data.t_import == nil) {
+                self.newline(writer);
+            }
             if decl.location.start != nil {
                 self.restore_comments(decl.location.start!, writer);
             }
 
-            if i != 0 && prev != nil && prev!.t_attribute == nil && (prev!.t_import == nil || decl.data.t_import == nil) {
-                self.newline(writer);
-            }
             self.decl(writer, decl);
             self.newline(writer);
 
