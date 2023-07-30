@@ -649,7 +649,7 @@ module Generator {
         self.current_function_name = func.name;
 
         // Avoid infinite loop
-        if !func.name.starts_with("quartz_std_") && !func.name.starts_with("quartz_core_") {
+        if !func.name.starts_with("quartz_core_") {
             self.expression(IrTerm {
                 t_discard: IrTerm {
                     t_call: IrCall {
@@ -739,9 +739,7 @@ module Generator {
             }
         } else if expr.t_return != nil {
             // Avoid infinite loop
-            if !self.current_function_name.starts_with("quartz_std_") && !self.current_function_name.starts_with(
-                "quartz_core_",
-            ) {
+            if !self.current_function_name.starts_with("quartz_core_") {
                 self.expression(IrTerm {
                     t_discard: IrTerm {
                         t_call: IrCall {
@@ -943,7 +941,7 @@ module Generator {
                 suffix = format("{}_u", load_size.to_string());
             }
 
-            if self.mode_validate_address && !self.current_function_name.starts_with("quartz_std_") && !self.current_function_name.starts_with(
+            if self.mode_validate_address && !self.current_function_name.starts_with(
                 "quartz_core_",
             ) {
                 self.new_statement();
