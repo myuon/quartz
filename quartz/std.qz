@@ -1495,8 +1495,10 @@ fun perform_gc() {
             mark_and_load(header);
         } else if d != 0 {
             // FIXME: why?
-            debug(d);
-            abort();
+            // debug(p);
+            // debug((p as ptr[any]).at(0));
+            // debug(d);
+            // abort();
         }
 
         p = p + (sizeof[ptr[any]]() as u32);
