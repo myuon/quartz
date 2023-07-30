@@ -1763,9 +1763,12 @@ module IrCodeGenerator {
                 return IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "quartz_std_alloc",
+                            t_ident: "quartz_std_alloc_with_rep",
                         },
                         args: make[vec[IrTerm]](
+                            IrTerm {
+                                t_nil: true,
+                            },
                             IrCodeGenerator::wrap_mult_sizeof(IrType::new(ptr_type), len),
                         ),
                     },
