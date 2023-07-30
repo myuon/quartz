@@ -25,9 +25,19 @@ const execAsync = async (command: string) => {
     }
   }, 30000);
 
-  const child = await execAsync_(command, { signal });
+  try {
+    const child = await execAsync_(command, { signal });
 
-  return child;
+    return { ...child };
+  } catch (err) {
+    console.error(err);
+
+    return {
+      stdout: undefined,
+      stderr: undefined,
+      error: err,
+    };
+  }
 };
 
 const connection = createConnection(ProposedFeatures.all);
