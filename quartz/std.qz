@@ -95,8 +95,8 @@ fun vec_pop(v: vec[any]): any {
     v.length = v.length - 1;
     return e;
 }
-// FIXME: lack of generics
 
+// FIXME: lack of generics
 fun vec_make_byte(capacity: i32): vec[byte] {
     if capacity == 0 {
         panic("vec_make: capacity must be greater than 0");
@@ -647,8 +647,8 @@ fun print_stacktrace() {
     print_string(bp.at(0) as string);
     print_string("\n");
 }
-// used in compiler
 
+// used in compiler
 let strings_ptr = 0;
 
 let strings_count = 0;
@@ -830,12 +830,12 @@ fun stdin(): string {
 
     return vec_byte_to_string(str);
 }
-// 1.5 * 1024 * 1024 * 1024
 
+// 1.5 * 1024 * 1024 * 1024
 @[build_if(version == "1.5.0")]
 let stack_limit: u32 = 1610612736 as u32;
-// used in compiler
 
+// used in compiler
 @[build_if(version == "1.5.0")]
 let _sp: u32 = 1610612736 as u32;
 
@@ -906,8 +906,8 @@ fun print_stack() {
 let alloc_ptr: u32 = 0 as u32;
 
 let heap_root_ptr: u32 = 0 as u32;
-// 1 * 1024 * 1024 * 1024
 
+// 1 * 1024 * 1024 * 1024
 @[build_if(version == "1.5.0")]
 let memory_block_limit: u32 = 1073741824 as u32;
 
@@ -1011,10 +1011,10 @@ fun free(p: ptr[any]) {
 fun bit_not_u32(x: u32): u32 {
     return xor_u32(x, 4294967295); // 2^32 - 1
 }
+
 // size: u32,
 // header_flags: u32,
 // rep: *StructData[TypeRep]
-
 struct Header {
 }
 
@@ -1169,8 +1169,8 @@ fun or_error_context(this: any or error, detail: any): any or error {
     // FIXME: `return result!` won't work
     return result! or _;
 }
-// used in compiler
 
+// used in compiler
 let type_reps_ptr = nil;
 
 let type_reps_count = 0;
@@ -1239,8 +1239,8 @@ module reflection {
     fun get_type_rep_ptr(t: any): ptr[any] {
         return Header::from_data_ptr(t).get_type_rep();
     }
-    // [nil, kind, rep_name, size of params, *params, size of fields, *fields]
 
+    // [nil, kind, rep_name, size of params, *params, size of fields, *fields]
     fun parse_type_rep(t: ptr[any]): TypeRep {
         if !reflection::is_pointer(t) {
             panic("Not a pointer");
