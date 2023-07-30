@@ -943,7 +943,9 @@ module Generator {
                 suffix = format("{}_u", load_size.to_string());
             }
 
-            if self.mode_validate_address && !self.current_function_name.starts_with("quartz_std_") {
+            if self.mode_validate_address && !self.current_function_name.starts_with("quartz_std_") && !self.current_function_name.starts_with(
+                "quartz_core_",
+            ) {
                 self.new_statement();
                 self.write("i64.extend_i32_u");
 
@@ -960,7 +962,7 @@ module Generator {
                 self.write("i64.shl");
 
                 self.new_statement();
-                self.write("call $quartz_std_validate_address");
+                self.write("call $quartz_core_validate_address");
 
                 self.new_statement();
                 self.write("drop");

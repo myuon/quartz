@@ -6,7 +6,7 @@ let _sp: u32 = 1610612736 as u32;
 let _bp: u32 = 1610612736 as u32;
 
 fun push_memstack(value: ptr[any]) {
-    if !reflection::is_pointer(value) {
+    if !_reflection_is_pointer(value) {
         debug(9);
         abort();
     }
@@ -38,7 +38,18 @@ fun epilogue() {
     if _bp != (0 as u32) && (_bp < _sp || _bp > stack_limit) {
         debug(_bp);
         debug(stack_limit);
-        panic("StackUnderflow");
+        // panic("StackUnderflow");
     }
 }
+
+fun validate_address(address: i32) {
+    let p = address as ptr[any];
+    if p == nil as ptr[any] {
+        // println((_bp as ptr[any]).at(0) as string);
+        debug(4);
+        abort();
+    }
+}
+
+let memory_block_limit: u32 = 1073741824 as u32;
 
