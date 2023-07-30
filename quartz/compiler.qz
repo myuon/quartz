@@ -92,7 +92,9 @@ module Compiler {
 
         let visited = make[map[string, bool]]();
         visited.insert(main_path.join("_"), true);
-        imports.push(Path::new("quartz", "std"));
+        if !input.starts_with("// @[nostd]") {
+            imports.push(Path::new("quartz", "std"));
+        }
 
         while imports.length != 0 {
             let path = vec_pop(imports) as Path;

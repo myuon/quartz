@@ -42,6 +42,7 @@ module Preprocessor {
                             t_skip: true,
                         };
                     }
+                } else if attr.name.data == "nostd" {
                 } else {
                     return _ or error::new("unknown attribute");
                 }
