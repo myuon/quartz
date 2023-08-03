@@ -1,4 +1,12 @@
 // @[nostd]
+let error_not_an_pointer = 1;
+
+let error_stack_overflow = 2;
+
+let error_stack_underflow = 3;
+
+let error_nil_pointer_exception = 4;
+
 // 1.5 * 1024 * 1024 * 1024
 let stack_limit: u32 = 1610612736 as u32;
 
@@ -8,7 +16,7 @@ let _bp: u32 = 1610612736 as u32;
 
 fun push_memstack(value: ptr[any]) {
     if !_reflection_is_pointer(value) {
-        debug(9);
+        debug(error_not_an_pointer);
         abort();
     }
 
@@ -18,7 +26,7 @@ fun push_memstack(value: ptr[any]) {
     _sp = _sp - (sizeof[ptr[any]]() as u32);
 
     if (_sp - (32 as u32)) < memory_block_limit {
-        debug(8);
+        debug(error_stack_overflow);
         abort();
     }
 }
@@ -39,16 +47,15 @@ fun epilogue() {
     if _bp != (0 as u32) && (_bp < _sp || _bp > stack_limit) {
         debug(_bp);
         debug(stack_limit);
+        debug(error_stack_underflow);
         abort();
-        // panic("StackUnderflow");
     }
 }
 
 fun validate_address(address: i32) {
     let p = address as ptr[any];
     if p == nil as ptr[any] {
-        // println((_bp as ptr[any]).at(0) as string);
-        debug(4);
+        debug(error_nil_pointer_exception);
         abort();
     }
 }

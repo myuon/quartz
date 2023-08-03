@@ -521,7 +521,7 @@ module IrCodeGenerator {
 
     fun function(self, func: Function): IrFunc or error {
         let body = make[vec[IrTerm]]();
-        if !self.path_to(func.name.data).starts_with("quartz_std") && !self.path_to(func.name.data).starts_with("quartz_core") {
+        if !self.path_to(func.name.data).starts_with("quartz_core") {
             body.push(IrTerm {
                 t_call: IrCall {
                     callee: IrTerm {
@@ -2529,7 +2529,7 @@ module IrCodeGenerator {
             };
         }
 
-        return panic("lhs: {}, rhs: {}", lhs.to_string(), rhs.to_string());
+        return _ or error::new(format("lhs: {}, rhs: {}", lhs.to_string(), rhs.to_string()));
     }
 
     fun generate_call(
