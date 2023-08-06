@@ -509,7 +509,7 @@ module Generator {
         let start_body = make[vec[IrTerm]](
             IrTerm {
                 t_assign: struct {
-                    lhs: "quartz_std_alloc_ptr",
+                    lhs: "quartz_core_alloc_ptr",
                     rhs: IrTerm {
                         t_i32: data_section_offset,
                     },
@@ -1049,7 +1049,7 @@ module Generator {
             self.convert_stack_from_i32_1();
 
             self.new_statement();
-            self.write("call $quartz_std_load_string");
+            self.write("call $quartz_core_load_string");
         } else if expr.t_type_rep != nil {
             self.new_statement();
             self.write(format(";; type_rep: {}", derive::to_string(expr.t_type_rep!)));

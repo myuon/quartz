@@ -637,6 +637,7 @@ fun panic(s: string, ..arg: vec[string]): any {
     return abort();
 }
 
+@[build_if(version == "1.6.1")]
 fun print_stacktrace() {
     let bp = _bp as ptr[ptr[byte]];
 
@@ -647,11 +648,27 @@ fun print_stacktrace() {
     print_string("\n");
 }
 
+@[build_if(version == "1.7.0")]
+fun print_stacktrace() {
+    print_stack();
+    debug(_bp);
+
+    let bp = (_bp - (sizeof[ptr[byte]]() as u32)) as ptr[ptr[byte]];
+
+    print_string("=== stack trace ===\n");
+
+    print_string("  ");
+    print_string(bp.at(0) as string);
+    print_string("\n");
+}
+
 // used in compiler
+@[build_if(version == "1.6.1")]
 let strings_ptr = 0;
 
 let strings_count = 0;
 
+@[build_if(version == "1.6.1")]
 fun load_string(index: i32): string {
     if strings_ptr == 0 {
         panic("strings_ptr is nil");
@@ -851,6 +868,7 @@ fun print_stack() {
     }
 }
 
+@[build_if(version == "1.6.1")]
 let alloc_ptr: u32 = 0 as u32;
 
 let heap_root_ptr: u32 = 0 as u32;
@@ -890,6 +908,7 @@ fun alloc(size: i32): ptr[any] {
 
 let alloc_count = 0;
 
+@[build_if(version == "1.6.1")]
 fun alloc_with_rep(rep: ptr[ptr[byte]], size: i32): ptr[any] {
     let size_ = size;
     if size % sizeof[i32]() != 0 {
@@ -932,6 +951,7 @@ fun alloc_with_rep(rep: ptr[ptr[byte]], size: i32): ptr[any] {
     return current.get_data_ptr();
 }
 
+@[build_if(version == "1.6.1")]
 fun find_free_block(size: u32): Header {
     if (heap_root_ptr as ptr[any]) == (nil as ptr[any]) {
         let current = Header::from_ptr(alloc_ptr as ptr[any]);
@@ -963,6 +983,7 @@ fun free(p: ptr[any]) {
     }
 }
 
+@[build_if(version == "1.6.1")]
 fun bit_not_u32(x: u32): u32 {
     return xor_u32(x, 4294967295); // 2^32 - 1
 }
@@ -970,9 +991,11 @@ fun bit_not_u32(x: u32): u32 {
 // size: u32,
 // header_flags: u32,
 // rep: *StructData[TypeRep]
+@[build_if(version == "1.6.1")]
 struct Header {
 }
 
+@[build_if(version == "1.6.1")]
 module Header {
     fun sizeof(): u32 {
         return (sizeof[u32]() + sizeof[u32]() + sizeof[ptr[byte]]()) as u32;
