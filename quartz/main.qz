@@ -441,8 +441,9 @@ fun main() {
 
         let result or err = run_format(input);
         if err != nil {
-            println(input);
-            // println(err!.message);
+            write_string(fd_stderr, err!.message);
+            write_string(fd_stderr, "\n");
+            return;
         }
 
         if f.write != nil {

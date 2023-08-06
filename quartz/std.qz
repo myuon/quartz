@@ -1,6 +1,14 @@
 import quartz::core;
 
+let fd_stdout = 1;
+
+let fd_stderr = 2;
+
 fun print_string(s: string) {
+    return write_string(fd_stdout, s);
+}
+
+fun write_string(fd: i32, s: string) {
     let l = s.length;
     let d = s.data;
     let n = 0;
@@ -9,7 +17,7 @@ fun print_string(s: string) {
     set_ciovec(ciovec, d, l);
 
     let ptr_size = make[ptr[i32]](1);
-    _fd_write(1, ciovec, ptr_size);
+    _fd_write(fd, ciovec, ptr_size);
 }
 
 fun print_vec_string(v: vec[string]) {
