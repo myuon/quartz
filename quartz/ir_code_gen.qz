@@ -521,7 +521,7 @@ module IrCodeGenerator {
 
     fun function(self, func: Function): IrFunc or error {
         let body = make[vec[IrTerm]]();
-        if !self.path_to(func.name.data).starts_with("quartz_core") {
+        if !self.path_to(func.name.data).starts_with("quartz_core") && !self.path_to(func.name.data).starts_with("quartz_std") {
             body.push(IrTerm {
                 t_call: IrCall {
                     callee: IrTerm {
