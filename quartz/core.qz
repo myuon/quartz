@@ -69,10 +69,8 @@ fun validate_address(address: i32) {
 
 let memory_block_limit: u32 = 1073741824 as u32;
 
-@[build_if(version == "1.7.0")]
 let strings_ptr: u32 = 0 as u32;
 
-@[build_if(version == "1.7.0")]
 fun load_string(index: i32): string {
     if strings_ptr == (0 as u32) {
         debug(error_nil_pointer_exception);
@@ -82,10 +80,8 @@ fun load_string(index: i32): string {
     return (strings_ptr as ptr[string]).at(index);
 }
 
-@[build_if(version == "1.7.0")]
 let alloc_ptr: u32 = 0 as u32;
 
-@[build_if(version == "1.7.0")]
 fun alloc_with_rep(rep: ptr[ptr[byte]], size: i32): ptr[any] {
     let size_ = size;
     if size % sizeof[i32]() != 0 {
@@ -128,7 +124,6 @@ fun alloc_with_rep(rep: ptr[ptr[byte]], size: i32): ptr[any] {
     return current.get_data_ptr();
 }
 
-@[build_if(version == "1.7.0")]
 fun find_free_block(size: u32): Header {
     if (heap_root_ptr as ptr[any]) == (nil as ptr[any]) {
         let current = Header::from_ptr(alloc_ptr as ptr[any]);
@@ -153,11 +148,9 @@ fun find_free_block(size: u32): Header {
 // size: u32,
 // header_flags: u32,
 // rep: *StructData[TypeRep]
-@[build_if(version == "1.7.0")]
 struct Header {
 }
 
-@[build_if(version == "1.7.0")]
 module Header {
     fun sizeof(): u32 {
         return (sizeof[u32]() + sizeof[u32]() + sizeof[ptr[byte]]()) as u32;
@@ -228,12 +221,10 @@ module Header {
     }
 }
 
-@[build_if(version == "1.7.0")]
 fun bit_not_u32(x: u32): u32 {
     return xor_u32(x, 4294967295); // 2^32 - 1
 }
 
-@[build_if(version == "1.7.0")]
 fun new_string(p: ptr[byte], length: i32): string {
     return string {
         data: p,
@@ -241,10 +232,8 @@ fun new_string(p: ptr[byte], length: i32): string {
     };
 }
 
-@[build_if(version == "1.7.0")]
 let type_reps_ptr: ptr[ptr[any]] = (nil as ptr[ptr[any]]);
 
-@[build_if(version == "1.7.0")]
 fun get_type_rep_address(rep_id: i32): ptr[ptr[any]] {
     if type_reps_ptr == (nil as ptr[ptr[any]]) {
         debug(error_nil_pointer_exception);
