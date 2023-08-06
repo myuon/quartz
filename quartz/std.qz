@@ -638,8 +638,7 @@ fun panic(s: string, ..arg: vec[string]): any {
 }
 
 fun print_stacktrace() {
-    debug(12);
-    let bp = (_bp - 8) as ptr[ptr[byte]];
+    let bp = _bp as ptr[ptr[byte]];
 
     print_string("=== stack trace ===\n");
 
