@@ -638,7 +638,8 @@ fun panic(s: string, ..arg: vec[string]): any {
 }
 
 fun print_stacktrace() {
-    let bp = _bp as ptr[ptr[byte]];
+    debug(12);
+    let bp = (_bp - 8) as ptr[ptr[byte]];
 
     print_string("=== stack trace ===\n");
 
@@ -904,14 +905,14 @@ fun alloc_with_rep(rep: ptr[ptr[byte]], size: i32): ptr[any] {
 
     let block = find_free_block(size_ as u32);
     if !block.get_is_free() {
-        debug(7);
+        debug(error_invalid_block);
         abort();
     }
 
     // split
     block.set_size(block.get_size() - (size_ as u32) - Header::sizeof());
     if block.get_size() <= (0 as u32) {
-        debug(12);
+        debug(error_invalid_block);
         abort();
     }
     block.set_is_free(true);
@@ -945,7 +946,7 @@ fun find_free_block(size: u32): Header {
         current = current.get_next();
 
         if (current as u32) > memory_block_limit {
-            debug(4);
+            debug(error_out_of_memory);
             abort();
         }
     }
@@ -1198,9 +1199,11 @@ module reflection {
     // [nil, kind, rep_name, size of params, *params, size of fields, *fields]
     fun parse_type_rep(t: ptr[any]): TypeRep {
         if !reflection::is_pointer(t) {
+            debug(error_invalid_type);
             panic("Not a pointer");
         }
         if t.at(0) != nil {
+            debug(error_invalid_type);
             debug(t.at(0));
             panic("Not a type rep");
         }

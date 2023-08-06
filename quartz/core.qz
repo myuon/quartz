@@ -7,6 +7,12 @@ let error_stack_underflow = 3;
 
 let error_nil_pointer_exception = 4;
 
+let error_invalid_block = 5;
+
+let error_out_of_memory = 6;
+
+let error_invalid_type = 7;
+
 // 1.5 * 1024 * 1024 * 1024
 let stack_limit: u32 = 1610612736 as u32;
 
