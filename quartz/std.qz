@@ -175,6 +175,7 @@ fun new_empty_string(length: i32): string {
     };
 }
 
+@[build_if(version == "1.6.1")]
 fun new_string(p: ptr[byte], length: i32): string {
     return string {
         data: p,
@@ -637,6 +638,7 @@ fun panic(s: string, ..arg: vec[string]): any {
     return abort();
 }
 
+@[build_if(version == "1.6.1")]
 fun print_stacktrace() {
     let bp = _bp as ptr[ptr[byte]];
 
@@ -647,11 +649,32 @@ fun print_stacktrace() {
     print_string("\n");
 }
 
+@[build_if(version == "1.7.0")]
+fun print_stacktrace() {
+    print_string("=== stack trace ===\n");
+
+    let bp = _bp as ptr[ptr[byte]];
+    while true {
+        print_string("  ");
+        print_string(bp.at(0) as string);
+        print_string("\n");
+
+        let next_bp = ((bp as ptr[ptr[byte]]).offset(1) as ptr[ptr[byte]]).at(0) as ptr[ptr[byte]];
+        if (bp.at(0) as string) == "main_main" {
+            break;
+        }
+
+        bp = next_bp;
+    }
+}
+
 // used in compiler
+@[build_if(version == "1.6.1")]
 let strings_ptr = 0;
 
 let strings_count = 0;
 
+@[build_if(version == "1.6.1")]
 fun load_string(index: i32): string {
     if strings_ptr == 0 {
         panic("strings_ptr is nil");
@@ -851,6 +874,7 @@ fun print_stack() {
     }
 }
 
+@[build_if(version == "1.6.1")]
 let alloc_ptr: u32 = 0 as u32;
 
 let heap_root_ptr: u32 = 0 as u32;
@@ -890,6 +914,7 @@ fun alloc(size: i32): ptr[any] {
 
 let alloc_count = 0;
 
+@[build_if(version == "1.6.1")]
 fun alloc_with_rep(rep: ptr[ptr[byte]], size: i32): ptr[any] {
     let size_ = size;
     if size % sizeof[i32]() != 0 {
@@ -932,6 +957,7 @@ fun alloc_with_rep(rep: ptr[ptr[byte]], size: i32): ptr[any] {
     return current.get_data_ptr();
 }
 
+@[build_if(version == "1.6.1")]
 fun find_free_block(size: u32): Header {
     if (heap_root_ptr as ptr[any]) == (nil as ptr[any]) {
         let current = Header::from_ptr(alloc_ptr as ptr[any]);
@@ -963,6 +989,7 @@ fun free(p: ptr[any]) {
     }
 }
 
+@[build_if(version == "1.6.1")]
 fun bit_not_u32(x: u32): u32 {
     return xor_u32(x, 4294967295); // 2^32 - 1
 }
@@ -970,9 +997,11 @@ fun bit_not_u32(x: u32): u32 {
 // size: u32,
 // header_flags: u32,
 // rep: *StructData[TypeRep]
+@[build_if(version == "1.6.1")]
 struct Header {
 }
 
+@[build_if(version == "1.6.1")]
 module Header {
     fun sizeof(): u32 {
         return (sizeof[u32]() + sizeof[u32]() + sizeof[ptr[byte]]()) as u32;
@@ -1126,12 +1155,13 @@ fun or_error_context(this: any or error, detail: any): any or error {
 }
 
 // used in compiler
-let type_reps_ptr = nil;
+@[build_if(version == "1.6.1")]
+let type_reps_ptr: ptr[ptr[any]] = (nil as ptr[ptr[any]]);
 
 let type_reps_count = 0;
 
 fun load_type_rep(id: i32): ptr[any] {
-    if type_reps_ptr == nil {
+    if type_reps_ptr == (nil as ptr[ptr[any]]) {
         panic("load_type_rep: type_reps_ptr == 0");
     }
 
@@ -1143,8 +1173,9 @@ fun load_type_rep(id: i32): ptr[any] {
     return p;
 }
 
+@[build_if(version == "1.6.1")]
 fun get_type_rep_address(rep_id: i32): ptr[ptr[any]] {
-    if type_reps_ptr == nil {
+    if type_reps_ptr == (nil as ptr[ptr[any]]) {
         panic("get_type_rep_address: type_reps_ptr == 0");
     }
 

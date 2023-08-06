@@ -287,7 +287,7 @@ module IrCodeGenerator {
     }
 
     fun generate_prepare_type_reps(self): IrTerm or error {
-        let var_ptr = "quartz_std_type_reps_ptr";
+        let var_ptr = "quartz_core_type_reps_ptr";
 
         let rep_ids = make[vec[struct {
             rep: InternalTypeRep,
@@ -404,7 +404,7 @@ module IrCodeGenerator {
     fun generate_prepare_strings(self): vec[IrTerm] or error {
         let terms = make[vec[IrTerm]]();
 
-        let var_strings = "quartz_std_strings_ptr";
+        let var_strings = "quartz_core_strings_ptr";
         let body = make[vec[IrTerm]]();
         self.start.push(IrTerm {
             t_assign: struct {
@@ -477,7 +477,7 @@ module IrCodeGenerator {
                 IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "quartz_std_new_string",
+                            t_ident: "quartz_core_new_string",
                         },
                         args: make[vec[IrTerm]](
                             IrTerm {
@@ -521,7 +521,7 @@ module IrCodeGenerator {
 
     fun function(self, func: Function): IrFunc or error {
         let body = make[vec[IrTerm]]();
-        if !self.path_to(func.name.data).starts_with("quartz_core") && !self.path_to(func.name.data).starts_with("quartz_std") {
+        if !self.path_to(func.name.data).starts_with("quartz_core") {
             body.push(IrTerm {
                 t_call: IrCall {
                     callee: IrTerm {
@@ -1763,7 +1763,7 @@ module IrCodeGenerator {
                 return IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "quartz_std_alloc_with_rep",
+                            t_ident: "quartz_core_alloc_with_rep",
                         },
                         args: make[vec[IrTerm]](
                             IrTerm {
@@ -2311,7 +2311,7 @@ module IrCodeGenerator {
                 value: IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "quartz_std_alloc_with_rep",
+                            t_ident: "quartz_core_alloc_with_rep",
                         },
                         args: make[vec[IrTerm]](
                             IrTerm {
@@ -2390,7 +2390,7 @@ module IrCodeGenerator {
                 value: IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "quartz_std_alloc_with_rep",
+                            t_ident: "quartz_core_alloc_with_rep",
                         },
                         args: make[vec[IrTerm]](
                             IrTerm {
