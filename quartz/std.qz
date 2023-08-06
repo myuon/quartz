@@ -651,13 +651,21 @@ fun print_stacktrace() {
 
 @[build_if(version == "1.7.0")]
 fun print_stacktrace() {
-    let bp = _bp as ptr[ptr[byte]];
-
     print_string("=== stack trace ===\n");
 
-    print_string("  ");
-    print_string(bp.at(0) as string);
-    print_string("\n");
+    let bp = _bp as ptr[ptr[byte]];
+    while true {
+        print_string("  ");
+        print_string(bp.at(0) as string);
+        print_string("\n");
+
+        let next_bp = ((bp as ptr[ptr[byte]]).offset(1) as ptr[ptr[byte]]).at(0) as ptr[ptr[byte]];
+        if (bp.at(0) as string) == "main_main" {
+            break;
+        }
+
+        bp = next_bp;
+    }
 }
 
 // used in compiler
