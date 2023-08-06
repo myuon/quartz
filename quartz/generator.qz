@@ -1060,7 +1060,7 @@ module Generator {
             self.convert_stack_from_i32_1();
 
             self.new_statement();
-            self.write("call $quartz_std_get_type_rep_address");
+            self.write("call $quartz_core_get_type_rep_address");
         } else if expr.t_discard != nil {
             self.new_statement();
             self.expression(expr.t_discard!);

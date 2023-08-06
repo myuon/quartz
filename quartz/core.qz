@@ -232,3 +232,24 @@ module Header {
 fun bit_not_u32(x: u32): u32 {
     return xor_u32(x, 4294967295); // 2^32 - 1
 }
+
+@[build_if(version == "1.7.0")]
+fun new_string(p: ptr[byte], length: i32): string {
+    return string {
+        data: p,
+        length: length,
+    };
+}
+
+@[build_if(version == "1.7.0")]
+let type_reps_ptr: ptr[ptr[any]] = (nil as ptr[ptr[any]]);
+
+@[build_if(version == "1.7.0")]
+fun get_type_rep_address(rep_id: i32): ptr[ptr[any]] {
+    if type_reps_ptr == (nil as ptr[ptr[any]]) {
+        debug(error_nil_pointer_exception);
+        abort();
+    }
+
+    return type_reps_ptr.offset(rep_id);
+}

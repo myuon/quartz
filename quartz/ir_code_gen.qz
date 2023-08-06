@@ -287,7 +287,7 @@ module IrCodeGenerator {
     }
 
     fun generate_prepare_type_reps(self): IrTerm or error {
-        let var_ptr = "quartz_std_type_reps_ptr";
+        let var_ptr = "quartz_core_type_reps_ptr";
 
         let rep_ids = make[vec[struct {
             rep: InternalTypeRep,
@@ -477,7 +477,7 @@ module IrCodeGenerator {
                 IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "quartz_std_new_string",
+                            t_ident: "quartz_core_new_string",
                         },
                         args: make[vec[IrTerm]](
                             IrTerm {

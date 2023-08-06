@@ -175,6 +175,7 @@ fun new_empty_string(length: i32): string {
     };
 }
 
+@[build_if(version == "1.6.1")]
 fun new_string(p: ptr[byte], length: i32): string {
     return string {
         data: p,
@@ -650,10 +651,7 @@ fun print_stacktrace() {
 
 @[build_if(version == "1.7.0")]
 fun print_stacktrace() {
-    print_stack();
-    debug(_bp);
-
-    let bp = (_bp - (sizeof[ptr[byte]]() as u32)) as ptr[ptr[byte]];
+    let bp = _bp as ptr[ptr[byte]];
 
     print_string("=== stack trace ===\n");
 
@@ -1149,12 +1147,13 @@ fun or_error_context(this: any or error, detail: any): any or error {
 }
 
 // used in compiler
-let type_reps_ptr = nil;
+@[build_if(version == "1.6.1")]
+let type_reps_ptr: ptr[ptr[any]] = (nil as ptr[ptr[any]]);
 
 let type_reps_count = 0;
 
 fun load_type_rep(id: i32): ptr[any] {
-    if type_reps_ptr == nil {
+    if type_reps_ptr == (nil as ptr[ptr[any]]) {
         panic("load_type_rep: type_reps_ptr == 0");
     }
 
@@ -1166,8 +1165,9 @@ fun load_type_rep(id: i32): ptr[any] {
     return p;
 }
 
+@[build_if(version == "1.6.1")]
 fun get_type_rep_address(rep_id: i32): ptr[ptr[any]] {
-    if type_reps_ptr == nil {
+    if type_reps_ptr == (nil as ptr[ptr[any]]) {
         panic("get_type_rep_address: type_reps_ptr == 0");
     }
 
