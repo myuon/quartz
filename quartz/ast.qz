@@ -34,6 +34,7 @@ enum Decl {
     },
     t_import: Path,
     t_attribute: LAttribute,
+    t_attributes: LAttributes,
     t_skip: bool,
 }
 
@@ -523,6 +524,11 @@ struct Attribute {
 
 struct LAttribute {
     data: Attribute,
+    location: Location,
+}
+
+struct LAttributes {
+    data: vec[Attribute],
     location: Location,
 }
 

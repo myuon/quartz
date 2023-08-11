@@ -864,9 +864,50 @@ module Parser {
         });
     }
 
+    fun attributes(self): LAttributes or error {
+        let lbracket = self.expect("lbracket").try;
+
+        let attrs = make[vec[Attribute]]();
+
+        while self.peek().lexeme != "rbracket" {
+            let attr = self.attribute_inner().try;
+            attrs.push(attr);
+
+            if self.peek().lexeme.equal("comma") {
+                self.expect("comma").try;
+            } else {
+                break;
+            }
+        }
+
+        let rbracket = self.expect("rbracket").try;
+
+        return LAttributes {
+            data: attrs,
+            location: Location {
+                start: lbracket.location.start,
+                end: rbracket.location.end,
+            },
+        };
+    }
+
     fun attribute(self): LAttribute or error {
         let lbracket = self.expect("lbracket").try;
 
+        let attr = self.attribute_inner().try;
+
+        let rbracket = self.expect("rbracket").try;
+
+        return LAttribute {
+            data: attr,
+            location: Location {
+                start: lbracket.location.start,
+                end: rbracket.location.end,
+            },
+        };
+    }
+
+    fun attribute_inner(self): Attribute or error {
         let name = self.ident().try;
 
         let args = make[vec[LExpression]]();
@@ -888,14 +929,9 @@ module Parser {
             let rparen = self.expect("rparen").try;
         }
 
-        let rbracket = self.expect("rbracket").try;
-
-        return LAttribute {
-            data: Attribute {
-                name: name,
-                args: args,
-            },
-            location: self.span_location(lbracket, rbracket),
+        return Attribute {
+            name: name,
+            args: args,
         };
     }
 
