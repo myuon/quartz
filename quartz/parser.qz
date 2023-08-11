@@ -2,6 +2,7 @@ import quartz::path;
 import quartz::lexer;
 import quartz::ast;
 import quartz::location;
+import quartz::errors;
 
 struct Parser {
     position: i32,
@@ -857,7 +858,10 @@ module Parser {
             };
         }
 
-        return _ or error::new(format("Unexpected token {} (statement)", self.peek().to_string()));
+        return _ or error::new(format("Unexpected token {} (statement)", self.peek().to_string())).context(ErrorSource {
+            path: Path::new("<no module>"),
+            location: self.peek().location,
+        });
     }
 
     fun attribute(self): LAttribute or error {

@@ -194,6 +194,38 @@ module Compiler {
     }] {
         let module_ or err = self.parse(input, nil, false, false);
         if err != nil {
+            let err_internal = err!;
+
+            for detail in err_internal.detail {
+                let detail_type = reflection::get_type_rep(detail);
+                if detail_type.name.equal("ErrorSource") {
+                    let source = detail as ErrorSource;
+
+                    if source.location.start == nil || source.location.end == nil {
+                        panic("NPE");
+                    }
+
+                    let start_position = find_position(input, source.location.start!);
+                    let end_position = find_position(input, source.location.end!);
+
+                    return make[vec[struct {
+                        start: struct {
+                            line: i32,
+                            column: i32,
+                        },
+                        end: struct {
+                            line: i32,
+                            column: i32,
+                        },
+                        message: string,
+                    }]](struct {
+                        start: start_position,
+                        end: end_position,
+                        message: err_internal.message,
+                    });
+                }
+            }
+
             return make[vec[struct {
                 start: struct {
                     line: i32,
