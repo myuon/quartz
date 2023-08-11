@@ -82,6 +82,10 @@ fun load_string(index: i32): string {
 
 let alloc_ptr: u32 = 0 as u32;
 
+@[build_if(version == "1.8.0")]
+let alloc_count = 0;
+
+@[build_if(version == "1.7.0")]
 fun alloc_with_rep(rep: ptr[ptr[byte]], size: i32): ptr[any] {
     let size_ = size;
     if size % sizeof[i32]() != 0 {
@@ -113,13 +117,48 @@ fun alloc_with_rep(rep: ptr[ptr[byte]], size: i32): ptr[any] {
     current.set_is_free(false);
     current.set_type_rep(rep);
 
-    // alloc_count = alloc_count + 1;
-    // if alloc_count > 10000 {
-    //     debug(81818);
-    //     perform_gc();
+    return current.get_data_ptr();
+}
 
-    //     alloc_count = 0;
-    // }
+@[build_if(version == "1.8.0")]
+fun alloc_with_rep(rep: ptr[ptr[byte]], size: i32): ptr[any] {
+    let size_ = size;
+    if size % sizeof[i32]() != 0 {
+        size_ = ((size + sizeof[i32]() - 1) / sizeof[i32]()) * sizeof[i32]();
+    }
+    if size == 0 {
+        return nil as ptr[any];
+    }
+
+    let current = alloc_ptr;
+    alloc_ptr = alloc_ptr + (size_ as u32);
+
+    let block = find_free_block(size_ as u32);
+    if !block.get_is_free() {
+        debug(error_invalid_block);
+        abort();
+    }
+
+    // split
+    block.set_size(block.get_size() - (size_ as u32) - Header::sizeof());
+    if block.get_size() <= (0 as u32) {
+        debug(error_invalid_block);
+        abort();
+    }
+    block.set_is_free(true);
+
+    let current = block.get_next();
+    current.set_size(size_ as u32);
+    current.set_is_free(false);
+    current.set_type_rep(rep);
+
+    alloc_count = alloc_count + 1;
+    if alloc_count > 10000 {
+        debug(alloc_count);
+        perform_gc();
+
+        alloc_count = 0;
+    }
 
     return current.get_data_ptr();
 }
@@ -242,3 +281,4 @@ fun get_type_rep_address(rep_id: i32): ptr[ptr[any]] {
 
     return type_reps_ptr.offset(rep_id);
 }
+
