@@ -65,7 +65,8 @@ fn print_result_value(result: Box<[Value]>) {
     }
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     let mut runtime = Runtime::new();
     if std::env::var("MODE") == Ok("run-wat".to_string()) {
         let wat_file = std::env::var("WAT_FILE")?;

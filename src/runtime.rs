@@ -1,4 +1,4 @@
-use std::{env, io::Write};
+use std::io::Write;
 
 use anyhow::{anyhow, Result};
 use wasmer::{imports, Function, Instance, Module, Store, Value as WasmValue};
@@ -20,9 +20,7 @@ impl Runtime {
         let args_string = std::env::args().collect::<Vec<_>>().join(" ");
         let args_string_len = args_string.len();
 
-        let wasi_env = WasiEnv::builder("quartz")
-            .map_dir(".", env::current_dir()?)?
-            .build()?;
+        let wasi_env = WasiEnv::builder("quartz").map_dir(".", "/")?.build()?;
         let mut wasi_function_env = WasiFunctionEnv::new(&mut store, wasi_env);
 
         let wasi_import_object = wasi_function_env.import_object(&mut store, &module)?;
