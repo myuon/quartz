@@ -192,7 +192,7 @@ module Compiler {
         },
         message: string,
     }] {
-        let module_ or err = self.parse(input, nil, true, false);
+        let module_ or err = self.parse(input, nil, false, false);
         if err != nil {
             return make[vec[struct {
                 start: struct {
