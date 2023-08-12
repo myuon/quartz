@@ -846,7 +846,7 @@ fun print_stack() {
     while p < stack_limit {
         println("{}: {}", p.to_string(), derive::to_string((p as ptr[any]).at(0)));
 
-        p = p + (8 as u32);
+        p = p + (sizeof[ptr[byte]]() as u32);
     }
 }
 
@@ -1006,6 +1006,7 @@ module TypeRep {
 
 @[build_if(version == "1.9.0")]
 struct TypeRep {
+    nilptr: nil,
     kind: i32,
     name: string,
     size_of_params: i32,
@@ -1173,11 +1174,11 @@ module reflection {
         return t as TypeRep;
     }
 
-    @[no_allocation]
     fun get_type_rep(t: any): TypeRep {
         if reflection::is_pointer(t) {
             if t == nil {
                 return TypeRep {
+                    nilptr: nil,
                     kind: 1,
                     name: "nil",
                     size_of_params: 0,
@@ -1189,10 +1190,13 @@ module reflection {
 
             if is_a_record(t) {
                 let header = Header::from_data_ptr((t as ptr[byte]));
-                return parse_type_rep(header.get_type_rep().at(0));
+                let rep = header.get_type_rep().at(0);
+
+                return reflection::parse_type_rep(rep);
             }
 
             return TypeRep {
+                nilptr: nil,
                 kind: 1,
                 name: "ptr",
                 size_of_params: 1,
@@ -1203,6 +1207,7 @@ module reflection {
         }
         if reflection::is_bool(t) {
             return TypeRep {
+                nilptr: nil,
                 kind: 1,
                 name: "bool",
                 size_of_params: 0,
@@ -1213,6 +1218,7 @@ module reflection {
         }
 
         return TypeRep {
+            nilptr: nil,
             kind: 1,
             name: "i32",
             size_of_params: 0,
