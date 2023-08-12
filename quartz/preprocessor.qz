@@ -90,6 +90,8 @@ module Preprocessor {
     fun decl(self, d: Decl): nil or error {
         if d.t_func != nil {
             self.block(d.t_func!.body).try;
+        } else if d.t_module != nil {
+            self.module_(d.t_module!.module_).try;
         }
 
         return nil;

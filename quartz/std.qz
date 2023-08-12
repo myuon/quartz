@@ -1045,6 +1045,7 @@ module reflection {
         };
     }
 
+    @[no_allocation]
     fun get_type_rep(t: any): TypeRep {
         if reflection::is_pointer(t) {
             if t == nil {
@@ -1302,6 +1303,7 @@ fun args(): vec[string] {
     return result;
 }
 
+@[no_allocation]
 fun perform_gc() {
     // mark
     let p = _sp;
@@ -1346,10 +1348,12 @@ fun perform_gc() {
     println("sweep");
 }
 
+@[no_allocation]
 fun is_pointer_on_stack(p: ptr[ptr[byte]]): bool {
     return (p as u32) >= _sp && (p as u32) < stack_limit;
 }
 
+@[no_allocation]
 fun mark_and_load(object: Header) {
     if object.get_is_free() {
         return;

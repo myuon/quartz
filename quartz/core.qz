@@ -128,6 +128,7 @@ fun alloc_with_rep(rep: ptr[ptr[byte]], size: i32): ptr[any] {
     return current.get_data_ptr();
 }
 
+@[no_allocation]
 fun find_free_block(size: u32): Header {
     if (heap_root_ptr as ptr[any]) == (nil as ptr[any]) {
         let current = Header::from_ptr(alloc_ptr as ptr[any]);

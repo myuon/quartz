@@ -190,6 +190,7 @@ struct IrCodeGenerator {
     data_section_offset: i32,
     counter: i32,
     start: vec[IrTerm],
+    function_no_allocation: bool,
 }
 
 module IrCodeGenerator {
@@ -203,6 +204,7 @@ module IrCodeGenerator {
             data_section_offset: 0,
             counter: 0,
             start: make[vec[IrTerm]](),
+            function_no_allocation: false,
         };
     }
 
@@ -520,6 +522,8 @@ module IrCodeGenerator {
     }
 
     fun function(self, func: Function): IrFunc or error {
+        self.function_no_allocation = func.no_allocation;
+
         let body = make[vec[IrTerm]]();
         if !self.path_to(func.name.data).starts_with("quartz_core") {
             body.push(IrTerm {
@@ -1756,6 +1760,11 @@ module IrCodeGenerator {
                 if expr.t_make!.args.length != 1 {
                     panic("ptr make expects 1 argument");
                 }
+                if self.function_no_allocation {
+                    return _ or error::new(
+                        "[{}] allocation not allowed in this context".format(self.current_path.join("::")),
+                    );
+                }
 
                 let len = self.expression(expr.t_make!.args.at(0)).try;
                 let ptr_type = expr.t_make!.type_.t_ptr!;
@@ -2296,6 +2305,12 @@ module IrCodeGenerator {
     }
 
     fun allocate_heap_object(self, rep: InternalTypeRep, type_: IrType, size: IrTerm): IrTerm or error {
+        if self.function_no_allocation {
+            return _ or error::new(
+                "[{}] allocation not allowed in this context".format(self.current_path.join("::")),
+            );
+        }
+
         let rep_id = self.type_reps.get_or_insert(rep);
         let var = "object_{}".format(self.counter.to_string());
         self.counter = self.counter + 1;
