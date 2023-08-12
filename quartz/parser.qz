@@ -127,13 +127,13 @@ module Parser {
         }
         if token.lexeme == "at" {
             let start_token = self.expect("at").try;
-            let attr = self.attribute().try;
+            let attrs = self.attributes().try;
 
             return LDecl {
                 data: Decl {
-                    t_attribute: attr,
+                    t_attributes: attrs,
                 },
-                location: attr.location,
+                location: attrs.location,
             };
         }
 
