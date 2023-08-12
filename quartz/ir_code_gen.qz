@@ -190,6 +190,7 @@ struct IrCodeGenerator {
     data_section_offset: i32,
     counter: i32,
     start: vec[IrTerm],
+    current_function_name: string,
     function_no_allocation: bool,
 }
 
@@ -204,6 +205,7 @@ module IrCodeGenerator {
             data_section_offset: 0,
             counter: 0,
             start: make[vec[IrTerm]](),
+            current_function_name: "",
             function_no_allocation: false,
         };
     }
@@ -522,6 +524,7 @@ module IrCodeGenerator {
     }
 
     fun function(self, func: Function): IrFunc or error {
+        self.current_function_name = func.name.data;
         self.function_no_allocation = func.no_allocation;
 
         let body = make[vec[IrTerm]]();
@@ -1761,9 +1764,10 @@ module IrCodeGenerator {
                     panic("ptr make expects 1 argument");
                 }
                 if self.function_no_allocation {
-                    return _ or error::new(
-                        "[{}] allocation not allowed in this context".format(self.current_path.join("::")),
-                    );
+                    return _ or error::new("[{}::{}] allocation not allowed in this context".format(
+                        self.current_path.join("::"),
+                        self.current_function_name,
+                    ));
                 }
 
                 let len = self.expression(expr.t_make!.args.at(0)).try;
@@ -2306,9 +2310,10 @@ module IrCodeGenerator {
 
     fun allocate_heap_object(self, rep: InternalTypeRep, type_: IrType, size: IrTerm): IrTerm or error {
         if self.function_no_allocation {
-            return _ or error::new(
-                "[{}] allocation not allowed in this context".format(self.current_path.join("::")),
-            );
+            return _ or error::new("[{}::{}] allocation not allowed in this context".format(
+                self.current_path.join("::"),
+                self.current_function_name,
+            ));
         }
 
         let rep_id = self.type_reps.get_or_insert(rep);
