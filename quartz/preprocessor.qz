@@ -63,6 +63,12 @@ module Preprocessor {
                         }
                     } else if attr.name.data == "nostd" {
                     } else if attr.name.data == "no_allocation" {
+                        let next = m.decls.at(index + 1);
+
+                        if next.data.t_func == nil {
+                            return _ or error::new("expected function, but got {}".format(derive::to_string(next.data)));
+                        }
+                        m.decls.at(index + 1).data.t_func!.no_allocation = true;
                     } else {
                         return _ or error::new("unknown attribute");
                     }

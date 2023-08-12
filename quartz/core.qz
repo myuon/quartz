@@ -85,6 +85,7 @@ let alloc_ptr: u32 = 0 as u32;
 @[build_if(version == "1.8.0")]
 let alloc_count = 0;
 
+@[no_allocation]
 fun alloc_with_rep(rep: ptr[ptr[byte]], size: i32): ptr[any] {
     let size_ = size;
     if size % sizeof[i32]() != 0 {

@@ -73,6 +73,7 @@ struct Function {
         name: string,
         type_: Type,
     }?,
+    no_allocation: bool,
 }
 
 module Function {
