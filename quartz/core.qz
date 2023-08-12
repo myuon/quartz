@@ -82,7 +82,6 @@ fun load_string(index: i32): string {
 
 let alloc_ptr: u32 = 0 as u32;
 
-@[build_if(version == "1.8.0")]
 let alloc_count = 0;
 
 @[no_allocation]

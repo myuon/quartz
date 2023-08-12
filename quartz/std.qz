@@ -985,6 +985,7 @@ fun is_a_record(p: ptr[ptr[any]]): bool {
     return is_address_type_rep(header.get_type_rep());
 }
 
+@[build_if(version == "1.8.0")]
 struct TypeRep {
     kind: i32,
     name: string,
@@ -992,6 +993,7 @@ struct TypeRep {
     fields: vec[string],
 }
 
+@[build_if(version == "1.8.0")]
 module TypeRep {
     fun sizeof(self): i32 {
         if self.name.equal("byte") {
@@ -1002,6 +1004,46 @@ module TypeRep {
     }
 }
 
+@[build_if(version == "1.9.0")]
+struct TypeRep {
+    kind: i32,
+    name: string,
+    size_of_params: i32,
+    params: ptr[TypeRep],
+    size_of_fields: i32,
+    fields: ptr[string],
+}
+
+@[build_if(version == "1.9.0")]
+module TypeRep {
+    fun sizeof(self): i32 {
+        if self.name.equal("byte") {
+            return 1;
+        }
+
+        return 8;
+    }
+
+    fun vec_params(self): vec[TypeRep] {
+        let result = make[vec[TypeRep]]();
+        for i in 0..self.size_of_params {
+            result.push(self.params.at(i));
+        }
+
+        return result;
+    }
+
+    fun vec_fields(self): vec[string] {
+        let result = make[vec[string]]();
+        for i in 0..self.size_of_fields {
+            result.push(self.fields.at(i));
+        }
+
+        return result;
+    }
+}
+
+@[build_if(version == "1.8.0")]
 module reflection {
     fun get_type_rep_ptr(t: any): ptr[any] {
         return Header::from_data_ptr(t).get_type_rep();
@@ -1110,6 +1152,101 @@ module reflection {
     }
 }
 
+@[build_if(version == "1.9.0")]
+module reflection {
+    fun get_type_rep_ptr(t: any): ptr[any] {
+        return Header::from_data_ptr(t).get_type_rep();
+    }
+
+    @[no_allocation]
+    fun parse_type_rep(t: ptr[any]): TypeRep {
+        if !reflection::is_pointer(t) {
+            debug(error_invalid_type);
+            panic("Not a pointer");
+        }
+        if t.at(0) != nil {
+            debug(error_invalid_type);
+            debug(t.at(0));
+            panic("Not a type rep");
+        }
+
+        return t as TypeRep;
+    }
+
+    @[no_allocation]
+    fun get_type_rep(t: any): TypeRep {
+        if reflection::is_pointer(t) {
+            if t == nil {
+                return TypeRep {
+                    kind: 1,
+                    name: "nil",
+                    size_of_params: 0,
+                    params: nil as ptr[TypeRep],
+                    size_of_fields: 0,
+                    fields: nil as ptr[string],
+                };
+            }
+
+            if is_a_record(t) {
+                let header = Header::from_data_ptr((t as ptr[byte]));
+                return parse_type_rep(header.get_type_rep().at(0));
+            }
+
+            return TypeRep {
+                kind: 1,
+                name: "ptr",
+                size_of_params: 1,
+                params: make[vec[TypeRep]]((t as ptr[any]).at(0)).data,
+                size_of_fields: 0,
+                fields: nil as ptr[string],
+            };
+        }
+        if reflection::is_bool(t) {
+            return TypeRep {
+                kind: 1,
+                name: "bool",
+                size_of_params: 0,
+                params: nil as ptr[TypeRep],
+                size_of_fields: 0,
+                fields: nil as ptr[string],
+            };
+        }
+
+        return TypeRep {
+            kind: 1,
+            name: "i32",
+            size_of_params: 0,
+            params: nil as ptr[TypeRep],
+            size_of_fields: 0,
+            fields: nil as ptr[string],
+        };
+    }
+
+    fun is_pointer(t: any): bool {
+        return _reflection_is_pointer(t);
+    }
+
+    fun is_bool(t: any): bool {
+        return _reflection_is_bool(t);
+    }
+
+    fun assert_pointer(t: any) {
+        if !is_pointer(t) {
+            panic("assert_pointer");
+        }
+    }
+
+    fun print_type(t: any) {
+        let rep = get_type_rep(t);
+        if rep.size_of_params == 0 {
+            println(rep.name);
+        } else {
+            println("{}<{}>", rep.name, derive::to_string(rep.vec_params()));
+        }
+    }
+}
+
+@[build_if(version == "1.8.0")]
 module derive {
     fun to_string_internal(t: any, pretty: bool, depth: i32): string {
         let sep = "";
@@ -1174,6 +1311,88 @@ module derive {
                 s = s.concat(format(",{}", sep));
             }
             let f = rep.fields.at(i);
+            let v = (t as ptr[any]).at(i);
+            s = s.concat(format("{}{}: {}", indent, f, derive::to_string_internal(v, pretty, depth + 1)));
+        }
+
+        return s.concat(" }");
+    }
+
+    fun to_string(t: any): string {
+        return derive::to_string_internal(t, false, 1);
+    }
+
+    fun to_string_pretty(t: any): string {
+        return derive::to_string_internal(t, true, 1);
+    }
+}
+
+@[build_if(version == "1.9.0")]
+module derive {
+    fun to_string_internal(t: any, pretty: bool, depth: i32): string {
+        let sep = "";
+        if pretty {
+            sep = "\n";
+        }
+        let indent = " ";
+        if pretty {
+            indent = " ".repeat(depth * 4);
+        }
+
+        let rep = reflection::get_type_rep(t);
+        if rep.name.equal("string") {
+            return format(`"{}"`, t as string);
+        }
+        if rep.name.equal("i32") {
+            return (t as i32).to_string();
+        }
+        if rep.name.equal("bool") {
+            return (t as bool).to_string();
+        }
+        if rep.name.equal("vec") {
+            let s = format("vec(");
+            let v = t as vec[any];
+            for i in 0..v.length {
+                if i > 0 {
+                    s = s.concat(", ");
+                }
+                s = s.concat(derive::to_string_internal(v.at(i), pretty, depth + 1));
+            }
+            return s.concat(")");
+        }
+        if rep.name.equal("optional") {
+            return format("({})?", derive::to_string_internal((t as any?)!, pretty, depth + 1));
+        }
+        if rep.name.equal("nil") {
+            return "nil";
+        }
+        if rep.name.equal("byte") {
+            return ((t as byte) as i32).to_string();
+        }
+        if rep.name.equal("ptr") {
+            return format("<#{}>", (t as i32).to_string());
+        }
+
+        if rep.kind == 2 {
+            // enum
+            let s = format("{} {{}", rep.name, sep);
+
+            let tag = (t as ptr[any]).at(0) as i32;
+            let tag_name = rep.fields.at(tag);
+
+            let v = (t as ptr[any]).at(1);
+            s = s.concat(format(" {}: {} }", tag_name, derive::to_string_internal(v, pretty, depth + 1)));
+
+            return s;
+        }
+
+        let s = format("{} {{}", rep.name, sep);
+        let fields = rep.vec_fields();
+        for i in 0..fields.length {
+            if i > 0 {
+                s = s.concat(format(",{}", sep));
+            }
+            let f = fields.at(i);
             let v = (t as ptr[any]).at(i);
             s = s.concat(format("{}{}: {}", indent, f, derive::to_string_internal(v, pretty, depth + 1)));
         }
@@ -1303,7 +1522,7 @@ fun args(): vec[string] {
     return result;
 }
 
-@[no_allocation]
+@[no_allocation, build_if(version == "1.9.0")]
 fun perform_gc() {
     // mark
     let p = _sp;
@@ -1353,7 +1572,7 @@ fun is_pointer_on_stack(p: ptr[ptr[byte]]): bool {
     return (p as u32) >= _sp && (p as u32) < stack_limit;
 }
 
-@[no_allocation]
+@[no_allocation, build_if(version == "1.9.0")]
 fun mark_and_load(object: Header) {
     if object.get_is_free() {
         return;
@@ -1390,7 +1609,8 @@ fun mark_and_load(object: Header) {
             mark_and_load(Header::from_data_ptr(v));
         }
     } else {
-        for i in 0..rep.fields.length {
+        let fields = rep.vec_fields();
+        for i in 0..fields.length {
             let v = (object as ptr[any]).at(i);
             if reflection::is_pointer(v) {
                 mark_and_load(Header::from_data_ptr(v));
