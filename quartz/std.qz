@@ -852,6 +852,7 @@ fun print_stack() {
 
 let heap_root_ptr: u32 = 0 as u32;
 
+@[build_if(version == "1.7.0")]
 let alloc_count = 0;
 
 fun free(p: ptr[any]) {
