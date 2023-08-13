@@ -22,6 +22,7 @@ let _sp: u32 = 1610612736 as u32;
 
 let _bp: u32 = 1610612736 as u32;
 
+@[no_allocation]
 fun push_memstack(value: ptr[any]) {
     if !_reflection_is_pointer(value) {
         debug(error_not_an_pointer);
@@ -40,12 +41,14 @@ fun push_memstack(value: ptr[any]) {
     }
 }
 
+@[no_allocation]
 fun prologue() {
     push_memstack(_bp as ptr[any]);
 
     _bp = _sp;
 }
 
+@[no_allocation]
 fun epilogue() {
     _sp = _bp;
 
@@ -74,6 +77,7 @@ let memory_block_limit: u32 = 1073741824 as u32;
 
 let strings_ptr: u32 = 0 as u32;
 
+@[no_allocation]
 fun load_string(index: i32): string {
     if strings_ptr == (0 as u32) {
         debug(error_nil_pointer_exception);
@@ -278,6 +282,7 @@ module Header {
     }
 }
 
+@[no_allocation]
 fun bit_not_u32(x: u32): u32 {
     return xor_u32(x, 4294967295); // 2^32 - 1
 }
@@ -291,6 +296,7 @@ fun new_string(p: ptr[byte], length: i32): string {
 
 let type_reps_ptr: ptr[ptr[any]] = (nil as ptr[ptr[any]]);
 
+@[no_allocation]
 fun get_type_rep_address(rep_id: i32): ptr[ptr[any]] {
     if type_reps_ptr == (nil as ptr[ptr[any]]) {
         debug(error_type_reps_ptr_not_initialized);
