@@ -308,26 +308,41 @@ module IrCodeGenerator {
 
         let body = make[vec[IrTerm]]();
 
-        // quartz_std_type_reps_ptr = make[ptr[any]](${type_reps.len()});
+        // You cannot use make here because it uses type_rep_ptr
+        // quartz_std_type_reps_ptr = alloc_with_rep(nil, ${type_reps.len()});
         self.start.push(IrTerm {
             t_assign: struct {
                 lhs: var_ptr,
                 rhs: self.expression(LExpression {
                     data: Expression {
-                        t_make: struct {
-                            type_: Type {
-                                t_ptr: Type {
-                                    t_ident: "any",
-                                },
-                            },
-                            args: make[vec[LExpression]](LExpression {
+                        t_call: struct {
+                            callee: LExpression {
                                 data: Expression {
-                                    t_i32: struct {
-                                        value: self.type_reps.type_reps.length,
+                                    t_ident: struct {
+                                        name: "alloc_with_rep",
+                                        resolved_path: Path::new("quartz", "core", "alloc_with_rep")?,
                                     },
                                 },
                                 location: Location::unknown(),
-                            }),
+                            },
+                            args: make[vec[LExpression]](
+                                LExpression {
+                                    data: Expression {
+                                        t_nil: true,
+                                    },
+                                    location: Location::unknown(),
+                                },
+                                LExpression {
+                                    data: Expression {
+                                        t_i32: struct {
+                                            value: self.type_reps.type_reps.length,
+                                        },
+                                    },
+                                    location: Location::unknown(),
+                                },
+                            ),
+                            variadic: nil,
+                            expansion: nil,
                         },
                     },
                     location: Location::unknown(),
