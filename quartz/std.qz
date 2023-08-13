@@ -1556,12 +1556,10 @@ fun perform_gc() {
         p = p + (sizeof[ptr[any]]() as u32);
     }
 
-    println("mark");
-
     // sweep
     let header = Header::from_ptr(heap_root_ptr as ptr[any]);
     while header.get_size() > (0 as u32) {
-        if !header.get_is_free() && !header.get_is_marked() {
+        if !header.get_is_free() && !header.get_is_marked() && is_collectable(header.get_data_ptr()) {
             free(header.get_data_ptr());
         }
         if header.get_is_marked() {
@@ -1570,13 +1568,16 @@ fun perform_gc() {
 
         header = header.get_next();
     }
-
-    println("sweep");
 }
 
 @[no_allocation]
 fun is_pointer_on_stack(p: ptr[ptr[byte]]): bool {
     return (p as u32) >= _sp && (p as u32) < stack_limit;
+}
+
+@[no_allocation]
+fun is_collectable(p: ptr[byte]): bool {
+    return (p as u32) >= (heap_root_ptr as u32) && !is_pointer_on_stack(p as ptr[ptr[byte]]);
 }
 
 @[no_allocation, build_if(version == "1.9.0")]
@@ -1602,6 +1603,4 @@ fun mark_and_load(object: Header) {
         // FIXME: rep should be a pointer, but why?
         return;
     }
-
-    println("mark_and_load: {}", rep.name);
 }
