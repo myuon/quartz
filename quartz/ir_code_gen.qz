@@ -291,6 +291,9 @@ module IrCodeGenerator {
     }
 
     fun generate_prepare_type_reps(self): IrTerm or error {
+        self.function_no_allocation = false;
+        self.current_function_name = "prepare_type_reps";
+
         let var_ptr = "quartz_core_type_reps_ptr";
 
         let rep_ids = make[vec[struct {
