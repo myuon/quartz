@@ -13,6 +13,8 @@ let error_out_of_memory = 6;
 
 let error_invalid_type = 7;
 
+let error_type_reps_ptr_not_initialized = 8;
+
 // 1.5 * 1024 * 1024 * 1024
 let stack_limit: u32 = 1610612736 as u32;
 
@@ -275,7 +277,7 @@ let type_reps_ptr: ptr[ptr[any]] = (nil as ptr[ptr[any]]);
 
 fun get_type_rep_address(rep_id: i32): ptr[ptr[any]] {
     if type_reps_ptr == (nil as ptr[ptr[any]]) {
-        debug(error_nil_pointer_exception);
+        debug(error_type_reps_ptr_not_initialized);
         abort();
     }
 
