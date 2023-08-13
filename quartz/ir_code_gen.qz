@@ -1789,14 +1789,14 @@ module IrCodeGenerator {
                 let ptr_type = expr.t_make!.type_.t_ptr!;
 
                 // Cannot get the type rep like below, since this make is called before type_rep_ptr is initialized.
-                // let rep = InternalTypeRep::from_struct(
-                //     "ptr",
-                //     make[vec[IrType]](IrType::new(ptr_type)),
-                //     make[vec[struct {
-                //         name: string,
-                //         type_: IrType,
-                //     }]](),
-                // );
+                let rep = InternalTypeRep::from_struct(
+                    "ptr",
+                    make[vec[IrType]](IrType::new(ptr_type)),
+                    make[vec[struct {
+                        name: string,
+                        type_: IrType,
+                    }]](),
+                );
 
                 return IrTerm {
                     t_call: IrCall {
@@ -1805,8 +1805,7 @@ module IrCodeGenerator {
                         },
                         args: make[vec[IrTerm]](
                             IrTerm {
-                                // t_type_rep: self.type_reps.get_or_insert(rep),
-                                t_nil: true,
+                                t_type_rep: self.type_reps.get_or_insert(rep),
                             },
                             IrCodeGenerator::wrap_mult_sizeof(IrType::new(ptr_type), len),
                         ),
