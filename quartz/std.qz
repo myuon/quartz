@@ -1592,7 +1592,19 @@ fun mark_and_load(object: Header) {
 
     object.set_is_marked(true);
 
-    let rep = reflection::get_type_rep(object.get_data_ptr());
+    let data = object.get_data_ptr();
+    if reflection::is_pointer(data) && is_a_record(data as ptr[ptr[any]]) {
+        let header = Header::from_data_ptr((data as ptr[byte]));
+        let rep = reflection::parse_type_rep(header.get_type_rep().at(0));
+
+        mark_and_load_by_rep(object, rep);
+    } else if reflection::is_pointer(data) && data != (nil as ptr[byte]) {
+        mark_and_load_by_rep(object, (data as ptr[any]).at(0));
+    }
+}
+
+@[no_allocation, build_if(version == "1.9.0")]
+fun mark_and_load_by_rep(object: Header, rep: TypeRep) {
     if rep.name.equal("vec") {
         for k in (object as vec[any]) {
             if reflection::is_pointer(k) {
@@ -1624,4 +1636,3 @@ fun mark_and_load(object: Header) {
         }
     }
 }
-
