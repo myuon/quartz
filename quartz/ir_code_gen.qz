@@ -1779,7 +1779,7 @@ module IrCodeGenerator {
                     panic("ptr make expects 1 argument");
                 }
                 if self.function_no_allocation {
-                    return _ or error::new("[{}::{}] allocation not allowed in this context".format(
+                    return _ or error::new("[make_ptr], {}::{} allocation not allowed in this context".format(
                         self.current_path.join("::"),
                         self.current_function_name,
                     ));
@@ -2260,7 +2260,11 @@ module IrCodeGenerator {
             });
         }
 
-        return self.generate_array_with_rep(rep, terms_new).try;
+        return self.generate_array_with_rep(rep, terms_new).context(struct {
+            message: "failed to generate array with rep",
+            rep: rep_name,
+            terms: terms,
+        }).try;
     }
 
     fun generate_array_with_rep(
@@ -2296,7 +2300,7 @@ module IrCodeGenerator {
                     IrTerm {
                         t_i32: terms.length,
                     },
-                ).try,
+                ).context(terms).try,
             },
         });
 
@@ -2335,7 +2339,7 @@ module IrCodeGenerator {
 
     fun allocate_heap_object(self, rep: InternalTypeRep, type_: IrType, size: IrTerm): IrTerm or error {
         if self.function_no_allocation {
-            return _ or error::new("[{}::{}] allocation not allowed in this context".format(
+            return _ or error::new("[allocate_heap_object] {}::{} allocation not allowed in this context".format(
                 self.current_path.join("::"),
                 self.current_function_name,
             ));
@@ -2403,7 +2407,12 @@ module IrCodeGenerator {
                 term: self.write_type_rep(p).try,
             });
         }
-        elements.push(self.generate_array("slice", make[vec[IrType]](), type_rep_terms).try);
+        elements.push(
+            self.generate_array("slice", make[vec[IrType]](), type_rep_terms).context(struct {
+                context: "write_type_rep",
+                rep: rep,
+            }).try,
+        );
         elements.push(IrTerm::i32(rep.fields.length));
 
         let field_terms = make[vec[struct {

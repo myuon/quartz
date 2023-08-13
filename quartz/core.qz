@@ -61,6 +61,7 @@ fun epilogue() {
     }
 }
 
+@[no_allocation]
 fun validate_address(address: i32) {
     let p = address as ptr[any];
     if p == nil as ptr[any] {
@@ -193,30 +194,37 @@ struct Header {
 }
 
 module Header {
+    @[no_allocation]
     fun sizeof(): u32 {
         return (sizeof[u32]() + sizeof[u32]() + sizeof[ptr[byte]]()) as u32;
     }
 
+    @[no_allocation]
     fun from_ptr(p: ptr[byte]): Header {
         return p as Header;
     }
 
+    @[no_allocation]
     fun from_data_ptr(p: ptr[byte]): Header {
         return Header::from_ptr(p.offset(0 - (Header::sizeof() as i32)));
     }
 
+    @[no_allocation]
     fun get_next(self): Header {
         return Header::from_ptr((self as ptr[byte]).offset((Header::sizeof() + self.get_size()) as i32));
     }
 
+    @[no_allocation]
     fun get_data_ptr(self): ptr[byte] {
         return (self as ptr[byte]).offset(Header::sizeof() as i32);
     }
 
+    @[no_allocation]
     fun get_is_free(self): bool {
         return (self.get_header_flags() & 1 as u32) == (1 as u32);
     }
 
+    @[no_allocation]
     fun set_is_free(self, value: bool) {
         if value {
             self.set_header_flags(self.get_header_flags() | (1 as u32));
@@ -225,10 +233,12 @@ module Header {
         }
     }
 
+    @[no_allocation]
     fun get_is_marked(self): bool {
         return (self.get_header_flags() & 2 as u32) == 2 as u32;
     }
 
+    @[no_allocation]
     fun set_is_marked(self, value: bool) {
         if value {
             self.set_header_flags(self.get_header_flags() | (2 as u32));
@@ -237,26 +247,32 @@ module Header {
         }
     }
 
+    @[no_allocation]
     fun get_size(self): u32 {
         return (self as ptr[any]).at(0);
     }
 
+    @[no_allocation]
     fun set_size(self, value: u32) {
         (self as ptr[any]).at(0) = value;
     }
 
+    @[no_allocation]
     fun get_header_flags(self): u32 {
         return (self as ptr[any]).at(1);
     }
 
+    @[no_allocation]
     fun set_header_flags(self, value: u32) {
         (self as ptr[any]).at(1) = value;
     }
 
+    @[no_allocation]
     fun get_type_rep(self): ptr[ptr[byte]] {
         return (self as ptr[any]).at(2);
     }
 
+    @[no_allocation]
     fun set_type_rep(self, value: ptr[ptr[byte]]) {
         (self as ptr[any]).at(2) = value;
     }

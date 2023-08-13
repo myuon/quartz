@@ -1228,6 +1228,7 @@ module reflection {
         };
     }
 
+    @[no_allocation]
     fun is_pointer(t: any): bool {
         return _reflection_is_pointer(t);
     }
@@ -1593,46 +1594,14 @@ fun mark_and_load(object: Header) {
     object.set_is_marked(true);
 
     let data = object.get_data_ptr();
-    if reflection::is_pointer(data) && is_a_record(data as ptr[ptr[any]]) {
-        let header = Header::from_data_ptr((data as ptr[byte]));
-        let rep = reflection::parse_type_rep(header.get_type_rep().at(0));
+    let rep = object.get_type_rep() as TypeRep;
 
-        mark_and_load_by_rep(object, rep);
-    } else if reflection::is_pointer(data) && data != (nil as ptr[byte]) {
-        mark_and_load_by_rep(object, (data as ptr[any]).at(0));
+    if reflection::is_pointer(data) && rep == (nil as TypeRep) {
+        return;
+    } else if reflection::is_pointer(data) && rep == (0 as any as TypeRep) {
+        // FIXME: rep should be a pointer, but why?
+        return;
     }
-}
 
-@[no_allocation, build_if(version == "1.9.0")]
-fun mark_and_load_by_rep(object: Header, rep: TypeRep) {
-    if rep.name.equal("vec") {
-        for k in (object as vec[any]) {
-            if reflection::is_pointer(k) {
-                mark_and_load(Header::from_data_ptr(k));
-            }
-        }
-    } else if rep.name.equal("optional") {
-        let v = (object as any?)!;
-        if reflection::is_pointer(v) {
-            mark_and_load(Header::from_data_ptr(v));
-        }
-    } else if rep.name.equal("ptr") {
-        let v = (object as ptr[any]).at(0);
-        if reflection::is_pointer(v) {
-            mark_and_load(Header::from_data_ptr(v));
-        }
-    } else if rep.kind == 2 {
-        let v = (object as ptr[any]).at(1);
-        if reflection::is_pointer(v) {
-            mark_and_load(Header::from_data_ptr(v));
-        }
-    } else {
-        let fields = rep.vec_fields();
-        for i in 0..fields.length {
-            let v = (object as ptr[any]).at(i);
-            if reflection::is_pointer(v) {
-                mark_and_load(Header::from_data_ptr(v));
-            }
-        }
-    }
+    println("mark_and_load: {}", rep.name);
 }
