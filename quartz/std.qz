@@ -1582,20 +1582,25 @@ fun is_collectable(p: ptr[byte]): bool {
 
 @[no_allocation, build_if(version == "1.9.0")]
 fun mark_and_load(object: Header) {
+    if is_pointer_on_stack(object as ptr[ptr[byte]]) {
+        return;
+    }
     if object.get_is_free() {
         return;
     }
     if object.get_is_marked() {
         return;
     }
-    if is_pointer_on_stack(object as ptr[ptr[byte]]) {
+
+    let rep = object.get_type_rep() as TypeRep;
+    // FIXME: skip if it's not a TypeRep (but why?)
+    if rep.nilptr != nil {
         return;
     }
 
     object.set_is_marked(true);
 
     let data = object.get_data_ptr();
-    let rep = object.get_type_rep() as TypeRep;
 
     if reflection::is_pointer(data) && rep == (nil as TypeRep) {
         return;
