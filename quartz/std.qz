@@ -1608,4 +1608,12 @@ fun mark_and_load(object: Header) {
         // FIXME: rep should be a pointer, but why?
         return;
     }
+
+    debug(rep.nilptr);
+    print_string(rep.name);
+    print_string("\n");
+    debug(rep.kind);
+    debug(rep.size_of_params);
+    debug(rep.size_of_fields);
+    abort();
 }
