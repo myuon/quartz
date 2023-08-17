@@ -401,6 +401,18 @@ module Generator {
         );
         self.end();
 
+        self.start();
+        self.write(
+            `func $_get_typetag (param $value i64) (result i64)
+    local.get $value
+    i64.const 32
+    i64.shl
+
+    return
+`,
+        );
+        self.end();
+
         if m.t_module != nil {
             for i in 0..m.t_module!.elements.length {
                 let element = m.t_module!.elements.at(i);

@@ -1620,3 +1620,22 @@ fun mark_and_load(object: Header) {
     debug(rep.size_of_fields);
     abort();
 }
+
+@[build_if(version == "1.9.0")]
+module types {
+    fun is_i32(value: any): bool {
+        return get_typetag(value) == 0;
+    }
+
+    fun is_pointer(value: any): bool {
+        return get_typetag(value) == 1;
+    }
+
+    fun is_bool(value: any): bool {
+        return get_typetag(value) == 2;
+    }
+
+    fun is_byte(value: any): bool {
+        return get_typetag(value) == 4;
+    }
+}
