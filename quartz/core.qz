@@ -160,7 +160,7 @@ fun alloc_with_rep(rep: ptr[ptr[byte]], size: i32): ptr[any] {
 
     alloc_count = alloc_count + 1;
     if alloc_count > 100000 {
-        perform_gc();
+        // perform_gc();
 
         alloc_count = 0;
     }
