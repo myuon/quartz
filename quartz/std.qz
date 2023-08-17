@@ -1538,10 +1538,13 @@ fun perform_gc() {
         if is_pointer_on_stack(data) {
             p = p + (sizeof[ptr[any]]() as u32);
             continue;
+        } else if !reflection::is_pointer(data) {
+            // FIXME: why?
+            p = p + (sizeof[ptr[any]]() as u32);
+            continue;
         }
 
         let d = data.at(0);
-
         if reflection::is_pointer(d) {
             let header = Header::from_ptr(d as ptr[any]);
             mark_and_load(header);
