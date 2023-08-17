@@ -491,6 +491,22 @@ module Typechecker {
                 location: Location::unknown(),
             },
         );
+        globals.insert(
+            "_get_typetag",
+            LType {
+                data: Type {
+                    t_func: struct {
+                        params: make[vec[Type]](Type {
+                            t_any: true,
+                        }),
+                        result: Type {
+                            t_i32: true,
+                        },
+                    },
+                },
+                location: Location::unknown(),
+            },
+        );
 
         return Typechecker {
             locals: make[map[string, LType]](),

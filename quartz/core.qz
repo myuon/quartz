@@ -13,6 +13,8 @@ let error_out_of_memory = 6;
 
 let error_invalid_type = 7;
 
+let error_type_reps_ptr_not_initialized = 8;
+
 // 1.5 * 1024 * 1024 * 1024
 let stack_limit: u32 = 1610612736 as u32;
 
@@ -20,6 +22,7 @@ let _sp: u32 = 1610612736 as u32;
 
 let _bp: u32 = 1610612736 as u32;
 
+@[no_allocation]
 fun push_memstack(value: ptr[any]) {
     if !_reflection_is_pointer(value) {
         debug(error_not_an_pointer);
@@ -38,12 +41,14 @@ fun push_memstack(value: ptr[any]) {
     }
 }
 
+@[no_allocation]
 fun prologue() {
     push_memstack(_bp as ptr[any]);
 
     _bp = _sp;
 }
 
+@[no_allocation]
 fun epilogue() {
     _sp = _bp;
 
@@ -59,6 +64,7 @@ fun epilogue() {
     }
 }
 
+@[no_allocation]
 fun validate_address(address: i32) {
     let p = address as ptr[any];
     if p == nil as ptr[any] {
@@ -71,6 +77,7 @@ let memory_block_limit: u32 = 1073741824 as u32;
 
 let strings_ptr: u32 = 0 as u32;
 
+@[no_allocation]
 fun load_string(index: i32): string {
     if strings_ptr == (0 as u32) {
         debug(error_nil_pointer_exception);
@@ -82,9 +89,44 @@ fun load_string(index: i32): string {
 
 let alloc_ptr: u32 = 0 as u32;
 
-@[build_if(version == "1.8.0")]
 let alloc_count = 0;
 
+@[no_allocation, build_if(version == "1.8.0")]
+fun alloc_with_rep(rep: ptr[ptr[byte]], size: i32): ptr[any] {
+    let size_ = size;
+    if size % sizeof[i32]() != 0 {
+        size_ = ((size + sizeof[i32]() - 1) / sizeof[i32]()) * sizeof[i32]();
+    }
+    if size == 0 {
+        return nil as ptr[any];
+    }
+
+    let current = alloc_ptr;
+    alloc_ptr = alloc_ptr + (size_ as u32);
+
+    let block = find_free_block(size_ as u32);
+    if !block.get_is_free() {
+        debug(error_invalid_block);
+        abort();
+    }
+
+    // split
+    block.set_size(block.get_size() - (size_ as u32) - Header::sizeof());
+    if block.get_size() <= (0 as u32) {
+        debug(error_invalid_block);
+        abort();
+    }
+    block.set_is_free(true);
+
+    let current = block.get_next();
+    current.set_size(size_ as u32);
+    current.set_is_free(false);
+    current.set_type_rep(rep);
+
+    return current.get_data_ptr();
+}
+
+@[no_allocation, build_if(version == "1.9.0")]
 fun alloc_with_rep(rep: ptr[ptr[byte]], size: i32): ptr[any] {
     let size_ = size;
     if size % sizeof[i32]() != 0 {
@@ -117,8 +159,7 @@ fun alloc_with_rep(rep: ptr[ptr[byte]], size: i32): ptr[any] {
     current.set_type_rep(rep);
 
     alloc_count = alloc_count + 1;
-    if alloc_count > 10000 {
-        // debug(alloc_count);
+    if alloc_count > 100000 {
         // perform_gc();
 
         alloc_count = 0;
@@ -127,6 +168,7 @@ fun alloc_with_rep(rep: ptr[ptr[byte]], size: i32): ptr[any] {
     return current.get_data_ptr();
 }
 
+@[no_allocation]
 fun find_free_block(size: u32): Header {
     if (heap_root_ptr as ptr[any]) == (nil as ptr[any]) {
         let current = Header::from_ptr(alloc_ptr as ptr[any]);
@@ -155,30 +197,37 @@ struct Header {
 }
 
 module Header {
+    @[no_allocation]
     fun sizeof(): u32 {
         return (sizeof[u32]() + sizeof[u32]() + sizeof[ptr[byte]]()) as u32;
     }
 
+    @[no_allocation]
     fun from_ptr(p: ptr[byte]): Header {
         return p as Header;
     }
 
+    @[no_allocation]
     fun from_data_ptr(p: ptr[byte]): Header {
         return Header::from_ptr(p.offset(0 - (Header::sizeof() as i32)));
     }
 
+    @[no_allocation]
     fun get_next(self): Header {
         return Header::from_ptr((self as ptr[byte]).offset((Header::sizeof() + self.get_size()) as i32));
     }
 
+    @[no_allocation]
     fun get_data_ptr(self): ptr[byte] {
         return (self as ptr[byte]).offset(Header::sizeof() as i32);
     }
 
+    @[no_allocation]
     fun get_is_free(self): bool {
         return (self.get_header_flags() & 1 as u32) == (1 as u32);
     }
 
+    @[no_allocation]
     fun set_is_free(self, value: bool) {
         if value {
             self.set_header_flags(self.get_header_flags() | (1 as u32));
@@ -187,10 +236,12 @@ module Header {
         }
     }
 
+    @[no_allocation]
     fun get_is_marked(self): bool {
         return (self.get_header_flags() & 2 as u32) == 2 as u32;
     }
 
+    @[no_allocation]
     fun set_is_marked(self, value: bool) {
         if value {
             self.set_header_flags(self.get_header_flags() | (2 as u32));
@@ -199,31 +250,38 @@ module Header {
         }
     }
 
+    @[no_allocation]
     fun get_size(self): u32 {
         return (self as ptr[any]).at(0);
     }
 
+    @[no_allocation]
     fun set_size(self, value: u32) {
         (self as ptr[any]).at(0) = value;
     }
 
+    @[no_allocation]
     fun get_header_flags(self): u32 {
         return (self as ptr[any]).at(1);
     }
 
+    @[no_allocation]
     fun set_header_flags(self, value: u32) {
         (self as ptr[any]).at(1) = value;
     }
 
+    @[no_allocation]
     fun get_type_rep(self): ptr[ptr[byte]] {
         return (self as ptr[any]).at(2);
     }
 
+    @[no_allocation]
     fun set_type_rep(self, value: ptr[ptr[byte]]) {
         (self as ptr[any]).at(2) = value;
     }
 }
 
+@[no_allocation]
 fun bit_not_u32(x: u32): u32 {
     return xor_u32(x, 4294967295); // 2^32 - 1
 }
@@ -237,12 +295,17 @@ fun new_string(p: ptr[byte], length: i32): string {
 
 let type_reps_ptr: ptr[ptr[any]] = (nil as ptr[ptr[any]]);
 
+@[no_allocation]
 fun get_type_rep_address(rep_id: i32): ptr[ptr[any]] {
     if type_reps_ptr == (nil as ptr[ptr[any]]) {
-        debug(error_nil_pointer_exception);
+        debug(error_type_reps_ptr_not_initialized);
         abort();
     }
 
     return type_reps_ptr.offset(rep_id);
 }
 
+@[no_allocation, build_if(version == "1.9.0")]
+fun get_typetag(value: any): i32 {
+    return _get_typetag(value);
+}

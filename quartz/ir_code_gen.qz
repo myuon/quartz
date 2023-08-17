@@ -190,6 +190,8 @@ struct IrCodeGenerator {
     data_section_offset: i32,
     counter: i32,
     start: vec[IrTerm],
+    current_function_name: string,
+    function_no_allocation: bool,
 }
 
 module IrCodeGenerator {
@@ -203,6 +205,8 @@ module IrCodeGenerator {
             data_section_offset: 0,
             counter: 0,
             start: make[vec[IrTerm]](),
+            current_function_name: "",
+            function_no_allocation: false,
         };
     }
 
@@ -287,6 +291,9 @@ module IrCodeGenerator {
     }
 
     fun generate_prepare_type_reps(self): IrTerm or error {
+        self.function_no_allocation = false;
+        self.current_function_name = "prepare_type_reps";
+
         let var_ptr = "quartz_core_type_reps_ptr";
 
         let rep_ids = make[vec[struct {
@@ -304,26 +311,41 @@ module IrCodeGenerator {
 
         let body = make[vec[IrTerm]]();
 
-        // quartz_std_type_reps_ptr = make[ptr[any]](${type_reps.len()});
+        // You cannot use make here because it uses type_rep_ptr
+        // quartz_std_type_reps_ptr = alloc_with_rep(nil, ${type_reps.len()});
         self.start.push(IrTerm {
             t_assign: struct {
                 lhs: var_ptr,
                 rhs: self.expression(LExpression {
                     data: Expression {
-                        t_make: struct {
-                            type_: Type {
-                                t_ptr: Type {
-                                    t_ident: "any",
-                                },
-                            },
-                            args: make[vec[LExpression]](LExpression {
+                        t_call: struct {
+                            callee: LExpression {
                                 data: Expression {
-                                    t_i32: struct {
-                                        value: self.type_reps.type_reps.length,
+                                    t_ident: struct {
+                                        name: "alloc_with_rep",
+                                        resolved_path: Path::new("quartz", "core", "alloc_with_rep")?,
                                     },
                                 },
                                 location: Location::unknown(),
-                            }),
+                            },
+                            args: make[vec[LExpression]](
+                                LExpression {
+                                    data: Expression {
+                                        t_nil: true,
+                                    },
+                                    location: Location::unknown(),
+                                },
+                                LExpression {
+                                    data: Expression {
+                                        t_i32: struct {
+                                            value: self.type_reps.type_reps.length,
+                                        },
+                                    },
+                                    location: Location::unknown(),
+                                },
+                            ),
+                            variadic: nil,
+                            expansion: nil,
                         },
                     },
                     location: Location::unknown(),
@@ -520,6 +542,9 @@ module IrCodeGenerator {
     }
 
     fun function(self, func: Function): IrFunc or error {
+        self.current_function_name = func.name.data;
+        self.function_no_allocation = func.no_allocation;
+
         let body = make[vec[IrTerm]]();
         if !self.path_to(func.name.data).starts_with("quartz_core") {
             body.push(IrTerm {
@@ -1756,9 +1781,25 @@ module IrCodeGenerator {
                 if expr.t_make!.args.length != 1 {
                     panic("ptr make expects 1 argument");
                 }
+                if self.function_no_allocation {
+                    return _ or error::new("[make_ptr], {}::{} allocation not allowed in this context".format(
+                        self.current_path.join("::"),
+                        self.current_function_name,
+                    ));
+                }
 
                 let len = self.expression(expr.t_make!.args.at(0)).try;
                 let ptr_type = expr.t_make!.type_.t_ptr!;
+
+                // Cannot get the type rep like below, since this make is called before type_rep_ptr is initialized.
+                let rep = InternalTypeRep::from_struct(
+                    "ptr",
+                    make[vec[IrType]](IrType::new(ptr_type)),
+                    make[vec[struct {
+                        name: string,
+                        type_: IrType,
+                    }]](),
+                );
 
                 return IrTerm {
                     t_call: IrCall {
@@ -1767,7 +1808,7 @@ module IrCodeGenerator {
                         },
                         args: make[vec[IrTerm]](
                             IrTerm {
-                                t_nil: true,
+                                t_type_rep: self.type_reps.get_or_insert(rep),
                             },
                             IrCodeGenerator::wrap_mult_sizeof(IrType::new(ptr_type), len),
                         ),
@@ -2222,7 +2263,11 @@ module IrCodeGenerator {
             });
         }
 
-        return self.generate_array_with_rep(rep, terms_new).try;
+        return self.generate_array_with_rep(rep, terms_new).context(struct {
+            message: "failed to generate array with rep",
+            rep: rep_name,
+            terms: terms,
+        }).try;
     }
 
     fun generate_array_with_rep(
@@ -2258,7 +2303,7 @@ module IrCodeGenerator {
                     IrTerm {
                         t_i32: terms.length,
                     },
-                ).try,
+                ).context(terms).try,
             },
         });
 
@@ -2296,6 +2341,13 @@ module IrCodeGenerator {
     }
 
     fun allocate_heap_object(self, rep: InternalTypeRep, type_: IrType, size: IrTerm): IrTerm or error {
+        if self.function_no_allocation {
+            return _ or error::new("[allocate_heap_object] {}::{} allocation not allowed in this context".format(
+                self.current_path.join("::"),
+                self.current_function_name,
+            ));
+        }
+
         let rep_id = self.type_reps.get_or_insert(rep);
         let var = "object_{}".format(self.counter.to_string());
         self.counter = self.counter + 1;
@@ -2358,7 +2410,12 @@ module IrCodeGenerator {
                 term: self.write_type_rep(p).try,
             });
         }
-        elements.push(self.generate_array("slice", make[vec[IrType]](), type_rep_terms).try);
+        elements.push(
+            self.generate_array("slice", make[vec[IrType]](), type_rep_terms).context(struct {
+                context: "write_type_rep",
+                rep: rep,
+            }).try,
+        );
         elements.push(IrTerm::i32(rep.fields.length));
 
         let field_terms = make[vec[struct {

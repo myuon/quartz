@@ -55,7 +55,7 @@ module Formatter {
         for i in 0..decls.length {
             let decl = decls.at(i);
 
-            if i != 0 && prev != nil && prev!.t_attribute == nil && (prev!.t_import == nil || decl.data.t_import == nil) {
+            if i != 0 && prev != nil && prev!.t_attributes == nil && prev!.t_attribute == nil && (prev!.t_import == nil || decl.data.t_import == nil) {
                 self.newline(writer);
             }
             if decl.location.start != nil {
@@ -85,6 +85,34 @@ module Formatter {
                 }
             }
             self.write_no_space(writer, ")");
+        }
+        self.write_no_space(writer, "]");
+    }
+
+    fun attributes(self, writer: stringbuilder, lattr: LAttributes) {
+        let attrs = lattr.data;
+
+        self.write(writer, "@");
+        self.write_no_space(writer, "[");
+
+        for i in 0..attrs.length {
+            let attr = attrs.at(i);
+            self.write_no_space(writer, attr.name.data);
+            if attr.args.length > 0 {
+                self.write_no_space(writer, "(");
+                for i in 0..attr.args.length {
+                    let arg = attr.args.at(i);
+                    self.expr(writer, arg, true);
+                    if i != attr.args.length - 1 {
+                        self.write(writer, ",");
+                    }
+                }
+                self.write_no_space(writer, ")");
+            }
+
+            if i < attrs.length - 1 {
+                self.write_no_space(writer, ", ");
+            }
         }
         self.write_no_space(writer, "]");
     }
@@ -135,6 +163,8 @@ module Formatter {
             self.write_no_space(writer, ";");
         } else if d.t_attribute != nil {
             self.attribute(writer, d.t_attribute!);
+        } else if d.t_attributes != nil {
+            self.attributes(writer, d.t_attributes!);
         }
     }
 

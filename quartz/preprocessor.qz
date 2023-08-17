@@ -63,6 +63,12 @@ module Preprocessor {
                         }
                     } else if attr.name.data == "nostd" {
                     } else if attr.name.data == "no_allocation" {
+                        let next = m.decls.at(index + 1);
+
+                        if next.data.t_func == nil {
+                            return _ or error::new("expected function, but got {}".format(derive::to_string(next.data)));
+                        }
+                        m.decls.at(index + 1).data.t_func!.no_allocation = true;
                     } else {
                         return _ or error::new("unknown attribute");
                     }
@@ -84,6 +90,8 @@ module Preprocessor {
     fun decl(self, d: Decl): nil or error {
         if d.t_func != nil {
             self.block(d.t_func!.body).try;
+        } else if d.t_module != nil {
+            self.module_(d.t_module!.module_).try;
         }
 
         return nil;

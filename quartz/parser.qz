@@ -360,6 +360,7 @@ module Parser {
                 body: body,
                 params: params.params,
                 variadic: params.variadic,
+                no_allocation: false,
             },
             location: Location {
                 start: start_token.location.start,
