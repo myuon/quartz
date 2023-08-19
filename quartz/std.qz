@@ -953,7 +953,7 @@ fun load_type_rep(id: i32): ptr[any] {
     }
 
     let p = (type_reps_ptr as ptr[ptr[any]]).at(id);
-    if !reflection::is_pointer(p) {
+    if !types::is_pointer(p) {
         panic("load_type_rep: not a pointer");
     }
 
@@ -961,7 +961,7 @@ fun load_type_rep(id: i32): ptr[any] {
 }
 
 fun is_address_type_rep(p: ptr[any]): bool {
-    if !reflection::is_pointer(p) {
+    if !types::is_pointer(p) {
         return false;
     }
 
@@ -974,7 +974,7 @@ fun is_address_type_rep(p: ptr[any]): bool {
 }
 
 fun is_a_record(p: ptr[ptr[any]]): bool {
-    if !reflection::is_pointer(p) {
+    if !types::is_pointer(p) {
         return false;
     }
 
@@ -1027,7 +1027,7 @@ module reflection {
 
     @[no_allocation]
     fun parse_type_rep(t: ptr[any]): TypeRep {
-        if !reflection::is_pointer(t) {
+        if !types::is_pointer(t) {
             debug(error_invalid_type);
             panic("Not a pointer");
         }
@@ -1041,7 +1041,7 @@ module reflection {
     }
 
     fun get_type_rep(t: any): TypeRep {
-        if reflection::is_pointer(t) {
+        if types::is_pointer(t) {
             if t == nil {
                 return TypeRep {
                     nilptr: nil,
@@ -1104,7 +1104,7 @@ module reflection {
     }
 
     fun assert_pointer(t: any) {
-        if !is_pointer(t) {
+        if !types::is_pointer(t) {
             panic("assert_pointer");
         }
     }
@@ -1322,14 +1322,14 @@ fun perform_gc() {
         if is_pointer_on_stack(data) {
             p = p + (sizeof[ptr[any]]() as u32);
             continue;
-        } else if !reflection::is_pointer(data) {
+        } else if !types::is_pointer(data) {
             // FIXME: why?
             p = p + (sizeof[ptr[any]]() as u32);
             continue;
         }
 
         let d = data.at(0);
-        if reflection::is_pointer(d) {
+        if types::is_pointer(d) {
             let header = Header::from_ptr(d as ptr[any]);
             mark_and_load(header);
         } else if d != 0 {
@@ -1389,9 +1389,9 @@ fun mark_and_load(object: Header) {
 
     let data = object.get_data_ptr();
 
-    if reflection::is_pointer(data) && rep == (nil as TypeRep) {
+    if types::is_pointer(data) && rep == (nil as TypeRep) {
         return;
-    } else if reflection::is_pointer(data) && rep == (0 as any as TypeRep) {
+    } else if types::is_pointer(data) && rep == (0 as any as TypeRep) {
         // FIXME: rep should be a pointer, but why?
         return;
     }
