@@ -1378,6 +1378,9 @@ fun mark_and_load(object: Header) {
     if object.get_is_marked() {
         return;
     }
+    if object.get_size() == (0 as u32) {
+        return;
+    }
 
     let rep = object.get_type_rep() as TypeRep;
     // FIXME: skip if it's not a TypeRep (but why?)
