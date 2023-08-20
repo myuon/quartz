@@ -852,6 +852,7 @@ fun print_stack() {
 
 let heap_root_ptr: u32 = 0 as u32;
 
+@[no_allocation]
 fun free(p: ptr[any]) {
     let header = Header::from_data_ptr(p);
     header.set_is_free(true);
