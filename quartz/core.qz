@@ -125,7 +125,7 @@ fun alloc_with_rep(rep: ptr[ptr[byte]], size: i32): ptr[any] {
 
     alloc_count = alloc_count + 1;
     if alloc_count > 100000 {
-        // perform_gc();
+        perform_gc();
 
         alloc_count = 0;
     }
@@ -274,3 +274,19 @@ fun get_type_rep_address(rep_id: i32): ptr[ptr[any]] {
 fun get_typetag(value: any): i32 {
     return _get_typetag(value);
 }
+
+@[no_allocation]
+fun is_stack_pointer(value: ptr[byte]): bool {
+    return (value as u32) >= _sp;
+}
+
+@[no_allocation]
+fun is_typerep_pointer(p: ptr[byte]): bool {
+    let p_address = p as i32;
+    let type_reps_ptr_address = type_reps_ptr as i32;
+
+    return p_address >= type_reps_ptr_address && p_address < ((type_reps_ptr as ptr[any]).offset(
+        type_reps_count,
+    )) as i32;
+}
+

@@ -1318,27 +1318,8 @@ fun perform_gc() {
     // mark
     let p = _sp;
     while p < stack_limit {
-        let data = (p as ptr[any]).at(0) as ptr[any];
-        if is_pointer_on_stack(data) {
-            p = p + (sizeof[ptr[any]]() as u32);
-            continue;
-        } else if !types::is_pointer(data) {
-            // FIXME: why?
-            p = p + (sizeof[ptr[any]]() as u32);
-            continue;
-        }
-
-        let d = data.at(0);
-        if types::is_pointer(d) {
-            let header = Header::from_ptr(d as ptr[any]);
-            mark_and_load(header);
-        } else if d != 0 {
-            // FIXME: why?
-            // debug(p);
-            // debug((p as ptr[any]).at(0));
-            // debug(d);
-            // abort();
-        }
+        let data = (p as ptr[any]).at(0);
+        mark(data);
 
         p = p + (sizeof[ptr[any]]() as u32);
     }
@@ -1368,44 +1349,58 @@ fun is_collectable(p: ptr[byte]): bool {
 }
 
 @[no_allocation]
-fun mark_and_load(object: Header) {
-    if is_pointer_on_stack(object as ptr[ptr[byte]]) {
-        return;
-    }
-    if object.get_is_free() {
-        return;
-    }
-    if object.get_is_marked() {
-        return;
-    }
-    if object.get_size() == (0 as u32) {
+fun mark(value: any) {
+    if !types::is_pointer(value) {
         return;
     }
 
-    let rep = object.get_type_rep() as TypeRep;
-    // FIXME: skip if it's not a TypeRep (but why?)
-    if rep.nilptr != nil {
+    let value_ptr = value as ptr[byte];
+    if value_ptr == (nil as ptr[byte]) {
         return;
+    } else if is_stack_pointer(value_ptr) {
+        mark(value_ptr.at(0));
+        return;
+    } else {
+        let header = Header::from_data_ptr(value_ptr);
+
+        // checks if it's a valid header
+        let size = header.get_size();
+        if !types::is_i32(size) {
+            debug(error_invalid_type);
+            abort();
+        }
+        if !is_typerep_pointer(header.get_type_rep() as ptr[byte]) {
+            debug(error_invalid_type);
+            abort();
+        }
+        // /checks
+
+        if header.get_is_marked() {
+            return;
+        }
+
+        header.set_is_marked(true);
+
+        let rep = (header.get_type_rep() as ptr[TypeRep]).at(0);
+        if rep.nilptr != nil {
+            debug(error_invalid_type);
+            abort();
+        }
+
+        // For an object [size, header_flags, type_rep | data...],
+        // inspect the data part and mark the pointers in it.
+        //
+        // DISCUSSION: Should we have a bitmap of which bytes are pointers in the data part?
+        let data_size = (header.get_size() - Header::sizeof()) as i32;
+
+        let cell_ptr = header.get_data_ptr();
+        for i in 0..data_size {
+            let cell = cell_ptr.at(i);
+            if types::is_pointer(cell) {
+                mark(cell);
+            }
+        }
     }
-
-    object.set_is_marked(true);
-
-    let data = object.get_data_ptr();
-
-    if types::is_pointer(data) && rep == (nil as TypeRep) {
-        return;
-    } else if types::is_pointer(data) && rep == (0 as any as TypeRep) {
-        // FIXME: rep should be a pointer, but why?
-        return;
-    }
-
-    debug(rep.nilptr);
-    print_string(rep.name);
-    print_string("\n");
-    debug(rep.kind);
-    debug(rep.size_of_params);
-    debug(rep.size_of_fields);
-    abort();
 }
 
 module types {
