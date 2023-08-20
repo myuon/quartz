@@ -91,7 +91,7 @@ let alloc_ptr: u32 = 0 as u32;
 
 let alloc_count = 0;
 
-@[no_allocation, build_if(version == "1.8.0")]
+@[no_allocation]
 fun alloc_with_rep(rep: ptr[ptr[byte]], size: i32): ptr[any] {
     let size_ = size;
     if size % sizeof[i32]() != 0 {
@@ -104,42 +104,7 @@ fun alloc_with_rep(rep: ptr[ptr[byte]], size: i32): ptr[any] {
     let current = alloc_ptr;
     alloc_ptr = alloc_ptr + (size_ as u32);
 
-    let block = find_free_block(size_ as u32);
-    if !block.get_is_free() {
-        debug(error_invalid_block);
-        abort();
-    }
-
-    // split
-    block.set_size(block.get_size() - (size_ as u32) - Header::sizeof());
-    if block.get_size() <= (0 as u32) {
-        debug(error_invalid_block);
-        abort();
-    }
-    block.set_is_free(true);
-
-    let current = block.get_next();
-    current.set_size(size_ as u32);
-    current.set_is_free(false);
-    current.set_type_rep(rep);
-
-    return current.get_data_ptr();
-}
-
-@[no_allocation, build_if(version == "1.9.0")]
-fun alloc_with_rep(rep: ptr[ptr[byte]], size: i32): ptr[any] {
-    let size_ = size;
-    if size % sizeof[i32]() != 0 {
-        size_ = ((size + sizeof[i32]() - 1) / sizeof[i32]()) * sizeof[i32]();
-    }
-    if size == 0 {
-        return nil as ptr[any];
-    }
-
-    let current = alloc_ptr;
-    alloc_ptr = alloc_ptr + (size_ as u32);
-
-    let block = find_free_block(size_ as u32);
+    let block = find_free_block((size_ as u32) + Header::sizeof());
     if !block.get_is_free() {
         debug(error_invalid_block);
         abort();
@@ -159,8 +124,8 @@ fun alloc_with_rep(rep: ptr[ptr[byte]], size: i32): ptr[any] {
     current.set_type_rep(rep);
 
     alloc_count = alloc_count + 1;
-    if alloc_count > 100000 {
-        // perform_gc();
+    if alloc_count > 5000000 {
+        perform_gc();
 
         alloc_count = 0;
     }
@@ -178,16 +143,28 @@ fun find_free_block(size: u32): Header {
     }
 
     let current = Header::from_ptr(heap_root_ptr as ptr[any]);
-    while !(current.get_is_free() && current.get_size() >= size) {
-        current = current.get_next();
-
-        if (current as u32) > memory_block_limit {
-            debug(error_out_of_memory);
-            abort();
+    while (current as u32) < (_sp - (32 as u32)) {
+        if current.get_is_free() && current.get_size() > size {
+            return current;
         }
+
+        current = current.get_next();
     }
 
-    return current;
+    // try again!
+    perform_gc();
+
+    let current = Header::from_ptr(heap_root_ptr as ptr[any]);
+    while (current as u32) < (_sp - (32 as u32)) {
+        if current.get_is_free() && current.get_size() > size {
+            return current;
+        }
+
+        current = current.get_next();
+    }
+
+    debug(error_out_of_memory);
+    abort();
 }
 
 // size: u32,
@@ -305,7 +282,23 @@ fun get_type_rep_address(rep_id: i32): ptr[ptr[any]] {
     return type_reps_ptr.offset(rep_id);
 }
 
-@[no_allocation, build_if(version == "1.9.0")]
+@[no_allocation]
 fun get_typetag(value: any): i32 {
     return _get_typetag(value);
 }
+
+@[no_allocation]
+fun is_stack_pointer(value: ptr[byte]): bool {
+    return (value as u32) >= _sp;
+}
+
+@[no_allocation]
+fun is_typerep_pointer(p: ptr[byte]): bool {
+    let p_address = p as i32;
+    let type_reps_ptr_address = type_reps_ptr as i32;
+
+    return p_address >= type_reps_ptr_address && p_address < ((type_reps_ptr as ptr[any]).offset(
+        type_reps_count,
+    )) as i32;
+}
+
