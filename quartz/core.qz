@@ -104,7 +104,7 @@ fun alloc_with_rep(rep: ptr[ptr[byte]], size: i32): ptr[any] {
     let current = alloc_ptr;
     alloc_ptr = alloc_ptr + (size_ as u32);
 
-    let block = find_free_block(size_ as u32);
+    let block = find_free_block((size_ as u32) + Header::sizeof());
     if !block.get_is_free() {
         debug(error_invalid_block);
         abort();
@@ -143,16 +143,28 @@ fun find_free_block(size: u32): Header {
     }
 
     let current = Header::from_ptr(heap_root_ptr as ptr[any]);
-    while !(current.get_is_free() && current.get_size() >= size) {
-        current = current.get_next();
-
-        if (current as u32) > memory_block_limit {
-            debug(error_out_of_memory);
-            abort();
+    while (current as u32) < (_sp - (32 as u32)) {
+        if current.get_is_free() && current.get_size() > size {
+            return current;
         }
+
+        current = current.get_next();
     }
 
-    return current;
+    // try again!
+    perform_gc();
+
+    let current = Header::from_ptr(heap_root_ptr as ptr[any]);
+    while (current as u32) < (_sp - (32 as u32)) {
+        if current.get_is_free() && current.get_size() > size {
+            return current;
+        }
+
+        current = current.get_next();
+    }
+
+    debug(error_out_of_memory);
+    abort();
 }
 
 // size: u32,
