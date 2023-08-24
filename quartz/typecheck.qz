@@ -507,6 +507,46 @@ module Typechecker {
                 location: Location::unknown(),
             },
         );
+        globals.insert(
+            "_environ_sizes_get",
+            LType {
+                data: Type {
+                    t_func: struct {
+                        params: make[vec[Type]](Type {
+                            t_ptr: Type {
+                                t_i32: true,
+                            },
+                        }, Type {
+                            t_ptr: Type {
+                                t_i32: true,
+                            },
+                        }),
+                        result: Type {
+                            t_i32: true,
+                        },
+                    },
+                },
+                location: Location::unknown(),
+            },
+        );
+        globals.insert(
+            "_load_wasmi32",
+            LType {
+                data: Type {
+                    t_func: struct {
+                        params: make[vec[Type]](Type {
+                            t_ptr: Type {
+                                t_i32: true,
+                            },
+                        }),
+                        result: Type {
+                            t_i32: true,
+                        },
+                    },
+                },
+                location: Location::unknown(),
+            },
+        );
 
         return Typechecker {
             locals: make[map[string, LType]](),

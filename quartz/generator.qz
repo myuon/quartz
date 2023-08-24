@@ -196,6 +196,12 @@ module Generator {
 
         self.start();
         self.write(
+            `import "wasi_unstable" "environ_sizes_get" (func $environ_sizes_get (param i32 i32) (result i32))`,
+        );
+        self.end();
+
+        self.start();
+        self.write(
             `func $_fd_read (param $fd i64) (param $iovs i64) (param $iovs_len i64) (param $nread i64) (result i64)
     local.get $fd
     i64.const 32
@@ -405,6 +411,49 @@ module Generator {
         self.write(
             `func $_get_typetag (param $value i64) (result i64)
     local.get $value
+    i64.const 32
+    i64.shl
+
+    return
+`,
+        );
+        self.end();
+
+        self.start();
+        self.write(
+            `func $_load_wasmi32 (param $ptr i64) (result i64)
+    local.get $ptr
+    i64.const 32
+    i64.shr_u
+    i32.wrap_i64
+
+    i32.load
+
+    i64.extend_i32_s
+    i64.const 32
+    i64.shl
+
+    return
+`,
+        );
+        self.end();
+
+        self.start();
+        self.write(
+            `func $_environ_sizes_get (param $ptr_count i64) (param $ptr_buf_size i64) (result i64)
+    local.get $ptr_count
+    i64.const 32
+    i64.shr_u
+    i32.wrap_i64
+
+    local.get $ptr_buf_size
+    i64.const 32
+    i64.shr_u
+    i32.wrap_i64
+
+    call $environ_sizes_get
+
+    i64.extend_i32_s
     i64.const 32
     i64.shl
 
@@ -953,9 +1002,7 @@ module Generator {
                 suffix = format("{}_u", load_size.to_string());
             }
 
-            if self.mode_validate_address && !self.current_function_name.starts_with(
-                "quartz_core_",
-            ) {
+            if self.mode_validate_address && !self.current_function_name.starts_with("quartz_core_") {
                 self.new_statement();
                 self.write("i64.extend_i32_u");
 
@@ -1225,9 +1272,9 @@ module Generator {
         self.new_statement();
         self.write("i32.wrap_i64");
     }
+
     // FIXME: need GC lock
     // For GC locks, keep value n, which is the number of values to lock (not a standard value)
-
     fun load_i64(self) {
         self.new_statement();
         self.write("global.set $_value_i64_1");
