@@ -111,12 +111,6 @@ enum CliCommand {
         entrypoint: string?,
         validate_address: bool?,
     },
-    run: struct {
-        stdin: bool?,
-        input: string?,
-        output: string?,
-        validate_address: bool?,
-    },
     format: struct {
         input: string?,
         stdin: bool?,
@@ -186,37 +180,6 @@ module CliCommand {
 
             return CliCommand {
                 compile: compile,
-            };
-        } else if args.at(0).equal("run") {
-            let i = 1;
-            let run = struct {
-                stdin: nil,
-                input: nil,
-                output: nil,
-                validate_address: nil,
-            };
-
-            while i < args.length {
-                if args.at(i).equal("--stdin") {
-                    run.stdin = true?;
-                } else if args.at(i).equal("--validate-address") {
-                    run.validate_address = true?;
-                } else if args.at(i).equal("--output") {
-                    run.output = args.at(i + 1)?;
-                    i = i + 1;
-                } else {
-                    break;
-                }
-
-                i = i + 1;
-            }
-
-            if run.stdin == nil {
-                run.input = args.at(i)?;
-            }
-
-            return CliCommand {
-                run: run,
             };
         } else if args.at(0).equal("format") {
             let i = 1;
@@ -407,35 +370,6 @@ fun main() {
         file_write(compile.output!, result!);
 
         return nil;
-    } else if command.run != nil {
-        let runc = command.run!;
-
-        let input = "";
-        if runc.input != nil {
-            input = file_read(runc.input!);
-        } else if runc.stdin != nil {
-            input = stdin();
-        } else {
-            panic("no input");
-        }
-
-        let path = Path::new("main");
-
-        let validate_address = false;
-        if runc.validate_address != nil {
-            validate_address = runc.validate_address!;
-        }
-
-        let result or err = run(input, path, "main", validate_address, compiler_version);
-        if err != nil {
-            panic(err!.message);
-        }
-
-        if runc.output != nil {
-            file_write(runc.output!, result!);
-        } else {
-            println("{}", result!);
-        }
     } else if command.format != nil {
         let f = command.format!;
 
