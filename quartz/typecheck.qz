@@ -512,15 +512,18 @@ module Typechecker {
             LType {
                 data: Type {
                     t_func: struct {
-                        params: make[vec[Type]](Type {
-                            t_ptr: Type {
-                                t_i32: true,
+                        params: make[vec[Type]](
+                            Type {
+                                t_ptr: Type {
+                                    t_i32: true,
+                                },
                             },
-                        }, Type {
-                            t_ptr: Type {
-                                t_i32: true,
+                            Type {
+                                t_ptr: Type {
+                                    t_i32: true,
+                                },
                             },
-                        }),
+                        ),
                         result: Type {
                             t_i32: true,
                         },
@@ -539,6 +542,33 @@ module Typechecker {
                                 t_i32: true,
                             },
                         }),
+                        result: Type {
+                            t_i32: true,
+                        },
+                    },
+                },
+                location: Location::unknown(),
+            },
+        );
+        globals.insert(
+            "_environ_get",
+            LType {
+                data: Type {
+                    t_func: struct {
+                        params: make[vec[Type]](
+                            Type {
+                                t_ptr: Type {
+                                    t_ptr: Type {
+                                        t_byte: true,
+                                    },
+                                },
+                            },
+                            Type {
+                                t_ptr: Type {
+                                    t_byte: true,
+                                },
+                            },
+                        ),
                         result: Type {
                             t_i32: true,
                         },

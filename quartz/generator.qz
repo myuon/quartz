@@ -202,6 +202,12 @@ module Generator {
 
         self.start();
         self.write(
+            `import "wasi_unstable" "environ_get" (func $environ_get (param i32 i32) (result i32))`,
+        );
+        self.end();
+
+        self.start();
+        self.write(
             `func $_fd_read (param $fd i64) (param $iovs i64) (param $iovs_len i64) (param $nread i64) (result i64)
     local.get $fd
     i64.const 32
@@ -452,6 +458,30 @@ module Generator {
     i32.wrap_i64
 
     call $environ_sizes_get
+
+    i64.extend_i32_s
+    i64.const 32
+    i64.shl
+
+    return
+`,
+        );
+        self.end();
+
+        self.start();
+        self.write(
+            `func $_environ_get (param $environ i64) (param $environ_buf i64) (result i64)
+    local.get $environ
+    i64.const 32
+    i64.shr_u
+    i32.wrap_i64
+
+    local.get $environ_buf
+    i64.const 32
+    i64.shr_u
+    i32.wrap_i64
+
+    call $environ_get
 
     i64.extend_i32_s
     i64.const 32
