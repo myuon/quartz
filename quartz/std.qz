@@ -1472,3 +1472,37 @@ fun new_environ_map(): map[string, string] {
 
     return mp;
 }
+
+@[build_if(version == "2.1.0")]
+fun new_args_vec(): vec[string] {
+    let count = make[ptr[i32]](2);
+    let buf_size = make[ptr[i32]](2);
+
+    let result = _args_sizes_get(count, buf_size);
+    if result != 0 {
+        panic("args_sizes_get {}", result.to_string());
+    }
+
+    let count_i32 = _load_wasmi32(count);
+    let buf_size_i32 = _load_wasmi32(buf_size);
+
+    let buf_index = make[ptr[ptr[byte]]](count_i32);
+    let buf = make[ptr[byte]](buf_size_i32);
+
+    let result = _args_get(buf_index, buf);
+    if result != 0 {
+        panic("args_get {}", result.to_string());
+    }
+
+    let buf_index_ptrbyte = buf_index as ptr[byte];
+
+    let args = make[vec[string]]();
+
+    for i in 0..count_i32 {
+        let p = i32_from_bytes(buf_index_ptrbyte.at(i * 4 + 0), buf_index_ptrbyte.at(i * 4 + 1), buf_index_ptrbyte.at(i * 4 + 2), buf_index_ptrbyte.at(i * 4 + 3)) as ptr[byte];
+        let arg = read_until_null(p);
+        args.push(arg);
+    }
+
+    return args;
+}

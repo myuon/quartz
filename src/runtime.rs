@@ -25,9 +25,11 @@ impl Runtime {
             .map(|(k, v)| (k, v))
             .collect::<Vec<_>>()
             .into_iter();
+
         let mut wasi_func_env = WasiState::new("quartz")
             .preopen_dir(".")?
             .envs(envs)
+            .args(args)
             .finalize(&mut store)?;
         let wasi_import_object = wasi_func_env.import_object(&mut store, &module)?;
 
