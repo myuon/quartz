@@ -18,9 +18,6 @@ impl Runtime {
         let module = Module::new(&store, &wat)?;
 
         let args = std::env::args().collect::<Vec<_>>();
-        let args_string = args.join(" ");
-        let args_string_len = args_string.len();
-
         let envs = std::env::vars()
             .map(|(k, v)| (k, v))
             .collect::<Vec<_>>()
@@ -44,6 +41,7 @@ impl Runtime {
                 "abort" => Function::new_typed(&mut store, || -> i64 {
                     panic!("[ABORT]");
                 }),
+                // @Deprecated: will be removed in 2.3.0+
                 "i64_to_string_at" => Function::new_typed(&mut store, |a_value: i64, b_value: i64, at_value: i64| {
                     let a = Value::from_i64(a_value).as_i32().unwrap();
                     let b = Value::from_i64(b_value).as_i32().unwrap();
@@ -57,14 +55,6 @@ impl Runtime {
                     } else {
                         Value::I32(bs[at as usize].to_digit(10).unwrap() as i32)
                     }.as_i64()
-                }),
-                "get_args_len" => Function::new_typed(&mut store, move || {
-                    Value::I32(args_string_len as i32).as_i64()
-                }),
-                "get_args_at" => Function::new_typed(&mut store, move |value: i64| {
-                    let v = Value::from_i64(value).as_i32().unwrap() as usize;
-
-                    Value::Byte(args_string.chars().nth(v).unwrap() as u8).as_i64()
                 }),
             }
         };
