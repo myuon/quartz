@@ -1296,8 +1296,9 @@ fun args_string(): string {
     return vec_byte_to_string(result);
 }
 
+@[build_if(version == "2.0.0")]
 fun args(): vec[string] {
-    let result = make[vec[string]]();
+    let result = make[vec[string]]("quartz");
     let s = args_string();
 
     while true {
@@ -1436,7 +1437,7 @@ fun read_until_null(p: ptr[byte]): string {
 }
 
 @[build_if(version == "2.1.0")]
-fun new_environ_map(): map[string, string] {
+fun environs(): map[string, string] {
     let count = make[ptr[i32]](2);
     let buf_size = make[ptr[i32]](2);
 
@@ -1474,7 +1475,7 @@ fun new_environ_map(): map[string, string] {
 }
 
 @[build_if(version == "2.1.0")]
-fun new_args_vec(): vec[string] {
+fun args(): vec[string] {
     let count = make[ptr[i32]](2);
     let buf_size = make[ptr[i32]](2);
 
