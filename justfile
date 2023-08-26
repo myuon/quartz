@@ -8,6 +8,7 @@ download version:
 build_compiler version new_version options="":
   @echo "Building compiler {{version}} -> {{new_version}}"
   @MODE=run-wat WAT_FILE=./build/quartz-{{version}}.wat cargo run --release -- compile {{options}} -o ./build/quartz-{{new_version}}.wat ./quartz/main.qz
+  wat2wasm ./build/quartz-{{new_version}}.wat -o ./build/quartz-{{new_version}}.wasm
 
 upload new_version:
   @echo "Uploading version {{new_version}}"
