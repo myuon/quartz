@@ -8,11 +8,12 @@ download version:
 build_compiler version new_version options="":
   @echo "Building compiler {{version}} -> {{new_version}}"
   @MODE=run-wat WAT_FILE=./build/quartz-{{version}}.wat cargo run --release -- compile {{options}} -o ./build/quartz-{{new_version}}.wat ./quartz/main.qz
-  wat2wasm ./build/quartz-{{new_version}}.wat -o ./build/quartz-{{new_version}}.wasm
 
 upload new_version:
   @echo "Uploading version {{new_version}}"
   @gh release upload v{{new_version}} ./build/quartz-{{new_version}}.wat
+  @wat2wasm ./build/quartz-{{new_version}}.wat -o ./build/quartz-{{new_version}}.wasm
+  @gh release upload v{{new_version}} ./build/quartz-{{new_version}}.wasm
 
 find_latest_version:
   @curl -s https://api.github.com/repos/myuon/quartz/releases/latest | jq -r '.tag_name' | tr -d 'v'
