@@ -1286,35 +1286,6 @@ fun file_write(path: string, content: string) {
     file_close(fd_n);
 }
 
-fun args_string(): string {
-    let result = make[vec[byte]]();
-    let n = get_args_len();
-    for i in 0..n {
-        result.push(get_args_at(i));
-    }
-
-    return vec_byte_to_string(result);
-}
-
-@[build_if(version == "2.0.0")]
-fun args(): vec[string] {
-    let result = make[vec[string]]("quartz");
-    let s = args_string();
-
-    while true {
-        let n = s.find_first(" ");
-        if n == nil {
-            result.push(s);
-            break;
-        }
-
-        result.push(s.slice(0, n!));
-        s = s.slice(n! + 1, s.length);
-    }
-
-    return result;
-}
-
 @[no_allocation]
 fun perform_gc() {
     // mark
@@ -1436,7 +1407,6 @@ fun read_until_null(p: ptr[byte]): string {
     return new_string(p, n);
 }
 
-@[build_if(version == "2.1.0")]
 fun environs(): map[string, string] {
     let count = make[ptr[i32]](2);
     let buf_size = make[ptr[i32]](2);
@@ -1474,7 +1444,6 @@ fun environs(): map[string, string] {
     return mp;
 }
 
-@[build_if(version == "2.1.0")]
 fun args(): vec[string] {
     let count = make[ptr[i32]](2);
     let buf_size = make[ptr[i32]](2);
