@@ -29,14 +29,12 @@ build_current_compiler:
 
 run file options="":
   @just build_current_compiler
-  MODE=run-wat WAT_FILE=./build/quartz-current.wat cargo run --release -- compile {{options}} -o ./build/quartz-compiled.wat {{file}}
-  MODE=run-wat WAT_FILE=./build/quartz-compiled.wat cargo run --release
+  MODE=run-wat WAT_FILE=./build/quartz-current.wat cargo run --release -- run {{options}} {{file}}
 
 run_2 file options="":
   @just build_current_compiler
   @just build_compiler current current.2 {{options}}
-  MODE=run-wat WAT_FILE=./build/quartz-current.2.wat cargo run --release -- compile {{options}} -o ./build/quartz-compiled.wat {{file}}
-  MODE=run-wat WAT_FILE=./build/quartz-compiled.wat cargo run --release
+  MODE=run-wat WAT_FILE=./build/quartz-current.2.wat cargo run --release -- run {{options}} {{file}}
 
 check_if_stable options="":
   @just build_compiler current current.2 {{options}} && just build_compiler current.2 current.3 {{options}} && just build_compiler current.3 current.4 {{options}} && diff -w build/quartz-current.3.wat build/quartz-current.4.wat

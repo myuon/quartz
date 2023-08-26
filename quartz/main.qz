@@ -195,13 +195,19 @@ module CliCommand {
             };
 
             while i < args.length {
-                if args.at(i).equal("-o") {
+                if args.at(i).equal("--stdin") {
                     run.stdin = true?;
                 } else if args.at(i).equal("--validate-address") {
                     run.validate_address = true?;
                 } else {
                     break;
                 }
+
+                i = i + 1;
+            }
+
+            if run.stdin == nil {
+                run.input = args.at(i)?;
             }
 
             return CliCommand {
