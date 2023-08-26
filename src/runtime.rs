@@ -26,7 +26,7 @@ impl Runtime {
         let mut wasi_func_env = WasiState::new("quartz")
             .preopen_dir(".")?
             .envs(envs)
-            .args(args)
+            .args(args[1..].to_vec())
             .finalize(&mut store)?;
         let wasi_import_object = wasi_func_env.import_object(&mut store, &module)?;
 
