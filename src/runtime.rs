@@ -17,11 +17,19 @@ impl Runtime {
         let mut store = Store::default();
         let module = Module::new(&store, &wat)?;
 
-        let args_string = std::env::args().collect::<Vec<_>>().join(" ");
+        let args = std::env::args().collect::<Vec<_>>();
+        let args_string = args.join(" ");
         let args_string_len = args_string.len();
+
+        let envs = std::env::vars()
+            .map(|(k, v)| (k, v))
+            .collect::<Vec<_>>()
+            .into_iter();
 
         let mut wasi_func_env = WasiState::new("quartz")
             .preopen_dir(".")?
+            .envs(envs)
+            .args(args)
             .finalize(&mut store)?;
         let wasi_import_object = wasi_func_env.import_object(&mut store, &module)?;
 
