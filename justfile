@@ -14,6 +14,7 @@ upload new_version:
   @gh release upload v{{new_version}} ./build/quartz-{{new_version}}.wat
   @wat2wasm ./build/quartz-{{new_version}}.wat -o ./build/quartz-{{new_version}}.wasm
   @gh release upload v{{new_version}} ./build/quartz-{{new_version}}.wasm
+  @gsutil cp build/quartz-{{new_version}}.wasm gs://quartz-playground.appspot.com/quartz
 
 find_latest_version:
   @curl -s https://api.github.com/repos/myuon/quartz/releases/latest | jq -r '.tag_name' | tr -d 'v'
