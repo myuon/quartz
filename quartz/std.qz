@@ -348,21 +348,6 @@ struct i64 {
 }
 
 module i64 {
-    @[build_if(version == "2.1.0")]
-    fun to_string(self): string {
-        let result = make[vec[byte]]();
-
-        let digit = 0;
-        let p = i64_to_string_at(self.hi, self.lo, digit);
-        while p != (0 - 1) {
-            result.push((p + 48) as byte);
-            digit = digit + 1;
-            p = i64_to_string_at(self.hi, self.lo, digit);
-        }
-
-        return vec_byte_to_string(result);
-    }
-
     fun new(hi: i32, lo: i32): i64 {
         return i64 {
             hi: hi,
@@ -370,7 +355,6 @@ module i64 {
         };
     }
 
-    @[build_if(version == "2.2.0")]
     fun div(self, other: i64): i64 {
         let hi = make[ptr[i32]](1);
         let lo = make[ptr[i32]](1);
@@ -383,7 +367,6 @@ module i64 {
         };
     }
 
-    @[build_if(version == "2.2.0")]
     fun mod(self, other: i64): i64 {
         let hi = make[ptr[i32]](1);
         let lo = make[ptr[i32]](1);
@@ -396,7 +379,6 @@ module i64 {
         };
     }
 
-    @[build_if(version == "2.2.0")]
     fun to_string(self): string {
         let result = make[vec[byte]]();
 

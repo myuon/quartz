@@ -241,30 +241,6 @@ module Typechecker {
             },
         );
         globals.insert(
-            "i64_to_string_at",
-            LType {
-                data: Type {
-                    t_func: struct {
-                        params: make[vec[Type]](
-                            Type {
-                                t_i32: true,
-                            },
-                            Type {
-                                t_i32: true,
-                            },
-                            Type {
-                                t_i32: true,
-                            },
-                        ),
-                        result: Type {
-                            t_i32: true,
-                        },
-                    },
-                },
-                location: Location::unknown(),
-            },
-        );
-        globals.insert(
             "_fd_read",
             LType {
                 data: Type {
