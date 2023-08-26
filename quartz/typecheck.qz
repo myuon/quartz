@@ -281,36 +281,6 @@ module Typechecker {
             },
         );
         globals.insert(
-            "get_args_len",
-            LType {
-                data: Type {
-                    t_func: struct {
-                        params: make[vec[Type]](),
-                        result: Type {
-                            t_i32: true,
-                        },
-                    },
-                },
-                location: Location::unknown(),
-            },
-        );
-        globals.insert(
-            "get_args_at",
-            LType {
-                data: Type {
-                    t_func: struct {
-                        params: make[vec[Type]](Type {
-                            t_i32: true,
-                        }),
-                        result: Type {
-                            t_byte: true,
-                        },
-                    },
-                },
-                location: Location::unknown(),
-            },
-        );
-        globals.insert(
             "_fd_read",
             LType {
                 data: Type {
