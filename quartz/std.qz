@@ -1422,3 +1422,53 @@ module types {
     }
 }
 
+fun i32_from_bytes(b0: byte, b1: byte, b2: byte, b3: byte): i32 {
+    return (b0 as i32) | ((b1 as i32) << 8) | ((b2 as i32) << 16) | ((b3 as i32) << 24);
+}
+
+fun read_until_null(p: ptr[byte]): string {
+    let n = 0;
+    while (p.at(n) as i32) != 0 {
+        n = n + 1;
+    }
+
+    return new_string(p, n);
+}
+
+@[build_if(version == "2.1.0")]
+fun new_environ_map(): map[string, string] {
+    let count = make[ptr[i32]](2);
+    let buf_size = make[ptr[i32]](2);
+
+    let result = _environ_sizes_get(count, buf_size);
+    if result != 0 {
+        panic("environ_sizes_get {}", result.to_string());
+    }
+
+    let count_i32 = _load_wasmi32(count);
+    let buf_size_i32 = _load_wasmi32(buf_size);
+
+    let buf_index = make[ptr[ptr[byte]]](count_i32);
+    let buf = make[ptr[byte]](buf_size_i32);
+
+    let result = _environ_get(buf_index, buf);
+    if result != 0 {
+        panic("environ_get {}", result.to_string());
+    }
+
+    let buf_index_ptrbyte = buf_index as ptr[byte];
+
+    let mp = make[map[string, string]]();
+
+    for i in 0..count_i32 {
+        let p = i32_from_bytes(buf_index_ptrbyte.at(i * 4 + 0), buf_index_ptrbyte.at(i * 4 + 1), buf_index_ptrbyte.at(i * 4 + 2), buf_index_ptrbyte.at(i * 4 + 3)) as ptr[byte];
+        let kv = read_until_null(p).split("=");
+        if kv.length == 1 {
+            mp.insert(kv.at(0), "");
+        } else {
+            mp.insert(kv.at(0), kv.at(1));
+        }
+    }
+
+    return mp;
+}
