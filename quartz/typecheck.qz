@@ -158,22 +158,6 @@ module Typechecker {
             },
         );
         globals.insert(
-            "debug_i32",
-            LType {
-                data: Type {
-                    t_func: struct {
-                        params: make[vec[Type]](Type {
-                            t_i32: true,
-                        }),
-                        result: Type {
-                            t_nil: true,
-                        },
-                    },
-                },
-                location: Location::unknown(),
-            },
-        );
-        globals.insert(
             "abort",
             LType {
                 data: Type {

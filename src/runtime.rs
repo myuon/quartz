@@ -35,12 +35,6 @@ impl Runtime {
 
         let mut import_object = imports! {
             "env" => {
-                "debug_i32" => Function::new_typed(&mut store, |i: i64| {
-                    let w = Value::from_i64(i);
-
-                    println!("[DEBUG] {:?}", w);
-                    Value::i32(0).as_i64()
-                }),
                 "debug" => Function::new_typed(&mut store, |i: i64| {
                     let w = Value::from_i64(i);
 
