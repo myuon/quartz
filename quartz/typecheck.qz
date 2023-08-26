@@ -583,6 +583,80 @@ module Typechecker {
                 location: Location::unknown(),
             },
         );
+        globals.insert(
+            "div_i64_hilo",
+            LType {
+                data: Type {
+                    t_func: struct {
+                        params: make[vec[Type]](
+                            Type {
+                                t_i32: true,
+                            },
+                            Type {
+                                t_i32: true,
+                            },
+                            Type {
+                                t_i32: true,
+                            },
+                            Type {
+                                t_i32: true,
+                            },
+                            Type {
+                                t_ptr: Type {
+                                    t_i32: true,
+                                },
+                            },
+                            Type {
+                                t_ptr: Type {
+                                    t_i32: true,
+                                },
+                            },
+                        ),
+                        result: Type {
+                            t_i32: true,
+                        },
+                    },
+                },
+                location: Location::unknown(),
+            },
+        );
+        globals.insert(
+            "mod_i64_hilo",
+            LType {
+                data: Type {
+                    t_func: struct {
+                        params: make[vec[Type]](
+                            Type {
+                                t_i32: true,
+                            },
+                            Type {
+                                t_i32: true,
+                            },
+                            Type {
+                                t_i32: true,
+                            },
+                            Type {
+                                t_i32: true,
+                            },
+                            Type {
+                                t_ptr: Type {
+                                    t_i32: true,
+                                },
+                            },
+                            Type {
+                                t_ptr: Type {
+                                    t_i32: true,
+                                },
+                            },
+                        ),
+                        result: Type {
+                            t_i32: true,
+                        },
+                    },
+                },
+                location: Location::unknown(),
+            },
+        );
 
         return Typechecker {
             locals: make[map[string, LType]](),

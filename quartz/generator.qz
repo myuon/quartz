@@ -193,9 +193,7 @@ module Generator {
         self.end();
 
         self.start();
-        self.write(
-            `import "wasi_unstable" "environ_get" (func $environ_get (param i32 i32) (result i32))`,
-        );
+        self.write(`import "wasi_unstable" "environ_get" (func $environ_get (param i32 i32) (result i32))`);
         self.end();
 
         self.start();
@@ -205,9 +203,7 @@ module Generator {
         self.end();
 
         self.start();
-        self.write(
-            `import "wasi_unstable" "args_get" (func $args_get (param i32 i32) (result i32))`,
-        );
+        self.write(`import "wasi_unstable" "args_get" (func $args_get (param i32 i32) (result i32))`);
         self.end();
 
         self.start();
@@ -623,6 +619,128 @@ module Generator {
     i64.shl
     i64.const 2
     i64.or
+    return
+`,
+        );
+        self.end();
+
+        self.start();
+        self.write(
+            `func $div_i64_hilo (param $a_hi i64) (param $a_lo i64) (param $b_hi i64) (param $b_lo i64) (param $result_hi_ptr i64) (param $result_lo_ptr i64) (result i64)
+    (local $tmp i64)
+
+    local.get $a_hi
+    i64.const 32
+    i64.shr_u
+    i64.const 32
+    i64.shl
+
+    local.get $a_lo
+    i64.const 32
+    i64.shr_u
+    i64.xor
+
+    local.get $b_hi
+    i64.const 32
+    i64.shr_u
+    i64.const 32
+    i64.shl
+
+    local.get $b_lo
+    i64.const 32
+    i64.shr_u
+    i64.xor
+
+    i64.div_u
+
+    local.set $tmp
+
+    local.get $result_hi_ptr
+    i64.const 32
+    i64.shr_u
+    i32.wrap_i64
+
+    local.get $tmp
+    i64.const 32
+    i64.shr_u
+    i64.const 32
+    i64.shl
+
+    i64.store
+
+    local.get $result_lo_ptr
+    i64.const 32
+    i64.shr_u
+    i32.wrap_i64
+
+    local.get $tmp
+    i64.const 32
+    i64.shl
+
+    i64.store
+
+    i64.const 0
+    return
+`,
+        );
+        self.end();
+
+        self.start();
+        self.write(
+            `func $mod_i64_hilo (param $a_hi i64) (param $a_lo i64) (param $b_hi i64) (param $b_lo i64) (param $result_hi_ptr i64) (param $result_lo_ptr i64) (result i64)
+    (local $tmp i64)
+
+    local.get $a_hi
+    i64.const 32
+    i64.shr_u
+    i64.const 32
+    i64.shl
+
+    local.get $a_lo
+    i64.const 32
+    i64.shr_u
+    i64.xor
+
+    local.get $b_hi
+    i64.const 32
+    i64.shr_u
+    i64.const 32
+    i64.shl
+
+    local.get $b_lo
+    i64.const 32
+    i64.shr_u
+    i64.xor
+
+    i64.rem_u
+
+    local.set $tmp
+
+    local.get $result_hi_ptr
+    i64.const 32
+    i64.shr_u
+    i32.wrap_i64
+
+    local.get $tmp
+    i64.const 32
+    i64.shr_u
+    i64.const 32
+    i64.shl
+
+    i64.store
+
+    local.get $result_lo_ptr
+    i64.const 32
+    i64.shr_u
+    i32.wrap_i64
+
+    local.get $tmp
+    i64.const 32
+    i64.shl
+
+    i64.store
+
+    i64.const 0
     return
 `,
         );

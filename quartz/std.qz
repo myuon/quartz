@@ -348,6 +348,7 @@ struct i64 {
 }
 
 module i64 {
+    @[build_if(version == "2.1.0")]
     fun to_string(self): string {
         let result = make[vec[byte]]();
 
@@ -367,6 +368,54 @@ module i64 {
             hi: hi,
             lo: lo,
         };
+    }
+
+    @[build_if(version == "2.2.0")]
+    fun div(self, other: i64): i64 {
+        let hi = make[ptr[i32]](1);
+        let lo = make[ptr[i32]](1);
+
+        div_i64_hilo(self.hi, self.lo, other.hi, other.lo, hi, lo);
+
+        return i64 {
+            hi: hi.at(0),
+            lo: lo.at(0),
+        };
+    }
+
+    @[build_if(version == "2.2.0")]
+    fun mod(self, other: i64): i64 {
+        let hi = make[ptr[i32]](1);
+        let lo = make[ptr[i32]](1);
+
+        mod_i64_hilo(self.hi, self.lo, other.hi, other.lo, hi, lo);
+
+        return i64 {
+            hi: hi.at(0),
+            lo: lo.at(0),
+        };
+    }
+
+    @[build_if(version == "2.2.0")]
+    fun to_string(self): string {
+        let result = make[vec[byte]]();
+
+        let n = self;
+        if n.hi == 0 && n.lo == 0 {
+            return "0";
+        }
+
+        while n.hi != 0 || n.lo != 0 {
+            let r = n.mod(i64 { hi: 0, lo: 10 });
+            if r.hi != 0 {
+                panic("i64.to_string: r.hi != 0");
+            }
+
+            result.push((r.lo + 48) as byte);
+            n = n.div(i64 { hi: 0, lo: 10 });
+        }
+
+        return vec_byte_to_string(result).reverse();
     }
 }
 
@@ -606,6 +655,14 @@ module string {
 
     fun starts_with(self, prefix: string): bool {
         return is_prefix(self, 0, prefix);
+    }
+
+    fun reverse(self): string {
+        let result = make[vec[byte]]();
+        for i in 0..self.length {
+            result.push(self.data.at(self.length - i - 1));
+        }
+        return vec_byte_to_string(result);
     }
 }
 
