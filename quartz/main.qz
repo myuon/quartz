@@ -114,6 +114,7 @@ enum CliCommand {
     run: struct {
         stdin: bool?,
         input: string?,
+        output: string?,
         validate_address: bool?,
     },
     format: struct {
@@ -191,6 +192,7 @@ module CliCommand {
             let run = struct {
                 stdin: nil,
                 input: nil,
+                output: nil,
                 validate_address: nil,
             };
 
@@ -199,6 +201,9 @@ module CliCommand {
                     run.stdin = true?;
                 } else if args.at(i).equal("--validate-address") {
                     run.validate_address = true?;
+                } else if args.at(i).equal("--output") {
+                    run.output = args.at(i + 1)?;
+                    i = i + 1;
                 } else {
                     break;
                 }
@@ -426,7 +431,11 @@ fun main() {
             panic(err!.message);
         }
 
-        println("{}", result!);
+        if runc.output != nil {
+            file_write(runc.output!, result!);
+        } else {
+            println("{}", result!);
+        }
     } else if command.format != nil {
         let f = command.format!;
 
