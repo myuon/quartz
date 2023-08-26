@@ -321,17 +321,16 @@ module CliCommand {
     }
 }
 
-@[build_if(version == "2.2.0")]
-let args_offset = 2;
-
-@[build_if(version == "2.3.0")]
-let args_offset = 1;
-
 fun main() {
     let compiler_version = "2.3.0";
 
     let args = args();
-    let command or err = CliCommand::parse(args.slice(args_offset, args.length));
+    let offset = 1;
+    if args.at(1) == "target/release/quartz" {
+        offset = 2;
+    }
+
+    let command or err = CliCommand::parse(args.slice(offset, args.length));
     if err != nil {
         panic(err!.message);
     }
