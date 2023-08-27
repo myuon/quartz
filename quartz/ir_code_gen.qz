@@ -285,9 +285,54 @@ module IrCodeGenerator {
                 elements.extend(self.module_(d.t_module!.module_).try);
                 self.current_path = path;
             }
+            if d.t_declare_func != nil {
+                if d.t_declare_func!.declare_wrap != nil {
+                    let term = self.declare_func_import(d.t_declare_func!).try;
+                    elements.push(term);
+                }
+            }
         }
 
         return elements;
+    }
+
+    fun declare_func_import(self, d: DeclareFunc): IrTerm or error {
+        let namespace = "env";
+        if d.declare_namespace != nil {
+            namespace = d.declare_namespace!;
+        }
+        if d.declare_wrap == nil {
+            return _ or error::new("expected declare_wrap");
+        }
+
+        let params = make[vec[string]]();
+        for param in d.declare_wrap!.params {
+            if param.t_ident != nil && param.t_ident! == "wasi_i32" {
+                params.push("i32");
+                continue;
+            }
+
+            return _ or error::new("expected wasi_i32, got {}".format(param.to_string()));
+        }
+
+        let result_type = "";
+        if d.declare_wrap!.result_type.t_ident != nil && d.declare_wrap!.result_type.t_ident! == "wasi_i32" {
+            result_type = "i32";
+        } else {
+            return _ or error::new("expected wasi_i32, got {}".format(d.declare_wrap!.result_type.to_string()));
+        }
+
+        return IrTerm {
+            t_import: struct {
+                namespace: namespace,
+                wrap_name: "_{}".format(d.name.data),
+                import_name: d.name.data,
+                func_type: struct {
+                    params: params,
+                    result_type: result_type,
+                },
+            },
+        };
     }
 
     fun generate_prepare_type_reps(self): IrTerm or error {

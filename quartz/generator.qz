@@ -139,6 +139,24 @@ module Generator {
         } else if element.t_comment != nil {
             self.new_statement();
             self.write(format(" ;; {}", escape(element.t_comment!)));
+        } else if element.t_import != nil {
+            self.start();
+            self.write("import");
+            self.write(format("\"{}\"", element.t_import!.namespace));
+            self.write(format("\"{}\"", element.t_import!.import_name));
+
+            self.start();
+            self.write("func");
+            self.write(format("${}", element.t_import!.wrap_name));
+
+            for param in element.t_import!.func_type.params {
+                self.write(format("(param {})", param));
+            }
+
+            self.write(format("(result {})", element.t_import!.func_type.result_type));
+
+            self.end();
+            self.end();
         } else {
             panic("decl: {}", element.to_string());
         }
