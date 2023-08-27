@@ -9,6 +9,9 @@
       "include": "#literals"
     },
     {
+      "include": "#declare"
+    },
+    {
       "include": "#functions"
     },
     {
@@ -55,6 +58,54 @@
           "name": "string.quoted.raw.quartz",
           "begin": "`",
           "end": "`"
+        }
+      ]
+    },
+    "declare": {
+      "patterns": [
+        {
+          "name": "meta.declare.quartz",
+          "begin": "\\b(declare)\\s+(fun)\\s+(\\w+)(\\()",
+          "beginCaptures": {
+            "1": {
+              "name": "keyword.other.declare.quartz"
+            },
+            "2": {
+              "name": "keyword.other.func.quartz"
+            },
+            "3": {
+              "name": "entity.name.function.quartz"
+            },
+            "4": {
+              "name": "punctuation.arguments.begin.quartz"
+            }
+          },
+          "end": ";",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.terminator.quartz"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#comments"
+            },
+            {
+              "include": "#literals"
+            },
+            {
+              "include": "#types"
+            },
+            {
+              "include": "#keywords"
+            },
+            {
+              "include": "#punctuations"
+            },
+            {
+              "include": "#variables"
+            }
+          ]
         }
       ]
     },
