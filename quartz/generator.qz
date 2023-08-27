@@ -218,6 +218,16 @@ module Generator {
         self.write(`import "wasi_unstable" "args_get" (func $args_get (param i32 i32) (result i32))`);
         self.end();
 
+        if m.t_module != nil {
+            for i in 0..m.t_module!.elements.length {
+                let element = m.t_module!.elements.at(i);
+
+                self.decl(element);
+            }
+        } else {
+            panic("expected module");
+        }
+
         self.start();
         self.write(
             `func $_fd_read (param $fd i64) (param $iovs i64) (param $iovs_len i64) (param $nread i64) (result i64)
@@ -551,16 +561,6 @@ module Generator {
 `,
         );
         self.end();
-
-        if m.t_module != nil {
-            for i in 0..m.t_module!.elements.length {
-                let element = m.t_module!.elements.at(i);
-
-                self.decl(element);
-            }
-        } else {
-            panic("expected module");
-        }
 
         self.global_let(struct {
             name: "_value_i32_1",

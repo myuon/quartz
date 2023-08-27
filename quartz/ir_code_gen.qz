@@ -192,6 +192,7 @@ struct IrCodeGenerator {
     start: vec[IrTerm],
     current_function_name: string,
     function_no_allocation: bool,
+    imports: vec[IrTerm],
 }
 
 module IrCodeGenerator {
@@ -207,6 +208,7 @@ module IrCodeGenerator {
             start: make[vec[IrTerm]](),
             current_function_name: "",
             function_no_allocation: false,
+            imports: make[vec[IrTerm]](),
         };
     }
 
@@ -250,9 +252,12 @@ module IrCodeGenerator {
             },
         });
 
+        let result = vec_clone(self.imports);
+        result.extend(decls);
+
         return IrTerm {
             t_module: struct {
-                elements: decls,
+                elements: result,
             },
         };
     }
@@ -287,8 +292,7 @@ module IrCodeGenerator {
             }
             if d.t_declare_func != nil {
                 if d.t_declare_func!.declare_wrap != nil {
-                    let term = self.declare_func_import(d.t_declare_func!).try;
-                    elements.push(term);
+                    self.imports.push(self.declare_func_import(d.t_declare_func!).try);
                 }
             }
         }
@@ -325,7 +329,7 @@ module IrCodeGenerator {
         return IrTerm {
             t_import: struct {
                 namespace: namespace,
-                wrap_name: "_{}".format(d.name.data),
+                wrap_name: d.name.data,
                 import_name: d.name.data,
                 func_type: struct {
                     params: params,
