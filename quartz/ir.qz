@@ -81,6 +81,19 @@ enum IrTerm {
             result_type: string,
         },
     },
+    t_wasm_func: struct {
+        name: string,
+        wrapping_name: string,
+        params: vec[struct {
+            name: string,
+            quartz_type: IrType,
+            wasm_type: string,
+        }],
+        result_type: struct {
+            quartz_type: IrType,
+            wasm_type: string,
+        },
+    },
 }
 
 module IrTerm {
