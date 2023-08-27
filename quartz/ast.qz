@@ -52,6 +52,10 @@ struct DeclareFunc {
         name: string,
         type_: Type,
     }],
+    declare_wrap: struct {
+        params: vec[Type],
+        result_type: Type,
+    }?,
 }
 
 module DeclareFunc {
