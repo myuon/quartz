@@ -66,14 +66,18 @@ module Preprocessor {
                         let next = m.decls.at(index + 1);
 
                         if next.data.t_func == nil {
-                            return _ or error::new("expected function, but got {}".format(derive::to_string(next.data)));
+                            return _ or error::new(
+                                "expected function, but got {}".format(derive::to_string(next.data)),
+                            );
                         }
                         m.decls.at(index + 1).data.t_func!.no_allocation = true;
-                    } else if attr.name.data == "declare_wrap" {
+                    } else if attr.name.data == "declare_params" {
                         let next = m.decls.at(index + 1);
 
                         if next.data.t_declare_func == nil {
-                            return _ or error::new("expected declare function, but got {}".format(derive::to_string(next.data)));
+                            return _ or error::new(
+                                "expected declare function, but got {}".format(derive::to_string(next.data)),
+                            );
                         }
 
                         let d_func = next.data.t_declare_func!;
@@ -96,7 +100,11 @@ module Preprocessor {
                                 break;
                             }
                             if name_ident!.name != d_func.params.at(i).name {
-                                return _ or error::new(format("expected {} but got {}", name_ident!.name, d_func.params.at(i).name));
+                                return _ or error::new(format(
+                                    "expected {} but got {}",
+                                    name_ident!.name,
+                                    d_func.params.at(i).name,
+                                ));
                             }
 
                             let type_ = arg.data.t_as!.target_type;
@@ -111,6 +119,22 @@ module Preprocessor {
                             params: params,
                             result_type: result_type!,
                         }?;
+                    } else if attr.name.data == "declare_namespace" {
+                        let next = m.decls.at(index + 1).data;
+                        if next.t_declare_func == nil {
+                            return _ or error::new(
+                                "expected declare function, but got {}".format(derive::to_string(next)),
+                            );
+                        }
+
+                        if attr.args.length == 0 {
+                            return _ or error::new("expected namespace");
+                        }
+                        if attr.args.at(0).data.t_string == nil {
+                            return _ or error::new("expected string");
+                        }
+
+                        m.decls.at(index + 1).data.t_declare_func!.declare_namespace = attr.args.at(0).data.t_string!.value?;
                     } else {
                         return _ or error::new("unknown attribute");
                     }
