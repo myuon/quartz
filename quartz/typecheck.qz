@@ -755,7 +755,10 @@ module Typechecker {
             } else if d.t_module != nil {
                 let path = self.current_path.clone();
                 self.current_path.extend(d.t_module!.path);
-                self.module_register_for_back_reference(d.t_module!.module_).try;
+                self.module_register_for_back_reference(d.t_module!.module_).context(ErrorSource {
+                    path: self.current_path,
+                    location: decl.location,
+                }).try;
                 self.current_path = path;
 
                 continue;
@@ -768,6 +771,16 @@ module Typechecker {
             } else if d.t_attributes != nil {
                 continue;
             } else if d.t_skip != nil {
+                continue;
+            } else if d.t_declare_func != nil {
+                self.globals.insert(
+                    self.path_to(d.t_declare_func!.name.data),
+                    LType {
+                        data: d.t_declare_func!.to_type(),
+                        location: d.t_declare_func!.name.location,
+                    },
+                );
+
                 continue;
             } else {
                 return _ or error::new("Unknown decl type, {}".format(d.to_string()));
@@ -863,6 +876,16 @@ module Typechecker {
             return;
         }
         if d.t_attributes != nil {
+            return;
+        }
+        if d.t_declare_func != nil {
+            self.globals.insert(
+                self.path_to(d.t_declare_func!.name.data),
+                LType {
+                    data: d.t_declare_func!.to_type(),
+                    location: d.t_declare_func!.name.location,
+                },
+            );
             return;
         }
 

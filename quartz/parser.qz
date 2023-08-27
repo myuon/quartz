@@ -70,8 +70,7 @@ module Parser {
                 },
                 location: func.location,
             };
-        }
-        if token.lexeme.equal("let") {
+        } else if token.lexeme.equal("let") {
             let let_ = self.global_let().try;
 
             return LDecl {
@@ -80,8 +79,7 @@ module Parser {
                 },
                 location: let_.location,
             };
-        }
-        if token.lexeme.equal("struct") {
+        } else if token.lexeme.equal("struct") {
             let struct_ = self.struct_decl().try;
 
             return LDecl {
@@ -90,8 +88,7 @@ module Parser {
                 },
                 location: struct_.location,
             };
-        }
-        if token.lexeme.equal("enum") {
+        } else if token.lexeme.equal("enum") {
             let enum_ = self.enum_decl().try;
 
             return LDecl {
@@ -100,8 +97,7 @@ module Parser {
                 },
                 location: enum_.location,
             };
-        }
-        if token.lexeme.equal("module") {
+        } else if token.lexeme.equal("module") {
             let module_ = self.module_decl().try;
 
             return LDecl {
@@ -110,8 +106,7 @@ module Parser {
                 },
                 location: module_.location,
             };
-        }
-        if token.lexeme.equal("import") {
+        } else if token.lexeme.equal("import") {
             let start_token = self.expect("import").try;
             let path = self.path().try;
             let end_token = self.expect("semicolon").try;
@@ -124,8 +119,7 @@ module Parser {
                 },
                 location: self.span_location(start_token, end_token),
             };
-        }
-        if token.lexeme == "at" {
+        } else if token.lexeme == "at" {
             let start_token = self.expect("at").try;
             let attrs = self.attributes().try;
 
@@ -135,6 +129,40 @@ module Parser {
                 },
                 location: attrs.location,
             };
+        } else if token.lexeme == "declare" {
+            let start_token = self.expect("declare").try;
+            let token = self.peek();
+            if token.lexeme.equal("fun") {
+                self.expect("fun").try;
+                let name = self.ident().try;
+                self.expect("lparen").try;
+                let params = self.parameters().try;
+                self.expect("rparen").try;
+
+                let result_type = Type {
+                    t_nil: true,
+                };
+                if self.peek().lexeme.equal("colon") {
+                    self.consume();
+                    result_type = self.type_().try.data;
+                }
+
+                let end_token = self.expect("semicolon").try;
+
+                return LDecl {
+                    data: Decl {
+                        t_declare_func: DeclareFunc {
+                            name: name,
+                            result_type: result_type,
+                            params: params.params,
+                        },
+                    },
+                    location: Location {
+                        start: start_token.location.start,
+                        end: end_token.location.end,
+                    },
+                };
+            }
         }
 
         return _ or error::new("Expected DECL, got ".concat(token.lexeme).concat("{").concat(

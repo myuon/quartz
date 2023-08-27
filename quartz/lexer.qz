@@ -336,6 +336,9 @@ module Lexer {
             if self.match_term(input, "enum", "enum") {
                 continue;
             }
+            if self.match_term(input, "declare", "declare") {
+                continue;
+            }
             if self.match(input, "==", "double_equal") {
                 continue;
             }

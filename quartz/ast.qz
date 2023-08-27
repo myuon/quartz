@@ -36,11 +36,38 @@ enum Decl {
     t_attribute: LAttribute,
     t_attributes: LAttributes,
     t_skip: bool,
+    t_declare_func: DeclareFunc,
 }
 
 module Decl {
     fun to_string(self): string {
         return derive::to_string(self);
+    }
+}
+
+struct DeclareFunc {
+    name: Ident,
+    result_type: Type,
+    params: vec[struct {
+        name: string,
+        type_: Type,
+    }],
+}
+
+module DeclareFunc {
+    fun to_type(self): Type {
+        let params_type = make[vec[Type]]();
+        for i in 0..self.params.length {
+            let p = self.params.at(i);
+            params_type.push(p.type_);
+        }
+
+        return Type {
+            t_func: struct {
+                params: params_type,
+                result: self.result_type,
+            },
+        };
     }
 }
 
