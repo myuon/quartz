@@ -162,6 +162,42 @@ module Generator {
 
             self.end();
             self.end();
+        } else if element.t_wasm_func != nil {
+            let func = element.t_wasm_func!;
+
+            self.start();
+            self.write("func");
+            self.write("$".concat(func.name));
+
+            for param in func.params {
+                self.new_statement();
+                self.write("(param ${} {})".format(param.name, param.wasm_type));
+            }
+
+            self.new_statement();
+            self.write("(result {})".format(func.result_type.wasm_type));
+
+            // convert each param to wasm_i32
+            for param in func.params {
+                self.new_statement();
+                self.write("local.get");
+                self.write(format("${}", param.name));
+
+                self.convert_stack_to_i32_1();
+            }
+
+            self.new_statement();
+            self.write("call ${}".format(func.wrapping_name));
+
+            // convert the result value to quartz_i32
+            if func.result_type.quartz_type.t_i32 == nil {
+                return panic("expected i32 result type");
+            }
+
+            self.convert_stack_from_i32_1();
+
+            self.write("return");
+            self.end();
         } else {
             panic("decl: {}", element.to_string());
         }
