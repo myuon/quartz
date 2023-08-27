@@ -291,9 +291,7 @@ module IrCodeGenerator {
                 self.current_path = path;
             }
             if d.t_declare_func != nil {
-                if d.t_declare_func!.declare_wrap != nil {
-                    self.imports.push(self.declare_func_import(d.t_declare_func!).try);
-                }
+                self.imports.push(self.declare_func_import(d.t_declare_func!).try);
             }
         }
 
@@ -323,7 +321,9 @@ module IrCodeGenerator {
         if d.declare_wrap!.result_type.t_ident != nil && d.declare_wrap!.result_type.t_ident! == "wasi_i32" {
             result_type = "i32";
         } else {
-            return _ or error::new("expected wasi_i32, got {}".format(d.declare_wrap!.result_type.to_string()));
+            return _ or error::new("expected wasi_i32, got {}".format(
+                d.declare_wrap!.result_type.to_string(),
+            ));
         }
 
         return IrTerm {
