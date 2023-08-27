@@ -149,8 +149,13 @@ module Generator {
             self.write("func");
             self.write(format("${}", element.t_import!.wrap_name));
 
-            for param in element.t_import!.func_type.params {
-                self.write(format("(param {})", param));
+            if element.t_import!.func_type.params.length > 0 {
+                self.start();
+                self.write("param");
+                for param in element.t_import!.func_type.params {
+                    self.write(param);
+                }
+                self.end();
             }
 
             self.write(format("(result {})", element.t_import!.func_type.result_type));
