@@ -70,6 +70,9 @@ fun vec_push(v: vec[any], e: any) {
         for i in 0..v.length {
             new_data.at(i) = v.data.at(i);
         }
+        if v.data == nil as ptr[any] {
+            panic("vec_push: v.data == nil");
+        }
         free(v.data);
         v.data = new_data;
         v.capacity = new_capacity;
@@ -1397,6 +1400,18 @@ fun mark(value: any) {
         if rep.nilptr != nil {
             debug(error_invalid_type);
             abort();
+        }
+
+        if rep.name == "vec" {
+            let value_vec = value as vec[any];
+            for i in 0..value_vec.length {
+                let cell = value_vec.at(i);
+                if types::is_pointer(cell) {
+                    mark(cell);
+                }
+            }
+
+            return;
         }
 
         // For an object [size, header_flags, type_rep | data...],
