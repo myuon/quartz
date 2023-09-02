@@ -81,7 +81,7 @@ module Formatter {
                 let arg = attr.args.at(i);
                 self.expr(writer, arg, true);
                 if i != attr.args.length - 1 {
-                    self.write(writer, ",");
+                    self.write_no_space(writer, ", ");
                 }
             }
             self.write_no_space(writer, ")");
@@ -104,7 +104,7 @@ module Formatter {
                     let arg = attr.args.at(i);
                     self.expr(writer, arg, true);
                     if i != attr.args.length - 1 {
-                        self.write(writer, ",");
+                        self.write_no_space(writer, ", ");
                     }
                 }
                 self.write_no_space(writer, ")");
@@ -165,6 +165,22 @@ module Formatter {
             self.attribute(writer, d.t_attribute!);
         } else if d.t_attributes != nil {
             self.attributes(writer, d.t_attributes!);
+        } else if d.t_declare_func != nil {
+            self.write(writer, "declare");
+            self.write(writer, "fun");
+            self.write(writer, d.t_declare_func!.name.data);
+            self.params(writer, d.t_declare_func!.params, nil);
+            if d.t_declare_func!.result_type.t_nil == nil {
+                self.write_no_space(writer, ":");
+                self.type_(
+                    writer,
+                    d.t_declare_func!.result_type,
+                    struct {
+                        skip_space: false,
+                    },
+                );
+            }
+            self.write_no_space(writer, ";");
         }
     }
 

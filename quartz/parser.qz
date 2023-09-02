@@ -155,6 +155,7 @@ module Parser {
                             name: name,
                             result_type: result_type,
                             params: params.params,
+                            ..nil,
                         },
                     },
                     location: Location {

@@ -66,9 +66,75 @@ module Preprocessor {
                         let next = m.decls.at(index + 1);
 
                         if next.data.t_func == nil {
-                            return _ or error::new("expected function, but got {}".format(derive::to_string(next.data)));
+                            return _ or error::new(
+                                "expected function, but got {}".format(derive::to_string(next.data)),
+                            );
                         }
                         m.decls.at(index + 1).data.t_func!.no_allocation = true;
+                    } else if attr.name.data == "declare_params" {
+                        let next = m.decls.at(index + 1);
+
+                        if next.data.t_declare_func == nil {
+                            return _ or error::new(
+                                "expected declare function, but got {}".format(derive::to_string(next.data)),
+                            );
+                        }
+
+                        let d_func = next.data.t_declare_func!;
+
+                        let params = make[vec[Type]]();
+                        let result_type = nil as Type?;
+
+                        for i in 0..attr.args.length {
+                            let arg = attr.args.at(i);
+                            if arg.data.t_as == nil {
+                                return _ or error::new("expected as");
+                            }
+
+                            let name_ident = arg.data.t_as!.expr.data.t_ident;
+                            if name_ident == nil {
+                                return _ or error::new("expected ident");
+                            }
+                            if name_ident!.name == "result" {
+                                result_type = arg.data.t_as!.target_type?;
+                                break;
+                            }
+                            if name_ident!.name != d_func.params.at(i).name {
+                                return _ or error::new(format(
+                                    "expected {} but got {}",
+                                    name_ident!.name,
+                                    d_func.params.at(i).name,
+                                ));
+                            }
+
+                            let type_ = arg.data.t_as!.target_type;
+                            params.push(type_);
+                        }
+
+                        if result_type == nil {
+                            return _ or error::new("expected result");
+                        }
+
+                        m.decls.at(index + 1).data.t_declare_func!.declare_wrap = struct {
+                            params: params,
+                            result_type: result_type!,
+                        }?;
+                    } else if attr.name.data == "declare_namespace" {
+                        let next = m.decls.at(index + 1).data;
+                        if next.t_declare_func == nil {
+                            return _ or error::new(
+                                "expected declare function, but got {}".format(derive::to_string(next)),
+                            );
+                        }
+
+                        if attr.args.length == 0 {
+                            return _ or error::new("expected namespace");
+                        }
+                        if attr.args.at(0).data.t_string == nil {
+                            return _ or error::new("expected string");
+                        }
+
+                        m.decls.at(index + 1).data.t_declare_func!.declare_namespace = attr.args.at(0).data.t_string!.value?;
                     } else {
                         return _ or error::new("unknown attribute");
                     }

@@ -139,6 +139,65 @@ module Generator {
         } else if element.t_comment != nil {
             self.new_statement();
             self.write(format(" ;; {}", escape(element.t_comment!)));
+        } else if element.t_import != nil {
+            self.start();
+            self.write("import");
+            self.write(format("\"{}\"", element.t_import!.namespace));
+            self.write(format("\"{}\"", element.t_import!.import_name));
+
+            self.start();
+            self.write("func");
+            self.write(format("${}", element.t_import!.wrap_name));
+
+            if element.t_import!.func_type.params.length > 0 {
+                self.start();
+                self.write("param");
+                for param in element.t_import!.func_type.params {
+                    self.write(param);
+                }
+                self.end();
+            }
+
+            self.write(format("(result {})", element.t_import!.func_type.result_type));
+
+            self.end();
+            self.end();
+        } else if element.t_wasm_func != nil {
+            let func = element.t_wasm_func!;
+
+            self.start();
+            self.write("func");
+            self.write("$".concat(func.name));
+
+            for param in func.params {
+                self.new_statement();
+                self.write("(param ${} {})".format(param.name, param.wasm_type));
+            }
+
+            self.new_statement();
+            self.write("(result {})".format(func.result_type.wasm_type));
+
+            // convert each param to wasm_i32
+            for param in func.params {
+                self.new_statement();
+                self.write("local.get");
+                self.write(format("${}", param.name));
+
+                self.convert_stack_to_i32_1();
+            }
+
+            self.new_statement();
+            self.write("call ${}".format(func.wrapping_name));
+
+            // convert the result value to quartz_i32
+            if func.result_type.quartz_type.t_i32 == nil {
+                return panic("expected i32 result type");
+            }
+
+            self.convert_stack_from_i32_1();
+
+            self.write("return");
+            self.end();
         } else {
             panic("decl: {}", element.to_string());
         }
@@ -199,6 +258,16 @@ module Generator {
         self.start();
         self.write(`import "wasi_unstable" "args_get" (func $args_get (param i32 i32) (result i32))`);
         self.end();
+
+        if m.t_module != nil {
+            for i in 0..m.t_module!.elements.length {
+                let element = m.t_module!.elements.at(i);
+
+                self.decl(element);
+            }
+        } else {
+            panic("expected module");
+        }
 
         self.start();
         self.write(
@@ -533,16 +602,6 @@ module Generator {
 `,
         );
         self.end();
-
-        if m.t_module != nil {
-            for i in 0..m.t_module!.elements.length {
-                let element = m.t_module!.elements.at(i);
-
-                self.decl(element);
-            }
-        } else {
-            panic("expected module");
-        }
 
         self.global_let(struct {
             name: "_value_i32_1",

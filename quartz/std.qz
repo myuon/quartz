@@ -57,7 +57,7 @@ fun vec_make(capacity: i32): vec[any] {
     }
 
     return vec {
-        data: make[ptr[any]](capacity),
+        data: make[ptr[any]](c),
         length: 0,
         capacity: c,
     };
@@ -69,6 +69,9 @@ fun vec_push(v: vec[any], e: any) {
         let new_data = make[ptr[any]](new_capacity);
         for i in 0..v.length {
             new_data.at(i) = v.data.at(i);
+        }
+        if v.data == nil as ptr[any] {
+            panic("vec_push: v.data == nil");
         }
         free(v.data);
         v.data = new_data;
@@ -89,6 +92,10 @@ fun vec_at(v: vec[any], n: i32): any {
 
 fun vec_extend(v: vec[i32], other: vec[i32]) {
     for i in 0..other.length {
+        if v.data == (nil as ptr[any]) {
+            panic("vec_extend: v.data == nil");
+        }
+
         v.push(other.at(i));
     }
 }
@@ -159,6 +166,10 @@ fun vec_clone(v: vec[any]): vec[any] {
     for i in 0..v.length {
         result.push(v.at(i));
     }
+    if result.data == (nil as ptr[any]) {
+        panic("vec_clone: result.data == nil");
+    }
+
     return result;
 }
 
@@ -1397,6 +1408,18 @@ fun mark(value: any) {
         if rep.nilptr != nil {
             debug(error_invalid_type);
             abort();
+        }
+
+        if rep.name == "vec" {
+            let value_vec = value as vec[any];
+            for i in 0..value_vec.length {
+                let cell = value_vec.at(i);
+                if types::is_pointer(cell) {
+                    mark(cell);
+                }
+            }
+
+            return;
         }
 
         // For an object [size, header_flags, type_rep | data...],
