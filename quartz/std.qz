@@ -794,9 +794,26 @@ fun test_lines() {
 }
 
 @[test]
-fun line_counts() {
+fun test_line_counts() {
     assert_eq("abc\ndef\nhij".line_counts(), make[vec[i32]](3, 3, 3));
     assert_eq("a\n\n".line_counts(), make[vec[i32]](1, 0));
+}
+
+@[test]
+fun test_starts_with() {
+    assert_eq("abc".starts_with("a"), true);
+    assert_eq("abc".starts_with("ab"), true);
+    assert_eq("abc".starts_with("abc"), true);
+    assert_eq("abc".starts_with("abcd"), false);
+    assert_eq("abc".starts_with("b"), false);
+    assert_eq("".starts_with("b"), false);
+    assert_eq("abc".starts_with(""), true);
+}
+
+@[test]
+fun test_reverse() {
+    assert_eq("abc".reverse(), "cba");
+    assert_eq("".reverse(), "");
 }
 
 struct stringbuilder {
