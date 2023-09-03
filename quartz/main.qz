@@ -322,7 +322,7 @@ module CliCommand {
 }
 
 fun main() {
-    let compiler_version = "2.4.0";
+    let compiler_version = "2.5.0";
 
     let args = args();
     let offset = 1;
