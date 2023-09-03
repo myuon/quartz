@@ -260,7 +260,12 @@ module IrCodeGenerator {
         result.extend(decls);
 
         if self.test_mode {
+            self.current_path = Path::new("main");
+            let main_symbol = "main";
+
             let body = make[vec[IrTerm]]();
+            body.push(self.setup_function_name_for_stacktrace("main"));
+
             for t in self.test_functions {
                 body.push(IrTerm {
                     t_discard: IrTerm {
@@ -284,13 +289,13 @@ module IrCodeGenerator {
 
             result.push(IrTerm {
                 t_func: IrFunc {
-                    name: "main_main",
+                    name: self.path_to(main_symbol),
                     params: make[vec[struct {
                         name: string,
                         type_: IrType,
                     }]](),
                     result_type: IrType {
-                        t_nil: true,
+                        t_address: true,
                     },
                     body: body,
                 },
@@ -710,20 +715,24 @@ module IrCodeGenerator {
         return terms;
     }
 
+    fun setup_function_name_for_stacktrace(self, name: string): IrTerm {
+        return IrTerm {
+            t_call: IrCall {
+                callee: IrTerm {
+                    t_ident: "quartz_core_push_memstack",
+                },
+                args: make[vec[IrTerm]](self.register_string(self.path_to(name))),
+            },
+        };
+    }
+
     fun function(self, func: Function): IrFunc or error {
         self.current_function_name = func.name.data;
         self.function_no_allocation = func.no_allocation;
 
         let body = make[vec[IrTerm]]();
         if !self.path_to(func.name.data).starts_with("quartz_core") {
-            body.push(IrTerm {
-                t_call: IrCall {
-                    callee: IrTerm {
-                        t_ident: "quartz_core_push_memstack",
-                    },
-                    args: make[vec[IrTerm]](self.register_string(self.path_to(func.name.data))),
-                },
-            });
+            body.push(self.setup_function_name_for_stacktrace(func.name.data));
         }
 
         self.locals = make[map[string, bool]]();
