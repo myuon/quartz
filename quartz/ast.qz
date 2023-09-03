@@ -106,6 +106,7 @@ struct Function {
         type_: Type,
     }?,
     no_allocation: bool,
+    is_test: bool,
 }
 
 module Function {

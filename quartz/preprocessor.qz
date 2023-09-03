@@ -135,6 +135,15 @@ module Preprocessor {
                         }
 
                         m.decls.at(index + 1).data.t_declare_func!.declare_namespace = attr.args.at(0).data.t_string!.value?;
+                    } else if attr.name.data == "test" {
+                        let next = m.decls.at(index + 1).data;
+                        if next.t_func == nil {
+                            return _ or error::new(
+                                "expected function, but got {}".format(derive::to_string(next)),
+                            );
+                        }
+
+                        next.t_func!.is_test = true;
                     } else {
                         return _ or error::new("unknown attribute");
                     }
