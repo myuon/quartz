@@ -31,7 +31,9 @@ jobs:
         run: just build_compiler $(just find_latest_version) current
 
       - name: Run the test function
-        run: just test_quartz
+        run: |
+          MODE=run-wat WAT_FILE=./build/quartz-current.wat cargo run --release -- compile --validate-address --test -o ./build/quartz-compiled.wat ./quartz/main.qz
+          MODE=run-wat WAT_FILE=./build/quartz-compiled.wat cargo run --release
 
       - name: Check if stable
         run: just build_compiler $(just find_latest_version) current && just check_if_stable --validate-address
