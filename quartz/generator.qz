@@ -226,16 +226,6 @@ module Generator {
         self.end();
 
         self.start();
-        self.write(`import "wasi_snapshot_preview1" "fd_close" (func $fd_close (param i32) (result i32))`);
-        self.end();
-
-        self.start();
-        self.write(
-            `import "wasi_snapshot_preview1" "fd_filestat_get" (func $fd_filestat_get (param i32 i32) (result i32))`,
-        );
-        self.end();
-
-        self.start();
         self.write(
             `import "wasi_snapshot_preview1" "environ_sizes_get" (func $environ_sizes_get (param i32 i32) (result i32))`,
         );
@@ -264,29 +254,6 @@ module Generator {
         } else {
             panic("expected module");
         }
-
-        self.start();
-        self.write(
-            `func $_fd_filestat_get (param $fd i64) (param $buf i64) (result i64)
-    local.get $fd
-    i64.const 32
-    i64.shr_u
-    i32.wrap_i64
-
-    local.get $buf
-    i64.const 32
-    i64.shr_u
-    i32.wrap_i64
-
-    call $fd_filestat_get
-    i64.extend_i32_u
-    i64.const 32
-    i64.shl
-
-    return
-`,
-        );
-        self.end();
 
         self.start();
         self.write(
@@ -412,24 +379,6 @@ module Generator {
 
     call $path_open
 
-    i64.extend_i32_s
-    i64.const 32
-    i64.shl
-
-    return
-`,
-        );
-        self.end();
-
-        self.start();
-        self.write(
-            `func $_fd_close (param $fd i64) (result i64)
-    local.get $fd
-    i64.const 32
-    i64.shr_u
-    i32.wrap_i64
-
-    call $fd_close
     i64.extend_i32_s
     i64.const 32
     i64.shl

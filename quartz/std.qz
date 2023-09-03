@@ -7,6 +7,12 @@ let fd_stderr = 2;
 @[build_if(version == "2.6.0"), declare_params(fd as wasm_i32, iovs as wasm_i32, iovs_len as wasm_i32, nread as wasm_i32, result as wasm_i32), declare_namespace("wasi_snapshot_preview1")]
 declare fun fd_read(fd: i32, iovs: ptr[byte], iovs_len: i32, nread: i32): i32;
 
+@[build_if(version == "2.6.0"), declare_params(fd as wasm_i32, buf as wasm_i32, result as wasm_i32), declare_namespace("wasi_snapshot_preview1")]
+declare fun fd_filestat_get(fd: i32, buf: ptr[byte]): i32;
+
+@[build_if(version == "2.6.0"), declare_params(fd as wasm_i32, result as wasm_i32), declare_namespace("wasi_snapshot_preview1")]
+declare fun fd_close(fd: i32): i32;
+
 fun print_string(s: string) {
     return write_string(fd_stdout, s);
 }
