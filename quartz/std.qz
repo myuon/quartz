@@ -789,7 +789,7 @@ fun test_split() {
 
 @[test]
 fun test_lines() {
-    // assert_eq("abc\ndef\nhij".lines(), make[vec[string]]("abc", "def", "hij"));
+    assert_eq("abc\ndef\nhij".lines(), make[vec[string]]("abc", "def", "hij"));
     assert_eq("a\n\n".lines(), make[vec[string]]("a", ""));
 }
 
@@ -1530,10 +1530,12 @@ fun mark(value: any) {
         let size = header.get_size();
         if !types::is_i32(size) {
             debug(error_invalid_type);
+            debug(size);
             abort();
         }
         if !is_typerep_pointer(header.get_type_rep() as ptr[byte]) {
             debug(error_invalid_type);
+            debug(header.get_type_rep());
             abort();
         }
         // /checks
@@ -1547,6 +1549,7 @@ fun mark(value: any) {
         let rep = (header.get_type_rep() as ptr[TypeRep]).at(0);
         if rep.nilptr != nil {
             debug(error_invalid_type);
+            debug(rep.nilptr);
             abort();
         }
 
