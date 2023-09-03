@@ -13,6 +13,9 @@ declare fun fd_filestat_get(fd: i32, buf: ptr[byte]): i32;
 @[build_if(version == "2.6.0"), declare_params(fd as wasm_i32, result as wasm_i32), declare_namespace("wasi_snapshot_preview1")]
 declare fun fd_close(fd: i32): i32;
 
+// @[build_if(version == "2.6.0"), declare_params(dirfd as wasm_i32, dirflags as wasm_i32, path as wasm_i32, path_len as wasm_i32, oflags as wasm_i32, fs_rights_base as wasm_i64, fs_rights_inheriting as wasm_i64, fs_flags as wasm_i32, fd as wasm_i32, result as wasm_i32), declare_namespace("wasi_snapshot_preview1")]
+// declare fun path_open(dirfd: i32, dirflags: i32, path: ptr[byte], path_len: i32, oflags: i32, fs_rights_base: i32, fs_rights_inheriting: i32, fs_flags: i32, fd: ptr[byte]): i32;
+
 fun print_string(s: string) {
     return write_string(fd_stdout, s);
 }
