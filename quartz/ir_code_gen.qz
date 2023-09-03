@@ -193,10 +193,12 @@ struct IrCodeGenerator {
     current_function_name: string,
     function_no_allocation: bool,
     imports: vec[IrTerm],
+    test_mode: bool,
+    test_functions: vec[string],
 }
 
 module IrCodeGenerator {
-    fun new(): IrCodeGenerator {
+    fun new(test_mode: bool): IrCodeGenerator {
         return IrCodeGenerator {
             globals: make[map[string, LType]](),
             locals: make[map[string, bool]](),
@@ -209,6 +211,8 @@ module IrCodeGenerator {
             current_function_name: "",
             function_no_allocation: false,
             imports: make[vec[IrTerm]](),
+            test_mode: test_mode,
+            test_functions: make[vec[string]](),
         };
     }
 
@@ -255,6 +259,44 @@ module IrCodeGenerator {
         let result = vec_clone(self.imports);
         result.extend(decls);
 
+        if self.test_mode {
+            let body = make[vec[IrTerm]]();
+            for t in self.test_functions {
+                body.push(IrTerm {
+                    t_discard: IrTerm {
+                        t_call: IrCall {
+                            callee: IrTerm {
+                                t_ident: t,
+                            },
+                            args: make[vec[IrTerm]](),
+                        },
+                    },
+                });
+            }
+
+            body.push(IrTerm {
+                t_return: IrReturn {
+                    value: IrTerm {
+                        t_nil: true,
+                    },
+                },
+            });
+
+            result.push(IrTerm {
+                t_func: IrFunc {
+                    name: "main_main",
+                    params: make[vec[struct {
+                        name: string,
+                        type_: IrType,
+                    }]](),
+                    result_type: IrType {
+                        t_nil: true,
+                    },
+                    body: body,
+                },
+            });
+        }
+
         return IrTerm {
             t_module: struct {
                 elements: result,
@@ -269,6 +311,17 @@ module IrCodeGenerator {
             let d = m.decls.at(i).data;
 
             if d.t_func != nil {
+                // In test-mode, compile only test functions and std, core functions
+                if self.test_mode && !self.path_to(d.t_func!.name.data).starts_with("quartz_core") && !self.path_to(d.t_func!.name.data).starts_with("quartz_std") && !d.t_func!.is_test {
+                    continue;
+                }
+                if !self.test_mode && d.t_func!.is_test {
+                    continue;
+                }
+                if self.test_mode && d.t_func!.is_test {
+                    self.test_functions.push(self.path_to(d.t_func!.name.data));
+                }
+
                 elements.push(IrTerm {
                     t_func: self.function(d.t_func!).try,
                 });
@@ -316,7 +369,7 @@ module IrCodeGenerator {
         let params = make[vec[struct {
             name: string,
             quartz_type: IrType,
-            wasm_type: string
+            wasm_type: string,
         }]]();
         for i in 0..d.declare_wrap!.params.length {
             let param = d.declare_wrap!.params.at(i);
@@ -359,7 +412,7 @@ module IrCodeGenerator {
                 wrapping_name: d.name.data,
                 params: params,
                 result_type: result_type!,
-            }
+            },
         };
     }
 

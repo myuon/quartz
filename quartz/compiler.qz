@@ -133,6 +133,7 @@ module Compiler {
         entrypoint: string,
         skip_errors: bool,
         validate_address: bool,
+        test_mode: bool,
     ): string or error {
         let module_ = self.parse(input, nil, skip_errors, true).try;
 
@@ -160,7 +161,7 @@ module Compiler {
             return _ or err_internal;
         }
 
-        let irgen = IrCodeGenerator::new();
+        let irgen = IrCodeGenerator::new(test_mode);
         irgen.globals = typechecker.globals;
         let term = irgen.run(module_).try;
 
