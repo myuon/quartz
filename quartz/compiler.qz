@@ -161,7 +161,7 @@ module Compiler {
             return _ or err_internal;
         }
 
-        let irgen = IrCodeGenerator::new(test_mode);
+        let irgen = IrCodeGenerator::new(test_mode, "main_{}".format(entrypoint));
         irgen.globals = typechecker.globals;
         let term = irgen.run(module_).try;
 

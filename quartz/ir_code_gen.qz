@@ -195,10 +195,11 @@ struct IrCodeGenerator {
     imports: vec[IrTerm],
     test_mode: bool,
     test_functions: vec[string],
+    entrypoint: string,
 }
 
 module IrCodeGenerator {
-    fun new(test_mode: bool): IrCodeGenerator {
+    fun new(test_mode: bool, entrypoint: string): IrCodeGenerator {
         return IrCodeGenerator {
             globals: make[map[string, LType]](),
             locals: make[map[string, bool]](),
@@ -213,6 +214,7 @@ module IrCodeGenerator {
             imports: make[vec[IrTerm]](),
             test_mode: test_mode,
             test_functions: make[vec[string]](),
+            entrypoint: entrypoint,
         };
     }
 
@@ -316,11 +318,11 @@ module IrCodeGenerator {
             let d = m.decls.at(i).data;
 
             if d.t_func != nil {
-                // In test-mode, compile only test functions and std, core functions
-                if self.test_mode && !self.path_to(d.t_func!.name.data).starts_with("quartz_core") && !self.path_to(d.t_func!.name.data).starts_with("quartz_std") && !d.t_func!.is_test {
+                if !self.test_mode && d.t_func!.is_test {
                     continue;
                 }
-                if !self.test_mode && d.t_func!.is_test {
+                // Skip entrypoint in test mode to avoid duplicate main functions
+                if self.test_mode && self.path_to(d.t_func!.name.data) == self.entrypoint {
                     continue;
                 }
                 if self.test_mode && d.t_func!.is_test {
