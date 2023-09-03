@@ -390,6 +390,7 @@ module Parser {
                 params: params.params,
                 variadic: params.variadic,
                 no_allocation: false,
+                is_test: false,
             },
             location: Location {
                 start: start_token.location.start,
