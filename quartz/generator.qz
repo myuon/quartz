@@ -171,11 +171,11 @@ module Generator {
 
             for param in func.params {
                 self.new_statement();
-                self.write("(param ${} {})".format(param.name, param.wasm_type));
+                self.write("(param ${} {})".format(param.name, Value::wasm_type()));
             }
 
             self.new_statement();
-            self.write("(result {})".format(func.result_type.wasm_type));
+            self.write("(result {})".format(Value::wasm_type()));
 
             // convert each param to wasm_i32
             for param in func.params {
@@ -216,47 +216,43 @@ module Generator {
         self.end();
 
         self.start();
-        self.write(`import "wasi_unstable" "fd_write" (func $fd_write (param i32 i32 i32 i32) (result i32))`);
+        self.write(`import "wasi_snapshot_preview1" "fd_write" (func $fd_write (param i32 i32 i32 i32) (result i32))`);
         self.end();
 
         self.start();
         self.write(
-            `import "wasi_unstable" "path_open" (func $path_open (param i32 i32 i32 i32 i32 i64 i64 i32 i32) (result i32))`,
+            `import "wasi_snapshot_preview1" "path_open" (func $path_open (param i32 i32 i32 i32 i32 i64 i64 i32 i32) (result i32))`,
         );
         self.end();
 
         self.start();
-        self.write(`import "wasi_unstable" "fd_close" (func $fd_close (param i32) (result i32))`);
-        self.end();
-
-        self.start();
-        self.write(`import "wasi_unstable" "fd_read" (func $fd_read (param i32 i32 i32 i32) (result i32))`);
+        self.write(`import "wasi_snapshot_preview1" "fd_close" (func $fd_close (param i32) (result i32))`);
         self.end();
 
         self.start();
         self.write(
-            `import "wasi_unstable" "fd_filestat_get" (func $fd_filestat_get (param i32 i32) (result i32))`,
+            `import "wasi_snapshot_preview1" "fd_filestat_get" (func $fd_filestat_get (param i32 i32) (result i32))`,
         );
         self.end();
 
         self.start();
         self.write(
-            `import "wasi_unstable" "environ_sizes_get" (func $environ_sizes_get (param i32 i32) (result i32))`,
+            `import "wasi_snapshot_preview1" "environ_sizes_get" (func $environ_sizes_get (param i32 i32) (result i32))`,
         );
         self.end();
 
         self.start();
-        self.write(`import "wasi_unstable" "environ_get" (func $environ_get (param i32 i32) (result i32))`);
+        self.write(`import "wasi_snapshot_preview1" "environ_get" (func $environ_get (param i32 i32) (result i32))`);
         self.end();
 
         self.start();
         self.write(
-            `import "wasi_unstable" "args_sizes_get" (func $args_sizes_get (param i32 i32) (result i32))`,
+            `import "wasi_snapshot_preview1" "args_sizes_get" (func $args_sizes_get (param i32 i32) (result i32))`,
         );
         self.end();
 
         self.start();
-        self.write(`import "wasi_unstable" "args_get" (func $args_get (param i32 i32) (result i32))`);
+        self.write(`import "wasi_snapshot_preview1" "args_get" (func $args_get (param i32 i32) (result i32))`);
         self.end();
 
         if m.t_module != nil {
@@ -268,39 +264,6 @@ module Generator {
         } else {
             panic("expected module");
         }
-
-        self.start();
-        self.write(
-            `func $_fd_read (param $fd i64) (param $iovs i64) (param $iovs_len i64) (param $nread i64) (result i64)
-    local.get $fd
-    i64.const 32
-    i64.shr_u
-    i32.wrap_i64
-
-    local.get $iovs
-    i64.const 32
-    i64.shr_u
-    i32.wrap_i64
-
-    local.get $iovs_len
-    i64.const 32
-    i64.shr_u
-    i32.wrap_i64
-
-    local.get $nread
-    i64.const 32
-    i64.shr_u
-    i32.wrap_i64
-
-    call $fd_read
-    i64.extend_i32_u
-    i64.const 32
-    i64.shl
-
-    return
-`,
-        );
-        self.end();
 
         self.start();
         self.write(
