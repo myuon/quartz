@@ -73,7 +73,9 @@ module Preprocessor {
                         m.decls.at(index + 1).data.t_func!.no_allocation = true;
                     } else if attr.name.data == "declare_params" {
                         let next = m.decls.at(index + 1);
-
+                        if next.data.t_skip != nil && next.data.t_skip! {
+                            continue;
+                        }
                         if next.data.t_declare_func == nil {
                             return _ or error::new(
                                 "expected declare function, but got {}".format(derive::to_string(next.data)),
@@ -121,6 +123,9 @@ module Preprocessor {
                         }?;
                     } else if attr.name.data == "declare_namespace" {
                         let next = m.decls.at(index + 1).data;
+                        if next.t_skip != nil && next.t_skip! {
+                            continue;
+                        }
                         if next.t_declare_func == nil {
                             return _ or error::new(
                                 "expected declare function, but got {}".format(derive::to_string(next)),
