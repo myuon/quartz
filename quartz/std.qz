@@ -1213,9 +1213,20 @@ fun is_a_record(p: ptr[ptr[any]]): bool {
     if !types::is_pointer(p) {
         return false;
     }
+    if p == (nil as ptr[ptr[any]]) {
+        return false;
+    }
 
     let header = Header::from_data_ptr(p as ptr[byte]);
     return is_address_type_rep(header.get_type_rep());
+}
+
+@[test]
+fun test_is_a_record() {
+    assert(!is_a_record(nil as ptr[ptr[any]]));
+    assert(!is_a_record(10 as ptr[ptr[any]]));
+    assert(is_a_record(make[vec[i32]](1,2,3) as ptr[ptr[any]]));
+    assert(is_a_record("string" as ptr[ptr[any]]));
 }
 
 struct TypeRep {
