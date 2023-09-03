@@ -712,6 +712,16 @@ module string {
         }
         return vec_byte_to_string(result);
     }
+
+    fun from_byte(b: byte): string {
+        let p = make[ptr[byte]](1);
+        p.at(0) = b;
+
+        return string {
+            data: p,
+            length: 1,
+        };
+    }
 }
 
 @[test]
@@ -1002,6 +1012,24 @@ fun hash_string(key: string, length: i32): u32 {
         hash = hash * (16777619 as u32);
     }
     return hash;
+}
+
+@[test]
+fun test_map_count() {
+    let m = make[map[string, i32]]();
+    let text = "lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua";
+    for i in 0..text.length {
+        let c = string::from_byte(text.at(i));
+        if !m.has(c) {
+            m.insert(c, 0);
+        }
+
+        m.insert(c, m.at(c) + 1);
+    }
+
+    assert_eq(m.at("a"), 7);
+    assert_eq(m.at("b"), 1);
+    assert_eq(m.at("c"), 4);
 }
 
 fun read_stdin_byte(): byte {
@@ -1370,6 +1398,21 @@ module derive {
         }
         if rep.name.equal("ptr") {
             return format("<#{}>", (t as i32).to_string());
+        }
+        if rep.name == "Map" {
+            let s = format("map(");
+            let v = t as map[any, any];
+            let keys = v.list_keys();
+            for k in 0..keys.length {
+                let key = keys.at(k);
+                let value = v.at(key);
+                if k > 0 {
+                    s = s.concat(", ");
+                }
+                s = s.concat(format("{}:{}", derive::to_string_internal(key, pretty, depth + 1), derive::to_string_internal(value, pretty, depth + 1)));
+            }
+
+            return s.concat(")");
         }
 
         if rep.kind == 2 {
