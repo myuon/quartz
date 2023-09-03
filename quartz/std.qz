@@ -304,6 +304,22 @@ module i32 {
             return n;
         }
     }
+
+    fun max(self, other: i32): i32 {
+        if self > other {
+            return self;
+        } else {
+            return other;
+        }
+    }
+
+    fun min(self, other: i32): i32 {
+        if self < other {
+            return self;
+        } else {
+            return other;
+        }
+    }
 }
 
 @[test]
@@ -318,6 +334,20 @@ fun test_i32_parse() {
     assert_eq(i32::parse("1234"), 1234);
     assert_eq(i32::parse("-1234"), 0-1234);
     assert_eq(i32::parse("0"), 0);
+}
+
+@[test]
+fun test_i32_max() {
+    assert_eq(1234.max(5678), 5678);
+    assert_eq(5678.max(1234), 5678);
+    assert_eq(1234.max(1234), 1234);
+}
+
+@[test]
+fun test_i32_min() {
+    assert_eq(1234.min(5678), 1234);
+    assert_eq(5678.min(1234), 1234);
+    assert_eq(1234.min(1234), 1234);
 }
 
 module u32 {
@@ -478,12 +508,12 @@ module string {
     fun slice(self, start: i32, end: i32): string {
         return string {
             data: self.data.offset(start),
-            length: end - start,
+            length: end.min(self.length) - start,
         };
     }
 
     fun slice_start(self, start: i32): string {
-        return self.slice(start, self.length);
+        return self.slice(start.min(self.length), self.length);
     }
 
     fun at(self, n: i32): byte {
@@ -533,7 +563,7 @@ module string {
     }
 
     fun find_all(self, haystack: string): vec[i32] {
-        let result = make[vec[i32]](0);
+        let result = make[vec[i32]]();
         let n = 0;
 
         while n <= self.length - haystack.length {
@@ -548,7 +578,7 @@ module string {
         return result;
     }
 
-    fun replace(self, from: string, to: string): string {
+    fun replace_all(self, from: string, to: string): string {
         let result = self;
         let n = 0;
 
@@ -682,6 +712,91 @@ module string {
         }
         return vec_byte_to_string(result);
     }
+}
+
+@[test]
+fun test_string_concat() {
+    assert_eq("abc".concat("def"), "abcdef");
+    assert_eq("abc".concat("def").concat("ghi").concat("jkl"), "abcdefghijkl");
+    assert_eq("".concat("abc"), "abc");
+}
+
+@[test]
+fun test_string_slice() {
+    assert_eq("abc".slice(0, 1), "a");
+    assert_eq("abcdefghijklmn".slice(7, 12), "hijkl");
+    assert_eq("abc".slice(0, 10), "abc");
+}
+
+@[test]
+fun test_string_slice_start() {
+    assert_eq("abc".slice_start(0), "abc");
+    assert_eq("abcdefghijklmn".slice_start(7), "hijklmn");
+    assert_eq("abc".slice_start(10), "");
+}
+
+@[test]
+fun test_string_repeat() {
+    assert_eq("abc".repeat(0), "");
+    assert_eq("abc".repeat(1), "abc");
+    assert_eq("abc".repeat(2), "abcabc");
+    assert_eq("abc".repeat(3), "abcabcabc");
+}
+
+@[test]
+fun test_find_first() {
+    assert_eq("abcdefgh".find_first("def"), 3?);
+    assert_eq("abcdefgh".find_first("uuuu"), nil);
+}
+
+@[test]
+fun test_replace_first() {
+    assert_eq("abcdefgh".replace_first("def", "xyz"), "abcxyzgh");
+    assert_eq("abcdefghdef".replace_first("def", "xyz"), "abcxyzghdef");
+    assert_eq("abcdefgh".replace_first("uuuu", "xyz"), "abcdefgh");
+}
+
+@[test]
+fun test_find_all() {
+    assert_eq("abcdefgh".find_all("def"), make[vec[i32]](3));
+    assert_eq("abcdefghdef".find_all("def"), make[vec[i32]](3, 8));
+    assert_eq("abcdefgh".find_all("uuuu"), make[vec[i32]]());
+}
+
+@[test]
+fun test_replace_all() {
+    assert_eq("abcdefgh".replace_all("def", "xyz"), "abcxyzgh");
+    assert_eq("abcdefghdef".replace_all("def", "xyz"), "abcxyzghxyz");
+    assert_eq("abcdefgh".replace_all("uuuu", "xyz"), "abcdefgh");
+}
+
+@[test]
+fun test_compare_lte() {
+    assert_eq("abc".compare_lte("abc"), true);
+    assert_eq("abc".compare_lte("abcd"), true);
+    assert_eq("abc".compare_lte("ab"), false);
+    assert_eq("abc".compare_lte("abb"), false);
+}
+
+@[test]
+fun test_split() {
+    assert_eq("abc".split("b"), make[vec[string]]("a", "c"));
+    assert_eq("abc".split("bc"), make[vec[string]]("a"));
+    assert_eq("abc".split("abc"), make[vec[string]](""));
+    assert_eq("abc".split("def"), make[vec[string]]("abc"));
+    assert_eq("abcbdbebfbg".split("b"), make[vec[string]]("a", "c", "d", "e", "f", "g"));
+}
+
+@[test]
+fun test_lines() {
+    // assert_eq("abc\ndef\nhij".lines(), make[vec[string]]("abc", "def", "hij"));
+    assert_eq("a\n\n".lines(), make[vec[string]]("a", ""));
+}
+
+@[test]
+fun line_counts() {
+    assert_eq("abc\ndef\nhij".line_counts(), make[vec[i32]](3, 3, 3));
+    assert_eq("a\n\n".line_counts(), make[vec[i32]](1, 0));
 }
 
 struct stringbuilder {
