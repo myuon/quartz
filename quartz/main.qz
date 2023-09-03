@@ -27,6 +27,7 @@ fun assert(a: bool) {
     }
 }
 
+@[test]
 fun test() {
     assert_eq_string("hoge", "hoge");
     assert(is_space("hoge fuga", 4));
