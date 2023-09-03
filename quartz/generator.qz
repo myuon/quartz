@@ -183,7 +183,14 @@ module Generator {
                 self.write("local.get");
                 self.write(format("${}", param.name));
 
-                self.convert_stack_to_i32_1();
+                if param.wasm_type == "i32" {
+                    self.convert_stack_to_i32_1();
+                } else if param.wasm_type == "i64" {
+                    self.convert_stack_to_i32_1();
+
+                    self.new_statement();
+                    self.write("i64.extend_i32_u");
+                }
             }
 
             self.new_statement();

@@ -385,6 +385,8 @@ module IrCodeGenerator {
             let wasm_type = "";
             if param.t_ident != nil && param.t_ident! == "wasm_i32" {
                 wasm_type = "i32";
+            } else if param.t_ident != nil && param.t_ident! == "wasm_i64" {
+                wasm_type = "i64";
             } else {
                 return _ or error::new("expected wasm_i32, got {}".format(param.to_string()));
             }
@@ -403,6 +405,12 @@ module IrCodeGenerator {
         let wasm_type = "";
         if d.declare_wrap!.result_type.t_ident != nil && d.declare_wrap!.result_type.t_ident! == "wasm_i32" {
             wasm_type = "i32";
+            result_type = struct {
+                quartz_type: IrType::new(d.result_type),
+                wasm_type: wasm_type,
+            }?;
+        } else if d.declare_wrap!.result_type.t_ident != nil && d.declare_wrap!.result_type.t_ident! == "wasm_i64" {
+            wasm_type = "i64";
             result_type = struct {
                 quartz_type: IrType::new(d.result_type),
                 wasm_type: wasm_type,
