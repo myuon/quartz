@@ -28,13 +28,10 @@ jobs:
         run: just download $(just find_latest_version)
 
       - name: Build a compiler
-        run: just build_compiler $(just find_latest_version) latest
-
-      - name: Compile a test function
-        run: MODE=run-wat WAT_FILE=./build/quartz-latest.wat cargo run --release -- compile --entrypoint test -o ./build/quartz-test.wat ./quartz/main.qz
+        run: just build_compiler $(just find_latest_version) current
 
       - name: Run the test function
-        run: MODE=run-wat WAT_FILE=./build/quartz-test.wat cargo run --release
+        run: just test_quartz
 
       - name: Check if stable
         run: just build_compiler $(just find_latest_version) current && just check_if_stable --validate-address
