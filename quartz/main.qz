@@ -15,18 +15,6 @@ import quartz::json;
 import quartz::errors;
 import quartz::preprocessor;
 
-fun assert_eq_string(a: string, b: string) {
-    if !a.equal(b) {
-        panic("assert_eq_string failed: ".concat(a).concat(" != ").concat(b));
-    }
-}
-
-fun assert(a: bool) {
-    if !a {
-        panic("assert failed");
-    }
-}
-
 @[test]
 fun test() {
     assert_eq_string("hoge", "hoge");

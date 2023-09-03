@@ -40,3 +40,6 @@ test file options="":
 
 check_if_stable options="":
   @just build_compiler current current.2 {{options}} && just build_compiler current.2 current.3 {{options}} && just build_compiler current.3 current.4 {{options}} && diff -w build/quartz-current.3.wat build/quartz-current.4.wat
+
+test_quartz:
+  just test ./quartz/main.qz --validate-address

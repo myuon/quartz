@@ -283,16 +283,41 @@ module i32 {
     }
 
     fun parse(s: string): i32 {
+        let negative = false;
         let n = 0;
         for i in 0..s.length {
+            if i == 0 && s.data.at(i) == 45 as byte {
+                negative = true;
+                continue;
+            }
+
             let c = s.data.at(i) as i32;
             if (c < 48 || c > 57) {
                 panic("i32.parse: invalid character: ".concat(digit_to_string(c)));
             }
             n = n * 10 + (c - 48);
         }
-        return n;
+
+        if negative {
+            return 0 - n;
+        } else {
+            return n;
+        }
     }
+}
+
+@[test]
+fun test_i32_to_string() {
+    assert_eq(1234.to_string(), "1234");
+    assert_eq((0-1234).to_string(), "-1234");
+    assert_eq(0.to_string(), "0");
+}
+
+@[test]
+fun test_i32_parse() {
+    assert_eq(i32::parse("1234"), 1234);
+    assert_eq(i32::parse("-1234"), 0-1234);
+    assert_eq(i32::parse("0"), 0);
 }
 
 module u32 {
@@ -1537,4 +1562,22 @@ fun args(): vec[string] {
     }
 
     return args;
+}
+
+fun assert_eq_string(a: string, b: string) {
+    if !a.equal(b) {
+        panic("assert_eq_string failed: ".concat(a).concat(" != ").concat(b));
+    }
+}
+
+fun assert_eq(a: any, b: any) {
+    if derive::to_string(a) != derive::to_string(b) {
+        panic("assert_eq failed: {} != {}", derive::to_string(a), derive::to_string(b));
+    }
+}
+
+fun assert(a: bool) {
+    if !a {
+        panic("assert failed");
+    }
 }
