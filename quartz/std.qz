@@ -1462,6 +1462,19 @@ module derive {
     }
 }
 
+@[test]
+fun test_derive_to_string() {
+    assert_eq(derive::to_string(1), "1");
+    assert_eq(derive::to_string(true), "true");
+    assert_eq(derive::to_string("abc"), "\"abc\"");
+    assert_eq(derive::to_string(make[vec[string]]("a", "b", "cdef\nghi")), "vec(\"a\", \"b\", \"cdef\nghi\")");
+
+    let m = make[map[string, i32]]();
+    m.insert("abc", 1);
+    m.insert("def", 2);
+    assert_eq(derive::to_string(m), "map(\"abc\":1, \"def\":2)");
+}
+
 fun file_open(path: string, oflags: i32, rights: i32): i32 {
     // TODO: check preopened directories
     let dirfd = 4;
@@ -1668,6 +1681,38 @@ module types {
     fun is_byte(value: any): bool {
         return get_typetag(value) == 4;
     }
+}
+
+@[test]
+fun test_types_is_i32() {
+    assert(types::is_i32(1));
+    assert(!types::is_i32(true));
+    assert(!types::is_i32("abc"));
+    assert(!types::is_i32(make[vec[i32]](1,2,3)));
+}
+
+@[test]
+fun test_types_is_pointer() {
+    assert(!types::is_pointer(1));
+    assert(!types::is_pointer(true));
+    assert(types::is_pointer("abc"));
+    assert(types::is_pointer(make[vec[i32]](1,2,3)));
+}
+
+@[test]
+fun test_types_is_bool() {
+    assert(!types::is_bool(1));
+    assert(types::is_bool(true));
+    assert(!types::is_bool("abc"));
+    assert(!types::is_bool(make[vec[i32]](1,2,3)));
+}
+
+@[test]
+fun test_types_is_byte() {
+    assert(!types::is_byte(1));
+    assert(!types::is_byte(true));
+    assert(!types::is_byte("abc"));
+    assert(types::is_byte("abc".at(0)));
 }
 
 fun i32_from_bytes(b0: byte, b1: byte, b2: byte, b3: byte): i32 {
