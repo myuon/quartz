@@ -110,6 +110,7 @@ enum CliCommand {
         input: string?,
         entrypoint: string?,
         validate_address: bool?,
+        test: bool,
     },
     format: struct {
         input: string?,
@@ -151,6 +152,7 @@ module CliCommand {
                 input: nil,
                 entrypoint: nil,
                 validate_address: nil,
+                test: false,
             };
 
             while i < args.length {
@@ -167,6 +169,8 @@ module CliCommand {
                     i = i + 1;
                 } else if args.at(i).equal("--validate-address") {
                     compile.validate_address = true?;
+                } else if args.at(i).equal("--test") {
+                    compile.test = true;
                 } else {
                     break;
                 }
@@ -361,7 +365,7 @@ fun main() {
             validate_address = compile.validate_address!;
         }
 
-        let result or err = run(input, path, entrypoint, validate_address, compiler_version);
+        let result or err = run(input, path, entrypoint, validate_address, compiler_version, compile.test);
         if err != nil {
             println("Error: {}", err!.message);
             for detail in err!.detail {
@@ -623,9 +627,10 @@ fun run(
     entrypoint: string,
     validate_address: bool,
     compiler_version: string,
+    test_mode: bool,
 ): string or error {
     let compiler = Compiler::new(compiler_version);
-    return compiler.compile(input_, main_path, entrypoint, false, validate_address).try;
+    return compiler.compile(input_, main_path, entrypoint, false, validate_address, test_mode).try;
 }
 
 fun run_format(input_: string): string or error {
