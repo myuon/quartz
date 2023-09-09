@@ -228,12 +228,6 @@ module Generator {
 
         self.start();
         self.write(
-            `import "wasi_snapshot_preview1" "path_open" (func $path_open (param i32 i32 i32 i32 i32 i64 i64 i32 i32) (result i32))`,
-        );
-        self.end();
-
-        self.start();
-        self.write(
             `import "wasi_snapshot_preview1" "environ_sizes_get" (func $environ_sizes_get (param i32 i32) (result i32))`,
         );
         self.end();
@@ -318,78 +312,6 @@ module Generator {
     i32.store offset=4
 
     i64.const 1
-    return
-`,
-        );
-        self.end();
-
-        self.start();
-        self.write(
-            `func $_path_open
-    (param $dirfd i64)
-    (param $dirflags i64)
-    (param $path i64)
-    (param $path_len i64)
-    (param $o_flags i64)
-    (param $fs_rights_base i64)
-    (param $fs_rights_inheriting i64)
-    (param $fs_flags i64)
-    (param $fd i64)
-    (result i64)
-
-    local.get $dirfd
-    i64.const 32
-    i64.shr_u
-    i32.wrap_i64
-
-    local.get $dirflags
-    i64.const 32
-    i64.shr_u
-    i32.wrap_i64
-
-    local.get $path
-    i64.const 32
-    i64.shr_u
-    i32.wrap_i64
-
-    local.get $path_len
-    i64.const 32
-    i64.shr_u
-    i32.wrap_i64
-
-    local.get $o_flags
-    i64.const 32
-    i64.shr_u
-    i32.wrap_i64
-
-    local.get $fs_rights_base
-    i64.const 32
-    i64.shr_u
-    i32.wrap_i64
-    i64.extend_i32_s
-
-    local.get $fs_rights_inheriting
-    i64.const 32
-    i64.shr_u
-    i32.wrap_i64
-    i64.extend_i32_s
-
-    local.get $fs_flags
-    i64.const 32
-    i64.shr_u
-    i32.wrap_i64
-
-    local.get $fd
-    i64.const 32
-    i64.shr_u
-    i32.wrap_i64
-
-    call $path_open
-
-    i64.extend_i32_s
-    i64.const 32
-    i64.shl
-
     return
 `,
         );
