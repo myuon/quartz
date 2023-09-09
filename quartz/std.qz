@@ -1533,7 +1533,7 @@ fun file_open(path: string, oflags: i32, rights: i32): i32 or error {
     let fd = make[ptr[byte]](8);
     let err = _path_open(dirfd, 0, path.data, path.length, oflags, rights, 0, 0, fd as ptr[i32]);
     if err != 0 {
-        return _ or error::new("file_open").context(WasiError::from_errno(err));
+        return _ or error::new("file_open at {}".format(path)).context(WasiError::from_errno(err));
     }
 
     // TODO: what if fd is over 255?
