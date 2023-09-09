@@ -29,31 +29,10 @@ fun test() {
         derive::to_string(make[vec[string]]("apple", "banana", "orange", "lime")),
     );
 
-    assert_eq_string(derive::to_string(false), "false");
-    assert_eq_string(derive::to_string(1), "1");
-    assert_eq_string(derive::to_string("hello"), "\"hello\"");
-    assert_eq_string(
-        derive::to_string(struct {
-            name: "foo",
-            age: 20,
-        }),
-        `struct { name: "foo", age: 20 }`,
-    );
-    assert_eq_string(derive::to_string(4?), "(4)?");
-
-    let v = make[vec[i32]]();
-    v.push(1);
-    v.push(2);
-    v.push(3);
-    assert_eq_string(derive::to_string(v), "vec(1, 2, 3)");
-
     assert(reflection::is_pointer("foo"));
     assert(!reflection::is_pointer(10));
     assert(!reflection::is_pointer(true));
     assert(!reflection::is_pointer("foo".at(1)));
-
-    assert_eq_string((1024 as i64).to_string(), "1024");
-    assert_eq_string((1 as i64).to_string(), "1");
 }
 
 struct ArgCommand {

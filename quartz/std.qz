@@ -494,6 +494,12 @@ module i64 {
     }
 }
 
+@[test]
+fun test_i64_to_string() {
+    assert_eq((1024 as i64).to_string(), "1024");
+    assert_eq((1 as i64).to_string(), "1");
+}
+
 struct string {
     data: ptr[byte],
     length: i32,
@@ -1495,11 +1501,25 @@ fun test_derive_to_string() {
     assert_eq(derive::to_string(true), "true");
     assert_eq(derive::to_string("abc"), "\"abc\"");
     assert_eq(derive::to_string(make[vec[string]]("a", "b", "cdef\nghi")), "vec(\"a\", \"b\", \"cdef\nghi\")");
+    assert_eq(
+        derive::to_string(struct {
+            name: "foo",
+            age: 20,
+        }),
+        `struct { name: "foo", age: 20 }`,
+    );
+    assert_eq(derive::to_string(4?), "(4)?");
 
     let m = make[map[string, i32]]();
     m.insert("abc", 1);
     m.insert("def", 2);
     assert_eq(derive::to_string(m), "map(\"abc\":1, \"def\":2)");
+
+    let v = make[vec[i32]]();
+    v.push(1);
+    v.push(2);
+    v.push(3);
+    assert_eq(derive::to_string(v), "vec(1, 2, 3)");
 }
 
 fun file_open(path: string, oflags: i32, rights: i32): i32 {
