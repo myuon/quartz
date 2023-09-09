@@ -282,6 +282,15 @@ fun main() {
         panic(err!.message);
     }
 
+    let envs = environs();
+
+    let lib_path = nil as string?;
+    if envs.has("lib_path") {
+        lib_path = envs.at("lib_path")?;
+    }
+
+    let compiler = Compiler::new(lib_path, compiler_version);
+
     let command = command!;
     if command.compile != nil {
         let compile = command.compile!;
@@ -307,7 +316,7 @@ fun main() {
             validate_address = compile.validate_address!;
         }
 
-        let result or err = run(input, path, entrypoint, validate_address, compiler_version, compile.test);
+        let result or err = run(compiler, input, path, entrypoint, validate_address, compiler_version, compile.test);
         if err != nil {
             println("Error: {}", err!.message);
             for detail in err!.detail {
@@ -353,7 +362,6 @@ fun main() {
 
         let path = Path::new("main");
 
-        let compiler = Compiler::new(compiler_version);
         let errs = compiler.check(input, path);
 
         let result = make[vec[Json]]();
@@ -405,7 +413,6 @@ fun main() {
 
         let input = file_read(check_type.input!);
 
-        let compiler = Compiler::new(compiler_version);
         let result or err = compiler.check_type(check_type.input!, input, check_type.line, check_type.column);
         if err != nil {
             return;
@@ -425,7 +432,6 @@ fun main() {
 
         let input = file_read(go_to_def.input!);
 
-        let compiler = Compiler::new(compiler_version);
         let result or err = compiler.go_to_def(input, path, go_to_def.line, go_to_def.column);
         if err != nil {
             println(err!.message);
@@ -498,7 +504,6 @@ fun main() {
             panic("no input");
         }
 
-        let compiler = Compiler::new(compiler_version);
         let result or err = compiler.completion(
             input,
             Path::new("main"),
@@ -564,6 +569,7 @@ fun main() {
 }
 
 fun run(
+    compiler: Compiler,
     input_: string,
     main_path: Path,
     entrypoint: string,
@@ -571,7 +577,6 @@ fun run(
     compiler_version: string,
     test_mode: bool,
 ): string or error {
-    let compiler = Compiler::new(compiler_version);
     return compiler.compile(input_, main_path, entrypoint, false, validate_address, test_mode).try;
 }
 

@@ -17,13 +17,15 @@ struct LoadedModule {
 }
 
 struct Compiler {
+    lib_path_string: string?,
     loaded: vec[LoadedModule],
     version: string,
 }
 
 module Compiler {
-    fun new(version: string): Compiler {
+    fun new(lib_path_string: string?, version: string): Compiler {
         return Compiler {
+            lib_path_string: lib_path_string,
             loaded: make[vec[LoadedModule]](),
             version: version,
         };
