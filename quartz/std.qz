@@ -1526,14 +1526,14 @@ fun test_derive_to_string() {
     assert_eq(derive::to_string(v), "vec(1, 2, 3)");
 }
 
-fun file_open(path: string, oflags: i32, rights: i32): i32 {
+fun file_open(path: string, oflags: i32, rights: i32): i32 or error {
     // TODO: check preopened directories
     let dirfd = 4;
 
     let fd = make[ptr[byte]](8);
     let err = _path_open(dirfd, 0, path.data, path.length, oflags, rights, 0, 0, fd as ptr[i32]);
     if err != 0 {
-        panic("[file_write] path_open, {} {}", path, err.to_string());
+        return _ or error::new("file_open").context(WasiError::from_errno(err));
     }
 
     // TODO: what if fd is over 255?
@@ -1585,8 +1585,7 @@ fun read_filestat_get(fd: i32): ptr[byte] or error {
 }
 
 fun file_exists(path: string): bool or error {
-    let fd_n = file_open(path, 0, 1 << 1);
-    let result or err = read_filestat_get(fd_n);
+    let fd_n or err = file_open(path, 0, 1 << 1);
     if err == nil {
         return true or _;
     } else {
@@ -1604,7 +1603,7 @@ fun file_exists(path: string): bool or error {
 }
 
 fun file_read(path: string): string or error {
-    let fd_n = file_open(path, 0, 1 << 1);
+    let fd_n = file_open(path, 0, 1 << 1).try;
 
     let filestat = read_filestat_get(fd_n).try;
     let size = read_i32_from_bytes_le(filestat, 32);
@@ -1630,8 +1629,8 @@ fun file_read(path: string): string or error {
     return v;
 }
 
-fun file_write(path: string, content: string) {
-    let fd_n = file_open(path, 9, 1 << 6);
+fun file_write(path: string, content: string): nil or error {
+    let fd_n = file_open(path, 9, 1 << 6).try;
 
     let ciovec = make[ptr[byte]](8);
     set_ciovec(ciovec, content.data, content.length);
