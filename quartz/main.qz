@@ -318,13 +318,7 @@ fun main() {
     let compiler_version = "2.8.0";
 
     let args = args();
-    let offset = 1;
-    // should be removed in 2.3.0+
-    if args.at(1) == "target/release/quartz" {
-        offset = 2;
-    }
-
-    let command or err = CliCommand::parse(args.slice(offset, args.length));
+    let command or err = CliCommand::parse(args.slice(1, args.length));
     if err != nil {
         panic(err!.message);
     }
