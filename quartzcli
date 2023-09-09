@@ -1,5 +1,5 @@
 #!/bin/bash
 export MODE=run-wat
-export WAT_FILE=./build/quartz-current.wat
+export WAT_FILE=~/.local/bin/quartz-current.wat
 
-./target/release/quartz "$@"
+~/.local/bin/quartz_bin "$@"

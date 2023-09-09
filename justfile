@@ -1,5 +1,7 @@
 install:
   ln -s $(pwd)/quartzcli ~/.local/bin/quartz
+  ln -s $(pwd)/target/release/quartz ~/.local/bin/quartz_bin
+  ln -s $(pwd)/build/quartz-current.wat ~/.local/bin/quartz-current.wat
 
 download version:
 	@echo "Downloading version {{version}}"
