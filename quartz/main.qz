@@ -15,26 +15,6 @@ import quartz::json;
 import quartz::errors;
 import quartz::preprocessor;
 
-@[test]
-fun test() {
-    assert_eq_string("hoge", "hoge");
-    assert(is_space("hoge fuga", 4));
-    assert_eq_string("hoge fuga".slice(0, 4), "hoge");
-    assert_eq_string("hoge fuga".slice_start(2), "ge fuga");
-    assert_eq_string("hoge".concat(" fuga"), "hoge fuga");
-    assert_eq_string("hoge".repeat(3), "hogehogehoge");
-
-    assert_eq_string(
-        derive::to_string("apple/banana/orange/lime".split("/")),
-        derive::to_string(make[vec[string]]("apple", "banana", "orange", "lime")),
-    );
-
-    assert(reflection::is_pointer("foo"));
-    assert(!reflection::is_pointer(10));
-    assert(!reflection::is_pointer(true));
-    assert(!reflection::is_pointer("foo".at(1)));
-}
-
 struct ArgCommand {
     command: string,
     args: vec[string],

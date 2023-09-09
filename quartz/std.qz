@@ -828,6 +828,10 @@ fun test_split() {
     assert_eq("abc".split("abc"), make[vec[string]](""));
     assert_eq("abc".split("def"), make[vec[string]]("abc"));
     assert_eq("abcbdbebfbg".split("b"), make[vec[string]]("a", "c", "d", "e", "f", "g"));
+    assert_eq(
+        "apple/banana/orange/lime".split("/"),
+        make[vec[string]]("apple", "banana", "orange", "lime"),
+    );
 }
 
 @[test]
