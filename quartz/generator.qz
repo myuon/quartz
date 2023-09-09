@@ -222,16 +222,6 @@ module Generator {
         self.write(`import "env" "abort" (func $abort (result i64))`);
         self.end();
 
-        self.start();
-        self.write(
-            `import "wasi_snapshot_preview1" "args_sizes_get" (func $args_sizes_get (param i32 i32) (result i32))`,
-        );
-        self.end();
-
-        self.start();
-        self.write(`import "wasi_snapshot_preview1" "args_get" (func $args_get (param i32 i32) (result i32))`);
-        self.end();
-
         if m.t_module != nil {
             for i in 0..m.t_module!.elements.length {
                 let element = m.t_module!.elements.at(i);
@@ -294,54 +284,6 @@ module Generator {
     i32.wrap_i64
 
     i32.load
-
-    i64.extend_i32_s
-    i64.const 32
-    i64.shl
-
-    return
-`,
-        );
-        self.end();
-
-        self.start();
-        self.write(
-            `func $_args_sizes_get (param $ptr_count i64) (param $ptr_buf_size i64) (result i64)
-    local.get $ptr_count
-    i64.const 32
-    i64.shr_u
-    i32.wrap_i64
-
-    local.get $ptr_buf_size
-    i64.const 32
-    i64.shr_u
-    i32.wrap_i64
-
-    call $args_sizes_get
-
-    i64.extend_i32_s
-    i64.const 32
-    i64.shl
-
-    return
-`,
-        );
-        self.end();
-
-        self.start();
-        self.write(
-            `func $_args_get (param $argv i64) (param $argv_buf i64) (result i64)
-    local.get $argv
-    i64.const 32
-    i64.shr_u
-    i32.wrap_i64
-
-    local.get $argv_buf
-    i64.const 32
-    i64.shr_u
-    i32.wrap_i64
-
-    call $args_get
 
     i64.extend_i32_s
     i64.const 32
