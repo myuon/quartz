@@ -285,8 +285,9 @@ fun start(): nil or error {
     let envs = environs();
 
     let lib_path = nil as string?;
-    if envs.has("QUARTZ_LIB_PATH") {
-        lib_path = envs.at("QUARTZ_LIB_PATH")?;
+    let env_QUARTZ_LIB_PATH = "QUARTZ_LIB_PATH";
+    if envs.has(env_QUARTZ_LIB_PATH) {
+        lib_path = envs.at(env_QUARTZ_LIB_PATH)?;
     }
 
     let compiler = Compiler::new(lib_path, compiler_version);
