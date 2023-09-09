@@ -19,6 +19,12 @@ declare fun path_open(dirfd: i32, dirflags: i32, path: ptr[byte], path_len: i32,
 @[build_if(version == "2.7.0"), declare_params(fd as wasm_i32, iovs as wasm_i32, iovs_len as wasm_i32, size as wasm_i32, result as wasm_i32), declare_namespace("wasi_snapshot_preview1")]
 declare fun fd_write(fd: i32, iovs: ptr[ptr[byte]], iovs_len: ptr[i32], size: ptr[byte]): i32;
 
+@[build_if(version == "2.7.0"), declare_params(ptr_count as wasm_i32, ptr_buf_size as wasm_i32, result as wasm_i32), declare_namespace("wasi_snapshot_preview1")]
+declare fun environ_sizes_get(ptr_count: ptr[i32], ptr_buf_size: ptr[i32]): i32;
+
+@[build_if(version == "2.7.0"), declare_params(environ as wasm_i32, environ_buf as wasm_i32, result as wasm_i32), declare_namespace("wasi_snapshot_preview1")]
+declare fun environ_get(environ: ptr[ptr[byte]], environ_buf: ptr[byte]): i32;
+
 fun print_string(s: string) {
     return write_string(fd_stdout, s);
 }
@@ -1665,6 +1671,8 @@ fun mark(value: any) {
         }
         if !is_typerep_pointer(header.get_type_rep() as ptr[byte]) {
             debug(error_invalid_type);
+            // Removing this line causes a compile error for some reason
+            debug(1);
             debug(header.get_type_rep());
             abort();
         }
