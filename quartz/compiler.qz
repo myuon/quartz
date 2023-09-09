@@ -32,7 +32,7 @@ module Compiler {
     }
 
     fun load_module(self, path: Path, skip_errors: bool, preprocess: bool): vec[Path] or error {
-        let input = file_read(format("{}.qz", path.join("/")));
+        let input = file_read(format("{}.qz", path.join("/"))).try;
 
         return self.register_module(path, input, skip_errors, preprocess).try;
     }

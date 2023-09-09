@@ -1559,20 +1559,35 @@ fun read_i32_from_bytes_le(p: ptr[byte], offset: i32): i32 {
     return result;
 }
 
-fun read_filestat_get(fd: i32): ptr[byte] {
+enum WasiError {
+    no_entry: bool,
+    unknown: i32,
+}
+
+module WasiError {
+    fun from_errno(code: i32): WasiError {
+        if code == 44 {
+            return WasiError { no_entry: true };
+        } else {
+            return WasiError { unknown: code };
+        }
+    }
+}
+
+fun read_filestat_get(fd: i32): ptr[byte] or error {
     let stat = make[ptr[byte]](72);
     let err = _fd_filestat_get(fd, stat);
     if err != 0 {
-        panic("fd_filestat_get {}", err.to_string());
+        return _ or error::new("fd_filestat_get").context(WasiError::from_errno(err));
     }
 
     return stat;
 }
 
-fun file_read(path: string): string {
+fun file_read(path: string): string or error {
     let fd_n = file_open(path, 0, 1 << 1);
 
-    let filestat = read_filestat_get(fd_n);
+    let filestat = read_filestat_get(fd_n).try;
     let size = read_i32_from_bytes_le(filestat, 32);
 
     let buffer_len = size;

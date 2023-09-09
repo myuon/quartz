@@ -273,7 +273,7 @@ module CliCommand {
     }
 }
 
-fun main() {
+fun start(): nil or error {
     let compiler_version = "2.8.0";
 
     let args = args();
@@ -297,7 +297,7 @@ fun main() {
 
         let input = "";
         if compile.input != nil {
-            input = file_read(compile.input!);
+            input = file_read(compile.input!).try;
         } else if compile.stdin != nil {
             input = stdin();
         } else {
@@ -336,7 +336,7 @@ fun main() {
 
         let input = "";
         if f.input != nil {
-            input = file_read(f.input!);
+            input = file_read(f.input!).try;
         } else if f.stdin != nil {
             input = stdin();
         } else {
@@ -358,7 +358,7 @@ fun main() {
     } else if command.check != nil {
         let check = command.check!;
 
-        let input = file_read(check.input!);
+        let input = file_read(check.input!).try;
 
         let path = Path::new("main");
 
@@ -411,7 +411,7 @@ fun main() {
     } else if command.check_type != nil {
         let check_type = command.check_type!;
 
-        let input = file_read(check_type.input!);
+        let input = file_read(check_type.input!).try;
 
         let result or err = compiler.check_type(check_type.input!, input, check_type.line, check_type.column);
         if err != nil {
@@ -430,7 +430,7 @@ fun main() {
             path_segments.at(path_segments.length - 1),
         );
 
-        let input = file_read(go_to_def.input!);
+        let input = file_read(go_to_def.input!).try;
 
         let result or err = compiler.go_to_def(input, path, go_to_def.line, go_to_def.column);
         if err != nil {
@@ -499,7 +499,7 @@ fun main() {
         if completion.stdin {
             input = stdin();
         } else if completion.input != nil {
-            input = file_read(completion.input!);
+            input = file_read(completion.input!).try;
         } else {
             panic("no input");
         }
@@ -599,3 +599,9 @@ fun run_format(input_: string): string or error {
     return formatter.format(module_);
 }
 
+fun main() {
+    let result or err = start();
+    if err != nil {
+        panic("{}", err!.message);
+    }
+}
