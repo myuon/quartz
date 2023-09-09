@@ -16,10 +16,14 @@ declare fun fd_close(fd: i32): i32;
 @[build_if(version == "2.7.0"), declare_params(dirfd as wasm_i32, dirflags as wasm_i32, path as wasm_i32, path_len as wasm_i32, oflags as wasm_i32, fs_rights_base as wasm_i64, fs_rights_inheriting as wasm_i64, fs_flags as wasm_i32, fd as wasm_i32, result as wasm_i32), declare_namespace("wasi_snapshot_preview1")]
 declare fun path_open(dirfd: i32, dirflags: i32, path: ptr[byte], path_len: i32, oflags: i32, fs_rights_base: i32, fs_rights_inheriting: i32, fs_flags: i32, fd: ptr[byte]): i32;
 
+@[build_if(version == "2.7.0"), declare_params(fd as wasm_i32, iovs as wasm_i32, iovs_len as wasm_i32, size as wasm_i32, result as wasm_i32), declare_namespace("wasi_snapshot_preview1")]
+declare fun fd_write(fd: i32, iovs: ptr[ptr[byte]], iovs_len: ptr[i32], size: ptr[byte]): i32;
+
 fun print_string(s: string) {
     return write_string(fd_stdout, s);
 }
 
+@[build_if(version == "2.6.0")]
 fun write_string(fd: i32, s: string) {
     let l = s.length;
     let d = s.data;
@@ -30,6 +34,19 @@ fun write_string(fd: i32, s: string) {
 
     let ptr_size = make[ptr[i32]](1);
     _fd_write(fd, ciovec, ptr_size);
+}
+
+@[build_if(version == "2.7.0")]
+fun write_string(fd: i32, s: string) {
+    let l = s.length;
+    let d = s.data;
+    let n = 0;
+
+    let ciovec = make[ptr[byte]](8); // [address (4byte), length (4byte)]
+    set_ciovec(ciovec, d, l);
+
+    let ptr_size = make[ptr[i32]](1);
+    _fd_write(fd, ciovec, 1, ptr_size);
 }
 
 fun print_vec_string(v: vec[string]) {
@@ -1557,6 +1574,7 @@ fun file_read(path: string): string {
     return v;
 }
 
+@[build_if(version == "2.6.0")]
 fun file_write(path: string, content: string) {
     let fd_n = file_open(path, 9, 1 << 6);
 
@@ -1565,6 +1583,22 @@ fun file_write(path: string, content: string) {
 
     let ptr_size = make[ptr[i32]](1);
     let err = _fd_write(fd_n, ciovec, ptr_size);
+    if err != 0 {
+        panic("[file_write] fd_write {}", err.to_string());
+    }
+
+    file_close(fd_n);
+}
+
+@[build_if(version == "2.7.0")]
+fun file_write(path: string, content: string) {
+    let fd_n = file_open(path, 9, 1 << 6);
+
+    let ciovec = make[ptr[byte]](8);
+    set_ciovec(ciovec, content.data, content.length);
+
+    let ptr_size = make[ptr[i32]](1);
+    let err = _fd_write(fd_n, ciovec, 1, ptr_size);
     if err != 0 {
         panic("[file_write] fd_write {}", err.to_string());
     }

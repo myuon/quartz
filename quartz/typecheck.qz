@@ -309,6 +309,9 @@ module Typechecker {
                                 },
                             },
                             Type {
+                                t_i32: true,
+                            },
+                            Type {
                                 t_ptr: Type {
                                     t_i32: true,
                                 },
