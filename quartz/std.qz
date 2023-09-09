@@ -4,6 +4,18 @@ let fd_stdout = 1;
 
 let fd_stderr = 2;
 
+@[build_if(version == "2.6.0"), declare_params(fd as wasm_i32, iovs as wasm_i32, iovs_len as wasm_i32, nread as wasm_i32, result as wasm_i32), declare_namespace("wasi_snapshot_preview1")]
+declare fun fd_read(fd: i32, iovs: ptr[byte], iovs_len: i32, nread: i32): i32;
+
+@[build_if(version == "2.6.0"), declare_params(fd as wasm_i32, buf as wasm_i32, result as wasm_i32), declare_namespace("wasi_snapshot_preview1")]
+declare fun fd_filestat_get(fd: i32, buf: ptr[byte]): i32;
+
+@[build_if(version == "2.6.0"), declare_params(fd as wasm_i32, result as wasm_i32), declare_namespace("wasi_snapshot_preview1")]
+declare fun fd_close(fd: i32): i32;
+
+// @[build_if(version == "2.6.0"), declare_params(dirfd as wasm_i32, dirflags as wasm_i32, path as wasm_i32, path_len as wasm_i32, oflags as wasm_i32, fs_rights_base as wasm_i64, fs_rights_inheriting as wasm_i64, fs_flags as wasm_i32, fd as wasm_i32, result as wasm_i32), declare_namespace("wasi_snapshot_preview1")]
+// declare fun path_open(dirfd: i32, dirflags: i32, path: ptr[byte], path_len: i32, oflags: i32, fs_rights_base: i32, fs_rights_inheriting: i32, fs_flags: i32, fd: ptr[byte]): i32;
+
 fun print_string(s: string) {
     return write_string(fd_stdout, s);
 }
@@ -1518,11 +1530,59 @@ fun read_filestat_get(fd: i32): ptr[byte] {
     return stat;
 }
 
+// fd_filestat_get has different offset in wasi_unstable and wasi_snapshot_preview1
+
+// wasi_unstable
+// 000 [DEBUG] I32(0) (0b000000000000000000000000000000 | 0b0)
+// 008 [DEBUG] I32(1030) (0b000000000000000000010000000110 | 0b0)
+// 016 [DEBUG] I32(4) (0b000000000000000000000000000100 | 0b0)
+// 024 [DEBUG] I32(17736) (0b000000000000000100010101001000 | 0b0)
+// 032 [DEBUG] I32(-49788139) (0b11111101000010000100101100010101 | 0b0)
+// 048 [DEBUG] I32(131248233) (0b000111110100101011000001101001 | 0b0)
+// 056 [DEBUG] I32(0) (0b000000000000000000000000000000 | 0b0)
+
+// wasi_snapshot_preview1
+// 000 [DEBUG] I32(0) (0b000000000000000000000000000000 | 0b0)
+// 008 [DEBUG] I32(1030) (0b000000000000000000010000000110 | 0b0)
+// 016 [DEBUG] I32(250344964) (0b001110111010111111011000000100 | 0b0)
+// 024 [DEBUG] I32(1) (0b000000000000000000000000000001 | 0b0)
+// 032 [DEBUG] I32(17736) (0b000000000000000100010101001000 | 0b0)
+// 048 [DEBUG] I32(1503314517) (0b1011001100110101100001001010101 | 0b0)
+// 056 [DEBUG] I32(131248233) (0b000111110100101011000001101001 | 0b0)
+@[build_if(version == "2.5.2")]
 fun file_read(path: string): string {
     let fd_n = file_open(path, 0, 1 << 1);
 
     let filestat = read_filestat_get(fd_n);
     let size = read_i32_from_bytes_le(filestat, 24);
+
+    let buffer_len = size;
+    let buffer = make[ptr[byte]](buffer_len);
+
+    let ciovec = make[ptr[byte]](8);
+    set_ciovec(ciovec, buffer, buffer_len);
+
+    let nread = make[ptr[byte]](8);
+
+    let err = _fd_read(fd_n, ciovec, 1, nread);
+    if err != 0 {
+        panic("fd_read {}", err.to_string());
+    }
+
+    let n = read_i32_from_bytes_le(nread, 0);
+    let v = new_string(buffer, n);
+
+    file_close(fd_n);
+
+    return v;
+}
+
+@[build_if(version == "2.6.0")]
+fun file_read(path: string): string {
+    let fd_n = file_open(path, 0, 1 << 1);
+
+    let filestat = read_filestat_get(fd_n);
+    let size = read_i32_from_bytes_le(filestat, 32);
 
     let buffer_len = size;
     let buffer = make[ptr[byte]](buffer_len);

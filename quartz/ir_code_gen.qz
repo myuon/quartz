@@ -385,8 +385,10 @@ module IrCodeGenerator {
             let wasm_type = "";
             if param.t_ident != nil && param.t_ident! == "wasm_i32" {
                 wasm_type = "i32";
+            } else if param.t_ident != nil && param.t_ident! == "wasm_i64" {
+                wasm_type = "i64";
             } else {
-                return _ or error::new("expected wasm_i32, got {}".format(param.to_string()));
+                return _ or error::new("expected wasm_i32 or wasm_i64, got {}".format(param.to_string()));
             }
 
             params.push(struct {
@@ -407,8 +409,14 @@ module IrCodeGenerator {
                 quartz_type: IrType::new(d.result_type),
                 wasm_type: wasm_type,
             }?;
+        } else if d.declare_wrap!.result_type.t_ident != nil && d.declare_wrap!.result_type.t_ident! == "wasm_i64" {
+            wasm_type = "i64";
+            result_type = struct {
+                quartz_type: IrType::new(d.result_type),
+                wasm_type: wasm_type,
+            }?;
         } else {
-            return _ or error::new("expected wasm_i32, got {}".format(
+            return _ or error::new("expected wasm_i32, wasm_i64, got {}".format(
                 d.declare_wrap!.result_type.to_string(),
             ));
         }
@@ -437,16 +445,19 @@ module IrCodeGenerator {
             if param.t_ident != nil && param.t_ident! == "wasm_i32" {
                 params.push("i32");
                 continue;
-            } else {
-                return _ or error::new("expected wasm_i32, got {}".format(param.to_string()));
+            } else if param.t_ident != nil && param.t_ident! == "wasm_i64" {
+                params.push("i64");
+                continue;
             }
 
-            return _ or error::new("expected wasi_m32, got {}".format(param.to_string()));
+            return _ or error::new("expected wasm_i32 or wasm_i64, got {}".format(param.to_string()));
         }
 
         let result_type = "";
         if d.declare_wrap!.result_type.t_ident != nil && d.declare_wrap!.result_type.t_ident! == "wasm_i32" {
             result_type = "i32";
+        } else if d.declare_wrap!.result_type.t_ident != nil && d.declare_wrap!.result_type.t_ident! == "wasm_i64" {
+            result_type = "i64";
         } else {
             return _ or error::new("expected wasm_i32, got {}".format(
                 d.declare_wrap!.result_type.to_string(),
