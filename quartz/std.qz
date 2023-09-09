@@ -1584,6 +1584,25 @@ fun read_filestat_get(fd: i32): ptr[byte] or error {
     return stat;
 }
 
+fun file_exists(path: string): bool or error {
+    let fd_n = file_open(path, 0, 1 << 1);
+    let result or err = read_filestat_get(fd_n);
+    if err == nil {
+        return true or _;
+    } else {
+        let err_rep = reflection::get_type_rep(err!.detail);
+        if err_rep.name == "WasiError" {
+            if (err_rep as WasiError).no_entry != nil {
+                return false or _;
+            }
+        }
+
+        return _ or err!;
+    }
+
+    return _ or error::new("unreachable");
+}
+
 fun file_read(path: string): string or error {
     let fd_n = file_open(path, 0, 1 << 1);
 

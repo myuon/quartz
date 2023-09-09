@@ -32,6 +32,15 @@ module Compiler {
     }
 
     fun load_module(self, path: Path, skip_errors: bool, preprocess: bool): vec[Path] or error {
+        if self.lib_path_string != nil {
+            let path_string = format("{}/{}.qz", self.lib_path_string!, path.join("/"));
+            if file_exists(path_string).try {
+                let input = file_read(path_string).try;
+
+                return self.register_module(path, input, skip_errors, preprocess).try;
+            }
+        }
+
         let input = file_read(format("{}.qz", path.join("/"))).try;
 
         return self.register_module(path, input, skip_errors, preprocess).try;
