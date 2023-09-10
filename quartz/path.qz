@@ -73,3 +73,9 @@ module Path {
     }
 }
 
+@[test]
+fun test_path_join() {
+    assert_eq(Path::new("a", "b", "c").join("/"), "a/b/c");
+    assert_eq(Path::new("a").join("/"), "a");
+    assert_eq(Path::new().join("/"), "");
+}
