@@ -836,7 +836,9 @@ module IrCodeGenerator {
                 let term = IrTerm {
                     t_let: IrLet {
                         name: name,
-                        type_: IrType::new(stm.t_let!.name_type),
+                        type_: IrType {
+                            t_i32: true,
+                        },
                         value: self.expression(stm.t_let!.expr).try,
                     },
                 };
