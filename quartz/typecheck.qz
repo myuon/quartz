@@ -777,13 +777,13 @@ module Typechecker {
                 continue;
             } else if d.t_declare_func != nil {
                 // in 2.7.0+
-                // self.globals.insert(
-                //     "_{}".format(d.t_declare_func!.name.data),
-                //     LType {
-                //         data: d.t_declare_func!.to_type(),
-                //         location: d.t_declare_func!.name.location,
-                //     },
-                // );
+                self.globals.insert(
+                    "_{}".format(d.t_declare_func!.name.data),
+                    LType {
+                        data: d.t_declare_func!.to_type(),
+                        location: d.t_declare_func!.name.location,
+                    },
+                );
 
                 continue;
             } else {
