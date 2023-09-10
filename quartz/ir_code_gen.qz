@@ -387,8 +387,10 @@ module IrCodeGenerator {
                 wasm_type = "i32";
             } else if param.t_ident != nil && param.t_ident! == "wasm_i64" {
                 wasm_type = "i64";
+            } else if param.t_ident != nil && param.t_ident! == "wasm_externref" {
+                wasm_type = "externref";
             } else {
-                return _ or error::new("expected wasm_i32 or wasm_i64, got {}".format(param.to_string()));
+                return _ or error::new("invalid param type: {}".format(param.to_string()));
             }
 
             params.push(struct {
@@ -460,9 +462,12 @@ module IrCodeGenerator {
             } else if param.t_ident != nil && param.t_ident! == "wasm_i64" {
                 params.push("i64");
                 continue;
+            } else if param.t_ident != nil && param.t_ident! == "wasm_externref" {
+                params.push("externref");
+                continue;
             }
 
-            return _ or error::new("expected wasm_i32 or wasm_i64, got {}".format(param.to_string()));
+            return _ or error::new("invalid param type, got {}".format(param.to_string()));
         }
 
         let result_type = "";

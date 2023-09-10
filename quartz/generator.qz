@@ -190,6 +190,7 @@ module Generator {
 
                     self.new_statement();
                     self.write("i64.extend_i32_u");
+                } else if param.wasm_type == "externref" {
                 } else {
                     panic("not implemented: wasm_func param type, {}", param.wasm_type);
                 }
