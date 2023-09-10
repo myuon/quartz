@@ -100,10 +100,10 @@ module Formatter {
             self.write_no_space(writer, attr.name.data);
             if attr.args.length > 0 {
                 self.write_no_space(writer, "(");
-                for i in 0..attr.args.length {
-                    let arg = attr.args.at(i);
+                for j in 0..attr.args.length {
+                    let arg = attr.args.at(j);
                     self.expr(writer, arg, true);
-                    if i != attr.args.length - 1 {
+                    if j != attr.args.length - 1 {
                         self.write_no_space(writer, ", ");
                     }
                 }
