@@ -171,11 +171,11 @@ module Generator {
 
             for param in func.params {
                 self.new_statement();
-                self.write("(param ${} {})".format(param.name, Value::wasm_type()));
+                self.write("(param ${} {})".format(param.name, self.get_wasmtype(param.quartz_type)));
             }
 
             self.new_statement();
-            self.write("(result {})".format(Value::wasm_type()));
+            self.write("(result {})".format(self.get_wasmtype(func.result_type.quartz_type)));
 
             // convert each param to wasm_i32
             for param in func.params {
@@ -622,6 +622,14 @@ module Generator {
         self.end();
     }
 
+    fun get_wasmtype(self, t: IrType): string {
+        if t.t_externref != nil {
+            return "externref";
+        } else {
+            return Value::wasm_type();
+        }
+    }
+
     fun function(self, func: IrFunc) {
         if func.name.equal("main_main") {
             self.main_signature_result = func.result_type?;
@@ -633,11 +641,11 @@ module Generator {
 
         for i in 0..func.params.length {
             let p = func.params.at(i);
-            self.write("(param $".concat(p.name).concat(" ").concat("i64").concat(")"));
+            self.write("(param ${} {})".format(p.name, self.get_wasmtype(p.type_)));
         }
 
         if !func.result_type.is_nil() {
-            self.write("(result i64)");
+            self.write("(result {})".format(self.get_wasmtype(func.result_type)));
         }
 
         let visited = make[map[string, bool]]();

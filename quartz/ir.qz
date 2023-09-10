@@ -210,6 +210,7 @@ enum IrType {
     t_bool: bool,
     t_any: bool,
     t_i64: bool,
+    t_externref: bool,
 }
 
 module IrType {
@@ -228,6 +229,11 @@ module IrType {
             if t.t_ident!.equal("i64") {
                 return IrType {
                     t_i64: true,
+                };
+            }
+            if t.t_ident! == "externref" {
+                return IrType {
+                    t_externref: true,
                 };
             }
 
