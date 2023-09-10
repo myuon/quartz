@@ -197,11 +197,14 @@ module Generator {
             self.write("call ${}".format(func.wrapping_name));
 
             // convert the result value to quartz_i32
-            if func.result_type.quartz_type.t_i32 == nil {
-                return panic("expected i32 result type");
+            if func.result_type.quartz_type.t_i32 != nil {
+                self.convert_stack_from_i32_1();
+            } else if func.result_type.wasm_type == "void" && func.result_type.quartz_type.t_address != nil {
+                self.new_statement();
+                self.write("i64.const 1");
+            } else {
+                panic("not implemented: wasm_func result type, {}", derive::to_string(func.result_type));
             }
-
-            self.convert_stack_from_i32_1();
 
             self.write("return");
             self.end();
