@@ -652,16 +652,16 @@ module Generator {
         for statement in func.body {
             let locals = statement.find_locals();
             for local in locals {
-                if visited.has(local) {
+                if visited.has(local.name) {
                     continue;
                 }
 
                 self.new_statement();
                 self.start();
-                self.write(format("local ${} {}", local, "i64"));
+                self.write(format("local ${} {}", local.name, self.get_wasmtype(local.type_)));
                 self.end();
 
-                visited.insert(local, true);
+                visited.insert(local.name, true);
             }
         }
 
@@ -744,7 +744,7 @@ module Generator {
             });
 
             // push to stack
-            if expr.t_let!.type_.t_address != nil {
+            if expr.t_let!.type_.t_address != nil && !self.globals.has(expr.t_let!.name) {
                 self.new_statement();
                 self.expression(IrTerm {
                     t_ident: expr.t_let!.name,

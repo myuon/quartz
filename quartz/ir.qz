@@ -113,11 +113,20 @@ module IrTerm {
         };
     }
 
-    fun find_locals(self): vec[string] {
-        let locals = make[vec[string]]();
+    fun find_locals(self): vec[struct {
+        name: string,
+        type_: IrType,
+    }] {
+        let locals = make[vec[struct {
+            name: string,
+            type_: IrType,
+        }]]();
 
         if self.t_let != nil {
-            locals.push(self.t_let!.name);
+            locals.push(struct {
+                name: self.t_let!.name,
+                type_: self.t_let!.type_,
+            });
             locals.extend(self.t_let!.value.find_locals());
         }
         if self.t_call != nil {
