@@ -581,7 +581,7 @@ module Generator {
             }]](),
             result_type: self.main_signature_result!,
             body: start_body,
-            ffi_export: nil,
+            ..nil,
         });
 
         self.start();
