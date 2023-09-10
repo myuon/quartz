@@ -158,7 +158,9 @@ module Generator {
                 self.end();
             }
 
-            self.write(format("(result {})", element.t_import!.func_type.result_type));
+            if element.t_import!.func_type.result_type != "nil" {
+                self.write(format("(result {})", element.t_import!.func_type.result_type));
+            }
 
             self.end();
             self.end();
