@@ -107,6 +107,7 @@ struct Function {
     }?,
     no_allocation: bool,
     is_test: bool,
+    ffi_export: string?,
 }
 
 module Function {

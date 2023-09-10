@@ -391,6 +391,7 @@ module Parser {
                 variadic: params.variadic,
                 no_allocation: false,
                 is_test: false,
+                ffi_export: nil,
             },
             location: Location {
                 start: start_token.location.start,

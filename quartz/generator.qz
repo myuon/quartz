@@ -581,6 +581,7 @@ module Generator {
             }]](),
             result_type: self.main_signature_result!,
             body: start_body,
+            ffi_export: nil,
         });
 
         self.start();
@@ -638,8 +639,17 @@ module Generator {
             self.main_signature_result = func.result_type?;
         }
 
+        if func.ffi_export != nil {
+            self.start();
+            self.write("export");
+            self.write(derive::to_string(func.ffi_export!));
+            self.write(format("(func ${})", func.name));
+            self.end();
+        }
+
         self.start();
         self.write("func");
+
         self.write("$".concat(func.name));
 
         for i in 0..func.params.length {

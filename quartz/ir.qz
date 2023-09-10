@@ -194,6 +194,7 @@ struct IrFunc {
     }],
     result_type: IrType,
     body: vec[IrTerm],
+    ffi_export: string?,
 }
 
 struct IrCall {

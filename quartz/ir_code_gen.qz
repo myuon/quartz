@@ -257,6 +257,7 @@ module IrCodeGenerator {
                         },
                     },
                 }),
+                ..nil,
             },
         });
 
@@ -302,6 +303,7 @@ module IrCodeGenerator {
                         t_address: true,
                     },
                     body: body,
+                    ..nil,
                 },
             });
         }
@@ -629,6 +631,7 @@ module IrCodeGenerator {
                     t_nil: true,
                 },
                 body: body,
+                ..nil,
             },
         };
     }
@@ -745,6 +748,7 @@ module IrCodeGenerator {
                 result_type: IrType {
                     t_nil: true,
                 },
+                ..nil,
             },
         });
 
@@ -807,6 +811,7 @@ module IrCodeGenerator {
             params: params,
             result_type: IrType::new(func.result_type),
             body: body,
+            ffi_export: func.ffi_export,
         };
     }
 
