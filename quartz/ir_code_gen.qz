@@ -97,6 +97,8 @@ module InternalTypeRep {
                     },
                 ),
             );
+        } else if t.t_externref != nil {
+            return InternalTypeRep::from_name("externref", make[vec[InternalTypeRep]]());
         }
 
         return panic("unreachable, {}".format(t.to_string()));
