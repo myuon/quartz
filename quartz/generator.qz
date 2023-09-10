@@ -190,6 +190,8 @@ module Generator {
 
                     self.new_statement();
                     self.write("i64.extend_i32_u");
+                } else {
+                    panic("not implemented: wasm_func param type, {}", param.wasm_type);
                 }
             }
 
@@ -202,6 +204,7 @@ module Generator {
             } else if func.result_type.wasm_type == "void" && func.result_type.quartz_type.t_address != nil {
                 self.new_statement();
                 self.write("i64.const 1");
+            } else if func.result_type.wasm_type == "externref" {
             } else {
                 panic("not implemented: wasm_func result type, {}", derive::to_string(func.result_type));
             }

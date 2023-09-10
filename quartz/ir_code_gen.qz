@@ -421,8 +421,14 @@ module IrCodeGenerator {
                 quartz_type: IrType::new(d.result_type),
                 wasm_type: wasm_type,
             }?;
+        } else if d.declare_wrap!.result_type.t_ident != nil && d.declare_wrap!.result_type.t_ident! == "wasm_externref" {
+            wasm_type = "externref";
+            result_type = struct {
+                quartz_type: IrType::new(d.result_type),
+                wasm_type: wasm_type,
+            }?;
         } else {
-            return _ or error::new("expected wasm_i32, wasm_i64, got {}".format(
+            return _ or error::new("invalid result_type, got {}".format(
                 d.declare_wrap!.result_type.to_string(),
             ));
         }
@@ -466,6 +472,8 @@ module IrCodeGenerator {
             result_type = "i64";
         } else if d.declare_wrap!.result_type.t_ident != nil && d.declare_wrap!.result_type.t_ident! == "wasm_void" {
             result_type = "i64";
+        } else if d.declare_wrap!.result_type.t_ident != nil && d.declare_wrap!.result_type.t_ident! == "wasm_externref" {
+            result_type = "externref";
         } else {
             return _ or error::new("invalid result_type, {}".format(
                 d.declare_wrap!.result_type.to_string(),
