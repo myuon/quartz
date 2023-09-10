@@ -744,19 +744,20 @@ module Generator {
                 t_ident: expr.t_let!.name,
             });
 
+            // FIXME: this is broken at 2.8.1
             // push to stack
-            if expr.t_let!.type_.t_address != nil && !self.globals.has(expr.t_let!.name) {
-                self.new_statement();
-                self.expression(IrTerm {
-                    t_ident: expr.t_let!.name,
-                });
+            // if expr.t_let!.type_.t_address != nil && !self.globals.has(expr.t_let!.name) {
+            //     self.new_statement();
+            //     self.expression(IrTerm {
+            //         t_ident: expr.t_let!.name,
+            //     });
 
-                self.new_statement();
-                self.write("call $quartz_core_push_memstack");
+            //     self.new_statement();
+            //     self.write("call $quartz_core_push_memstack");
 
-                self.new_statement();
-                self.write("drop");
-            }
+            //     self.new_statement();
+            //     self.write("drop");
+            // }
         } else if expr.t_return != nil {
             self.new_statement();
             self.expression(expr.t_return!.value);
