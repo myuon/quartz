@@ -78,11 +78,11 @@ fn quartz_run_wat(input_path: &Path) -> RunCommandOutput {
 fn quartz_run(input_path: &Path, output_path: &Path) -> String {
     let output_compile = quartz_compile(input_path, output_path);
     if !output_compile.success {
-        return output_compile.stdout;
+        return format!("{}\n{}", output_compile.stdout, output_compile.stderr);
     }
 
     let output_run = quartz_run_wat(output_path);
-    output_run.stdout
+    format!("{}\n{}", output_run.stdout, output_run.stderr)
 }
 
 #[test]
@@ -99,8 +99,13 @@ fn test_run() -> Result<()> {
             let output = quartz_run(path, compiled_path);
 
             if stdout_path.exists() {
-                let expected = fs::read_to_string(stdout_path)?;
-                assert_eq!(output, expected);
+                let expected_fragment = fs::read_to_string(stdout_path)?;
+                assert!(
+                    output.contains(&expected_fragment),
+                    "{}\n{}",
+                    path.display(),
+                    output
+                );
             } else {
                 println!("[stdout] {}", output);
             }

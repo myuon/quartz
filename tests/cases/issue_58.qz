@@ -1,0 +1,6 @@
+import quartz::path;
+
+fun main() {
+    Path::new(..path.path.slice(0, 2));
+}
+
