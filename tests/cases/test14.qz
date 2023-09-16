@@ -1,0 +1,28 @@
+fun int_to_string(n: i32): string {
+    let digit = 0;
+    let tmp = n;
+    while tmp > 0 {
+        tmp = tmp / 10;
+        digit = digit + 1;
+    }
+
+    let str = make[ptr[byte]](digit);
+    tmp = n;
+    for i in 0..digit {
+        let d = tmp % 10;
+        str.at(digit - i - 1) = ((d + 48) as byte);
+        tmp = tmp / 10;
+    }
+
+    return string {
+        data: str,
+        length: digit,
+    };
+}
+
+fun main(): i32 {
+    let str = int_to_string(123456);
+
+    return str.data.at(5) as i32 - 48;
+}
+

@@ -1,0 +1,14 @@
+fun f(): string {
+    let s = "foo"?;
+
+    if true {
+        return s!;
+    } else {
+        return "";
+    }
+}
+
+fun main(): i32 {
+    return 0;
+}
+
