@@ -1,33 +1,113 @@
+use std::fs;
 use std::io::Write;
+use std::path::Path;
+
+use anyhow::Result;
+use walkdir::WalkDir;
+
+struct RunCommandOutput {
+    success: bool,
+    stdout: String,
+    stderr: String,
+}
 
 fn run_command(
     command: &str,
     args: &[&str],
     stdin: &[u8],
     envs: Vec<(String, String)>,
-) -> Option<String> {
+) -> Option<RunCommandOutput> {
     let mut cmd = std::process::Command::new(command);
     cmd.args(args);
-    for (key, value) in envs {
-        cmd.env(key, value);
-    }
+    cmd.envs(envs);
 
     let mut child = cmd
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .spawn()
         .unwrap();
-    child.stdin.as_mut().unwrap().write_all(stdin).unwrap();
+    child.stdin.as_mut()?.write_all(stdin).ok()?;
 
     let output = child.wait_with_output().unwrap();
-    if !output.status.success() {
-        println!("[stdout] {}", String::from_utf8(output.stdout).unwrap());
-        println!("[stderr] {}", String::from_utf8(output.stderr).unwrap());
-        return None;
+
+    Some(RunCommandOutput {
+        success: output.status.success(),
+        stdout: String::from_utf8(output.stdout).unwrap(),
+        stderr: String::from_utf8(output.stderr).unwrap(),
+    })
+}
+
+fn quartz_compile(input_path: &Path, output_path: &Path) -> RunCommandOutput {
+    run_command(
+        &format!("./target/release/quartz",),
+        &[
+            "compile",
+            "--validate-address",
+            "-o",
+            output_path.to_str().unwrap(),
+            input_path.to_str().unwrap(),
+        ],
+        &[],
+        vec![
+            ("WAT_FILE", "./build/quartz-current.wat"),
+            ("MODE", "run-wat"),
+        ]
+        .into_iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect(),
+    )
+    .unwrap()
+}
+
+fn quartz_run_wat(input_path: &Path) -> RunCommandOutput {
+    run_command(
+        "./target/release/quartz",
+        &[],
+        &[],
+        vec![
+            ("WAT_FILE", input_path.to_str().unwrap()),
+            ("MODE", "run-wat"),
+        ]
+        .into_iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect(),
+    )
+    .unwrap()
+}
+
+fn quartz_run(input_path: &Path, output_path: &Path) -> String {
+    let output_compile = quartz_compile(input_path, output_path);
+    if !output_compile.success {
+        return output_compile.stdout;
     }
 
-    let stdout = String::from_utf8(output.stdout).unwrap();
-    Some(stdout)
+    let output_run = quartz_run_wat(output_path);
+    output_run.stdout
+}
+
+#[test]
+fn test_run() -> Result<()> {
+    for entry in WalkDir::new("./tests/cases")
+        .into_iter()
+        .filter_map(Result::ok)
+    {
+        let path = entry.path();
+        let ext = path.extension().and_then(|s| s.to_str());
+        if ext == Some("qz") {
+            let stdout_path = path.with_extension("stdout");
+            let compiled_path = Path::new("/tmp/compiled.wat");
+            let output = quartz_run(path, compiled_path);
+
+            if stdout_path.exists() {
+                let expected = fs::read_to_string(stdout_path)?;
+                assert_eq!(output, expected);
+            } else {
+                println!("[stdout] {}", output);
+            }
+        }
+    }
+
+    Ok(())
 }
 
 // #[test]
@@ -360,39 +440,39 @@ fun main(): i32 {
 "#,
     ];
 
-    for input in cases {
-        let stdout_gen0 = run_command(
-            "cargo",
-            &["run", "--release", "--quiet", "--", "run", "--stdin"],
-            input.as_bytes(),
-            vec![],
-        )
-        .expect(format!("[INPUT:gen0]\n{}\n", input).as_str());
+    // for input in cases {
+    //     let stdout_gen0 = run_command(
+    //         "cargo",
+    //         &["run", "--release", "--quiet", "--", "run", "--stdin"],
+    //         input.as_bytes(),
+    //         vec![],
+    //     )
+    //     .expect(format!("[INPUT:gen0]\n{}\n", input).as_str());
 
-        let stdout = run_command(
-            "cargo",
-            &["run", "--release", "--quiet", "--", "run"],
-            input.as_bytes(),
-            vec![("WAT_FILE", "./build/gen1.wat"), ("MODE", "run-wat")]
-                .into_iter()
-                .map(|(k, v)| (k.to_string(), v.to_string()))
-                .collect(),
-        )
-        .expect(format!("[INPUT:gen1:compile]\n{}\n", input).as_str());
-        let stdout_gen1 = run_command(
-            "cargo",
-            &["run", "--release", "--quiet", "--", "run-wat", "--stdin"],
-            stdout.as_bytes(),
-            vec![],
-        )
-        .expect(
-            format!(
-                "[INPUT:gen1:runtime]\n{}\n[WAT]\n{}\n",
-                input,
-                &stdout[0..100]
-            )
-            .as_str(),
-        );
-        assert_eq!(stdout_gen0, stdout_gen1, "[INPUT]\n{}\n", input);
-    }
+    //     let stdout = run_command(
+    //         "cargo",
+    //         &["run", "--release", "--quiet", "--", "run"],
+    //         input.as_bytes(),
+    //         vec![("WAT_FILE", "./build/gen1.wat"), ("MODE", "run-wat")]
+    //             .into_iter()
+    //             .map(|(k, v)| (k.to_string(), v.to_string()))
+    //             .collect(),
+    //     )
+    //     .expect(format!("[INPUT:gen1:compile]\n{}\n", input).as_str());
+    //     let stdout_gen1 = run_command(
+    //         "cargo",
+    //         &["run", "--release", "--quiet", "--", "run-wat", "--stdin"],
+    //         stdout.as_bytes(),
+    //         vec![],
+    //     )
+    //     .expect(
+    //         format!(
+    //             "[INPUT:gen1:runtime]\n{}\n[WAT]\n{}\n",
+    //             input,
+    //             &stdout[0..100]
+    //         )
+    //         .as_str(),
+    //     );
+    //     assert_eq!(stdout_gen0, stdout_gen1, "[INPUT]\n{}\n", input);
+    // }
 }
