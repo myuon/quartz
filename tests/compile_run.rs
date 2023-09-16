@@ -2,9 +2,10 @@ use std::fs;
 use std::io::Write;
 use std::path::Path;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use walkdir::WalkDir;
 
+#[derive(Clone, Debug)]
 struct RunCommandOutput {
     success: bool,
     stdout: String,
@@ -24,11 +25,15 @@ fn run_command(
     let mut child = cmd
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
         .spawn()
         .unwrap();
     child.stdin.as_mut()?.write_all(stdin).ok()?;
 
-    let output = child.wait_with_output().unwrap();
+    let output = child
+        .wait_with_output()
+        .context("wait_with_output")
+        .unwrap();
 
     Some(RunCommandOutput {
         success: output.status.success(),
@@ -75,14 +80,26 @@ fn quartz_run_wat(input_path: &Path) -> RunCommandOutput {
     .unwrap()
 }
 
-fn quartz_run(input_path: &Path, output_path: &Path) -> String {
+#[derive(Clone, Debug)]
+struct QuartzRunOutput {
+    compile: RunCommandOutput,
+    run: Option<RunCommandOutput>,
+}
+
+fn quartz_run(input_path: &Path, output_path: &Path) -> QuartzRunOutput {
     let output_compile = quartz_compile(input_path, output_path);
     if !output_compile.success {
-        return format!("{}\n{}", output_compile.stdout, output_compile.stderr);
+        return QuartzRunOutput {
+            compile: output_compile,
+            run: None,
+        };
     }
 
     let output_run = quartz_run_wat(output_path);
-    format!("{}\n{}", output_run.stdout, output_run.stderr)
+    QuartzRunOutput {
+        compile: output_compile,
+        run: Some(output_run),
+    }
 }
 
 #[test]
@@ -95,20 +112,38 @@ fn test_run() -> Result<()> {
         let ext = path.extension().and_then(|s| s.to_str());
         if ext == Some("qz") {
             let stdout_path = path.with_extension("stdout");
+            let stderr_path = path.with_extension("stderr");
             let compiled_path = Path::new("/tmp/compiled.wat");
             let output = quartz_run(path, compiled_path);
 
             if stdout_path.exists() {
-                let expected_fragment = fs::read_to_string(stdout_path)?;
-                assert!(
-                    output.contains(&expected_fragment),
-                    "{}\n{}",
+                let expected = fs::read_to_string(stdout_path)?;
+                let run = output.run.clone().unwrap();
+
+                assert_eq!(
+                    expected,
+                    run.stdout,
+                    "{}\n\n[compile]\n{}\n[run]\n{}",
                     path.display(),
-                    output
+                    output.compile.stdout,
+                    run.stdout,
                 );
-            } else {
-                println!("[stdout] {}", output);
             }
+            if stderr_path.exists() {
+                let expected_fragment = fs::read_to_string(stderr_path)?;
+                let run = output.run.unwrap();
+                let actual = format!("{}\n{}", output.compile.stderr, run.stderr);
+
+                assert!(
+                    actual.contains(&expected_fragment),
+                    "{}\n\n[expected]\n{}\n[actual]\n{}\n",
+                    path.display(),
+                    expected_fragment,
+                    actual,
+                );
+            }
+
+            let _ = std::fs::remove_file(compiled_path);
         }
     }
 
