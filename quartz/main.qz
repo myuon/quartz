@@ -319,13 +319,16 @@ fun start(): nil or error {
 
         let result or err = run(compiler, input, path, entrypoint, validate_address, compiler_version, compile.test);
         if err != nil {
-            println("Error: {}", err!.message);
-            for detail in err!.detail {
-                println("  {}", derive::to_string(detail));
-            }
-            println("");
+            write_string(fd_stderr, format("Error: {}", err!.message));
+            write_string(fd_stderr, "\n");
 
-            panic(err!.message);
+            for detail in err!.detail {
+                write_string(fd_stderr, "  {}".format(derive::to_string(detail)));
+                write_string(fd_stderr, "\n");
+            }
+            write_string(fd_stderr, "\n");
+
+            return nil;
         }
 
         println("compiled: writing wat to {}", compile.output!);

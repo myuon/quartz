@@ -1,0 +1,6 @@
+fun main(): byte {
+    let a = "hello";
+
+    return a.at(3);
+}
+

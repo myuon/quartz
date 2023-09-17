@@ -38,7 +38,7 @@ module Parser {
         let decls = make[vec[LDecl]]();
         let prev = 0;
 
-        while !self.is_end() && !self.peek().lexeme.equal("rbrace") {
+        while !self.is_end() && !self.peek().try.lexeme.equal("rbrace") {
             let position = self.position;
             let result or err = self.decl();
             if result != nil || !self.skip_errors {
@@ -60,7 +60,7 @@ module Parser {
     }
 
     fun decl(self): LDecl or error {
-        let token = self.peek();
+        let token = self.peek().try;
         if token.lexeme.equal("fun") {
             let func = self.function().try;
 
@@ -131,7 +131,7 @@ module Parser {
             };
         } else if token.lexeme == "declare" {
             let start_token = self.expect("declare").try;
-            let token = self.peek();
+            let token = self.peek().try;
             if token.lexeme.equal("fun") {
                 self.expect("fun").try;
                 let name = self.ident().try;
@@ -142,8 +142,8 @@ module Parser {
                 let result_type = Type {
                     t_nil: true,
                 };
-                if self.peek().lexeme.equal("colon") {
-                    self.consume();
+                if self.peek().try.lexeme.equal("colon") {
+                    self.consume().try;
                     result_type = self.type_().try.data;
                 }
 
@@ -174,7 +174,7 @@ module Parser {
     fun path(self): Path or error {
         let path = make[vec[string]](self.ident().try.data);
         while true {
-            if self.peek().lexeme.equal("double_colon") {
+            if self.peek().try.lexeme.equal("double_colon") {
                 self.expect("double_colon").try;
                 path.push(self.ident().try.data);
             } else {
@@ -208,7 +208,7 @@ module Parser {
             location: Location,
         }]]();
 
-        while !self.peek().lexeme.equal("rbrace") {
+        while !self.peek().try.lexeme.equal("rbrace") {
             let name = self.ident().try;
             self.expect("colon").try;
             let t = self.type_().try;
@@ -224,8 +224,8 @@ module Parser {
                 },
             });
 
-            if self.peek().lexeme.equal("comma") {
-                self.consume();
+            if self.peek().try.lexeme.equal("comma") {
+                self.consume().try;
             } else {
                 break;
             }
@@ -267,7 +267,7 @@ module Parser {
             location: Location,
         }]]();
 
-        while !self.peek().lexeme.equal("rbrace") {
+        while !self.peek().try.lexeme.equal("rbrace") {
             let name = self.ident().try;
             self.expect("colon").try;
             let t = self.type_().try;
@@ -283,8 +283,8 @@ module Parser {
                 },
             });
 
-            if self.peek().lexeme.equal("comma") {
-                self.consume();
+            if self.peek().try.lexeme.equal("comma") {
+                self.consume().try;
             } else {
                 break;
             }
@@ -341,7 +341,7 @@ module Parser {
         let t = Type {
             t_omit: true,
         };
-        if self.peek().lexeme.equal("colon") {
+        if self.peek().try.lexeme.equal("colon") {
             self.expect("colon").try;
             t = self.type_().try.data;
         }
@@ -375,8 +375,8 @@ module Parser {
         let result_type = Type {
             t_nil: true,
         };
-        if self.peek().lexeme.equal("colon") {
-            self.consume();
+        if self.peek().try.lexeme.equal("colon") {
+            self.consume().try;
             result_type = self.type_().try.data;
         }
 
@@ -421,8 +421,8 @@ module Parser {
             type_: Type,
         }?;
 
-        while !self.is_end() && !self.peek().lexeme.equal("rparen") {
-            if self.peek().lexeme.equal("self") {
+        while !self.is_end() && !self.peek().try.lexeme.equal("rparen") {
+            if self.peek().try.lexeme.equal("self") {
                 self.expect("self").try;
                 params.push(struct {
                     name: "self",
@@ -430,7 +430,7 @@ module Parser {
                         t_omit: true,
                     },
                 });
-            } else if self.peek().lexeme.equal("double_dot") {
+            } else if self.peek().try.lexeme.equal("double_dot") {
                 self.expect("double_dot").try;
                 let name = self.ident().try;
                 self.expect("colon").try;
@@ -451,8 +451,8 @@ module Parser {
                 });
             }
 
-            if self.peek().lexeme.equal("comma") {
-                self.consume();
+            if self.peek().try.lexeme.equal("comma") {
+                self.consume().try;
             }
         }
 
@@ -466,7 +466,7 @@ module Parser {
         let current = self.type_primitive().try;
 
         while true {
-            let token = self.peek();
+            let token = self.peek().try;
             if token.lexeme.equal("question") {
                 self.expect("question").try;
 
@@ -501,7 +501,7 @@ module Parser {
     }
 
     fun type_primitive(self): LType or error {
-        let token = self.consume();
+        let token = self.consume().try;
         if token.lexeme.equal("ident") {
             if token.string_value!.equal("i32") {
                 return LType {
@@ -595,7 +595,7 @@ module Parser {
                 location: Location,
             }]]();
 
-            while !self.peek().lexeme.equal("rbrace") {
+            while !self.peek().try.lexeme.equal("rbrace") {
                 let name = self.ident().try;
                 self.expect("colon").try;
                 let t = self.type_().try;
@@ -611,8 +611,8 @@ module Parser {
                     },
                 });
 
-                if self.peek().lexeme.equal("comma") {
-                    self.consume();
+                if self.peek().try.lexeme.equal("comma") {
+                    self.consume().try;
                 } else {
                     break;
                 }
@@ -640,7 +640,11 @@ module Parser {
         }
     }
 
-    fun peek(self): Token {
+    fun peek(self): Token or error {
+        if self.position >= self.input.length {
+            return _ or error::new("Unexpected end of input");
+        }
+
         return self.input.at(self.position);
     }
 
@@ -648,17 +652,17 @@ module Parser {
         return self.position >= self.input.length;
     }
 
-    fun consume(self): Token {
-        let token = self.peek();
+    fun consume(self): Token or error {
+        let token = self.peek().try;
         self.position = self.position + 1;
 
         return token;
     }
 
     fun ident(self): Ident or error {
-        let token = self.peek();
+        let token = self.peek().try;
         if token.lexeme.equal("ident") {
-            self.consume();
+            self.consume().try;
 
             return Ident {
                 data: token.string_value!,
@@ -670,7 +674,7 @@ module Parser {
     }
 
     fun expect(self, lexeme: string): Token or error {
-        let token = self.consume();
+        let token = self.consume().try;
         if token.lexeme.equal(lexeme) {
             return token;
         } else {
@@ -693,7 +697,7 @@ module Parser {
         let prev = 0;
         let start_token = self.expect("lbrace").try;
 
-        while !self.is_end() && !self.peek().lexeme.equal("rbrace") {
+        while !self.is_end() && !self.peek().try.lexeme.equal("rbrace") {
             let result or err = self.statement();
             if result != nil || !self.skip_errors {
                 if err != nil {
@@ -719,7 +723,7 @@ module Parser {
     }
 
     fun statement(self): LStatement or error {
-        let token = self.peek();
+        let token = self.peek().try;
         if token.lexeme.equal("let") {
             return self.let_statement();
         }
@@ -727,16 +731,16 @@ module Parser {
             return self.return_statement();
         }
         if token.lexeme.equal("if") {
-            let start_token = self.consume();
+            let start_token = self.consume().try;
             let condition = self.expression_conditional().try;
             let then_block = self.block().try;
             let end_position = then_block.location.end!;
 
             let else_block = nil as LBlock?;
-            if self.peek().lexeme.equal("else") {
-                self.consume();
+            if self.peek().try.lexeme.equal("else") {
+                self.consume().try;
 
-                if self.peek().lexeme.equal("if") {
+                if self.peek().try.lexeme.equal("if") {
                     let s = self.statement().try;
                     else_block = LBlock {
                         data: Block {
@@ -770,7 +774,7 @@ module Parser {
             };
         }
         if token.lexeme.equal("while") {
-            let start_token = self.consume();
+            let start_token = self.consume().try;
             let condition = self.expression_conditional().try;
             let block = self.block().try;
 
@@ -811,7 +815,7 @@ module Parser {
                 },
             };
         }
-        if self.peek().lexeme.equal("continue") {
+        if self.peek().try.lexeme.equal("continue") {
             let start_token = self.expect("continue").try;
             let end_token = self.expect("semicolon").try;
 
@@ -822,7 +826,7 @@ module Parser {
                 location: self.span_location(start_token, end_token),
             };
         }
-        if self.peek().lexeme.equal("break") {
+        if self.peek().try.lexeme.equal("break") {
             let start_token = self.expect("break").try;
             let end_token = self.expect("semicolon").try;
 
@@ -833,7 +837,7 @@ module Parser {
                 location: self.span_location(start_token, end_token),
             };
         }
-        if self.peek().lexeme.equal("at") {
+        if self.peek().try.lexeme.equal("at") {
             self.expect("at").try;
             let attr = self.attribute().try;
 
@@ -846,8 +850,8 @@ module Parser {
         }
 
         let expr = self.expression().try;
-        if self.peek().lexeme.equal("semicolon") {
-            self.consume();
+        if self.peek().try.lexeme.equal("semicolon") {
+            self.consume().try;
 
             return LStatement {
                 data: Statement {
@@ -858,8 +862,8 @@ module Parser {
                 location: expr.location,
             };
         }
-        if self.peek().lexeme.equal("equal") {
-            self.consume();
+        if self.peek().try.lexeme.equal("equal") {
+            self.consume().try;
             let rhs = self.expression().try;
             let end_token = self.expect("semicolon").try;
 
@@ -890,9 +894,9 @@ module Parser {
             };
         }
 
-        return _ or error::new(format("Unexpected token {} (statement)", self.peek().to_string())).context(ErrorSource {
+        return _ or error::new(format("Unexpected token {} (statement)", self.peek().try.to_string())).context(ErrorSource {
             path: Path::new("<no module>"),
-            location: self.peek().location,
+            location: self.peek().try.location,
         });
     }
 
@@ -901,11 +905,11 @@ module Parser {
 
         let attrs = make[vec[Attribute]]();
 
-        while self.peek().lexeme != "rbracket" {
+        while self.peek().try.lexeme != "rbracket" {
             let attr = self.attribute_inner().try;
             attrs.push(attr);
 
-            if self.peek().lexeme.equal("comma") {
+            if self.peek().try.lexeme.equal("comma") {
                 self.expect("comma").try;
             } else {
                 break;
@@ -944,14 +948,14 @@ module Parser {
 
         let args = make[vec[LExpression]]();
 
-        if self.peek().lexeme == "lparen" {
+        if self.peek().try.lexeme == "lparen" {
             let lparen = self.expect("lparen").try;
 
-            while self.peek().lexeme != "rparen" {
+            while self.peek().try.lexeme != "rparen" {
                 let expr = self.expression().try;
                 args.push(expr);
 
-                if self.peek().lexeme.equal("comma") {
+                if self.peek().try.lexeme.equal("comma") {
                     self.expect("comma").try;
                 } else {
                     break;
@@ -978,7 +982,7 @@ module Parser {
         let t = Type {
             t_omit: true,
         };
-        if self.peek().lexeme.equal("colon") {
+        if self.peek().try.lexeme.equal("colon") {
             self.expect("colon").try;
             t = self.type_().try.data;
         }
@@ -1008,8 +1012,8 @@ module Parser {
             location: Location::unknown(),
         };
 
-        if self.peek().lexeme.equal("underscore") {
-            let token = self.consume();
+        if self.peek().try.lexeme.equal("underscore") {
+            let token = self.consume().try;
 
             current = LPattern {
                 data: Pattern {
@@ -1030,8 +1034,8 @@ module Parser {
             };
         }
 
-        if self.peek().lexeme.equal("or") {
-            self.consume();
+        if self.peek().try.lexeme.equal("or") {
+            self.consume().try;
             let rhs = self.pattern().try;
 
             return LPattern {
@@ -1055,7 +1059,7 @@ module Parser {
     fun return_statement(self): LStatement or error {
         let start_token = self.expect("return").try;
 
-        if self.peek().lexeme.equal("semicolon") {
+        if self.peek().try.lexeme.equal("semicolon") {
             let end_token = self.expect("semicolon").try;
 
             return LStatement {
@@ -1097,7 +1101,7 @@ module Parser {
     fun term_5(self, with_struct: bool): LExpression or error {
         let current = self.term_4(with_struct).try;
         while true {
-            if self.peek().lexeme.equal("double_amp") {
+            if self.peek().try.lexeme.equal("double_amp") {
                 self.expect("double_amp").try;
                 let rhs = self.term_4(with_struct).try;
 
@@ -1115,7 +1119,7 @@ module Parser {
                         end: rhs.location.end,
                     },
                 };
-            } else if self.peek().lexeme.equal("double_pipe") {
+            } else if self.peek().try.lexeme.equal("double_pipe") {
                 self.expect("double_pipe").try;
                 let rhs = self.term_4(with_struct).try;
 
@@ -1133,7 +1137,7 @@ module Parser {
                         end: rhs.location.end,
                     },
                 };
-            } else if self.peek().lexeme.equal("or") {
+            } else if self.peek().try.lexeme.equal("or") {
                 self.expect("or").try;
                 let lhs = current?;
                 if lhs!.data.t_omit != nil {
@@ -1176,7 +1180,7 @@ module Parser {
         let current = self.term_3(with_struct).try;
 
         while true {
-            if self.peek().lexeme.equal("double_equal") {
+            if self.peek().try.lexeme.equal("double_equal") {
                 self.expect("double_equal").try;
 
                 let rhs = self.term_3(with_struct).try;
@@ -1196,7 +1200,7 @@ module Parser {
                     },
                 };
                 continue;
-            } else if self.peek().lexeme.equal("not_equal") {
+            } else if self.peek().try.lexeme.equal("not_equal") {
                 self.expect("not_equal").try;
 
                 let rhs = self.term_3(with_struct).try;
@@ -1225,7 +1229,7 @@ module Parser {
     fun term_3(self, with_struct: bool): LExpression or error {
         let current = self.term_2(with_struct).try;
 
-        if self.peek().lexeme.equal("lt") {
+        if self.peek().try.lexeme.equal("lt") {
             self.expect("lt").try;
 
             let rhs = self.term_2(with_struct).try;
@@ -1244,7 +1248,7 @@ module Parser {
                     end: rhs.location.end,
                 },
             };
-        } else if self.peek().lexeme.equal("gt") {
+        } else if self.peek().try.lexeme.equal("gt") {
             self.expect("gt").try;
 
             let rhs = self.term_2(with_struct).try;
@@ -1263,7 +1267,7 @@ module Parser {
                     end: rhs.location.end,
                 },
             };
-        } else if self.peek().lexeme.equal("gte") {
+        } else if self.peek().try.lexeme.equal("gte") {
             self.expect("gte").try;
 
             let rhs = self.term_2(with_struct).try;
@@ -1282,7 +1286,7 @@ module Parser {
                     end: rhs.location.end,
                 },
             };
-        } else if self.peek().lexeme.equal("lte") {
+        } else if self.peek().try.lexeme.equal("lte") {
             self.expect("lte").try;
 
             let rhs = self.term_2(with_struct).try;
@@ -1301,7 +1305,7 @@ module Parser {
                     end: rhs.location.end,
                 },
             };
-        } else if self.peek().lexeme.equal("double_dot") {
+        } else if self.peek().try.lexeme.equal("double_dot") {
             self.expect("double_dot").try;
             let expr = self.term_3(with_struct).try;
 
@@ -1326,7 +1330,7 @@ module Parser {
         let current = self.term_1(with_struct).try;
 
         while true {
-            if self.peek().lexeme.equal("plus") {
+            if self.peek().try.lexeme.equal("plus") {
                 self.expect("plus").try;
 
                 let rhs = self.term_1(with_struct).try;
@@ -1347,7 +1351,7 @@ module Parser {
                 };
                 continue;
             }
-            if self.peek().lexeme.equal("minus") {
+            if self.peek().try.lexeme.equal("minus") {
                 self.expect("minus").try;
 
                 let rhs = self.term_1(with_struct).try;
@@ -1368,7 +1372,7 @@ module Parser {
                 };
                 continue;
             }
-            if self.peek().lexeme.equal("as") {
+            if self.peek().try.lexeme.equal("as") {
                 let end_token = self.expect("as").try;
                 let t = self.type_().try;
 
@@ -1389,7 +1393,7 @@ module Parser {
                 };
                 continue;
             }
-            if self.peek().lexeme.equal("bit_and") {
+            if self.peek().try.lexeme.equal("bit_and") {
                 self.expect("bit_and").try;
 
                 let rhs = self.term_4(with_struct).try;
@@ -1410,7 +1414,7 @@ module Parser {
                 };
                 continue;
             }
-            if self.peek().lexeme.equal("bit_or") {
+            if self.peek().try.lexeme.equal("bit_or") {
                 self.expect("bit_or").try;
 
                 let rhs = self.term_4(with_struct).try;
@@ -1440,7 +1444,7 @@ module Parser {
         let current = self.term_0(with_struct).try;
 
         while true {
-            if self.peek().lexeme.equal("star") {
+            if self.peek().try.lexeme.equal("star") {
                 self.expect("star").try;
 
                 let rhs = self.term_1(with_struct).try;
@@ -1460,7 +1464,7 @@ module Parser {
                     },
                 };
                 continue;
-            } else if self.peek().lexeme.equal("slash") {
+            } else if self.peek().try.lexeme.equal("slash") {
                 self.expect("slash").try;
 
                 let rhs = self.term_1(with_struct).try;
@@ -1480,7 +1484,7 @@ module Parser {
                     },
                 };
                 continue;
-            } else if self.peek().lexeme.equal("percent") {
+            } else if self.peek().try.lexeme.equal("percent") {
                 self.expect("percent").try;
 
                 let rhs = self.term_1(with_struct).try;
@@ -1500,7 +1504,7 @@ module Parser {
                     },
                 };
                 continue;
-            } else if self.peek().lexeme.equal("bit_shift_left") {
+            } else if self.peek().try.lexeme.equal("bit_shift_left") {
                 self.expect("bit_shift_left").try;
 
                 let rhs = self.term_1(with_struct).try;
@@ -1520,7 +1524,7 @@ module Parser {
                     },
                 };
                 continue;
-            } else if self.peek().lexeme.equal("bit_shift_right") {
+            } else if self.peek().try.lexeme.equal("bit_shift_right") {
                 self.expect("bit_shift_right").try;
 
                 let rhs = self.term_1(with_struct).try;
@@ -1550,16 +1554,16 @@ module Parser {
         let current = self.term_0_1(with_struct).try;
 
         while true {
-            let token = self.peek();
+            let token = self.peek().try;
 
             if token.lexeme.equal("lparen") {
                 self.expect("lparen").try;
 
                 let args = make[vec[LExpression]]();
                 let expansion = nil as LExpression?;
-                while !self.peek().lexeme.equal("rparen") {
+                while !self.peek().try.lexeme.equal("rparen") {
                     // expansion
-                    if self.peek().lexeme.equal("double_dot") {
+                    if self.peek().try.lexeme.equal("double_dot") {
                         self.expect("double_dot").try;
                         expansion = self.expression().try?;
                         break;
@@ -1567,7 +1571,7 @@ module Parser {
 
                     args.push(self.expression().try);
 
-                    if self.peek().lexeme.equal("comma") {
+                    if self.peek().try.lexeme.equal("comma") {
                         self.expect("comma").try;
                     } else {
                         break;
@@ -1615,7 +1619,7 @@ module Parser {
 
                 let expansion = nil as LExpression?;
 
-                while !self.peek().lexeme.equal("rbrace") {
+                while !self.peek().try.lexeme.equal("rbrace") {
                     let field = self.ident().try;
                     self.expect("colon").try;
                     let value = self.expression().try;
@@ -1625,14 +1629,14 @@ module Parser {
                         value: value,
                     });
 
-                    if self.peek().lexeme.equal("comma") {
+                    if self.peek().try.lexeme.equal("comma") {
                         self.expect("comma").try;
 
-                        if self.peek().lexeme.equal("double_dot") {
+                        if self.peek().try.lexeme.equal("double_dot") {
                             self.expect("double_dot").try;
                             expansion = self.expression().try?;
 
-                            if self.peek().lexeme.equal("comma") {
+                            if self.peek().try.lexeme.equal("comma") {
                                 self.expect("comma").try;
                             }
 
@@ -1672,10 +1676,10 @@ module Parser {
 
                 self.expect("lparen").try;
                 let args = make[vec[LExpression]]();
-                while !self.peek().lexeme.equal("rparen") {
+                while !self.peek().try.lexeme.equal("rparen") {
                     args.push(self.expression().try);
 
-                    if self.peek().lexeme.equal("comma") {
+                    if self.peek().try.lexeme.equal("comma") {
                         self.expect("comma").try;
                     } else {
                         break;
@@ -1782,7 +1786,7 @@ module Parser {
     }
 
     fun term_0_1(self, with_struct: bool): LExpression or error {
-        if self.peek().lexeme.equal("ident") {
+        if self.peek().try.lexeme.equal("ident") {
             let name = self.ident().try;
 
             return LExpression {
@@ -1795,8 +1799,8 @@ module Parser {
                 location: name.location,
             };
         }
-        if self.peek().lexeme.equal("number") {
-            let token = self.consume();
+        if self.peek().try.lexeme.equal("number") {
+            let token = self.consume().try;
             if token.string_value!.compare_lte("2147483647") {
                 return LExpression {
                     data: Expression {
@@ -1819,7 +1823,7 @@ module Parser {
                 return _ or error::new(format("Invalid number {}", token.string_value!));
             }
         }
-        if self.peek().lexeme.equal("self") {
+        if self.peek().try.lexeme.equal("self") {
             let token = self.expect("self").try;
 
             return LExpression {
@@ -1829,8 +1833,8 @@ module Parser {
                 location: token.location,
             };
         }
-        if self.peek().lexeme.equal("string") {
-            let token = self.consume();
+        if self.peek().try.lexeme.equal("string") {
+            let token = self.consume().try;
 
             return LExpression {
                 data: Expression {
@@ -1842,8 +1846,8 @@ module Parser {
                 location: token.location,
             };
         }
-        if self.peek().lexeme.equal("raw_string") {
-            let token = self.consume();
+        if self.peek().try.lexeme.equal("raw_string") {
+            let token = self.consume().try;
 
             return LExpression {
                 data: Expression {
@@ -1855,7 +1859,7 @@ module Parser {
                 location: token.location,
             };
         }
-        if self.peek().lexeme.equal("lparen") {
+        if self.peek().try.lexeme.equal("lparen") {
             let start_token = self.expect("lparen").try;
 
             let expr = self.expression().try;
@@ -1869,7 +1873,7 @@ module Parser {
                 location: self.span_location(start_token, end_token),
             };
         }
-        if self.peek().lexeme.equal("bang") {
+        if self.peek().try.lexeme.equal("bang") {
             let start_token = self.expect("bang").try;
 
             let expr = self.term_0(with_struct).try;
@@ -1887,7 +1891,7 @@ module Parser {
                 },
             };
         }
-        if self.peek().lexeme.equal("true") {
+        if self.peek().try.lexeme.equal("true") {
             let token = self.expect("true").try;
 
             return LExpression {
@@ -1897,7 +1901,7 @@ module Parser {
                 location: token.location,
             };
         }
-        if self.peek().lexeme.equal("false") {
+        if self.peek().try.lexeme.equal("false") {
             let token = self.expect("false").try;
 
             return LExpression {
@@ -1907,7 +1911,7 @@ module Parser {
                 location: token.location,
             };
         }
-        if self.peek().lexeme.equal("nil") {
+        if self.peek().try.lexeme.equal("nil") {
             let token = self.expect("nil").try;
 
             return LExpression {
@@ -1917,7 +1921,7 @@ module Parser {
                 location: token.location,
             };
         }
-        if self.peek().lexeme.equal("struct") {
+        if self.peek().try.lexeme.equal("struct") {
             let start_token = self.expect("struct").try;
             self.expect("lbrace").try;
 
@@ -1929,7 +1933,7 @@ module Parser {
                 location: Location,
             }]]();
 
-            while !self.peek().lexeme.equal("rbrace") {
+            while !self.peek().try.lexeme.equal("rbrace") {
                 let ident = self.ident().try;
                 let colon_token = self.expect("colon").try;
                 let value = self.expression().try;
@@ -1945,7 +1949,7 @@ module Parser {
                     },
                 });
 
-                if self.peek().lexeme.equal("comma") {
+                if self.peek().try.lexeme.equal("comma") {
                     self.expect("comma").try;
                 } else {
                     break;
@@ -1963,7 +1967,7 @@ module Parser {
                 location: self.span_location(start_token, end_token),
             };
         }
-        if self.peek().lexeme.equal("underscore") {
+        if self.peek().try.lexeme.equal("underscore") {
             let token = self.expect("underscore").try;
 
             return LExpression {
@@ -1974,11 +1978,11 @@ module Parser {
             };
         }
 
-        return _ or error::new(format("Unexpected token {} (term)", self.peek().lexeme.to_string()));
+        return _ or error::new(format("Unexpected token {} (term)", self.peek().try.lexeme.to_string()));
     }
 
     fun dot_after(self, current: LExpression): LExpression or error {
-        if self.peek().lexeme.equal("try") {
+        if self.peek().try.lexeme.equal("try") {
             let end_token = self.expect("try").try;
 
             return LExpression {

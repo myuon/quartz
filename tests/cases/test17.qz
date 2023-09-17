@@ -1,0 +1,10 @@
+fun hoge(): string? {
+    return "hoge"?;
+}
+
+fun main(): bool {
+    let t = hoge();
+
+    return t != nil;
+}
+

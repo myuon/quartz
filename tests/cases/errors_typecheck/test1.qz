@@ -1,0 +1,5 @@
+fun t() {
+    let s = 10;
+    println(s);
+}
+

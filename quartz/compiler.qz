@@ -9,6 +9,7 @@ import quartz::ir;
 import quartz::value;
 import quartz::location;
 import quartz::preprocessor;
+import quartz::ir_path::let_call;
 
 struct LoadedModule {
     path: Path,
@@ -187,6 +188,8 @@ module Compiler {
         let irgen = IrCodeGenerator::new(test_mode, "main_{}".format(entrypoint));
         irgen.globals = typechecker.globals;
         let term = irgen.run(module_).try;
+
+        term = transform_let_call(term);
 
         let gen = Generator::new(validate_address);
         gen.set_globals(typechecker.globals);
