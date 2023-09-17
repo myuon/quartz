@@ -24,11 +24,11 @@ let _bp: u32 = 1610612736 as u32;
 
 @[no_allocation]
 fun push_memstack(value: ptr[any]) {
-    if !_reflection_is_pointer(value) {
-        debug(error_not_an_pointer);
-        debug(value);
-        abort();
-    }
+    // if !_reflection_is_pointer(value) {
+    //     debug(error_not_an_pointer);
+    //     debug(value);
+    //     abort();
+    // }
 
     let sp_ptr = _sp as ptr[ptr[byte]];
     sp_ptr.at(0) = value;
