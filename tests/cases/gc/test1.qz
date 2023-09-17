@@ -1,0 +1,22 @@
+struct P {
+    x: i32,
+}
+
+fun g(arg1: P): P {
+    perform_gc();
+
+    return arg1;
+}
+
+fun main(): bool {
+    let k = g(P {
+        x: 12345,
+    });
+
+    let l = P {
+        x: 67890,
+    };
+
+    let object = Header::from_data_ptr(k as ptr[byte]);
+    return object.get_is_free();
+}
