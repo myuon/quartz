@@ -1,0 +1,120 @@
+struct LetCallTransformer {
+    count: i32,
+    function_body: vec[IrTerm],
+}
+
+module LetCallTransformer {
+    fun new(): LetCallTransformer {
+        return LetCallTransformer {
+            count: 0,
+            function_body: make[vec[IrTerm]](),
+        };
+    }
+
+    fun run(self, term: IrTerm): IrTerm {
+        let result = make[vec[IrTerm]]();
+
+        if term.t_module != nil {
+            result.extend(self.decls(term.t_module!.elements));
+        }
+
+        return IrTerm {
+            t_module: struct {
+                elements: result,
+            },
+        };
+    }
+
+    fun decls(self, decls: vec[IrTerm]): vec[IrTerm] {
+        let result = make[vec[IrTerm]]();
+
+        for decl in decls {
+            if decl.t_func != nil {
+                result.push(self.function(decl.t_func!));
+            } else if decl.t_module != nil {
+                result.push(IrTerm {
+                    t_module: struct {
+                        elements: self.decls(decl.t_module!.elements)
+                    },
+                });
+            } else {
+                result.push(decl);
+            }
+        }
+
+        return result;
+    }
+
+    fun function(self, func: IrFunc): IrTerm {
+        self.function_body = make[vec[IrTerm]]();
+
+        self.expressions(func.body);
+
+        return IrTerm {
+            t_func: IrFunc {
+                name: func.name,
+                params: func.params,
+                result_type: func.result_type,
+                body: self.function_body,
+                ffi_export: func.ffi_export,
+            },
+        };
+    }
+
+    fun expressions(self, terms: vec[IrTerm]) {
+        for term in terms {
+            let t = self.expression(term);
+            self.function_body.push(t);
+        }
+    }
+
+    fun expression(self, term: IrTerm): IrTerm {
+        if term.t_call != nil {
+            let args = make[vec[IrTerm]]();
+            let var_name_template = "__let_call_{}";
+
+            for arg in term.t_call!.args {
+                let var_name = var_name_template.format(self.count.to_string());
+                self.count = self.count + 1;
+
+                let rhs = self.expression(arg);
+
+                self.function_body.push(IrTerm {
+                    t_let: IrLet {
+                        name: var_name,
+                        type_: IrType {
+                            t_any: true,
+                        },
+                        value: rhs,
+                    },
+                });
+
+                args.push(IrTerm {
+                    t_ident: var_name,
+                });
+            }
+
+            return IrTerm {
+                t_call: IrCall {
+                    callee: term.t_call!.callee,
+                    args: args,
+                },
+            };
+        } else if term.t_let != nil {
+            return IrTerm {
+                t_let: IrLet {
+                name: term.t_let!.name,
+                type_: term.t_let!.type_,
+                value: self.expression(term.t_let!.value),
+            }};
+        } else {
+            return term;
+        }
+    }
+}
+
+fun transform_let_call(ir: IrTerm): IrTerm {
+    let transformer = LetCallTransformer::new();
+
+    return transformer.run(ir);
+}
