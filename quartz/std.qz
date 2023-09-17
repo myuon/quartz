@@ -1901,9 +1901,3 @@ fun assert(a: bool) {
         panic("assert failed");
     }
 }
-
-@[build_if(version == "2.10.0")]
-fun t() {
-    let s = 10;
-    println(s);
-}

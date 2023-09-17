@@ -160,7 +160,7 @@ module Compiler {
                     let source = detail as ErrorSource;
 
                     let input_to_inspect = input;
-                    if main_path != source.path {
+                    if main_path.join("_") != source.path.join("_") {
                         let loaded = self.matches(source.path);
                         if loaded == nil {
                             panic("module not found");
@@ -169,10 +169,10 @@ module Compiler {
                         input_to_inspect = loaded!.source;
                     }
 
-                    let start_position = find_position(input_to_inspect, source.location.start!);
-                    let end_position = find_position(input_to_inspect, source.location.end!);
+                    let line_counts = input_to_inspect.line_counts();
 
-                    debug(9);
+                    let start_position = find_position_with_line_counts(line_counts, source.location.start!);
+                    let end_position = find_position_with_line_counts(line_counts, source.location.end!);
 
                     err_internal = err_internal.context(struct {
                         path: source.path,
@@ -424,9 +424,19 @@ fun find_position(
     line: i32,
     column: i32,
 } {
+    return find_position_with_line_counts(input.line_counts(), position);
+}
+
+fun find_position_with_line_counts(
+    line_counts: vec[i32],
+    position: i32,
+): struct {
+    line: i32,
+    column: i32,
+} {
     let line_number = 0;
     let count = 0;
-    for line in input.line_counts() {
+    for line in line_counts {
         if count + line + 1 > position {
             break;
         }
