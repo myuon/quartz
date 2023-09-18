@@ -276,6 +276,16 @@ module IrCodeGenerator {
                 }),
             ),
         ));
+        self.type_reps.get_or_insert(InternalTypeRep::from_name("string", make[vec[InternalTypeRep]]()));
+        self.type_reps.get_or_insert(InternalTypeRep::from_name(
+            "slice",
+            make[vec[InternalTypeRep]](InternalTypeRep::from_name("string", make[vec[InternalTypeRep]]())),
+        ));
+        self.type_reps.get_or_insert(InternalTypeRep::from_name("TypeRep", make[vec[InternalTypeRep]]()));
+        self.type_reps.get_or_insert(InternalTypeRep::from_name(
+            "slice",
+            make[vec[InternalTypeRep]](InternalTypeRep::from_name("TypeRep", make[vec[InternalTypeRep]]())),
+        ));
 
         // Register declared types
         for k in self.globals.list_keys() {
@@ -324,6 +334,8 @@ module IrCodeGenerator {
         }
 
         let decls = self.module_(m).try;
+
+        let type_rep_count = self.type_reps.type_reps.length;
         decls.push(self.generate_prepare_type_reps().try);
         decls.extend(self.generate_prepare_strings().try);
 
@@ -410,6 +422,8 @@ module IrCodeGenerator {
                 },
             });
         }
+
+        assert_eq(self.type_reps.type_reps.length, type_rep_count);
 
         return IrTerm {
             t_module: struct {

@@ -1737,14 +1737,7 @@ fun mark(value: any) {
 
         header.set_is_marked(true);
 
-        debug(header);
-        debug(header.get_type_rep());
-
         let rep = (header.get_type_rep() as ptr[TypeRep]).at(0);
-        // FIXME: Why is this necessary?
-        // if !types::is_pointer(rep) {
-        //     return;
-        // }
         if rep.nilptr != nil {
             debug(error_invalid_type);
             debug(rep.nilptr);
