@@ -1,16 +1,49 @@
 use std::io::Write;
 
 use anyhow::{anyhow, Result};
-use wasmer::{imports, Function, Instance, Module, Store, Value as WasmValue};
+use wasmer::{imports, Function, Instance, MemoryView, Module, Store, Value as WasmValue};
 use wasmer_wasi::WasiState;
 
 use crate::value::Value;
+
+#[derive(Debug, Clone, Copy)]
+struct ExitCode(u32);
+
+impl std::fmt::Display for ExitCode {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl std::error::Error for ExitCode {}
 
 pub struct Runtime {}
 
 impl Runtime {
     pub fn new() -> Runtime {
         Runtime {}
+    }
+
+    fn dump_memory(view: MemoryView) -> Result<()> {
+        if let Ok(file_path) = std::env::var("MEMORY_DUMP_FILE") {
+            let mut file = std::fs::File::create(file_path.clone()).unwrap();
+
+            let mut offset = 0;
+            let mut chunk = [0u8; 40960];
+            while offset < view.data_size() {
+                let remaining = view.data_size() - offset;
+                let sublen = remaining.min(chunk.len() as u64) as usize;
+                view.read(offset, &mut chunk[..sublen])?;
+
+                file.write_all(&chunk[..sublen]).unwrap();
+
+                offset += sublen as u64;
+            }
+
+            println!("Memory dumped to file: {}", file_path);
+        }
+
+        Ok(())
     }
 
     pub fn _run(&mut self, wat: &str) -> Result<Box<[WasmValue]>> {
@@ -30,6 +63,12 @@ impl Runtime {
             .finalize(&mut store)?;
         let wasi_import_object = wasi_func_env.import_object(&mut store, &module)?;
 
+        fn abort() -> Result<i64, ExitCode> {
+            println!("[ABORT]");
+
+            Err(ExitCode(1))
+        }
+
         let mut import_object = imports! {
             "env" => {
                 "debug" => Function::new_typed(&mut store, |i: i64| {
@@ -41,9 +80,7 @@ impl Runtime {
                     }, (i >> 32) as i32, i & 0xffffffff);
                     Value::i32(0).as_i64()
                 }),
-                "abort" => Function::new_typed(&mut store, || -> i64 {
-                    panic!("[ABORT]");
-                }),
+                "abort" => Function::new_typed(&mut store, abort),
                 // @Deprecated: will be removed in 2.3.0+
                 "i64_to_string_at" => Function::new_typed(&mut store, |a_value: i64, b_value: i64, at_value: i64| {
                     let a = Value::from_i64(a_value).as_i32().unwrap();
@@ -67,28 +104,16 @@ impl Runtime {
         wasi_func_env.initialize(&mut store, &instance)?;
 
         let main = instance.exports.get_function("main")?;
-        let result = main.call(&mut store, &[])?;
+        let result = main
+            .call(&mut store, &[])
+            .map_err(|err| anyhow!("calling main: {:?}", err));
 
-        if let Ok(file_path) = std::env::var("MEMORY_DUMP_FILE") {
-            let memory = instance.exports.get_memory("memory")?;
-            let view = memory.view(&mut store);
+        let memory = instance.exports.get_memory("memory")?;
+        let view = memory.view(&mut store);
 
-            let mut file = std::fs::File::create(file_path).unwrap();
+        Runtime::dump_memory(view)?;
 
-            let mut offset = 0;
-            let mut chunk = [0u8; 40960];
-            while offset < view.data_size() {
-                let remaining = view.data_size() - offset;
-                let sublen = remaining.min(chunk.len() as u64) as usize;
-                view.read(offset, &mut chunk[..sublen])?;
-
-                file.write_all(&chunk[..sublen]).unwrap();
-
-                offset += sublen as u64;
-            }
-        }
-
-        Ok(result)
+        result
     }
 
     pub fn run(&mut self, input: &str) -> Result<Box<[WasmValue]>> {
