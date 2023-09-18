@@ -33,7 +33,7 @@ build_current_compiler:
 run file options="":
   @just build_current_compiler
   MODE=run-wat WAT_FILE=./build/quartz-current.wat cargo run --release -- compile {{options}} -o ./build/quartz-compiled.wat {{file}}
-  MODE=run-wat WAT_FILE=./build/quartz-compiled.wat cargo run --release
+  MEMORY_DUMP_FILE=./build/memory/memory.dat MODE=run-wat WAT_FILE=./build/quartz-compiled.wat cargo run --release
 
 test file options="":
   @just build_current_compiler
