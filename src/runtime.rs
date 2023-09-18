@@ -1,9 +1,7 @@
 use std::io::Write;
 
 use anyhow::{anyhow, Result};
-use wasmer::{
-    imports, Function, Instance, MemoryAccessError, MemoryView, Module, Store, Value as WasmValue,
-};
+use wasmer::{imports, Function, Instance, Module, Store, Value as WasmValue};
 use wasmer_wasi::WasiState;
 
 use crate::value::Value;
@@ -73,29 +71,24 @@ impl Runtime {
 
         if let Ok(file_path) = std::env::var("MEMORY_DUMP_FILE") {
             let memory = instance.exports.get_memory("memory")?;
-            let memory = memory.view(&mut store);
+            let view = memory.view(&mut store);
 
             let mut file = std::fs::File::create(file_path).unwrap();
-            file.write_all(&Runtime::copy_to_vec(&memory).unwrap())
-                .unwrap();
+
+            let mut offset = 0;
+            let mut chunk = [0u8; 40960];
+            while offset < view.data_size() {
+                let remaining = view.data_size() - offset;
+                let sublen = remaining.min(chunk.len() as u64) as usize;
+                view.read(offset, &mut chunk[..sublen])?;
+
+                file.write_all(&chunk[..sublen]).unwrap();
+
+                offset += sublen as u64;
+            }
         }
 
         Ok(result)
-    }
-
-    // Use MemoryView::copy_to_vec
-    fn copy_to_vec(view: &MemoryView) -> Result<Vec<u8>, MemoryAccessError> {
-        let mut new_memory = Vec::new();
-        let mut offset = 0;
-        let mut chunk = [0u8; 40960];
-        while offset < view.data_size() {
-            let remaining = view.data_size() - offset;
-            let sublen = remaining.min(chunk.len() as u64) as usize;
-            view.read(offset, &mut chunk[..sublen])?;
-            new_memory.extend_from_slice(&chunk[..sublen]);
-            offset += sublen as u64;
-        }
-        Ok(new_memory)
     }
 
     pub fn run(&mut self, input: &str) -> Result<Box<[WasmValue]>> {
