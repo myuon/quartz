@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 func appendByteAsHex(bs []byte, b byte) []byte {
@@ -46,10 +47,6 @@ func hexdump(data []byte, offset int, writer io.Writer) {
 			asciiVals := make([]byte, 0, 16)
 			nonZeroFlag := false
 			for _, b := range chunk {
-				// if b < 16 {
-				// 	hexVals = append(hexVals, '0')
-				// }
-				// hexVals = strconv.AppendUint(hexVals, uint64(b), 16)
 				hexVals = appendByteAsHex(hexVals, b)
 				hexVals = append(hexVals, ' ')
 
@@ -150,33 +147,41 @@ func main() {
 		fmt.Printf("Created chunk file: %s\n", chunkFilePath)
 	}
 
+	wg := sync.WaitGroup{}
 	for index, chunkFilePath := range chunkFilePaths {
-		fmt.Printf("Generating hexdump for file: %s\n", chunkFilePath)
+		wg.Add(1)
+		go func(index int, chunkFilePath string) {
+			defer wg.Done()
 
-		chunkFile, err := os.Open(chunkFilePath)
-		if err != nil {
-			panic(err)
-		}
-		defer chunkFile.Close()
+			fmt.Printf("Generating hexdump for file: %s\n", chunkFilePath)
 
-		chunkData := make([]byte, chunkSize)
-		n, err := chunkFile.Read(chunkData)
-		if err != nil && err != io.EOF {
-			panic(err)
-		}
-		chunkData = chunkData[:n]
+			chunkFile, err := os.Open(chunkFilePath)
+			if err != nil {
+				panic(err)
+			}
+			defer chunkFile.Close()
 
-		hexdumpFilePath := fmt.Sprintf("%v.hexdump", chunkFilePath)
-		hexdumpFile, err := os.Create(hexdumpFilePath)
-		if err != nil {
-			panic(err)
-		}
-		writer := bufio.NewWriter(hexdumpFile)
+			chunkData := make([]byte, chunkSize)
+			n, err := chunkFile.Read(chunkData)
+			if err != nil && err != io.EOF {
+				panic(err)
+			}
+			chunkData = chunkData[:n]
 
-		hexdump(chunkData, index*chunkSize, writer)
-		writer.Flush()
-		hexdumpFile.Close()
+			hexdumpFilePath := fmt.Sprintf("%v.hexdump", chunkFilePath)
+			hexdumpFile, err := os.Create(hexdumpFilePath)
+			if err != nil {
+				panic(err)
+			}
+			writer := bufio.NewWriter(hexdumpFile)
 
-		fmt.Printf("Created hexdump file: %s\n", hexdumpFilePath)
+			hexdump(chunkData, index*chunkSize, writer)
+			writer.Flush()
+			hexdumpFile.Close()
+
+			fmt.Printf("Created hexdump file: %s\n", hexdumpFilePath)
+		}(index, chunkFilePath)
 	}
+
+	wg.Wait()
 }
