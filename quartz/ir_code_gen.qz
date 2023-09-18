@@ -221,9 +221,112 @@ module IrCodeGenerator {
     }
 
     fun run(self, m: Module): IrTerm or error {
+        // Register builtin types
+        self.type_reps.get_or_insert(
+            InternalTypeRep::from_ir_type(IrType {
+                t_nil: true,
+            }),
+        );
+        self.type_reps.get_or_insert(
+            InternalTypeRep::from_ir_type(IrType {
+                t_i32: true,
+            }),
+        );
+        self.type_reps.get_or_insert(
+            InternalTypeRep::from_ir_type(IrType {
+                t_address: true,
+            }),
+        );
+        self.type_reps.get_or_insert(
+            InternalTypeRep::from_ir_type(IrType {
+                t_byte: true,
+            }),
+        );
+        self.type_reps.get_or_insert(
+            InternalTypeRep::from_ir_type(IrType {
+                t_any: true,
+            }),
+        );
+        self.type_reps.get_or_insert(
+            InternalTypeRep::from_ir_type(IrType {
+                t_bool: true,
+            }),
+        );
+        self.type_reps.get_or_insert(
+            InternalTypeRep::from_name(
+                "ptr",
+                make[vec[InternalTypeRep]](InternalTypeRep::from_ir_type(IrType {
+                    t_byte: true,
+                })),
+            ),
+        );
+        self.type_reps.get_or_insert(
+            InternalTypeRep::from_name(
+                "ptr",
+                make[vec[InternalTypeRep]](InternalTypeRep::from_ir_type(IrType {
+                    t_byte: true,
+                })),
+            ),
+        );
+        self.type_reps.get_or_insert(
+            InternalTypeRep::from_name(
+                "ptr",
+                make[vec[InternalTypeRep]](InternalTypeRep::from_ir_type(IrType {
+                    t_i32: true,
+                })),
+            ),
+        );
+
+        // Register declared types
+        for k in self.globals.list_keys() {
+            let v = self.globals.at(k);
+            if v.data.t_struct != nil {
+                let fields = make[vec[struct {
+                    name: string,
+                    type_: InternalTypeRep,
+                }]]();
+                for field in v.data.t_struct!.fields {
+                    fields.push(struct {
+                        name: field.data.name,
+                        type_: InternalTypeRep::from_ir_type(IrType::new(field.data.type_)),
+                    });
+                }
+
+                let rep = InternalTypeRep {
+                    kind: typeRepKindStruct,
+                    name: k,
+                    params: make[vec[InternalTypeRep]](),
+                    fields: fields,
+                };
+
+                self.type_reps.get_or_insert(rep);
+            } else if v.data.t_enum != nil {
+                let fields = make[vec[struct {
+                    name: string,
+                    type_: InternalTypeRep,
+                }]]();
+                for field in v.data.t_enum!.fields {
+                    fields.push(struct {
+                        name: field.data.name,
+                        type_: InternalTypeRep::from_ir_type(IrType::new(field.data.type_)),
+                    });
+                }
+
+                let rep = InternalTypeRep {
+                    kind: typeRepKindEnum,
+                    name: k,
+                    params: make[vec[InternalTypeRep]](),
+                    fields: fields,
+                };
+
+                self.type_reps.get_or_insert(rep);
+            }
+        }
+
         let decls = self.module_(m).try;
         decls.push(self.generate_prepare_type_reps().try);
         decls.extend(self.generate_prepare_strings().try);
+
         decls.push(IrTerm {
             t_func: IrFunc {
                 name: "reflection_get_type_rep_id",
@@ -434,9 +537,9 @@ module IrCodeGenerator {
                 wasm_type: wasm_type,
             }?;
         } else {
-            return _ or error::new("invalid result_type, got {}".format(
-                d.declare_wrap!.result_type.to_string(),
-            ));
+            return _ or error::new(
+                "invalid result_type, got {}".format(d.declare_wrap!.result_type.to_string()),
+            );
         }
 
         return IrTerm {
@@ -484,9 +587,7 @@ module IrCodeGenerator {
         } else if d.declare_wrap!.result_type.t_ident != nil && d.declare_wrap!.result_type.t_ident! == "wasm_externref" {
             result_type = "externref";
         } else {
-            return _ or error::new("invalid result_type, {}".format(
-                d.declare_wrap!.result_type.to_string(),
-            ));
+            return _ or error::new("invalid result_type, {}".format(d.declare_wrap!.result_type.to_string()));
         }
 
         return IrTerm {
