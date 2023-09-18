@@ -191,6 +191,8 @@ module Compiler {
 
         term = transform_let_call(term);
 
+        // file_write("quartz.ir", term.to_string());
+
         let gen = Generator::new(validate_address);
         gen.set_globals(typechecker.globals);
         gen.set_strings(irgen.strings.strings);
@@ -199,7 +201,8 @@ module Compiler {
 
         term = gen.fold_consts(term);
 
-        let code = gen.run(term, entrypoint, irgen.data_section_offset);
+        let offset = ((irgen.data_section_offset + 7) / 8) * 8;
+        let code = gen.run(term, entrypoint, offset);
 
         return code;
     }

@@ -98,7 +98,10 @@ enum IrTerm {
 
 module IrTerm {
     fun to_string(self): string {
-        return derive::to_string_pretty(self);
+        let writer = IrTermWriter::new();
+        writer.expression(self);
+
+        return writer.to_string();
     }
 
     fun ident(name: string): IrTerm {
@@ -322,3 +325,242 @@ module IrType {
     }
 }
 
+struct IrTermWriter {
+    writer: stringbuilder,
+    depth: i32,
+    index: i32,
+}
+
+module IrTermWriter {
+    fun new(): IrTermWriter {
+        return IrTermWriter {
+            writer: stringbuilder::new(),
+            depth: 0,
+            index: 0,
+        };
+    }
+
+    fun to_string(self): string {
+        return self.writer.to_string();
+    }
+
+    fun start(self) {
+        self.new_statement();
+        self.write("(");
+        self.depth = self.depth + 1;
+        self.index = 0;
+    }
+
+    fun end(self) {
+        self.depth = self.depth - 1;
+        self.index = 0;
+        self.write(")");
+    }
+
+    fun write(self, str: string) {
+        if self.index == 0 {
+            self.writer.append(str);
+        } else {
+            self.writer.append(" ");
+            self.writer.append(str);
+        }
+        self.index = self.index + 1;
+    }
+
+    fun new_statement(self) {
+        if self.index > 0 {
+            self.writer.append("\n");
+            self.writer.append(" ".repeat(self.depth * 4));
+        }
+        self.index = 0;
+    }
+
+    fun expression(self, term: IrTerm) {
+        if term.t_nil != nil {
+            self.write("nil");
+        } else if term.t_i32 != nil {
+            self.write("{}".format(term.t_i32!.to_string()));
+        } else if term.t_ident != nil {
+            self.write("${}".format(term.t_ident!));
+        } else if term.t_func != nil {
+            self.start();
+            self.write("func ${}".format(term.t_func!.name));
+            for param in term.t_func!.params {
+                self.write("(params ${} {})".format(param.name, param.type_.to_string()));
+            }
+            self.write("(result {})".format(term.t_func!.result_type.to_string()));
+
+            self.start();
+            for t in term.t_func!.body {
+                self.expression(t);
+            }
+            self.end();
+
+            self.end();
+        } else if term.t_call != nil {
+            self.start();
+            self.write("call");
+            self.expression(term.t_call!.callee);
+            for arg in term.t_call!.args {
+                self.expression(arg);
+            }
+            self.end();
+        } else if term.t_let != nil {
+            self.start();
+            self.write("let ${} {}".format(term.t_let!.name, term.t_let!.type_.to_string()));
+            self.expression(term.t_let!.value);
+            self.end();
+        } else if term.t_return != nil {
+            self.start();
+            self.write("return");
+            self.expression(term.t_return!.value);
+            self.end();
+        } else if term.t_global_let != nil {
+            self.start();
+            self.write("global-let ${} {}".format(term.t_global_let!.name, term.t_global_let!.type_.to_string()));
+            self.expression(term.t_global_let!.value);
+            self.end();
+        } else if term.t_module != nil {
+            self.start();
+            self.write("module");
+            for element in term.t_module!.elements {
+                self.expression(element);
+            }
+            self.end();
+        } else if term.t_assign != nil {
+            self.start();
+            self.write("assign");
+            self.write("${}".format(term.t_assign!.lhs));
+            self.expression(term.t_assign!.rhs);
+            self.end();
+        } else if term.t_if != nil {
+            self.start();
+            self.write("if");
+            self.expression(term.t_if!.condition);
+            self.expression(term.t_if!.then_term);
+            self.expression(term.t_if!.else_term);
+            self.end();
+        } else if term.t_while != nil {
+            self.start();
+            self.write("while");
+            self.expression(term.t_while!.condition);
+            self.expression(term.t_while!.block);
+            if term.t_while!.cleanup != nil {
+                self.expression(term.t_while!.cleanup!);
+            }
+        } else if term.t_seq != nil {
+            self.start();
+            self.write("seq");
+            for t in term.t_seq!.terms {
+                self.expression(t);
+            }
+            self.end();
+        } else if term.t_store != nil {
+            self.start();
+            self.write("store");
+            self.write(term.t_store!.type_.to_string());
+            self.expression(term.t_store!.address);
+            self.expression(term.t_store!.offset);
+            self.expression(term.t_store!.value);
+            self.write(term.t_store!.raw_offset.to_string());
+            self.end();
+        } else if term.t_load != nil {
+            self.start();
+            self.write("load");
+            self.write(term.t_load!.type_.to_string());
+            self.expression(term.t_load!.address);
+            self.expression(term.t_load!.offset);
+            self.write(term.t_load!.raw_offset.to_string());
+            self.end();
+        } else if term.t_sizeof != nil {
+            self.start();
+            self.write("sizeof");
+            self.write(term.t_sizeof!.type_.to_string());
+            self.end();
+        } else if term.t_string != nil {
+            self.write("(string {})".format(term.t_string!.to_string()));
+        } else if term.t_data != nil {
+            self.start();
+            self.write("data");
+            self.write(term.t_data!.data);
+            self.write(term.t_data!.offset.to_string());
+            self.end();
+        } else if term.t_discard != nil {
+            self.start();
+            self.write("discard");
+            self.expression(term.t_discard!);
+            self.end();
+        } else if term.t_inst != nil {
+            self.start();
+            self.write("inst");
+            self.write(term.t_inst!);
+            self.end();
+        } else if term.t_bool != nil {
+            self.write(term.t_bool!.to_string());
+        } else if term.t_and != nil {
+            self.start();
+            self.write("and");
+            self.expression(term.t_and!.lhs);
+            self.expression(term.t_and!.rhs);
+            self.end();
+        } else if term.t_or != nil {
+            self.start();
+            self.write("or");
+            self.expression(term.t_or!.lhs);
+            self.expression(term.t_or!.rhs);
+            self.end();
+        } else if term.t_continue != nil {
+            self.write("continue");
+        } else if term.t_break != nil {
+            self.write("break");
+        } else if term.t_size != nil {
+            self.start();
+            self.write("size");
+            self.write(term.t_size!.to_string());
+            self.end();
+        } else if term.t_u32 != nil {
+            self.write(term.t_u32!.to_string());
+        } else if term.t_comment != nil {
+            self.start();
+            self.write("comment");
+            self.write(term.t_comment!);
+            self.end();
+        } else if term.t_type_rep != nil {
+            self.start();
+            self.write("type-rep");
+            self.write(term.t_type_rep!.to_string());
+            self.end();
+        } else if term.t_import != nil {
+            self.start();
+            self.write("import");
+            self.write(term.t_import!.namespace);
+            self.write(term.t_import!.wrap_name);
+            self.write(term.t_import!.import_name);
+
+            self.start();
+            self.write("func-type");
+            for param in term.t_import!.func_type.params {
+                self.write("(param {})".format(param));
+            }
+            self.write("(result {})".format(term.t_import!.func_type.result_type));
+            self.end();
+
+            self.end();
+        } else if term.t_wasm_func != nil {
+            self.start();
+            self.write("wasm-func");
+            self.write(term.t_wasm_func!.name);
+            self.write(term.t_wasm_func!.wrapping_name);
+
+            self.start();
+            self.write("params");
+            for param in term.t_wasm_func!.params {
+                self.write("(param ${} {} {})".format(param.name, param.quartz_type.to_string(), param.wasm_type));
+            }
+            self.write("(result ${} {})".format(term.t_wasm_func!.result_type.quartz_type.to_string(), term.t_wasm_func!.result_type.wasm_type));
+            self.end();
+
+            self.end();
+        }
+    }
+}

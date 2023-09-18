@@ -352,14 +352,14 @@ module i32 {
 @[test]
 fun test_i32_to_string() {
     assert_eq(1234.to_string(), "1234");
-    assert_eq((0-1234).to_string(), "-1234");
+    assert_eq((0 - 1234).to_string(), "-1234");
     assert_eq(0.to_string(), "0");
 }
 
 @[test]
 fun test_i32_parse() {
     assert_eq(i32::parse("1234"), 1234);
-    assert_eq(i32::parse("-1234"), 0-1234);
+    assert_eq(i32::parse("-1234"), 0 - 1234);
     assert_eq(i32::parse("0"), 0);
 }
 
@@ -481,13 +481,19 @@ module i64 {
         }
 
         while n.hi != 0 || n.lo != 0 {
-            let r = n.mod(i64 { hi: 0, lo: 10 });
+            let r = n.mod(i64 {
+                hi: 0,
+                lo: 10,
+            });
             if r.hi != 0 {
                 panic("i64.to_string: r.hi != 0");
             }
 
             result.push((r.lo + 48) as byte);
-            n = n.div(i64 { hi: 0, lo: 10 });
+            n = n.div(i64 {
+                hi: 0,
+                lo: 10,
+            });
         }
 
         return vec_byte_to_string(result).reverse();
@@ -498,6 +504,11 @@ module i64 {
 fun test_i64_to_string() {
     assert_eq((1024 as i64).to_string(), "1024");
     assert_eq((1 as i64).to_string(), "1");
+}
+
+@[test]
+fun test_i64_shift() {
+    assert_eq(((2883584000 as i64) << (32 as i64)).to_string(), "12384898975268864000");
 }
 
 struct string {
@@ -828,10 +839,7 @@ fun test_split() {
     assert_eq("abc".split("abc"), make[vec[string]](""));
     assert_eq("abc".split("def"), make[vec[string]]("abc"));
     assert_eq("abcbdbebfbg".split("b"), make[vec[string]]("a", "c", "d", "e", "f", "g"));
-    assert_eq(
-        "apple/banana/orange/lime".split("/"),
-        make[vec[string]]("apple", "banana", "orange", "lime"),
-    );
+    assert_eq("apple/banana/orange/lime".split("/"), make[vec[string]]("apple", "banana", "orange", "lime"));
 }
 
 @[test]
@@ -1262,7 +1270,7 @@ fun is_a_record(p: ptr[ptr[any]]): bool {
 fun test_is_a_record() {
     assert(!is_a_record(nil as ptr[ptr[any]]));
     assert(!is_a_record(10 as ptr[ptr[any]]));
-    assert(is_a_record(make[vec[i32]](1,2,3) as ptr[ptr[any]]));
+    assert(is_a_record(make[vec[i32]](1, 2, 3) as ptr[ptr[any]]));
     assert(is_a_record("string" as ptr[ptr[any]]));
 }
 
@@ -1457,7 +1465,11 @@ module derive {
                 if k > 0 {
                     s = s.concat(", ");
                 }
-                s = s.concat(format("{}:{}", derive::to_string_internal(key, pretty, depth + 1), derive::to_string_internal(value, pretty, depth + 1)));
+                s = s.concat(format(
+                    "{}:{}",
+                    derive::to_string_internal(key, pretty, depth + 1),
+                    derive::to_string_internal(value, pretty, depth + 1),
+                ));
             }
 
             return s.concat(")");
@@ -1504,7 +1516,10 @@ fun test_derive_to_string() {
     assert_eq(derive::to_string(1), "1");
     assert_eq(derive::to_string(true), "true");
     assert_eq(derive::to_string("abc"), "\"abc\"");
-    assert_eq(derive::to_string(make[vec[string]]("a", "b", "cdef\nghi")), "vec(\"a\", \"b\", \"cdef\nghi\")");
+    assert_eq(
+        derive::to_string(make[vec[string]]("a", "b", "cdef\nghi")),
+        "vec(\"a\", \"b\", \"cdef\nghi\")",
+    );
     assert_eq(
         derive::to_string(struct {
             name: "foo",
@@ -1567,9 +1582,13 @@ enum WasiError {
 module WasiError {
     fun from_errno(code: i32): WasiError {
         if code == 44 {
-            return WasiError { no_entry: true };
+            return WasiError {
+                no_entry: true,
+            };
         } else {
-            return WasiError { unknown: code };
+            return WasiError {
+                unknown: code,
+            };
         }
     }
 }
@@ -1719,10 +1738,6 @@ fun mark(value: any) {
         header.set_is_marked(true);
 
         let rep = (header.get_type_rep() as ptr[TypeRep]).at(0);
-        // FIXME: Why is this necessary?
-        if !types::is_pointer(rep) {
-            return;
-        }
         if rep.nilptr != nil {
             debug(error_invalid_type);
             debug(rep.nilptr);
@@ -1780,7 +1795,7 @@ fun test_types_is_i32() {
     assert(types::is_i32(1));
     assert(!types::is_i32(true));
     assert(!types::is_i32("abc"));
-    assert(!types::is_i32(make[vec[i32]](1,2,3)));
+    assert(!types::is_i32(make[vec[i32]](1, 2, 3)));
 }
 
 @[test]
@@ -1788,7 +1803,7 @@ fun test_types_is_pointer() {
     assert(!types::is_pointer(1));
     assert(!types::is_pointer(true));
     assert(types::is_pointer("abc"));
-    assert(types::is_pointer(make[vec[i32]](1,2,3)));
+    assert(types::is_pointer(make[vec[i32]](1, 2, 3)));
 }
 
 @[test]
@@ -1796,7 +1811,7 @@ fun test_types_is_bool() {
     assert(!types::is_bool(1));
     assert(types::is_bool(true));
     assert(!types::is_bool("abc"));
-    assert(!types::is_bool(make[vec[i32]](1,2,3)));
+    assert(!types::is_bool(make[vec[i32]](1, 2, 3)));
 }
 
 @[test]
@@ -1845,7 +1860,12 @@ fun environs(): map[string, string] {
     let mp = make[map[string, string]]();
 
     for i in 0..count_i32 {
-        let p = i32_from_bytes(buf_index_ptrbyte.at(i * 4 + 0), buf_index_ptrbyte.at(i * 4 + 1), buf_index_ptrbyte.at(i * 4 + 2), buf_index_ptrbyte.at(i * 4 + 3)) as ptr[byte];
+        let p = i32_from_bytes(
+            buf_index_ptrbyte.at(i * 4 + 0),
+            buf_index_ptrbyte.at(i * 4 + 1),
+            buf_index_ptrbyte.at(i * 4 + 2),
+            buf_index_ptrbyte.at(i * 4 + 3),
+        ) as ptr[byte];
         let kv = read_until_null(p).split("=");
         if kv.length == 1 {
             mp.insert(kv.at(0), "");
@@ -1882,7 +1902,12 @@ fun args(): vec[string] {
     let args = make[vec[string]]();
 
     for i in 0..count_i32 {
-        let p = i32_from_bytes(buf_index_ptrbyte.at(i * 4 + 0), buf_index_ptrbyte.at(i * 4 + 1), buf_index_ptrbyte.at(i * 4 + 2), buf_index_ptrbyte.at(i * 4 + 3)) as ptr[byte];
+        let p = i32_from_bytes(
+            buf_index_ptrbyte.at(i * 4 + 0),
+            buf_index_ptrbyte.at(i * 4 + 1),
+            buf_index_ptrbyte.at(i * 4 + 2),
+            buf_index_ptrbyte.at(i * 4 + 3),
+        ) as ptr[byte];
         let arg = read_until_null(p);
         args.push(arg);
     }
@@ -1907,3 +1932,4 @@ fun assert(a: bool) {
         panic("assert failed");
     }
 }
+

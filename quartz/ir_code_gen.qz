@@ -221,9 +221,124 @@ module IrCodeGenerator {
     }
 
     fun run(self, m: Module): IrTerm or error {
+        // Register builtin types
+        self.type_reps.get_or_insert(
+            InternalTypeRep::from_ir_type(IrType {
+                t_nil: true,
+            }),
+        );
+        self.type_reps.get_or_insert(
+            InternalTypeRep::from_ir_type(IrType {
+                t_i32: true,
+            }),
+        );
+        self.type_reps.get_or_insert(
+            InternalTypeRep::from_ir_type(IrType {
+                t_address: true,
+            }),
+        );
+        self.type_reps.get_or_insert(
+            InternalTypeRep::from_ir_type(IrType {
+                t_byte: true,
+            }),
+        );
+        self.type_reps.get_or_insert(
+            InternalTypeRep::from_ir_type(IrType {
+                t_any: true,
+            }),
+        );
+        self.type_reps.get_or_insert(
+            InternalTypeRep::from_ir_type(IrType {
+                t_bool: true,
+            }),
+        );
+        self.type_reps.get_or_insert(InternalTypeRep::from_name(
+            "ptr",
+            make[vec[InternalTypeRep]](
+                InternalTypeRep::from_ir_type(IrType {
+                    t_byte: true,
+                }),
+            ),
+        ));
+        self.type_reps.get_or_insert(InternalTypeRep::from_name(
+            "ptr",
+            make[vec[InternalTypeRep]](
+                InternalTypeRep::from_ir_type(IrType {
+                    t_byte: true,
+                }),
+            ),
+        ));
+        self.type_reps.get_or_insert(InternalTypeRep::from_name(
+            "ptr",
+            make[vec[InternalTypeRep]](
+                InternalTypeRep::from_ir_type(IrType {
+                    t_i32: true,
+                }),
+            ),
+        ));
+        self.type_reps.get_or_insert(InternalTypeRep::from_name("string", make[vec[InternalTypeRep]]()));
+        self.type_reps.get_or_insert(InternalTypeRep::from_name(
+            "slice",
+            make[vec[InternalTypeRep]](InternalTypeRep::from_name("string", make[vec[InternalTypeRep]]())),
+        ));
+        self.type_reps.get_or_insert(InternalTypeRep::from_name("TypeRep", make[vec[InternalTypeRep]]()));
+        self.type_reps.get_or_insert(InternalTypeRep::from_name(
+            "slice",
+            make[vec[InternalTypeRep]](InternalTypeRep::from_name("TypeRep", make[vec[InternalTypeRep]]())),
+        ));
+
+        // Register declared types
+        for k in self.globals.list_keys() {
+            let v = self.globals.at(k);
+            if v.data.t_struct != nil {
+                let fields = make[vec[struct {
+                    name: string,
+                    type_: InternalTypeRep,
+                }]]();
+                for field in v.data.t_struct!.fields {
+                    fields.push(struct {
+                        name: field.data.name,
+                        type_: InternalTypeRep::from_ir_type(IrType::new(field.data.type_)),
+                    });
+                }
+
+                let rep = InternalTypeRep {
+                    kind: typeRepKindStruct,
+                    name: k,
+                    params: make[vec[InternalTypeRep]](),
+                    fields: fields,
+                };
+
+                self.type_reps.get_or_insert(rep);
+            } else if v.data.t_enum != nil {
+                let fields = make[vec[struct {
+                    name: string,
+                    type_: InternalTypeRep,
+                }]]();
+                for field in v.data.t_enum!.fields {
+                    fields.push(struct {
+                        name: field.data.name,
+                        type_: InternalTypeRep::from_ir_type(IrType::new(field.data.type_)),
+                    });
+                }
+
+                let rep = InternalTypeRep {
+                    kind: typeRepKindEnum,
+                    name: k,
+                    params: make[vec[InternalTypeRep]](),
+                    fields: fields,
+                };
+
+                self.type_reps.get_or_insert(rep);
+            }
+        }
+
         let decls = self.module_(m).try;
+
+        let type_rep_count = self.type_reps.type_reps.length;
         decls.push(self.generate_prepare_type_reps().try);
         decls.extend(self.generate_prepare_strings().try);
+
         decls.push(IrTerm {
             t_func: IrFunc {
                 name: "reflection_get_type_rep_id",
@@ -307,6 +422,8 @@ module IrCodeGenerator {
                 },
             });
         }
+
+        assert_eq(self.type_reps.type_reps.length, type_rep_count);
 
         return IrTerm {
             t_module: struct {
@@ -434,9 +551,9 @@ module IrCodeGenerator {
                 wasm_type: wasm_type,
             }?;
         } else {
-            return _ or error::new("invalid result_type, got {}".format(
-                d.declare_wrap!.result_type.to_string(),
-            ));
+            return _ or error::new(
+                "invalid result_type, got {}".format(d.declare_wrap!.result_type.to_string()),
+            );
         }
 
         return IrTerm {
@@ -484,9 +601,7 @@ module IrCodeGenerator {
         } else if d.declare_wrap!.result_type.t_ident != nil && d.declare_wrap!.result_type.t_ident! == "wasm_externref" {
             result_type = "externref";
         } else {
-            return _ or error::new("invalid result_type, {}".format(
-                d.declare_wrap!.result_type.to_string(),
-            ));
+            return _ or error::new("invalid result_type, {}".format(d.declare_wrap!.result_type.to_string()));
         }
 
         return IrTerm {
@@ -2614,42 +2729,53 @@ module IrCodeGenerator {
         elements.push(IrTerm::i32(rep.params.length));
 
         let type_rep_terms = make[vec[struct {
-            label: string?,
             type_: IrType,
             term: IrTerm,
         }]]();
         for p in rep.params {
             type_rep_terms.push(struct {
-                label: nil,
                 type_: IrType {
                     t_address: true,
                 },
                 term: self.write_type_rep(p).try,
             });
         }
-        elements.push(
-            self.generate_array("slice", make[vec[IrType]](), type_rep_terms).context(struct {
-                context: "write_type_rep",
-                rep: rep,
-            }).try,
-        );
+        elements.push(self.generate_array_with_rep(
+            InternalTypeRep::from_name(
+                "slice",
+                make[vec[InternalTypeRep]](InternalTypeRep::from_name(
+                    "TypeRep",
+                    make[vec[InternalTypeRep]](),
+                )),
+            ),
+            type_rep_terms,
+        ).context(struct {
+            context: "write_type_rep",
+            rep: rep,
+        }).try);
         elements.push(IrTerm::i32(rep.fields.length));
 
         let field_terms = make[vec[struct {
-            label: string?,
             type_: IrType,
             term: IrTerm,
         }]]();
         for t in rep.fields {
             field_terms.push(struct {
-                label: t.name?,
                 type_: IrType {
                     t_address: true,
                 },
                 term: self.register_string(t.name),
             });
         }
-        elements.push(self.generate_array("slice", make[vec[IrType]](), field_terms).try);
+        elements.push(self.generate_array_with_rep(
+            InternalTypeRep::from_name(
+                "slice",
+                make[vec[InternalTypeRep]](
+                    InternalTypeRep::from_name("string", make[vec[InternalTypeRep]]()),
+                ),
+            ),
+            field_terms,
+        ).try);
 
         let var_name = format("type_rep_{}", self.counter.to_string());
         self.counter = self.counter + 1;
