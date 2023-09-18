@@ -62,11 +62,16 @@ func hexdump(data []byte, offset int, writer io.Writer) {
 			}
 
 			if nonZeroFlag {
+				if skip {
+					fmt.Fprintf(writer, "%08x  00\n", addr+offset)
+				}
+
 				fmt.Fprintf(writer, "%08x  %s |%s|\n", addr+offset, string(hexVals), string(asciiVals))
 				skip = false
 			} else {
 				if !skip {
-					fmt.Fprintf(writer, "%08x  *\n", addr+offset)
+					fmt.Fprintf(writer, "%08x  00\n", addr+offset)
+					fmt.Fprint(writer, "...\n")
 
 					skip = true
 				}
@@ -74,6 +79,10 @@ func hexdump(data []byte, offset int, writer io.Writer) {
 		}
 
 		dataOffset += unitSize
+	}
+
+	if skip {
+		fmt.Fprintf(writer, "%08x  00\n", dataOffset+offset)
 	}
 }
 
