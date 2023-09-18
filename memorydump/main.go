@@ -32,7 +32,7 @@ func appendByteAsHex(bs []byte, b byte) []byte {
 	return bs
 }
 
-func hexdump(data []byte, offset int, writer io.Writer) {
+func hexdump(data []byte, offset int64, writer io.Writer) {
 	skip := false
 
 	dataOffset := 0
@@ -41,8 +41,8 @@ func hexdump(data []byte, offset int, writer io.Writer) {
 		unit := data[dataOffset:min(dataOffset+unitSize, len(data))]
 
 		for i := 0; i < len(unit)/16; i += 1 {
-			addr := i * 16
-			chunk := unit[addr:min(addr+16, len(unit))]
+			unitIndex := i * 16
+			chunk := unit[unitIndex:min(unitIndex+16, len(unit))]
 			hexVals := make([]byte, 0, 48)
 			asciiVals := make([]byte, 0, 16)
 			nonZeroFlag := false
@@ -61,16 +61,18 @@ func hexdump(data []byte, offset int, writer io.Writer) {
 				}
 			}
 
+			address := int64(unitIndex) + int64(dataOffset) + offset
+
 			if nonZeroFlag {
 				if skip {
-					fmt.Fprintf(writer, "%08x  00\n", addr+offset)
+					fmt.Fprintf(writer, "%08x  00\n", address)
 				}
 
-				fmt.Fprintf(writer, "%08x  %s |%s|\n", addr+offset, string(hexVals), string(asciiVals))
+				fmt.Fprintf(writer, "%08x  %s |%s|\n", address, string(hexVals), string(asciiVals))
 				skip = false
 			} else {
 				if !skip {
-					fmt.Fprintf(writer, "%08x  00\n", addr+offset)
+					fmt.Fprintf(writer, "%08x  00\n", address)
 					fmt.Fprint(writer, "...\n")
 
 					skip = true
@@ -82,7 +84,7 @@ func hexdump(data []byte, offset int, writer io.Writer) {
 	}
 
 	if skip {
-		fmt.Fprintf(writer, "%08x  00\n", dataOffset+offset)
+		fmt.Fprintf(writer, "%08x  00\n", int64(dataOffset)+offset)
 	}
 }
 
@@ -104,7 +106,7 @@ func deletePreviousFiles(pattern string) {
 func main() {
 	// ファイルパスとチャンクサイズを指定
 	filePath := "./build/memory/memory.bin"
-	chunkSize := 250 * 1024 * 1024
+	chunkSize := int64(250 * 1024 * 1024)
 	ext := filepath.Ext(filePath)
 	baseName := strings.Replace(filepath.Base(filePath), ext, "", 1)
 	dirPath := filepath.Dir(filePath)
@@ -184,7 +186,7 @@ func main() {
 			}
 			writer := bufio.NewWriter(hexdumpFile)
 
-			hexdump(chunkData, index*chunkSize, writer)
+			hexdump(chunkData, int64(index)*chunkSize, writer)
 			writer.Flush()
 			hexdumpFile.Close()
 
