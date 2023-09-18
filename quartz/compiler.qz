@@ -191,6 +191,8 @@ module Compiler {
 
         term = transform_let_call(term);
 
+        // file_write("quartz.ir", term.to_string());
+
         let gen = Generator::new(validate_address);
         gen.set_globals(typechecker.globals);
         gen.set_strings(irgen.strings.strings);

@@ -10,3 +10,5 @@ quartz-debugger.json
 # already existing elements were commented out
 
 #/target
+
+*.ir
