@@ -739,9 +739,10 @@ module Generator {
                 self.write(format(" ;; {}", expr.t_u32!.to_string()));
             }
 
-            // FIXME: i64::to_string is broken!
             self.new_statement();
-            self.write(format("{}.const {}", Value::wasm_type(), expr.t_u32!.to_string()));
+            self.write_value(Value {
+                t_u32: expr.t_u32!,
+            });
         } else if expr.t_nil != nil {
             if MODE_READABLE_WASM {
                 self.new_statement();
@@ -758,7 +759,9 @@ module Generator {
 
             // push to stack
             let is_core_function = self.current_function_name.starts_with("quartz_core");
-            if (expr.t_let!.type_.t_address != nil || expr.t_let!.type_.t_any != nil) && !self.globals.has(expr.t_let!.name) && !is_core_function {
+            if (expr.t_let!.type_.t_address != nil || expr.t_let!.type_.t_any != nil) && !self.globals.has(
+                expr.t_let!.name,
+            ) && !is_core_function {
                 self.new_statement();
                 self.expression(IrTerm {
                     t_ident: expr.t_let!.name,
