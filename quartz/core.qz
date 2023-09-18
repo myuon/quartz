@@ -70,6 +70,7 @@ fun validate_address(address: i32) {
     let p = address as ptr[any];
     if p == nil as ptr[any] {
         debug(error_nil_pointer_exception);
+        debug(1);
         abort();
     }
 }
@@ -82,6 +83,7 @@ let strings_ptr: u32 = 0 as u32;
 fun load_string(index: i32): string {
     if strings_ptr == (0 as u32) {
         debug(error_nil_pointer_exception);
+        debug(2);
         abort();
     }
 
