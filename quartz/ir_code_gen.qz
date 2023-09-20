@@ -367,7 +367,6 @@ module IrCodeGenerator {
                                 offset: IrTerm {
                                     t_i32: 0,
                                 },
-                                raw_offset: 0,
                             },
                         },
                     },
@@ -713,7 +712,6 @@ module IrCodeGenerator {
                             t_i32: rep_id,
                         },
                     ),
-                    raw_offset: 0,
                 },
             };
             body.push(self.assign(
@@ -815,7 +813,6 @@ module IrCodeGenerator {
                             t_i32: i,
                         },
                     ),
-                    raw_offset: 0,
                 },
             };
 
@@ -1603,7 +1600,6 @@ module IrCodeGenerator {
                             type_: IrType::new(t_ptr_elem),
                             address: term,
                             offset: IrCodeGenerator::wrap_mult_sizeof(IrType::new(t_ptr_elem), offset),
-                            raw_offset: 0,
                         },
                     };
                 } else if project.type_!.t_ptr != nil && project.field.data.equal("offset") {
@@ -2654,7 +2650,6 @@ module IrCodeGenerator {
                         },
                     ),
                     value: term.term,
-                    raw_offset: 0,
                 },
             };
 
@@ -2825,7 +2820,6 @@ module IrCodeGenerator {
                         },
                     ),
                     value: elements.at(index),
-                    raw_offset: 0,
                 },
             });
         }
@@ -2866,7 +2860,6 @@ module IrCodeGenerator {
                 type_: IrType::new(elem_type),
                 address: arr,
                 offset: IrCodeGenerator::wrap_mult_sizeof(IrType::new(elem_type), index),
-                raw_offset: 0,
             },
         };
     }
@@ -2912,7 +2905,6 @@ module IrCodeGenerator {
                     address: lhs.t_load!.address,
                     offset: lhs.t_load!.offset,
                     value: rhs,
-                    raw_offset: lhs.t_load!.raw_offset,
                 },
             };
 
@@ -2924,7 +2916,6 @@ module IrCodeGenerator {
                     address: lhs,
                     offset: IrTerm::i32(0),
                     value: rhs,
-                    raw_offset: 0,
                 },
             };
         }
