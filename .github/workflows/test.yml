@@ -30,6 +30,9 @@ jobs:
       - name: Build a compiler
         run: just build_compiler $(just find_latest_version) current
 
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+
       - name: Run the test function
         run: |
           MODE=run-wat WAT_FILE=./build/quartz-current.wat cargo run --release -- compile --validate-address --test -o ./build/quartz-compiled.wat ./quartz/main.qz
