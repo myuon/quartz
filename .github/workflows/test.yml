@@ -27,11 +27,11 @@ jobs:
       - name: Install Quartz
         run: just download $(just find_latest_version)
 
-      - name: Build a compiler
-        run: just build_compiler $(just find_latest_version) current
-
       - name: Setup tmate session
         uses: mxschmitt/action-tmate@v3
+
+      - name: Build a compiler
+        run: just build_compiler $(just find_latest_version) current
 
       - name: Run the test function
         run: |
