@@ -1717,15 +1717,11 @@ fun mark(value: any) {
         let size = header.get_size();
         if !types::is_i32(size) {
             debug(error_invalid_type);
-            // FIXME: Removing this line causes a compile error for some reason
-            debug(3);
             debug(size);
             abort();
         }
         if !is_typerep_pointer(header.get_type_rep() as ptr[byte]) {
             debug(error_invalid_type);
-            // FIXME: Removing this line causes a compile error for some reason
-            debug(1);
             debug(header.get_type_rep());
             abort();
         }
