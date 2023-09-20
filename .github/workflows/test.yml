@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-tags: true
+          fetch-depth: 0
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -28,9 +28,6 @@ jobs:
 
       - name: Install Quartz
         run: just download $(just find_latest_version)
-
-      - name: Setup upterm session
-        uses: lhotari/action-upterm@v1
 
       - name: Build a compiler
         run: just build_compiler $(just find_latest_version) current
