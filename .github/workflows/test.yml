@@ -29,6 +29,9 @@ jobs:
       - name: Install Quartz
         run: just download $(just find_latest_version)
 
+      - name: Setup upterm session
+        uses: lhotari/action-upterm@v1
+
       - name: Build a compiler
         run: just build_compiler $(just find_latest_version) current
 
