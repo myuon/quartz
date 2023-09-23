@@ -281,14 +281,15 @@ module Header {
             abort();
         }
 
-        if !types::is_pointer(self.get_type_rep()) {
+        let tp = self.get_type_rep();
+        if !types::is_pointer(tp) {
             debug(error_invalid_header);
             debug(3);
             debug(self);
             abort();
         }
 
-        if !is_typerep_pointer(self.get_type_rep() as ptr[byte]) {
+        if tp != (nil as ptr[ptr[byte]]) && !is_typerep_pointer(tp as ptr[byte]) {
             debug(error_invalid_header);
             debug(4);
             debug(self);
