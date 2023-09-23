@@ -39,4 +39,4 @@ jobs:
         run: cargo test --release -- --test-threads=1
 
       - name: Check if stable
-        run: just build_compiler $(just find_latest_version) current && just check_if_stable --validate-address
+        run: just build_compiler 2.10.0 current && just check_if_stable --validate-address
