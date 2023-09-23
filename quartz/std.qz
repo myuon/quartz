@@ -1663,8 +1663,16 @@ fun file_write(path: string, content: string): nil or error {
     file_close(fd_n);
 }
 
+let gc_lock = false;
+
 @[no_allocation]
 fun perform_gc() {
+    if gc_lock {
+        return;
+    }
+
+    gc_lock = true;
+
     // mark
     let p = _sp;
     while p < stack_limit {
@@ -1686,6 +1694,8 @@ fun perform_gc() {
 
         header = header.get_next();
     }
+
+    gc_lock = false;
 }
 
 @[no_allocation]
