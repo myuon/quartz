@@ -25,10 +25,10 @@ jobs:
       - run: mkdir -p ./build
 
       - name: Install Quartz
-        run: just download $(just find_latest_version)
+        run: just download 2.10.0
 
       - name: Build a compiler
-        run: just build_compiler $(just find_latest_version) current
+        run: just build_compiler 2.10.0 current
 
       - name: Run the test function
         run: |
