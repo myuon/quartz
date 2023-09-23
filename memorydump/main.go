@@ -106,7 +106,7 @@ func deletePreviousFiles(pattern string) {
 func main() {
 	// ファイルパスとチャンクサイズを指定
 	filePath := "./build/memory/memory.bin"
-	chunkSize := int64(250 * 1024 * 1024)
+	chunkSize := int64(100 * 1024 * 1024)
 	ext := filepath.Ext(filePath)
 	baseName := strings.Replace(filepath.Base(filePath), ext, "", 1)
 	dirPath := filepath.Dir(filePath)
