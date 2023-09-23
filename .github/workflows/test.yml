@@ -25,10 +25,10 @@ jobs:
       - run: mkdir -p ./build
 
       - name: Install Quartz
-        run: just download 2.10.0
+        run: just download $(just find_latest_version)
 
       - name: Build a compiler
-        run: just build_compiler 2.10.0 current
+        run: just build_compiler $(just find_latest_version) current
 
       - name: Run the test function
         run: |
@@ -39,4 +39,4 @@ jobs:
         run: cargo test --release -- --test-threads=1
 
       - name: Check if stable
-        run: just build_compiler 2.10.0 current && just check_if_stable --validate-address
+        run: just build_compiler $(just find_latest_version) current && just check_if_stable --validate-address
