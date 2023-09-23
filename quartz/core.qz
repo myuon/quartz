@@ -15,6 +15,8 @@ let error_invalid_type = 7;
 
 let error_type_reps_ptr_not_initialized = 8;
 
+let error_invalid_header = 9;
+
 // 1.5 * 1024 * 1024 * 1024
 let stack_limit: u32 = 1610612736 as u32;
 
@@ -189,7 +191,10 @@ module Header {
 
     @[no_allocation]
     fun from_data_ptr(p: ptr[byte]): Header {
-        return Header::from_ptr(p.offset(0 - (Header::sizeof() as i32)));
+        let header = Header::from_ptr(p.offset(0 - (Header::sizeof() as i32)));
+        header.validate();
+
+        return header;
     }
 
     @[no_allocation]
@@ -258,6 +263,37 @@ module Header {
     @[no_allocation]
     fun set_type_rep(self, value: ptr[ptr[byte]]) {
         (self as ptr[any]).at(2) = value;
+    }
+
+    @[no_allocation]
+    fun validate(self) {
+        if !types::is_i32(self.get_size()) {
+            debug(error_invalid_header);
+            debug(1);
+            debug(self);
+            abort();
+        }
+
+        if !types::is_i32(self.get_header_flags()) {
+            debug(error_invalid_header);
+            debug(2);
+            debug(self);
+            abort();
+        }
+
+        if !types::is_pointer(self.get_type_rep()) {
+            debug(error_invalid_header);
+            debug(3);
+            debug(self);
+            abort();
+        }
+
+        if !is_typerep_pointer(self.get_type_rep() as ptr[byte]) {
+            debug(error_invalid_header);
+            debug(4);
+            debug(self);
+            abort();
+        }
     }
 }
 
