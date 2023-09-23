@@ -259,6 +259,28 @@ module Header {
     fun set_type_rep(self, value: ptr[ptr[byte]]) {
         (self as ptr[any]).at(2) = value;
     }
+
+    @[no_allocation]
+    fun validated(self): bool {
+        if !types::is_i32(self.get_size()) {
+            return false;
+        }
+
+        if !types::is_i32(self.get_header_flags()) {
+            return false;
+        }
+
+        let tp = self.get_type_rep();
+        if !types::is_pointer(tp) {
+            return false;
+        }
+
+        if tp != (nil as ptr[ptr[byte]]) && !is_typerep_pointer(tp as ptr[byte]) {
+            return false;
+        }
+
+        return true;
+    }
 }
 
 @[no_allocation]

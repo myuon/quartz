@@ -1663,8 +1663,16 @@ fun file_write(path: string, content: string): nil or error {
     file_close(fd_n);
 }
 
+let gc_lock = false;
+
 @[no_allocation]
 fun perform_gc() {
+    if gc_lock {
+        return;
+    }
+
+    gc_lock = true;
+
     // mark
     let p = _sp;
     while p < stack_limit {
@@ -1686,6 +1694,8 @@ fun perform_gc() {
 
         header = header.get_next();
     }
+
+    gc_lock = false;
 }
 
 @[no_allocation]
@@ -1712,20 +1722,20 @@ fun mark(value: any) {
         return;
     } else {
         let header = Header::from_data_ptr(value_ptr);
+        // FIXME: we cannot prevent from trying to mark a non-header value, like type_rep pointers or a pointer in a vector
+        if !header.validated() {
+            return;
+        }
 
         // checks if it's a valid header
         let size = header.get_size();
         if !types::is_i32(size) {
             debug(error_invalid_type);
-            // FIXME: Removing this line causes a compile error for some reason
-            debug(3);
             debug(size);
             abort();
         }
         if !is_typerep_pointer(header.get_type_rep() as ptr[byte]) {
             debug(error_invalid_type);
-            // FIXME: Removing this line causes a compile error for some reason
-            debug(1);
             debug(header.get_type_rep());
             abort();
         }

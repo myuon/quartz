@@ -274,7 +274,7 @@ module CliCommand {
 }
 
 fun start(): nil or error {
-    let compiler_version = "2.11.0";
+    let compiler_version = "2.11.2";
 
     let args = args();
     let command or err = CliCommand::parse(args.slice(1, args.length));
@@ -317,7 +317,15 @@ fun start(): nil or error {
             validate_address = compile.validate_address!;
         }
 
-        let result or err = run(compiler, input, path, entrypoint, validate_address, compiler_version, compile.test);
+        let result or err = run(
+            compiler,
+            input,
+            path,
+            entrypoint,
+            validate_address,
+            compiler_version,
+            compile.test,
+        );
         if err != nil {
             write_string(fd_stderr, format("Error: {}", err!.message));
             write_string(fd_stderr, "\n");
@@ -609,3 +617,4 @@ fun main() {
         panic("{}", err!.message);
     }
 }
+
