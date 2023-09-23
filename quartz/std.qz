@@ -1756,7 +1756,7 @@ fun mark(value: any) {
     } else if !is_pointer_to_object(value_ptr) {
         debug(999);
         debug(value_ptr);
-        abort();
+        return;
     } else {
         let header = Header::from_data_ptr(value_ptr);
 
