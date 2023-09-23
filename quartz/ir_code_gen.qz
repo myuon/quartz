@@ -643,40 +643,26 @@ module IrCodeGenerator {
         self.start.push(IrTerm {
             t_assign: struct {
                 lhs: var_ptr,
-                rhs: self.expression(LExpression {
-                    data: Expression {
-                        t_call: struct {
-                            callee: LExpression {
-                                data: Expression {
-                                    t_ident: struct {
-                                        name: "alloc_with_rep",
-                                        resolved_path: Path::new("quartz", "core", "alloc_with_rep")?,
-                                    },
-                                },
-                                location: Location::unknown(),
+                rhs: IrTerm {
+                    t_call: IrCall {
+                        callee: IrTerm {
+                            t_ident: "quartz_core_alloc_with_rep",
+                        },
+                        args: make[vec[IrTerm]](
+                            IrTerm {
+                                t_nil: true,
                             },
-                            args: make[vec[LExpression]](
-                                LExpression {
-                                    data: Expression {
-                                        t_nil: true,
-                                    },
-                                    location: Location::unknown(),
+                            IrCodeGenerator::wrap_mult_sizeof(
+                                IrType {
+                                    t_address: true,
                                 },
-                                LExpression {
-                                    data: Expression {
-                                        t_i32: struct {
-                                            value: self.type_reps.type_reps.length,
-                                        },
-                                    },
-                                    location: Location::unknown(),
+                                IrTerm {
+                                    t_i32: self.type_reps.type_reps.length,
                                 },
                             ),
-                            variadic: nil,
-                            expansion: nil,
-                        },
+                        ),
                     },
-                    location: Location::unknown(),
-                }).try,
+                },
             },
         });
 
