@@ -163,7 +163,7 @@ module Compiler {
                     if main_path.join("_") != source.path.join("_") {
                         let loaded = self.matches(source.path);
                         if loaded == nil {
-                            panic("module not found");
+                            return _ or err!;
                         }
 
                         input_to_inspect = loaded!.source;
