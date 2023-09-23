@@ -98,10 +98,15 @@ enum IrTerm {
 
 module IrTerm {
     fun to_string(self): string {
-        let writer = IrTermWriter::new();
+        return derive::to_string(self);
+    }
+
+    fun write_to_file(self, path: string): nil or error {
+        let f = FileWriter::open(path).try;
+        let writer = IrTermWriter::new(f);
         writer.expression(self);
 
-        return writer.to_string();
+        f.close();
     }
 
     fun ident(name: string): IrTerm {
@@ -326,22 +331,18 @@ module IrType {
 }
 
 struct IrTermWriter {
-    writer: stringbuilder,
+    writer: FileWriter,
     depth: i32,
     index: i32,
 }
 
 module IrTermWriter {
-    fun new(): IrTermWriter {
+    fun new(writer: FileWriter): IrTermWriter {
         return IrTermWriter {
-            writer: stringbuilder::new(),
+            writer: writer,
             depth: 0,
             index: 0,
         };
-    }
-
-    fun to_string(self): string {
-        return self.writer.to_string();
     }
 
     fun start(self) {
@@ -359,18 +360,18 @@ module IrTermWriter {
 
     fun write(self, str: string) {
         if self.index == 0 {
-            self.writer.append(str);
+            self.writer.write(str);
         } else {
-            self.writer.append(" ");
-            self.writer.append(str);
+            self.writer.write(" ");
+            self.writer.write(str);
         }
         self.index = self.index + 1;
     }
 
     fun new_statement(self) {
         if self.index > 0 {
-            self.writer.append("\n");
-            self.writer.append(" ".repeat(self.depth * 4));
+            self.writer.write("\n");
+            self.writer.write(" ".repeat(self.depth * 4));
         }
         self.index = 0;
     }

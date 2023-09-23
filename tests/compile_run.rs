@@ -44,7 +44,7 @@ fn run_command(
 
 fn quartz_compile(input_path: &Path, output_path: &Path) -> RunCommandOutput {
     run_command(
-        &format!("./target/release/quartz",),
+        "./target/release/quartz",
         &[
             "compile",
             "--validate-address",
