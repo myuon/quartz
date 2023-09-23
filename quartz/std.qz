@@ -1723,6 +1723,20 @@ fun is_pointer_on_stack(p: ptr[ptr[byte]]): bool {
 }
 
 @[no_allocation]
+fun is_pointer_to_object(p: ptr[byte]): bool {
+    let header = Header::from_ptr(heap_root_ptr as ptr[any]);
+    while header.get_size() > (0 as u32) {
+        if (header as ptr[byte]) == p {
+            return true;
+        }
+
+        header = header.get_next();
+    }
+
+    return false;
+}
+
+@[no_allocation]
 fun is_collectable(p: ptr[byte]): bool {
     return (p as u32) >= (heap_root_ptr as u32) && !is_pointer_on_stack(p as ptr[ptr[byte]]);
 }
@@ -1739,6 +1753,10 @@ fun mark(value: any) {
     } else if is_stack_pointer(value_ptr) {
         mark(value_ptr.at(0));
         return;
+    } else if !is_pointer_to_object(value_ptr) {
+        debug(999);
+        debug(value_ptr);
+        abort();
     } else {
         let header = Header::from_data_ptr(value_ptr);
 
