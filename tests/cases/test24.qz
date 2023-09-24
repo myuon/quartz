@@ -1,0 +1,5 @@
+fun main(): bool {
+    let p = make[ptr[i32]](1);
+
+    return p == nil;
+}
