@@ -28,8 +28,8 @@ fun main(): i32 {
     v.at(3) = Impl2{};
 
     let s = 0;
-    for i in 0..2 {
-        s += v.at(i).output();
+    for i in v {
+        s = s + i.output();
     }
 
     return s;

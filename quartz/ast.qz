@@ -30,6 +30,7 @@ enum Decl {
     },
     t_module: struct {
         path: Path,
+        extends: string?,
         module_: Module,
     },
     t_import: Path,

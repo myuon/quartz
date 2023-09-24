@@ -124,6 +124,7 @@ module Compiler {
                 data: Decl {
                     t_module: struct {
                         path: loaded.path,
+                        extends: nil,
                         module_: loaded.module_,
                     },
                 },

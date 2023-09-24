@@ -366,12 +366,20 @@ module Parser {
     ): struct {
         data: struct {
             path: Path,
+            extends: string?,
             module_: Module,
         },
         location: Location,
     } or error {
         let start_token = self.expect("module").try;
         let name = self.ident().try;
+
+        let extends = nil;
+        if self.peek().try.lexeme == "colon" {
+            self.expect("colon").try;
+            extends = self.ident().try.data?;
+        }
+
         self.expect("lbrace").try;
         let module_ = self.module_().try;
         let end_token = self.expect("rbrace").try;
@@ -379,6 +387,7 @@ module Parser {
         return struct {
             data: struct {
                 path: Path::ident(name.data),
+                extends: extends,
                 module_: module_,
             },
             location: self.span_location(start_token, end_token),
