@@ -1663,6 +1663,35 @@ fun file_write(path: string, content: string): nil or error {
     file_close(fd_n);
 }
 
+struct FileWriter {
+    fd: i32,
+}
+
+module FileWriter {
+    fun open(path: string): FileWriter or error {
+        let fd_n = file_open(path, 9, 1 << 6).try;
+
+        return FileWriter {
+            fd: fd_n,
+        };
+    }
+
+    fun write(self, content: string): nil or error {
+        let ciovec = make[ptr[byte]](8);
+        set_ciovec(ciovec, content.data, content.length);
+
+        let ptr_size = make[ptr[i32]](1);
+        let err = _fd_write(self.fd, ciovec, 1, ptr_size);
+        if err != 0 {
+            return _ or error::new("fd_write").context(WasiError::from_errno(err));
+        }
+    }
+
+    fun close(self) {
+        file_close(self.fd);
+    }
+}
+
 let gc_lock = false;
 
 @[no_allocation]
