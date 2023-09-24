@@ -118,7 +118,15 @@ fn test_run() -> Result<()> {
 
             if stdout_path.exists() {
                 let expected = fs::read_to_string(stdout_path)?;
-                let run = output.run.clone().unwrap();
+                let run = output.run.clone().expect(
+                    format!(
+                        "output.run is None.\n{}\n[COMPILE]: {}\n{}",
+                        path.display(),
+                        output.compile.stdout,
+                        output.compile.stderr
+                    )
+                    .as_str(),
+                );
 
                 assert_eq!(
                     expected,
