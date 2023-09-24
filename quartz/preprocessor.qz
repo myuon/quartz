@@ -32,25 +32,7 @@ module Preprocessor {
 
         while index < m.decls.length {
             let d = m.decls.at(index).data;
-            if d.t_attribute != nil {
-                let attr = d.t_attribute!.data;
-                if attr.name.data == "build_if" {
-                    let result = self.interpret_bool(attr.args.at(0)).try;
-                    if !result {
-                        // m.decls.at(index + 1) = LDecl {..} is not working🤔
-                        m.decls.at(index + 1).data = Decl {
-                            t_skip: true,
-                        };
-                    }
-                } else if attr.name.data == "nostd" {
-                } else {
-                    return _ or error::new("unknown attribute");
-                }
-
-                index = index + 1;
-
-                continue;
-            } else if d.t_attributes != nil {
+            if d.t_attributes != nil {
                 let attrs = d.t_attributes!.data;
                 for attr in attrs {
                     if attr.name.data == "build_if" {
