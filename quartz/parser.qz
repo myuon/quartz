@@ -210,7 +210,7 @@ module Parser {
 
             return LDecl {
                 data: Decl {
-                    t_interface: struct {
+                    t_interface: Interface {
                         name: name.data,
                         methods: methods,
                     },
