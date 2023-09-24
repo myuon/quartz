@@ -1008,9 +1008,6 @@ module Generator {
 
             self.new_statement();
             self.write(format("{}.load{}", Value::wasm_type(), suffix));
-            if expr.t_load!.raw_offset != 0 {
-                self.write("offset={}".format(expr.t_load!.raw_offset.to_string()));
-            }
 
             if expr.t_load!.type_.t_byte != nil {
                 self.new_statement();
@@ -1060,9 +1057,6 @@ module Generator {
 
             self.new_statement();
             self.write(format("i64.store{}", suffix));
-            if expr.t_store!.raw_offset != 0 {
-                self.write("offset={}".format(expr.t_store!.raw_offset.to_string()));
-            }
         } else if expr.t_sizeof != nil {
             let size = expr.t_sizeof!.type_.sizeof();
 

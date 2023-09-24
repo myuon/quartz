@@ -39,13 +39,11 @@ enum IrTerm {
         address: IrTerm,
         offset: IrTerm,
         value: IrTerm,
-        raw_offset: i32,
     },
     t_load: struct {
         type_: IrType,
         address: IrTerm,
         offset: IrTerm,
-        raw_offset: i32,
     },
     t_sizeof: struct {
         type_: IrType,
@@ -116,7 +114,9 @@ module IrTerm {
         };
     }
 
-    fun find_locals(self): vec[struct {
+    fun find_locals(
+        self,
+    ): vec[struct {
         name: string,
         type_: IrType,
     }] {
@@ -417,7 +417,10 @@ module IrTermWriter {
             self.end();
         } else if term.t_global_let != nil {
             self.start();
-            self.write("global-let ${} {}".format(term.t_global_let!.name, term.t_global_let!.type_.to_string()));
+            self.write("global-let ${} {}".format(
+                term.t_global_let!.name,
+                term.t_global_let!.type_.to_string(),
+            ));
             self.expression(term.t_global_let!.value);
             self.end();
         } else if term.t_module != nil {
@@ -462,7 +465,6 @@ module IrTermWriter {
             self.expression(term.t_store!.address);
             self.expression(term.t_store!.offset);
             self.expression(term.t_store!.value);
-            self.write(term.t_store!.raw_offset.to_string());
             self.end();
         } else if term.t_load != nil {
             self.start();
@@ -470,7 +472,6 @@ module IrTermWriter {
             self.write(term.t_load!.type_.to_string());
             self.expression(term.t_load!.address);
             self.expression(term.t_load!.offset);
-            self.write(term.t_load!.raw_offset.to_string());
             self.end();
         } else if term.t_sizeof != nil {
             self.start();
@@ -555,12 +556,20 @@ module IrTermWriter {
             self.start();
             self.write("params");
             for param in term.t_wasm_func!.params {
-                self.write("(param ${} {} {})".format(param.name, param.quartz_type.to_string(), param.wasm_type));
+                self.write("(param ${} {} {})".format(
+                    param.name,
+                    param.quartz_type.to_string(),
+                    param.wasm_type,
+                ));
             }
-            self.write("(result ${} {})".format(term.t_wasm_func!.result_type.quartz_type.to_string(), term.t_wasm_func!.result_type.wasm_type));
+            self.write("(result ${} {})".format(
+                term.t_wasm_func!.result_type.quartz_type.to_string(),
+                term.t_wasm_func!.result_type.wasm_type,
+            ));
             self.end();
 
             self.end();
         }
     }
 }
+
