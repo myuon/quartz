@@ -1009,6 +1009,21 @@ module IrCodeGenerator {
                         ),
                     },
                 };
+            } else if stm.t_let!.pattern.data.t_omit != nil {
+                let name = format("__omit_{}", self.counter.to_string());
+                self.counter = self.counter + 1;
+
+                let term = IrTerm {
+                    t_let: IrLet {
+                        name: name,
+                        type_: IrType::new(stm.t_let!.name_type),
+                        value: self.expression(stm.t_let!.expr).try,
+                    },
+                };
+
+                return term;
+            } else {
+                return _ or error::new(format("invalid pattern, {}", derive::to_string(stm.t_let!.pattern)));
             }
         } else if stm.t_return != nil {
             let term = IrTerm {
