@@ -1,0 +1,10 @@
+fun f(): nil or error {
+    return _ or error::new("message");
+}
+
+fun main(): bool {
+    let _ = 10;
+    let _ or err = f();
+
+    return err != nil;
+}
