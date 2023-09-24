@@ -309,6 +309,10 @@ enum Expression {
         type_: Type,
     },
     t_try: LExpression,
+    t_upcast: struct {
+        interface_name: string,
+        expr: LExpression,
+    },
 }
 
 module Expression {

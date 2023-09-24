@@ -1353,10 +1353,35 @@ module Typechecker {
                     let arg_type = self.expression(arg).try;
                     let param_type = func_type.params.at(i);
 
-                    unify(arg_type, param_type).context(ErrorSource {
+                    let result or err = unify(arg_type, param_type).context(ErrorSource {
                         path: self.current_path,
                         location: arg.location,
-                    }).try;
+                    });
+                    if err != nil {
+                        // FIXME: move to unify
+                        if arg_type.t_ident != nil && param_type.t_ident != nil && (self.interfaces.has(arg_type.t_ident!) || self.interfaces.has(param_type.t_ident!)) {
+                            let it = nil as Interface?;
+                            if self.interfaces.has(arg_type.t_ident!) {
+                                it = self.interfaces.at(arg_type.t_ident!)?;
+                            } else {
+                                it = self.interfaces.at(param_type.t_ident!)?;
+                            }
+
+                            expr.t_call!.args.at(i) = LExpression {
+                                data: Expression {
+                                    t_upcast: struct {
+                                        interface_name: it!.name,
+                                        expr: arg,
+                                    },
+                                },
+                                location: arg.location,
+                            };
+
+                            return result!;
+                        } else {
+                            return _ or err!;
+                        }
+                    }
                 }
 
                 return func_type.result;

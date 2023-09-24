@@ -21,11 +21,11 @@ module Impl1: Output {
 }
 
 fun main(): i32 {
-    let v = make[vec[Output]](4);
-    v.at(0) = Impl1{};
-    v.at(1) = Impl2{};
-    v.at(2) = Impl2{};
-    v.at(3) = Impl2{};
+    let v = make[vec[Output]]();
+    v.push(Impl1{});
+    v.push(Impl2{});
+    v.push(Impl2{});
+    v.push(Impl2{});
 
     let s = 0;
     for i in v {
