@@ -36,6 +36,17 @@ enum Decl {
     t_attributes: LAttributes,
     t_skip: bool,
     t_declare_func: DeclareFunc,
+    t_interface: struct {
+        name: string,
+        methods: vec[struct {
+            name: string,
+            params: vec[struct {
+                name: string,
+                type_: Type,
+            }],
+            result_type: Type,
+        }],
+    },
 }
 
 module Decl {
