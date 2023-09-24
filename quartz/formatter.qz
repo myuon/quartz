@@ -55,7 +55,7 @@ module Formatter {
         for i in 0..decls.length {
             let decl = decls.at(i);
 
-            if i != 0 && prev != nil && prev!.t_attributes == nil && prev!.t_attribute == nil && (prev!.t_import == nil || decl.data.t_import == nil) {
+            if i != 0 && prev != nil && prev!.t_attributes == nil && (prev!.t_import == nil || decl.data.t_import == nil) {
                 self.newline(writer);
             }
             if decl.location.start != nil {
@@ -161,8 +161,6 @@ module Formatter {
             self.write(writer, "import");
             self.write(writer, d.t_import!.join("::"));
             self.write_no_space(writer, ";");
-        } else if d.t_attribute != nil {
-            self.attribute(writer, d.t_attribute!);
         } else if d.t_attributes != nil {
             self.attributes(writer, d.t_attributes!);
         } else if d.t_declare_func != nil {

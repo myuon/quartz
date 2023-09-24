@@ -33,7 +33,6 @@ enum Decl {
         module_: Module,
     },
     t_import: Path,
-    t_attribute: LAttribute,
     t_attributes: LAttributes,
     t_skip: bool,
     t_declare_func: DeclareFunc,
