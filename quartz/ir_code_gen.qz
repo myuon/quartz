@@ -932,81 +932,97 @@ module IrCodeGenerator {
         return elements;
     }
 
+    fun let_pattern(self, pat: LPattern, name_type: Type, expr: IrTerm): IrTerm or error {
+        if pat.data.t_ident != nil {
+            let name = pat.data.t_ident!;
+
+            let term = IrTerm {
+                t_let: IrLet {
+                    name: name,
+                    type_: IrType::new(name_type),
+                    value: expr,
+                },
+            };
+            self.locals.insert(name, true);
+
+            return term;
+        } else if pat.data.t_or != nil {
+            if name_type.t_or == nil {
+                return _ or error::new("expected or type, got {}".format(name_type.to_string()));
+            }
+
+            let var_name = format("or_{}", self.counter.to_string());
+            self.counter = self.counter + 1;
+
+            return IrTerm {
+                t_seq: struct {
+                    terms: make[vec[IrTerm]](
+                        IrTerm {
+                            t_let: IrLet {
+                                name: var_name,
+                                type_: IrType::new(name_type),
+                                value: expr,
+                            },
+                        },
+                        self.let_pattern(
+                            pat.data.t_or!.lhs,
+                            Type {
+                                t_optional: name_type.t_or!.left,
+                            },
+                            self.generate_array_at(
+                                name_type.t_or!.left,
+                                IrTerm {
+                                    t_ident: var_name,
+                                },
+                                IrTerm {
+                                    t_i32: 0,
+                                },
+                            ).try
+                        ).try,
+                        self.let_pattern(
+                            pat.data.t_or!.rhs,
+                            Type {
+                                t_optional: name_type.t_or!.right,
+                            },
+                            self.generate_array_at(
+                                name_type.t_or!.right,
+                                IrTerm {
+                                    t_ident: var_name,
+                                },
+                                IrTerm {
+                                    t_i32: 1,
+                                },
+                            ).try
+                        ).try,
+                    ),
+                },
+            };
+        } else if pat.data.t_omit != nil {
+            let name = format("__omit_{}", self.counter.to_string());
+            self.counter = self.counter + 1;
+
+            let term = IrTerm {
+                t_let: IrLet {
+                    name: name,
+                    type_: IrType::new(name_type),
+                    value: expr,
+                },
+            };
+
+            return term;
+        } else {
+            return _ or error::new(format("invalid pattern, {}", derive::to_string(pat)));
+        }
+    }
+
     fun statement(self, lstm: LStatement): IrTerm or error {
         let stm = lstm.data;
         if stm.t_let != nil {
-            if stm.t_let!.pattern.data.t_ident != nil {
-                let name = stm.t_let!.pattern.data.t_ident!;
-
-                let term = IrTerm {
-                    t_let: IrLet {
-                        name: name,
-                        type_: IrType::new(stm.t_let!.name_type),
-                        value: self.expression(stm.t_let!.expr).try,
-                    },
-                };
-                self.locals.insert(name, true);
-
-                return term;
-            } else if stm.t_let!.pattern.data.t_or != nil {
-                let lhs = stm.t_let!.pattern.data.t_or!.lhs.data.t_ident!;
-                let rhs = stm.t_let!.pattern.data.t_or!.rhs.data.t_ident!;
-
-                if stm.t_let!.name_type.t_or == nil {
-                    return _ or error::new("expected or type");
-                }
-
-                let var_name = format("or_{}", self.counter.to_string());
-                self.counter = self.counter + 1;
-
-                return IrTerm {
-                    t_seq: struct {
-                        terms: make[vec[IrTerm]](
-                            IrTerm {
-                                t_let: IrLet {
-                                    name: var_name,
-                                    type_: IrType::new(stm.t_let!.name_type),
-                                    value: self.expression(stm.t_let!.expr).try,
-                                },
-                            },
-                            IrTerm {
-                                t_let: IrLet {
-                                    name: lhs,
-                                    type_: IrType {
-                                        t_address: true,
-                                    },
-                                    value: self.generate_array_at(
-                                        stm.t_let!.name_type.t_or!.left,
-                                        IrTerm {
-                                            t_ident: var_name,
-                                        },
-                                        IrTerm {
-                                            t_i32: 0,
-                                        },
-                                    ).try,
-                                },
-                            },
-                            IrTerm {
-                                t_let: IrLet {
-                                    name: rhs,
-                                    type_: IrType {
-                                        t_address: true,
-                                    },
-                                    value: self.generate_array_at(
-                                        stm.t_let!.name_type.t_or!.right,
-                                        IrTerm {
-                                            t_ident: var_name,
-                                        },
-                                        IrTerm {
-                                            t_i32: 1,
-                                        },
-                                    ).try,
-                                },
-                            },
-                        ),
-                    },
-                };
-            }
+            return self.let_pattern(
+                stm.t_let!.pattern,
+                stm.t_let!.name_type,
+                self.expression(stm.t_let!.expr).try,
+            ).try;
         } else if stm.t_return != nil {
             let term = IrTerm {
                 t_return: IrReturn {

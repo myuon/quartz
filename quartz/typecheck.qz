@@ -1128,6 +1128,7 @@ module Typechecker {
             } else {
                 return _ or error::new("unimplemented: pattern, {}".format(pattern.to_string()));
             }
+        } else if pattern.t_omit != nil {
         } else {
             return _ or error::new("unimplemented: pattern, {}".format(pattern.to_string()));
         }
