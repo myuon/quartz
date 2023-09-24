@@ -1664,6 +1664,7 @@ fun file_write(path: string, content: string): nil or error {
 }
 
 struct FileWriter {
+    buffer: vec[byte],
     fd: i32,
 }
 
@@ -1672,22 +1673,41 @@ module FileWriter {
         let fd_n = file_open(path, 9, 1 << 6).try;
 
         return FileWriter {
+            buffer: make[vec[byte]](),
             fd: fd_n,
         };
     }
 
     fun write(self, content: string): nil or error {
+        for i in 0..content.length {
+            self.buffer.push(content.at(i));
+
+            if self.buffer.length >= 16 * 1024 {
+                self.flush();
+            }
+        }
+    }
+
+    fun flush(self): nil or error {
+        if self.buffer.length == 0 {
+            return nil;
+        }
+
         let ciovec = make[ptr[byte]](8);
-        set_ciovec(ciovec, content.data, content.length);
+        set_ciovec(ciovec, self.buffer.data, self.buffer.length);
 
         let ptr_size = make[ptr[i32]](1);
         let err = _fd_write(self.fd, ciovec, 1, ptr_size);
         if err != 0 {
             return _ or error::new("fd_write").context(WasiError::from_errno(err));
         }
+
+        self.buffer = make[vec[byte]]();
     }
 
     fun close(self) {
+        self.flush();
+
         file_close(self.fd);
     }
 }
