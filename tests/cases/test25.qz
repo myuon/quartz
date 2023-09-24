@@ -4,8 +4,7 @@ fun f(): nil or error {
 
 fun main(): bool {
     let _ = 10;
-    // let _ or err = f();
+    let _ or err = f();
 
-    // return err != nil;
-    return true;
+    return err != nil;
 }
