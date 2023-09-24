@@ -1447,7 +1447,7 @@ module Parser {
             if self.peek().try.lexeme.equal("star") {
                 self.expect("star").try;
 
-                let rhs = self.term_1(with_struct).try;
+                let rhs = self.term_0(with_struct).try;
 
                 current = LExpression {
                     data: Expression {
@@ -1467,7 +1467,7 @@ module Parser {
             } else if self.peek().try.lexeme.equal("slash") {
                 self.expect("slash").try;
 
-                let rhs = self.term_1(with_struct).try;
+                let rhs = self.term_0(with_struct).try;
 
                 current = LExpression {
                     data: Expression {
@@ -1487,7 +1487,7 @@ module Parser {
             } else if self.peek().try.lexeme.equal("percent") {
                 self.expect("percent").try;
 
-                let rhs = self.term_1(with_struct).try;
+                let rhs = self.term_0(with_struct).try;
 
                 current = LExpression {
                     data: Expression {
@@ -1507,7 +1507,7 @@ module Parser {
             } else if self.peek().try.lexeme.equal("bit_shift_left") {
                 self.expect("bit_shift_left").try;
 
-                let rhs = self.term_1(with_struct).try;
+                let rhs = self.term_0(with_struct).try;
 
                 current = LExpression {
                     data: Expression {
@@ -1527,7 +1527,7 @@ module Parser {
             } else if self.peek().try.lexeme.equal("bit_shift_right") {
                 self.expect("bit_shift_right").try;
 
-                let rhs = self.term_1(with_struct).try;
+                let rhs = self.term_0(with_struct).try;
 
                 current = LExpression {
                     data: Expression {
