@@ -146,7 +146,8 @@ module Compiler {
         skip_errors: bool,
         validate_address: bool,
         test_mode: bool,
-    ): string or error {
+        output_path: string,
+    ): nil or error {
         let module_ = self.parse(input, nil, skip_errors, true).try;
 
         let typechecker = Typechecker::new();
@@ -163,7 +164,7 @@ module Compiler {
                     if main_path.join("_") != source.path.join("_") {
                         let loaded = self.matches(source.path);
                         if loaded == nil {
-                            panic("module not found");
+                            return _ or err!;
                         }
 
                         input_to_inspect = loaded!.source;
@@ -193,7 +194,9 @@ module Compiler {
 
         // file_write("quartz.ir", term.to_string());
 
-        let gen = Generator::new(validate_address);
+        let writer = FileWriter::open(output_path).try;
+
+        let gen = Generator::new(writer, validate_address);
         gen.set_globals(typechecker.globals);
         gen.set_strings(irgen.strings.strings);
         gen.set_type_reps(irgen.type_reps.type_reps);
@@ -202,9 +205,11 @@ module Compiler {
         term = gen.fold_consts(term);
 
         let offset = ((irgen.data_section_offset + 7) / 8) * 8;
-        let code = gen.run(term, entrypoint, offset);
+        gen.run(term, entrypoint, offset);
 
-        return code;
+        writer.close();
+
+        return nil;
     }
 
     fun check(
