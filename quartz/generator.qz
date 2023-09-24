@@ -41,7 +41,7 @@ fun escape(s: string): string {
 }
 
 struct Generator {
-    writer: stringbuilder,
+    writer: FileWriter,
     depth: i32,
     index: i32,
     globals: map[string, LType],
@@ -54,9 +54,9 @@ struct Generator {
 }
 
 module Generator {
-    fun new(validate_address: bool): Generator {
+    fun new(writer: FileWriter, validate_address: bool): Generator {
         return Generator {
-            writer: stringbuilder::new(),
+            writer: writer,
             depth: 0,
             index: 0,
             globals: make[map[string, LType]](),
@@ -84,18 +84,18 @@ module Generator {
 
     fun write(self, str: string) {
         if self.index == 0 {
-            self.writer.append(str);
+            self.writer.write(str);
         } else {
-            self.writer.append(" ");
-            self.writer.append(str);
+            self.writer.write(" ");
+            self.writer.write(str);
         }
         self.index = self.index + 1;
     }
 
     fun new_statement(self) {
         if self.index > 0 {
-            self.writer.append("\n");
-            self.writer.append(" ".repeat(self.depth * 4));
+            self.writer.write("\n");
+            self.writer.write(" ".repeat(self.depth * 4));
         }
         self.index = 0;
     }
@@ -114,10 +114,6 @@ module Generator {
 
     fun set_start_terms(self, start: vec[IrTerm]) {
         self.start_terms = start;
-    }
-
-    fun generate(self): string {
-        return self.writer.to_string();
     }
 
     fun decl(self, element: IrTerm) {
@@ -219,7 +215,7 @@ module Generator {
         }
     }
 
-    fun run(self, m: IrTerm, entrypoint: string, data_section_offset: i32): string {
+    fun run(self, m: IrTerm, entrypoint: string, data_section_offset: i32) {
         self.start();
         self.write("module");
 
@@ -589,8 +585,6 @@ module Generator {
         self.end();
 
         self.end();
-
-        return self.generate();
     }
 
     fun global_let(

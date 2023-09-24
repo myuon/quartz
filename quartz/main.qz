@@ -317,15 +317,7 @@ fun start(): nil or error {
             validate_address = compile.validate_address!;
         }
 
-        let result or err = run(
-            compiler,
-            input,
-            path,
-            entrypoint,
-            validate_address,
-            compiler_version,
-            compile.test,
-        );
+        let result or err = compiler.compile(input, path, entrypoint, false, validate_address, compile.test, compile.output!);
         if err != nil {
             write_string(fd_stderr, format("Error: {}", err!.message));
             write_string(fd_stderr, "\n");
@@ -340,7 +332,6 @@ fun start(): nil or error {
         }
 
         println("compiled: writing wat to {}", compile.output!);
-        file_write(compile.output!, result!);
 
         return nil;
     } else if command.format != nil {
@@ -578,18 +569,6 @@ fun start(): nil or error {
     }
 
     return nil;
-}
-
-fun run(
-    compiler: Compiler,
-    input_: string,
-    main_path: Path,
-    entrypoint: string,
-    validate_address: bool,
-    compiler_version: string,
-    test_mode: bool,
-): string or error {
-    return compiler.compile(input_, main_path, entrypoint, false, validate_address, test_mode).try;
 }
 
 fun run_format(input_: string): string or error {
