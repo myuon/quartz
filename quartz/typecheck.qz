@@ -1367,7 +1367,8 @@ module Typechecker {
                                 it = self.interfaces.at(param_type.t_ident!)?;
                             }
 
-                            expr.t_call!.args.at(i) = LExpression {
+                            // FIXME: this is broken
+                            let v = LExpression {
                                 data: Expression {
                                     t_upcast: struct {
                                         interface_name: it!.name,
@@ -1376,6 +1377,7 @@ module Typechecker {
                                 },
                                 location: arg.location,
                             };
+                            expr.t_call!.args.at(i) = v;
 
                             return result!;
                         } else {
@@ -1583,6 +1585,29 @@ module Typechecker {
                 }
 
                 // method access
+
+                // interface
+                if self.interfaces.has(type_name) {
+                    expr.t_project!.interface_call = true;
+
+                    let it = self.interfaces.at(type_name);
+                    for m in it.methods {
+                        if m.name == label.data {
+                            if m.params.at(0).name != "self" {
+                                return _ or error::new("method {} has no self arguement".format(label.data));
+                            }
+
+                            return Type {
+                                t_func: struct {
+                                    params: vec_slice(m.params, 1, m.params.length),
+                                    result: m.result_type,
+                                },
+                            };
+                        }
+                    }
+
+                    return _ or error::new("method not found: {}.{}".format(type_name, label.data));
+                }
 
                 let func_ident_name = type_name.concat("_").concat(label.data);
                 let resolved = self.resolve_path(Path::ident(func_ident_name)).try;
@@ -1925,6 +1950,10 @@ module Typechecker {
 
     fun resolve_record_type(self, type_: Type, args: vec[Type]): map[string, Type] or error {
         if type_.t_ident != nil {
+            if self.interfaces.has(type_.t_ident!) {
+                return make[map[string, Type]]();
+            }
+
             return self.resolve_record_type(self.globals.at(type_.t_ident!).data, make[vec[Type]]()).try;
         } else if type_.t_struct != nil {
             let result = make[map[string, Type]]();

@@ -477,6 +477,9 @@ module IrCodeGenerator {
                     elements.push(self.declare_func_wrapper(d.t_declare_func!).try);
                 }
             }
+            if d.t_interface != nil {
+                continue;
+            }
         }
 
         return elements;
@@ -1190,6 +1193,7 @@ module IrCodeGenerator {
                                                     },
                                                     type_: stm.t_for!.type_,
                                                     resolved_path: nil as Path?,
+                                                    interface_call: false,
                                                 },
                                             },
                                             location: Location::unknown(),
@@ -1244,6 +1248,7 @@ module IrCodeGenerator {
                                                     },
                                                     type_: stm.t_for!.type_,
                                                     resolved_path: nil as Path?,
+                                                    interface_call: false,
                                                 },
                                             },
                                             location: Location::unknown(),
@@ -1587,6 +1592,12 @@ module IrCodeGenerator {
             let callee = expr.t_call!.callee.data;
             if callee.t_project != nil {
                 let project = callee.t_project!;
+                if project.interface_call {
+                    println("interface call");
+
+                    abort();
+                }
+
                 if project.type_!.t_ptr != nil && project.field.data.equal("at") {
                     if expr.t_call!.args.length != 1 {
                         return _ or error::new("at() takes 2 arguments");
@@ -2538,6 +2549,9 @@ module IrCodeGenerator {
                     terms: elements,
                 },
             };
+        } else if expr.t_upcast != nil {
+            println(derive::to_string(expr));
+            abort();
         }
 
         return panic("expression exhausted: {}", expr.to_string());
