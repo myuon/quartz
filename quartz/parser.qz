@@ -1982,7 +1982,8 @@ module Parser {
     }
 
     fun dot_after(self, current: LExpression): LExpression or error {
-        if self.peek().try.lexeme.equal("try") {
+        let peeked = self.peek().try;
+        if peeked.lexeme == "try" {
             let end_token = self.expect("try").try;
 
             return LExpression {
@@ -1994,24 +1995,41 @@ module Parser {
                     end: end_token.location.end,
                 },
             };
-        }
+        } else if peeked.lexeme == "lparen" {
+            self.expect("lparen").try;
+            let expr = self.expression().try;
+            let end_token = self.expect("rparen").try;
 
-        let field = self.ident().try;
-
-        return LExpression {
-            data: Expression {
-                t_project: struct {
-                    expr: current,
-                    field: field,
-                    type_: nil as Type?,
-                    resolved_path: nil,
+            return LExpression {
+                data: Expression {
+                    t_index: struct {
+                        expr: current,
+                        index: expr,
+                    },
                 },
-            },
-            location: Location {
-                start: current.location.start,
-                end: field.location.end,
-            },
-        };
+                location: Location {
+                    start: current.location.start,
+                    end: end_token.location.end,
+                },
+            };
+        } else {
+            let field = self.ident().try;
+
+            return LExpression {
+                data: Expression {
+                    t_project: struct {
+                        expr: current,
+                        field: field,
+                        type_: nil as Type?,
+                        resolved_path: nil,
+                    },
+                },
+                location: Location {
+                    start: current.location.start,
+                    end: field.location.end,
+                },
+            };
+        }
     }
 
     fun span_location(self, start: Token, end: Token): Location {

@@ -295,6 +295,10 @@ enum Expression {
         type_: Type,
     },
     t_try: LExpression,
+    t_index: struct {
+        expr: LExpression,
+        index: LExpression,
+    },
 }
 
 module Expression {
