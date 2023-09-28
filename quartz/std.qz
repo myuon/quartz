@@ -573,6 +573,10 @@ module string {
         return self.data.at(n);
     }
 
+    fun index(self, n: i32): ptr[byte] {
+        return self.data.offset(n);
+    }
+
     fun repeat(self, n: i32): string {
         let new_length = self.length * n;
         let new_data = make[ptr[byte]](new_length);
