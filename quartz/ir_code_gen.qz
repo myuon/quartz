@@ -980,7 +980,7 @@ module IrCodeGenerator {
                                 IrTerm {
                                     t_i32: 0,
                                 },
-                            ).try
+                            ).try,
                         ).try,
                         self.let_pattern(
                             pat.data.t_or!.rhs,
@@ -995,7 +995,7 @@ module IrCodeGenerator {
                                 IrTerm {
                                     t_i32: 1,
                                 },
-                            ).try
+                            ).try,
                         ).try,
                     ),
                 },
@@ -1039,7 +1039,7 @@ module IrCodeGenerator {
                 t_discard: self.expression(stm.t_expr!.expr).try,
             };
         } else if stm.t_assign != nil {
-            let lhs = self.expression(stm.t_assign!.lhs).try;
+            let lhs = self.expression_left_value(stm.t_assign!.lhs).try;
             let rhs = self.expression(stm.t_assign!.rhs).try;
             if stm.t_assign!.rhs_type == nil {
                 return _ or error::new("expected rhs type");
@@ -2552,9 +2552,133 @@ module IrCodeGenerator {
         } else if expr.t_upcast != nil {
             println(derive::to_string(expr));
             abort();
+        } else if expr.t_index != nil {
+            let term = self.expression(expr.t_index!.expr).try;
+            let offset = self.expression(expr.t_index!.index).try;
+
+            let t = expr.t_index!.expr_type!;
+            if t.t_ptr != nil {
+                return IrTerm {
+                    t_load: struct {
+                        type_: IrType::new(t.t_ptr!),
+                        address: term,
+                        offset: IrCodeGenerator::wrap_mult_sizeof(IrType::new(t.t_ptr!), offset),
+                    },
+                };
+            } else if t.t_ident != nil && t.t_ident! == "string" {
+                let symbol = "quartz_std_string_index";
+
+                return IrTerm {
+                    t_load: struct {
+                        type_: IrType::new(Type {
+                            t_byte: true,
+                        }),
+                        address: IrTerm {
+                            t_call: IrCall {
+                                callee: IrTerm {
+                                    t_ident: symbol,
+                                },
+                                args: make[vec[IrTerm]](term, offset),
+                            },
+                        },
+                        offset: IrTerm {
+                            t_i32: 0,
+                        },
+                    },
+                };
+            } else if t.t_vec != nil {
+                let symbol = "quartz_std_vec_index";
+                if t.t_vec!.t_byte != nil {
+                    panic("byte indexing not implemented");
+                }
+
+                return IrTerm {
+                    t_load: struct {
+                        type_: IrType::new(t.t_vec!),
+                        address: IrTerm {
+                            t_call: IrCall {
+                                callee: IrTerm {
+                                    t_ident: symbol,
+                                },
+                                args: make[vec[IrTerm]](term, offset),
+                            },
+                        },
+                        offset: IrTerm {
+                            t_i32: 0,
+                        },
+                    },
+                };
+            } else if t.t_map != nil {
+                let symbol = "quartz_std_map_index";
+
+                return IrTerm {
+                    t_load: struct {
+                        type_: IrType::new(t.t_map!.value),
+                        address: IrTerm {
+                            t_call: IrCall {
+                                callee: IrTerm {
+                                    t_ident: symbol,
+                                },
+                                args: make[vec[IrTerm]](term, offset),
+                            },
+                        },
+                        offset: IrTerm {
+                            t_i32: 0,
+                        },
+                    },
+                };
+            } else {
+                return panic("index not implemented: {}", expr.to_string());
+            }
+        } else if expr.t_unload != nil {
+            let term = self.expression(expr.t_unload!.expr).try;
+
+            if term.t_load == nil {
+                return panic("unload expected t_load: {}", expr.to_string());
+            } else {
+                return IrTerm {
+                    t_call: IrCall {
+                        callee: IrTerm {
+                            t_ident: "add",
+                        },
+                        args: make[vec[IrTerm]](term.t_load!.address, term.t_load!.offset),
+                    },
+                };
+            }
         }
 
         return panic("expression exhausted: {}", expr.to_string());
+    }
+
+    fun expression_left_value(self, lexpr: LExpression): IrTerm or error {
+        let expr = lexpr.data;
+        if expr.t_index != nil {
+            let offset = self.expression(expr.t_index!.index).try;
+
+            let t = expr.t_index!.expr_type!;
+            if t.t_map != nil {
+                let symbol = "quartz_std_map_index_lhs";
+
+                return IrTerm {
+                    t_load: struct {
+                        type_: IrType::new(t.t_map!.value),
+                        address: IrTerm {
+                            t_call: IrCall {
+                                callee: IrTerm {
+                                    t_ident: symbol,
+                                },
+                                args: make[vec[IrTerm]](self.expression(expr.t_index!.expr).try, offset),
+                            },
+                        },
+                        offset: IrTerm {
+                            t_i32: 0,
+                        },
+                    },
+                };
+            }
+        }
+
+        return self.expression(lexpr).try;
     }
 
     fun register_string(self, str: string): IrTerm {

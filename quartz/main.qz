@@ -274,7 +274,7 @@ module CliCommand {
 }
 
 fun start(): nil or error {
-    let compiler_version = "2.12.0";
+    let compiler_version = "2.13.1";
 
     let args = args();
     let command or err = CliCommand::parse(args.slice(1, args.length));

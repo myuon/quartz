@@ -1,36 +1,8 @@
-interface Output {
-    fun output(self): i32;
-}
-
-struct Impl1 {
-}
-
-module Impl1: Output {
-    fun output(self): i32 {
-        return 1;
-    }
-}
-
-struct Impl2 {
-}
-
-module Impl1: Output {
-    fun output(self): i32 {
-        return 2;
-    }
-}
-
 fun main(): i32 {
-    let v = make[vec[Output]]();
-    v.push(Impl1{});
-    v.push(Impl2{});
-    v.push(Impl2{});
-    v.push(Impl2{});
+    let m = make[map[string, i32]]();
 
-    let s = 0;
-    for i in v {
-        s = s + i.output();
-    }
+    m.("foo") = 40;
+    m.("bar") = 41;
 
-    return s;
+    return m.("foo") + m.("bar");
 }

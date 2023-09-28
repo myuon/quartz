@@ -1,0 +1,9 @@
+fun main() {
+    let v = make[vec[i32]](1, 2, 3, 4, 5);
+    for i in 0..v.length {
+        let k = v.(i);
+        v.(i) = k * 2;
+    }
+
+    println(derive::to_string(v));
+}

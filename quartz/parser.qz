@@ -1644,6 +1644,31 @@ module Parser {
                 }
                 let end_token = self.expect("rparen").try;
 
+                if current.data.t_ident != nil {
+                    if current.data.t_ident!.name == "unload" {
+                        if args.length != 1 {
+                            return _ or error::new(format("Expected 1 argument for unload, got {}", args.length.to_string()));
+                        }
+
+                        current = LExpression {
+                            data: Expression {
+                                t_unload: struct {
+                                    expr: args.at(0),
+                                    expr_type: Type {
+                                        t_omit: true,
+                                    },
+                                },
+                            },
+                            location: Location {
+                                start: current.location.start,
+                                end: end_token.location.end,
+                            },
+                        };
+
+                        continue;
+                    }
+                }
+
                 current = LExpression {
                     data: Expression {
                         t_call: struct {
@@ -1753,7 +1778,7 @@ module Parser {
                 let end_token = self.expect("rparen").try;
 
                 let ident = current.data.t_ident!.name;
-                if ident.equal("make") {
+                if ident == "make" {
                     current = LExpression {
                         data: Expression {
                             t_make: struct {
@@ -1766,7 +1791,7 @@ module Parser {
                             end: end_token.location.end,
                         },
                     };
-                } else if ident.equal("sizeof") {
+                } else if ident == "sizeof" {
                     current = LExpression {
                         data: Expression {
                             t_sizeof: struct {
@@ -2047,7 +2072,8 @@ module Parser {
     }
 
     fun dot_after(self, current: LExpression): LExpression or error {
-        if self.peek().try.lexeme.equal("try") {
+        let peeked = self.peek().try;
+        if peeked.lexeme == "try" {
             let end_token = self.expect("try").try;
 
             return LExpression {
@@ -2059,25 +2085,43 @@ module Parser {
                     end: end_token.location.end,
                 },
             };
-        }
+        } else if peeked.lexeme == "lparen" {
+            self.expect("lparen").try;
+            let expr = self.expression().try;
+            let end_token = self.expect("rparen").try;
 
-        let field = self.ident().try;
-
-        return LExpression {
-            data: Expression {
-                t_project: struct {
-                    expr: current,
-                    field: field,
-                    type_: nil as Type?,
-                    resolved_path: nil,
-                    interface_call: false,
+            return LExpression {
+                data: Expression {
+                    t_index: struct {
+                        expr: current,
+                        expr_type: nil as Type?,
+                        index: expr,
+                    },
                 },
-            },
-            location: Location {
-                start: current.location.start,
-                end: field.location.end,
-            },
-        };
+                location: Location {
+                    start: current.location.start,
+                    end: end_token.location.end,
+                },
+            };
+        } else {
+            let field = self.ident().try;
+
+            return LExpression {
+                data: Expression {
+                    t_project: struct {
+                        expr: current,
+                        field: field,
+                        type_: nil as Type?,
+                        resolved_path: nil,
+                        interface_call: false,
+                    },
+                },
+                location: Location {
+                    start: current.location.start,
+                    end: field.location.end,
+                },
+            };
+        }
     }
 
     fun span_location(self, start: Token, end: Token): Location {

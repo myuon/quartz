@@ -314,6 +314,15 @@ enum Expression {
         interface_name: string,
         expr: LExpression,
     },
+    t_index: struct {
+        expr: LExpression,
+        expr_type: Type?,
+        index: LExpression,
+    },
+    t_unload: struct {
+        expr: LExpression,
+        expr_type: Type,
+    },
 }
 
 module Expression {

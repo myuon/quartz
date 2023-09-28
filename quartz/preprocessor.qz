@@ -38,9 +38,11 @@ module Preprocessor {
                     if attr.name.data == "build_if" {
                         let result = self.interpret_bool(attr.args.at(0)).try;
                         if !result {
-                            // m.decls.at(index + 1) = LDecl {..} is not working🤔
-                            m.decls.at(index + 1).data = Decl {
-                                t_skip: true,
+                            m.decls.(index + 1) = LDecl {
+                                data: Decl {
+                                    t_skip: true,
+                                },
+                                location: Location::unknown(),
                             };
                         }
                     } else if attr.name.data == "nostd" {

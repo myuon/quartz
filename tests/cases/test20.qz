@@ -4,6 +4,6 @@ fun main(): i32 {
         p.push(i);
     }
 
-    return p.at(40) + p.at(60);
+    return p.(40) + p.(60);
 }
 
