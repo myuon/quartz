@@ -109,6 +109,7 @@ fun vec_push(v: vec[any], e: any) {
     v.length = v.length + 1;
 }
 
+// refactor: use vec_index
 fun vec_at(v: vec[any], n: i32): any {
     if n >= v.length {
         panic("vec_at: out of range: ".concat(n.to_string()));
@@ -958,6 +959,7 @@ fun map_make(): Map {
     };
 }
 
+// refactor: use map_index
 fun map_at(map: Map, key: string): any {
     if map.count == 0 {
         return panic("map_at[empty]: key ".concat(key).concat(" not found"));
@@ -1043,6 +1045,7 @@ fun map_has(map: Map, key: string): bool {
     return entry.key != nil;
 }
 
+// refactor: use map_index_lhs
 fun map_insert(map: Map, key: string, value: any) {
     if (map.count + 1) * 2 > map.capacity {
         let new_capacity = map.capacity * 2;
