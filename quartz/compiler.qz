@@ -192,7 +192,12 @@ module Compiler {
 
         term = transform_let_call(term);
 
-        // file_write("quartz.ir", term.to_string());
+        let envs = environs();
+        if envs.has("GENERATE_IR") {
+            file_write("quartz.ir", term.to_string());
+
+            println("wrote quartz.ir");
+        }
 
         let writer = FileWriter::open(output_path).try;
 

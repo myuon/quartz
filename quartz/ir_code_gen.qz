@@ -2539,6 +2539,7 @@ module IrCodeGenerator {
                 },
             };
         } else if expr.t_index != nil {
+            let term = self.expression(expr.t_index!.expr).try;
             let offset = self.expression(expr.t_index!.index).try;
 
             let t = expr.t_index!.expr_type!;
@@ -2564,7 +2565,7 @@ module IrCodeGenerator {
                                 callee: IrTerm {
                                     t_ident: symbol,
                                 },
-                                args: make[vec[IrTerm]](self.expression(expr.t_index!.expr).try, offset),
+                                args: make[vec[IrTerm]](term, offset),
                             },
                         },
                         offset: IrTerm {
@@ -2583,7 +2584,7 @@ module IrCodeGenerator {
                                 callee: IrTerm {
                                     t_ident: symbol,
                                 },
-                                args: make[vec[IrTerm]](self.expression(expr.t_index!.expr).try, offset),
+                                args: make[vec[IrTerm]](term, offset),
                             },
                         },
                         offset: IrTerm {
