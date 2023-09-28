@@ -10,7 +10,7 @@ fun int_to_string(n: i32): string {
     tmp = n;
     for i in 0..digit {
         let d = tmp % 10;
-        str.at(digit - i - 1) = ((d + 48) as byte);
+        str.(digit - i - 1) = ((d + 48) as byte);
         tmp = tmp / 10;
     }
 
@@ -23,6 +23,6 @@ fun int_to_string(n: i32): string {
 fun main(): i32 {
     let str = int_to_string(123456);
 
-    return str.data.at(5) as i32 - 48;
+    return str.(5) as i32 - 48;
 }
 
