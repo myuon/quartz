@@ -973,7 +973,6 @@ fun map_at(map: Map, key: string): any {
     }
 }
 
-@[build_if(version == "2.13.0")]
 fun map_index(map: Map, key: string): ptr[any] {
     if map.count == 0 {
         return panic("map_index[empty]: key ".concat(key).concat(" not found"));
@@ -987,7 +986,6 @@ fun map_index(map: Map, key: string): ptr[any] {
     }
 }
 
-@[build_if(version == "2.13.0")]
 fun map_index_lhs(map: Map, key: string): ptr[any] {
     if (map.count + 1) * 2 > map.capacity {
         let new_capacity = map.capacity * 2;
