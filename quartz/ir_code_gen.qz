@@ -2594,6 +2594,21 @@ module IrCodeGenerator {
             } else {
                 return panic("index not implemented: {}", expr.to_string());
             }
+        } else if expr.t_unload != nil {
+            let term = self.expression(expr.t_unload!.expr).try;
+
+            if term.t_load == nil {
+                return panic("unload expected t_load: {}", expr.to_string());
+            } else {
+                return IrTerm {
+                    t_call: IrCall {
+                        callee: IrTerm {
+                            t_ident: "add",
+                        },
+                        args: make[vec[IrTerm]](term.t_load!.address, term.t_load!.offset),
+                    },
+                };
+            }
         }
 
         return panic("expression exhausted: {}", expr.to_string());

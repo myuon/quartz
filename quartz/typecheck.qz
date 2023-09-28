@@ -1888,6 +1888,14 @@ module Typechecker {
             } else {
                 return _ or error::new("unimplemented: index, {}".format(expr.to_string()));
             }
+        } else if expr.t_unload != nil {
+            let expr_type = self.expression(expr.t_unload!.expr).try;
+
+            expr.t_unload!.expr_type = expr_type;
+
+            return Type {
+                t_ptr: expr_type,
+            };
         } else {
             return _ or error::new("unimplemented: expression, {}".format(expr.to_string()));
         }

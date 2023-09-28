@@ -300,6 +300,10 @@ enum Expression {
         expr_type: Type?,
         index: LExpression,
     },
+    t_unload: struct {
+        expr: LExpression,
+        expr_type: Type,
+    },
 }
 
 module Expression {

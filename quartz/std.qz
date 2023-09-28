@@ -971,6 +971,20 @@ fun map_at(map: Map, key: string): any {
     }
 }
 
+@[build_if(version == "2.13.0")]
+fun map_index(map: Map, key: string): ptr[any] {
+    if map.count == 0 {
+        return panic("map_at[empty]: key ".concat(key).concat(" not found"));
+    }
+
+    let entry = map_find_entry(map, key);
+    if entry.key == nil {
+        return panic("map_at: key ".concat(key).concat(" not found"));
+    } else {
+        return unload(entry.value);
+    }
+}
+
 fun map_has(map: Map, key: string): bool {
     if map.count == 0 {
         return false;
