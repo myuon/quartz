@@ -2004,6 +2004,7 @@ module Parser {
                 data: Expression {
                     t_index: struct {
                         expr: current,
+                        expr_type: nil as Type?,
                         index: expr,
                     },
                 },

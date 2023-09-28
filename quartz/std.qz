@@ -200,6 +200,14 @@ fun vec_clone(v: vec[any]): vec[any] {
     return result;
 }
 
+fun vec_index(v: vec[any], n: i32): ptr[any] {
+    if n >= v.length {
+        panic("vec_at: out of range: ".concat(n.to_string()));
+    }
+
+    return v.data.offset(n);
+}
+
 fun digit_to_string(digit: i32): string {
     return char_to_string(digit as byte);
 }

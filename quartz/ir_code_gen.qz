@@ -977,7 +977,7 @@ module IrCodeGenerator {
                                 IrTerm {
                                     t_i32: 0,
                                 },
-                            ).try
+                            ).try,
                         ).try,
                         self.let_pattern(
                             pat.data.t_or!.rhs,
@@ -992,7 +992,7 @@ module IrCodeGenerator {
                                 IrTerm {
                                     t_i32: 1,
                                 },
-                            ).try
+                            ).try,
                         ).try,
                     ),
                 },
@@ -2538,6 +2538,62 @@ module IrCodeGenerator {
                     terms: elements,
                 },
             };
+        } else if expr.t_index != nil {
+            let offset = self.expression(expr.t_index!.index).try;
+
+            let t = expr.t_index!.expr_type!;
+            if t.t_ptr != nil {
+                return IrTerm {
+                    t_load: struct {
+                        type_: IrType::new(t.t_ptr!),
+                        address: term,
+                        offset: IrCodeGenerator::wrap_mult_sizeof(IrType::new(t.t_ptr!), offset),
+                    },
+                };
+            } else if t.t_vec != nil {
+                let symbol = "quartz_std_vec_index";
+                if t.t_vec!.t_byte != nil {
+                    panic("byte indexing not implemented");
+                }
+
+                return IrTerm {
+                    t_load: struct {
+                        type_: IrType::new(t.t_vec!),
+                        address: IrTerm {
+                            t_call: IrCall {
+                                callee: IrTerm {
+                                    t_ident: symbol,
+                                },
+                                args: make[vec[IrTerm]](self.expression(expr.t_index!.expr).try, offset),
+                            },
+                        },
+                        offset: IrTerm {
+                            t_i32: 0,
+                        },
+                    },
+                };
+            } else if t.t_map != nil {
+                let symbol = "quartz_std_map_index";
+
+                return IrTerm {
+                    t_load: struct {
+                        type_: IrType::new(t.t_map!.value),
+                        address: IrTerm {
+                            t_call: IrCall {
+                                callee: IrTerm {
+                                    t_ident: symbol,
+                                },
+                                args: make[vec[IrTerm]](self.expression(expr.t_index!.expr).try, offset),
+                            },
+                        },
+                        offset: IrTerm {
+                            t_i32: 0,
+                        },
+                    },
+                };
+            } else {
+                return panic("index not implemented: {}", expr.to_string());
+            }
         }
 
         return panic("expression exhausted: {}", expr.to_string());

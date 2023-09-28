@@ -297,6 +297,7 @@ enum Expression {
     t_try: LExpression,
     t_index: struct {
         expr: LExpression,
+        expr_type: Type?,
         index: LExpression,
     },
 }
