@@ -109,13 +109,16 @@ fun vec_push(v: vec[any], e: any) {
     v.length = v.length + 1;
 }
 
-// refactor: use vec_index
-fun vec_at(v: vec[any], n: i32): any {
+fun vec_index(v: vec[any], n: i32): ptr[any] {
     if n >= v.length {
-        panic("vec_at: out of range: ".concat(n.to_string()));
+        panic("vec_index: out of range: ".concat(n.to_string()));
     }
 
-    return v.data.at(n);
+    return v.data.offset(n);
+}
+
+fun vec_at(v: vec[any], n: i32): any {
+    return vec_index(v, n).(0);
 }
 
 fun vec_extend(v: vec[i32], other: vec[i32]) {
@@ -199,14 +202,6 @@ fun vec_clone(v: vec[any]): vec[any] {
     }
 
     return result;
-}
-
-fun vec_index(v: vec[any], n: i32): ptr[any] {
-    if n >= v.length {
-        panic("vec_at: out of range: ".concat(n.to_string()));
-    }
-
-    return v.data.offset(n);
 }
 
 fun digit_to_string(digit: i32): string {
@@ -571,6 +566,10 @@ module string {
 
     fun at(self, n: i32): byte {
         return self.data.at(n);
+    }
+
+    fun index(self, n: i32): ptr[byte] {
+        return self.data.offset(n);
     }
 
     fun repeat(self, n: i32): string {
@@ -959,18 +958,8 @@ fun map_make(): Map {
     };
 }
 
-// refactor: use map_index
 fun map_at(map: Map, key: string): any {
-    if map.count == 0 {
-        return panic("map_at[empty]: key ".concat(key).concat(" not found"));
-    }
-
-    let entry = map_find_entry(map, key);
-    if entry.key == nil {
-        return panic("map_at: key ".concat(key).concat(" not found"));
-    } else {
-        return entry.value;
-    }
+    return map_index(map, key).(0);
 }
 
 fun map_index(map: Map, key: string): ptr[any] {

@@ -1869,6 +1869,17 @@ module Typechecker {
                 }).try;
 
                 return expr_type.t_ptr!;
+            } else if expr_type.t_ident != nil && expr_type.t_ident! == "string" {
+                unify(index_type, Type {
+                    t_i32: true,
+                }).context(ErrorSource {
+                    path: self.current_path,
+                    location: lexpr.location,
+                }).try;
+
+                return Type {
+                    t_byte: true,
+                };
             } else if expr_type.t_vec != nil {
                 unify(index_type, Type {
                     t_i32: true,

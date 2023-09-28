@@ -2551,6 +2551,27 @@ module IrCodeGenerator {
                         offset: IrCodeGenerator::wrap_mult_sizeof(IrType::new(t.t_ptr!), offset),
                     },
                 };
+            } else if t.t_ident != nil && t.t_ident! == "string" {
+                let symbol = "quartz_std_string_index";
+
+                return IrTerm {
+                    t_load: struct {
+                        type_: IrType::new(Type {
+                            t_byte: true,
+                        }),
+                        address: IrTerm {
+                            t_call: IrCall {
+                                callee: IrTerm {
+                                    t_ident: symbol,
+                                },
+                                args: make[vec[IrTerm]](term, offset),
+                            },
+                        },
+                        offset: IrTerm {
+                            t_i32: 0,
+                        },
+                    },
+                };
             } else if t.t_vec != nil {
                 let symbol = "quartz_std_vec_index";
                 if t.t_vec!.t_byte != nil {
