@@ -1,0 +1,8 @@
+fun main(): i32 {
+    let m = make[map[string, i32]]();
+
+    m.("foo") = 40;
+    m.("bar") = 41;
+
+    return m.("foo") + m.("bar");
+}

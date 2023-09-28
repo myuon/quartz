@@ -1854,6 +1854,48 @@ module Typechecker {
             } else {
                 return _ or error::new("unimplemented: try, {}".format(expr.to_string()));
             }
+        } else if expr.t_index != nil {
+            let expr_type = self.expression(expr.t_index!.expr).try;
+            let index_type = self.expression(expr.t_index!.index).try;
+
+            expr.t_index!.expr_type = expr_type?;
+
+            if expr_type.t_ptr != nil {
+                unify(index_type, Type {
+                    t_i32: true,
+                }).context(ErrorSource {
+                    path: self.current_path,
+                    location: lexpr.location,
+                }).try;
+
+                return expr_type.t_ptr!;
+            } else if expr_type.t_vec != nil {
+                unify(index_type, Type {
+                    t_i32: true,
+                }).context(ErrorSource {
+                    path: self.current_path,
+                    location: lexpr.location,
+                }).try;
+
+                return expr_type.t_vec!;
+            } else if expr_type.t_map != nil {
+                unify(index_type, expr_type.t_map!.key).context(ErrorSource {
+                    path: self.current_path,
+                    location: lexpr.location,
+                }).try;
+
+                return expr_type.t_map!.value;
+            } else {
+                return _ or error::new("unimplemented: index, {}".format(expr.to_string()));
+            }
+        } else if expr.t_unload != nil {
+            let expr_type = self.expression(expr.t_unload!.expr).try;
+
+            expr.t_unload!.expr_type = expr_type;
+
+            return Type {
+                t_ptr: expr_type,
+            };
         } else {
             return _ or error::new("unimplemented: expression, {}".format(expr.to_string()));
         }

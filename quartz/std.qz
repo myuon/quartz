@@ -109,6 +109,7 @@ fun vec_push(v: vec[any], e: any) {
     v.length = v.length + 1;
 }
 
+// refactor: use vec_index
 fun vec_at(v: vec[any], n: i32): any {
     if n >= v.length {
         panic("vec_at: out of range: ".concat(n.to_string()));
@@ -198,6 +199,14 @@ fun vec_clone(v: vec[any]): vec[any] {
     }
 
     return result;
+}
+
+fun vec_index(v: vec[any], n: i32): ptr[any] {
+    if n >= v.length {
+        panic("vec_at: out of range: ".concat(n.to_string()));
+    }
+
+    return v.data.offset(n);
 }
 
 fun digit_to_string(digit: i32): string {
@@ -950,6 +959,7 @@ fun map_make(): Map {
     };
 }
 
+// refactor: use map_index
 fun map_at(map: Map, key: string): any {
     if map.count == 0 {
         return panic("map_at[empty]: key ".concat(key).concat(" not found"));
@@ -963,6 +973,69 @@ fun map_at(map: Map, key: string): any {
     }
 }
 
+@[build_if(version == "2.13.0")]
+fun map_index(map: Map, key: string): ptr[any] {
+    if map.count == 0 {
+        return panic("map_index[empty]: key ".concat(key).concat(" not found"));
+    }
+
+    let entry = map_find_entry(map, key);
+    if entry.key == nil {
+        return panic("map_index: key ".concat(key).concat(" not found"));
+    } else {
+        return unload(entry.value);
+    }
+}
+
+@[build_if(version == "2.13.0")]
+fun map_index_lhs(map: Map, key: string): ptr[any] {
+    if (map.count + 1) * 2 > map.capacity {
+        let new_capacity = map.capacity * 2;
+        if new_capacity == 0 {
+            new_capacity = 8;
+        }
+
+        let entries = make[ptr[MapEntry]](new_capacity);
+
+        for i in 0..new_capacity {
+            entries.at(i) = MapEntry {
+                key: nil,
+                value: nil as any,
+            };
+        }
+
+        let new_map = Map {
+            count: 0,
+            capacity: new_capacity,
+            entries: entries,
+        };
+
+        for i in 0..map.capacity {
+            let entry = map.entries.at(i);
+            if entry.key == nil {
+                continue;
+            }
+
+            let target = map_find_entry(new_map, entry.key!);
+            target.key = entry.key;
+            target.value = entry.value;
+            new_map.count = new_map.count + 1;
+        }
+
+        map.entries = entries;
+        map.capacity = new_capacity;
+    }
+
+    let entry = map_find_entry(map, key);
+    if entry.key == nil {
+        entry.key = key?;
+        map.count = map.count + 1;
+        return unload(entry.value);
+    } else {
+        return unload(entry.value);
+    }
+}
+
 fun map_has(map: Map, key: string): bool {
     if map.count == 0 {
         return false;
@@ -972,6 +1045,7 @@ fun map_has(map: Map, key: string): bool {
     return entry.key != nil;
 }
 
+// refactor: use map_index_lhs
 fun map_insert(map: Map, key: string, value: any) {
     if (map.count + 1) * 2 > map.capacity {
         let new_capacity = map.capacity * 2;
