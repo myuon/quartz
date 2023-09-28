@@ -1367,8 +1367,7 @@ module Typechecker {
                                 it = self.interfaces.at(param_type.t_ident!)?;
                             }
 
-                            // FIXME: this is broken
-                            let v = LExpression {
+                            expr.t_call!.args.(i) = LExpression {
                                 data: Expression {
                                     t_upcast: struct {
                                         interface_name: it!.name,
@@ -1377,7 +1376,6 @@ module Typechecker {
                                 },
                                 location: arg.location,
                             };
-                            expr.t_call!.args.at(i) = v;
 
                             return result!;
                         } else {
