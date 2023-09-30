@@ -183,12 +183,38 @@ module TypeRepTable {
     }
 }
 
+struct FunctionTable {
+    functions: vec[string],
+}
+
+module FunctionTable {
+    fun new(): FunctionTable {
+        return FunctionTable {
+            functions: make[vec[string]](),
+        };
+    }
+
+    fun get_or_insert(self, key: string): i32 {
+        for i in 0..self.functions.length {
+            if self.functions.at(i).equal(key) {
+                return i as i32;
+            }
+        }
+
+        self.functions.push(key);
+
+        return (self.functions.length - 1) as i32;
+    }
+}
+
 struct IrCodeGenerator {
     globals: map[string, LType],
     locals: map[string, bool],
+    interfaces: map[string, Interface],
     current_path: Path,
     strings: StringTable,
     type_reps: TypeRepTable,
+    functions: FunctionTable,
     data_section_offset: i32,
     counter: i32,
     start: vec[IrTerm],
@@ -205,9 +231,11 @@ module IrCodeGenerator {
         return IrCodeGenerator {
             globals: make[map[string, LType]](),
             locals: make[map[string, bool]](),
+            interfaces: make[map[string, Interface]](),
             current_path: Path::new(),
             strings: StringTable::new(),
             type_reps: TypeRepTable::new(),
+            functions: FunctionTable::new(),
             data_section_offset: 0,
             counter: 0,
             start: make[vec[IrTerm]](),
