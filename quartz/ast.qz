@@ -249,7 +249,7 @@ enum Expression {
         field: Ident,
         type_: Type?,
         resolved_path: Path?,
-        interface_call: bool,
+        interface_call_functype: Type?,
     },
     t_record: RecordExpression,
     t_anonymous_record: struct {

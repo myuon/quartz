@@ -2113,7 +2113,7 @@ module Parser {
                         field: field,
                         type_: nil as Type?,
                         resolved_path: nil,
-                        interface_call: false,
+                        interface_call_functype: nil,
                     },
                 },
                 location: Location {

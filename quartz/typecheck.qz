@@ -1590,14 +1590,19 @@ module Typechecker {
 
                 // interface
                 if self.interfaces.has(type_name) {
-                    expr.t_project!.interface_call = true;
-
                     let it = self.interfaces.at(type_name);
                     for m in it.methods {
                         if m.name == label.data {
                             if m.params.at(0).name != "self" {
                                 return _ or error::new("method {} has no self arguement".format(label.data));
                             }
+
+                            expr.t_project!.interface_call_functype = Type {
+                                t_func: struct {
+                                    params: vec_slice(m.params, 1, m.params.length),
+                                    result: m.result_type,
+                                },
+                            }?;
 
                             return Type {
                                 t_func: struct {

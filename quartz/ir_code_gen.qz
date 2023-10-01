@@ -1432,7 +1432,7 @@ module IrCodeGenerator {
                                                     },
                                                     type_: stm.t_for!.type_,
                                                     resolved_path: nil as Path?,
-                                                    interface_call: false,
+                                                    interface_call_functype: nil,
                                                 },
                                             },
                                             location: Location::unknown(),
@@ -1487,7 +1487,7 @@ module IrCodeGenerator {
                                                     },
                                                     type_: stm.t_for!.type_,
                                                     resolved_path: nil as Path?,
-                                                    interface_call: false,
+                                                    interface_call_functype: nil,
                                                 },
                                             },
                                             location: Location::unknown(),
@@ -1831,7 +1831,7 @@ module IrCodeGenerator {
             let callee = expr.t_call!.callee.data;
             if callee.t_project != nil {
                 let project = callee.t_project!;
-                if project.interface_call {
+                if project.interface_call_functype != nil {
                     if project.type_!.t_ident == nil {
                         return _ or error::new("expected interface type in project");
                     }
@@ -1863,6 +1863,7 @@ module IrCodeGenerator {
 
                     return IrTerm {
                         t_dynamic_call: struct {
+                            callee_type: IrType::new(project.interface_call_functype!),
                             callee_id: IrTerm {
                                 t_call: IrCall {
                                     callee: IrTerm {

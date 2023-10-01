@@ -93,6 +93,7 @@ enum IrTerm {
         },
     },
     t_dynamic_call: struct {
+        callee_type: IrType,
         callee_id: IrTerm,
         args: vec[IrTerm],
     },
