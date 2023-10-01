@@ -240,12 +240,13 @@ struct ITable {
 struct IrCodeGenerator {
     globals: map[string, LType],
     locals: map[string, bool],
+    interfaces: map[string, Interface],
     itables: vec[ITable],
     current_path: Path,
     strings: StringTable,
     type_reps: TypeRepTable,
     functions: FunctionTable,
-    interfaces: InterfaceTable,
+    interface_ids: InterfaceTable,
     data_section_offset: i32,
     counter: i32,
     start: vec[IrTerm],
@@ -262,12 +263,13 @@ module IrCodeGenerator {
         return IrCodeGenerator {
             globals: make[map[string, LType]](),
             locals: make[map[string, bool]](),
+            interfaces: make[map[string, Interface]](),
             itables: make[vec[ITable]](),
             current_path: Path::new(),
             strings: StringTable::new(),
             type_reps: TypeRepTable::new(),
             functions: FunctionTable::new(),
-            interfaces: InterfaceTable::new(),
+            interface_ids: InterfaceTable::new(),
             data_section_offset: 0,
             counter: 0,
             start: make[vec[IrTerm]](),
@@ -282,8 +284,10 @@ module IrCodeGenerator {
 
     fun set_interfaces(self, is: map[string, Interface]) {
         for name in is.list_keys() {
-            self.interfaces.get_or_insert(name);
+            self.interface_ids.get_or_insert(name);
         }
+
+        self.interfaces = is;
     }
 
     fun run(self, m: Module): IrTerm or error {
@@ -1683,9 +1687,53 @@ module IrCodeGenerator {
             if callee.t_project != nil {
                 let project = callee.t_project!;
                 if project.interface_call {
-                    println("interface call");
+                    if project.type_!.t_ident == nil {
+                        return _ or error::new("expected interface type in project");
+                    }
 
-                    abort();
+                    let interface_name = project.type_!.t_ident!;
+                    let interface_ = self.interfaces.at(interface_name);
+
+                    let function_index = 0-1;
+                    for i in 0..interface_.methods.length {
+                        if interface_.methods.(i).name == project.field.data {
+                            function_index = i;
+                            break;
+                        }
+                    }
+                    if function_index == 0-1 {
+                        return _ or error::new(
+                            format(
+                                "interface {} does not have method {}",
+                                interface_name,
+                                project.field.data,
+                            ),
+                        );
+                    }
+
+                    let args = make[vec[IrTerm]]();
+                    for arg in expr.t_call!.args {
+                        args.push(self.expression(arg).try);
+                    }
+
+                    return IrTerm {
+                        t_dynamic_call: struct {
+                            callee_id: IrTerm {
+                                t_call: IrCall {
+                                    callee: IrTerm {
+                                        t_ident: "quartz_std_itable_lookup",
+                                    },
+                                    args: make[vec[IrTerm]](
+                                        self.expression(project.expr).try,
+                                        IrTerm {
+                                            t_i32: function_index,
+                                        },
+                                    ),
+                                },
+                            },
+                            args: args,
+                        },
+                    };
                 }
 
                 if project.type_!.t_ptr != nil && project.field.data.equal("at") {
@@ -2640,7 +2688,7 @@ module IrCodeGenerator {
                 },
             };
         } else if expr.t_upcast != nil {
-            let interface_id = self.interfaces.get_or_insert(expr.t_upcast!.interface_name);
+            let interface_id = self.interface_ids.get_or_insert(expr.t_upcast!.interface_name);
 
             return self.generate_array(
                 "dynamic",

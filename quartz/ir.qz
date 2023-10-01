@@ -92,6 +92,10 @@ enum IrTerm {
             wasm_type: string,
         },
     },
+    t_dynamic_call: struct {
+        callee_id: IrTerm,
+        args: vec[IrTerm],
+    },
 }
 
 module IrTerm {
