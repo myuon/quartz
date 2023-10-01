@@ -312,6 +312,7 @@ enum Expression {
     t_try: LExpression,
     t_upcast: struct {
         interface_name: string,
+        expr_type: Type,
         expr: LExpression,
     },
     t_index: struct {

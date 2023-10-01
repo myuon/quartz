@@ -1361,16 +1361,20 @@ module Typechecker {
                         // FIXME: move to unify
                         if arg_type.t_ident != nil && param_type.t_ident != nil && (self.interfaces.has(arg_type.t_ident!) || self.interfaces.has(param_type.t_ident!)) {
                             let it = nil as Interface?;
+                            let expr_type = nil as Type?;
                             if self.interfaces.has(arg_type.t_ident!) {
                                 it = self.interfaces.at(arg_type.t_ident!)?;
+                                expr_type = param_type?;
                             } else {
                                 it = self.interfaces.at(param_type.t_ident!)?;
+                                expr_type = arg_type?;
                             }
 
                             expr.t_call!.args.(i) = LExpression {
                                 data: Expression {
                                     t_upcast: struct {
                                         interface_name: it!.name,
+                                        expr_type: expr_type!,
                                         expr: arg,
                                     },
                                 },

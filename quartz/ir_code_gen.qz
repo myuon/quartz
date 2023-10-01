@@ -237,16 +237,51 @@ struct ITable {
     function_ids: vec[i32],
 }
 
+struct ITableMap {
+    itables: vec[ITable],
+}
+
+module ITableMap {
+    fun new(): ITableMap {
+        return ITableMap {
+            itables: make[vec[ITable]](),
+        };
+    }
+
+    fun get_or_insert(self, itable: ITable): i32 {
+        for i in 0..self.itables.length {
+            if self.itables.at(i).type_name == itable.type_name {
+                return i as i32;
+            }
+        }
+
+        self.itables.push(itable);
+
+        return (self.itables.length - 1) as i32;
+    }
+
+    fun get(self, type_name: string, interface_name: string): ITable or error {
+        for i in 0..self.itables.length {
+            let itable = self.itables.at(i);
+            if itable.type_name == type_name && itable.interface_name == interface_name {
+                return itable;
+            }
+        }
+
+        return _ or error::new("itable not found");
+    }
+}
+
 struct IrCodeGenerator {
     globals: map[string, LType],
     locals: map[string, bool],
     interfaces: map[string, Interface],
-    itables: vec[ITable],
     current_path: Path,
     strings: StringTable,
     type_reps: TypeRepTable,
     functions: FunctionTable,
     interface_ids: InterfaceTable,
+    itables: ITableMap,
     data_section_offset: i32,
     counter: i32,
     start: vec[IrTerm],
@@ -264,12 +299,12 @@ module IrCodeGenerator {
             globals: make[map[string, LType]](),
             locals: make[map[string, bool]](),
             interfaces: make[map[string, Interface]](),
-            itables: make[vec[ITable]](),
             current_path: Path::new(),
             strings: StringTable::new(),
             type_reps: TypeRepTable::new(),
             functions: FunctionTable::new(),
             interface_ids: InterfaceTable::new(),
+            itables: ITableMap::new(),
             data_section_offset: 0,
             counter: 0,
             start: make[vec[IrTerm]](),
@@ -559,7 +594,7 @@ module IrCodeGenerator {
                         }
                     }
 
-                    self.itables.push(itable);
+                    self.itables.get_or_insert(itable);
                 }
 
                 self.current_path = path;
@@ -2688,7 +2723,11 @@ module IrCodeGenerator {
                 },
             };
         } else if expr.t_upcast != nil {
-            let interface_id = self.interface_ids.get_or_insert(expr.t_upcast!.interface_name);
+            let expr_type_name = expr.t_upcast!.expr_type.t_ident!;
+            let interface_name = expr.t_upcast!.interface_name;
+
+            let itable = self.itables.get(expr_type_name, interface_name).try;
+            let itable_id = self.itables.get_or_insert(itable);
 
             return self.generate_array(
                 "dynamic",
@@ -2698,12 +2737,12 @@ module IrCodeGenerator {
                     type_: IrType,
                     term: IrTerm,
                 }]](struct {
-                    label: "type"?,
+                    label: "itable"?,
                     type_: IrType {
                         t_i32: true,
                     },
                     term: IrTerm {
-                        t_i32: interface_id,
+                        t_i32: itable_id,
                     },
                 }, struct {
                     label: "value"?,
@@ -2713,8 +2752,6 @@ module IrCodeGenerator {
                     term: self.expression(expr.t_upcast!.expr).try,
                 }),
             );
-            println(derive::to_string(expr));
-            abort();
         } else if expr.t_index != nil {
             let term = self.expression(expr.t_index!.expr).try;
             let offset = self.expression(expr.t_index!.index).try;
