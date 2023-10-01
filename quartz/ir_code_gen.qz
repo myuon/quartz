@@ -990,7 +990,7 @@ module IrCodeGenerator {
         let body = make[vec[IrTerm]]();
 
         let var_itable_ptr = "quartz_core_itables_ptr";
-        body.push(IrTerm {
+        self.start.push(IrTerm {
             t_assign: struct {
                 lhs: var_itable_ptr,
                 rhs: self.expression(LExpression {
@@ -1071,6 +1071,12 @@ module IrCodeGenerator {
         }
 
         let terms = make[vec[IrTerm]]();
+        terms.push(IrTerm {
+            t_funcref_table: struct {
+                functions: self.functions.functions,
+            },
+        });
+
         terms.push(IrTerm {
             t_func: IrFunc {
                 name: "prepare_itables".to_string(),
@@ -1860,7 +1866,7 @@ module IrCodeGenerator {
                             callee_id: IrTerm {
                                 t_call: IrCall {
                                     callee: IrTerm {
-                                        t_ident: "quartz_std_itable_lookup",
+                                        t_ident: "quartz_core_itable_lookup",
                                     },
                                     args: make[vec[IrTerm]](
                                         self.expression(project.expr).try,

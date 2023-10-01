@@ -327,3 +327,12 @@ fun is_typerep_pointer(p: ptr[byte]): bool {
     )) as i32;
 }
 
+let itables_ptr: ptr[ptr[any]] = (nil as ptr[ptr[any]]);
+
+@[no_allocation]
+fun itable_lookup(v: any, index: i32): i32 {
+    println(derive::to_string(v));
+    debug(index);
+
+    return 0;
+}

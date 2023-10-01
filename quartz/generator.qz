@@ -210,8 +210,25 @@ module Generator {
 
             self.write("return");
             self.end();
+        } else if element.t_funcref_table != nil {
+            let functions = element.t_funcref_table!.functions;
+
+            self.start();
+            self.write("table");
+            self.write(functions.length.to_string());
+            self.write("funcref");
+            self.end();
+
+            self.start();
+            self.write("elem");
+            self.write("(i32.const 0)");
+            for i in 0..functions.length {
+                let func = functions.at(i);
+                self.write(format("${}", func));
+            }
+            self.end();
         } else {
-            panic("decl: {}", element.to_string());
+            panic("decl: {}", derive::to_string(element));
         }
     }
 

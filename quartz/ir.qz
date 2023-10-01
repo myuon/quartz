@@ -96,6 +96,9 @@ enum IrTerm {
         callee_id: IrTerm,
         args: vec[IrTerm],
     },
+    t_funcref_table: struct {
+        functions: vec[string],
+    }
 }
 
 module IrTerm {
