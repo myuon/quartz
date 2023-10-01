@@ -51,6 +51,10 @@ struct Generator {
     start_terms: vec[IrTerm],
     current_function_name: string,
     mode_validate_address: bool,
+    types: vec[struct {
+        name: string,
+        wasm_type: string,
+    }],
 }
 
 module Generator {
@@ -66,6 +70,10 @@ module Generator {
             start_terms: make[vec[IrTerm]](),
             current_function_name: "",
             mode_validate_address: validate_address,
+            types: make[vec[struct {
+                name: string,
+                wasm_type: string,
+            }]](),
         };
     }
 
@@ -252,6 +260,14 @@ module Generator {
             }
         } else {
             panic("expected module");
+        }
+
+        for type_ in self.types {
+            self.start();
+            self.write("type");
+            self.write(format("${}", type_.name));
+            self.write(type_.wasm_type);
+            self.end();
         }
 
         self.start();
@@ -1164,9 +1180,29 @@ module Generator {
             self.expression(expr.t_dynamic_call!.callee_id);
 
             self.convert_stack_to_i32_1();
-            
+
+            let type_name = "__type_{}_{}".format(self.depth.to_string(), self.index.to_string());
+
             self.new_statement();
-            self.write("call_indirect");
+            self.write("call_indirect (type ${})".format(type_name));
+
+            let func_type = expr.t_dynamic_call!.callee_type.t_func!;
+
+            let callee_type = "";
+            let params = "";
+            for param in func_type.params {
+                params = "{} {}".format(params, self.get_wasmtype(param));
+            }
+
+            if params != "" {
+                callee_type = format("(params {})", params);
+            }
+            callee_type = format("(func {} (result {}))", callee_type, self.get_wasmtype(func_type.result_type));
+
+            self.types.push(struct {
+                name: type_name,
+                wasm_type: callee_type,
+            });
         } else {
             panic("not implemented: expr, {}", derive::to_string(expr));
         }

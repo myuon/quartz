@@ -232,6 +232,10 @@ enum IrType {
     t_any: bool,
     t_i64: bool,
     t_externref: bool,
+    t_func: struct {
+        params: vec[IrType],
+        result_type: IrType,
+    },
 }
 
 module IrType {
@@ -310,6 +314,19 @@ module IrType {
         if t.t_map != nil {
             return IrType {
                 t_address: true,
+            };
+        }
+        if t.t_func != nil {
+            let params = make[vec[IrType]]();
+            for param in t.t_func!.params {
+                params.push(IrType::new(param));
+            }
+
+            return IrType {
+                t_func: struct {
+                    params: params,
+                    result_type: IrType::new(t.t_func!.result),
+                },
             };
         }
 
