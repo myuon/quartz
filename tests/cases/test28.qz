@@ -14,7 +14,7 @@ module Impl1: Output {
 struct Impl2 {
 }
 
-module Impl1: Output {
+module Impl2: Output {
     fun output(self): i32 {
         return 2;
     }
