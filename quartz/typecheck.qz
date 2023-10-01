@@ -1597,9 +1597,18 @@ module Typechecker {
                                 return _ or error::new("method {} has no self arguement".format(label.data));
                             }
 
+                            let params = make[vec[Type]]();
+                            for p in m.params {
+                                if p.name == "self" {
+                                    params.push(t);
+                                } else {
+                                    params.push(p.type_);
+                                }
+                            }
+
                             expr.t_project!.interface_call_functype = Type {
                                 t_func: struct {
-                                    params: vec_slice(m.params, 1, m.params.length),
+                                    params: params,
                                     result: m.result_type,
                                 },
                             }?;

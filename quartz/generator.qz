@@ -1195,7 +1195,7 @@ module Generator {
             }
 
             if params != "" {
-                callee_type = format("(params {})", params);
+                callee_type = format("(param {})", params);
             }
             callee_type = format("(func {} (result {}))", callee_type, self.get_wasmtype(func_type.result_type));
 
