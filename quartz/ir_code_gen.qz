@@ -443,6 +443,7 @@ module IrCodeGenerator {
         let type_rep_count = self.type_reps.type_reps.length;
         decls.push(self.generate_prepare_type_reps().try);
         decls.extend(self.generate_prepare_strings().try);
+        decls.extend(self.generate_prepare_itables().try);
 
         decls.push(IrTerm {
             t_func: IrFunc {
@@ -970,6 +971,109 @@ module IrCodeGenerator {
         terms.push(IrTerm {
             t_func: IrFunc {
                 name: "prepare_strings".to_string(),
+                params: make[vec[struct {
+                    name: string,
+                    type_: IrType,
+                }]](),
+                body: body,
+                result_type: IrType {
+                    t_nil: true,
+                },
+                ..nil,
+            },
+        });
+
+        return terms;
+    }
+
+    fun generate_prepare_itables(self): vec[IrTerm] or error {
+        let body = make[vec[IrTerm]]();
+
+        let var_itable_ptr = "quartz_core_itables_ptr";
+        body.push(IrTerm {
+            t_assign: struct {
+                lhs: var_itable_ptr,
+                rhs: self.expression(LExpression {
+                    data: Expression {
+                        t_make: struct {
+                            type_: Type {
+                                t_ptr: Type {
+                                    t_ident: "ITable",
+                                },
+                            },
+                            args: make[vec[LExpression]](LExpression {
+                                data: Expression {
+                                    t_i32: struct {
+                                        value: self.itables.itables.length,
+                                    },
+                                },
+                                location: Location::unknown(),
+                            }),
+                        },
+                    },
+                    location: Location::unknown(),
+                }).try,
+            },
+        });
+
+        for itable in self.itables.itables {
+            let itable_id = self.itables.get_or_insert(itable);
+
+            body.push(IrTerm {
+                t_assign: struct {
+                    lhs: var_itable_ptr,
+                    rhs: IrTerm {
+                        t_call: IrCall {
+                            callee: IrTerm {
+                                t_ident: "quartz_core_alloc_with_rep",
+                            },
+                            args: make[vec[IrTerm]](
+                                IrTerm {
+                                    t_nil: true,
+                                },
+                                IrCodeGenerator::wrap_mult_sizeof(
+                                    IrType {
+                                        t_address: true,
+                                    },
+                                    IrTerm {
+                                        t_i32: itable.function_ids.length,
+                                    },
+                                ),
+                            ),
+                        },
+                    },
+                },
+            });
+            for i in 0..itable.function_ids.length {
+                let function_id = itable.function_ids.(i);
+                body.push(IrTerm {
+                    t_store: struct {
+                        type_: IrType {
+                            t_address: true,
+                        },
+                        address: IrTerm {
+                            t_ident: var_itable_ptr,
+                        },
+                        offset: IrCodeGenerator::wrap_mult_sizeof(
+                            IrType {
+                                t_address: true,
+                            },
+                            IrTerm {
+                                t_i32: i,
+                            },
+                        ),
+                        value: IrTerm {
+                            t_i32: function_id,
+                        },
+                    },
+                });
+            }
+        }
+
+        let terms = make[vec[IrTerm]]();
+        terms.push(IrTerm {
+            t_func: IrFunc {
+                name: "prepare_itables".to_string(),
                 params: make[vec[struct {
                     name: string,
                     type_: IrType,

@@ -1143,8 +1143,13 @@ module Generator {
         } else if expr.t_comment != nil {
             self.new_statement();
             self.write(format(" ;; {}", escape(expr.t_comment!)));
+        } else if expr.t_dynamic_call != nil {
+            self.expression(expr.t_dynamic_call!.callee_id);
+            
+            self.new_statement();
+            self.write("call_indirect");
         } else {
-            panic("not implemented: expr, {}", expr.to_string());
+            panic("not implemented: expr, {}", derive::to_string(expr));
         }
     }
 
