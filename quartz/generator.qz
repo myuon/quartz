@@ -1162,6 +1162,8 @@ module Generator {
             self.write(format(" ;; {}", escape(expr.t_comment!)));
         } else if expr.t_dynamic_call != nil {
             self.expression(expr.t_dynamic_call!.callee_id);
+
+            self.convert_stack_to_i32_1();
             
             self.new_statement();
             self.write("call_indirect");
