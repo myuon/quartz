@@ -594,6 +594,14 @@ module Generator {
                 },
             },
             IrTerm {
+                t_call: IrCall {
+                    callee: IrTerm {
+                        t_ident: "prepare_itables",
+                    },
+                    args: make[vec[IrTerm]](),
+                },
+            },
+            IrTerm {
                 t_return: IrReturn {
                     value: IrTerm {
                         t_inst: "call $main_{}".format(entrypoint),

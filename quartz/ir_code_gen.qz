@@ -1070,6 +1070,14 @@ module IrCodeGenerator {
             }
         }
 
+        body.push(IrTerm {
+            t_return: IrReturn {
+                value: IrTerm {
+                    t_nil: true,
+                },
+            },
+        });
+
         let terms = make[vec[IrTerm]]();
         terms.push(IrTerm {
             t_funcref_table: struct {

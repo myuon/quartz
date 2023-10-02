@@ -331,7 +331,5 @@ let itables_ptr: ptr[ptr[any]] = (nil as ptr[ptr[any]]);
 
 @[no_allocation]
 fun itable_lookup(v: ptr[any], index: i32): i32 {
-    debug(itables_ptr);
-
-    return 0;
+    return v.(0);
 }
