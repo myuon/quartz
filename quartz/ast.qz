@@ -30,18 +30,32 @@ enum Decl {
     },
     t_module: struct {
         path: Path,
+        extends: string?,
         module_: Module,
     },
     t_import: Path,
     t_attributes: LAttributes,
     t_skip: bool,
     t_declare_func: DeclareFunc,
+    t_interface: Interface,
 }
 
 module Decl {
     fun to_string(self): string {
         return derive::to_string(self);
     }
+}
+
+struct Interface {
+    name: string,
+    methods: vec[struct {
+        name: string,
+        params: vec[struct {
+            name: string,
+            type_: Type,
+        }],
+        result_type: Type,
+    }],
 }
 
 struct DeclareFunc {
@@ -235,6 +249,7 @@ enum Expression {
         field: Ident,
         type_: Type?,
         resolved_path: Path?,
+        interface_call_functype: Type?,
     },
     t_record: RecordExpression,
     t_anonymous_record: struct {
@@ -295,6 +310,11 @@ enum Expression {
         type_: Type,
     },
     t_try: LExpression,
+    t_upcast: struct {
+        interface_name: string,
+        expr_type: Type,
+        expr: LExpression,
+    },
     t_index: struct {
         expr: LExpression,
         expr_type: Type?,

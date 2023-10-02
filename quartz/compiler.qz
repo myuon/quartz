@@ -124,6 +124,7 @@ module Compiler {
                 data: Decl {
                     t_module: struct {
                         path: loaded.path,
+                        extends: nil,
                         module_: loaded.module_,
                     },
                 },
@@ -148,10 +149,10 @@ module Compiler {
         test_mode: bool,
         output_path: string,
     ): nil or error {
-        let module_ = self.parse(input, nil, skip_errors, true).try;
+        let module_ = self.parse(input, nil, skip_errors, true).context("parse").try;
 
         let typechecker = Typechecker::new();
-        let n or err = typechecker.run(module_, main_path);
+        let n or err = typechecker.run(module_, main_path).context("typecheck");
         if err != nil {
             let err_internal = err!;
 
@@ -188,7 +189,8 @@ module Compiler {
 
         let irgen = IrCodeGenerator::new(test_mode, "main_{}".format(entrypoint));
         irgen.globals = typechecker.globals;
-        let term = irgen.run(module_).try;
+        irgen.set_interfaces(typechecker.interfaces);
+        let term = irgen.run(module_).context("ircodegen").try;
 
         term = transform_let_call(term);
 

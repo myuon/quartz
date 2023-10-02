@@ -164,6 +164,62 @@ module Parser {
                     },
                 };
             }
+        } else if token.lexeme == "interface" {
+            let start_token = self.expect("interface").try;
+            let name = self.ident().try;
+            self.expect("lbrace").try;
+
+            let methods = make[vec[struct {
+                name: string,
+                params: vec[struct {
+                    name: string,
+                    type_: Type,
+                }],
+                result_type: Type,
+            }]]();
+            while true {
+                if self.peek().try.lexeme == "fun" {
+                    self.expect("fun").try;
+                } else {
+                    break;
+                }
+
+                let method_name = self.ident().try;
+                self.expect("lparen").try;
+                let params = self.parameters().try;
+                self.expect("rparen").try;
+
+                let result_type = Type {
+                    t_nil: true,
+                };
+                if self.peek().try.lexeme == "colon" {
+                    self.expect("colon").try;
+                    result_type = self.type_().try.data;
+                }
+
+                self.expect("semicolon").try;
+
+                methods.push(struct {
+                    name: method_name.data,
+                    params: params.params,
+                    result_type: result_type,
+                });
+            }
+
+            let end_token = self.expect("rbrace").try;
+
+            return LDecl {
+                data: Decl {
+                    t_interface: Interface {
+                        name: name.data,
+                        methods: methods,
+                    },
+                },
+                location: Location {
+                    start: start_token.location.start,
+                    end: end_token.location.end,
+                },
+            };
         }
 
         return _ or error::new("Expected DECL, got ".concat(token.lexeme).concat("{").concat(
@@ -310,12 +366,20 @@ module Parser {
     ): struct {
         data: struct {
             path: Path,
+            extends: string?,
             module_: Module,
         },
         location: Location,
     } or error {
         let start_token = self.expect("module").try;
         let name = self.ident().try;
+
+        let extends = nil;
+        if self.peek().try.lexeme == "colon" {
+            self.expect("colon").try;
+            extends = self.ident().try.data?;
+        }
+
         self.expect("lbrace").try;
         let module_ = self.module_().try;
         let end_token = self.expect("rbrace").try;
@@ -323,6 +387,7 @@ module Parser {
         return struct {
             data: struct {
                 path: Path::ident(name.data),
+                extends: extends,
                 module_: module_,
             },
             location: self.span_location(start_token, end_token),
@@ -2048,6 +2113,7 @@ module Parser {
                         field: field,
                         type_: nil as Type?,
                         resolved_path: nil,
+                        interface_call_functype: nil,
                     },
                 },
                 location: Location {

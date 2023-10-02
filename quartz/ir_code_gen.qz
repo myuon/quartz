@@ -183,12 +183,105 @@ module TypeRepTable {
     }
 }
 
+struct FunctionTable {
+    functions: vec[string],
+}
+
+module FunctionTable {
+    fun new(): FunctionTable {
+        return FunctionTable {
+            functions: make[vec[string]](),
+        };
+    }
+
+    fun get_or_insert(self, key: string): i32 {
+        for i in 0..self.functions.length {
+            if self.functions.at(i).equal(key) {
+                return i as i32;
+            }
+        }
+
+        self.functions.push(key);
+
+        return (self.functions.length - 1) as i32;
+    }
+}
+
+struct InterfaceTable {
+    interfaces: vec[string],
+}
+
+module InterfaceTable {
+    fun new(): InterfaceTable {
+        return InterfaceTable {
+            interfaces: make[vec[string]](),
+        };
+    }
+
+    fun get_or_insert(self, key: string): i32 {
+        for i in 0..self.interfaces.length {
+            if self.interfaces.at(i).equal(key) {
+                return i as i32;
+            }
+        }
+
+        self.interfaces.push(key);
+
+        return (self.interfaces.length - 1) as i32;
+    }
+}
+
+struct ITable {
+    type_name: string,
+    interface_name: string,
+    function_ids: vec[i32],
+}
+
+struct ITableMap {
+    itables: vec[ITable],
+}
+
+module ITableMap {
+    fun new(): ITableMap {
+        return ITableMap {
+            itables: make[vec[ITable]](),
+        };
+    }
+
+    fun get_or_insert(self, itable: ITable): i32 {
+        for i in 0..self.itables.length {
+            if self.itables.at(i).type_name == itable.type_name {
+                return i as i32;
+            }
+        }
+
+        self.itables.push(itable);
+
+        return (self.itables.length - 1) as i32;
+    }
+
+    fun get(self, type_name: string, interface_name: string): ITable or error {
+        for i in 0..self.itables.length {
+            let itable = self.itables.at(i);
+            if itable.type_name == type_name && itable.interface_name == interface_name {
+                return itable;
+            }
+        }
+
+        return _ or error::new("itable not found");
+    }
+}
+
 struct IrCodeGenerator {
     globals: map[string, LType],
     locals: map[string, bool],
+    interfaces: map[string, Interface],
     current_path: Path,
     strings: StringTable,
     type_reps: TypeRepTable,
+    functions: FunctionTable,
+    interface_ids: InterfaceTable,
+    itables: ITableMap,
     data_section_offset: i32,
     counter: i32,
     start: vec[IrTerm],
@@ -205,9 +298,13 @@ module IrCodeGenerator {
         return IrCodeGenerator {
             globals: make[map[string, LType]](),
             locals: make[map[string, bool]](),
+            interfaces: make[map[string, Interface]](),
             current_path: Path::new(),
             strings: StringTable::new(),
             type_reps: TypeRepTable::new(),
+            functions: FunctionTable::new(),
+            interface_ids: InterfaceTable::new(),
+            itables: ITableMap::new(),
             data_section_offset: 0,
             counter: 0,
             start: make[vec[IrTerm]](),
@@ -218,6 +315,14 @@ module IrCodeGenerator {
             test_functions: make[vec[string]](),
             entrypoint: entrypoint,
         };
+    }
+
+    fun set_interfaces(self, is: map[string, Interface]) {
+        for name in is.list_keys() {
+            self.interface_ids.get_or_insert(name);
+        }
+
+        self.interfaces = is;
     }
 
     fun run(self, m: Module): IrTerm or error {
@@ -338,6 +443,7 @@ module IrCodeGenerator {
         let type_rep_count = self.type_reps.type_reps.length;
         decls.push(self.generate_prepare_type_reps().try);
         decls.extend(self.generate_prepare_strings().try);
+        decls.extend(self.generate_prepare_itables().try);
 
         decls.push(IrTerm {
             t_func: IrFunc {
@@ -467,7 +573,31 @@ module IrCodeGenerator {
             if d.t_module != nil {
                 let path = self.current_path.clone();
                 self.current_path.extend(d.t_module!.path);
+
                 elements.extend(self.module_(d.t_module!.module_).try);
+
+                if d.t_module!.extends != nil {
+                    let extends = d.t_module!.extends!;
+                    let itable = ITable {
+                        type_name: d.t_module!.path.join("_"),
+                        interface_name: extends,
+                        function_ids: make[vec[i32]](),
+                    };
+
+                    // TODO: sort functions by the order of methods in the interface
+                    for ldecl in d.t_module!.module_.decls {
+                        let decl = ldecl.data;
+                        if decl.t_func != nil {
+                            let symbol = self.path_to(decl.t_func!.name.data);
+                            let function_id = self.functions.get_or_insert(symbol);
+
+                            itable.function_ids.push(function_id);
+                        }
+                    }
+
+                    self.itables.get_or_insert(itable);
+                }
+
                 self.current_path = path;
             }
             if d.t_declare_func != nil {
@@ -476,6 +606,9 @@ module IrCodeGenerator {
                 if d.t_declare_func!.declare_wrap != nil {
                     elements.push(self.declare_func_wrapper(d.t_declare_func!).try);
                 }
+            }
+            if d.t_interface != nil {
+                continue;
             }
         }
 
@@ -853,6 +986,155 @@ module IrCodeGenerator {
         return terms;
     }
 
+    fun generate_prepare_itables(self): vec[IrTerm] or error {
+        let body = make[vec[IrTerm]]();
+
+        let var_itable_ptr = "quartz_core_itables_ptr";
+        body.push(IrTerm {
+            t_assign: struct {
+                lhs: var_itable_ptr,
+                rhs: self.expression(LExpression {
+                    data: Expression {
+                        t_make: struct {
+                            type_: Type {
+                                t_ptr: Type {
+                                    t_ident: "ITable",
+                                },
+                            },
+                            args: make[vec[LExpression]](LExpression {
+                                data: Expression {
+                                    t_i32: struct {
+                                        value: self.itables.itables.length,
+                                    },
+                                },
+                                location: Location::unknown(),
+                            }),
+                        },
+                    },
+                    location: Location::unknown(),
+                }).try,
+            },
+        });
+
+        for itable in self.itables.itables {
+            let i = self.itables.get_or_insert(itable);
+
+            // itable_ptr.(i) = alloc_with_rep(${itable.function_ids.length});
+            body.push(IrTerm {
+                t_store: struct {
+                    type_: IrType {
+                        t_address: true,
+                    },
+                    address: IrTerm {
+                        t_ident: var_itable_ptr,
+                    },
+                    offset: IrCodeGenerator::wrap_mult_sizeof(
+                        IrType {
+                            t_address: true,
+                        },
+                        IrTerm {
+                            t_i32: i,
+                        },
+                    ),
+                    value: IrTerm {
+                        t_call: IrCall {
+                            callee: IrTerm {
+                                t_ident: "quartz_core_alloc_with_rep",
+                            },
+                            args: make[vec[IrTerm]](
+                                IrTerm {
+                                    t_nil: true,
+                                },
+                                IrCodeGenerator::wrap_mult_sizeof(
+                                    IrType {
+                                        t_address: true,
+                                    },
+                                    IrTerm {
+                                        t_i32: itable.function_ids.length,
+                                    },
+                                ),
+                            ),
+                        },
+                    },
+                },
+            });
+
+            for j in 0..itable.function_ids.length {
+                let function_id = itable.function_ids.(j);
+
+                // itable_ptr.(i).(j) = ${function_id};
+                body.push(IrTerm {
+                    t_store: struct {
+                        type_: IrType {
+                            t_address: true,
+                        },
+                        address: IrTerm {
+                            t_load: struct {
+                                type_: IrType {
+                                    t_address: true,
+                                },
+                                address: IrTerm {
+                                    t_ident: var_itable_ptr,
+                                },
+                                offset: IrCodeGenerator::wrap_mult_sizeof(
+                                    IrType {
+                                        t_address: true,
+                                    },
+                                    IrTerm {
+                                        t_i32: i,
+                                    },
+                                ),
+                            },
+                        },
+                        offset: IrCodeGenerator::wrap_mult_sizeof(
+                            IrType {
+                                t_address: true,
+                            },
+                            IrTerm {
+                                t_i32: j,
+                            },
+                        ),
+                        value: IrTerm {
+                            t_i32: function_id,
+                        },
+                    },
+                });
+            }
+        }
+
+        body.push(IrTerm {
+            t_return: IrReturn {
+                value: IrTerm {
+                    t_nil: true,
+                },
+            },
+        });
+
+        let terms = make[vec[IrTerm]]();
+        terms.push(IrTerm {
+            t_funcref_table: struct {
+                functions: self.functions.functions,
+            },
+        });
+
+        terms.push(IrTerm {
+            t_func: IrFunc {
+                name: "prepare_itables".to_string(),
+                params: make[vec[struct {
+                    name: string,
+                    type_: IrType,
+                }]](),
+                body: body,
+                result_type: IrType {
+                    t_nil: true,
+                },
+                ..nil,
+            },
+        });
+
+        return terms;
+    }
+
     fun setup_function_name_for_stacktrace(self, name: string): IrTerm {
         return IrTerm {
             t_call: IrCall {
@@ -1190,6 +1472,7 @@ module IrCodeGenerator {
                                                     },
                                                     type_: stm.t_for!.type_,
                                                     resolved_path: nil as Path?,
+                                                    interface_call_functype: nil,
                                                 },
                                             },
                                             location: Location::unknown(),
@@ -1244,6 +1527,7 @@ module IrCodeGenerator {
                                                     },
                                                     type_: stm.t_for!.type_,
                                                     resolved_path: nil as Path?,
+                                                    interface_call_functype: nil,
                                                 },
                                             },
                                             location: Location::unknown(),
@@ -1587,6 +1871,59 @@ module IrCodeGenerator {
             let callee = expr.t_call!.callee.data;
             if callee.t_project != nil {
                 let project = callee.t_project!;
+                if project.interface_call_functype != nil {
+                    if project.type_!.t_ident == nil {
+                        return _ or error::new("expected interface type in project");
+                    }
+
+                    let interface_name = project.type_!.t_ident!;
+                    let interface_ = self.interfaces.at(interface_name);
+
+                    let function_index = 0-1;
+                    for i in 0..interface_.methods.length {
+                        if interface_.methods.(i).name == project.field.data {
+                            function_index = i;
+                            break;
+                        }
+                    }
+                    if function_index == 0-1 {
+                        return _ or error::new(
+                            format(
+                                "interface {} does not have method {}",
+                                interface_name,
+                                project.field.data,
+                            ),
+                        );
+                    }
+
+                    let args = make[vec[IrTerm]](
+                        self.expression(project.expr).try,
+                    );
+                    for arg in expr.t_call!.args {
+                        args.push(self.expression(arg).try);
+                    }
+
+                    return IrTerm {
+                        t_dynamic_call: struct {
+                            callee_type: IrType::new(project.interface_call_functype!),
+                            callee_id: IrTerm {
+                                t_call: IrCall {
+                                    callee: IrTerm {
+                                        t_ident: "quartz_core_itable_lookup",
+                                    },
+                                    args: make[vec[IrTerm]](
+                                        self.expression(project.expr).try,
+                                        IrTerm {
+                                            t_i32: function_index,
+                                        },
+                                    ),
+                                },
+                            },
+                            args: args,
+                        },
+                    };
+                }
+
                 if project.type_!.t_ptr != nil && project.field.data.equal("at") {
                     if expr.t_call!.args.length != 1 {
                         return _ or error::new("at() takes 2 arguments");
@@ -2538,6 +2875,36 @@ module IrCodeGenerator {
                     terms: elements,
                 },
             };
+        } else if expr.t_upcast != nil {
+            let expr_type_name = expr.t_upcast!.expr_type.t_ident!;
+            let interface_name = expr.t_upcast!.interface_name;
+
+            let itable = self.itables.get(expr_type_name, interface_name).try;
+            let itable_id = self.itables.get_or_insert(itable);
+
+            return self.generate_array(
+                "dynamic",
+                make[vec[IrType]](IrType { t_i32: true }, IrType { t_address: true }),
+                make[vec[struct {
+                    label: string?,
+                    type_: IrType,
+                    term: IrTerm,
+                }]](struct {
+                    label: "itable"?,
+                    type_: IrType {
+                        t_i32: true,
+                    },
+                    term: IrTerm {
+                        t_i32: itable_id,
+                    },
+                }, struct {
+                    label: "value"?,
+                    type_: IrType {
+                        t_address: true,
+                    },
+                    term: self.expression(expr.t_upcast!.expr).try,
+                }),
+            );
         } else if expr.t_index != nil {
             let term = self.expression(expr.t_index!.expr).try;
             let offset = self.expression(expr.t_index!.index).try;

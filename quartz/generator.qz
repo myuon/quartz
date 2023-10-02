@@ -51,6 +51,10 @@ struct Generator {
     start_terms: vec[IrTerm],
     current_function_name: string,
     mode_validate_address: bool,
+    types: vec[struct {
+        name: string,
+        wasm_type: string,
+    }],
 }
 
 module Generator {
@@ -66,6 +70,10 @@ module Generator {
             start_terms: make[vec[IrTerm]](),
             current_function_name: "",
             mode_validate_address: validate_address,
+            types: make[vec[struct {
+                name: string,
+                wasm_type: string,
+            }]](),
         };
     }
 
@@ -210,8 +218,25 @@ module Generator {
 
             self.write("return");
             self.end();
+        } else if element.t_funcref_table != nil {
+            let functions = element.t_funcref_table!.functions;
+
+            self.start();
+            self.write("table");
+            self.write(functions.length.to_string());
+            self.write("funcref");
+            self.end();
+
+            self.start();
+            self.write("elem");
+            self.write("(i32.const 0)");
+            for i in 0..functions.length {
+                let func = functions.at(i);
+                self.write(format("${}", func));
+            }
+            self.end();
         } else {
-            panic("decl: {}", element.to_string());
+            panic("decl: {}", derive::to_string(element));
         }
     }
 
@@ -235,6 +260,21 @@ module Generator {
             }
         } else {
             panic("expected module");
+        }
+
+        let visited = make[map[string, bool]]();
+        for type_ in self.types {
+            if visited.has(type_.name) {
+                continue;
+            }
+
+            self.start();
+            self.write("type");
+            self.write(format("${}", type_.name));
+            self.write(type_.wasm_type);
+            self.end();
+
+            visited.insert(type_.name, true);
         }
 
         self.start();
@@ -556,6 +596,14 @@ module Generator {
                 t_call: IrCall {
                     callee: IrTerm {
                         t_ident: "prepare_type_reps",
+                    },
+                    args: make[vec[IrTerm]](),
+                },
+            },
+            IrTerm {
+                t_call: IrCall {
+                    callee: IrTerm {
+                        t_ident: "prepare_itables",
                     },
                     args: make[vec[IrTerm]](),
                 },
@@ -1143,8 +1191,38 @@ module Generator {
         } else if expr.t_comment != nil {
             self.new_statement();
             self.write(format(" ;; {}", escape(expr.t_comment!)));
+        } else if expr.t_dynamic_call != nil {
+            for arg in expr.t_dynamic_call!.args {
+                self.expression(arg);
+            }
+
+            self.expression(expr.t_dynamic_call!.callee_id);
+            self.convert_stack_to_i32_1();
+
+            let type_name = "__type_{}_{}".format(self.depth.to_string(), self.index.to_string());
+
+            self.new_statement();
+            self.write("call_indirect (type ${})".format(type_name));
+
+            let func_type = expr.t_dynamic_call!.callee_type.t_func!;
+
+            let callee_type = "";
+            let params = "";
+            for param in func_type.params {
+                params = "{} {}".format(params, self.get_wasmtype(param));
+            }
+
+            if params != "" {
+                callee_type = format("(param {})", params);
+            }
+            callee_type = format("(func {} (result {}))", callee_type, self.get_wasmtype(func_type.result_type));
+
+            self.types.push(struct {
+                name: type_name,
+                wasm_type: callee_type,
+            });
         } else {
-            panic("not implemented: expr, {}", expr.to_string());
+            panic("not implemented: expr, {}", derive::to_string(expr));
         }
     }
 

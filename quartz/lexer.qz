@@ -339,6 +339,9 @@ module Lexer {
             if self.match_term(input, "declare", "declare") {
                 continue;
             }
+            if self.match_term(input, "interface", "interface") {
+                continue;
+            }
             if self.match(input, "==", "double_equal") {
                 continue;
             }

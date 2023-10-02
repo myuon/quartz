@@ -6,6 +6,7 @@ import quartz::errors;
 struct Typechecker {
     locals: map[string, LType],
     globals: map[string, LType],
+    interfaces: map[string, Interface],
     current_path: Path,
     imported: vec[Path],
     result_type: Type?,
@@ -640,6 +641,7 @@ module Typechecker {
         return Typechecker {
             locals: make[map[string, LType]](),
             globals: globals,
+            interfaces: make[map[string, Interface]](),
             current_path: Path::new(),
             imported: make[vec[Path]](Path::new("quartz", "std")),
             result_type: nil,
@@ -774,13 +776,19 @@ module Typechecker {
             } else if d.t_skip != nil {
                 continue;
             } else if d.t_declare_func != nil {
-                // in 2.7.0+
                 self.globals.insert(
                     "_{}".format(d.t_declare_func!.name.data),
                     LType {
                         data: d.t_declare_func!.to_type(),
                         location: d.t_declare_func!.name.location,
                     },
+                );
+
+                continue;
+            } else if d.t_interface != nil {
+                self.interfaces.insert(
+                    d.t_interface!.name,
+                    d.t_interface!,
                 );
 
                 continue;
@@ -865,6 +873,34 @@ module Typechecker {
             self.current_path.extend(d.t_module!.path);
             self.module_(d.t_module!.module_).try;
             self.current_path = path;
+
+            if d.t_module!.extends != nil {
+                let i = self.interfaces.at(d.t_module!.extends!);
+                let methods = make[map[string, Type]]();
+                for m in i.methods {
+                    let params = make[vec[Type]]();
+                    for p in m.params {
+                        params.push(p.type_);
+                    }
+
+                    methods.insert(m.name, Type {
+                        t_func: struct {
+                            params: params,
+                            result: m.result_type,
+                        },
+                    });
+                }
+
+                for decl in d.t_module!.module_.decls {
+                    if decl.data.t_func != nil {
+                        let f = decl.data.t_func!;
+                        if derive::to_string(methods.at(f.name.data)) != derive::to_string(f.to_type()) {
+                            return _ or error::new("interface method not implemented, {}".format(f.name.data));
+                        }
+                    }
+                }
+            }
+
             return;
         }
         if d.t_import != nil {
@@ -885,6 +921,9 @@ module Typechecker {
                     location: d.t_declare_func!.name.location,
                 },
             );
+            return;
+        }
+        if d.t_interface != nil {
             return;
         }
 
@@ -1314,10 +1353,39 @@ module Typechecker {
                     let arg_type = self.expression(arg).try;
                     let param_type = func_type.params.at(i);
 
-                    unify(arg_type, param_type).context(ErrorSource {
+                    let result or err = unify(arg_type, param_type).context(ErrorSource {
                         path: self.current_path,
                         location: arg.location,
-                    }).try;
+                    });
+                    if err != nil {
+                        // FIXME: move to unify
+                        if arg_type.t_ident != nil && param_type.t_ident != nil && (self.interfaces.has(arg_type.t_ident!) || self.interfaces.has(param_type.t_ident!)) {
+                            let it = nil as Interface?;
+                            let expr_type = nil as Type?;
+                            if self.interfaces.has(arg_type.t_ident!) {
+                                it = self.interfaces.at(arg_type.t_ident!)?;
+                                expr_type = param_type?;
+                            } else {
+                                it = self.interfaces.at(param_type.t_ident!)?;
+                                expr_type = arg_type?;
+                            }
+
+                            expr.t_call!.args.(i) = LExpression {
+                                data: Expression {
+                                    t_upcast: struct {
+                                        interface_name: it!.name,
+                                        expr_type: expr_type!,
+                                        expr: arg,
+                                    },
+                                },
+                                location: arg.location,
+                            };
+
+                            return result!;
+                        } else {
+                            return _ or err!;
+                        }
+                    }
                 }
 
                 return func_type.result;
@@ -1519,6 +1587,43 @@ module Typechecker {
                 }
 
                 // method access
+
+                // interface
+                if self.interfaces.has(type_name) {
+                    let it = self.interfaces.at(type_name);
+                    for m in it.methods {
+                        if m.name == label.data {
+                            if m.params.at(0).name != "self" {
+                                return _ or error::new("method {} has no self arguement".format(label.data));
+                            }
+
+                            let params = make[vec[Type]]();
+                            for p in m.params {
+                                if p.name == "self" {
+                                    params.push(t);
+                                } else {
+                                    params.push(p.type_);
+                                }
+                            }
+
+                            expr.t_project!.interface_call_functype = Type {
+                                t_func: struct {
+                                    params: params,
+                                    result: m.result_type,
+                                },
+                            }?;
+
+                            return Type {
+                                t_func: struct {
+                                    params: vec_slice(m.params, 1, m.params.length),
+                                    result: m.result_type,
+                                },
+                            };
+                        }
+                    }
+
+                    return _ or error::new("method not found: {}.{}".format(type_name, label.data));
+                }
 
                 let func_ident_name = type_name.concat("_").concat(label.data);
                 let resolved = self.resolve_path(Path::ident(func_ident_name)).try;
@@ -1914,6 +2019,10 @@ module Typechecker {
 
     fun resolve_record_type(self, type_: Type, args: vec[Type]): map[string, Type] or error {
         if type_.t_ident != nil {
+            if self.interfaces.has(type_.t_ident!) {
+                return make[map[string, Type]]();
+            }
+
             return self.resolve_record_type(self.globals.at(type_.t_ident!).data, make[vec[Type]]()).try;
         } else if type_.t_struct != nil {
             let result = make[map[string, Type]]();
