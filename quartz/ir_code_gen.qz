@@ -990,7 +990,7 @@ module IrCodeGenerator {
         let body = make[vec[IrTerm]]();
 
         let var_itable_ptr = "quartz_core_itables_ptr";
-        self.start.push(IrTerm {
+        body.push(IrTerm {
             t_assign: struct {
                 lhs: var_itable_ptr,
                 rhs: self.expression(LExpression {
@@ -1017,12 +1017,26 @@ module IrCodeGenerator {
         });
 
         for itable in self.itables.itables {
-            let itable_id = self.itables.get_or_insert(itable);
+            let i = self.itables.get_or_insert(itable);
 
+            // itable_ptr.(i) = alloc_with_rep(${itable.function_ids.length});
             body.push(IrTerm {
-                t_assign: struct {
-                    lhs: var_itable_ptr,
-                    rhs: IrTerm {
+                t_store: struct {
+                    type_: IrType {
+                        t_address: true,
+                    },
+                    address: IrTerm {
+                        t_ident: var_itable_ptr,
+                    },
+                    offset: IrCodeGenerator::wrap_mult_sizeof(
+                        IrType {
+                            t_address: true,
+                        },
+                        IrTerm {
+                            t_i32: i,
+                        },
+                    ),
+                    value: IrTerm {
                         t_call: IrCall {
                             callee: IrTerm {
                                 t_ident: "quartz_core_alloc_with_rep",
@@ -1044,22 +1058,40 @@ module IrCodeGenerator {
                     },
                 },
             });
-            for i in 0..itable.function_ids.length {
-                let function_id = itable.function_ids.(i);
+
+            for j in 0..itable.function_ids.length {
+                let function_id = itable.function_ids.(j);
+
+                // itable_ptr.(i).(j) = ${function_id};
                 body.push(IrTerm {
                     t_store: struct {
                         type_: IrType {
                             t_address: true,
                         },
                         address: IrTerm {
-                            t_ident: var_itable_ptr,
+                            t_load: struct {
+                                type_: IrType {
+                                    t_address: true,
+                                },
+                                address: IrTerm {
+                                    t_ident: var_itable_ptr,
+                                },
+                                offset: IrCodeGenerator::wrap_mult_sizeof(
+                                    IrType {
+                                        t_address: true,
+                                    },
+                                    IrTerm {
+                                        t_i32: i,
+                                    },
+                                ),
+                            },
                         },
                         offset: IrCodeGenerator::wrap_mult_sizeof(
                             IrType {
                                 t_address: true,
                             },
                             IrTerm {
-                                t_i32: i,
+                                t_i32: j,
                             },
                         ),
                         value: IrTerm {
