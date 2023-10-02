@@ -262,12 +262,19 @@ module Generator {
             panic("expected module");
         }
 
+        let visited = make[map[string, bool]]();
         for type_ in self.types {
+            if visited.has(type_.name) {
+                continue;
+            }
+
             self.start();
             self.write("type");
             self.write(format("${}", type_.name));
             self.write(type_.wasm_type);
             self.end();
+
+            visited.insert(type_.name, true);
         }
 
         self.start();
