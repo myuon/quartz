@@ -1177,8 +1177,11 @@ module Generator {
             self.new_statement();
             self.write(format(" ;; {}", escape(expr.t_comment!)));
         } else if expr.t_dynamic_call != nil {
-            self.expression(expr.t_dynamic_call!.callee_id);
+            for arg in expr.t_dynamic_call!.args {
+                self.expression(arg);
+            }
 
+            self.expression(expr.t_dynamic_call!.callee_id);
             self.convert_stack_to_i32_1();
 
             let type_name = "__type_{}_{}".format(self.depth.to_string(), self.index.to_string());

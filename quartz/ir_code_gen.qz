@@ -1856,7 +1856,9 @@ module IrCodeGenerator {
                         );
                     }
 
-                    let args = make[vec[IrTerm]]();
+                    let args = make[vec[IrTerm]](
+                        self.expression(project.expr).try,
+                    );
                     for arg in expr.t_call!.args {
                         args.push(self.expression(arg).try);
                     }

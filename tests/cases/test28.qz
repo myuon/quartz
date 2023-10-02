@@ -7,7 +7,7 @@ struct Impl1 {
 
 module Impl1: Output {
     fun output(self): i32 {
-        return 1;
+        return 17;
     }
 }
 
@@ -16,7 +16,7 @@ struct Impl2 {
 
 module Impl2: Output {
     fun output(self): i32 {
-        return 2;
+        return 13;
     }
 }
 
