@@ -584,15 +584,24 @@ module IrCodeGenerator {
                         function_ids: make[vec[i32]](),
                     };
 
-                    // TODO: sort functions by the order of methods in the interface
+                    let interface_ = self.interfaces.(extends);
+                    let methods = interface_.methods;
+
+                    let funcs = make[map[string, Function]]();
                     for ldecl in d.t_module!.module_.decls {
                         let decl = ldecl.data;
                         if decl.t_func != nil {
-                            let symbol = self.path_to(decl.t_func!.name.data);
-                            let function_id = self.functions.get_or_insert(symbol);
-
-                            itable.function_ids.push(function_id);
+                            funcs.(decl.t_func!.name.data) = decl.t_func!;
+                        } else {
+                            return _ or error::new("expected func, got {}".format(derive::to_string(decl)));
                         }
+                    }
+
+                    for method in methods {
+                        let symbol = self.path_to(method.name);
+                        let function_id = self.functions.get_or_insert(symbol);
+
+                        itable.function_ids.push(function_id);
                     }
 
                     self.itables.get_or_insert(itable);

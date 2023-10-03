@@ -1,0 +1,34 @@
+interface Output {
+    fun gen1(self): i32;
+    fun gen2(self): i32;
+    fun gen3(self): i32;
+    fun gen4(self): i32;
+}
+
+struct Impl1 {
+}
+
+module Impl1: Output {
+    fun gen4(self): i32 {
+        return 31;
+    }
+
+    fun gen2(self): i32 {
+        return 23;
+    }
+
+    fun gen1(self): i32 {
+        return 17;
+    }
+
+    fun gen3(self): i32 {
+        return 29;
+    }
+}
+
+fun main() {
+    let v = make[vec[Output]]();
+    v.push(Impl1{});
+
+    println("{} {} {} {}", v.(0).gen1().to_string(), v.(0).gen2().to_string(), v.(0).gen3().to_string(), v.(0).gen4().to_string());
+}
