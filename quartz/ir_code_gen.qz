@@ -538,6 +538,48 @@ module IrCodeGenerator {
     }
 
     fun module_(self, m: Module): vec[IrTerm] or error {
+        // register itables first
+        for decl in m.decls {
+            let d = decl.data;
+            if d.t_module != nil {
+                let path = self.current_path.clone();
+                self.current_path.extend(d.t_module!.path);
+
+                if d.t_module!.extends != nil {
+                    let extends = d.t_module!.extends!;
+                    let itable = ITable {
+                        type_name: d.t_module!.path.join("_"),
+                        interface_name: extends,
+                        function_ids: make[vec[i32]](),
+                    };
+
+                    let interface_ = self.interfaces.(extends);
+                    let methods = interface_.methods;
+
+                    let funcs = make[map[string, Function]]();
+                    for ldecl in d.t_module!.module_.decls {
+                        let decl = ldecl.data;
+                        if decl.t_func != nil {
+                            funcs.(decl.t_func!.name.data) = decl.t_func!;
+                        } else {
+                            return _ or error::new("expected func, got {}".format(derive::to_string(decl)));
+                        }
+                    }
+
+                    for method in methods {
+                        let symbol = self.path_to(method.name);
+                        let function_id = self.functions.get_or_insert(symbol);
+
+                        itable.function_ids.push(function_id);
+                    }
+
+                    self.itables.get_or_insert(itable);
+                }
+
+                self.current_path = path;
+            }
+        }
+
         let elements = make[vec[IrTerm]]();
 
         for i in 0..m.decls.length {
@@ -573,40 +615,7 @@ module IrCodeGenerator {
             if d.t_module != nil {
                 let path = self.current_path.clone();
                 self.current_path.extend(d.t_module!.path);
-
                 elements.extend(self.module_(d.t_module!.module_).try);
-
-                if d.t_module!.extends != nil {
-                    let extends = d.t_module!.extends!;
-                    let itable = ITable {
-                        type_name: d.t_module!.path.join("_"),
-                        interface_name: extends,
-                        function_ids: make[vec[i32]](),
-                    };
-
-                    let interface_ = self.interfaces.(extends);
-                    let methods = interface_.methods;
-
-                    let funcs = make[map[string, Function]]();
-                    for ldecl in d.t_module!.module_.decls {
-                        let decl = ldecl.data;
-                        if decl.t_func != nil {
-                            funcs.(decl.t_func!.name.data) = decl.t_func!;
-                        } else {
-                            return _ or error::new("expected func, got {}".format(derive::to_string(decl)));
-                        }
-                    }
-
-                    for method in methods {
-                        let symbol = self.path_to(method.name);
-                        let function_id = self.functions.get_or_insert(symbol);
-
-                        itable.function_ids.push(function_id);
-                    }
-
-                    self.itables.get_or_insert(itable);
-                }
-
                 self.current_path = path;
             }
             if d.t_declare_func != nil {
@@ -1888,26 +1897,22 @@ module IrCodeGenerator {
                     let interface_name = project.type_!.t_ident!;
                     let interface_ = self.interfaces.at(interface_name);
 
-                    let function_index = 0-1;
+                    let function_index = 0 - 1;
                     for i in 0..interface_.methods.length {
                         if interface_.methods.(i).name == project.field.data {
                             function_index = i;
                             break;
                         }
                     }
-                    if function_index == 0-1 {
-                        return _ or error::new(
-                            format(
-                                "interface {} does not have method {}",
-                                interface_name,
-                                project.field.data,
-                            ),
-                        );
+                    if function_index == 0 - 1 {
+                        return _ or error::new(format(
+                            "interface {} does not have method {}",
+                            interface_name,
+                            project.field.data,
+                        ));
                     }
 
-                    let args = make[vec[IrTerm]](
-                        self.expression(project.expr).try,
-                    );
+                    let args = make[vec[IrTerm]](self.expression(project.expr).try);
                     for arg in expr.t_call!.args {
                         args.push(self.expression(arg).try);
                     }
@@ -2893,26 +2898,36 @@ module IrCodeGenerator {
 
             return self.generate_array(
                 "dynamic",
-                make[vec[IrType]](IrType { t_i32: true }, IrType { t_address: true }),
+                make[vec[IrType]](
+                    IrType {
+                        t_i32: true,
+                    },
+                    IrType {
+                        t_address: true,
+                    },
+                ),
                 make[vec[struct {
                     label: string?,
                     type_: IrType,
                     term: IrTerm,
-                }]](struct {
-                    label: "itable"?,
-                    type_: IrType {
-                        t_i32: true,
+                }]](
+                    struct {
+                        label: "itable"?,
+                        type_: IrType {
+                            t_i32: true,
+                        },
+                        term: IrTerm {
+                            t_i32: itable_id,
+                        },
                     },
-                    term: IrTerm {
-                        t_i32: itable_id,
+                    struct {
+                        label: "value"?,
+                        type_: IrType {
+                            t_address: true,
+                        },
+                        term: self.expression(expr.t_upcast!.expr).try,
                     },
-                }, struct {
-                    label: "value"?,
-                    type_: IrType {
-                        t_address: true,
-                    },
-                    term: self.expression(expr.t_upcast!.expr).try,
-                }),
+                ),
             );
         } else if expr.t_index != nil {
             let term = self.expression(expr.t_index!.expr).try;
