@@ -999,14 +999,15 @@ module Typechecker {
             self.register_locals_with_pattern(s.t_let!.pattern, result.type_).try;
             return nil;
         } else if s.t_return != nil {
-            let t = self.expression(s.t_return!.expr).try;
-            let result or err = unify(t, self.result_type!).context(ErrorSource {
-                path: self.current_path,
-                location: s.t_return!.expr.location,
-            });
+            let result or err = self.check_expression(s.t_return!.expr, self.result_type!);
             if result != nil {
-                self.result_type = result!?;
+                self.result_type = result!.type_?;
+
+                if result!.expr != nil {
+                    s.t_return!.expr = result!.expr!;
+                }
             } else if err != nil {
+                let t = self.expression(s.t_return!.expr).try;
                 if self.result_type!.t_or != nil {
                     unify(self.result_type!.t_or!.left, t).context(ErrorSource {
                         path: self.current_path,
