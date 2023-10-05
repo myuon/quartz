@@ -149,6 +149,10 @@ module Formatter {
         } else if d.t_module != nil {
             self.write(writer, "module");
             self.write(writer, d.t_module!.path.join("::"));
+            if d.t_module!.extends != nil {
+                self.write_no_space(writer, ":");
+                self.write(writer, d.t_module!.extends!);
+            }
             self.write(writer, "{");
             self.newline(writer);
 
@@ -179,6 +183,31 @@ module Formatter {
                 );
             }
             self.write_no_space(writer, ";");
+        } else if d.t_interface != nil {
+            self.write(writer, "interface");
+            self.write(writer, d.t_interface!.name);
+            self.write(writer, "{");
+            self.newline(writer);
+
+            self.depth = self.depth + 1;
+            for func in d.t_interface!.methods {
+                self.write(writer, "fun");
+                self.write(writer, func.name);
+                self.params(writer, func.params, nil);
+                self.write_no_space(writer, ":");
+                self.type_(
+                    writer,
+                    func.result_type,
+                    struct {
+                        skip_space: false,
+                    },
+                );
+                self.write_no_space(writer, ";");
+                self.newline(writer);
+            }
+            self.depth = self.depth - 1;
+
+            self.write(writer, "}");
         }
     }
 
@@ -678,6 +707,12 @@ module Formatter {
             self.write_if(writer, "(", skip_space);
             self.expr(writer, expr.t_paren!, true);
             self.write_if(writer, ")", true);
+        } else if expr.t_index != nil {
+            self.expr(writer, expr.t_index!.expr, skip_space);
+            self.write_no_space(writer, ".");
+            self.write_no_space(writer, "(");
+            self.expr(writer, expr.t_index!.index, true);
+            self.write_no_space(writer, ")");
         }
     }
 

@@ -6,3 +6,4 @@ fun main(): i32 {
 
     return m.("foo") + m.("bar");
 }
+

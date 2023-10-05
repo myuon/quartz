@@ -1,0 +1,32 @@
+interface Output {
+    fun output(self): i32;
+}
+
+struct Impl1 {
+}
+
+module Impl1: Output {
+    fun output(self): i32 {
+        return 17;
+    }
+}
+
+fun f(t: Output): i32 {
+    return t.output();
+}
+
+fun g(): Output {
+    return Impl1{};
+}
+
+fun main() {
+    let q = f(Impl1{});
+    assert_eq(q, 17);
+
+    let i: Output = Impl1{};
+    assert_eq(i.output(), 17);
+
+    assert_eq(g().output(), 17);
+
+    println("ok");
+}
