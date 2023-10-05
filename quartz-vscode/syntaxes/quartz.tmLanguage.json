@@ -195,7 +195,7 @@
     "types": {
       "patterns": [
         {
-          "match": "\\b(nil|i32|u32|i64|bool|float|string|byte|array|ptr|vec|map|struct|enum|or|any)\\b",
+          "match": "\\b(nil|i32|u32|i64|bool|float|string|byte|array|ptr|vec|map|struct|enum|interface|or|any)\\b",
           "name": "entity.name.type.primitive.quartz"
         },
         {
