@@ -1,0 +1,21 @@
+fun main() {
+    let i: Output = Impl1 {
+    };
+    assert_eq(i.output(), 17);
+
+    println("ok");
+}
+
+module Impl1: Output {
+    fun output(self): i32 {
+        return 17;
+    }
+}
+
+struct Impl1 {
+}
+
+interface Output {
+    fun output(self): i32;
+}
+
