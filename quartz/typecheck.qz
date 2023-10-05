@@ -1380,8 +1380,6 @@ module Typechecker {
                                 },
                                 location: arg.location,
                             };
-
-                            return result!;
                         } else {
                             return _ or err!;
                         }

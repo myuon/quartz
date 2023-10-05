@@ -1,0 +1,22 @@
+interface Output {
+    fun output(self): i32;
+}
+
+struct Impl1 {
+}
+
+module Impl1: Output {
+    fun output(self): i32 {
+        return 17;
+    }
+}
+
+fun f(t: Output): i32 {
+    return t.output();
+}
+
+fun main(): i32 {
+    let q = f(Impl1{});
+
+    return q;
+}
