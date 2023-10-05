@@ -990,14 +990,13 @@ module Typechecker {
         let s = ls.data;
 
         if s.t_let != nil {
-            let t = self.expression(s.t_let!.expr).try;
-            let type_ = unify(t, s.t_let!.name_type).context(ErrorSource {
-                path: self.current_path,
-                location: s.t_let!.expr.location,
-            }).try;
-            s.t_let!.name_type = type_;
+            let result = self.check_expression(s.t_let!.expr, s.t_let!.name_type).try;
+            s.t_let!.name_type = result.type_;
+            if result.expr != nil {
+                s.t_let!.expr = result.expr!;
+            }
 
-            self.register_locals_with_pattern(s.t_let!.pattern, type_).try;
+            self.register_locals_with_pattern(s.t_let!.pattern, result.type_).try;
             return nil;
         } else if s.t_return != nil {
             let t = self.expression(s.t_return!.expr).try;
@@ -1354,9 +1353,9 @@ module Typechecker {
                     let arg = expr.t_call!.args.at(i);
                     let param_type = func_type.params.at(i);
 
-                    let updated = self.check_expression(arg, param_type).try;
-                    if updated != nil {
-                        expr.t_call!.args.(i) = updated!;
+                    let result = self.check_expression(arg, param_type).try;
+                    if result.expr != nil {
+                        expr.t_call!.args.(i) = result.expr!;
                     }
                 }
 
@@ -1998,7 +1997,14 @@ module Typechecker {
         }
     }
 
-    fun check_expression(self, expr: LExpression, expected: Type): LExpression? or error {
+    fun check_expression(
+        self,
+        expr: LExpression,
+        expected: Type,
+    ): struct {
+        type_: Type,
+        expr: LExpression?,
+    } or error {
         let expr_type = self.expression(expr).try;
         let result or err = unify(expr_type, expected).context(ErrorSource {
             path: self.current_path,
@@ -2007,22 +2013,28 @@ module Typechecker {
         if err != nil {
             if expr_type.t_ident != nil && expected.t_ident != nil && self.interfaces.has(expected.t_ident!) {
                 let it = self.interfaces.(expected.t_ident!);
-                return LExpression {
-                    data: Expression {
-                        t_upcast: struct {
-                            interface_name: it.name,
-                            expr_type: expr_type,
-                            expr: expr,
+                return struct {
+                    type_: expected,
+                    expr: LExpression {
+                        data: Expression {
+                            t_upcast: struct {
+                                interface_name: it.name,
+                                expr_type: expr_type,
+                                expr: expr,
+                            },
                         },
-                    },
-                    location: expr.location,
-                }?;
+                        location: expr.location,
+                    }?,
+                };
             }
 
             return _ or err!;
         }
 
-        return nil;
+        return struct {
+            type_: result!,
+            expr: nil,
+        };
     }
 
     fun resolve_record_type(self, type_: Type, args: vec[Type]): map[string, Type] or error {

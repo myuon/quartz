@@ -15,12 +15,12 @@ fun f(t: Output): i32 {
     return t.output();
 }
 
-fun main(): string {
+fun main() {
     let q = f(Impl1{});
     assert_eq(q, 17);
 
     let i: Output = Impl1{};
     assert_eq(i.output(), 17);
 
-    return "ok";
+    println("ok");
 }
