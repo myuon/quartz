@@ -932,7 +932,7 @@ module Typechecker {
         return _ or error::new(format("unimplemented: decl, {}", d.to_string()));
     }
 
-    fun function(self, f: Function): nil or error {
+    fun function(self, f: Function): Type or error {
         let locals = self.locals;
         self.locals = make[map[string, LType]]();
         self.current_function_name = f.name.data?;
@@ -965,7 +965,17 @@ module Typechecker {
         self.locals = locals;
         self.current_function_name = nil;
 
-        return nil;
+        let ps = make[vec[Type]]();
+        for param in f.params {
+            ps.push(param.type_);
+        }
+
+        return Type {
+            t_func: struct {
+                params: ps,
+                result: f.result_type,
+            },
+        };
     }
 
     fun block(self, b: LBlock): nil or error {
@@ -1993,6 +2003,10 @@ module Typechecker {
             return Type {
                 t_ptr: expr_type,
             };
+        } else if expr.t_closure != nil {
+            expr.t_closure!.func.name.data = "{}__closure_{}".format(self.current_function_name!, lexpr.location.start!.to_string());
+
+            return self.function(expr.t_closure!.func).try;
         } else {
             return _ or error::new("unimplemented: expression, {}".format(expr.to_string()));
         }
