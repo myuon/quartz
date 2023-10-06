@@ -1,0 +1,7 @@
+fun main() {
+    let f = fun (x: i32): i32 {
+        return x + 1;
+    };
+
+    assert_eq(f(100), 101);
+}

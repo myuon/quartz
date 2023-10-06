@@ -465,6 +465,48 @@ module Parser {
         };
     }
 
+    fun anonymous_function(
+        self,
+    ): struct {
+        data: Function,
+        location: Location,
+    } or error {
+        let start_token = self.expect("fun").try;
+        self.expect("lparen").try;
+        let params = self.parameters().try;
+        self.expect("rparen").try;
+
+        let result_type = Type {
+            t_nil: true,
+        };
+        if self.peek().try.lexeme.equal("colon") {
+            self.consume().try;
+            result_type = self.type_().try.data;
+        }
+
+        let body = self.block().try;
+
+        return struct {
+            data: Function {
+                name: Ident {
+                    data: "",
+                    location: Location::unknown(),
+                },
+                result_type: result_type,
+                body: body,
+                params: params.params,
+                variadic: params.variadic,
+                no_allocation: false,
+                is_test: false,
+                ffi_export: nil,
+            },
+            location: Location {
+                start: start_token.location.start,
+                end: body.location.end,
+            },
+        };
+    }
+
     fun parameters(
         self,
     ): struct {
@@ -2065,6 +2107,22 @@ module Parser {
                     t_omit: true,
                 },
                 location: token.location,
+            };
+        }
+        if self.peek().try.lexeme == "fun" {
+            let f = self.anonymous_function().try;
+
+            return LExpression {
+                data: Expression {
+                    t_closure: struct {
+                        func: f.data,
+                        captures: make[vec[struct {
+                            name: string,
+                            type_: Type,
+                        }]](),
+                    },
+                },
+                location: f.location,
             };
         }
 
