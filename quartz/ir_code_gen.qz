@@ -3049,6 +3049,30 @@ module IrCodeGenerator {
             return IrTerm {
                 t_ident: symbol,
             };
+        } else if expr.t_closure_call != nil {
+            let terms = make[vec[IrTerm]]();
+            for arg in expr.t_closure_call!.args {
+                terms.push(self.expression(arg).try);
+            }
+
+            if expr.t_closure_call!.callee.data.t_ident == nil {
+                return _ or error::new("callee is not an ident");
+            }
+
+            let symbol = self.path_to(expr.t_closure_call!.callee.data.t_ident!.name);
+            let function_id = self.functions.get_or_insert(symbol);
+
+            return IrTerm {
+                t_dynamic_call: struct {
+                    callee_type: IrType {
+                        t_address: true,
+                    },
+                    callee_id: IrTerm {
+                        t_i32: function_id
+                    },
+                    args: terms,
+                },
+            };
         }
 
         return panic("expression exhausted: {}", expr.to_string());

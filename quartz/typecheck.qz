@@ -1409,6 +1409,37 @@ module Typechecker {
                 }?;
 
                 return func_type.result;
+            } else if callee_type.t_closure != nil {
+                let func_type = callee_type.t_closure!;
+                if func_type.params.length != expr.t_call!.args.length {
+                    return _ or error::new("wrong number of arguments, {} != {}".format(
+                        derive::to_string(func_type.params),
+                        derive::to_string(expr.t_call!.args),
+                    )).context(ErrorSource {
+                        path: self.current_path,
+                        location: expr.t_call!.callee.location,
+                    });
+                }
+
+                for i in 0..expr.t_call!.args.length {
+                    let arg = expr.t_call!.args.at(i);
+                    let param_type = func_type.params.at(i);
+
+                    let result = self.check_expression(arg, param_type).try;
+                    if result.expr != nil {
+                        expr.t_call!.args.(i) = result.expr!;
+                    }
+                }
+
+                // NOTE: `expr = ..` won't work, since expr is a local variable defined in this function
+                lexpr.data = Expression {
+                    t_closure_call: struct {
+                        callee: expr.t_call!.callee,
+                        args: expr.t_call!.args,
+                    }
+                };
+
+                return func_type.result;
             } else {
                 return _ or error::new("not a function, {}".format(callee_type.to_string()));
             }
@@ -2006,7 +2037,14 @@ module Typechecker {
         } else if expr.t_closure != nil {
             expr.t_closure!.func.name.data = "{}__closure_{}".format(self.current_function_name!, lexpr.location.start!.to_string());
 
-            return self.function(expr.t_closure!.func).try;
+            let func_type = self.function(expr.t_closure!.func).try;
+
+            return Type {
+                t_closure: struct {
+                    params: func_type.t_func!.params,
+                    result: func_type.t_func!.result,
+                },
+            };
         } else {
             return _ or error::new("unimplemented: expression, {}".format(expr.to_string()));
         }
