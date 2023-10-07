@@ -2036,9 +2036,15 @@ module Typechecker {
                 t_ptr: expr_type,
             };
         } else if expr.t_closure != nil {
+            if self.current_function_name == nil {
+                return _ or error::new("closure outside of function, {}".format(expr.to_string()));
+            }
+
             expr.t_closure!.func.name.data = "{}__closure_{}".format(self.current_function_name!, lexpr.location.start!.to_string());
 
+            let prev = self.current_function_name;
             let func_type = self.function(expr.t_closure!.func).try;
+            self.current_function_name = prev;
 
             return Type {
                 t_closure: struct {
