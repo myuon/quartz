@@ -205,6 +205,16 @@ module FunctionTable {
 
         return (self.functions.length - 1) as i32;
     }
+
+    fun has(self, key: string): bool {
+        for i in 0..self.functions.length {
+            if self.functions.at(i).equal(key) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }
 
 struct InterfaceTable {
@@ -291,6 +301,7 @@ struct IrCodeGenerator {
     test_mode: bool,
     test_functions: vec[string],
     entrypoint: string,
+    closures: vec[IrTerm],
 }
 
 module IrCodeGenerator {
@@ -314,6 +325,7 @@ module IrCodeGenerator {
             test_mode: test_mode,
             test_functions: make[vec[string]](),
             entrypoint: entrypoint,
+            closures: make[vec[IrTerm]](),
         };
     }
 
@@ -627,6 +639,11 @@ module IrCodeGenerator {
             }
             if d.t_interface != nil {
                 continue;
+            }
+            if self.closures.length > 0 {
+                elements.extend(self.closures);
+
+                self.closures = make[vec[IrTerm]]();
             }
         }
 
@@ -3022,6 +3039,16 @@ module IrCodeGenerator {
                     },
                 };
             }
+        } else if expr.t_closure != nil {
+            self.closures.push(IrTerm {
+                t_func: self.function(expr.t_closure!.func).try,
+            });
+
+            let symbol = self.path_to(expr.t_closure!.func.name.data);
+
+            return IrTerm {
+                t_ident: symbol,
+            };
         }
 
         return panic("expression exhausted: {}", expr.to_string());
