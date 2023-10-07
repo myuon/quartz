@@ -8,4 +8,6 @@ fun main() {
 
     assert_eq(f(100), 101);
     // assert_eq(g(100), 102);
+
+    println("ok");
 }
