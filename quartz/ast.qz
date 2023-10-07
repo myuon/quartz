@@ -245,6 +245,7 @@ enum Expression {
         expansion: LExpression?,
     },
     t_closure_call: struct {
+        callee_type: Type,
         callee: LExpression,
         args: vec[LExpression],
     },

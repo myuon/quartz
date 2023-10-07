@@ -1434,6 +1434,7 @@ module Typechecker {
                 // NOTE: `expr = ..` won't work, since expr is a local variable defined in this function
                 lexpr.data = Expression {
                     t_closure_call: struct {
+                        callee_type: callee_type,
                         callee: expr.t_call!.callee,
                         args: expr.t_call!.args,
                     }

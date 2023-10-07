@@ -3058,14 +3058,7 @@ module IrCodeGenerator {
 
             return IrTerm {
                 t_dynamic_call: struct {
-                    callee_type: IrType {
-                        t_func: struct {
-                            params: make[vec[IrType]](),
-                            result_type: IrType {
-                                t_address: true,
-                            },
-                        },
-                    },
+                    callee_type: IrType::new(expr.t_closure_call!.callee_type),
                     callee_id: self.expression(expr.t_closure_call!.callee).try,
                     args: terms,
                 },

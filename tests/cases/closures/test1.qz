@@ -2,6 +2,10 @@ fun main() {
     let f = fun (x: i32): i32 {
         return x + 1;
     };
+    // let g = fun (x: i32): i32 {
+    //     return x + 2;
+    // };
 
     assert_eq(f(100), 101);
+    // assert_eq(g(100), 102);
 }
