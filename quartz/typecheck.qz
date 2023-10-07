@@ -817,7 +817,7 @@ module Typechecker {
                 },
             );
 
-            self.function(d.t_func!).try;
+            self.function(d.t_func!, make[map[string, LType]]()).try;
 
             self.globals.insert(
                 self.path_to(d.t_func!.name.data),
@@ -932,9 +932,12 @@ module Typechecker {
         return _ or error::new(format("unimplemented: decl, {}", d.to_string()));
     }
 
-    fun function(self, f: Function): Type or error {
+    fun function(self, f: Function, locals_init: map[string, LType]): Type or error {
         let locals = self.locals;
         self.locals = make[map[string, LType]]();
+        for k in locals_init.list_keys() {
+            self.locals.insert(k, locals_init.(k));
+        }
         self.current_function_name = f.name.data?;
 
         for i in 0..f.params.length {
@@ -2043,7 +2046,7 @@ module Typechecker {
             expr.t_closure!.func.name.data = "{}__closure_{}".format(self.current_function_name!, lexpr.location.start!.to_string());
 
             let prev = self.current_function_name;
-            let func_type = self.function(expr.t_closure!.func).try;
+            let func_type = self.function(expr.t_closure!.func, self.locals).try;
             self.current_function_name = prev;
 
             return Type {
