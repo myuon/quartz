@@ -309,6 +309,7 @@ struct IrCodeGenerator {
         name: string,
         type_: Type,
     }],
+    escaping: vec[string],
 }
 
 module IrCodeGenerator {
@@ -340,6 +341,7 @@ module IrCodeGenerator {
                 name: string,
                 type_: Type,
             }]](),
+            escaping: make[vec[string]](),
         };
     }
 
@@ -503,6 +505,7 @@ module IrCodeGenerator {
                         },
                     },
                 }),
+                escaping: make[vec[string]](),
                 ..nil,
             },
         });
@@ -549,6 +552,7 @@ module IrCodeGenerator {
                         t_address: true,
                     },
                     body: body,
+                    escaping: make[vec[string]](),
                     ..nil,
                 },
             });
@@ -920,6 +924,7 @@ module IrCodeGenerator {
                     t_nil: true,
                 },
                 body: body,
+                escaping: make[vec[string]](),
                 ..nil,
             },
         };
@@ -1036,6 +1041,7 @@ module IrCodeGenerator {
                 result_type: IrType {
                     t_nil: true,
                 },
+                escaping: make[vec[string]](),
                 ..nil,
             },
         });
@@ -1185,6 +1191,7 @@ module IrCodeGenerator {
                 result_type: IrType {
                     t_nil: true,
                 },
+                escaping: make[vec[string]](),
                 ..nil,
             },
         });
@@ -1210,6 +1217,9 @@ module IrCodeGenerator {
         self.current_function_name = func.name.data;
         self.function_no_allocation = func.no_allocation;
         self.captures = captures;
+
+        let prev_escaping = self.escaping;
+        self.escaping = make[vec[string]]();
 
         let body = make[vec[IrTerm]]();
         if !self.path_to(func.name.data).starts_with("quartz_core") {
@@ -1247,12 +1257,16 @@ module IrCodeGenerator {
             });
         }
 
+        let escaping_this = self.escaping;
+        self.escaping = prev_escaping;
+
         return IrFunc {
             name: self.path_to(func.name.data),
             params: params,
             result_type: IrType::new(func.result_type),
             body: body,
             ffi_export: func.ffi_export,
+            escaping: escaping_this,
         };
     }
 
@@ -3092,6 +3106,7 @@ module IrCodeGenerator {
             let captures_types = make[vec[Type]]();
             for c in expr.t_closure!.captures {
                 captures_types.push(c.type_);
+                self.escaping.push(c.name);
             }
 
             self.closures.(expr.t_closure!.func.name.data) = (struct {

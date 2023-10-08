@@ -206,6 +206,7 @@ struct IrFunc {
     result_type: IrType,
     body: vec[IrTerm],
     ffi_export: string?,
+    escaping: vec[string],
 }
 
 struct IrCall {
