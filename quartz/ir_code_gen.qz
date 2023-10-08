@@ -3123,13 +3123,23 @@ module IrCodeGenerator {
                 type_: IrType,
                 term: IrTerm,
             }]]();
-            for c in captures_types {
-                captures_ir.push(IrType::new(c));
+            for c in expr.t_closure!.captures {
+                captures_ir.push(IrType::new(c.type_));
                 values.push(struct {
                     label: nil,
-                    type_: IrType::new(c),
+                    type_: IrType {
+                        t_address: true,
+                    },
                     term: IrTerm {
-                        t_nil: true,
+                        t_load: struct {
+                            type_: IrType::new(c.type_),
+                            address: IrTerm {
+                                t_ident: c.name
+                            },
+                            offset: IrTerm {
+                                t_i32: 0,
+                            },
+                        }
                     },
                 });
             }

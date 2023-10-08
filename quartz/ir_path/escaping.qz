@@ -1,0 +1,122 @@
+struct EscapingTransformer {
+    function_body: vec[IrTerm],
+    escaping: vec[string],
+}
+
+module EscapingTransformer {
+    fun new(): EscapingTransformer {
+        return EscapingTransformer{
+            function_body: make[vec[IrTerm]](),
+            escaping: make[vec[string]](),
+        };
+    }
+
+    fun run(self, term: IrTerm): IrTerm {
+        let result = make[vec[IrTerm]]();
+
+        if term.t_module != nil {
+            result.extend(self.decls(term.t_module!.elements));
+        }
+
+        return IrTerm {
+            t_module: struct {
+                elements: result,
+            },
+        };
+    }
+
+    fun decls(self, decls: vec[IrTerm]): vec[IrTerm] {
+        let result = make[vec[IrTerm]]();
+
+        for decl in decls {
+            if decl.t_func != nil {
+                result.push(self.function(decl.t_func!));
+            } else if decl.t_module != nil {
+                result.push(IrTerm {
+                    t_module: struct {
+                        elements: self.decls(decl.t_module!.elements),
+                    },
+                });
+            } else {
+                result.push(decl);
+            }
+        }
+
+        return result;
+    }
+
+    fun function(self, func: IrFunc): IrTerm {
+        self.escaping = func.escaping;
+        self.function_body = make[vec[IrTerm]]();
+
+        self.expressions(func.body);
+
+        return IrTerm {
+            t_func: IrFunc {
+                name: func.name,
+                params: func.params,
+                result_type: func.result_type,
+                body: self.function_body,
+                ffi_export: func.ffi_export,
+                escaping: make[vec[string]](),
+            },
+        };
+    }
+
+    fun expressions(self, terms: vec[IrTerm]) {
+        for term in terms {
+            self.expression(term);
+        }
+    }
+
+    fun expression(self, term: IrTerm) {
+        if term.t_let != nil {
+            let v_name = term.t_let!.name;
+            for name in self.escaping {
+                if v_name == name {
+                    let value = term.t_let!.value;
+                    term.t_let!.type_ = IrType {
+                        t_address: true,
+                    };
+                    term.t_let!.value = IrTerm {
+                        t_call: IrCall {
+                            callee: IrTerm {
+                                t_ident: "quartz_core_alloc_with_rep",
+                            },
+                            args: make[vec[IrTerm]](
+                                IrTerm {
+                                    t_nil: true,
+                                },
+                                IrTerm {
+                                    t_i32: 8,
+                                },
+                            ),
+                        },
+                    };
+                    self.function_body.push(term);
+                    self.function_body.push(IrTerm {
+                        t_store: struct {
+                            type_: term.t_let!.type_,
+                            address: IrTerm {
+                                t_ident: term.t_let!.name,
+                            },
+                            offset: IrTerm {
+                                t_i32: 0,
+                            },
+                            value: value,
+                        },
+                    });
+
+                    return;
+                }
+            }
+        }
+
+        self.function_body.push(term);
+    }
+}
+
+fun transform_escaping(term: IrTerm): IrTerm {
+    let transformer = EscapingTransformer::new();
+    return transformer.run(term);
+}
