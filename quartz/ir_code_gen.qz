@@ -301,7 +301,10 @@ struct IrCodeGenerator {
     test_mode: bool,
     test_functions: vec[string],
     entrypoint: string,
-    closures: vec[IrTerm],
+    closures: map[string, struct {
+        closure: IrTerm,
+        captures: vec[Type],
+    }],
     captures: vec[struct {
         name: string,
         type_: Type,
@@ -329,7 +332,10 @@ module IrCodeGenerator {
             test_mode: test_mode,
             test_functions: make[vec[string]](),
             entrypoint: entrypoint,
-            closures: make[vec[IrTerm]](),
+            closures: make[map[string, struct {
+                closure: IrTerm,
+                captures: vec[Type],
+            }]](),
             captures: make[vec[struct {
                 name: string,
                 type_: Type,
@@ -651,10 +657,15 @@ module IrCodeGenerator {
             if d.t_interface != nil {
                 continue;
             }
-            if self.closures.length > 0 {
-                elements.extend(self.closures);
+            if self.closures.list_keys().length > 0 {
+                for cname in self.closures.list_keys() {
+                    elements.push(self.closures.(cname).closure);
+                }
 
-                self.closures = make[vec[IrTerm]]();
+                self.closures = make[map[string, struct {
+                    closure: IrTerm,
+                    captures: vec[Type],
+                }]]();
             }
         }
 
@@ -3076,21 +3087,63 @@ module IrCodeGenerator {
                 },
             });
 
-            self.closures.push(IrTerm {
-                t_func: self.function(expr.t_closure!.func, expr.t_closure!.captures).try,
+            let captures_types = make[vec[Type]]();
+            for c in expr.t_closure!.captures {
+                captures_types.push(c.type_);
+            }
+
+            self.closures.(expr.t_closure!.func.name.data) = (struct {
+                closure: IrTerm {
+                    t_func: self.function(expr.t_closure!.func, expr.t_closure!.captures).try,
+                },
+                captures: captures_types,
+            });
+
+            let elements = make[vec[IrTerm]]();
+            let captures_ir = make[vec[IrType]]();
+            for c in captures_types {
+                captures_ir.push(IrType::new(c));
+            }
+
+            elements.push(IrTerm {
+                t_let: IrLet {
+                    name: "env",
+                    type_: IrType {
+                        t_address: true,
+                    },
+                    value: self.generate_array(
+                        "struct",
+                        captures_ir,
+                        make[vec[struct {
+                            label: string?,
+                            type_: IrType,
+                            term: IrTerm,
+                        }]](),
+                    ).try,
+                },
             });
 
             let symbol = self.path_to(expr.t_closure!.func.name.data);
             let function_id = self.functions.get_or_insert(symbol);
 
-            return IrTerm {
+            elements.push(IrTerm {
                 t_i32: function_id,
+            });
+
+            return IrTerm {
+                t_seq: struct {
+                    terms: elements,
+                },
             };
         } else if expr.t_closure_call != nil {
             let terms = make[vec[IrTerm]]();
             for arg in expr.t_closure_call!.args {
                 terms.push(self.expression(arg).try);
             }
+
+            terms.push(IrTerm {
+                t_ident: "env",
+            });
 
             return IrTerm {
                 t_dynamic_call: struct {

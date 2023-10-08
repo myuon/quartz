@@ -2207,7 +2207,7 @@ module Typechecker {
             return make[map[string, Type]]();
         }
 
-        return _ or error::new("unimplemented: resolve_record_type, {}".format(derive::to_string(type_)));
+        return _ or error::new("unimplemented: resolve_record_type, {} with args {}".format(derive::to_string(type_), derive::to_string(args)));
     }
 
     fun resolve_path(
