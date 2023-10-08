@@ -1947,9 +1947,12 @@ module IrCodeGenerator {
                             address: IrTerm {
                                 t_ident: "env",
                             },
-                            offset: IrTerm {
-                                t_i32: i,
-                            },
+                            offset: IrCodeGenerator::wrap_mult_sizeof(
+                                IrType::new(c.type_),
+                                IrTerm {
+                                    t_i32: i,
+                                },
+                            ),
                         },
                     };
                 }
