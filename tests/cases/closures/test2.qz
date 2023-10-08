@@ -1,7 +1,9 @@
 fun main() {
     let a = 10;
+    let z = 1000;
     let f = fun (x: i32): i32 {
-        return x + a;
+        let b = a;
+        return x + b;
     };
 
     assert_eq(f(100), 110);

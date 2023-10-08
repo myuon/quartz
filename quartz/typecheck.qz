@@ -36,6 +36,7 @@ struct Typechecker {
         }],
     }],
     current_function_name: string?,
+    captured: vec[string],
 }
 
 module Typechecker {
@@ -660,6 +661,7 @@ module Typechecker {
                 }],
             }]](),
             current_function_name: nil,
+            captured: make[vec[string]](),
         };
     }
 
@@ -938,6 +940,9 @@ module Typechecker {
         for k in locals_init.list_keys() {
             self.locals.insert(k, locals_init.(k));
         }
+
+        self.captured = make[vec[string]]();
+
         self.current_function_name = f.name.data?;
 
         for i in 0..f.params.length {
@@ -964,6 +969,26 @@ module Typechecker {
 
         self.result_type = f.result_type?;
         self.block(f.body).try;
+
+        let captured_local = make[map[string, bool]]();
+        for c in self.captured {
+            captured_local.insert(c, true);
+        }
+        for p in f.params {
+            captured_local.insert(p.name, false);
+        }
+        for l in self.locals.list_keys() {
+            if !locals_init.has(l) {
+                captured_local.insert(l, false);
+            }
+        }
+
+        self.captured = make[vec[string]]();
+        for c in captured_local.list_keys() {
+            if captured_local.(c) {
+                self.captured.push(c);
+            }
+        }
 
         self.locals = locals;
         self.current_function_name = nil;
@@ -1316,6 +1341,7 @@ module Typechecker {
             return _ or error::new("unimplemented: binop, {}".format(expr.to_string()));
         } else if expr.t_ident != nil {
             if self.locals.has(expr.t_ident!.name) {
+                self.captured.push(expr.t_ident!.name);
                 let t = self.locals.at(expr.t_ident!.name);
                 self.set_search_node_type(t.data, lexpr.location);
                 self.set_search_node_definition(self.current_path, t.location, lexpr.location);
@@ -2048,6 +2074,18 @@ module Typechecker {
             let prev = self.current_function_name;
             let func_type = self.function(expr.t_closure!.func, self.locals).try;
             self.current_function_name = prev;
+
+            let captures = make[vec[struct {
+                name: string,
+                type_: Type,
+            }]]();
+            for c in self.captured {
+                captures.push(struct {
+                    name: c,
+                    type_: self.locals.(c).data,
+                });
+            }
+            expr.t_closure!.captures = captures;
 
             return Type {
                 t_closure: struct {
