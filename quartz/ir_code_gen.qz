@@ -1927,15 +1927,17 @@ module IrCodeGenerator {
             for i in 0..self.captures.length {
                 let c = self.captures.(i);
                 if c.name == expr.t_ident!.name {
-                    return self.generate_array_at(
-                        c.type_,
-                        IrTerm {
-                            t_ident: "env",
+                    return IrTerm {
+                        t_load: struct {
+                            type_: IrType::new(c.type_),
+                            address: IrTerm {
+                                t_ident: "env",
+                            },
+                            offset: IrTerm {
+                                t_i32: i,
+                            },
                         },
-                        IrTerm {
-                            t_i32: i,
-                        },
-                    ).try;
+                    };
                 }
             }
 
@@ -3101,8 +3103,20 @@ module IrCodeGenerator {
 
             let elements = make[vec[IrTerm]]();
             let captures_ir = make[vec[IrType]]();
+            let values = make[vec[struct {
+                label: string?,
+                type_: IrType,
+                term: IrTerm,
+            }]]();
             for c in captures_types {
                 captures_ir.push(IrType::new(c));
+                values.push(struct {
+                    label: nil,
+                    type_: IrType::new(c),
+                    term: IrTerm {
+                        t_nil: true,
+                    },
+                });
             }
 
             elements.push(IrTerm {
@@ -3114,11 +3128,7 @@ module IrCodeGenerator {
                     value: self.generate_array(
                         "struct",
                         captures_ir,
-                        make[vec[struct {
-                            label: string?,
-                            type_: IrType,
-                            term: IrTerm,
-                        }]](),
+                        values,
                     ).try,
                 },
             });
@@ -3136,6 +3146,13 @@ module IrCodeGenerator {
                 },
             };
         } else if expr.t_closure_call != nil {
+            let callee_type = expr.t_closure_call!.callee_type;
+            callee_type.t_closure!.params.push(
+                Type {
+                    t_any: true,
+                },
+            );
+
             let terms = make[vec[IrTerm]]();
             for arg in expr.t_closure_call!.args {
                 terms.push(self.expression(arg).try);
@@ -3147,7 +3164,7 @@ module IrCodeGenerator {
 
             return IrTerm {
                 t_dynamic_call: struct {
-                    callee_type: IrType::new(expr.t_closure_call!.callee_type),
+                    callee_type: IrType::new(callee_type),
                     callee_id: self.expression(expr.t_closure_call!.callee).try,
                     args: terms,
                 },
