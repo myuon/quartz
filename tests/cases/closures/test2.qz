@@ -1,0 +1,16 @@
+fun main() {
+    let a = 10;
+    let z = 1000;
+    let f = fun (x: i32): i32 {
+        let b = a;
+        return x + b;
+    };
+    let g = fun (x: i32): i32 {
+        return x + a + z;
+    };
+
+    assert_eq(f(100), 110);
+    assert_eq(g(100), 1110);
+
+    println("ok");
+}

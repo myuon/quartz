@@ -57,6 +57,7 @@ module LetCallTransformer {
                 result_type: func.result_type,
                 body: self.function_body,
                 ffi_export: func.ffi_export,
+                escaping: func.escaping,
             },
         };
     }

@@ -244,6 +244,11 @@ enum Expression {
         }?,
         expansion: LExpression?,
     },
+    t_closure_call: struct {
+        callee_type: Type,
+        callee: LExpression,
+        args: vec[LExpression],
+    },
     t_project: struct {
         expr: LExpression,
         field: Ident,
@@ -324,6 +329,13 @@ enum Expression {
         expr: LExpression,
         expr_type: Type,
     },
+    t_closure: struct {
+        func: Function,
+        captures: vec[struct {
+            name: string,
+            type_: Type,
+        }],
+    },
 }
 
 module Expression {
@@ -379,6 +391,10 @@ enum Type {
     t_i32: bool,
     t_u32: bool,
     t_func: struct {
+        params: vec[Type],
+        result: Type,
+    },
+    t_closure: struct {
         params: vec[Type],
         result: Type,
     },
@@ -497,6 +513,20 @@ module Type {
             return builder.to_string();
         } else if self.t_ptr != nil {
             return "ptr[{}]".format(self.t_ptr!.to_string());
+        } else if self.t_closure != nil {
+            let builder = stringbuilder::new();
+            builder.append("closure (");
+            for i in 0..self.t_closure!.params.length {
+                let param = self.t_closure!.params.at(i);
+                builder.append(param.to_string());
+
+                if i != self.t_closure!.params.length - 1 {
+                    builder.append(", ");
+                }
+            }
+            builder.append(format(") -> {}", self.t_closure!.result.to_string()));
+
+            return builder.to_string();
         }
 
         panic("Unknown type: {}", derive::to_string(self));

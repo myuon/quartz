@@ -10,6 +10,7 @@ import quartz::value;
 import quartz::location;
 import quartz::preprocessor;
 import quartz::ir_path::let_call;
+import quartz::ir_path::escaping;
 
 struct LoadedModule {
     path: Path,
@@ -193,6 +194,7 @@ module Compiler {
         let term = irgen.run(module_).context("ircodegen").try;
 
         term = transform_let_call(term);
+        term = transform_escaping(term);
 
         let envs = environs();
         if envs.has("GENERATE_IR") {

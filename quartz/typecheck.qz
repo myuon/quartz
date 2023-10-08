@@ -36,6 +36,7 @@ struct Typechecker {
         }],
     }],
     current_function_name: string?,
+    captured: vec[string],
 }
 
 module Typechecker {
@@ -660,6 +661,7 @@ module Typechecker {
                 }],
             }]](),
             current_function_name: nil,
+            captured: make[vec[string]](),
         };
     }
 
@@ -817,7 +819,7 @@ module Typechecker {
                 },
             );
 
-            self.function(d.t_func!).try;
+            self.function(d.t_func!, make[map[string, LType]]()).try;
 
             self.globals.insert(
                 self.path_to(d.t_func!.name.data),
@@ -932,9 +934,15 @@ module Typechecker {
         return _ or error::new(format("unimplemented: decl, {}", d.to_string()));
     }
 
-    fun function(self, f: Function): nil or error {
+    fun function(self, f: Function, locals_init: map[string, LType]): Type or error {
         let locals = self.locals;
         self.locals = make[map[string, LType]]();
+        for k in locals_init.list_keys() {
+            self.locals.insert(k, locals_init.(k));
+        }
+
+        self.captured = make[vec[string]]();
+
         self.current_function_name = f.name.data?;
 
         for i in 0..f.params.length {
@@ -962,10 +970,40 @@ module Typechecker {
         self.result_type = f.result_type?;
         self.block(f.body).try;
 
+        let captured_local = make[map[string, bool]]();
+        for c in self.captured {
+            captured_local.insert(c, true);
+        }
+        for p in f.params {
+            captured_local.insert(p.name, false);
+        }
+        for l in self.locals.list_keys() {
+            if !locals_init.has(l) {
+                captured_local.insert(l, false);
+            }
+        }
+
+        self.captured = make[vec[string]]();
+        for c in captured_local.list_keys() {
+            if captured_local.(c) {
+                self.captured.push(c);
+            }
+        }
+
         self.locals = locals;
         self.current_function_name = nil;
 
-        return nil;
+        let ps = make[vec[Type]]();
+        for param in f.params {
+            ps.push(param.type_);
+        }
+
+        return Type {
+            t_func: struct {
+                params: ps,
+                result: f.result_type,
+            },
+        };
     }
 
     fun block(self, b: LBlock): nil or error {
@@ -1303,6 +1341,7 @@ module Typechecker {
             return _ or error::new("unimplemented: binop, {}".format(expr.to_string()));
         } else if expr.t_ident != nil {
             if self.locals.has(expr.t_ident!.name) {
+                self.captured.push(expr.t_ident!.name);
                 let t = self.locals.at(expr.t_ident!.name);
                 self.set_search_node_type(t.data, lexpr.location);
                 self.set_search_node_definition(self.current_path, t.location, lexpr.location);
@@ -1397,6 +1436,38 @@ module Typechecker {
                     element_type: variadic_type,
                     index: func_type.params.length,
                 }?;
+
+                return func_type.result;
+            } else if callee_type.t_closure != nil {
+                let func_type = callee_type.t_closure!;
+                if func_type.params.length != expr.t_call!.args.length {
+                    return _ or error::new("wrong number of arguments, {} != {}".format(
+                        derive::to_string(func_type.params),
+                        derive::to_string(expr.t_call!.args),
+                    )).context(ErrorSource {
+                        path: self.current_path,
+                        location: expr.t_call!.callee.location,
+                    });
+                }
+
+                for i in 0..expr.t_call!.args.length {
+                    let arg = expr.t_call!.args.at(i);
+                    let param_type = func_type.params.at(i);
+
+                    let result = self.check_expression(arg, param_type).try;
+                    if result.expr != nil {
+                        expr.t_call!.args.(i) = result.expr!;
+                    }
+                }
+
+                // NOTE: `expr = ..` won't work, since expr is a local variable defined in this function
+                lexpr.data = Expression {
+                    t_closure_call: struct {
+                        callee_type: callee_type,
+                        callee: expr.t_call!.callee,
+                        args: expr.t_call!.args,
+                    }
+                };
 
                 return func_type.result;
             } else {
@@ -1993,6 +2064,35 @@ module Typechecker {
             return Type {
                 t_ptr: expr_type,
             };
+        } else if expr.t_closure != nil {
+            if self.current_function_name == nil {
+                return _ or error::new("closure outside of function, {}".format(expr.to_string()));
+            }
+
+            expr.t_closure!.func.name.data = "{}__closure_{}".format(self.current_function_name!, lexpr.location.start!.to_string());
+
+            let prev = self.current_function_name;
+            let func_type = self.function(expr.t_closure!.func, self.locals).try;
+            self.current_function_name = prev;
+
+            let captures = make[vec[struct {
+                name: string,
+                type_: Type,
+            }]]();
+            for c in self.captured {
+                captures.push(struct {
+                    name: c,
+                    type_: self.locals.(c).data,
+                });
+            }
+            expr.t_closure!.captures = captures;
+
+            return Type {
+                t_closure: struct {
+                    params: func_type.t_func!.params,
+                    result: func_type.t_func!.result,
+                },
+            };
         } else {
             return _ or error::new("unimplemented: expression, {}".format(expr.to_string()));
         }
@@ -2107,7 +2207,7 @@ module Typechecker {
             return make[map[string, Type]]();
         }
 
-        return _ or error::new("unimplemented: resolve_record_type, {}".format(derive::to_string(type_)));
+        return _ or error::new("unimplemented: resolve_record_type, {} with args {}".format(derive::to_string(type_), derive::to_string(args)));
     }
 
     fun resolve_path(
