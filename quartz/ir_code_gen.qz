@@ -302,6 +302,10 @@ struct IrCodeGenerator {
     test_functions: vec[string],
     entrypoint: string,
     closures: vec[IrTerm],
+    captures: vec[struct {
+        name: string,
+        type_: Type,
+    }],
 }
 
 module IrCodeGenerator {
@@ -326,6 +330,10 @@ module IrCodeGenerator {
             test_functions: make[vec[string]](),
             entrypoint: entrypoint,
             closures: make[vec[IrTerm]](),
+            captures: make[vec[struct {
+                name: string,
+                type_: Type,
+            }]](),
         };
     }
 
@@ -610,7 +618,10 @@ module IrCodeGenerator {
                 }
 
                 elements.push(IrTerm {
-                    t_func: self.function(d.t_func!).try,
+                    t_func: self.function(d.t_func!, make[vec[struct {
+                        name: string,
+                        type_: Type,
+                    }]]()).try,
                 });
             }
             if d.t_let != nil {
@@ -1181,9 +1192,13 @@ module IrCodeGenerator {
         };
     }
 
-    fun function(self, func: Function): IrFunc or error {
+    fun function(self, func: Function, captures: vec[struct {
+        name: string,
+        type_: Type,
+    }]): IrFunc or error {
         self.current_function_name = func.name.data;
         self.function_no_allocation = func.no_allocation;
+        self.captures = captures;
 
         let body = make[vec[IrTerm]]();
         if !self.path_to(func.name.data).starts_with("quartz_core") {
@@ -1897,6 +1912,20 @@ module IrCodeGenerator {
                 return IrTerm {
                     t_ident: expr.t_ident!.resolved_path!.join("_"),
                 };
+            }
+            for i in 0..self.captures.length {
+                let c = self.captures.(i);
+                if c.name == expr.t_ident!.name {
+                    return self.generate_array_at(
+                        c.type_,
+                        IrTerm {
+                            t_ident: "env",
+                        },
+                        IrTerm {
+                            t_i32: i,
+                        },
+                    ).try;
+                }
             }
 
             return IrTerm {
@@ -3040,8 +3069,15 @@ module IrCodeGenerator {
                 };
             }
         } else if expr.t_closure != nil {
+            expr.t_closure!.func.params.push(struct {
+                name: "env",
+                type_: Type {
+                    t_any: true,
+                },
+            });
+
             self.closures.push(IrTerm {
-                t_func: self.function(expr.t_closure!.func).try,
+                t_func: self.function(expr.t_closure!.func, expr.t_closure!.captures).try,
             });
 
             let symbol = self.path_to(expr.t_closure!.func.name.data);
