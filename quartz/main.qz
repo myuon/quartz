@@ -319,14 +319,7 @@ fun start(): nil or error {
 
         let result or err = compiler.compile(input, path, entrypoint, false, validate_address, compile.test, compile.output!);
         if err != nil {
-            write_string(fd_stderr, format("Error: {}", err!.message));
-            write_string(fd_stderr, "\n");
-
-            for detail in err!.detail {
-                write_string(fd_stderr, "  {}".format(derive::to_string(detail)));
-                write_string(fd_stderr, "\n");
-            }
-            write_string(fd_stderr, "\n");
+            err_println(err!.message);
 
             return nil;
         }

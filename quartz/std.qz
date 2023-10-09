@@ -35,6 +35,10 @@ fun print_string(s: string) {
     return write_string(fd_stdout, s);
 }
 
+fun err_print_string(s: string) {
+    return write_string(fd_stderr, s);
+}
+
 fun write_string(fd: i32, s: string) {
     let l = s.length;
     let d = s.data;
@@ -75,6 +79,12 @@ fun print(f: string, ..arg: vec[string]) {
 fun println(f: string, ..arg: vec[string]) {
     print(f, ..arg);
     print_string("\n");
+}
+
+fun err_println(f: string, ..arg: vec[string]) {
+    let result = format(f, ..arg);
+    err_print_string(result);
+    err_print_string("\n");
 }
 
 fun vec_make(capacity: i32): vec[any] {
