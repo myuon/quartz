@@ -770,7 +770,7 @@ module Parser {
 
             return LType {
                 data: Type {
-                    t_func: struct {
+                    t_closure: struct {
                         params: params,
                         result: result,
                     },

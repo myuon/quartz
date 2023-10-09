@@ -2296,6 +2296,24 @@ fun unify(type1: Type, type2: Type): Type or error {
             },
         };
     }
+    if type1.t_closure != nil && type2.t_closure != nil {
+        if type1.t_closure!.params.length != type2.t_closure!.params.length {
+            return _ or error::new("unification failed: ".concat(type1.t_closure!.params.length.to_string()).concat(
+                " != ",
+            ).concat(type2.t_closure!.params.length.to_string()));
+        }
+
+        for i in 0..type1.t_closure!.params.length {
+            let rs1 = type1.t_closure!.params.at(i);
+            let rs2 = type2.t_closure!.params.at(i);
+
+            unify(rs1, rs2).try;
+        }
+
+        unify(type1.t_closure!.result, type2.t_closure!.result).try;
+
+        return type1;
+    }
 
     return _ or error::new(
         "unification failed: ".concat(type1.to_string()).concat(" != ").concat(type2.to_string()),
