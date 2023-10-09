@@ -2371,7 +2371,11 @@ module Typechecker {
         }
 
         if self.completed == nil {
-            return _ or error::new("not found");
+            return make[vec[struct {
+                kind: string,
+                label: string,
+                text: string,
+            }]]();
         } else {
             return self.completed!;
         }
