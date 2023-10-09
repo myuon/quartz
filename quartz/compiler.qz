@@ -471,6 +471,22 @@ fun find_position(
     return find_position_with_line_counts(input.line_counts(), position);
 }
 
+@[test]
+fun test_find_position() {
+    assert_eq(find_position("aaaabbbb", 3), struct {
+        line: 0,
+        column: 3,
+    });
+    assert_eq(find_position("aaaabbbb\nccccddd", 3), struct {
+        line: 0,
+        column: 3,
+    });
+    assert_eq(find_position("aaaabbbb\nccccddd", 10), struct {
+        line: 1,
+        column: 1,
+    });
+}
+
 fun find_position_with_line_counts(
     line_counts: vec[i32],
     position: i32,
