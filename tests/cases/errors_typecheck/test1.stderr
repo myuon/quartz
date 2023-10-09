@@ -1,6 +1,6 @@
-TypeError unification failed: i32 != string at main[L2:12-L2:13]
+TypeError unification failed: i32 != string at main[L3:12-L3:13]
 
-1 | fun t() {
 2 |     let s = 10;
-2 |             ^^
 3 |     println(s);
+3 |             ^
+4 | }
