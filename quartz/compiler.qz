@@ -177,11 +177,39 @@ module Compiler {
                     let start_position = find_position_with_line_counts(line_counts, source.location.start!);
                     let end_position = find_position_with_line_counts(line_counts, source.location.end!);
 
-                    err_internal = err_internal.context(struct {
-                        path: source.path,
-                        start: start_position,
-                        end: end_position,
-                    });
+                    err_println("TypeError {} at {}[L{}:{}-L{}:{}]", err!.message, source.path.join("::"), (start_position.line + 1).to_string(), start_position.column.to_string(), (end_position.line + 1).to_string(), end_position.column.to_string());
+                    err_println("");
+
+                    let span_start = start_position.line - 1;
+                    if start_position.line == 0 {
+                        span_start = 0;
+                    }
+
+                    let lines = get_by_lines(input_to_inspect, span_start, end_position.line + 1);
+                    for i in 0..lines.length {
+                        let line = lines.(i);
+                        let line_number = span_start + i;
+                        let line_number_str = (line_number + 1).to_string();
+
+                        err_println("{} | {}", line_number_str, line);
+                        if start_position.line == end_position.line {
+                            if line_number == start_position.line {
+                                err_println("{} | {}{}", line_number_str, " ".repeat(start_position.column), "^".repeat(end_position.column - start_position.column));
+                            }
+                        } else {
+                            if line_number > start_position.line && line_number < end_position.line {
+                                err_println("{} | {}", line_number_str, "^".repeat(line.length));
+                            } else if line_number == start_position.line {
+                                err_println("{} | {}{}", line_number_str, " ".repeat(start_position.column), "^".repeat(line.length - start_position.column + 1));
+                            } else if line_number == end_position.line {
+                                err_println("{} | {}", line_number_str, "^".repeat(end_position.column));
+                            }
+                        }
+                    }
+                    err_println("");
+                    err_println("");
+
+                    return _ or err_internal;
                 }
             }
 
@@ -444,6 +472,26 @@ fun find_position(
     return find_position_with_line_counts(input.line_counts(), position);
 }
 
+@[test]
+fun test_find_position() {
+    assert_eq(find_position("aaaabbbb", 3), struct {
+        line: 0,
+        column: 3,
+    });
+    assert_eq(find_position("aaaabbbb\nccccddd", 3), struct {
+        line: 0,
+        column: 3,
+    });
+    assert_eq(find_position("aaaabbbb\nccccddd", 10), struct {
+        line: 1,
+        column: 1,
+    });
+    assert_eq(find_position("aaaabbbb\nccccddd", 0), struct {
+        line: 0,
+        column: 0,
+    });
+}
+
 fun find_position_with_line_counts(
     line_counts: vec[i32],
     position: i32,
@@ -515,3 +563,14 @@ fun find_position_by_line_counts(
     };
 }
 
+fun get_by_lines(input: string, start: i32, end: i32): vec[string] {
+    let input_splitted = input.split("\n");
+    let result = make[vec[string]]();
+    for i in 0..input_splitted.length {
+        if start <= i && i <= end {
+            result.push(input_splitted.(i));
+        }
+    }
+
+    return result;
+}

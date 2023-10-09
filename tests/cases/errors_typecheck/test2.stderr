@@ -1,0 +1,4 @@
+TypeError unification failed: string != i32 at main[L1:0-L1:19]
+
+1 | let a: i32 = "foo";
+1 | ^^^^^^^^^^^^^^^^^^^

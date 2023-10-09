@@ -1,0 +1,14 @@
+TypeError unification failed: struct {x: i32, y: string, z: bool} != nil at main[L2:11-L6:5]
+
+1 | fun main() {
+2 |     return struct {
+2 |            ^^^^^^^^^
+3 |         x: 10,
+3 | ^^^^^^^^^^^^^^
+4 |         y: "foo",
+4 | ^^^^^^^^^^^^^^^^^
+5 |         z: true,
+5 | ^^^^^^^^^^^^^^^^
+6 |     };
+6 | ^^^^^
+7 | }
