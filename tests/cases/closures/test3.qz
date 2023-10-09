@@ -1,0 +1,15 @@
+let g: fun[(i32), i32]? = nil;
+
+fun define_closure() {
+    let a = 10;
+
+    g = fun(x: i32): i32 {
+        return x + a;
+    };
+}
+
+fun main() {
+    define_closure();
+
+    assert_eq(g(7), 17);
+}

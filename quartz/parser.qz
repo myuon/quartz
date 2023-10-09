@@ -742,6 +742,41 @@ module Parser {
                 },
                 location: token.location,
             };
+        } else if token.lexeme == "fun" {
+            let start_token = self.expect("lbracket").try;
+            let params = make[vec[Type]]();
+            self.expect("lparen").try;
+            while !self.peek().try.lexeme.equal("rparen") {
+                let t = self.type_().try;
+                params.push(t.data);
+
+                if self.peek().try.lexeme.equal("comma") {
+                    self.consume().try;
+                } else {
+                    break;
+                }
+            }
+            self.expect("rparen").try;
+
+            let result = Type {
+                t_nil: true,
+            };
+            if self.peek().try.lexeme.equal("comma") {
+                self.consume().try;
+                result = self.type_().try.data;
+            }
+
+            let end_token = self.expect("rbracket").try;
+
+            return LType {
+                data: Type {
+                    t_func: struct {
+                        params: params,
+                        result: result,
+                    },
+                },
+                location: self.span_location(start_token, end_token),
+            };
         } else {
             return _ or error::new(format("Expected type, got {}", token.to_string()));
         }
