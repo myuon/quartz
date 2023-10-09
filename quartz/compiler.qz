@@ -184,6 +184,9 @@ module Compiler {
                     for i in 0..lines.length {
                         let line = lines.(i);
                         let line_number = start_position.line + i - 1;
+                        if start_position.line == 0 {
+                            line_number = 0;
+                        }
 
                         if i == 0 {
                             err_println("{} | {}", line_number.to_string(), line);

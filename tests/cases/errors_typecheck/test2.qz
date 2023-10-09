@@ -1,0 +1,5 @@
+let a: i32 = "foo";
+
+fun main() {
+    return nil;
+}
