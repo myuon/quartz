@@ -473,43 +473,6 @@ module IrCodeGenerator {
         decls.extend(self.generate_prepare_strings().try);
         decls.extend(self.generate_prepare_itables().try);
 
-        decls.push(IrTerm {
-            t_func: IrFunc {
-                name: "reflection_get_type_rep_id",
-                params: make[vec[struct {
-                    name: string,
-                    type_: IrType,
-                }]](struct {
-                    name: "p",
-                    type_: IrType {
-                        t_address: true,
-                    },
-                }),
-                result_type: IrType {
-                    t_address: true,
-                },
-                body: make[vec[IrTerm]](IrTerm {
-                    t_return: IrReturn {
-                        value: IrTerm {
-                            t_load: struct {
-                                type_: IrType {
-                                    t_address: true,
-                                },
-                                address: IrTerm {
-                                    t_ident: "p",
-                                },
-                                offset: IrTerm {
-                                    t_i32: 0,
-                                },
-                            },
-                        },
-                    },
-                }),
-                escaping: make[vec[string]](),
-                ..nil,
-            },
-        });
-
         let result = vec_clone(self.imports);
         result.extend(decls);
 
@@ -628,10 +591,13 @@ module IrCodeGenerator {
                 }
 
                 elements.push(IrTerm {
-                    t_func: self.function(d.t_func!, make[vec[struct {
-                        name: string,
-                        type_: Type,
-                    }]]()).try,
+                    t_func: self.function(
+                        d.t_func!,
+                        make[vec[struct {
+                            name: string,
+                            type_: Type,
+                        }]](),
+                    ).try,
                 });
             }
             if d.t_let != nil {
@@ -1210,10 +1176,14 @@ module IrCodeGenerator {
         };
     }
 
-    fun function(self, func: Function, captures: vec[struct {
-        name: string,
-        type_: Type,
-    }]): IrFunc or error {
+    fun function(
+        self,
+        func: Function,
+        captures: vec[struct {
+            name: string,
+            type_: Type,
+        }],
+    ): IrFunc or error {
         self.current_function_name = func.name.data;
         self.function_no_allocation = func.no_allocation;
         self.captures = captures;
@@ -3137,12 +3107,12 @@ module IrCodeGenerator {
                         t_load: struct {
                             type_: IrType::new(c.type_),
                             address: IrTerm {
-                                t_ident: c.name
+                                t_ident: c.name,
                             },
                             offset: IrTerm {
                                 t_i32: 0,
                             },
-                        }
+                        },
                     },
                 });
             }
@@ -3153,11 +3123,7 @@ module IrCodeGenerator {
                     type_: IrType {
                         t_address: true,
                     },
-                    value: self.generate_array(
-                        "struct",
-                        captures_ir,
-                        values,
-                    ).try,
+                    value: self.generate_array("struct", captures_ir, values).try,
                 },
             });
 
@@ -3175,11 +3141,9 @@ module IrCodeGenerator {
             };
         } else if expr.t_closure_call != nil {
             let callee_type = expr.t_closure_call!.callee_type;
-            callee_type.t_closure!.params.push(
-                Type {
-                    t_any: true,
-                },
-            );
+            callee_type.t_closure!.params.push(Type {
+                t_any: true,
+            });
 
             let terms = make[vec[IrTerm]]();
             for arg in expr.t_closure_call!.args {

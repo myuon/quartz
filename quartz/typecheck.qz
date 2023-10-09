@@ -81,22 +81,6 @@ module Typechecker {
             },
         );
         globals.insert(
-            "println",
-            LType {
-                data: Type {
-                    t_func: struct {
-                        params: make[vec[Type]](Type {
-                            t_ident: "string",
-                        }),
-                        result: Type {
-                            t_nil: true,
-                        },
-                    },
-                },
-                location: Location::unknown(),
-            },
-        );
-        globals.insert(
             "vec",
             LType {
                 data: Type {
@@ -195,22 +179,6 @@ module Typechecker {
             },
         );
         globals.insert(
-            "reflection_get_type_rep_id",
-            LType {
-                data: Type {
-                    t_func: struct {
-                        params: make[vec[Type]](Type {
-                            t_any: true,
-                        }),
-                        result: Type {
-                            t_i32: true,
-                        },
-                    },
-                },
-                location: Location::unknown(),
-            },
-        );
-        globals.insert(
             "_reflection_is_pointer",
             LType {
                 data: Type {
@@ -236,91 +204,6 @@ module Typechecker {
                         }),
                         result: Type {
                             t_bool: true,
-                        },
-                    },
-                },
-                location: Location::unknown(),
-            },
-        );
-        globals.insert(
-            "_fd_read",
-            LType {
-                data: Type {
-                    t_func: struct {
-                        params: make[vec[Type]](
-                            Type {
-                                t_i32: true,
-                            },
-                            Type {
-                                t_ptr: Type {
-                                    t_byte: true,
-                                },
-                            },
-                            Type {
-                                t_i32: true,
-                            },
-                            Type {
-                                t_ptr: Type {
-                                    t_byte: true,
-                                },
-                            },
-                        ),
-                        result: Type {
-                            t_i32: true,
-                        },
-                    },
-                },
-                location: Location::unknown(),
-            },
-        );
-        globals.insert(
-            "_fd_filestat_get",
-            LType {
-                data: Type {
-                    t_func: struct {
-                        params: make[vec[Type]](
-                            Type {
-                                t_i32: true,
-                            },
-                            Type {
-                                t_ptr: Type {
-                                    t_byte: true,
-                                },
-                            },
-                        ),
-                        result: Type {
-                            t_i32: true,
-                        },
-                    },
-                },
-                location: Location::unknown(),
-            },
-        );
-        globals.insert(
-            "_fd_write",
-            LType {
-                data: Type {
-                    t_func: struct {
-                        params: make[vec[Type]](
-                            Type {
-                                t_i32: true,
-                            },
-                            Type {
-                                t_ptr: Type {
-                                    t_any: true,
-                                },
-                            },
-                            Type {
-                                t_i32: true,
-                            },
-                            Type {
-                                t_ptr: Type {
-                                    t_i32: true,
-                                },
-                            },
-                        ),
-                        result: Type {
-                            t_i32: true,
                         },
                     },
                 },
@@ -356,77 +239,6 @@ module Typechecker {
             },
         );
         globals.insert(
-            "_path_open",
-            LType {
-                data: Type {
-                    t_func: struct {
-                        params: make[vec[Type]](
-                            // dirfd
-                            Type {
-                                t_i32: true,
-                            },
-                            // dirflags
-                            Type {
-                                t_i32: true,
-                            },
-                            // path
-                            Type {
-                                t_ptr: Type {
-                                    t_byte: true,
-                                },
-                            },
-                            // path_len
-                            Type {
-                                t_i32: true,
-                            },
-                            // o_flags
-                            Type {
-                                t_i32: true,
-                            },
-                            // fs_rights_base
-                            Type {
-                                t_i32: true,
-                            },
-                            // fs_rights_inheriting
-                            Type {
-                                t_i32: true,
-                            },
-                            // fs_flags
-                            Type {
-                                t_i32: true,
-                            },
-                            // *fd
-                            Type {
-                                t_ptr: Type {
-                                    t_i32: true,
-                                },
-                            },
-                        ),
-                        result: Type {
-                            t_i32: true,
-                        },
-                    },
-                },
-                location: Location::unknown(),
-            },
-        );
-        globals.insert(
-            "_fd_close",
-            LType {
-                data: Type {
-                    t_func: struct {
-                        params: make[vec[Type]](Type {
-                            t_i32: true,
-                        }),
-                        result: Type {
-                            t_i32: true,
-                        },
-                    },
-                },
-                location: Location::unknown(),
-            },
-        );
-        globals.insert(
             "_get_typetag",
             LType {
                 data: Type {
@@ -434,31 +246,6 @@ module Typechecker {
                         params: make[vec[Type]](Type {
                             t_any: true,
                         }),
-                        result: Type {
-                            t_i32: true,
-                        },
-                    },
-                },
-                location: Location::unknown(),
-            },
-        );
-        globals.insert(
-            "_environ_sizes_get",
-            LType {
-                data: Type {
-                    t_func: struct {
-                        params: make[vec[Type]](
-                            Type {
-                                t_ptr: Type {
-                                    t_i32: true,
-                                },
-                            },
-                            Type {
-                                t_ptr: Type {
-                                    t_i32: true,
-                                },
-                            },
-                        ),
                         result: Type {
                             t_i32: true,
                         },
@@ -477,85 +264,6 @@ module Typechecker {
                                 t_i32: true,
                             },
                         }),
-                        result: Type {
-                            t_i32: true,
-                        },
-                    },
-                },
-                location: Location::unknown(),
-            },
-        );
-        globals.insert(
-            "_environ_get",
-            LType {
-                data: Type {
-                    t_func: struct {
-                        params: make[vec[Type]](
-                            Type {
-                                t_ptr: Type {
-                                    t_ptr: Type {
-                                        t_byte: true,
-                                    },
-                                },
-                            },
-                            Type {
-                                t_ptr: Type {
-                                    t_byte: true,
-                                },
-                            },
-                        ),
-                        result: Type {
-                            t_i32: true,
-                        },
-                    },
-                },
-                location: Location::unknown(),
-            },
-        );
-        globals.insert(
-            "_args_sizes_get",
-            LType {
-                data: Type {
-                    t_func: struct {
-                        params: make[vec[Type]](
-                            Type {
-                                t_ptr: Type {
-                                    t_i32: true,
-                                },
-                            },
-                            Type {
-                                t_ptr: Type {
-                                    t_i32: true,
-                                },
-                            },
-                        ),
-                        result: Type {
-                            t_i32: true,
-                        },
-                    },
-                },
-                location: Location::unknown(),
-            },
-        );
-        globals.insert(
-            "_args_get",
-            LType {
-                data: Type {
-                    t_func: struct {
-                        params: make[vec[Type]](
-                            Type {
-                                t_ptr: Type {
-                                    t_ptr: Type {
-                                        t_byte: true,
-                                    },
-                                },
-                            },
-                            Type {
-                                t_ptr: Type {
-                                    t_byte: true,
-                                },
-                            },
-                        ),
                         result: Type {
                             t_i32: true,
                         },
@@ -1466,7 +1174,7 @@ module Typechecker {
                         callee_type: callee_type,
                         callee: expr.t_call!.callee,
                         args: expr.t_call!.args,
-                    }
+                    },
                 };
 
                 return func_type.result;
@@ -2069,7 +1777,10 @@ module Typechecker {
                 return _ or error::new("closure outside of function, {}".format(expr.to_string()));
             }
 
-            expr.t_closure!.func.name.data = "{}__closure_{}".format(self.current_function_name!, lexpr.location.start!.to_string());
+            expr.t_closure!.func.name.data = "{}__closure_{}".format(
+                self.current_function_name!,
+                lexpr.location.start!.to_string(),
+            );
 
             let prev = self.current_function_name;
             let func_type = self.function(expr.t_closure!.func, self.locals).try;
@@ -2207,7 +1918,10 @@ module Typechecker {
             return make[map[string, Type]]();
         }
 
-        return _ or error::new("unimplemented: resolve_record_type, {} with args {}".format(derive::to_string(type_), derive::to_string(args)));
+        return _ or error::new("unimplemented: resolve_record_type, {} with args {}".format(
+            derive::to_string(type_),
+            derive::to_string(args),
+        ));
     }
 
     fun resolve_path(
