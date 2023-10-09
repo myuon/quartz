@@ -104,56 +104,65 @@ fn quartz_run(input_path: &Path, output_path: &Path) -> QuartzRunOutput {
 
 #[test]
 fn test_run() -> Result<()> {
-    for entry in WalkDir::new("./tests/cases")
+    use rayon::prelude::*;
+
+    WalkDir::new("./tests/cases")
         .into_iter()
         .filter_map(Result::ok)
-    {
-        let path = entry.path();
-        let ext = path.extension().and_then(|s| s.to_str());
-        if ext == Some("qz") {
-            let stdout_path = path.with_extension("stdout");
-            let stderr_path = path.with_extension("stderr");
-            let compiled_path = Path::new("/tmp/compiled.wat");
-            let output = quartz_run(path, compiled_path);
+        .enumerate()
+        .collect::<Vec<_>>()
+        .into_par_iter()
+        .map(|(i, entry)| -> Result<()> {
+            let path = entry.path();
+            let ext = path.extension().and_then(|s| s.to_str());
+            if ext == Some("qz") {
+                let stdout_path = path.with_extension("stdout");
+                let stderr_path = path.with_extension("stderr");
+                let name = format!("/tmp/compiled_{}.wat", i);
+                let compiled_path = Path::new(&name);
+                let output = quartz_run(path, compiled_path);
 
-            if stdout_path.exists() {
-                let expected = fs::read_to_string(stdout_path)?;
-                let run = output.run.clone().expect(
-                    format!(
-                        "output.run is None.\n{}\n[COMPILE]: {}\n{}",
+                if stdout_path.exists() {
+                    let expected = fs::read_to_string(stdout_path)?;
+                    let run = output.run.clone().expect(
+                        format!(
+                            "output.run is None.\n{}\n[COMPILE]: {}\n{}",
+                            path.display(),
+                            output.compile.stdout,
+                            output.compile.stderr
+                        )
+                        .as_str(),
+                    );
+
+                    assert_eq!(
+                        expected,
+                        run.stdout,
+                        "{}\n\n[compile]\n{}\n[run]\n{}",
                         path.display(),
                         output.compile.stdout,
-                        output.compile.stderr
-                    )
-                    .as_str(),
-                );
+                        run.stdout,
+                    );
+                }
+                if stderr_path.exists() {
+                    let expected_fragment = fs::read_to_string(stderr_path)?;
+                    let run = output.run.unwrap();
+                    let actual = format!("{}\n{}", output.compile.stderr, run.stderr);
 
-                assert_eq!(
-                    expected,
-                    run.stdout,
-                    "{}\n\n[compile]\n{}\n[run]\n{}",
-                    path.display(),
-                    output.compile.stdout,
-                    run.stdout,
-                );
-            }
-            if stderr_path.exists() {
-                let expected_fragment = fs::read_to_string(stderr_path)?;
-                let run = output.run.unwrap();
-                let actual = format!("{}\n{}", output.compile.stderr, run.stderr);
+                    assert!(
+                        actual.contains(&expected_fragment),
+                        "{}\n\n[expected]\n{}\n[actual]\n{}\n",
+                        path.display(),
+                        expected_fragment,
+                        actual,
+                    );
+                }
 
-                assert!(
-                    actual.contains(&expected_fragment),
-                    "{}\n\n[expected]\n{}\n[actual]\n{}\n",
-                    path.display(),
-                    expected_fragment,
-                    actual,
-                );
+                let _ = std::fs::remove_file(compiled_path);
             }
 
-            let _ = std::fs::remove_file(compiled_path);
-        }
-    }
+            Ok(())
+        })
+        .collect::<Result<_>>()?;
 
     Ok(())
 }
