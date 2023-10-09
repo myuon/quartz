@@ -1,0 +1,7 @@
+fun main() {
+    return struct {
+        x: 10,
+        y: "foo",
+        z: true,
+    };
+}
