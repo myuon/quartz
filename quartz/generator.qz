@@ -1179,9 +1179,7 @@ module Generator {
                         IrTerm {
                             t_i32: size,
                         },
-                        IrTerm {
-                            t_i32: length,
-                        },
+                        length,
                     ),
                 },
             });

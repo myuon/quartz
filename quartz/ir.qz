@@ -47,7 +47,7 @@ enum IrTerm {
     },
     t_sizeof: struct {
         type_: IrType,
-        length: i32,
+        length: IrTerm,
     },
     t_string: i32,
     t_data: struct {
