@@ -1,0 +1,14 @@
+fun main() {
+    let x = "global";
+    let outer = fun () {
+        let x = "outer";
+        let inner = fun () {
+            let x = "inner";
+            print(x);
+        };
+        inner();
+    };
+
+    outer();
+}
+
