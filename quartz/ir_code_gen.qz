@@ -3577,23 +3577,10 @@ module IrCodeGenerator {
     }
 
     fun wrap_mult_sizeof(ir_type: IrType, term: IrTerm): IrTerm {
-        let args = make[vec[IrTerm]]();
-        args.push(term);
-        args.push(IrTerm {
+        return IrTerm {
             t_sizeof: struct {
                 type_: ir_type,
-                length: IrTerm {
-                    t_i32: 1,
-                },
-            },
-        });
-
-        return IrTerm {
-            t_call: IrCall {
-                callee: IrTerm {
-                    t_ident: "mult",
-                },
-                args: args,
+                length: term,
             },
         };
     }

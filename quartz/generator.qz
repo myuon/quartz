@@ -1168,12 +1168,12 @@ module Generator {
             let length = expr.t_sizeof!.length;
 
             self.new_statement();
-            self.write(format(" ;; {} * {} (sizeof)", size.to_string(), length.to_string()));
+            self.write(format(" ;; {} * _ (sizeof)", size.to_string()));
 
             self.expression(IrTerm {
                 t_call: IrCall {
                     callee: IrTerm {
-                        t_ident: "add",
+                        t_ident: "mult",
                     },
                     args: make[vec[IrTerm]](
                         IrTerm {
