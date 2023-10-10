@@ -99,6 +99,8 @@ module InternalTypeRep {
             );
         } else if t.t_externref != nil {
             return InternalTypeRep::from_name("externref", make[vec[InternalTypeRep]]());
+        } else if t.t_func != nil {
+            return InternalTypeRep::from_name("func", make[vec[InternalTypeRep]]());
         }
 
         return panic("unreachable, {}".format(t.to_string()));
@@ -418,6 +420,10 @@ module IrCodeGenerator {
         self.type_reps.get_or_insert(InternalTypeRep::from_name(
             "slice",
             make[vec[InternalTypeRep]](InternalTypeRep::from_name("TypeRep", make[vec[InternalTypeRep]]())),
+        ));
+        self.type_reps.get_or_insert(InternalTypeRep::from_name(
+            "func",
+            make[vec[InternalTypeRep]](),
         ));
 
         // Register declared types
@@ -1915,15 +1921,25 @@ module IrCodeGenerator {
                         t_load: struct {
                             type_: IrType::new(c.type_),
                             address: IrTerm {
-                                t_ident: "env",
-                            },
-                            offset: IrCodeGenerator::wrap_mult_sizeof(
-                                IrType::new(c.type_),
-                                IrTerm {
-                                    t_i32: i,
+                                t_load: struct {
+                                    type_: IrType {
+                                        t_address: true,
+                                    },
+                                    address: IrTerm {
+                                        t_ident: "env",
+                                    },
+                                    offset: IrCodeGenerator::wrap_mult_sizeof(
+                                        IrType::new(c.type_),
+                                        IrTerm {
+                                            t_i32: i,
+                                        },
+                                    ),
                                 },
-                            ),
-                        },
+                            },
+                            offset: IrTerm {
+                                t_i32: 0,
+                            },
+                        }
                     };
                 }
             }
@@ -3097,22 +3113,16 @@ module IrCodeGenerator {
                 term: IrTerm,
             }]]();
             for c in expr.t_closure!.captures {
-                captures_ir.push(IrType::new(c.type_));
+                captures_ir.push(IrType {
+                    t_address: true,
+                });
                 values.push(struct {
                     label: nil,
                     type_: IrType {
                         t_address: true,
                     },
                     term: IrTerm {
-                        t_load: struct {
-                            type_: IrType::new(c.type_),
-                            address: IrTerm {
-                                t_ident: c.name,
-                            },
-                            offset: IrTerm {
-                                t_i32: 0,
-                            },
-                        },
+                        t_ident: c.name,
                     },
                 });
             }
@@ -3130,9 +3140,37 @@ module IrCodeGenerator {
             let symbol = self.path_to(expr.t_closure!.func.name.data);
             let function_id = self.functions.get_or_insert(symbol);
 
-            elements.push(IrTerm {
-                t_i32: function_id,
-            });
+            elements.push(self.generate_array("struct", make[vec[IrType]](
+                IrType {
+                    t_i32: true,
+                },
+                IrType {
+                    t_address: true,
+                },
+            ), make[vec[struct {
+                label: string?,
+                type_: IrType,
+                term: IrTerm,
+            }]](
+                struct {
+                    label: "function"?,
+                    type_: IrType {
+                        t_i32: true,
+                    },
+                    term: IrTerm {
+                        t_i32: function_id,
+                    },
+                },
+                struct {
+                    label: "env"?,
+                    type_: IrType {
+                        t_address: true,
+                    },
+                    term: IrTerm {
+                        t_ident: "env",
+                    },
+                },
+            )).try);
 
             return IrTerm {
                 t_seq: struct {
@@ -3140,6 +3178,21 @@ module IrCodeGenerator {
                 },
             };
         } else if expr.t_closure_call != nil {
+            let elements = make[vec[IrTerm]]();
+
+            let var_name = "__closure__{}".format(self.counter.to_string());
+            self.counter = self.counter + 1;
+
+            elements.push(IrTerm {
+                t_let: IrLet {
+                    name: var_name,
+                    type_: IrType {
+                        t_address: true,
+                    },
+                    value: self.expression(expr.t_closure_call!.callee).try,
+                },
+            });
+
             let callee_type = expr.t_closure_call!.callee_type;
             callee_type.t_closure!.params.push(Type {
                 t_any: true,
@@ -3150,15 +3203,43 @@ module IrCodeGenerator {
                 terms.push(self.expression(arg).try);
             }
 
-            terms.push(IrTerm {
-                t_ident: "env",
+            terms.push(self.generate_array_at(
+                Type {
+                    t_ptr: Type {
+                        t_omit: true,
+                    },
+                },
+                IrTerm {
+                    t_ident: var_name,
+                },
+                IrTerm {
+                    t_i32: 1,
+                },
+            ).try);
+
+            elements.push(IrTerm {
+                t_dynamic_call: struct {
+                    callee_type: IrType::new(callee_type),
+                    callee_id: self.generate_array_at(
+                        Type {
+                            t_ptr: Type {
+                                t_omit: true,
+                            },
+                        },
+                        IrTerm {
+                            t_ident: var_name,
+                        },
+                        IrTerm {
+                            t_i32: 0,
+                        },
+                    ).try,
+                    args: terms,
+                },
             });
 
             return IrTerm {
-                t_dynamic_call: struct {
-                    callee_type: IrType::new(callee_type),
-                    callee_id: self.expression(expr.t_closure_call!.callee).try,
-                    args: terms,
+                t_seq: struct {
+                    terms: elements,
                 },
             };
         }

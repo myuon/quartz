@@ -608,6 +608,24 @@ module IrTermWriter {
             self.end();
 
             self.end();
+        } else if term.t_dynamic_call != nil {
+            self.start();
+            self.write("dynamic-call");
+            self.write(term.t_dynamic_call!.callee_type.to_string());
+            self.expression(term.t_dynamic_call!.callee_id);
+            for arg in term.t_dynamic_call!.args {
+                self.expression(arg);
+            }
+            self.end();
+        } else if term.t_funcref_table != nil {
+            self.start();
+            self.write("funcref-table");
+            for func in term.t_funcref_table!.functions {
+                self.write(func);
+            }
+            self.end();
+        } else {
+            return panic("unknown term: {}", derive::to_string(term));
         }
     }
 }
