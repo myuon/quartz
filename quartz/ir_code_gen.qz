@@ -2798,6 +2798,7 @@ module IrCodeGenerator {
             return IrTerm {
                 t_sizeof: struct {
                     type_: IrType::new(expr.t_sizeof!.type_),
+                    length: 1,
                 },
             };
         } else if expr.t_unop != nil {
@@ -3578,6 +3579,7 @@ module IrCodeGenerator {
         args.push(IrTerm {
             t_sizeof: struct {
                 type_: ir_type,
+                length: 1,
             },
         });
 

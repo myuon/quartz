@@ -47,6 +47,7 @@ enum IrTerm {
     },
     t_sizeof: struct {
         type_: IrType,
+        length: i32,
     },
     t_string: i32,
     t_data: struct {
@@ -99,7 +100,7 @@ enum IrTerm {
     },
     t_funcref_table: struct {
         functions: vec[string],
-    }
+    },
 }
 
 module IrTerm {
@@ -516,6 +517,7 @@ module IrTermWriter {
             self.start();
             self.write("sizeof");
             self.write(term.t_sizeof!.type_.to_string());
+            self.write(term.t_sizeof!.length.to_string());
             self.end();
         } else if term.t_string != nil {
             self.write("(string {})".format(term.t_string!.to_string()));

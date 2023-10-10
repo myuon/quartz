@@ -1100,16 +1100,6 @@ module Generator {
 
             self.new_statement();
             self.write(format("i64.store{}", suffix));
-        } else if expr.t_sizeof != nil {
-            let size = expr.t_sizeof!.type_.sizeof();
-
-            self.new_statement();
-            self.write(format(" ;; {} (sizeof)", size.to_string()));
-
-            self.new_statement();
-            self.write_value(Value {
-                t_i32: size,
-            });
         } else if expr.t_string != nil {
             self.new_statement();
             self.write(format(";; string: {}", escape(self.strings.at(expr.t_string!))));
@@ -1175,13 +1165,25 @@ module Generator {
             );
         } else if expr.t_sizeof != nil {
             let size = expr.t_sizeof!.type_.sizeof();
+            let length = expr.t_sizeof!.length;
 
             self.new_statement();
-            self.write(format(" ;; {} (sizeof)", size.to_string()));
+            self.write(format(" ;; {} * {} (sizeof)", size.to_string(), length.to_string()));
 
-            self.new_statement();
-            self.write_value(Value {
-                t_i32: size,
+            self.expression(IrTerm {
+                t_call: IrCall {
+                    callee: IrTerm {
+                        t_ident: "add",
+                    },
+                    args: make[vec[IrTerm]](
+                        IrTerm {
+                            t_i32: size,
+                        },
+                        IrTerm {
+                            t_i32: length,
+                        },
+                    ),
+                },
             });
         } else if expr.t_continue != nil {
             self.new_statement();
@@ -1216,7 +1218,11 @@ module Generator {
             if params != "" {
                 callee_type = format("(param {})", params);
             }
-            callee_type = format("(func {} (result {}))", callee_type, self.get_wasmtype(func_type.result_type));
+            callee_type = format(
+                "(func {} (result {}))",
+                callee_type,
+                self.get_wasmtype(func_type.result_type),
+            );
 
             self.types.push(struct {
                 name: type_name,
@@ -1575,12 +1581,6 @@ module Generator {
                 let t = self.fold_consts(term.t_while!.cleanup!);
                 term.t_while!.cleanup! = t;
             }
-        } else if term.t_sizeof != nil {
-            let size = term.t_sizeof!.type_.sizeof();
-
-            return IrTerm {
-                t_i32: size,
-            };
         } else if term.t_discard != nil {
             let d = self.fold_consts(term.t_discard!);
 
