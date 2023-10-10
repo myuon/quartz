@@ -12,4 +12,6 @@ fun main() {
     define_closure();
 
     assert_eq(g!(7), 17);
+
+    println("ok");
 }
