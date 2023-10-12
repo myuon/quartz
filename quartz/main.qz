@@ -349,8 +349,7 @@ fun start(): nil or error {
 
         let result or err = run_format(input);
         if err != nil {
-            write_string(fd_stderr, err!.message);
-            write_string(fd_stderr, "\n");
+            err_println(err!.message);
             return;
         }
 
@@ -419,6 +418,7 @@ fun start(): nil or error {
 
         let result or err = compiler.check_type(check_type.input!, input, check_type.line, check_type.column);
         if err != nil {
+            err_println(err!.message);
             return;
         }
 
@@ -438,7 +438,7 @@ fun start(): nil or error {
 
         let result or err = compiler.go_to_def(input, path, go_to_def.line, go_to_def.column);
         if err != nil {
-            println(err!.message);
+            err_println(err!.message);
             return;
         }
 
@@ -516,7 +516,7 @@ fun start(): nil or error {
             completion.dot,
         );
         if err != nil {
-            println(err!.message);
+            err_println(err!.message);
             return;
         }
 

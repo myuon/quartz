@@ -14,19 +14,11 @@ import * as util from "util";
 const execAsync_ = util.promisify(exec);
 
 const execAsync = async (command: string) => {
-  const controller = new AbortController();
-  const { signal } = controller;
-
-  setTimeout(() => {
-    try {
-      controller.abort();
-    } catch (err) {
-      console.log(`Aborted: ${err}`);
-    }
-  }, 30000);
-
   try {
-    const child = await execAsync_(command, { signal });
+    const child = await execAsync_(command);
+    if (child.stderr) {
+      console.error(child.stderr);
+    }
 
     return { ...child };
   } catch (err) {
