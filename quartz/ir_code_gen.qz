@@ -310,6 +310,7 @@ struct IrCodeGenerator {
     captures: vec[struct {
         name: string,
         type_: Type,
+        env_name: string,
     }],
     escaping: vec[string],
 }
@@ -342,6 +343,7 @@ module IrCodeGenerator {
             captures: make[vec[struct {
                 name: string,
                 type_: Type,
+                env_name: string,
             }]](),
             escaping: make[vec[string]](),
         };
@@ -599,6 +601,7 @@ module IrCodeGenerator {
                         make[vec[struct {
                             name: string,
                             type_: Type,
+                            env_name: string,
                         }]](),
                     ).try,
                 });
@@ -1185,6 +1188,7 @@ module IrCodeGenerator {
         captures: vec[struct {
             name: string,
             type_: Type,
+            env_name: string,
         }],
     ): IrFunc or error {
         self.current_function_name = func.name.data;
@@ -1923,7 +1927,7 @@ module IrCodeGenerator {
                                         t_address: true,
                                     },
                                     address: IrTerm {
-                                        t_ident: "env",
+                                        t_ident: c.env_name,
                                     },
                                     offset: IrCodeGenerator::wrap_mult_sizeof(
                                         IrType::new(c.type_),
@@ -3085,8 +3089,11 @@ module IrCodeGenerator {
                 };
             }
         } else if expr.t_closure != nil {
+            let env_name = "__closure_env_{}".format(self.counter.to_string());
+            self.counter = self.counter + 1;
+
             expr.t_closure!.func.params.push(struct {
-                name: "env",
+                name: env_name,
                 type_: Type {
                     t_any: true,
                 },
@@ -3098,9 +3105,22 @@ module IrCodeGenerator {
                 self.escaping.push(c.name);
             }
 
+            let captures = make[vec[struct {
+                name: string,
+                type_: Type,
+                env_name: string,
+            }]]();
+            for c in expr.t_closure!.captures {
+                captures.push(struct {
+                    name: c.name,
+                    type_: c.type_,
+                    env_name: env_name,
+                });
+            }
+
             self.closures.(expr.t_closure!.func.name.data) = (struct {
                 closure: IrTerm {
-                    t_func: self.function(expr.t_closure!.func, expr.t_closure!.captures).try,
+                    t_func: self.function(expr.t_closure!.func, captures).try,
                 },
                 captures: captures_types,
             });
