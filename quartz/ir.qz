@@ -47,6 +47,7 @@ enum IrTerm {
     },
     t_sizeof: struct {
         type_: IrType,
+        length: IrTerm,
     },
     t_string: i32,
     t_data: struct {
@@ -99,7 +100,7 @@ enum IrTerm {
     },
     t_funcref_table: struct {
         functions: vec[string],
-    }
+    },
 }
 
 module IrTerm {
@@ -425,9 +426,17 @@ module IrTermWriter {
             self.start();
             self.write("func ${}".format(term.t_func!.name));
             for param in term.t_func!.params {
-                self.write("(params ${} {})".format(param.name, param.type_.to_string()));
+                self.start();
+                self.write("params");
+                self.write("${}".format(param.name));
+                self.ir_type(param.type_);
+                self.end();
             }
-            self.write("(result {})".format(term.t_func!.result_type.to_string()));
+
+            self.start();
+            self.write("result");
+            self.ir_type(term.t_func!.result_type);
+            self.end();
 
             self.start();
             for t in term.t_func!.body {
@@ -446,7 +455,9 @@ module IrTermWriter {
             self.end();
         } else if term.t_let != nil {
             self.start();
-            self.write("let ${} {}".format(term.t_let!.name, term.t_let!.type_.to_string()));
+            self.write("let");
+            self.write("${}".format(term.t_let!.name));
+            self.ir_type(term.t_let!.type_);
             self.expression(term.t_let!.value);
             self.end();
         } else if term.t_return != nil {
@@ -456,10 +467,11 @@ module IrTermWriter {
             self.end();
         } else if term.t_global_let != nil {
             self.start();
-            self.write("global-let ${} {}".format(
+            self.write("global-let");
+            self.write("${}".format(
                 term.t_global_let!.name,
-                term.t_global_let!.type_.to_string(),
             ));
+            self.ir_type(term.t_global_let!.type_);
             self.expression(term.t_global_let!.value);
             self.end();
         } else if term.t_module != nil {
@@ -500,7 +512,7 @@ module IrTermWriter {
         } else if term.t_store != nil {
             self.start();
             self.write("store");
-            self.write(term.t_store!.type_.to_string());
+            self.ir_type(term.t_store!.type_);
             self.expression(term.t_store!.address);
             self.expression(term.t_store!.offset);
             self.expression(term.t_store!.value);
@@ -508,14 +520,15 @@ module IrTermWriter {
         } else if term.t_load != nil {
             self.start();
             self.write("load");
-            self.write(term.t_load!.type_.to_string());
+            self.ir_type(term.t_load!.type_);
             self.expression(term.t_load!.address);
             self.expression(term.t_load!.offset);
             self.end();
         } else if term.t_sizeof != nil {
             self.start();
             self.write("sizeof");
-            self.write(term.t_sizeof!.type_.to_string());
+            self.ir_type(term.t_sizeof!.type_);
+            self.write(term.t_sizeof!.length.to_string());
             self.end();
         } else if term.t_string != nil {
             self.write("(string {})".format(term.t_string!.to_string()));
@@ -611,7 +624,7 @@ module IrTermWriter {
         } else if term.t_dynamic_call != nil {
             self.start();
             self.write("dynamic-call");
-            self.write(term.t_dynamic_call!.callee_type.to_string());
+            self.ir_type(term.t_dynamic_call!.callee_type);
             self.expression(term.t_dynamic_call!.callee_id);
             for arg in term.t_dynamic_call!.args {
                 self.expression(arg);
@@ -627,6 +640,39 @@ module IrTermWriter {
         } else {
             return panic("unknown term: {}", derive::to_string(term));
         }
+    }
+
+    fun ir_type(self, type_: IrType) {
+        self.start();
+        self.write("type");
+        if type_.t_nil != nil {
+            self.write("nil");
+        } else if type_.t_i32 != nil {
+            self.write("i32");
+        } else if type_.t_address != nil {
+            self.write("address");
+        } else if type_.t_byte != nil {
+            self.write("byte");
+        } else if type_.t_bool != nil {
+            self.write("bool");
+        } else if type_.t_any != nil {
+            self.write("any");
+        } else if type_.t_i64 != nil {
+            self.write("i64");
+        } else if type_.t_externref != nil {
+            self.write("externref");
+        } else if type_.t_func != nil {
+            self.start();
+            self.write("func");
+            for param in type_.t_func!.params {
+                self.write(param.to_string());
+            }
+            self.write("(result {})".format(type_.t_func!.result_type.to_string()));
+            self.end();
+        } else {
+            return panic("unknown type: {}", derive::to_string(type_));
+        }
+        self.end();
     }
 }
 

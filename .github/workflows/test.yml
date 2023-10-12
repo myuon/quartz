@@ -38,7 +38,7 @@ jobs:
           MODE=run-wat WAT_FILE=./build/quartz-compiled.wat cargo run --release
 
       - name: Run the integration tests
-        run: cargo test --release -- --test-threads=1
+        run: cargo test --release
 
       - name: Check if stable
         run: just build_compiler $(just find_latest_version) current && just check_if_stable --validate-address

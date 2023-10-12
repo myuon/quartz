@@ -423,10 +423,7 @@ module IrCodeGenerator {
             "slice",
             make[vec[InternalTypeRep]](InternalTypeRep::from_name("TypeRep", make[vec[InternalTypeRep]]())),
         ));
-        self.type_reps.get_or_insert(InternalTypeRep::from_name(
-            "func",
-            make[vec[InternalTypeRep]](),
-        ));
+        self.type_reps.get_or_insert(InternalTypeRep::from_name("func", make[vec[InternalTypeRep]]()));
 
         // Register declared types
         for k in self.globals.list_keys() {
@@ -1943,7 +1940,7 @@ module IrCodeGenerator {
                             offset: IrTerm {
                                 t_i32: 0,
                             },
-                        }
+                        },
                     };
                 }
             }
@@ -2802,6 +2799,9 @@ module IrCodeGenerator {
             return IrTerm {
                 t_sizeof: struct {
                     type_: IrType::new(expr.t_sizeof!.type_),
+                    length: IrTerm {
+                        t_i32: 1,
+                    },
                 },
             };
         } else if expr.t_unop != nil {
@@ -3160,37 +3160,41 @@ module IrCodeGenerator {
             let symbol = self.path_to(expr.t_closure!.func.name.data);
             let function_id = self.functions.get_or_insert(symbol);
 
-            elements.push(self.generate_array("struct", make[vec[IrType]](
-                IrType {
-                    t_i32: true,
-                },
-                IrType {
-                    t_address: true,
-                },
-            ), make[vec[struct {
-                label: string?,
-                type_: IrType,
-                term: IrTerm,
-            }]](
-                struct {
-                    label: "function"?,
-                    type_: IrType {
+            elements.push(self.generate_array(
+                "struct",
+                make[vec[IrType]](
+                    IrType {
                         t_i32: true,
                     },
-                    term: IrTerm {
-                        t_i32: function_id,
-                    },
-                },
-                struct {
-                    label: "env"?,
-                    type_: IrType {
+                    IrType {
                         t_address: true,
                     },
-                    term: IrTerm {
-                        t_ident: "env",
+                ),
+                make[vec[struct {
+                    label: string?,
+                    type_: IrType,
+                    term: IrTerm,
+                }]](
+                    struct {
+                        label: "function"?,
+                        type_: IrType {
+                            t_i32: true,
+                        },
+                        term: IrTerm {
+                            t_i32: function_id,
+                        },
                     },
-                },
-            )).try);
+                    struct {
+                        label: "env"?,
+                        type_: IrType {
+                            t_address: true,
+                        },
+                        term: IrTerm {
+                            t_ident: "env",
+                        },
+                    },
+                ),
+            ).try);
 
             return IrTerm {
                 t_seq: struct {
@@ -3593,20 +3597,10 @@ module IrCodeGenerator {
     }
 
     fun wrap_mult_sizeof(ir_type: IrType, term: IrTerm): IrTerm {
-        let args = make[vec[IrTerm]]();
-        args.push(term);
-        args.push(IrTerm {
+        return IrTerm {
             t_sizeof: struct {
                 type_: ir_type,
-            },
-        });
-
-        return IrTerm {
-            t_call: IrCall {
-                callee: IrTerm {
-                    t_ident: "mult",
-                },
-                args: args,
+                length: term,
             },
         };
     }

@@ -1100,16 +1100,6 @@ module Generator {
 
             self.new_statement();
             self.write(format("i64.store{}", suffix));
-        } else if expr.t_sizeof != nil {
-            let size = expr.t_sizeof!.type_.sizeof();
-
-            self.new_statement();
-            self.write(format(" ;; {} (sizeof)", size.to_string()));
-
-            self.new_statement();
-            self.write_value(Value {
-                t_i32: size,
-            });
         } else if expr.t_string != nil {
             self.new_statement();
             self.write(format(";; string: {}", escape(self.strings.at(expr.t_string!))));
@@ -1175,14 +1165,18 @@ module Generator {
             );
         } else if expr.t_sizeof != nil {
             let size = expr.t_sizeof!.type_.sizeof();
+            let length = expr.t_sizeof!.length;
 
             self.new_statement();
-            self.write(format(" ;; {} (sizeof)", size.to_string()));
+            self.write(" ;; sizeof");
 
-            self.new_statement();
             self.write_value(Value {
                 t_i32: size,
             });
+            self.expression(length);
+
+            self.new_statement();
+            self.write("call $i32_mul");
         } else if expr.t_continue != nil {
             self.new_statement();
             self.write("br $continue");
@@ -1216,7 +1210,11 @@ module Generator {
             if params != "" {
                 callee_type = format("(param {})", params);
             }
-            callee_type = format("(func {} (result {}))", callee_type, self.get_wasmtype(func_type.result_type));
+            callee_type = format(
+                "(func {} (result {}))",
+                callee_type,
+                self.get_wasmtype(func_type.result_type),
+            );
 
             self.types.push(struct {
                 name: type_name,
@@ -1575,18 +1573,21 @@ module Generator {
                 let t = self.fold_consts(term.t_while!.cleanup!);
                 term.t_while!.cleanup! = t;
             }
-        } else if term.t_sizeof != nil {
-            let size = term.t_sizeof!.type_.sizeof();
-
-            return IrTerm {
-                t_i32: size,
-            };
         } else if term.t_discard != nil {
             let d = self.fold_consts(term.t_discard!);
 
             return IrTerm {
                 t_discard: d,
             };
+        } else if term.t_sizeof != nil {
+            let size = term.t_sizeof!.type_.sizeof();
+            let length = self.fold_consts(term.t_sizeof!.length);
+
+            if length.t_i32 != nil {
+                return IrTerm {
+                    t_i32: (size * length.t_i32!),
+                };
+            }
         } else if term.t_and != nil {
             let l = self.fold_consts(term.t_and!.lhs);
             term.t_and!.lhs = l;
