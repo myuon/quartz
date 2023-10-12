@@ -664,10 +664,19 @@ module IrTermWriter {
         } else if type_.t_func != nil {
             self.start();
             self.write("func");
+
+            self.start();
+            self.write("params");
             for param in type_.t_func!.params {
-                self.write(param.to_string());
+                self.ir_type(param);
             }
-            self.write("(result {})".format(type_.t_func!.result_type.to_string()));
+            self.end();
+
+            self.start();
+            self.write("result");
+            self.ir_type(type_.t_func!.result_type);
+            self.end();
+
             self.end();
         } else {
             return panic("unknown type: {}", derive::to_string(type_));
