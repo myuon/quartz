@@ -538,6 +538,12 @@ fun test_i64_shift() {
     assert_eq(((2883584000 as i64) << (32 as i64)).to_string(), "12384898975268864000");
 }
 
+@[test, build_if(version == "3.1.0")]
+fun test_i64_add() {
+    let p = (28835840 as i64) << (32 as i64);
+    assert_eq((p + p).to_string(), "247697979505377280");
+}
+
 struct string {
     data: ptr[byte],
     length: i32,
