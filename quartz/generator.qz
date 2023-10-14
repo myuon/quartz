@@ -212,6 +212,38 @@ module Generator {
                 self.new_statement();
                 self.write("i64.const 1");
             } else if func.result_type.wasm_type == "externref" {
+            } else if func.result_type.wasm_type == "i64" {
+                self.new_statement();
+                self.write("global.set $_raw_i64_1");
+
+                // prepare hi
+                self.new_statement();
+                self.write("global.get $_raw_i64_1");
+
+                self.new_statement();
+                self.write("i64.const 32");
+
+                self.new_statement();
+                self.write("i64.shr_u");
+
+                self.new_statement();
+                self.write("i64.const 32");
+
+                self.new_statement();
+                self.write("i64.shl");
+
+                // prepare lo
+                self.new_statement();
+                self.write("global.get $_raw_i64_1");
+
+                self.new_statement();
+                self.write("i64.const 32");
+
+                self.new_statement();
+                self.write("i64.shl");
+
+                self.new_statement();
+                self.write("call $quartz_std_i64_new");
             } else {
                 panic("not implemented: wasm_func result type, {}", derive::to_string(func.result_type));
             }
@@ -849,8 +881,12 @@ module Generator {
                 let ident = callee.t_ident!;
                 if ident.equal("add") {
                     self.write("i64.add");
+                } else if ident.equal("add_i64") {
+                    self.generate_op_arithmetic_i64("i64.add");
                 } else if ident.equal("sub") {
                     self.write("i64.sub");
+                } else if ident.equal("sub_i64") {
+                    self.generate_op_arithmetic_i64("i64.sub");
                 } else if ident.equal("mult") {
                     self.write("call $i32_mul");
                 } else if ident.equal("div") {

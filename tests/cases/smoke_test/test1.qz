@@ -1,0 +1,17 @@
+fun do_some_heavy_task(): i32 {
+    let p = 0;
+    for i in 0..100000 {
+        p = p + i;
+    }
+
+    return p;
+}
+
+fun main() {
+    let p = unixtime::now_nanosec();
+    do_some_heavy_task();
+    let q = unixtime::now_nanosec();
+
+    let r = q - p;
+    println("elapsed time: {} ns", r.to_string());
+}

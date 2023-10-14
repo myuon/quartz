@@ -1,0 +1,5 @@
+fun main(): bool {
+    let now = unixtime::now();
+
+    return now.gte(1697259286 as i64);
+}

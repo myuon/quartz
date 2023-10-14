@@ -1633,19 +1633,29 @@ module IrCodeGenerator {
             args.push(self.expression(expr.t_binop!.right).try);
 
             if expr.t_binop!.binop.equal("plus") {
+                let op = "add";
+                if expr.t_binop!.type_!.t_ident != nil && expr.t_binop!.type_!.t_ident!.equal("i64") {
+                    op = "add_i64";
+                }
+
                 return IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "add",
+                            t_ident: op,
                         },
                         args: args,
                     },
                 };
             } else if expr.t_binop!.binop.equal("minus") {
+                let op = "sub";
+                if expr.t_binop!.type_!.t_ident != nil && expr.t_binop!.type_!.t_ident!.equal("i64") {
+                    op = "sub_i64";
+                }
+
                 return IrTerm {
                     t_call: IrCall {
                         callee: IrTerm {
-                            t_ident: "sub",
+                            t_ident: op,
                         },
                         args: args,
                     },
