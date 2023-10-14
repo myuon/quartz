@@ -99,9 +99,13 @@ fn quartz_check(input_path: &Path) -> RunCommandOutput {
 }
 
 fn quartz_completion(input_path: &Path, arg: &str) -> RunCommandOutput {
+    let mut args = vec!["completion"];
+    args.extend(arg.split(" "));
+    args.push(input_path.to_str().unwrap());
+
     run_command(
         "./target/release/quartz",
-        &["completion", arg, input_path.to_str().unwrap()],
+        &args,
         &[],
         vec![
             ("WAT_FILE", "./build/quartz-current.wat"),
