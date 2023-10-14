@@ -7,6 +7,7 @@ use walkdir::WalkDir;
 
 #[derive(Clone, Debug)]
 struct RunCommandOutput {
+    status: std::process::ExitStatus,
     success: bool,
     stdout: String,
     stderr: String,
@@ -36,6 +37,7 @@ fn run_command(
         .unwrap();
 
     Some(RunCommandOutput {
+        status: output.status,
         success: output.status.success(),
         stdout: String::from_utf8(output.stdout).unwrap(),
         stderr: String::from_utf8(output.stderr).unwrap(),
@@ -44,7 +46,7 @@ fn run_command(
 
 fn quartz_compile(input_path: &Path, output_path: &Path) -> RunCommandOutput {
     run_command(
-        &format!("./target/release/quartz",),
+        "./target/release/quartz",
         &[
             "compile",
             "--validate-address",
@@ -71,6 +73,38 @@ fn quartz_run_wat(input_path: &Path) -> RunCommandOutput {
         &[],
         vec![
             ("WAT_FILE", input_path.to_str().unwrap()),
+            ("MODE", "run-wat"),
+        ]
+        .into_iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect(),
+    )
+    .unwrap()
+}
+
+fn quartz_check(input_path: &Path) -> RunCommandOutput {
+    run_command(
+        "./target/release/quartz",
+        &["check", input_path.to_str().unwrap()],
+        &[],
+        vec![
+            ("WAT_FILE", "./build/quartz-current.wat"),
+            ("MODE", "run-wat"),
+        ]
+        .into_iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect(),
+    )
+    .unwrap()
+}
+
+fn quartz_completion(input_path: &Path, arg: &str) -> RunCommandOutput {
+    run_command(
+        "./target/release/quartz",
+        &["completion", input_path.to_str().unwrap(), arg],
+        &[],
+        vec![
+            ("WAT_FILE", "./build/quartz-current.wat"),
             ("MODE", "run-wat"),
         ]
         .into_iter()
@@ -158,6 +192,98 @@ fn test_run() -> Result<()> {
                 }
 
                 let _ = std::fs::remove_file(compiled_path);
+            }
+
+            Ok(())
+        })
+        .collect::<Result<_>>()?;
+
+    Ok(())
+}
+
+#[test]
+fn test_check() -> Result<()> {
+    use rayon::prelude::*;
+
+    WalkDir::new("./tests/lsp_check")
+        .into_iter()
+        .filter_map(Result::ok)
+        .collect::<Vec<_>>()
+        .into_par_iter()
+        .map(|entry| -> Result<()> {
+            let path = entry.path();
+            let ext = path.extension().and_then(|s| s.to_str());
+            if ext == Some("qz") {
+                let stdout_path = path.with_extension("stdout");
+                let stderr_path = path.with_extension("stderr");
+                let output = quartz_check(path);
+
+                assert!(output.status.success(), "{}", path.display());
+
+                if stdout_path.exists() {
+                    let expected = fs::read_to_string(stdout_path)?;
+                    assert_eq!(expected, output.stdout, "{}", path.display(),);
+                }
+                if stderr_path.exists() {
+                    let expected_fragment = fs::read_to_string(stderr_path)?;
+
+                    assert!(
+                        output.stderr.contains(&expected_fragment),
+                        "{}\n\n[expected]\n{}\n[actual]\n{}\n",
+                        path.display(),
+                        expected_fragment,
+                        output.stderr,
+                    );
+                }
+            }
+
+            Ok(())
+        })
+        .collect::<Result<_>>()?;
+
+    Ok(())
+}
+
+#[test]
+fn test_completion() -> Result<()> {
+    use rayon::prelude::*;
+
+    WalkDir::new("./tests/lsp_completion")
+        .into_iter()
+        .filter_map(Result::ok)
+        .collect::<Vec<_>>()
+        .into_par_iter()
+        .map(|entry| -> Result<()> {
+            let path = entry.path();
+            let ext = path.extension().and_then(|s| s.to_str());
+            if ext == Some("qz") {
+                let stdout_path = path.with_extension("stdout");
+                let stderr_path = path.with_extension("stderr");
+                let arg_path = path.with_extension("arg");
+                let output = quartz_completion(path, &fs::read_to_string(arg_path)?);
+
+                assert!(
+                    output.status.success(),
+                    "{}\n[stderr] {}",
+                    path.display(),
+                    output.stderr
+                );
+
+                if stdout_path.exists() {
+                    let expected = fs::read_to_string(stdout_path)?;
+                    assert_eq!(expected, output.stdout, "{}", path.display(),);
+                }
+                if stderr_path.exists() {
+                    let expected_fragment = fs::read_to_string(stderr_path)?;
+
+                    assert!(
+                        output.stderr.contains(&expected_fragment),
+                        "{}\n\n[expected]\n{}\n[actual]\n{}\n",
+                        path.display(),
+                        expected_fragment,
+                        output.stderr,
+                    );
+                }
             }
 
             Ok(())
