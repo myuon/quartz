@@ -4,7 +4,7 @@ import quartz::value;
 import quartz::path;
 import quartz::ir_code_gen;
 
-let MODE_READABLE_WASM = true;
+let MODE_READABLE_WASM = false;
 
 fun escape(s: string): string {
     let result = make[vec[byte]]();
@@ -103,7 +103,9 @@ module Generator {
     fun new_statement(self) {
         if self.index > 0 {
             self.writer.write("\n");
-            self.writer.write(" ".repeat(self.depth * 4));
+            if MODE_READABLE_WASM {
+                self.writer.write(" ".repeat(self.depth * 4));
+            }
         }
         self.index = 0;
     }
@@ -141,8 +143,10 @@ module Generator {
             self.write(escape(element.t_data!.data));
             self.end();
         } else if element.t_comment != nil {
-            self.new_statement();
-            self.write(format(" ;; {}", escape(element.t_comment!)));
+            if MODE_READABLE_WASM {
+                self.new_statement();
+                self.write(format(" ;; {}", escape(element.t_comment!)));
+            }
         } else if element.t_import != nil {
             self.start();
             self.write("import");
@@ -1137,8 +1141,10 @@ module Generator {
             self.new_statement();
             self.write(format("i64.store{}", suffix));
         } else if expr.t_string != nil {
-            self.new_statement();
-            self.write(format(";; string: {}", escape(self.strings.at(expr.t_string!))));
+            if MODE_READABLE_WASM {
+                self.new_statement();
+                self.write(format(";; string: {}", escape(self.strings.at(expr.t_string!))));
+            }
 
             self.new_statement();
             self.write(format("i32.const {}", expr.t_string!.to_string()));
@@ -1148,8 +1154,10 @@ module Generator {
             self.new_statement();
             self.write("call $quartz_core_load_string");
         } else if expr.t_type_rep != nil {
-            self.new_statement();
-            self.write(format(";; type_rep: {}", derive::to_string(expr.t_type_rep!)));
+            if MODE_READABLE_WASM {
+                self.new_statement();
+                self.write(format(";; type_rep: {}", derive::to_string(expr.t_type_rep!)));
+            }
 
             self.new_statement();
             self.write(format("i32.const {}", expr.t_type_rep!.to_string()));
@@ -1203,8 +1211,10 @@ module Generator {
             let size = expr.t_sizeof!.type_.sizeof();
             let length = expr.t_sizeof!.length;
 
-            self.new_statement();
-            self.write(" ;; sizeof");
+            if MODE_READABLE_WASM {
+                self.new_statement();
+                self.write(" ;; sizeof");
+            }
 
             self.write_value(Value {
                 t_i32: size,
@@ -1220,8 +1230,10 @@ module Generator {
             self.new_statement();
             self.write("br $exit");
         } else if expr.t_comment != nil {
-            self.new_statement();
-            self.write(format(" ;; {}", escape(expr.t_comment!)));
+            if MODE_READABLE_WASM {
+                self.new_statement();
+                self.write(format(" ;; {}", escape(expr.t_comment!)));
+            }
         } else if expr.t_dynamic_call != nil {
             for arg in expr.t_dynamic_call!.args {
                 self.expression(arg);
