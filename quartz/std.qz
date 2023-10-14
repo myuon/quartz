@@ -31,6 +31,9 @@ declare fun args_sizes_get(ptr_count: ptr[i32], ptr_buf_size: ptr[i32]): i32;
 @[declare_params(argv as wasm_i32, argv_buf as wasm_i32, result as wasm_i32), declare_namespace("wasi_snapshot_preview1")]
 declare fun args_get(argv: ptr[ptr[byte]], argv_buf: ptr[byte]): i32;
 
+@[build_if(version == "3.1.0"), declare_params(clock_id as wasm_i32, precision as wasm_i64, timestamp as wasm_i32, result as wasm_i32), declare_namespace("wasi_snapshot_preview1")]
+declare fun clock_time_get(clock_id: i32, precision: i64, timestamp: ptr[byte]): i32;
+
 fun print_string(s: string) {
     return write_string(fd_stdout, s);
 }
@@ -511,6 +514,16 @@ module i64 {
         }
 
         return vec_byte_to_string(result).reverse();
+    }
+
+    fun gte(self, other: i64): bool {
+        if self.hi > other.hi {
+            return true;
+        } else if self.hi < other.hi {
+            return false;
+        } else {
+            return self.lo >= other.lo;
+        }
     }
 }
 
@@ -2063,3 +2076,23 @@ fun assert(a: bool) {
     }
 }
 
+module unixtime {
+    @[build_if(version == "3.1.0")]
+    fun now_nanosec(): i64 {
+        let p = make[ptr[byte]](8);
+
+        let err = _clock_time_get(0, 0 as i64, p);
+        if err != 0 {
+            panic("clock_time_get {}", derive::to_string(WasiError::from_errno(err)));
+        }
+
+        let n1 = i64::new(read_i32_from_bytes_le(p, 4), read_i32_from_bytes_le(p, 0));
+
+        return n1;
+    }
+
+    @[build_if(version == "3.1.0")]
+    fun now(): i64 {
+        return now_nanosec() / (1000 as i64) / (1000 as i64) / (1000 as i64);
+    }
+}
