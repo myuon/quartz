@@ -881,6 +881,8 @@ module Generator {
                 let ident = callee.t_ident!;
                 if ident.equal("add") {
                     self.write("i64.add");
+                } else if ident.equal("add_i64") {
+                    self.generate_op_arithmetic_i64("i64.add");
                 } else if ident.equal("sub") {
                     self.write("i64.sub");
                 } else if ident.equal("mult") {
