@@ -149,8 +149,18 @@ module Compiler {
         validate_address: bool,
         test_mode: bool,
         output_path: string,
+        progress: bool,
     ): nil or error {
+        let start_time = unixtime::now_nanosec();
+
         let module_ = self.parse(input, nil, skip_errors, true).context("parse").try;
+
+        if progress {
+            let end_time = unixtime::now_nanosec();
+            println("parse: {}ms", ((end_time - start_time) / (1000000 as i64)).to_string());
+
+            start_time = end_time;
+        }
 
         let typechecker = Typechecker::new();
         let n or err = typechecker.run(module_, main_path).context("typecheck");
@@ -232,13 +242,34 @@ module Compiler {
             return _ or err_internal;
         }
 
+        if progress {
+            let end_time = unixtime::now_nanosec();
+            println("typecheck: {}ms", ((end_time - start_time) / (1000000 as i64)).to_string());
+
+            start_time = end_time;
+        }
+
         let irgen = IrCodeGenerator::new(test_mode, "main_{}".format(entrypoint));
         irgen.globals = typechecker.globals;
         irgen.set_interfaces(typechecker.interfaces);
         let term = irgen.run(module_).context("ircodegen").try;
 
+        if progress {
+            let end_time = unixtime::now_nanosec();
+            println("ircodegen: {}ms", ((end_time - start_time) / (1000000 as i64)).to_string());
+
+            start_time = end_time;
+        }
+
         term = transform_let_call(term);
         term = transform_escaping(term);
+
+        if progress {
+            let end_time = unixtime::now_nanosec();
+            println("transform: {}ms", ((end_time - start_time) / (1000000 as i64)).to_string());
+
+            start_time = end_time;
+        }
 
         let envs = environs();
         if envs.has("GENERATE_IR") {
@@ -257,8 +288,22 @@ module Compiler {
 
         term = gen.fold_consts(term);
 
+        if progress {
+            let end_time = unixtime::now_nanosec();
+            println("fold: {}ms", ((end_time - start_time) / (1000000 as i64)).to_string());
+
+            start_time = end_time;
+        }
+
         let offset = ((irgen.data_section_offset + 7) / 8) * 8;
         gen.run(term, entrypoint, offset);
+
+        if progress {
+            let end_time = unixtime::now_nanosec();
+            println("codegen: {}ms", ((end_time - start_time) / (1000000 as i64)).to_string());
+
+            start_time = end_time;
+        }
 
         writer.close();
 

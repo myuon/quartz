@@ -325,6 +325,7 @@ fun start(): nil or error {
             validate_address,
             compile.test,
             compile.output!,
+            envs.has("VERBOSE"),
         );
         if err != nil {
             err_println(err!.message);
