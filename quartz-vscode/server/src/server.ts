@@ -163,7 +163,7 @@ connection.onCompletion(async (params) => {
   const file = params.textDocument.uri.replace("file://", "");
   const isDotCompletion = params.context?.triggerCharacter === ".";
 
-  const command = `quartz completion ${file} --project ${path.join(
+  const command = `quartz completion --project ${path.join(
     file,
     "..",
     ".."
