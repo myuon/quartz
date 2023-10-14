@@ -1792,7 +1792,8 @@ module FileWriter {
             return _ or error::new("fd_write").context(WasiError::from_errno(err));
         }
 
-        self.buffer = make[vec[byte]]();
+        // NOTE: reuse the buffer
+        self.buffer.length = 0;
     }
 
     fun close(self) {
