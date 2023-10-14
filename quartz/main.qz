@@ -275,29 +275,53 @@ module CliCommand {
 
 @[test]
 fun test_parse() {
-    let command or err = CliCommand::parse(make[vec[string]]("completion", "--project", "/tmp/", "--line", "0", "--column", "2", "/tmp/foobar"));
+    let command or err = CliCommand::parse(make[vec[string]](
+        "completion",
+        "--project",
+        "/tmp/",
+        "--line",
+        "0",
+        "--column",
+        "2",
+        "/tmp/foobar",
+    ));
     assert(err == nil);
-    assert_eq(command!, CliCommand {
-        completion: struct {
-            input: "/tmp/foobar"?,
-            line: 0,
-            column: 2,
-            stdin: false,
-            dot: false,
+    assert_eq(
+        command!,
+        CliCommand {
+            completion: struct {
+                input: "/tmp/foobar"?,
+                line: 0,
+                column: 2,
+                stdin: false,
+                dot: false,
+            },
         },
-    });
+    );
 
-    let command or err = CliCommand::parse(make[vec[string]]("completion", "--project", "/tmp/", "--line", "0", "--column", "2", "--stdin"));
+    let command or err = CliCommand::parse(make[vec[string]](
+        "completion",
+        "--project",
+        "/tmp/",
+        "--line",
+        "0",
+        "--column",
+        "2",
+        "--stdin",
+    ));
     assert(err == nil);
-    assert_eq(command!, CliCommand {
-        completion: struct {
-            input: nil,
-            line: 0,
-            column: 2,
-            stdin: true,
-            dot: false,
+    assert_eq(
+        command!,
+        CliCommand {
+            completion: struct {
+                input: nil,
+                line: 0,
+                column: 2,
+                stdin: true,
+                dot: false,
+            },
         },
-    });
+    );
 }
 
 fun start(): nil or error {
@@ -625,4 +649,3 @@ fun main() {
         panic("{}", err!.message);
     }
 }
-

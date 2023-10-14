@@ -101,7 +101,7 @@ fn quartz_check(input_path: &Path) -> RunCommandOutput {
 fn quartz_completion(input_path: &Path, arg: &str) -> RunCommandOutput {
     run_command(
         "./target/release/quartz",
-        &["completion", input_path.to_str().unwrap(), arg],
+        &["completion", arg, input_path.to_str().unwrap()],
         &[],
         vec![
             ("WAT_FILE", "./build/quartz-current.wat"),
@@ -264,9 +264,10 @@ fn test_completion() -> Result<()> {
 
                 assert!(
                     output.status.success(),
-                    "{}\n[stderr] {}",
+                    "{}\n[stderr] {}\n[stdout] {}",
                     path.display(),
-                    output.stderr
+                    output.stderr,
+                    output.stdout,
                 );
 
                 if stdout_path.exists() {
