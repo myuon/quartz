@@ -168,10 +168,13 @@ module JsonTokenizer {
                 let builder = stringbuilder::new();
                 let c = self.peek().try;
                 let b = c.(0) as i32;
+                if b < 48 || b > 57 {
+                    return _ or error::new("expected number, got '{}'".format(c));
+                }
 
                 while b >= 48 && b <= 57 && self.position < self.str.length {
-                    builder.append(c);
                     self.position = self.position + 1;
+                    builder.append(c);
 
                     c = self.peek().try;
                     b = c.(0) as i32;
