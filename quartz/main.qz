@@ -11,7 +11,6 @@ import quartz::value;
 import quartz::compiler;
 import quartz::location;
 import quartz::formatter;
-import quartz::json;
 import quartz::errors;
 import quartz::preprocessor;
 
