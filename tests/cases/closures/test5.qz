@@ -1,0 +1,21 @@
+fun call_0(f: fun[(), i32]): i32 {
+    return f();
+}
+
+fun call_1(f: fun[( i32), i32], x: i32): i32 {
+    return f(x);
+}
+
+fun main() {
+    println(call_0( fun (): i32 {
+        return 10;
+    }).to_string());
+
+    println(call_1(
+        fun (x: i32): i32 {
+            return x + 1;
+        },
+        10,
+    ).to_string());
+}
+
