@@ -12,6 +12,6 @@ fun main() {
         debug(b);
     };
 
-    println("ok")
+    println("ok");
 }
 
