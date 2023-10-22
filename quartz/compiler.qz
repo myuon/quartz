@@ -10,7 +10,6 @@ import quartz::value;
 import quartz::location;
 import quartz::preprocessor;
 import quartz::ir_path::let_call;
-import quartz::ir_path::escaping;
 
 struct LoadedModule {
     path: Path,
@@ -262,7 +261,6 @@ module Compiler {
         }
 
         term = transform_let_call(term);
-        // term = transform_escaping(term);
 
         if progress {
             let end_time = unixtime::now_nanosec();
