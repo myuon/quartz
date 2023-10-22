@@ -262,7 +262,7 @@ module Compiler {
         }
 
         term = transform_let_call(term);
-        term = transform_escaping(term);
+        // term = transform_escaping(term);
 
         if progress {
             let end_time = unixtime::now_nanosec();
