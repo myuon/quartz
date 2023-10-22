@@ -3143,6 +3143,35 @@ module IrCodeGenerator {
                 term: IrTerm,
             }]]();
             for c in expr.t_closure!.captures {
+                let captured_var_name = "__capture_{}_{}".format(self.counter.to_string(), c.name);
+                self.counter = self.counter + 1;
+
+                elements.push(IrTerm {
+                    t_let: IrLet {
+                        name: captured_var_name,
+                        type_: IrType {
+                            t_address: true,
+                        },
+                        value: self.generate_array(
+                            "struct",
+                            make[vec[IrType]](),
+                            make[vec[struct {
+                                label: string?,
+                                type_: IrType,
+                                term: IrTerm,
+                            }]](struct {
+                                label: nil,
+                                type_: IrType {
+                                    t_address: true,
+                                },
+                                term: IrTerm {
+                                    t_ident: c.name,
+                                },
+                            }),
+                        ).try,
+                    },
+                });
+
                 captures_ir.push(IrType {
                     t_address: true,
                 });
@@ -3152,7 +3181,7 @@ module IrCodeGenerator {
                         t_address: true,
                     },
                     term: IrTerm {
-                        t_ident: c.name,
+                        t_ident: captured_var_name,
                     },
                 });
             }

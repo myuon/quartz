@@ -1,0 +1,15 @@
+fun k(a: i32) {
+    assert_eq(types::is_i32(a), true);
+}
+
+fun main() {
+    let a = 10;
+
+    k(a);
+
+    let f = fun () {
+        let b = a;
+        debug(b);
+    };
+}
+
