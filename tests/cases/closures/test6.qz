@@ -11,5 +11,7 @@ fun main() {
         let b = a;
         debug(b);
     };
+
+    println("ok")
 }
 
