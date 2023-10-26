@@ -1925,34 +1925,10 @@ module IrCodeGenerator {
                     t_ident: expr.t_ident!.resolved_path!.join("_"),
                 };
             }
-            for i in 0..self.captures.length {
-                let c = self.captures.(i);
-                if c.name == expr.t_ident!.name {
-                    return IrTerm {
-                        t_load: struct {
-                            type_: IrType::new(c.type_),
-                            address: IrTerm {
-                                t_load: struct {
-                                    type_: IrType {
-                                        t_address: true,
-                                    },
-                                    address: IrTerm {
-                                        t_ident: c.env_name,
-                                    },
-                                    offset: IrCodeGenerator::wrap_mult_sizeof(
-                                        IrType::new(c.type_),
-                                        IrTerm {
-                                            t_i32: i,
-                                        },
-                                    ),
-                                },
-                            },
-                            offset: IrTerm {
-                                t_i32: 0,
-                            },
-                        },
-                    };
-                }
+
+            let replaced = self.replace_captured_variable(expr.t_ident!.name);
+            if replaced != nil {
+                return replaced!;
             }
 
             return IrTerm {
@@ -3339,6 +3315,40 @@ module IrCodeGenerator {
         }
 
         return self.expression(lexpr).try;
+    }
+
+    fun replace_captured_variable(self, name: string): IrTerm? {
+        for i in 0..self.captures.length {
+            let c = self.captures.(i);
+            if c.name == name {
+                return IrTerm {
+                    t_load: struct {
+                        type_: IrType::new(c.type_),
+                        address: IrTerm {
+                            t_load: struct {
+                                type_: IrType {
+                                    t_address: true,
+                                },
+                                address: IrTerm {
+                                    t_ident: c.env_name,
+                                },
+                                offset: IrCodeGenerator::wrap_mult_sizeof(
+                                    IrType::new(c.type_),
+                                    IrTerm {
+                                        t_i32: i,
+                                    },
+                                ),
+                            },
+                        },
+                        offset: IrTerm {
+                            t_i32: 0,
+                        },
+                    },
+                }?;
+            }
+        }
+
+        return nil;
     }
 
     fun register_string(self, str: string): IrTerm {
