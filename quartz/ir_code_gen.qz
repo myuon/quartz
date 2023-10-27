@@ -3104,6 +3104,11 @@ module IrCodeGenerator {
                 });
             }
 
+            let locals = make[vec[string]]();
+            for k in self.locals.list_keys() {
+                locals.push(k);
+            }
+
             self.closures.(expr.t_closure!.func.name.data) = (struct {
                 closure: IrTerm {
                     t_func: self.function(expr.t_closure!.func, captures).try,
@@ -3118,9 +3123,28 @@ module IrCodeGenerator {
                 type_: IrType,
                 term: IrTerm,
             }]]();
+
+            println("locals: {}", derive::to_string(locals));
+            println("captures: {}", derive::to_string(expr.t_closure!.captures));
+
             for c in expr.t_closure!.captures {
                 let captured_var_name = "__capture_{}_{}".format(self.counter.to_string(), c.name);
                 self.counter = self.counter + 1;
+
+                let is_local = false;
+                for l in locals {
+                    if l == c.name {
+                        is_local = true;
+                        break;
+                    }
+                }
+
+                println("is_local: {}", is_local.to_string());
+
+                let ident_name = c.name;
+                if is_local {
+                    ident_name = env_name;
+                }
 
                 elements.push(IrTerm {
                     t_let: IrLet {
@@ -3141,7 +3165,7 @@ module IrCodeGenerator {
                                     t_address: true,
                                 },
                                 term: IrTerm {
-                                    t_ident: c.name,
+                                    t_ident: ident_name,
                                 },
                             }),
                         ).try,
