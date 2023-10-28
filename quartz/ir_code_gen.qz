@@ -313,6 +313,7 @@ struct IrCodeGenerator {
         env_name: string,
     }],
     escaping: vec[string],
+    env_name: string?,
 }
 
 module IrCodeGenerator {
@@ -346,6 +347,7 @@ module IrCodeGenerator {
                 env_name: string,
             }]](),
             escaping: make[vec[string]](),
+            env_name: nil,
         };
     }
 
@@ -603,6 +605,7 @@ module IrCodeGenerator {
                             type_: Type,
                             env_name: string,
                         }]](),
+                        nil,
                     ).try,
                 });
             }
@@ -1190,6 +1193,7 @@ module IrCodeGenerator {
             type_: Type,
             env_name: string,
         }],
+        env_name: string?,
     ): IrFunc or error {
         self.current_function_name = func.name.data;
         self.function_no_allocation = func.no_allocation;
@@ -1197,6 +1201,9 @@ module IrCodeGenerator {
 
         let prev_escaping = self.escaping;
         self.escaping = make[vec[string]]();
+
+        let prev_env = self.env_name;
+        self.env_name = env_name;
 
         let body = make[vec[IrTerm]]();
         if !self.path_to(func.name.data).starts_with("quartz_core") {
@@ -1236,6 +1243,8 @@ module IrCodeGenerator {
 
         let escaping_this = self.escaping;
         self.escaping = prev_escaping;
+
+        self.env_name = prev_env;
 
         return IrFunc {
             name: self.path_to(func.name.data),
@@ -3109,12 +3118,16 @@ module IrCodeGenerator {
                 locals.push(k);
             }
 
+            let prev_env_name = self.env_name;
+
             self.closures.(expr.t_closure!.func.name.data) = (struct {
                 closure: IrTerm {
-                    t_func: self.function(expr.t_closure!.func, captures).try,
+                    t_func: self.function(expr.t_closure!.func, captures, env_name?).try,
                 },
                 captures: captures_types,
             });
+
+            self.env_name = prev_env_name;
 
             let elements = make[vec[IrTerm]]();
             let captures_ir = make[vec[IrType]]();
@@ -3123,9 +3136,6 @@ module IrCodeGenerator {
                 type_: IrType,
                 term: IrTerm,
             }]]();
-
-            println("locals: {}", derive::to_string(locals));
-            println("captures: {}", derive::to_string(expr.t_closure!.captures));
 
             for c in expr.t_closure!.captures {
                 let captured_var_name = "__capture_{}_{}".format(self.counter.to_string(), c.name);
@@ -3139,11 +3149,12 @@ module IrCodeGenerator {
                     }
                 }
 
-                println("is_local: {}", is_local.to_string());
-
                 let ident_name = c.name;
-                if is_local {
-                    ident_name = env_name;
+                if !is_local {
+                    if self.env_name == nil {
+                        return _ or error::new("env_name is nil");
+                    }
+                    ident_name = self.env_name!;
                 }
 
                 elements.push(IrTerm {
