@@ -11,6 +11,16 @@ fun main() {
         });
     });
 
+    // call( fun () {
+    //     call( fun () {
+    //         call( fun () {
+    //             call( fun () {
+    //                 println(a.to_string());
+    //             });
+    //         });
+    //     });
+    // });
+
     println("ok");
 }
 

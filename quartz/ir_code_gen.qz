@@ -3149,39 +3149,53 @@ module IrCodeGenerator {
                     }
                 }
 
-                let ident_name = c.name;
+                let term = IrTerm {
+                    t_ident: c.name,
+                };
                 if !is_local {
                     if self.env_name == nil {
                         return _ or error::new("env_name is nil");
                     }
-                    ident_name = self.env_name!;
-                }
 
-                elements.push(IrTerm {
-                    t_let: IrLet {
-                        name: captured_var_name,
-                        type_: IrType {
-                            t_address: true,
+                    let term2 = self.replace_captured_variable_with_self_env(c.name);
+                    if term2 == nil {
+                        return _ or error::new("term is nil");
+                    }
+
+                    elements.push(IrTerm {
+                        t_let: IrLet {
+                            name: captured_var_name,
+                            type_: IrType {
+                                t_address: true,
+                            },
+                            value: term2!,
                         },
-                        value: self.generate_array(
-                            "struct",
-                            make[vec[IrType]](),
-                            make[vec[struct {
-                                label: string?,
-                                type_: IrType,
-                                term: IrTerm,
-                            }]](struct {
-                                label: nil,
-                                type_: IrType {
-                                    t_address: true,
-                                },
-                                term: IrTerm {
-                                    t_ident: ident_name,
-                                },
-                            }),
-                        ).try,
-                    },
-                });
+                    });
+                } else {
+                    elements.push(IrTerm {
+                        t_let: IrLet {
+                            name: captured_var_name,
+                            type_: IrType {
+                                t_address: true,
+                            },
+                            value: self.generate_array(
+                                "struct",
+                                make[vec[IrType]](),
+                                make[vec[struct {
+                                    label: string?,
+                                    type_: IrType,
+                                    term: IrTerm,
+                                }]](struct {
+                                    label: nil,
+                                    type_: IrType {
+                                        t_address: true,
+                                    },
+                                    term: term,
+                                }),
+                            ).try,
+                        },
+                    });
+                }
 
                 captures_ir.push(IrType {
                     t_address: true,
@@ -3378,6 +3392,32 @@ module IrCodeGenerator {
                         offset: IrTerm {
                             t_i32: 0,
                         },
+                    },
+                }?;
+            }
+        }
+
+        return nil;
+    }
+
+    fun replace_captured_variable_with_self_env(self, name: string): IrTerm? {
+        for i in 0..self.captures.length {
+            let c = self.captures.(i);
+            if c.name == name {
+                return IrTerm {
+                    t_load: struct {
+                        type_: IrType {
+                            t_address: true,
+                        },
+                        address: IrTerm {
+                            t_ident: self.env_name!,
+                        },
+                        offset: IrCodeGenerator::wrap_mult_sizeof(
+                            IrType::new(c.type_),
+                            IrTerm {
+                                t_i32: i,
+                            },
+                        ),
                     },
                 }?;
             }
