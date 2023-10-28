@@ -1210,6 +1210,7 @@ module IrCodeGenerator {
             body.push(self.setup_function_name_for_stacktrace(func.name.data));
         }
 
+        let prev_locals = self.locals;
         self.locals = make[map[string, bool]]();
         body.extend(self.block(func.body).try);
 
@@ -1245,6 +1246,8 @@ module IrCodeGenerator {
         self.escaping = prev_escaping;
 
         self.env_name = prev_env;
+
+        self.locals = prev_locals;
 
         return IrFunc {
             name: self.path_to(func.name.data),
@@ -3118,16 +3121,12 @@ module IrCodeGenerator {
                 locals.push(k);
             }
 
-            let prev_env_name = self.env_name;
-
             self.closures.(expr.t_closure!.func.name.data) = (struct {
                 closure: IrTerm {
                     t_func: self.function(expr.t_closure!.func, captures, env_name?).try,
                 },
                 captures: captures_types,
             });
-
-            self.env_name = prev_env_name;
 
             let elements = make[vec[IrTerm]]();
             let captures_ir = make[vec[IrType]]();
@@ -3154,7 +3153,7 @@ module IrCodeGenerator {
                 };
                 if !is_local {
                     if self.env_name == nil {
-                        return _ or error::new("env_name is nil");
+                        return _ or error::new("env_name is nil, when searching for {}".format(c.name));
                     }
 
                     let term2 = self.replace_captured_variable_with_self_env(c.name);
