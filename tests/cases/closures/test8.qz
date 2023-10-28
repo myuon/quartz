@@ -1,0 +1,21 @@
+fun call(f: fun[(), nil]) {
+    f();
+}
+
+fun main() {
+    let a = 10;
+    call( fun () {
+        call( fun () {
+            call( fun () {
+                call( fun () {
+                    call( fun () {
+                        println(a.to_string());
+                    });
+                });
+            });
+        });
+    });
+
+    println("ok");
+}
+
