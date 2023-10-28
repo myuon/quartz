@@ -3152,10 +3152,6 @@ module IrCodeGenerator {
                     t_ident: c.name,
                 };
                 if !is_local {
-                    if self.env_name == nil {
-                        return _ or error::new("env_name is nil, when searching for {}".format(c.name));
-                    }
-
                     let term2 = self.replace_captured_variable_with_self_env(c.name);
                     if term2 == nil {
                         return _ or error::new("term is nil");
@@ -3403,6 +3399,10 @@ module IrCodeGenerator {
         for i in 0..self.captures.length {
             let c = self.captures.(i);
             if c.name == name {
+                if self.env_name == nil {
+                    return panic("env_name is nil, when searching for {}".format(c.name));
+                }
+
                 return IrTerm {
                     t_load: struct {
                         type_: IrType {
