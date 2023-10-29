@@ -276,7 +276,7 @@ module Generator {
             }
             self.end();
         } else {
-            panic("decl: {}", derive::to_string(element));
+            panic("decl exhausted: {}", derive::to_string(element));
         }
     }
 

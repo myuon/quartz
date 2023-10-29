@@ -313,6 +313,7 @@ struct IrCodeGenerator {
         env_name: string,
     }],
     escaping: vec[string],
+    env_name: string?,
 }
 
 module IrCodeGenerator {
@@ -346,6 +347,7 @@ module IrCodeGenerator {
                 env_name: string,
             }]](),
             escaping: make[vec[string]](),
+            env_name: nil,
         };
     }
 
@@ -603,6 +605,7 @@ module IrCodeGenerator {
                             type_: Type,
                             env_name: string,
                         }]](),
+                        nil,
                     ).try,
                 });
             }
@@ -1190,6 +1193,7 @@ module IrCodeGenerator {
             type_: Type,
             env_name: string,
         }],
+        env_name: string?,
     ): IrFunc or error {
         self.current_function_name = func.name.data;
         self.function_no_allocation = func.no_allocation;
@@ -1198,11 +1202,15 @@ module IrCodeGenerator {
         let prev_escaping = self.escaping;
         self.escaping = make[vec[string]]();
 
+        let prev_env = self.env_name;
+        self.env_name = env_name;
+
         let body = make[vec[IrTerm]]();
         if !self.path_to(func.name.data).starts_with("quartz_core") {
             body.push(self.setup_function_name_for_stacktrace(func.name.data));
         }
 
+        let prev_locals = self.locals;
         self.locals = make[map[string, bool]]();
         body.extend(self.block(func.body).try);
 
@@ -1236,6 +1244,10 @@ module IrCodeGenerator {
 
         let escaping_this = self.escaping;
         self.escaping = prev_escaping;
+
+        self.env_name = prev_env;
+
+        self.locals = prev_locals;
 
         return IrFunc {
             name: self.path_to(func.name.data),
@@ -1925,34 +1937,10 @@ module IrCodeGenerator {
                     t_ident: expr.t_ident!.resolved_path!.join("_"),
                 };
             }
-            for i in 0..self.captures.length {
-                let c = self.captures.(i);
-                if c.name == expr.t_ident!.name {
-                    return IrTerm {
-                        t_load: struct {
-                            type_: IrType::new(c.type_),
-                            address: IrTerm {
-                                t_load: struct {
-                                    type_: IrType {
-                                        t_address: true,
-                                    },
-                                    address: IrTerm {
-                                        t_ident: c.env_name,
-                                    },
-                                    offset: IrCodeGenerator::wrap_mult_sizeof(
-                                        IrType::new(c.type_),
-                                        IrTerm {
-                                            t_i32: i,
-                                        },
-                                    ),
-                                },
-                            },
-                            offset: IrTerm {
-                                t_i32: 0,
-                            },
-                        },
-                    };
-                }
+
+            let replaced = self.replace_captured_variable(expr.t_ident!.name);
+            if replaced != nil {
+                return replaced!;
             }
 
             return IrTerm {
@@ -3128,9 +3116,14 @@ module IrCodeGenerator {
                 });
             }
 
+            let locals = make[vec[string]]();
+            for k in self.locals.list_keys() {
+                locals.push(k);
+            }
+
             self.closures.(expr.t_closure!.func.name.data) = (struct {
                 closure: IrTerm {
-                    t_func: self.function(expr.t_closure!.func, captures).try,
+                    t_func: self.function(expr.t_closure!.func, captures, env_name?).try,
                 },
                 captures: captures_types,
             });
@@ -3142,35 +3135,62 @@ module IrCodeGenerator {
                 type_: IrType,
                 term: IrTerm,
             }]]();
+
             for c in expr.t_closure!.captures {
                 let captured_var_name = "__capture_{}_{}".format(self.counter.to_string(), c.name);
                 self.counter = self.counter + 1;
 
-                elements.push(IrTerm {
-                    t_let: IrLet {
-                        name: captured_var_name,
-                        type_: IrType {
-                            t_address: true,
+                let is_local = false;
+                for l in locals {
+                    if l == c.name {
+                        is_local = true;
+                        break;
+                    }
+                }
+
+                let term = IrTerm {
+                    t_ident: c.name,
+                };
+                if !is_local {
+                    let term2 = self.replace_captured_variable_with_self_env(c.name);
+                    if term2 == nil {
+                        return _ or error::new("term is nil");
+                    }
+
+                    elements.push(IrTerm {
+                        t_let: IrLet {
+                            name: captured_var_name,
+                            type_: IrType {
+                                t_address: true,
+                            },
+                            value: term2!,
                         },
-                        value: self.generate_array(
-                            "struct",
-                            make[vec[IrType]](),
-                            make[vec[struct {
-                                label: string?,
-                                type_: IrType,
-                                term: IrTerm,
-                            }]](struct {
-                                label: nil,
-                                type_: IrType {
-                                    t_address: true,
-                                },
-                                term: IrTerm {
-                                    t_ident: c.name,
-                                },
-                            }),
-                        ).try,
-                    },
-                });
+                    });
+                } else {
+                    elements.push(IrTerm {
+                        t_let: IrLet {
+                            name: captured_var_name,
+                            type_: IrType {
+                                t_address: true,
+                            },
+                            value: self.generate_array(
+                                "struct",
+                                make[vec[IrType]](),
+                                make[vec[struct {
+                                    label: string?,
+                                    type_: IrType,
+                                    term: IrTerm,
+                                }]](struct {
+                                    label: nil,
+                                    type_: IrType {
+                                        t_address: true,
+                                    },
+                                    term: term,
+                                }),
+                            ).try,
+                        },
+                    });
+                }
 
                 captures_ir.push(IrType {
                     t_address: true,
@@ -3339,6 +3359,70 @@ module IrCodeGenerator {
         }
 
         return self.expression(lexpr).try;
+    }
+
+    fun replace_captured_variable(self, name: string): IrTerm? {
+        for i in 0..self.captures.length {
+            let c = self.captures.(i);
+            if c.name == name {
+                return IrTerm {
+                    t_load: struct {
+                        type_: IrType::new(c.type_),
+                        address: IrTerm {
+                            t_load: struct {
+                                type_: IrType {
+                                    t_address: true,
+                                },
+                                address: IrTerm {
+                                    t_ident: c.env_name,
+                                },
+                                offset: IrCodeGenerator::wrap_mult_sizeof(
+                                    IrType::new(c.type_),
+                                    IrTerm {
+                                        t_i32: i,
+                                    },
+                                ),
+                            },
+                        },
+                        offset: IrTerm {
+                            t_i32: 0,
+                        },
+                    },
+                }?;
+            }
+        }
+
+        return nil;
+    }
+
+    fun replace_captured_variable_with_self_env(self, name: string): IrTerm? {
+        for i in 0..self.captures.length {
+            let c = self.captures.(i);
+            if c.name == name {
+                if self.env_name == nil {
+                    return panic("env_name is nil, when searching for {}".format(c.name));
+                }
+
+                return IrTerm {
+                    t_load: struct {
+                        type_: IrType {
+                            t_address: true,
+                        },
+                        address: IrTerm {
+                            t_ident: self.env_name!,
+                        },
+                        offset: IrCodeGenerator::wrap_mult_sizeof(
+                            IrType::new(c.type_),
+                            IrTerm {
+                                t_i32: i,
+                            },
+                        ),
+                    },
+                }?;
+            }
+        }
+
+        return nil;
     }
 
     fun register_string(self, str: string): IrTerm {
