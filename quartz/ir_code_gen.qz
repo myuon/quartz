@@ -3121,12 +3121,15 @@ module IrCodeGenerator {
                 locals.push(k);
             }
 
-            self.closures.(expr.t_closure!.func.name.data) = (struct {
+            // FIXME: self.closures.(expr.t_closure!.func.name.data) = struct {...};
+            // will add a new entry to self.closures before the right value is generated.
+            let term = struct {
                 closure: IrTerm {
                     t_func: self.function(expr.t_closure!.func, captures, env_name?).try,
                 },
                 captures: captures_types,
-            });
+            };
+            self.closures.(expr.t_closure!.func.name.data) = term;
 
             let elements = make[vec[IrTerm]]();
             let captures_ir = make[vec[IrType]]();
