@@ -1085,7 +1085,7 @@ fun map_insert(map: Map, key: string, value: any) {
         };
 
         for i in 0..map.capacity {
-            let entry = map.entries.at(i);
+            let entry = map.entries.(i);
             if entry.key == nil {
                 continue;
             }
@@ -2101,3 +2101,4 @@ module unixtime {
         return now_nanosec() / (1000 as i64) / (1000 as i64) / (1000 as i64);
     }
 }
+
