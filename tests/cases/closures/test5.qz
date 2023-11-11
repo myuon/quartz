@@ -2,12 +2,12 @@ fun call_0(f: fun[(), i32]): i32 {
     return f();
 }
 
-fun call_1(f: fun[( i32), i32], x: i32): i32 {
+fun call_1(f: fun[(i32), i32], x: i32): i32 {
     return f(x);
 }
 
 fun main() {
-    println(call_0( fun (): i32 {
+    println(call_0(fun (): i32 {
         return 10;
     }).to_string());
 
