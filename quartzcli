@@ -1,5 +1,6 @@
 #!/bin/bash
 export MODE=run-wat
 export WAT_FILE=~/.local/bin/quartz-current.wat
+export QUARTZ_LIB_PATH=~/qkg/pkgs/quartz@master
 
 ~/.local/bin/quartz_bin "$@"
