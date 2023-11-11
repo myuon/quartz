@@ -1442,17 +1442,34 @@ module IrCodeGenerator {
         } else if stm.t_for != nil {
             if stm.t_for!.mode.equal("range") {
                 let range = stm.t_for!.range.data.t_range!;
+                let range_start = self.expression(range.start).try;
+                let range_end = self.expression(range.end).try;
+
+                let symbol = format("{}_{}", stm.t_for!.ident, stm.t_for!.range.location.start!.to_string());
+
+                let prev_ident = nil as string?;
+                if self.locals.has(stm.t_for!.ident) {
+                    prev_ident = self.locals.(stm.t_for!.ident)?;
+                }
+
+                self.locals.insert(stm.t_for!.ident, symbol);
+
+                let terms = self.block(stm.t_for!.block).try;
+
+                if prev_ident != nil {
+                    self.locals.insert(stm.t_for!.ident, prev_ident!);
+                }
 
                 return IrTerm {
                     t_seq: struct {
                         terms: make[vec[IrTerm]](
                             IrTerm {
                                 t_let: IrLet {
-                                    name: stm.t_for!.ident,
+                                    name: symbol,
                                     type_: IrType {
                                         t_i32: true,
                                     },
-                                    value: self.expression(range.start).try,
+                                    value: range_start,
                                 },
                             },
                             IrTerm {
@@ -1464,20 +1481,20 @@ module IrCodeGenerator {
                                             },
                                             args: make[vec[IrTerm]](
                                                 IrTerm {
-                                                    t_ident: stm.t_for!.ident,
+                                                    t_ident: symbol,
                                                 },
-                                                self.expression(range.end).try,
+                                                range_end,
                                             ),
                                         },
                                     },
                                     block: IrTerm {
                                         t_seq: struct {
-                                            terms: self.block(stm.t_for!.block).try,
+                                            terms: terms,
                                         },
                                     },
                                     cleanup: IrTerm {
                                         t_assign: struct {
-                                            lhs: stm.t_for!.ident,
+                                            lhs: symbol,
                                             rhs: IrTerm {
                                                 t_call: IrCall {
                                                     callee: IrTerm {
@@ -1485,7 +1502,7 @@ module IrCodeGenerator {
                                                     },
                                                     args: make[vec[IrTerm]](
                                                         IrTerm {
-                                                            t_ident: stm.t_for!.ident,
+                                                            t_ident: symbol,
                                                         },
                                                         IrTerm {
                                                             t_i32: 1,
