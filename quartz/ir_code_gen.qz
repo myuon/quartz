@@ -286,7 +286,7 @@ module ITableMap {
 
 struct IrCodeGenerator {
     globals: map[string, LType],
-    locals: map[string, bool],
+    locals: map[string, string],
     interfaces: map[string, Interface],
     current_path: Path,
     strings: StringTable,
@@ -320,7 +320,7 @@ module IrCodeGenerator {
     fun new(test_mode: bool, entrypoint: string): IrCodeGenerator {
         return IrCodeGenerator {
             globals: make[map[string, LType]](),
-            locals: make[map[string, bool]](),
+            locals: make[map[string, string]](),
             interfaces: make[map[string, Interface]](),
             current_path: Path::new(),
             strings: StringTable::new(),
@@ -1213,7 +1213,7 @@ module IrCodeGenerator {
         }
 
         let prev_locals = self.locals;
-        self.locals = make[map[string, bool]]();
+        self.locals = make[map[string, string]]();
         body.extend(self.block(func.body).try);
 
         let params = make[vec[struct {
@@ -1285,15 +1285,16 @@ module IrCodeGenerator {
     fun let_pattern(self, pat: LPattern, name_type: Type, expr: IrTerm): IrTerm or error {
         if pat.data.t_ident != nil {
             let name = pat.data.t_ident!;
+            let symbol = format("{}_{}", name, pat.location.start!.to_string());
 
             let term = IrTerm {
                 t_let: IrLet {
-                    name: name,
+                    name: symbol,
                     type_: IrType::new(name_type),
                     value: expr,
                 },
             };
-            self.locals.insert(name, true);
+            self.locals.insert(name, symbol);
 
             return term;
         } else if pat.data.t_or != nil {
@@ -1945,6 +1946,12 @@ module IrCodeGenerator {
             let replaced = self.replace_captured_variable(expr.t_ident!.name);
             if replaced != nil {
                 return replaced!;
+            }
+
+            if self.locals.has(expr.t_ident!.name) {
+                return IrTerm {
+                    t_ident: self.locals.(expr.t_ident!.name),
+                };
             }
 
             return IrTerm {
