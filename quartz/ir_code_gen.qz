@@ -1197,6 +1197,8 @@ module IrCodeGenerator {
     ): IrFunc or error {
         self.current_function_name = func.name.data;
         self.function_no_allocation = func.no_allocation;
+
+        let prev_captures = self.captures;
         self.captures = captures;
 
         let prev_escaping = self.escaping;
@@ -1248,6 +1250,8 @@ module IrCodeGenerator {
         self.env_name = prev_env;
 
         self.locals = prev_locals;
+
+        self.captures = prev_captures;
 
         return IrFunc {
             name: self.path_to(func.name.data),
