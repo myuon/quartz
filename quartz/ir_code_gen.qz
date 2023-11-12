@@ -351,6 +351,16 @@ module IrCodeGenerator {
         };
     }
 
+    fun clone_locals(self): map[string, string] {
+        let m = make[map[string, string]]();
+
+        for k in self.locals.list_keys() {
+            m.(k) = self.locals.(k);
+        }
+
+        return m;
+    }
+
     fun set_interfaces(self, is: map[string, Interface]) {
         for name in is.list_keys() {
             self.interface_ids.get_or_insert(name);
@@ -1395,17 +1405,21 @@ module IrCodeGenerator {
 
             return self.assign(lhs, IrType::new(stm.t_assign!.rhs_type!), rhs).try;
         } else if stm.t_if != nil {
+            let prev_locals = self.clone_locals();
             let then_elements = make[vec[IrTerm]]();
             for i in 0..stm.t_if!.then_block.data.block.length {
                 then_elements.push(self.statement(stm.t_if!.then_block.data.block.at(i)).try);
             }
 
+            self.locals = prev_locals;
             let else_elements = make[vec[IrTerm]]();
             if stm.t_if!.else_block != nil {
                 for i in 0..stm.t_if!.else_block!.data.block.length {
                     else_elements.push(self.statement(stm.t_if!.else_block!.data.block.at(i)).try);
                 }
             }
+
+            self.locals = prev_locals;
 
             return IrTerm {
                 t_if: struct {
