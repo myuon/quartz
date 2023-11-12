@@ -1,0 +1,20 @@
+fun f(a: i32, p: any) {
+    println("{}", a.to_string());
+}
+
+fun main() {
+    let a = 10;
+
+    f(
+        5,
+        fun (resp_id: i32) {
+            f(
+                a,
+                fun () {
+                    panic("Image failed to load");
+                },
+            );
+        },
+    );
+}
+

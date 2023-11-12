@@ -1,0 +1,34 @@
+fun main() {
+    let a = 100;
+    println(a.to_string());
+
+    let a = 200;
+    println(a.to_string());
+
+    for a in 0..2 {
+        for b in 0..3 {
+            println("{}:{}", a.to_string(), b.to_string());
+        }
+    }
+
+    println(a.to_string());
+
+    if true {
+        let a = 300;
+        println(a.to_string());
+    }
+
+    println(a.to_string());
+
+    let count = 0;
+    while count == 0 {
+        let a = 300;
+
+        count = count + 1;
+    }
+
+    println(a.to_string());
+
+    println("ok");
+}
+

@@ -286,7 +286,7 @@ module ITableMap {
 
 struct IrCodeGenerator {
     globals: map[string, LType],
-    locals: map[string, bool],
+    locals: map[string, string],
     interfaces: map[string, Interface],
     current_path: Path,
     strings: StringTable,
@@ -320,7 +320,7 @@ module IrCodeGenerator {
     fun new(test_mode: bool, entrypoint: string): IrCodeGenerator {
         return IrCodeGenerator {
             globals: make[map[string, LType]](),
-            locals: make[map[string, bool]](),
+            locals: make[map[string, string]](),
             interfaces: make[map[string, Interface]](),
             current_path: Path::new(),
             strings: StringTable::new(),
@@ -349,6 +349,16 @@ module IrCodeGenerator {
             escaping: make[vec[string]](),
             env_name: nil,
         };
+    }
+
+    fun clone_locals(self): map[string, string] {
+        let m = make[map[string, string]]();
+
+        for k in self.locals.list_keys() {
+            m.(k) = self.locals.(k);
+        }
+
+        return m;
     }
 
     fun set_interfaces(self, is: map[string, Interface]) {
@@ -1212,8 +1222,8 @@ module IrCodeGenerator {
             body.push(self.setup_function_name_for_stacktrace(func.name.data));
         }
 
-        let prev_locals = self.locals;
-        self.locals = make[map[string, bool]]();
+        let prev_locals = self.clone_locals();
+        self.locals = make[map[string, string]]();
         body.extend(self.block(func.body).try);
 
         let params = make[vec[struct {
@@ -1286,14 +1296,21 @@ module IrCodeGenerator {
         if pat.data.t_ident != nil {
             let name = pat.data.t_ident!;
 
+            let start = pat.location.start;
+            if start == nil {
+                start = self.counter?;
+                self.counter = self.counter + 1;
+            }
+            let symbol = format("{}_{}", name, start!.to_string());
+
             let term = IrTerm {
                 t_let: IrLet {
-                    name: name,
+                    name: symbol,
                     type_: IrType::new(name_type),
                     value: expr,
                 },
             };
-            self.locals.insert(name, true);
+            self.locals.insert(name, symbol);
 
             return term;
         } else if pat.data.t_or != nil {
@@ -1394,11 +1411,15 @@ module IrCodeGenerator {
 
             return self.assign(lhs, IrType::new(stm.t_assign!.rhs_type!), rhs).try;
         } else if stm.t_if != nil {
+            let condition = self.expression(stm.t_if!.condition).try;
+
+            let prev_locals = self.clone_locals();
             let then_elements = make[vec[IrTerm]]();
             for i in 0..stm.t_if!.then_block.data.block.length {
                 then_elements.push(self.statement(stm.t_if!.then_block.data.block.at(i)).try);
             }
 
+            self.locals = prev_locals;
             let else_elements = make[vec[IrTerm]]();
             if stm.t_if!.else_block != nil {
                 for i in 0..stm.t_if!.else_block!.data.block.length {
@@ -1406,9 +1427,11 @@ module IrCodeGenerator {
                 }
             }
 
+            self.locals = prev_locals;
+
             return IrTerm {
                 t_if: struct {
-                    condition: self.expression(stm.t_if!.condition).try,
+                    condition: condition,
                     then_term: IrTerm {
                         t_seq: struct {
                             terms: then_elements,
@@ -1422,14 +1445,19 @@ module IrCodeGenerator {
                 },
             };
         } else if stm.t_while != nil {
+            let condition = self.expression(stm.t_while!.condition).try;
+
+            let prev_locals = self.clone_locals();
             let body_elements = make[vec[IrTerm]]();
             for i in 0..stm.t_while!.block.data.block.length {
                 body_elements.push(self.statement(stm.t_while!.block.data.block.at(i)).try);
             }
 
+            self.locals = prev_locals;
+
             return IrTerm {
                 t_while: struct {
-                    condition: self.expression(stm.t_while!.condition).try,
+                    condition: condition,
                     block: IrTerm {
                         t_seq: struct {
                             terms: body_elements,
@@ -1441,17 +1469,35 @@ module IrCodeGenerator {
         } else if stm.t_for != nil {
             if stm.t_for!.mode.equal("range") {
                 let range = stm.t_for!.range.data.t_range!;
+                let range_start = self.expression(range.start).try;
+                let range_end = self.expression(range.end).try;
+
+                let start = stm.t_for!.range.location.start;
+                if start == nil {
+                    // NOTE: avoid NPE
+                    start = self.counter?;
+                    self.counter = self.counter + 1;
+                }
+                let symbol = format("{}_{}", stm.t_for!.ident, start!.to_string());
+
+                let prev_locals = self.clone_locals();
+
+                self.locals.insert(stm.t_for!.ident, symbol);
+
+                let terms = self.block(stm.t_for!.block).try;
+
+                self.locals = prev_locals;
 
                 return IrTerm {
                     t_seq: struct {
                         terms: make[vec[IrTerm]](
                             IrTerm {
                                 t_let: IrLet {
-                                    name: stm.t_for!.ident,
+                                    name: symbol,
                                     type_: IrType {
                                         t_i32: true,
                                     },
-                                    value: self.expression(range.start).try,
+                                    value: range_start,
                                 },
                             },
                             IrTerm {
@@ -1463,20 +1509,20 @@ module IrCodeGenerator {
                                             },
                                             args: make[vec[IrTerm]](
                                                 IrTerm {
-                                                    t_ident: stm.t_for!.ident,
+                                                    t_ident: symbol,
                                                 },
-                                                self.expression(range.end).try,
+                                                range_end,
                                             ),
                                         },
                                     },
                                     block: IrTerm {
                                         t_seq: struct {
-                                            terms: self.block(stm.t_for!.block).try,
+                                            terms: terms,
                                         },
                                     },
                                     cleanup: IrTerm {
                                         t_assign: struct {
-                                            lhs: stm.t_for!.ident,
+                                            lhs: symbol,
                                             rhs: IrTerm {
                                                 t_call: IrCall {
                                                     callee: IrTerm {
@@ -1484,7 +1530,7 @@ module IrCodeGenerator {
                                                     },
                                                     args: make[vec[IrTerm]](
                                                         IrTerm {
-                                                            t_ident: stm.t_for!.ident,
+                                                            t_ident: symbol,
                                                         },
                                                         IrTerm {
                                                             t_i32: 1,
@@ -1945,6 +1991,12 @@ module IrCodeGenerator {
             let replaced = self.replace_captured_variable(expr.t_ident!.name);
             if replaced != nil {
                 return replaced!;
+            }
+
+            if self.locals.has(expr.t_ident!.name) {
+                return IrTerm {
+                    t_ident: self.locals.(expr.t_ident!.name),
+                };
             }
 
             return IrTerm {
@@ -3120,9 +3172,9 @@ module IrCodeGenerator {
                 });
             }
 
-            let locals = make[vec[string]]();
+            let locals = make[map[string, string]]();
             for k in self.locals.list_keys() {
-                locals.push(k);
+                locals.(k) = self.locals.(k);
             }
 
             // FIXME: self.closures.(expr.t_closure!.func.name.data) = struct {...};
@@ -3148,7 +3200,7 @@ module IrCodeGenerator {
                 self.counter = self.counter + 1;
 
                 let is_local = false;
-                for l in locals {
+                for l in locals.list_keys() {
                     if l == c.name {
                         is_local = true;
                         break;
@@ -3158,6 +3210,11 @@ module IrCodeGenerator {
                 let term = IrTerm {
                     t_ident: c.name,
                 };
+                if is_local {
+                    term = IrTerm {
+                        t_ident: locals.(c.name),
+                    };
+                }
                 if !is_local {
                     let term2 = self.replace_captured_variable_with_self_env(c.name);
                     if term2 == nil {
