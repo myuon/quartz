@@ -1295,7 +1295,13 @@ module IrCodeGenerator {
     fun let_pattern(self, pat: LPattern, name_type: Type, expr: IrTerm): IrTerm or error {
         if pat.data.t_ident != nil {
             let name = pat.data.t_ident!;
-            let symbol = format("{}_{}", name, pat.location.start!.to_string());
+
+            let start = pat.location.start;
+            if start == nil {
+                start = self.counter?;
+                self.counter = self.counter + 1;
+            }
+            let symbol = format("{}_{}", name, start!.to_string());
 
             let term = IrTerm {
                 t_let: IrLet {
