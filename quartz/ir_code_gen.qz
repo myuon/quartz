@@ -1466,7 +1466,13 @@ module IrCodeGenerator {
                 let range_start = self.expression(range.start).try;
                 let range_end = self.expression(range.end).try;
 
-                let symbol = format("{}_{}", stm.t_for!.ident, stm.t_for!.range.location.start!.to_string());
+                let start = stm.t_for!.range.location.start;
+                if start == nil {
+                    // NOTE: avoid NPE
+                    start = self.counter?;
+                    self.counter = self.counter + 1;
+                }
+                let symbol = format("{}_{}", stm.t_for!.ident, start!.to_string());
 
                 let prev_locals = self.clone_locals();
 
