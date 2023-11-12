@@ -1,0 +1,38 @@
+fun switcher(v: string): string {
+    if v == "0" {
+        return "zero";
+    } else if v == "1" {
+        return "one";
+    } else if v == "2" {
+        return "two";
+    } else if v == "3" {
+        return "three";
+    } else if v == "4" {
+        return "four";
+    } else if v == "5" {
+        return "five";
+    } else if v == "6" {
+        return "six";
+    } else if v == "7" {
+        return "seven";
+    } else if v == "8" {
+        return "eight";
+    } else if v == "9" {
+        return "nine";
+    } else {
+        return "ten or more";
+    }
+}
+
+fun main() {
+    assert_eq(switcher("0"), "zero");
+    assert_eq(switcher("4"), "four");
+    assert_eq(switcher("7"), "seven");
+    assert_eq(switcher("17"), "ten or more");
+    assert_eq(switcher("9"), "nine");
+    assert_eq(switcher("6"), "six");
+    assert_eq(switcher("2"), "two");
+
+    println("ok");
+}
+
