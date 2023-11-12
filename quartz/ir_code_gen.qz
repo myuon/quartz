@@ -1222,7 +1222,7 @@ module IrCodeGenerator {
             body.push(self.setup_function_name_for_stacktrace(func.name.data));
         }
 
-        let prev_locals = self.locals;
+        let prev_locals = self.clone_locals();
         self.locals = make[map[string, string]]();
         body.extend(self.block(func.body).try);
 
@@ -3158,9 +3158,9 @@ module IrCodeGenerator {
                 });
             }
 
-            let locals = make[vec[string]]();
+            let locals = make[map[string, string]]();
             for k in self.locals.list_keys() {
-                locals.push(k);
+                locals.(k) = self.locals.(k);
             }
 
             // FIXME: self.closures.(expr.t_closure!.func.name.data) = struct {...};
@@ -3186,7 +3186,7 @@ module IrCodeGenerator {
                 self.counter = self.counter + 1;
 
                 let is_local = false;
-                for l in locals {
+                for l in locals.list_keys() {
                     if l == c.name {
                         is_local = true;
                         break;
@@ -3196,6 +3196,11 @@ module IrCodeGenerator {
                 let term = IrTerm {
                     t_ident: c.name,
                 };
+                if is_local {
+                    term = IrTerm {
+                        t_ident: locals.(c.name),
+                    };
+                }
                 if !is_local {
                     let term2 = self.replace_captured_variable_with_self_env(c.name);
                     if term2 == nil {
