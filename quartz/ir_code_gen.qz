@@ -1437,10 +1437,13 @@ module IrCodeGenerator {
                 },
             };
         } else if stm.t_while != nil {
+            let prev_locals = self.clone_locals();
             let body_elements = make[vec[IrTerm]]();
             for i in 0..stm.t_while!.block.data.block.length {
                 body_elements.push(self.statement(stm.t_while!.block.data.block.at(i)).try);
             }
+
+            self.locals = prev_locals;
 
             return IrTerm {
                 t_while: struct {

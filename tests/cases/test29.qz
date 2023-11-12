@@ -20,6 +20,15 @@ fun main() {
 
     println(a.to_string());
 
+    let count = 0;
+    while count == 0 {
+        let a = 300;
+
+        count = count + 1;
+    }
+
+    println(a.to_string());
+
     println("ok");
 }
 
