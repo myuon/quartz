@@ -1468,18 +1468,13 @@ module IrCodeGenerator {
 
                 let symbol = format("{}_{}", stm.t_for!.ident, stm.t_for!.range.location.start!.to_string());
 
-                let prev_ident = nil as string?;
-                if self.locals.has(stm.t_for!.ident) {
-                    prev_ident = self.locals.(stm.t_for!.ident)?;
-                }
+                let prev_locals = self.clone_locals();
 
                 self.locals.insert(stm.t_for!.ident, symbol);
 
                 let terms = self.block(stm.t_for!.block).try;
 
-                if prev_ident != nil {
-                    self.locals.insert(stm.t_for!.ident, prev_ident!);
-                }
+                self.locals = prev_locals;
 
                 return IrTerm {
                     t_seq: struct {
