@@ -1405,6 +1405,8 @@ module IrCodeGenerator {
 
             return self.assign(lhs, IrType::new(stm.t_assign!.rhs_type!), rhs).try;
         } else if stm.t_if != nil {
+            let condition = self.expression(stm.t_if!.condition).try;
+
             let prev_locals = self.clone_locals();
             let then_elements = make[vec[IrTerm]]();
             for i in 0..stm.t_if!.then_block.data.block.length {
@@ -1423,7 +1425,7 @@ module IrCodeGenerator {
 
             return IrTerm {
                 t_if: struct {
-                    condition: self.expression(stm.t_if!.condition).try,
+                    condition: condition,
                     then_term: IrTerm {
                         t_seq: struct {
                             terms: then_elements,
@@ -1437,6 +1439,8 @@ module IrCodeGenerator {
                 },
             };
         } else if stm.t_while != nil {
+            let condition = self.expression(stm.t_while!.condition).try;
+
             let prev_locals = self.clone_locals();
             let body_elements = make[vec[IrTerm]]();
             for i in 0..stm.t_while!.block.data.block.length {
@@ -1447,7 +1451,7 @@ module IrCodeGenerator {
 
             return IrTerm {
                 t_while: struct {
-                    condition: self.expression(stm.t_while!.condition).try,
+                    condition: condition,
                     block: IrTerm {
                         t_seq: struct {
                             terms: body_elements,
