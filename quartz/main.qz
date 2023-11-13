@@ -325,7 +325,7 @@ fun test_parse() {
 }
 
 fun start(): nil or error {
-    let compiler_version = "3.1.4";
+    let compiler_version = "3.1.5";
 
     let args = args();
     let command or err = CliCommand::parse(args.slice(1, args.length));
