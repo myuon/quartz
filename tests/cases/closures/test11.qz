@@ -1,0 +1,43 @@
+fun js_fetch(url: string, call: fun[(i32), nil]) {
+    call(10);
+}
+
+fun js_image_set_onload(image: any, call: fun[(), nil]) {
+    call();
+}
+
+fun js_image_set_onerror(image: any, call: fun[(), nil]) {
+    call();
+}
+
+fun js_context_draw_image(context: any, image: any, x: i32, y: i32) {
+    debug(context);
+    debug(image);
+    debug(x);
+    debug(y);
+}
+
+fun main() {
+    let rhb = 200;
+    let context = "context";
+    let image = "image";
+
+    js_fetch(
+        "assets/rhb.json",
+        fun (resp_id: i32) {
+            js_image_set_onload(
+                rhb,
+                fun () {
+                    js_context_draw_image(context, rhb, 0, 0);
+                },
+            );
+            js_image_set_onerror(
+                image,
+                fun () {
+                    panic("Image failed to load");
+                },
+            );
+        },
+    );
+}
+
