@@ -1512,6 +1512,11 @@ module derive {
             indent = " ".repeat(depth * 4);
         }
 
+        let indent_prev = " ";
+        if pretty {
+            indent_prev = " ".repeat((depth - 1) * 4);
+        }
+
         let rep = reflection::get_type_rep(t);
         if rep.name.equal("string") {
             return format(`"{}"`, t as string);
@@ -1573,9 +1578,14 @@ module derive {
             let tag_name = rep.fields.at(tag);
 
             let v = (t as ptr[any]).at(1);
-            s = s.concat(format(" {}: {} }", tag_name, derive::to_string_internal(v, pretty, depth + 1)));
+            s = s.concat(format(
+                "{}{}: {}",
+                indent,
+                tag_name,
+                derive::to_string_internal(v, pretty, depth + 1),
+            ));
 
-            return s;
+            return s.concat("{}{}}".format(sep, indent_prev));
         }
 
         let s = format("{} {{}", rep.name, sep);
@@ -1589,7 +1599,7 @@ module derive {
             s = s.concat(format("{}{}: {}", indent, f, derive::to_string_internal(v, pretty, depth + 1)));
         }
 
-        return s.concat(" }");
+        return s.concat("{}{}}".format(sep, indent_prev));
     }
 
     fun to_string(t: any): string {
