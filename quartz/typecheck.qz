@@ -37,6 +37,7 @@ struct Typechecker {
     }],
     current_function_name: string?,
     captured: vec[string],
+    env: map[string, LType],
 }
 
 module Typechecker {
@@ -370,6 +371,7 @@ module Typechecker {
             }]](),
             current_function_name: nil,
             captured: make[vec[string]](),
+            env: make[map[string, LType]](),
         };
     }
 
@@ -642,12 +644,10 @@ module Typechecker {
         return _ or error::new(format("unimplemented: decl, {}", d.to_string()));
     }
 
-    fun function(self, f: Function, locals_init: map[string, LType]): Type or error {
-        let locals = self.locals;
+    fun function(self, f: Function, env: map[string, LType]): Type or error {
+        let prev_locals = self.locals;
         self.locals = make[map[string, LType]]();
-        for k in locals_init.list_keys() {
-            self.locals.insert(k, locals_init.(k));
-        }
+        self.env = env;
 
         self.captured = make[vec[string]]();
 
@@ -678,28 +678,8 @@ module Typechecker {
         self.result_type = f.result_type?;
         self.block(f.body).try;
 
-        let captured_local = make[map[string, bool]]();
-        for c in self.captured {
-            captured_local.insert(c, true);
-        }
-        for p in f.params {
-            captured_local.insert(p.name, false);
-        }
-        for l in self.locals.list_keys() {
-            if !locals_init.has(l) {
-                captured_local.insert(l, false);
-            }
-        }
-
-        self.captured = make[vec[string]]();
-        for c in captured_local.list_keys() {
-            if captured_local.(c) {
-                self.captured.push(c);
-            }
-        }
-
-        self.locals = locals;
         self.current_function_name = nil;
+        self.locals = prev_locals;
 
         let ps = make[vec[Type]]();
         for param in f.params {
@@ -1049,8 +1029,16 @@ module Typechecker {
             return _ or error::new("unimplemented: binop, {}".format(expr.to_string()));
         } else if expr.t_ident != nil {
             if self.locals.has(expr.t_ident!.name) {
-                self.captured.push(expr.t_ident!.name);
                 let t = self.locals.at(expr.t_ident!.name);
+                self.set_search_node_type(t.data, lexpr.location);
+                self.set_search_node_definition(self.current_path, t.location, lexpr.location);
+                self.set_completion(t.data, lexpr.location).try;
+
+                return t.data;
+            }
+            if self.env.has(expr.t_ident!.name) {
+                self.captured.push(expr.t_ident!.name);
+                let t = self.env.at(expr.t_ident!.name);
                 self.set_search_node_type(t.data, lexpr.location);
                 self.set_search_node_definition(self.current_path, t.location, lexpr.location);
                 self.set_completion(t.data, lexpr.location).try;
@@ -1782,9 +1770,10 @@ module Typechecker {
                 lexpr.location.start!.to_string(),
             );
 
-            let prev = self.current_function_name;
+            let prev_name = self.current_function_name;
+            let prev_captured = self.captured;
             let func_type = self.function(expr.t_closure!.func, self.locals).try;
-            self.current_function_name = prev;
+            self.current_function_name = prev_name;
 
             let captures = make[vec[struct {
                 name: string,
@@ -1797,6 +1786,8 @@ module Typechecker {
                 });
             }
             expr.t_closure!.captures = captures;
+
+            self.captured = prev_captured;
 
             return Type {
                 t_closure: struct {
