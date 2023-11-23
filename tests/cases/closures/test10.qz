@@ -1,5 +1,6 @@
-fun f(a: i32, p: any) {
+fun f(a: i32, p: fun[(i32), nil]) {
     println("{}", a.to_string());
+    p(7);
 }
 
 fun main() {
@@ -10,11 +11,13 @@ fun main() {
         fun (resp_id: i32) {
             f(
                 a,
-                fun () {
-                    panic("Image failed to load");
+                fun (arg: i32) {
+                    println("called with {}", arg.to_string());
                 },
             );
         },
     );
+
+    println("ok");
 }
 
