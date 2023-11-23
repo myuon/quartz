@@ -18,13 +18,13 @@ fun js_context_draw_image(context: string, image: i32, x: i32, y: i32) {
 }
 
 fun main() {
-    let rhb = 200;
     let context = "context";
     let image = "image";
 
     js_fetch(
         "assets/rhb.json",
         fun (resp_id: i32) {
+            let rhb = 200;
             js_image_set_onload(
                 rhb,
                 fun () {

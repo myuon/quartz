@@ -36,7 +36,7 @@ struct Typechecker {
         }],
     }],
     current_function_name: string?,
-    captured: vec[string],
+    captured: map[string, LType],
     env: map[string, LType],
 }
 
@@ -370,7 +370,7 @@ module Typechecker {
                 }],
             }]](),
             current_function_name: nil,
-            captured: make[vec[string]](),
+            captured: make[map[string, LType]](),
             env: make[map[string, LType]](),
         };
     }
@@ -646,13 +646,18 @@ module Typechecker {
 
     fun function(self, f: Function): Type or error {
         let prev_locals = self.locals;
-        let prev_env = self.env;
+
+        let prev_env = make[map[string, LType]]();
+        for e in self.env.list_keys() {
+            prev_env.insert(e, self.env.at(e));
+        }
+
         for l in self.locals.list_keys() {
             self.env.insert(l, self.locals.at(l));
         }
         self.locals = make[map[string, LType]]();
 
-        self.captured = make[vec[string]]();
+        self.captured = make[map[string, LType]]();
 
         self.current_function_name = f.name.data?;
 
@@ -1041,7 +1046,7 @@ module Typechecker {
                 return t.data;
             }
             if self.env.has(expr.t_ident!.name) {
-                self.captured.push(expr.t_ident!.name);
+                self.captured.insert(expr.t_ident!.name, self.env.(expr.t_ident!.name));
                 let t = self.env.at(expr.t_ident!.name);
                 self.set_search_node_type(t.data, lexpr.location);
                 self.set_search_node_definition(self.current_path, t.location, lexpr.location);
@@ -1783,17 +1788,21 @@ module Typechecker {
                 name: string,
                 type_: Type,
             }]]();
-            for c in self.captured {
+            for c in self.captured.list_keys() {
                 captures.push(struct {
                     name: c,
-                    type_: self.env.(c).data,
+                    type_: self.captured.(c).data,
                 });
             }
             expr.t_closure!.captures = captures;
 
             // merge with previous captures
-            for p in prev_captured {
-                self.captured.push(p);
+            for p in prev_captured.list_keys() {
+                // skip if this is a local variable
+                if self.locals.has(p) {
+                    continue;
+                }
+                self.captured.insert(p, prev_captured.(p));
             }
 
             return Type {
