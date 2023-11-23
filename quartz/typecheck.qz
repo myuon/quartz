@@ -1791,7 +1791,10 @@ module Typechecker {
             }
             expr.t_closure!.captures = captures;
 
-            self.captured = prev_captured;
+            // merge with previous captures
+            for p in prev_captured {
+                self.captured.push(p);
+            }
 
             return Type {
                 t_closure: struct {
