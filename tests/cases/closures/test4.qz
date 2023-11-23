@@ -3,7 +3,6 @@ fun main() {
     let outer = fun () {
         let x = "outer";
         let inner = fun () {
-            let x = "inner";
             println(x);
         };
         inner();
